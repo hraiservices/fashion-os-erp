@@ -114,6 +114,30 @@ export async function generateSql(question: string, glossary: GlossaryEntry[] = 
   return parsed.sql;
 }
 
+const BRIEFING_SYSTEM_PROMPT = `You are a friendly, precise business assistant writing a short daily briefing for the
+owner of an Indian tailoring shop + product sales business. You'll be given a JSON summary of
+today's key numbers. Turn it into 3-5 short sentences (or a tight bulleted list) highlighting
+what needs attention today — overdue balances, low stock, and today's activity so far.
+
+Rules:
+- Lead with whatever is most actionable (overdue money, low stock) — don't bury it.
+- Use ₹ for currency, state actual numbers.
+- If everything is quiet (no overdue, no low stock), say so briefly and positively — don't pad.
+- Keep it conversational, no markdown tables or code blocks. A short bulleted list is fine.`;
+
+export async function generateBriefing(summary: unknown): Promise<string> {
+  const ai = getClient();
+  const response = await ai.models.generateContent({
+    model: MODEL,
+    contents: [{ role: "user", parts: [{ text: `Today's business summary (JSON): ${JSON.stringify(summary)}` }] }],
+    config: {
+      systemInstruction: BRIEFING_SYSTEM_PROMPT,
+      temperature: 0.3,
+    },
+  });
+  return response.text?.trim() || "Couldn't generate today's briefing — try again shortly.";
+}
+
 export async function generateAnswer(question: string, rows: unknown[]): Promise<string> {
   const ai = getClient();
   const response = await ai.models.generateContent({

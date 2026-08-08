@@ -31,7 +31,7 @@ const paymentTermLabel = (v: unknown) => PAYMENT_TERM_LABELS[v as PaymentTerm] ?
 const discountTypeLabel = (v: unknown) => (v === "percent" ? "Percent (%)" : "Flat (₹)");
 
 function placeholderCustomer(name: string, mobile: string, paymentTerms = "due_on_receipt"): Customer {
-  return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms, priceListId: null };
+  return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms, priceListId: null, tags: [] };
 }
 
 export function InvoiceForm({ prefillQuoteId, prefillCloneId, existing }: { prefillQuoteId?: string; prefillCloneId?: string; existing?: SalesInvoice }) {

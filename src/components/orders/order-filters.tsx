@@ -12,6 +12,8 @@ export type DatePreset = "all" | "month" | "custom";
 export type Priority = "all" | "overdue" | "soon" | "normal";
 export type Sort = "newest" | "oldest";
 
+export type OrderTypeFilter = "all" | "new" | "alteration";
+
 export interface FilterState {
   tailor: string;
   stage: string;
@@ -20,6 +22,7 @@ export interface FilterState {
   datePreset: DatePreset;
   customFrom: string;
   customTo: string;
+  orderType: OrderTypeFilter;
 }
 
 export const EMPTY_FILTERS: FilterState = {
@@ -30,6 +33,7 @@ export const EMPTY_FILTERS: FilterState = {
   datePreset: "all",
   customFrom: "",
   customTo: "",
+  orderType: "all",
 };
 
 export function activeFilterCount(f: FilterState): number {
@@ -38,6 +42,7 @@ export function activeFilterCount(f: FilterState): number {
   if (f.stage !== "all") n++;
   if (f.priority !== "all") n++;
   if (f.datePreset !== "all") n++;
+  if (f.orderType !== "all") n++;
   return n;
 }
 
@@ -48,11 +53,18 @@ const PRIORITY_LABEL: Record<Priority, string> = {
   normal: "On track",
 };
 
+const ORDER_TYPE_LABEL: Record<OrderTypeFilter, string> = {
+  all: "All types",
+  new: "New orders",
+  alteration: "Alterations",
+};
+
 // Base UI's SelectValue renders the raw stored value unless given a formatter, which
 // would surface "all" / "received" instead of "All stages" / "Received".
 const tailorLabel = (v: unknown) => (v === "all" ? "All tailors" : String(v ?? ""));
 const stageLabel = (v: unknown) => (v === "all" ? "All stages" : (STAGE_META[v as Stage]?.label ?? String(v ?? "")));
 const priorityLabel = (v: unknown) => PRIORITY_LABEL[v as Priority] ?? String(v ?? "");
+const orderTypeLabel = (v: unknown) => ORDER_TYPE_LABEL[v as OrderTypeFilter] ?? String(v ?? "");
 
 function TailorSelect({ value, onChange, tailors }: { value: string; onChange: (v: string) => void; tailors: string[] }) {
   return (
@@ -100,6 +112,23 @@ function PrioritySelect({ value, onChange }: { value: Priority; onChange: (v: Pr
         {(Object.keys(PRIORITY_LABEL) as Priority[]).map((p) => (
           <SelectItem key={p} value={p}>
             {PRIORITY_LABEL[p]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function OrderTypeSelect({ value, onChange }: { value: OrderTypeFilter; onChange: (v: OrderTypeFilter) => void }) {
+  return (
+    <Select value={value} onValueChange={(v) => v && onChange(v as OrderTypeFilter)}>
+      <SelectTrigger className="w-full">
+        <SelectValue>{orderTypeLabel}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {(Object.keys(ORDER_TYPE_LABEL) as OrderTypeFilter[]).map((t) => (
+          <SelectItem key={t} value={t}>
+            {ORDER_TYPE_LABEL[t]}
           </SelectItem>
         ))}
       </SelectContent>
@@ -168,6 +197,10 @@ export function OrderFilters({
           <Label className="mb-1.5 block text-xs text-muted-foreground">Priority</Label>
           <PrioritySelect value={value.priority} onChange={(v) => set({ priority: v })} />
         </div>
+        <div className="w-36">
+          <Label className="mb-1.5 block text-xs text-muted-foreground">Order type</Label>
+          <OrderTypeSelect value={value.orderType} onChange={(v) => set({ orderType: v })} />
+        </div>
         <div>
           <Label className="mb-1.5 block text-xs text-muted-foreground">Order date</Label>
           <DatePresetButtons value={value.datePreset} onChange={(v) => set({ datePreset: v })} />
@@ -212,6 +245,10 @@ export function OrderFilters({
             <div className="space-y-1.5">
               <Label className="text-xs">Priority</Label>
               <PrioritySelect value={value.priority} onChange={(v) => set({ priority: v })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Order type</Label>
+              <OrderTypeSelect value={value.orderType} onChange={(v) => set({ orderType: v })} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Order date</Label>

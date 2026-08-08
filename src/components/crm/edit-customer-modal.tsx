@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TagPicker } from "@/components/ui/tag-picker";
 import { useSaveCustomer } from "@/hooks/use-customer-mutations";
 import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -59,6 +60,7 @@ export function EditCustomerModal({ cust, open, onOpenChange }: { cust: Customer
     hydrateMeasurements(fields, cust.measurements)
   );
   const [measureOpen, setMeasureOpen] = useState(false);
+  const [tags, setTags] = useState<string[]>(cust.tags || []);
 
   const {
     register,
@@ -95,6 +97,7 @@ export function EditCustomerModal({ cust, open, onOpenChange }: { cust: Customer
         paymentTerms: values.paymentTerms || "due_on_receipt",
         priceListId: values.priceListId && values.priceListId !== NO_PRICE_LIST ? values.priceListId : null,
         measurements: measurePayload,
+        tags,
         userEmail: user?.email,
       });
       toast.success("Profile saved");
@@ -175,6 +178,11 @@ export function EditCustomerModal({ cust, open, onOpenChange }: { cust: Customer
                       </Select>
                     )}
                   />
+                </Field>
+              </div>
+              <div className="mt-3">
+                <Field label="Tags">
+                  <TagPicker value={tags} onChange={setTags} />
                 </Field>
               </div>
             </section>

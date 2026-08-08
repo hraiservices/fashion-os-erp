@@ -10,6 +10,7 @@ import { Plus, Trash2, User, Shirt, Wallet, Ruler, Gift, Check } from "lucide-re
 import { useCreateOrder, useUpdateOrder } from "@/hooks/use-order-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useActiveTailorNames } from "@/hooks/use-employees";
 import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
@@ -17,7 +18,7 @@ import { DEFAULT_RATES, LINING_LABELS, computeRedemption, loyaltyTier, type Lini
 import { hydrateMeasurements, compactMeasurements, toMKey, type MeasureLang } from "@/lib/measurements";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { Order } from "@/lib/types";
+import type { Order, OrderType } from "@/lib/types";
 import { MeasurementGrid } from "@/components/measurements/measurement-grid";
 import { MediaCapture } from "@/components/orders/media-capture";
 import { Button } from "@/components/ui/button";
@@ -60,9 +61,9 @@ function todayISO(): string {
  * react-hook-form captures defaultValues once at first render, so mounting early would lock
  * in a stale/hardcoded rate card for a new order.
  */
-export function OrderForm({ existingOrder, prefillMobile }: { existingOrder?: Order; prefillMobile?: string }) {
+export function OrderForm({ existingOrder, prefillMobile, initialOrderType }: { existingOrder?: Order; prefillMobile?: string; initialOrderType?: OrderType }) {
   const { data: rates, isLoading: ratesLoading } = useAppSetting<RateCard>("rates", DEFAULT_RATES);
-  const { data: tailors, isLoading: tailorsLoading } = useAppSetting<string[]>("tailors", []);
+  const { data: tailors, isLoading: tailorsLoading } = useActiveTailorNames();
   const { data: measureFields, isLoading: fieldsLoading } = useMeasureFields();
 
   if (ratesLoading || tailorsLoading || fieldsLoading) return <Skeleton className="h-96 w-full" />;
@@ -71,6 +72,7 @@ export function OrderForm({ existingOrder, prefillMobile }: { existingOrder?: Or
     <OrderFormFields
       existingOrder={existingOrder}
       prefillMobile={prefillMobile}
+      initialOrderType={initialOrderType}
       rates={rates || DEFAULT_RATES}
       tailors={tailors || []}
       measureFields={measureFields || []}
@@ -121,12 +123,14 @@ function Field({ label, error, children, className }: { label: string; error?: s
 function OrderFormFields({
   existingOrder,
   prefillMobile,
+  initialOrderType,
   rates,
   tailors,
   measureFields,
 }: {
   existingOrder?: Order;
   prefillMobile?: string;
+  initialOrderType?: OrderType;
   rates: RateCard;
   tailors: string[];
   measureFields: string[];
@@ -141,6 +145,9 @@ function OrderFormFields({
   const defaultGarmentType = garmentTypes[0] || "";
   const defaultTailor = tailors[0] || "";
 
+  const [orderType, setOrderType] = useState<OrderType>(existingOrder?.orderType || initialOrderType || "new");
+  const isAlteration = orderType === "alteration";
+
   const [measurements, setMeasurements] = useState<Record<string, string>>(() =>
     hydrateMeasurements(measureFields, existingOrder?.measurements)
   );
@@ -150,6 +157,7 @@ function OrderFormFields({
   const [videos, setVideos] = useState<string[]>(existingOrder?.videos || []);
   const [usePoints, setUsePoints] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
+  const [measureOpen, setMeasureOpen] = useState(!isAlteration);
 
   const {
     register,
@@ -245,6 +253,7 @@ function OrderFormFields({
             images,
             audios,
             videos,
+            orderType,
           },
           userEmail: user?.email,
         });
@@ -259,6 +268,7 @@ function OrderFormFields({
           audios,
           videos,
           usePoints,
+          orderType,
         });
         toast.success(res.ptDiscount > 0 ? `Order ${res.order.id} created · ${inr(res.ptDiscount)} points discount applied` : `Order ${res.order.id} created`);
         router.push(`/orders/${res.order.id}`);
@@ -273,6 +283,26 @@ function OrderFormFields({
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         <div className="space-y-4 lg:col-span-2">
           <Section icon={User} title="Customer" description="Who is this order for?">
+            {!existingOrder && (
+              <div className="mb-4 inline-flex rounded-lg border p-0.5" role="group" aria-label="Order type">
+                <button
+                  type="button"
+                  onClick={() => setOrderType("new")}
+                  aria-pressed={orderType === "new"}
+                  className={cn("min-h-9 rounded-md px-3 text-xs font-medium transition-colors sm:min-h-8", orderType === "new" ? "bg-muted" : "text-muted-foreground")}
+                >
+                  New order
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrderType("alteration")}
+                  aria-pressed={orderType === "alteration"}
+                  className={cn("min-h-9 rounded-md px-3 text-xs font-medium transition-colors sm:min-h-8", orderType === "alteration" ? "bg-muted" : "text-muted-foreground")}
+                >
+                  Alteration / rework
+                </button>
+              </div>
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Mobile" error={errors.mobile?.message}>
                 <Input {...register("mobile")} maxLength={10} inputMode="numeric" placeholder="10-digit number" autoComplete="tel" />
@@ -307,7 +337,7 @@ function OrderFormFields({
                     )}
                   />
                 ) : (
-                  <Input {...register("tailor")} placeholder="Add tailors in Settings → Tailors" />
+                  <Input {...register("tailor")} placeholder="Add tailors in Employees" />
                 )}
               </Field>
               <Field label="Special instructions" className="sm:col-span-2">
@@ -331,14 +361,23 @@ function OrderFormFields({
               icon={Ruler}
               title="Measurements"
               description={prefilled ? "Loaded from this customer's saved profile — edit as needed." : "Saved to the customer for next time."}
+              action={
+                isAlteration ? (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setMeasureOpen((v) => !v)}>
+                    {measureOpen ? "Hide" : "Add measurements"}
+                  </Button>
+                ) : undefined
+              }
             >
-              <MeasurementGrid
-                fields={measureFields}
-                values={measurements}
-                onChange={(key, value) => setMeasurements((m) => ({ ...m, [key]: value }))}
-                lang={measureLang}
-                onLangChange={setMeasureLang}
-              />
+              {(!isAlteration || measureOpen) && (
+                <MeasurementGrid
+                  fields={measureFields}
+                  values={measurements}
+                  onChange={(key, value) => setMeasurements((m) => ({ ...m, [key]: value }))}
+                  lang={measureLang}
+                  onLangChange={setMeasureLang}
+                />
+              )}
             </Section>
           )}
 

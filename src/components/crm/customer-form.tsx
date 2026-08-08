@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TagPicker } from "@/components/ui/tag-picker";
 import { useSaveCustomer } from "@/hooks/use-customer-mutations";
 import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -50,6 +51,7 @@ export function CustomerForm() {
   const saveCustomer = useSaveCustomer();
 
   const [measurements, setMeasurements] = useState<Record<string, string>>(() => blankMeasurements(measureFields || []));
+  const [tags, setTags] = useState<string[]>([]);
 
   const {
     register,
@@ -74,6 +76,7 @@ export function CustomerForm() {
         notes: values.notes || "",
         paymentTerms: values.paymentTerms || "due_on_receipt",
         measurements: measurePayload,
+        tags,
         userEmail: user?.email,
       });
       toast.success(`${values.name} added`);
@@ -131,6 +134,11 @@ export function CustomerForm() {
                     </Select>
                   )}
                 />
+              </Field>
+            </div>
+            <div className="mt-3">
+              <Field label="Tags">
+                <TagPicker value={tags} onChange={setTags} />
               </Field>
             </div>
           </section>

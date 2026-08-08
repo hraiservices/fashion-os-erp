@@ -218,6 +218,7 @@ interface RecordSalesPaymentInput {
   method: string;
   date: string;
   note: string;
+  posSessionId?: string | null;
   userEmail?: string;
 }
 
@@ -234,6 +235,7 @@ export function useRecordSalesPayment() {
         method: input.method,
         date: input.date,
         note: input.note.trim(),
+        pos_session_id: input.posSessionId || null,
         created_by: input.userEmail || null,
       });
       if (error) throw error;

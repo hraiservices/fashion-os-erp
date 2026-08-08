@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useProducts } from "@/hooks/use-products";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
-import { useAppSetting } from "@/hooks/use-app-setting";
+import { useActiveTailorNames } from "@/hooks/use-employees";
 import { useCreateWorkOrder, useUpdateWorkOrder } from "@/hooks/use-work-order-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { genWoNumber, prefillMaterialsFromBom, type WorkOrderMaterial } from "@/lib/manufacturing";
@@ -23,7 +23,7 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
   const { data: user } = useCurrentUser();
   const { data: products } = useProducts();
   const { data: rawMaterials } = useRawMaterials();
-  const { data: tailors } = useAppSetting<string[]>("tailors", []);
+  const { data: tailors } = useActiveTailorNames();
   const createWo = useCreateWorkOrder();
   const updateWo = useUpdateWorkOrder();
   const isEdit = !!existing;
@@ -164,7 +164,7 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
                   </SelectContent>
                 </Select>
               ) : (
-                <Input value={tailor} onChange={(e) => setTailor(e.target.value)} placeholder="Add tailors in Settings → Tailors" />
+                <Input value={tailor} onChange={(e) => setTailor(e.target.value)} placeholder="Add tailors in Employees" />
               )}
             </div>
             <div className="space-y-1.5">

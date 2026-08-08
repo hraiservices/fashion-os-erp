@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, ShoppingBag, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { Plus, Search, ShoppingBag, Pencil, Trash2, AlertTriangle, Printer } from "lucide-react";
+import { printBarcodeLabel } from "@/lib/barcode";
 import { useProducts } from "@/hooks/use-products";
 import { useDeleteProduct, useBulkDeleteProducts, useQuickUpdateProduct } from "@/hooks/use-inventory-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -250,6 +251,11 @@ function ProductsPageContent() {
                     {canManage && (
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
+                          {p.barcode && (
+                            <Button variant="ghost" size="icon-sm" onClick={() => printBarcodeLabel(p)} aria-label={`Print barcode label for ${p.name}`} title="Print barcode label">
+                              <Printer className="size-3.5" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon-sm" onClick={() => openEdit(p)} aria-label={`Edit ${p.name}`}>
                             <Pencil className="size-3.5" />
                           </Button>

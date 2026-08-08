@@ -3,6 +3,10 @@
     {
       "path": "/api/recurring-invoices/generate",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/ai/daily-briefing",
+      "schedule": "30 2 * * *"
     }
   ]
 }

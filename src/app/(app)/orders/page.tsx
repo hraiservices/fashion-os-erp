@@ -76,7 +76,9 @@ function OrdersContent() {
   const [search, setSearch] = useState(() => searchParams.get("search") ?? "");
   const [filters, setFilters] = useState<FilterState>(() => {
     const stage = searchParams.get("stage");
-    return stage ? { ...EMPTY_FILTERS, stage } : EMPTY_FILTERS;
+    const type = searchParams.get("type");
+    const orderType = type === "alteration" || type === "new" ? type : "all";
+    return { ...EMPTY_FILTERS, ...(stage ? { stage } : {}), orderType };
   });
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
@@ -111,6 +113,7 @@ function OrdersContent() {
 
     if (filters.tailor !== "all") list = list.filter((o) => o.tailor === filters.tailor);
     if (filters.stage !== "all") list = list.filter((o) => o.status === filters.stage);
+    if (filters.orderType !== "all") list = list.filter((o) => o.orderType === filters.orderType);
 
     if (filters.priority !== "all") {
       list = list.filter((o) => {

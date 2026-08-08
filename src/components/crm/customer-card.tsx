@@ -12,6 +12,8 @@ import { sumOrdersOutstanding } from "@/lib/balances";
 import type { CustomerProfile } from "@/lib/crm";
 import { StageBadge } from "@/components/orders/stage-badge";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { tagBadgeClass } from "@/components/ui/tag-picker";
 import { BalanceDue } from "@/components/ui/money-text";
 import { EditCustomerModal } from "@/components/crm/edit-customer-modal";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -107,6 +109,11 @@ export function CustomerCard({ cust, loyaltyCfg }: { cust: CustomerProfile; loya
             <Ruler className="size-3" /> Measured
           </span>
         )}
+        {cust.tags.map((tag) => (
+          <Badge key={tag} variant="outline" className={tagBadgeClass(tag)}>
+            {tag}
+          </Badge>
+        ))}
         {outstanding > 0 && <BalanceDue amount={outstanding} suffix=" due" paidLabel="" className="ml-auto text-[11px]" />}
       </div>
 

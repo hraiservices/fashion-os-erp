@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { logAction } from "@/lib/logging";
-import type { ItemType } from "@/lib/inventory";
+import { genBarcode, type ItemType } from "@/lib/inventory";
 
 function invalidateInventory(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["raw-materials"] });
@@ -95,6 +95,7 @@ interface SaveProductInput {
   notes: string;
   bom: BomLineInput[];
   openingStock?: number;
+  barcode?: string;
   userEmail?: string;
 }
 
@@ -117,6 +118,7 @@ export function useSaveProduct() {
           tax_rate: input.taxRate,
           low_stock_alert: input.lowStockAlert,
           notes: input.notes.trim(),
+          barcode: input.barcode?.trim() || genBarcode(),
         })
         .select()
         .single();

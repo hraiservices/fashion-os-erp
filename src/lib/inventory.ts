@@ -45,3 +45,10 @@ export function stockKey(itemType: ItemType, itemId: string): string {
 export function isLowStock(stockQty: number, lowStockAlert: number): boolean {
   return lowStockAlert > 0 && stockQty <= lowStockAlert;
 }
+
+/** Auto-generated Code128-safe barcode for a new product — a 12-digit numeric code (timestamp tail + random), scannable and printable as-is. Stays user-editable for shops with pre-printed codes. */
+export function genBarcode(): string {
+  const time = Date.now().toString().slice(-9);
+  const rand = Math.floor(Math.random() * 900 + 100);
+  return `${time}${rand}`;
+}

@@ -18,6 +18,7 @@ export interface CustomerProfile {
   loyaltyHistory: Json[];
   paymentTerms: string;
   priceListId: string | null;
+  tags: string[];
 }
 
 /**
@@ -31,7 +32,7 @@ export function buildCustomerMap(orders: Order[], customers: Customer[]): Custom
   const BLANK_PROFILE = (name: string, mobile: string): CustomerProfile => ({
     name, mobile, email: "", dob: "", anniversary: "", address: "",
     orders: [], spent: 0, measurements: {}, notes: "",
-    loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms: "due_on_receipt", priceListId: null,
+    loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms: "due_on_receipt", priceListId: null, tags: [],
   });
 
   orders.forEach((o) => {
@@ -54,6 +55,7 @@ export function buildCustomerMap(orders: Order[], customers: Customer[]): Custom
     m[c.mobile].loyaltyHistory = c.loyaltyHistory || [];
     m[c.mobile].paymentTerms = c.paymentTerms || "due_on_receipt";
     m[c.mobile].priceListId = c.priceListId;
+    m[c.mobile].tags = c.tags || [];
   });
 
   return Object.values(m).sort((a, b) => {

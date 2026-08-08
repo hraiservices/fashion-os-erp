@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 
 export interface AdminNotification {
   id: number;
+  type: string;
   order_id: string | null;
   customer_name: string | null;
   from_stage: string | null;
   to_stage: string | null;
   user_name: string | null;
+  message: string | null;
   created_at: string;
 }
 
@@ -18,11 +20,25 @@ async function fetchNotifications(): Promise<AdminNotification[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("admin_notifications")
-    .select("id, order_id, customer_name, from_stage, to_stage, user_name, created_at")
+    .select("id, type, order_id, customer_name, from_stage, to_stage, user_name, message, created_at")
+    .eq("read", false)
     .order("created_at", { ascending: false })
     .limit(40);
   if (error) throw error;
   return data || [];
+}
+
+/** Per-item dismiss — additive on top of the existing bulk "Clear all", doesn't touch that behavior. */
+export function useDismissNotification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const supabase = createClient();
+      const { error } = await supabase.from("admin_notifications").update({ read: true }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+  });
 }
 
 /**

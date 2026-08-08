@@ -28,6 +28,7 @@ export interface Database {
           videos: Json;
           payments: Json;
           pay_breakdown: Json | null;
+          order_type: string;
           created_at: string;
           updated_at: string;
         };
@@ -55,6 +56,7 @@ export interface Database {
           loyalty_history: Json;
           payment_terms: string;
           price_list_id: string | null;
+          tags: string[];
           created_at: string;
           updated_at: string;
         };
@@ -270,6 +272,7 @@ export interface Database {
           tax_rate: number;
           low_stock_alert: number;
           notes: string;
+          barcode: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -516,6 +519,7 @@ export interface Database {
           date: string;
           note: string;
           created_by: string | null;
+          pos_session_id: string | null;
           created_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["sales_payments"]["Row"]> & {
@@ -524,6 +528,24 @@ export interface Database {
           amount: number;
         };
         Update: Partial<Database["public"]["Tables"]["sales_payments"]["Row"]>;
+        Relationships: [];
+      };
+      pos_sessions: {
+        Row: {
+          id: string;
+          opened_by: string | null;
+          opened_at: string;
+          opening_cash: number;
+          closed_at: string | null;
+          closing_cash: number | null;
+          expected_cash: number | null;
+          status: string;
+          notes: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["pos_sessions"]["Row"]> & {
+          id?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["pos_sessions"]["Row"]>;
         Relationships: [];
       };
       sales_credit_notes: {
@@ -615,6 +637,107 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["work_orders"]["Row"]>;
         Relationships: [];
       };
+      employees: {
+        Row: {
+          id: string;
+          name: string;
+          mobile: string;
+          role: string;
+          employment_type: string;
+          commission_type: string;
+          commission_rate: number;
+          active: boolean;
+          joined_date: string | null;
+          notes: string;
+          salary_type: string;
+          salary_rate: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["employees"]["Row"]> & {
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["employees"]["Row"]>;
+        Relationships: [];
+      };
+      employee_advances: {
+        Row: {
+          id: string;
+          employee_id: string;
+          date: string;
+          amount: number;
+          note: string;
+          payslip_id: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["employee_advances"]["Row"]> & {
+          employee_id: string;
+          amount: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["employee_advances"]["Row"]>;
+        Relationships: [];
+      };
+      payroll_runs: {
+        Row: {
+          id: string;
+          period_start: string;
+          period_end: string;
+          status: string;
+          created_by: string | null;
+          created_at: string;
+          finalized_at: string | null;
+          notes: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["payroll_runs"]["Row"]> & {
+          period_start: string;
+          period_end: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["payroll_runs"]["Row"]>;
+        Relationships: [];
+      };
+      payslips: {
+        Row: {
+          id: string;
+          payroll_run_id: string;
+          employee_id: string;
+          present_days: number;
+          absent_days: number;
+          half_days: number;
+          leave_days: number;
+          gross_pay: number;
+          deductions: number;
+          net_pay: number;
+          status: string;
+          paid_at: string | null;
+          notes: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["payslips"]["Row"]> & {
+          payroll_run_id: string;
+          employee_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["payslips"]["Row"]>;
+        Relationships: [];
+      };
+      employee_attendance: {
+        Row: {
+          id: string;
+          employee_id: string;
+          date: string;
+          status: string;
+          check_in: string | null;
+          check_out: string | null;
+          notes: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["employee_attendance"]["Row"]> & {
+          employee_id: string;
+          date: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["employee_attendance"]["Row"]>;
+        Relationships: [];
+      };
       chatbot_messages: {
         Row: {
           id: string;
@@ -640,6 +763,42 @@ export interface Database {
           item_type: string;
           item_id: string;
           stock_qty: number;
+        };
+        Relationships: [];
+      };
+      v_chatbot_orders: {
+        Row: {
+          id: string;
+          customer_name: string;
+          customer_mobile: string;
+          in_date: string | null;
+          delivery_date: string | null;
+          total: number;
+          advance: number;
+          balance: number;
+          status: string;
+          tailor: string;
+          is_overdue: boolean;
+          days_overdue: number;
+          created_at: string;
+        };
+        Relationships: [];
+      };
+      v_chatbot_invoices: {
+        Row: {
+          id: string;
+          invoice_number: string;
+          customer_name: string;
+          customer_mobile: string;
+          invoice_date: string;
+          due_date: string | null;
+          total: number;
+          paid_total: number;
+          credits_total: number;
+          balance: number;
+          payment_status: string;
+          is_overdue: boolean;
+          created_at: string;
         };
         Relationships: [];
       };

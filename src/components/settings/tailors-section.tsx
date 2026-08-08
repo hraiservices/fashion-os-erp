@@ -1,62 +1,29 @@
 "use client";
 
-import { useState } from "react";
-import { toast } from "sonner";
-import { useAppSetting } from "@/hooks/use-app-setting";
+import Link from "next/link";
+import { UserCog } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
 
-/** SettingsView section === "tailors", Stitching_Manager_Pro_v16.html ~line 12753. */
+/**
+ * The tailor list used to live here as a plain app_settings string array. It's now sourced
+ * from the Employees module (role="tailor", active=true) so tailors have real records for
+ * attendance and commission — this page just redirects staff who still have the old link.
+ */
 export function TailorsSection() {
-  const { data: tailors, isLoading, save } = useAppSetting<string[]>("tailors", []);
-  const [newTailor, setNewTailor] = useState("");
-
-  async function addTailor() {
-    const name = newTailor.trim();
-    if (!name) return;
-    try {
-      await save.mutateAsync([...(tailors || []), name]);
-      setNewTailor("");
-      toast.success("Tailor added");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to add tailor");
-    }
-  }
-
-  async function removeTailor(index: number) {
-    try {
-      await save.mutateAsync((tailors || []).filter((_, i) => i !== index));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to remove tailor");
-    }
-  }
-
-  if (isLoading) return <Skeleton className="h-48 w-full" />;
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">Tailors ({(tailors || []).length})</CardTitle>
+        <CardTitle className="text-sm">Tailors moved to Employees</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex gap-2">
-          <Input placeholder="Tailor name" value={newTailor} onChange={(e) => setNewTailor(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addTailor()} />
-          <Button onClick={addTailor} disabled={save.isPending}>
-            Add
-          </Button>
-        </div>
-        <div className="space-y-2">
-          {(tailors || []).map((t, i) => (
-            <div key={i} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-              <span>{t}</span>
-              <Button variant="ghost" size="sm" onClick={() => removeTailor(i)}><X className="size-4" /></Button>
-            </div>
-          ))}
-          {(tailors || []).length === 0 && <p className="text-sm text-muted-foreground">No tailors added yet.</p>}
-        </div>
+        <p className="text-sm text-muted-foreground">
+          Tailors are now managed under Employees — add a staff member with role &quot;Tailor&quot; and they&apos;ll appear in the Tailor dropdown on orders and work orders, plus get
+          attendance and commission tracking.
+        </p>
+        <Button nativeButton={false} render={<Link href="/employees" />}>
+          <UserCog className="size-4" /> Go to Employees
+        </Button>
       </CardContent>
     </Card>
   );

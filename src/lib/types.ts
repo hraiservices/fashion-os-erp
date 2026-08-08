@@ -73,8 +73,11 @@ export interface Order {
   videos: string[];
   payments: Json[];
   payBreakdown: Json | null;
+  orderType: OrderType;
   createdAt: string;
 }
+
+export type OrderType = "new" | "alteration";
 
 /** mapRow(), Stitching_Manager_Pro_v16.html ~line 2265. Balance is always derived. */
 export function mapOrderRow(r: OrderRow): Order {
@@ -101,6 +104,7 @@ export function mapOrderRow(r: OrderRow): Order {
     videos: (Array.isArray(r.videos) ? r.videos : []) as unknown as string[],
     payments: (Array.isArray(r.payments) ? r.payments : []) as Json[],
     payBreakdown: r.pay_breakdown ?? null,
+    orderType: (r.order_type === "alteration" ? "alteration" : "new") as OrderType,
     createdAt: r.created_at || "",
   };
 }
@@ -121,6 +125,7 @@ export interface Customer {
   loyaltyHistory: Json[];
   paymentTerms: string;
   priceListId: string | null;
+  tags: string[];
 }
 
 /** mapCust(), line ~2324. */
@@ -141,6 +146,7 @@ export function mapCustomerRow(r: CustomerRow): Customer {
     loyaltyHistory: (Array.isArray(r.loyalty_history) ? r.loyalty_history : []) as Json[],
     paymentTerms: r.payment_terms || "due_on_receipt",
     priceListId: r.price_list_id,
+    tags: Array.isArray(r.tags) ? r.tags : [],
   };
 }
 
@@ -245,6 +251,7 @@ export interface Product {
   notes: string;
   stockQty: number;
   bom: BomLine[];
+  barcode: string | null;
   createdAt: string;
 }
 
@@ -261,6 +268,7 @@ export function mapProductRow(r: ProductRow, stockQty: number, bom: BomLine[]): 
     notes: r.notes || "",
     stockQty,
     bom,
+    barcode: r.barcode,
     createdAt: r.created_at,
   };
 }
@@ -652,6 +660,7 @@ export interface SalesPayment {
   method: string;
   date: string;
   note: string;
+  posSessionId: string | null;
   createdAt: string;
 }
 
@@ -664,7 +673,37 @@ export function mapSalesPaymentRow(r: SalesPaymentRow): SalesPayment {
     method: r.method || "Cash",
     date: r.date,
     note: r.note || "",
+    posSessionId: r.pos_session_id,
     createdAt: r.created_at,
+  };
+}
+
+export type PosSessionRow = Database["public"]["Tables"]["pos_sessions"]["Row"];
+export type PosSessionStatus = "open" | "closed";
+
+export interface PosSession {
+  id: string;
+  openedBy: string | null;
+  openedAt: string;
+  openingCash: number;
+  closedAt: string | null;
+  closingCash: number | null;
+  expectedCash: number | null;
+  status: PosSessionStatus;
+  notes: string;
+}
+
+export function mapPosSessionRow(r: PosSessionRow): PosSession {
+  return {
+    id: r.id,
+    openedBy: r.opened_by,
+    openedAt: r.opened_at,
+    openingCash: r.opening_cash || 0,
+    closedAt: r.closed_at,
+    closingCash: r.closing_cash,
+    expectedCash: r.expected_cash,
+    status: (r.status as PosSessionStatus) || "open",
+    notes: r.notes || "",
   };
 }
 
@@ -716,6 +755,157 @@ export function mapWorkOrderRow(r: WorkOrderRow): WorkOrder {
     costPerUnit: r.cost_per_unit,
     notes: r.notes || "",
     completedAt: r.completed_at,
+    createdAt: r.created_at,
+  };
+}
+
+export type EmployeeRow = Database["public"]["Tables"]["employees"]["Row"];
+export type AttendanceRow = Database["public"]["Tables"]["employee_attendance"]["Row"];
+
+export type CommissionType = "none" | "percent_of_sales" | "flat_per_order";
+export type AttendanceStatus = "present" | "absent" | "half_day" | "leave";
+export type SalaryType = "monthly" | "daily" | "hourly";
+
+export interface Employee {
+  id: string;
+  name: string;
+  mobile: string;
+  role: string;
+  employmentType: string;
+  commissionType: CommissionType;
+  commissionRate: number;
+  active: boolean;
+  joinedDate: string | null;
+  notes: string;
+  salaryType: SalaryType;
+  salaryRate: number;
+  createdAt: string;
+}
+
+export function mapEmployeeRow(r: EmployeeRow): Employee {
+  return {
+    id: r.id,
+    name: r.name || "",
+    mobile: r.mobile || "",
+    role: r.role || "",
+    employmentType: r.employment_type || "full_time",
+    commissionType: (r.commission_type as CommissionType) || "none",
+    commissionRate: r.commission_rate || 0,
+    active: r.active,
+    joinedDate: r.joined_date,
+    notes: r.notes || "",
+    salaryType: (r.salary_type as SalaryType) || "monthly",
+    salaryRate: r.salary_rate || 0,
+    createdAt: r.created_at,
+  };
+}
+
+export type EmployeeAdvanceRow = Database["public"]["Tables"]["employee_advances"]["Row"];
+
+export interface EmployeeAdvance {
+  id: string;
+  employeeId: string;
+  date: string;
+  amount: number;
+  note: string;
+  payslipId: string | null;
+  createdAt: string;
+}
+
+export function mapEmployeeAdvanceRow(r: EmployeeAdvanceRow): EmployeeAdvance {
+  return {
+    id: r.id,
+    employeeId: r.employee_id,
+    date: r.date,
+    amount: r.amount || 0,
+    note: r.note || "",
+    payslipId: r.payslip_id,
+    createdAt: r.created_at,
+  };
+}
+
+export type PayrollRunRow = Database["public"]["Tables"]["payroll_runs"]["Row"];
+export type PayrollRunStatus = "draft" | "finalized";
+
+export interface PayrollRun {
+  id: string;
+  periodStart: string;
+  periodEnd: string;
+  status: PayrollRunStatus;
+  createdAt: string;
+  finalizedAt: string | null;
+  notes: string;
+}
+
+export function mapPayrollRunRow(r: PayrollRunRow): PayrollRun {
+  return {
+    id: r.id,
+    periodStart: r.period_start,
+    periodEnd: r.period_end,
+    status: (r.status as PayrollRunStatus) || "draft",
+    createdAt: r.created_at,
+    finalizedAt: r.finalized_at,
+    notes: r.notes || "",
+  };
+}
+
+export type PayslipRow = Database["public"]["Tables"]["payslips"]["Row"];
+export type PayslipStatus = "draft" | "paid";
+
+export interface Payslip {
+  id: string;
+  payrollRunId: string;
+  employeeId: string;
+  presentDays: number;
+  absentDays: number;
+  halfDays: number;
+  leaveDays: number;
+  grossPay: number;
+  deductions: number;
+  netPay: number;
+  status: PayslipStatus;
+  paidAt: string | null;
+  notes: string;
+}
+
+export function mapPayslipRow(r: PayslipRow): Payslip {
+  return {
+    id: r.id,
+    payrollRunId: r.payroll_run_id,
+    employeeId: r.employee_id,
+    presentDays: r.present_days || 0,
+    absentDays: r.absent_days || 0,
+    halfDays: r.half_days || 0,
+    leaveDays: r.leave_days || 0,
+    grossPay: r.gross_pay || 0,
+    deductions: r.deductions || 0,
+    netPay: r.net_pay || 0,
+    status: (r.status as PayslipStatus) || "draft",
+    paidAt: r.paid_at,
+    notes: r.notes || "",
+  };
+}
+
+export interface Attendance {
+  id: string;
+  employeeId: string;
+  date: string;
+  status: AttendanceStatus;
+  checkIn: string | null;
+  checkOut: string | null;
+  notes: string;
+  createdAt: string;
+}
+
+export function mapAttendanceRow(r: AttendanceRow): Attendance {
+  return {
+    id: r.id,
+    employeeId: r.employee_id,
+    date: r.date,
+    status: (r.status as AttendanceStatus) || "present",
+    checkIn: r.check_in,
+    checkOut: r.check_out,
+    notes: r.notes || "",
     createdAt: r.created_at,
   };
 }

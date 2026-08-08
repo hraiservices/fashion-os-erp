@@ -14,12 +14,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableHeader, TableBody, TableRow, TableHead } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CustomerCard } from "@/components/crm/customer-card";
 import { CustomerListRow } from "@/components/crm/customer-list-row";
 import { PaymentModal } from "@/components/orders/payment-modal";
 import { sumOrdersOutstanding } from "@/lib/balances";
 import { cn } from "@/lib/utils";
 import type { Order } from "@/lib/types";
+
+const ALL_TAGS = "__all__";
+const tagFilterLabel = (v: unknown) => (v === ALL_TAGS ? "All tags" : String(v ?? ""));
 
 type SortKey = "name" | "orders" | "spent" | "lastOrder" | "balance";
 
@@ -31,6 +35,7 @@ function CrmContent() {
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
   const [search, setSearch] = useState("");
+  const [tagFilter, setTagFilter] = useState(ALL_TAGS);
   const [paymentOrder, setPaymentOrder] = useState<Order | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("lastOrder");
   const [sortAsc, setSortAsc] = useState(false);
@@ -58,9 +63,16 @@ function CrmContent() {
 
   const canAdd = user?.perms.manageCustomers || user?.role === "admin" || user?.role === "manager";
 
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    profiles.forEach((c) => c.tags.forEach((t) => set.add(t)));
+    return Array.from(set).sort();
+  }, [profiles]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const list = !q ? profiles : profiles.filter((c) => c.name.toLowerCase().includes(q) || c.mobile.includes(q));
+    let list = !q ? profiles : profiles.filter((c) => c.name.toLowerCase().includes(q) || c.mobile.includes(q));
+    if (tagFilter !== ALL_TAGS) list = list.filter((c) => c.tags.includes(tagFilter));
 
     function lastOrderTime(c: (typeof profiles)[number]) {
       return c.orders.reduce((max, o) => Math.max(max, new Date(o.inDate).getTime() || 0), 0);
@@ -92,7 +104,7 @@ function CrmContent() {
       return sortAsc ? diff : -diff;
     });
     return sorted;
-  }, [profiles, search, sortKey, sortAsc]);
+  }, [profiles, search, tagFilter, sortKey, sortAsc]);
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
@@ -128,15 +140,32 @@ function CrmContent() {
         }
       />
 
-      <div className="relative max-w-md">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search by name or mobile…"
-          className="h-10 pl-9"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          aria-label="Search customers"
-        />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative max-w-md flex-1 min-w-48">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search by name or mobile…"
+            className="h-10 pl-9"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search customers"
+          />
+        </div>
+        {allTags.length > 0 && (
+          <Select value={tagFilter} onValueChange={(v) => v && setTagFilter(v)}>
+            <SelectTrigger className="h-10 w-40">
+              <SelectValue>{tagFilterLabel}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_TAGS}>All tags</SelectItem>
+              {allTags.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {t}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {isLoading ? (

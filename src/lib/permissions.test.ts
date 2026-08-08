@@ -17,6 +17,14 @@ describe("ROLE_DEFAULTS matrix", () => {
       manageCustomers: true,
       manageUsers: true,
       deleteCustomers: true,
+      manageInventory: true,
+      managePurchases: true,
+      manageManufacturing: true,
+      manageSales: true,
+      useChatbot: true,
+      manageEmployees: true,
+      usePOS: true,
+      managePayroll: true,
     });
   });
 
@@ -40,7 +48,7 @@ describe("ROLE_DEFAULTS matrix", () => {
     });
   });
 
-  it("tailor can only change stage — everything else is locked down", () => {
+  it("tailor can only change stage/manufacturing — everything else is locked down", () => {
     expect(ROLE_DEFAULTS.tailor).toEqual({
       addOrder: false,
       deleteOrder: false,
@@ -52,6 +60,14 @@ describe("ROLE_DEFAULTS matrix", () => {
       manageCustomers: false,
       manageUsers: false,
       deleteCustomers: false,
+      manageInventory: false,
+      managePurchases: false,
+      manageManufacturing: true,
+      manageSales: false,
+      useChatbot: false,
+      manageEmployees: false,
+      usePOS: false,
+      managePayroll: false,
     });
   });
 });

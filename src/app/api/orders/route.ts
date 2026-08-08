@@ -31,6 +31,7 @@ const bodySchema = z.object({
   videos: z.array(z.string()).optional().default([]),
   /** Redeem the customer's loyalty points against this order's balance at creation. */
   usePoints: z.boolean().optional().default(false),
+  orderType: z.enum(["new", "alteration"]).optional().default("new"),
 });
 
 /**
@@ -103,6 +104,7 @@ export async function POST(request: Request) {
       images: fd.images,
       audios: fd.audios,
       videos: fd.videos,
+      order_type: fd.orderType,
     })
     .select("*")
     .single();

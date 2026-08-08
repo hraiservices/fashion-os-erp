@@ -1,12 +1,16 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Plus, X, ScanBarcode, Camera } from "lucide-react";
 import { useProducts } from "@/hooks/use-products";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BarcodeScannerModal } from "@/components/pos/barcode-scanner-modal";
 import { inr } from "@/lib/format";
 import type { SalesLineItem } from "@/lib/sales";
+import type { Product } from "@/lib/types";
 
 export interface EditableSalesLine {
   key: string;
@@ -60,6 +64,8 @@ export function ProductLineItemsEditor({
   priceOverrides?: Map<string, number>;
 }) {
   const { data: products } = useProducts();
+  const [scanValue, setScanValue] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   function addLine() {
     onChange([...lines, blankSalesLine()]);
@@ -73,11 +79,55 @@ export function ProductLineItemsEditor({
     onChange(lines.filter((l) => l.key !== key));
   }
 
+  /** Barcode/SKU scan — bumps qty on an existing line for that product, or adds a new one. Same price logic as picking it manually from the dropdown. */
+  function scanAdd(code: string) {
+    const product = (products || []).find((p: Product) => p.barcode === code || p.sku.toLowerCase() === code.toLowerCase());
+    if (!product) {
+      toast.error(`No product matches "${code}"`);
+      return;
+    }
+    const existing = lines.find((l) => l.productId === product.id);
+    if (existing) {
+      updateLine(existing.key, { qty: String((parseFloat(existing.qty) || 0) + 1) });
+    } else {
+      const price = priceOverrides?.get(product.id) ?? product.sellingPrice;
+      const blank = lines.find((l) => !l.productId);
+      const line = blank || blankSalesLine();
+      const patched = { ...line, productId: product.id, qty: line.qty || "1", unitPrice: String(price) };
+      onChange(blank ? lines.map((l) => (l.key === blank.key ? patched : l)) : [...lines, patched]);
+    }
+  }
+
+  function handleScanKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const code = scanValue.trim();
+    if (!code) return;
+    scanAdd(code);
+    setScanValue("");
+  }
+
   const productLabel = (id: string) => (products || []).find((p) => p.id === id)?.name ?? "";
   const total = lines.reduce((s, l) => s + lineAmount(parseFloat(l.qty) || 0, parseFloat(l.unitPrice) || 0, parseFloat(l.discountPercent) || 0), 0);
 
   return (
     <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <ScanBarcode className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Scan barcode or type SKU, then Enter…"
+            className="pl-9"
+            value={scanValue}
+            onChange={(e) => setScanValue(e.target.value)}
+            onKeyDown={handleScanKeyDown}
+          />
+        </div>
+        <Button type="button" variant="outline" size="icon" onClick={() => setScannerOpen(true)} aria-label="Scan with camera">
+          <Camera className="size-4" />
+        </Button>
+      </div>
+
       {lines.length === 0 ? (
         <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">No items added yet.</p>
       ) : (
@@ -132,6 +182,8 @@ export function ProductLineItemsEditor({
         </Button>
         <span className="text-sm font-medium">Total: {inr(total)}</span>
       </div>
+
+      <BarcodeScannerModal open={scannerOpen} onOpenChange={setScannerOpen} onDetected={scanAdd} />
     </div>
   );
 }

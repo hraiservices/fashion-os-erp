@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Trash2, CheckCircle2, AlertTriangle, RefreshCw, Package } from "lucide-react";
+import { Bell, Trash2, X, CheckCircle2, AlertTriangle, RefreshCw, Sparkles } from "lucide-react";
 import { useOrders } from "@/hooks/use-orders";
-import { useNotifications, markNotificationsSeen, getLastSeenAt, getTimeAgo } from "@/hooks/use-notifications";
+import { useNotifications, useDismissNotification, markNotificationsSeen, getLastSeenAt, getTimeAgo } from "@/hooks/use-notifications";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { dueBadge, STAGE_META, type Stage } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
@@ -27,7 +27,14 @@ export function NotificationBell() {
   const { data: orders } = useOrders();
   const { data: notifs, refetch } = useNotifications();
   const { data: user } = useCurrentUser();
-  const canClearAll = user?.role === "admin" || user?.role === "manager";
+  const dismissNotification = useDismissNotification();
+  const isAdminOrManager = user?.role === "admin" || user?.role === "manager";
+  const canClearAll = isAdminOrManager;
+
+  // Briefing content isn't sensitive, just not relevant to tailor/sales roles — hidden client-side
+  // since admin_notifications has no per-role targeting at the row level.
+  const stageNotifs = (notifs || []).filter((n) => n.type !== "ai_briefing");
+  const briefingNotifs = isAdminOrManager ? (notifs || []).filter((n) => n.type === "ai_briefing") : [];
 
   const urgentOrders = useMemo(() => {
     if (!orders) return [];
@@ -36,9 +43,10 @@ export function NotificationBell() {
 
   const unreadCount = useMemo(() => {
     const lastSeen = getLastSeenAt();
-    const newNotifs = (notifs || []).filter((n) => new Date(n.created_at).getTime() > lastSeen).length;
+    const visible = [...stageNotifs, ...briefingNotifs];
+    const newNotifs = visible.filter((n) => new Date(n.created_at).getTime() > lastSeen).length;
     return newNotifs + urgentOrders.length;
-  }, [notifs, urgentOrders]);
+  }, [stageNotifs, briefingNotifs, urgentOrders]);
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
@@ -57,7 +65,7 @@ export function NotificationBell() {
     refetch();
   }
 
-  const hasItems = urgentOrders.length > 0 || (notifs || []).length > 0;
+  const hasItems = urgentOrders.length > 0 || stageNotifs.length > 0 || briefingNotifs.length > 0;
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -112,10 +120,32 @@ export function NotificationBell() {
             </div>
           )}
 
-          {(notifs || []).length > 0 && (
+          {briefingNotifs.length > 0 && (
+            <div>
+              <div className="bg-muted/50 px-4 py-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Today&apos;s briefing</div>
+              {briefingNotifs.map((n) => (
+                <div key={n.id} className="flex items-start gap-2.5 border-b px-4 py-2.5 last:border-0 hover:bg-muted/40">
+                  <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
+                  <div className="min-w-0 flex-1">
+                    <p className="whitespace-pre-line text-sm">{n.message}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">{getTimeAgo(n.created_at)}</p>
+                  </div>
+                  <button
+                    onClick={() => dismissNotification.mutate(n.id)}
+                    aria-label="Dismiss briefing"
+                    className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {stageNotifs.length > 0 && (
             <div>
               <div className="bg-muted/50 px-4 py-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Stage updates</div>
-              {(notifs || []).map((n) => {
+              {stageNotifs.map((n) => {
                 const Icon = stageIcon(n.to_stage);
                 return (
                   <button

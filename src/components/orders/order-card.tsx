@@ -14,6 +14,14 @@ import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import type { Order } from "@/lib/types";
 import type { Shop } from "@/lib/settings";
 
+export function AlterationBadge() {
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-full border border-violet-500/30 bg-violet-50 px-1.5 py-0 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-400">
+      Alteration
+    </span>
+  );
+}
+
 /**
  * Kanban board card. OrderCard(), Stitching_Manager_Pro_v16.html ~line 6033.
  * The stage is implied by the column, so the card omits the stage badge and spends
@@ -60,7 +68,10 @@ export function OrderCard({
           <p className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">{order.name}</p>
           <span className="shrink-0 text-sm font-semibold tabular-nums">{inr(order.total)}</span>
         </div>
-        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{order.id}</p>
+        <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-muted-foreground">
+          {order.id}
+          {order.orderType === "alteration" && <AlterationBadge />}
+        </p>
 
         <p className="mt-2 truncate text-xs text-muted-foreground">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>
 

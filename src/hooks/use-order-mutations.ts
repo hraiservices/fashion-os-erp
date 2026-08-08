@@ -24,6 +24,7 @@ interface CreateOrderInput {
   audios?: string[];
   videos?: string[];
   usePoints?: boolean;
+  orderType?: "new" | "alteration";
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -118,6 +119,7 @@ export function useUpdateOrder() {
         );
       }
       if (patch.tailor !== undefined) dbPatch.tailor = patch.tailor;
+      if (patch.orderType !== undefined) dbPatch.order_type = patch.orderType;
       if (patch.special !== undefined) dbPatch.special = patch.special;
       if (patch.measurements !== undefined) dbPatch.measurements = patch.measurements;
       // Attachments are stored as base64 data URLs in JSONB columns; omitting them here

@@ -26,14 +26,16 @@ import {
   INVENTORY_GROUP,
   PURCHASES_GROUP,
   SETTINGS_GROUP,
+  EMPLOYEES_GROUP,
   MANUFACTURING_NAV_ITEM,
   COPILOT_NAV_ITEM,
+  POS_NAV_ITEM,
   type NavGroup,
   type NavLeaf,
   type NavFlatItem,
 } from "@/components/app-shell/nav-config";
 
-export const MOVABLE_GROUPS: NavGroup[] = [REPORTS_GROUP, EXPENSES_GROUP, SALES_GROUP, INVENTORY_GROUP, PURCHASES_GROUP, SETTINGS_GROUP];
+export const MOVABLE_GROUPS: NavGroup[] = [REPORTS_GROUP, EXPENSES_GROUP, SALES_GROUP, INVENTORY_GROUP, PURCHASES_GROUP, EMPLOYEES_GROUP, SETTINGS_GROUP];
 
 const GROUP_BY_ID = new Map(MOVABLE_GROUPS.map((g) => [g.id, g]));
 export function getGroup(groupId: string): NavGroup | undefined {
@@ -50,12 +52,14 @@ const ROOT_DEFAULTS: { id: string; kind: "flat" | "group" }[] = [
   { id: `group:${INVENTORY_GROUP.id}`, kind: "group" as const },
   { id: `group:${PURCHASES_GROUP.id}`, kind: "group" as const },
   { id: MANUFACTURING_NAV_ITEM.href, kind: "flat" as const },
+  { id: POS_NAV_ITEM.href, kind: "flat" as const },
+  { id: `group:${EMPLOYEES_GROUP.id}`, kind: "group" as const },
   { id: COPILOT_NAV_ITEM.href, kind: "flat" as const },
   { id: `group:${SETTINGS_GROUP.id}`, kind: "group" as const },
 ];
 const ROOT_DEFAULT_IDS = ROOT_DEFAULTS.map((n) => n.id);
 
-const FLAT_ITEM_BY_HREF = new Map<string, NavFlatItem>([...PRIMARY_NAV, ...SECONDARY_NAV, MANUFACTURING_NAV_ITEM, COPILOT_NAV_ITEM].map((i) => [i.href, i]));
+const FLAT_ITEM_BY_HREF = new Map<string, NavFlatItem>([...PRIMARY_NAV, ...SECONDARY_NAV, MANUFACTURING_NAV_ITEM, COPILOT_NAV_ITEM, POS_NAV_ITEM].map((i) => [i.href, i]));
 
 export function findLeafAnywhere(href: string): NavLeaf | undefined {
   for (const g of MOVABLE_GROUPS) {

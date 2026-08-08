@@ -13,6 +13,9 @@ import {
   Factory,
   ShoppingCart,
   Sparkles,
+  Scissors,
+  UserCog,
+  ScanBarcode,
   type LucideIcon,
 } from "lucide-react";
 
@@ -48,6 +51,7 @@ export const PRIMARY_NAV: NavFlatItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, restricted: true },
   { href: "/orders?view=board", label: "Board", icon: KanbanSquare },
   { href: "/orders", label: "Stitching Orders", icon: Receipt, newHref: "/orders/new" },
+  { href: "/orders?type=alteration", label: "Alterations", icon: Scissors, newHref: "/orders/new?type=alteration" },
   { href: "/crm", label: "Customers", icon: Users, restricted: true, newHref: "/crm/new" },
 ];
 
@@ -69,6 +73,11 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/tailor-workload", label: "Tailor Workload" },
     { href: "/reports/aging", label: "Balance Aging" },
     { href: "/reports/pending-orders", label: "Pending Orders" },
+
+    { href: "/reports/employees", label: "Employee Directory", section: "Employees" },
+    { href: "/reports/attendance-summary", label: "Attendance Summary" },
+    { href: "/reports/employee-commission", label: "Employee Commission" },
+    { href: "/reports/payroll-summary", label: "Salary Report" },
 
     { href: "/reports/sales", label: "Sales Summary", section: "Sales" },
     { href: "/reports/sales/by-customer", label: "Sales by Customer" },
@@ -136,6 +145,20 @@ export const MANUFACTURING_NAV_ITEM: NavFlatItem = { href: "/manufacturing", lab
 
 /** Admin/Manager only — gated on user.perms.useChatbot in nav-content.tsx, not a role-restriction list. */
 export const COPILOT_NAV_ITEM: NavFlatItem = { href: "/copilot", label: "AI Copilot", icon: Sparkles };
+
+/** Gated on user.perms.usePOS in nav-content.tsx. */
+export const POS_NAV_ITEM: NavFlatItem = { href: "/pos", label: "POS", icon: ScanBarcode };
+
+export const EMPLOYEES_GROUP: NavGroup = {
+  id: "employees",
+  label: "Employees",
+  icon: UserCog,
+  children: [
+    { href: "/employees", label: "All Employees", newHref: "/employees/new" },
+    { href: "/employees/attendance", label: "Attendance" },
+    { href: "/employees/payroll", label: "Payroll" },
+  ],
+};
 
 export const SALES_GROUP: NavGroup = {
   id: "sales",

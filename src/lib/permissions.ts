@@ -20,6 +20,10 @@ export interface Permissions {
   manageManufacturing: boolean;
   manageSales: boolean;
   useChatbot: boolean;
+  manageEmployees: boolean;
+  usePOS: boolean;
+  /** Salary/payroll is sensitive HR data — kept separate from manageEmployees (which managers get) and admin-only by default. */
+  managePayroll: boolean;
 }
 
 export const PERMISSION_LABELS: Record<keyof Permissions, string> = {
@@ -38,6 +42,9 @@ export const PERMISSION_LABELS: Record<keyof Permissions, string> = {
   manageManufacturing: "Manage Manufacturing",
   manageSales: "Manage Product Sales",
   useChatbot: "Use AI Copilot",
+  manageEmployees: "Manage Employees",
+  usePOS: "Use POS",
+  managePayroll: "Manage Payroll & Salaries",
 };
 
 export const ROLE_DEFAULTS: Record<Role, Permissions> = {
@@ -57,6 +64,9 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     manageManufacturing: true,
     manageSales: true,
     useChatbot: true,
+    manageEmployees: true,
+    usePOS: true,
+    managePayroll: true,
   },
   manager: {
     addOrder: true,
@@ -74,6 +84,9 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     manageManufacturing: true,
     manageSales: true,
     useChatbot: true,
+    manageEmployees: true,
+    usePOS: true,
+    managePayroll: false,
   },
   sales: {
     addOrder: true,
@@ -91,6 +104,9 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     manageManufacturing: false,
     manageSales: true,
     useChatbot: false,
+    manageEmployees: false,
+    usePOS: true,
+    managePayroll: false,
   },
   tailor: {
     addOrder: false,
@@ -108,6 +124,9 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     manageManufacturing: true,
     manageSales: false,
     useChatbot: false,
+    manageEmployees: false,
+    usePOS: false,
+    managePayroll: false,
   },
 };
 

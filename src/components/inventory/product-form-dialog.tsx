@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ShoppingBag, Plus, X, ListTree } from "lucide-react";
+import { ShoppingBag, Plus, X, ListTree, Printer } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useSaveProduct } from "@/hooks/use-inventory-mutations";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { printBarcodeLabel } from "@/lib/barcode";
 import type { Product } from "@/lib/types";
 
 const schema = z.object({
@@ -127,6 +128,7 @@ export function ProductFormDialog({
         notes: values.notes || "",
         bom: bomRows.filter((r) => r.rawMaterialId).map((r) => ({ rawMaterialId: r.rawMaterialId, qtyRequired: parseFloat(r.qtyRequired) || 0 })),
         openingStock: isEdit ? undefined : values.openingStock,
+        barcode: product?.barcode || undefined,
         userEmail: user?.email,
       });
       toast.success(isEdit ? "Product updated" : "Product added");
@@ -165,6 +167,17 @@ export function ProductFormDialog({
                   <Input type="number" min={0} max={100} step="0.01" {...register("taxRate")} />
                 </Field>
               </div>
+              {isEdit && product?.barcode && (
+                <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Barcode</p>
+                    <p className="font-mono text-sm">{product.barcode}</p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => printBarcodeLabel({ name: product.name, sku: product.sku, barcode: product.barcode, sellingPrice: product.sellingPrice })}>
+                    <Printer className="size-3.5" /> Print label
+                  </Button>
+                </div>
+              )}
             </section>
 
             <section className="space-y-3">

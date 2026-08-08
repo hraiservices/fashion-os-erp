@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#6D28D9"/>
+  <!-- Scissors body — two rings -->
+  <circle cx="172" cy="200" r="64" fill="none" stroke="white" stroke-width="28"/>
+  <circle cx="340" cy="200" r="64" fill="none" stroke="white" stroke-width="28"/>
+  <!-- Scissors blades -->
+  <line x1="214" y1="248" x2="256" y2="310" stroke="white" stroke-width="28" stroke-linecap="round"/>
+  <line x1="298" y1="248" x2="256" y2="310" stroke="white" stroke-width="28" stroke-linecap="round"/>
+  <!-- Handle stem -->
+  <line x1="256" y1="310" x2="256" y2="420" stroke="white" stroke-width="28" stroke-linecap="round"/>
+  <!-- Small dot at pivot -->
+  <circle cx="256" cy="310" r="14" fill="white"/>
+</svg>

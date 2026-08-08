@@ -1,0 +1,229 @@
+"use client";
+
+import { useEffect, useMemo, useState, Suspense } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Search, Users, UserPlus, LayoutGrid, LayoutList, ArrowUpDown } from "lucide-react";
+import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
+import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { useShopSettings } from "@/hooks/use-shop-settings";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableHeader, TableBody, TableRow, TableHead } from "@/components/ui/table";
+import { CustomerCard } from "@/components/crm/customer-card";
+import { CustomerListRow } from "@/components/crm/customer-list-row";
+import { PaymentModal } from "@/components/orders/payment-modal";
+import { sumOrdersOutstanding } from "@/lib/balances";
+import { cn } from "@/lib/utils";
+import type { Order } from "@/lib/types";
+
+type SortKey = "name" | "orders" | "spent" | "lastOrder" | "balance";
+
+function CrmContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { profiles, isLoading } = useCustomerProfiles();
+  const { data: loyaltyCfg } = useLoyaltyConfig();
+  const { data: user } = useCurrentUser();
+  const { data: shop } = useShopSettings();
+  const [search, setSearch] = useState("");
+  const [paymentOrder, setPaymentOrder] = useState<Order | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>("lastOrder");
+  const [sortAsc, setSortAsc] = useState(false);
+
+  // Legacy deep link — the "Add customer" flow used to be a modal opened via ?new=1.
+  useEffect(() => {
+    if (searchParams.get("new") === "1") router.replace("/crm/new");
+  }, [searchParams, router]);
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortAsc((a) => !a);
+    else {
+      setSortKey(key);
+      setSortAsc(key === "name");
+    }
+  }
+
+  const view = searchParams.get("view") === "list" ? "list" : "cards";
+  function setView(v: "cards" | "list") {
+    const params = new URLSearchParams(searchParams.toString());
+    if (v === "list") params.set("view", "list");
+    else params.delete("view");
+    router.replace(`/crm${params.toString() ? `?${params.toString()}` : ""}`);
+  }
+
+  const canAdd = user?.perms.manageCustomers || user?.role === "admin" || user?.role === "manager";
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const list = !q ? profiles : profiles.filter((c) => c.name.toLowerCase().includes(q) || c.mobile.includes(q));
+
+    function lastOrderTime(c: (typeof profiles)[number]) {
+      return c.orders.reduce((max, o) => Math.max(max, new Date(o.inDate).getTime() || 0), 0);
+    }
+    function outstanding(c: (typeof profiles)[number]) {
+      return sumOrdersOutstanding(c.orders);
+    }
+
+    const sorted = [...list].sort((a, b) => {
+      let diff = 0;
+      switch (sortKey) {
+        case "name":
+          diff = a.name.localeCompare(b.name);
+          break;
+        case "orders":
+          diff = a.orders.length - b.orders.length;
+          break;
+        case "spent":
+          diff = a.spent - b.spent;
+          break;
+        case "balance":
+          diff = outstanding(a) - outstanding(b);
+          break;
+        case "lastOrder":
+        default:
+          diff = lastOrderTime(a) - lastOrderTime(b);
+          break;
+      }
+      return sortAsc ? diff : -diff;
+    });
+    return sorted;
+  }, [profiles, search, sortKey, sortAsc]);
+
+  return (
+    <div className="space-y-4 p-4 sm:p-6">
+      <PageHeader
+        title="Customers"
+        description={`${filtered.length} of ${profiles.length} customers`}
+        actions={
+          <>
+            <div className="inline-flex rounded-lg border p-0.5" role="group" aria-label="View mode">
+              <button
+                type="button"
+                onClick={() => setView("cards")}
+                aria-pressed={view === "cards"}
+                className={cn("flex min-h-9 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors sm:min-h-8", view === "cards" ? "bg-muted" : "text-muted-foreground")}
+              >
+                <LayoutGrid className="size-4" /> Cards
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("list")}
+                aria-pressed={view === "list"}
+                className={cn("flex min-h-9 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors sm:min-h-8", view === "list" ? "bg-muted" : "text-muted-foreground")}
+              >
+                <LayoutList className="size-4" /> List
+              </button>
+            </div>
+            {canAdd && (
+              <Button nativeButton={false} render={<Link href="/crm/new" />}>
+                <UserPlus className="size-4" /> Add customer
+              </Button>
+            )}
+          </>
+        }
+      />
+
+      <div className="relative max-w-md">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search by name or mobile…"
+          className="h-10 pl-9"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search customers"
+        />
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-44 w-full" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title={search ? "No customers match your search" : "No customers yet"}
+          description={
+            search
+              ? "Try a different name or mobile number."
+              : canAdd
+              ? 'Click "Add customer" to add your first customer, or create an order — customers are added automatically.'
+              : "Customers are created automatically when you add their first order."
+          }
+        />
+      ) : view === "list" ? (
+        <div className="overflow-hidden rounded-xl border">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    <button type="button" onClick={() => toggleSort("name")} className="inline-flex items-center gap-1 hover:text-foreground">
+                      Customer <ArrowUpDown className="size-3" />
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-center">
+                    <button type="button" onClick={() => toggleSort("orders")} className="inline-flex items-center gap-1 hover:text-foreground">
+                      Stitch Orders <ArrowUpDown className="size-3" />
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <button type="button" onClick={() => toggleSort("spent")} className="inline-flex items-center gap-1 hover:text-foreground">
+                      Spent <ArrowUpDown className="size-3" />
+                    </button>
+                  </TableHead>
+                  <TableHead>
+                    <button type="button" onClick={() => toggleSort("lastOrder")} className="inline-flex items-center gap-1 hover:text-foreground">
+                      Last order <ArrowUpDown className="size-3" />
+                    </button>
+                  </TableHead>
+                  <TableHead>Tier</TableHead>
+                  <TableHead className="text-right">
+                    <button type="button" onClick={() => toggleSort("balance")} className="inline-flex items-center gap-1 hover:text-foreground">
+                      Balance <ArrowUpDown className="size-3" />
+                    </button>
+                  </TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((c) => (
+                  <CustomerListRow
+                    key={c.mobile}
+                    cust={c}
+                    loyaltyCfg={loyaltyCfg}
+                    shop={shop}
+                    onRecordPayment={user?.perms.managePayments ? (order: Order) => setPaymentOrder(order) : undefined}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+          {filtered.map((c) => (
+            <CustomerCard key={c.mobile} cust={c} loyaltyCfg={loyaltyCfg} />
+          ))}
+        </div>
+      )}
+
+      {paymentOrder && <PaymentModal order={paymentOrder} open={!!paymentOrder} onOpenChange={(v) => !v && setPaymentOrder(null)} />}
+    </div>
+  );
+}
+
+/** CRMView(), Stitching_Manager_Pro_v16.html ~line 6725. */
+export default function CrmPage() {
+  return (
+    <Suspense fallback={<div className="space-y-4 p-4 sm:p-6"><Skeleton className="h-9 w-48" /><Skeleton className="h-10 w-full max-w-md" /><div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{Array.from({length:6}).map((_,i)=><Skeleton key={i} className="h-44"/>)}</div></div>}>
+      <CrmContent />
+    </Suspense>
+  );
+}

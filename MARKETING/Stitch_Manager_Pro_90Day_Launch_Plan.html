@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stitch Manager Pro — 90-Day Launch & Sell Plan</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --ink:    #0A0A0F;
+  --ink2:   #16162A;
+  --fb:     #1877F2;
+  --fb2:    #E7F0FD;
+  --ig:     #E1306C;
+  --ig2:    #FFF0F5;
+  --ig-gr:  linear-gradient(135deg,#833AB4,#FD1D1D,#FCAF45);
+  --gg:     #4285F4;
+  --gg2:    #EEF3FF;
+  --yt:     #FF0000;
+  --yt2:    #FFE9E9;
+  --wa:     #25D366;
+  --wa2:    #E8FFF2;
+  --green:  #00B37E;
+  --gold:   #F0A500;
+  --gold2:  #FFF8E6;
+  --red:    #E5383B;
+  --bg:     #F0EDE8;
+  --card:   #FFFFFF;
+  --warm:   #FAF8F5;
+  --rule:   #E5E0D8;
+  --muted:  #7B7568;
+  --tag-bg: #EEEAE3;
+  --violet: #6D28D9;
+  --violet2:#4F46E5;
+}
+body { font-family:'Plus Jakarta Sans',sans-serif; background:var(--bg); color:var(--ink); }
+
+.hero { background:var(--ink2); padding:0; overflow:hidden; position:relative; }
+.hero-mesh { position:absolute; inset:0;
+  background:
+    radial-gradient(ellipse 60% 80% at 80% 20%, rgba(109,40,217,0.18) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 10% 80%, rgba(255,0,0,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(37,211,102,0.06) 0%, transparent 60%);
+  pointer-events:none; }
+.hero-inner { max-width:1100px; margin:0 auto; padding:48px 28px 36px; position:relative; z-index:2; }
+.hero-top-row { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; flex-wrap:wrap; margin-bottom:32px; }
+.hero-brand { display:flex; align-items:center; gap:14px; }
+.hero-brand-icon { width:50px; height:50px; background:linear-gradient(135deg,var(--violet) 0%, var(--violet2) 100%); border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px; }
+.hero-brand h1 { font-size:15px; font-weight:800; color:#fff; }
+.hero-brand p { font-size:10px; color:rgba(255,255,255,0.35); letter-spacing:0.08em; text-transform:uppercase; margin-top:2px; }
+.hero-budget-pill { background:rgba(240,165,0,0.15); border:1px solid rgba(240,165,0,0.35); border-radius:10px; padding:11px 18px; text-align:right; }
+.hero-budget-pill .bp-label { font-size:9px; color:rgba(255,255,255,0.4); letter-spacing:0.1em; text-transform:uppercase; }
+.hero-budget-pill .bp-val { font-size:20px; font-weight:800; color:var(--gold); line-height:1.2; }
+.hero-budget-pill .bp-sub { font-size:10px; color:rgba(255,255,255,0.45); }
+.hero-headline { font-size:42px; font-weight:800; color:#fff; line-height:1.1; margin-bottom:12px; letter-spacing:-0.02em; }
+.hero-headline em { font-style:italic; font-weight:300; color:rgba(255,255,255,0.5); }
+.hero-headline .accent-v { color:#B794F6; }
+.hero-headline .accent-yt { color:#FF6B6B; }
+.hero-desc { font-size:14px; font-weight:300; color:rgba(255,255,255,0.55); max-width:600px; line-height:1.75; margin-bottom:24px; }
+.platform-pills { display:flex; gap:10px; flex-wrap:wrap; }
+.platform-pill { display:flex; align-items:center; gap:8px; padding:9px 16px; border-radius:8px; font-size:12px; font-weight:700; border:1px solid rgba(255,255,255,0.12); }
+.platform-pill.wa { background:rgba(37,211,102,0.12); color:#5DDA94; }
+.platform-pill.yt { background:rgba(255,0,0,0.12); color:#FF7B7B; }
+.platform-pill.fb { background:rgba(24,119,242,0.15); color:#6BA5F5; }
+.platform-pill.ig { background:rgba(225,48,108,0.15); color:#FF7BAD; }
+.platform-pill.gg { background:rgba(66,133,244,0.12); color:#FBBC04; }
+.hero-stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:28px; padding-top:24px; border-top:1px solid rgba(255,255,255,0.07); }
+.hstat { text-align:center; }
+.hstat .hs-num { font-size:22px; font-weight:800; color:#fff; line-height:1; }
+.hstat .hs-lbl { font-size:10px; color:rgba(255,255,255,0.35); margin-top:4px; letter-spacing:0.03em; }
+
+.nav-tabs { background:var(--ink); border-bottom:1px solid rgba(255,255,255,0.06); position:sticky; top:0; z-index:100; }
+.nav-tabs-inner { max-width:1100px; margin:0 auto; padding:0 28px; display:flex; gap:0; overflow-x:auto; }
+.nav-tab { padding:14px 18px; font-size:11.5px; font-weight:600; color:rgba(255,255,255,0.4); cursor:pointer; white-space:nowrap; border-bottom:2px solid transparent; transition:all 0.2s; letter-spacing:0.02em; }
+.nav-tab:hover { color:rgba(255,255,255,0.7); }
+.nav-tab.active { color:#fff; border-bottom-color:var(--gold); }
+
+.main { max-width:1100px; margin:0 auto; padding:32px 28px 80px; }
+.panel { display:none; }
+.panel.active { display:block; }
+
+.sec-head { margin-bottom:24px; }
+.sec-head .sec-eyebrow { font-size:10px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; display:flex; align-items:center; gap:8px; }
+.sec-head .sec-eyebrow::before { content:''; display:inline-block; width:20px; height:2px; background:var(--gold); }
+.sec-head h2 { font-size:26px; font-weight:800; color:var(--ink); line-height:1.15; }
+.sec-head p { font-size:13px; color:var(--muted); margin-top:6px; font-weight:400; line-height:1.65; max-width:760px; }
+
+.alert-box { border-radius:14px; padding:18px 20px; margin-bottom:22px; display:flex; gap:14px; align-items:flex-start; }
+.alert-box.urgent { background:#FFF1F0; border:1.5px solid #FFB3AD; }
+.alert-box.info { background:var(--gold2); border:1.5px solid #F0D896; }
+.alert-icon { font-size:22px; flex-shrink:0; }
+.alert-box h4 { font-size:13px; font-weight:800; margin-bottom:4px; }
+.alert-box.urgent h4 { color:#B91C1C; }
+.alert-box.info h4 { color:#9A6800; }
+.alert-box p { font-size:12.5px; color:#444; line-height:1.6; }
+.alert-box ul { margin-top:8px; padding-left:0; list-style:none; }
+.alert-box li { font-size:12.5px; color:#444; line-height:1.7; padding-left:18px; position:relative; margin-bottom:4px; }
+.alert-box li::before { content:'→'; position:absolute; left:0; font-weight:700; }
+
+.card { background:var(--card); border-radius:16px; border:1px solid var(--rule); overflow:hidden; box-shadow:0 2px 16px rgba(0,0,0,0.05); margin-bottom:20px; }
+.card-head { padding:16px 22px; display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid var(--rule); }
+.card-head-left { display:flex; align-items:center; gap:12px; }
+.card-head h3 { font-size:14px; font-weight:700; color:var(--ink); }
+.card-head p { font-size:11px; color:var(--muted); margin-top:1px; }
+.card-body { padding:22px; }
+
+.plat-badge { font-size:9px; font-weight:800; letter-spacing:0.12em; text-transform:uppercase; padding:4px 10px; border-radius:6px; }
+.plat-badge.fb { background:var(--fb2); color:var(--fb); }
+.plat-badge.ig { background:var(--ig2); color:var(--ig); }
+.plat-badge.gg { background:var(--gg2); color:var(--gg); }
+.plat-badge.yt { background:var(--yt2); color:var(--yt); }
+.plat-badge.wa { background:var(--wa2); color:#166534; }
+.plat-badge.all { background:var(--tag-bg); color:var(--muted); }
+.plat-badge.gold { background:var(--gold2); color:#9A6800; }
+.plat-badge.violet { background:#F1EBFD; color:var(--violet); }
+
+.phase-track { display:grid; grid-template-columns:repeat(3,1fr); gap:0; border:1px solid var(--rule); border-radius:14px; overflow:hidden; margin-bottom:24px; }
+.phase-col { padding:20px; border-right:1px solid var(--rule); position:relative; }
+.phase-col:last-child { border-right:none; }
+.phase-num { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; margin-bottom:10px; color:#fff; }
+.phase-col:nth-child(1) .phase-num { background:var(--wa); }
+.phase-col:nth-child(2) .phase-num { background:var(--violet); }
+.phase-col:nth-child(3) .phase-num { background:var(--gg); }
+.phase-col h4 { font-size:13px; font-weight:700; color:var(--ink); margin-bottom:4px; }
+.phase-col .ph-week { font-size:10px; color:var(--muted); font-weight:600; letter-spacing:0.06em; text-transform:uppercase; margin-bottom:10px; }
+.phase-col p { font-size:11px; color:var(--muted); line-height:1.55; margin-bottom:8px; }
+.phase-col ul { list-style:none; }
+.phase-col li { font-size:11px; color:var(--muted); margin-bottom:5px; display:flex; gap:6px; line-height:1.4; }
+.phase-col li::before { content:'✓'; color:var(--green); font-weight:700; flex-shrink:0; }
+
+.strategy-3col { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px; }
+.strategy-2col { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-bottom:20px; }
+
+.target-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.target-box { background:var(--warm); border:1px solid var(--rule); border-radius:12px; padding:18px; }
+.target-box h4 { font-size:11px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.target-item { display:flex; align-items:flex-start; gap:8px; font-size:12px; color:var(--ink); margin-bottom:8px; line-height:1.5; }
+.target-item::before { content:'→'; color:var(--gold); font-weight:700; flex-shrink:0; }
+
+.metrics-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+.metric-card { background:var(--card); border:1px solid var(--rule); border-radius:12px; padding:18px; text-align:center; }
+.metric-card .mc-icon { font-size:24px; margin-bottom:8px; }
+.metric-card .mc-val { font-size:22px; font-weight:800; color:var(--ink); line-height:1; }
+.metric-card .mc-lbl { font-size:11px; color:var(--muted); margin-top:4px; }
+.metric-card .mc-sub { font-size:10px; color:var(--green); font-weight:600; margin-top:3px; }
+
+.budget-table, .kw-table { width:100%; border-collapse:collapse; }
+.budget-table th { background:var(--ink); color:#fff; font-size:10px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; padding:12px 16px; text-align:left; }
+.budget-table th:first-child { border-radius:8px 0 0 0; }
+.budget-table th:last-child { border-radius:0 8px 0 0; }
+.budget-table td { padding:12px 16px; font-size:13px; border-bottom:1px solid var(--rule); vertical-align:middle; }
+.budget-table tr:nth-child(even) td { background:var(--warm); }
+.budget-table tr.total td { font-weight:700; background:var(--gold2); border-bottom:none; }
+
+.script-card { border:1px solid var(--rule); border-radius:14px; overflow:hidden; margin-bottom:16px; background:var(--card); }
+.script-bar { padding:10px 18px; display:flex; align-items:center; justify-content:space-between; font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#fff; }
+.script-bar.wa-bar { background:var(--wa); }
+.script-bar.yt-bar { background:var(--yt); }
+.script-bar.fb-bar { background:var(--fb); }
+.script-bar.gg-bar { background:var(--gg); }
+.script-bar.v-bar { background:linear-gradient(90deg,var(--violet),var(--violet2)); }
+.copy-btn { background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.3); color:#fff; font-family:'Plus Jakarta Sans',sans-serif; font-size:10px; font-weight:700; padding:4px 12px; border-radius:5px; cursor:pointer; letter-spacing:0.08em; }
+.copy-btn:hover, .copy-btn.done { background:rgba(255,255,255,0.35); }
+.script-body { padding:16px 18px; }
+.script-text { font-size:13px; color:var(--ink); line-height:1.8; white-space:pre-wrap; background:var(--warm); border:1px solid var(--rule); border-radius:10px; padding:14px 16px; }
+
+.reel-card { background:var(--ink2); border-radius:16px; overflow:hidden; border:1px solid rgba(255,255,255,0.08); margin-bottom:16px; }
+.reel-head { padding:16px 20px; border-bottom:1px solid rgba(255,255,255,0.07); display:flex; align-items:center; justify-content:space-between; }
+.reel-head h3 { font-size:14px; font-weight:700; color:#fff; }
+.reel-head p { font-size:10px; color:rgba(255,255,255,0.4); margin-top:2px; }
+.reel-duration { background:rgba(255,0,0,0.18); border:1px solid rgba(255,0,0,0.3); color:#FF8A8A; font-size:10px; font-weight:700; padding:4px 10px; border-radius:5px; }
+.reel-body { padding:20px; }
+.reel-timeline { display:flex; flex-direction:column; gap:10px; }
+.reel-beat { display:flex; gap:14px; align-items:flex-start; }
+.reel-time { font-size:10px; font-weight:800; color:#FF7B7B; width:38px; flex-shrink:0; padding-top:2px; }
+.reel-action { flex:1; font-size:12px; color:rgba(255,255,255,0.7); line-height:1.5; }
+.reel-action strong { color:#fff; }
+.reel-hook { background:rgba(255,0,0,0.08); border-left:3px solid var(--yt); padding:10px 14px; border-radius:0 8px 8px 0; margin-bottom:14px; font-size:13px; color:#fff; font-weight:600; font-style:italic; }
+
+.checklist { display:flex; flex-direction:column; gap:8px; }
+.check-item { display:flex; align-items:flex-start; gap:10px; font-size:13px; color:var(--ink); padding:10px 12px; background:var(--warm); border-radius:8px; border:1px solid var(--rule); line-height:1.5; }
+.check-item .ci-box { width:18px; height:18px; border-radius:5px; border:2px solid var(--muted); flex-shrink:0; margin-top:1px; }
+.check-item.crit { background:#FFF1F0; border-color:#FFB3AD; }
+.check-item.crit .ci-box { border-color:var(--red); }
+
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; }
+.cal-day-head { text-align:center; font-size:10px; font-weight:700; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; padding:6px 0; }
+.cal-cell { border:1px solid var(--rule); border-radius:8px; padding:8px; min-height:74px; background:#fff; font-size:9px; }
+.cal-date { font-size:11px; font-weight:700; color:var(--ink); margin-bottom:6px; }
+.cal-event { border-radius:4px; padding:3px 5px; font-size:9px; font-weight:600; line-height:1.3; margin-bottom:3px; }
+.cal-event.wa { background:var(--wa2); color:#166534; }
+.cal-event.yt { background:var(--yt2); color:var(--yt); }
+.cal-event.fb { background:var(--fb2); color:var(--fb); }
+.cal-event.gg { background:var(--gg2); color:var(--gg); }
+.cal-event.gold { background:var(--gold2); color:#9A6800; }
+.cal-event.v { background:#F1EBFD; color:var(--violet); }
+
+.funnel-row { display:flex; align-items:center; gap:0; margin-bottom:6px; }
+.funnel-bar { height:40px; display:flex; align-items:center; padding-left:16px; font-size:12px; font-weight:700; color:#fff; border-radius:8px; }
+
+.action-strip { max-width:1100px; margin:0 auto 0; padding:12px 28px; display:flex; gap:10px; justify-content:flex-end; }
+.action-btn { padding:9px 18px; border-radius:8px; border:none; font-family:'Plus Jakarta Sans',sans-serif; font-size:11px; font-weight:700; cursor:pointer; }
+.action-btn.dark { background:var(--ink); color:#fff; }
+.action-btn.gold { background:var(--gold); color:#fff; }
+
+@media print { .nav-tabs, .action-strip { display:none; } .panel { display:block !important; } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+<div class="hero-mesh"></div>
+<div class="hero-inner">
+  <div class="hero-top-row">
+    <div class="hero-brand">
+      <div class="hero-brand-icon">🚀</div>
+      <div><h1>Stitch Manager Pro</h1><p>Launch & Sell Execution Plan</p></div>
+    </div>
+    <div class="hero-budget-pill">
+      <div class="bp-label">Ad Budget Phase 1</div>
+      <div class="bp-val">₹0–5,000</div>
+      <div class="bp-sub">then scale after first sales</div>
+    </div>
+  </div>
+  <div class="hero-headline">Sell <em>before</em> you <span class="accent-v">advertise</span>.<br>Then scale on <span class="accent-yt">proof</span>, not hope.</div>
+  <div class="hero-desc">You're pre-launch with zero customers and a sub-₹10,000/month budget. That changes the whole playbook: paid ads come third, not first. This plan sequences WhatsApp + local selling → YouTube Shorts + content → paid ads, so every rupee you eventually spend is backed by a product that's already proven to convert.</div>
+  <div class="platform-pills">
+    <div class="platform-pill wa">💬 WhatsApp</div>
+    <div class="platform-pill yt">▶️ YouTube Shorts</div>
+    <div class="platform-pill fb">𝗳 Facebook</div>
+    <div class="platform-pill ig">📸 Instagram</div>
+    <div class="platform-pill gg">🔍 Google</div>
+  </div>
+  <div class="hero-stats-row">
+    <div class="hstat"><div class="hs-num">3</div><div class="hs-lbl">Phases / 90 Days</div></div>
+    <div class="hstat"><div class="hs-num">10</div><div class="hs-lbl">First Customer Target</div></div>
+    <div class="hstat"><div class="hs-num">₹0</div><div class="hs-lbl">Ad Spend — Phase 1</div></div>
+    <div class="hstat"><div class="hs-num">2</div><div class="hs-lbl">Site Fixes Before Any Ads</div></div>
+  </div>
+</div>
+</div>
+
+<div class="nav-tabs">
+  <div class="nav-tabs-inner">
+    <div class="nav-tab active" onclick="showPanel('fix')">🚧 Fix First</div>
+    <div class="nav-tab" onclick="showPanel('strategy')">📊 90-Day Roadmap</div>
+    <div class="nav-tab" onclick="showPanel('whatsapp')">💬 WhatsApp & Local</div>
+    <div class="nav-tab" onclick="showPanel('youtube')">▶️ YouTube Shorts</div>
+    <div class="nav-tab" onclick="showPanel('paidads')">🔍 Paid Ads (Phase 3)</div>
+    <div class="nav-tab" onclick="showPanel('calendar')">📅 Content Calendar</div>
+    <div class="nav-tab" onclick="showPanel('budget')">💰 Budget & KPIs</div>
+  </div>
+</div>
+
+<div class="action-strip">
+  <button class="action-btn dark" onclick="window.print()">🖨️ Print / Save PDF</button>
+</div>
+
+<div class="main">
+<div class="panel active" id="panel-fix">
+  <div class="sec-head">
+    <div class="sec-eyebrow">Before You Spend One Rupee</div>
+    <h2>Fix These — Today, Not After Launch</h2>
+    <p>Every lead you generate from here on lands on these two sites. If they're broken or look unfinished, you burn the lead permanently — there's no second first impression. This costs you time, not money.</p>
+  </div>
+
+  <div class="alert-box urgent">
+    <div class="alert-icon">⚠️</div>
+    <div>
+      <h4>stitch.himanshurajput.com — confirm load speed on real devices</h4>
+      <p>You confirmed it works fine for real visitors, which is good — but double-check it on a cheap Android phone on 4G (not WiFi, not your dev machine), since that's the device most tailoring shop owners actually use. A 3+ second load or a flash of "LOADING…" text is exactly the kind of thing that makes a non-technical 45-year-old darzi owner close the tab and assume the app is broken.</p>
+      <ul>
+        <li>Test on a real 4G connection, not office WiFi</li>
+        <li>If there's a visible "Loading..." flash, add a simple branded spinner/splash so it looks intentional, not broken</li>
+        <li>Test the full first-run flow: open app → see Kanban board → add a test order, on a phone you don't use daily</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="alert-box urgent">
+    <div class="alert-icon">⚠️</div>
+    <div>
+      <h4>himanshurajput.com — remove placeholder content before linking to it from any ad or WhatsApp message</h4>
+      <p>This is your personal brand site and it's where "Explore STITCH Pro" sends visitors. Right now it's showing placeholder data that actively undermines trust: a fake email, a fake phone number, and "0+" for every stat (Apps Delivered, Happy Clients, Countries). A prospect who clicks through from a WhatsApp pitch and lands on "0+ Happy Clients" will assume you're not real.</p>
+      <ul>
+        <li>Replace <code>himanshu@example.com</code> with your real email (swarooponline14@gmail.com or a himanshurajput.com address)</li>
+        <li>Replace the <code>wa.me/919876543210</code> placeholder number with your actual WhatsApp Business number, everywhere it appears</li>
+        <li>Either populate the stats honestly (even "Pre-launch · First clients onboarding now" reads better than "0+") or remove the stats section until you have 5+ real clients</li>
+        <li>Check why "About" and "Let's Talk" sections show "Loading..." — same flash-of-placeholder problem as the app</li>
+        <li>Decide: should cold ad traffic land on himanshurajput.com (personal brand, services-heavy) or a dedicated stitchingmanagerpro.com page (product-only, no distraction)? See note below.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="alert-box info">
+    <div class="alert-icon">💡</div>
+    <div>
+      <h4>Decide your landing page strategy now — it affects every ad and script below</h4>
+      <p>You own three domains for a reason. For a cold prospect clicking a WhatsApp link or an ad, himanshurajput.com is the wrong destination — it's a personal portfolio with six other services competing for attention (AI chatbots, Zoho CRM, Odoo ERP). A tailoring shop owner doesn't care that you also build WhatsApp bots; it dilutes trust in the specific product. Recommended split:</p>
+      <ul>
+        <li><strong>stitchingmanagerpro.com</strong> → the only link in every ad, WhatsApp message, and YouTube Shorts bio. Product-only, one CTA: "Book Free Demo"</li>
+        <li><strong>himanshurajput.com</strong> → used only when someone asks "who built this" or for your personal brand / other services, not as the primary funnel</li>
+        <li><strong>swarooponline.com</strong> → company-level credibility page, used in footers/legal mentions, not as primary CTA destination</li>
+      </ul>
+      <p style="margin-top:8px;">This plan assumes stitchingmanagerpro.com becomes your single landing page. If it's not built yet, that's the one task that unlocks everything else — see Phase 1 in the roadmap tab.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-head-left"><span class="plat-badge gold">✅ Checklist</span><div><h3>Pre-Launch Checklist — Complete Before Phase 1 Outreach Starts</h3></div></div></div>
+    <div class="card-body">
+      <div class="checklist">
+        <div class="check-item crit"><div class="ci-box"></div><div>Test full app flow on a borrowed/cheap Android phone over 4G — not your dev machine</div></div>
+        <div class="check-item crit"><div class="ci-box"></div><div>Replace placeholder email and WhatsApp number on himanshurajput.com</div></div>
+        <div class="check-item crit"><div class="ci-box"></div><div>Fix or remove "0+" stats sections until real numbers exist</div></div>
+        <div class="check-item crit"><div class="ci-box"></div><div>Build a minimal one-page stitchingmanagerpro.com: hero, 4-6 features, pricing, one WhatsApp CTA button — nothing else. Ship ugly, ship fast.</div></div>
+        <div class="check-item"><div class="ci-box"></div><div>Set up a dedicated WhatsApp Business number/profile for the product (separate from personal number if possible) with business name, logo, hours, and catalog</div></div>
+        <div class="check-item"><div class="ci-box"></div><div>Create Instagram Business + Facebook Page for "Stitch Manager Pro" (not personal profile) with bio link to stitchingmanagerpro.com</div></div>
+        <div class="check-item"><div class="ci-box"></div><div>Create YouTube channel, write channel description, design a simple banner</div></div>
+        <div class="check-item"><div class="ci-box"></div><div>Identify your first 10 target shops — local tailoring/boutique shops in Meerut/Moradabad you can visit or call directly</div></div>
+        <div class="check-item"><div class="ci-box"></div><div>Record one clean 60-90 second screen-recording demo video of the app (no music, just clear narration) — you'll reuse this clip everywhere</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="panel" id="panel-strategy">
+  <div class="sec-head">
+    <div class="sec-eyebrow">The Sequence</div>
+    <h2>90-Day Roadmap: Prove It, Then Scale It</h2>
+    <p>Three phases, each unlocking the next. Don't skip ahead to paid ads just because it feels more "real" — a pre-launch product with no testimonials and a ₹10k budget will waste most of that money learning lessons you can learn for free in Phase 1.</p>
+  </div>
+
+  <div class="phase-track">
+    <div class="phase-col">
+      <div class="phase-num">1</div>
+      <h4>Prove It Sells</h4>
+      <div class="ph-week">Days 1–30 · ₹0 ad spend</div>
+      <p>Direct WhatsApp outreach + local shop visits. Goal: 5-10 real paying customers using only free channels. This is your proof that the product converts before you pay anyone to look at it.</p>
+      <ul>
+        <li>Fix site issues (see Fix First tab)</li>
+        <li>Outreach to 50+ shops directly</li>
+        <li>Get 5-10 paying customers</li>
+        <li>Collect 3+ testimonials/video reviews</li>
+        <li>Start posting YouTube Shorts (3-4/week)</li>
+      </ul>
+    </div>
+    <div class="phase-col">
+      <div class="phase-num">2</div>
+      <h4>Build Proof & Audience</h4>
+      <div class="ph-week">Days 31–60 · ₹0–3,000 ad spend</div>
+      <p>Use real customer results as content. Start a tiny WhatsApp/Instagram boost budget only to amplify content that's already organically working — never to launch cold, untested ad copy.</p>
+      <ul>
+        <li>Daily/near-daily YouTube Shorts using real customer clips</li>
+        <li>Boost only the best-performing organic post (₹50-100/day max)</li>
+        <li>Set up Meta Pixel + Google Tag now (free, takes 15 min, no reason to delay)</li>
+        <li>Build referral incentive: 1 free month per referral</li>
+        <li>Target: 15-25 total paying customers</li>
+      </ul>
+    </div>
+    <div class="phase-col">
+      <div class="phase-num">3</div>
+      <h4>Scale With Paid Ads</h4>
+      <div class="ph-week">Days 61–90 · ₹5,000–10,000 ad spend</div>
+      <p>Now you have testimonials, a tested landing page, pixel data, and proof of what messaging converts. This is when Facebook/Instagram/Google ads stop being a gamble and start being a multiplier.</p>
+      <ul>
+        <li>Launch 1 platform first (Meta, not Google — cheaper to test on)</li>
+        <li>Use winning organic hook as the ad creative</li>
+        <li>Retarget website visitors who didn't convert</li>
+        <li>Add Google Search ads only once Meta CPL is proven under ₹150</li>
+        <li>Target: 30-40 total paying customers, MRR ₹25,000-50,000+</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="strategy-2col">
+    <div class="target-box">
+      <h4>👤 Who You're Selling To</h4>
+      <div class="target-item">Independent tailoring shop / boutique owners, typically 30-55 years old, in Tier 2/3 Indian cities and towns</div>
+      <div class="target-item">Currently using a paper diary or nothing at all to track orders, customers, and measurements</div>
+      <div class="target-item">Comfortable with WhatsApp and basic smartphone use, but not "tech-savvy" — avoid SaaS jargon entirely</div>
+      <div class="target-item">Price-sensitive: ₹699-1,799/month needs to feel obviously worth it, not "try it and see"</div>
+      <div class="target-item">Trust comes from seeing another shop owner like them using it — not from features lists</div>
+    </div>
+    <div class="target-box">
+      <h4>📍 Where To Find Them First</h4>
+      <div class="target-item">Local tailoring markets in Meerut and nearby — walk in, show the app on your phone, 5-minute demo</div>
+      <div class="target-item">Tailoring/garment WhatsApp groups and Facebook groups (search "tailors group India", "boutique owners India")</div>
+      <div class="target-item">Local fabric/textile wholesalers — ask if they'll refer you to their tailor customers</div>
+      <div class="target-item">Sewing machine dealers (Usha, Singer dealers) — their customer base is exactly your customer base</div>
+      <div class="target-item">Instagram hashtags: #tailoringbusiness #boutiqueowner #darzi #tailorshop</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-head-left"><span class="plat-badge violet">Why This Order</span><div><h3>Why WhatsApp/local comes before paid ads — not after</h3></div></div></div>
+    <div class="card-body" style="font-size:13px; color:#444; line-height:1.8;">
+      With zero customers, you have no testimonials, no case studies, no proof the product solves the problem at the price you're charging, and no data on which message resonates. Running paid ads right now means you're paying to discover all of that — at ₹100-250 per lead, your ₹10,000 budget buys you roughly 40-100 leads with no way to know if your ad copy, your landing page, your pricing, or your demo pitch is the weak link. Sell to 10-20 people directly first using free channels. You'll learn exactly which sentence makes a shop owner say yes, which objection comes up every single time, and what they actually call this problem in their own words — then your ad copy writes itself and converts 2-3x better than anything written from a desk.
+    </div>
+  </div>
+</div>
+
+
+<div class="panel" id="panel-whatsapp">
+  <div class="sec-head">
+    <div class="sec-eyebrow">Phase 1 · Days 1-30 · Zero Cost</div>
+    <h2>WhatsApp & Local Outreach — Your First 10 Customers</h2>
+    <p>This is the highest-leverage activity available to you right now. You already built a WhatsApp Sales Script Kit — this section gives you the daily operating rhythm to actually run it.</p>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-card"><div class="mc-icon">📋</div><div class="mc-val">10/day</div><div class="mc-lbl">Shops to Contact</div><div class="mc-sub">Daily minimum, Mon-Sat</div></div>
+    <div class="metric-card"><div class="mc-icon">📞</div><div class="mc-val">5 min</div><div class="mc-lbl">Demo Length</div><div class="mc-sub">Phone or in-person</div></div>
+    <div class="metric-card"><div class="mc-icon">🎯</div><div class="mc-val">1 in 10</div><div class="mc-lbl">Realistic Close Rate</div><div class="mc-sub">Cold local outreach</div></div>
+    <div class="metric-card"><div class="mc-icon">💰</div><div class="mc-val">₹0</div><div class="mc-lbl">Cost</div><div class="mc-sub">Just time</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-head-left"><span class="plat-badge wa">Daily Routine</span><div><h3>The Daily 90-Minute Outreach Block</h3></div></div></div>
+    <div class="card-body">
+      <div class="checklist">
+        <div class="check-item"><div class="ci-box"></div><div><strong>10 min —</strong> List 10 target shops (Google Maps "tailor near me", local market walk list, referrals from yesterday)</div></div>
+        <div class="check-item"><div class="ci-box"></div><div><strong>40 min —</strong> Send the WhatsApp cold-open message (script below) to all 10, or visit in person if local</div></div>
+        <div class="check-item"><div class="ci-box"></div><div><strong>20 min —</strong> Follow up with anyone from previous days who saw the message but didn't reply</div></div>
+        <div class="check-item"><div class="ci-box"></div><div><strong>20 min —</strong> Run any demos that were booked from prior outreach</div></div>
+        <div class="check-item"><div class="ci-box"></div><div>Log every contact in a simple sheet: Shop name, contact, date messaged, response, demo booked?, outcome</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="script-card">
+    <div class="script-bar wa-bar"><span>💬 Cold Open Message</span><button class="copy-btn" onclick="copyText(this,'sc1')">📋 Copy</button></div>
+    <div class="script-body">
+      <div class="script-text" id="sc1">Namaste ji 🙏
+
+Main Himanshu, ek software developer hoon Meerut se. Maine tailoring shops ke liye ek simple app banaya hai — Stitch Manager Pro.
+
+Isse aap:
+✅ Har customer ka order WhatsApp jaisa easy track kar sakte hain
+✅ Measurements aur photos save kar sakte hain
+✅ Kaun sa order kab tak ready hoga — sab pata rahega
+✅ Customer ko automatic WhatsApp message bhej sakte hain
+
+Diary aur kaagaz ki tension khatam.
+
+2 minute ka demo dikha sakta hoon — abhi call par ya kal aapki shop par aa jaata hoon?</div>
+    </div>
+  </div>
+
+  <div class="script-card">
+    <div class="script-bar wa-bar"><span>💬 Follow-Up (No Reply After 2 Days)</span><button class="copy-btn" onclick="copyText(this,'sc2')">📋 Copy</button></div>
+    <div class="script-body">
+      <div class="script-text" id="sc2">Namaste ji, Himanshu phir se 🙏
+
+Bas ek baar dekh lijiye — yeh wahi app hai jisme aapke orders aur customers ek hi jagah organized rehte hain.
+
+Agar abhi busy hain, koi baat nahi. Jab time mile bata dena, main 5 minute mein live demo dikha dunga — bina kisi obligation ke.</div>
+    </div>
+  </div>
+
+  <div class="script-card">
+    <div class="script-bar wa-bar"><span>🏪 In-Person Shop Visit Script</span><button class="copy-btn" onclick="copyText(this,'sc3')">📋 Copy</button></div>
+    <div class="script-body">
+      <div class="script-text" id="sc3">[Walk in, greet warmly, don't sound like a salesman]
+
+"Namaste ji, aapki shop bahut achi hai. Main ek chhota sa app dikhana chahta hoon jo tailoring shops ke liye banaya hai — agar 2 minute ho to?"
+
+[Open phone, show the Kanban board with sample orders]
+
+"Yeh dekhiye — har order yahan dikhta hai, kaun sa stage mein hai. Customer ka number daalte hi WhatsApp pe automatic message chala jaata hai 'aapka order ready hai.'"
+
+[Let them touch/scroll the phone themselves — this matters more than your talking]
+
+"Agar pasand aaye to ₹699 mahine se start hota hai, aur pehla hafta free trial hai bina card ke."
+
+[If hesitant]: "Koi pressure nahi — number le lijiye, jab try karna ho WhatsApp kar dena, main khud aa kar setup kar dunga."</div>
+    </div>
+  </div>
+
+  <div class="script-card">
+    <div class="script-bar wa-bar"><span>🤝 Referral Ask (After a Happy Customer)</span><button class="copy-btn" onclick="copyText(this,'sc4')">📋 Copy</button></div>
+    <div class="script-body">
+      <div class="script-text" id="sc4">Bhai sahab, khushi hui ki app aapke kaam aa raha hai 🙏
+
+Ek chhoti si request — agar aapke jaan-pehchaan mein koi aur tailor/boutique owner hain jinhe yeh useful lag sakta hai, unka number bhej dijiye.
+
+Aapko unke sign-up karne par 1 mahina FREE mil jaayega — extra paisa kharch nahi karna padega 😊</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-head-left"><span class="plat-badge gold">Common Objections</span><div><h3>Objections You'll Hear Every Day — And the Reply</h3></div></div></div>
+    <div class="card-body" style="display:flex; flex-direction:column; gap:14px;">
+      <div><strong style="font-size:12.5px;">"Mujhe phone/app samajh nahi aata"</strong><div style="font-size:12.5px;color:var(--muted);margin-top:3px;">"Koi baat nahi ji, main khud aa kar 30 minute mein sab sikha dunga, aur WhatsApp pe bhi help milti rahegi hamesha."</div></div>
+      <div><strong style="font-size:12.5px;">"Diary se hi theek hai, kaafi saalon se chal raha hai"</strong><div style="font-size:12.5px;color:var(--muted);margin-top:3px;">"Bilkul samajh sakta hoon. Bas ek baat — jab koi customer 2 mahine baad order ke baare mein call kare, diary mein dhundna padta hoga na? Yahan ek second mein mil jaata hai."</div></div>
+      <div><strong style="font-size:12.5px;">"₹699 mahina mehenga lagta hai"</strong><div style="font-size:12.5px;color:var(--muted);margin-top:3px;">"Samajh sakta hoon ji. Ek din mein sirf ₹23 hota hai — aur ek bhi order miss hone se jo nuksaan hota hai, uska 23 rupaye se bahut zyada hota hai. Pehla hafta free try kar lijiye, phir decide kariye."</div></div>
+      <div><strong style="font-size:12.5px;">"Mera internet/phone purana hai, chalega?"</strong><div style="font-size:12.5px;color:var(--muted);margin-top:3px;">"Haan ji, koi bhi smartphone chal jaata hai jisme WhatsApp chalta hai, woh isme bhi chalega."</div></div>
+    </div>
+  </div>
+</div>
+
+
+<div class="panel" id="panel-youtube">
+  <div class="sec-head">
+    <div class="sec-eyebrow">Phase 1-2 · Free, Compounds Over Time</div>
+    <h2>YouTube Shorts — Build the Audience Before You Need It</h2>
+    <p>Shorts are the single best free-distribution channel available to you right now — no ad spend, and the algorithm actively pushes new channels to find an audience. The goal isn't going viral; it's consistency, so that by Phase 3 you have a library of clips, an established channel, and proof points to repurpose as ad creative.</p>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-card"><div class="mc-icon">📱</div><div class="mc-val">3-5/wk</div><div class="mc-lbl">Shorts to Post</div><div class="mc-sub">Consistency &gt; quality early on</div></div>
+    <div class="metric-card"><div class="mc-icon">⏱️</div><div class="mc-val">15-45s</div><div class="mc-lbl">Ideal Length</div><div class="mc-sub">Hook in first 2 seconds</div></div>
+    <div class="metric-card"><div class="mc-icon">🎬</div><div class="mc-val">4 Types</div><div class="mc-lbl">Repeatable Formats</div><div class="mc-sub">Never run out of ideas</div></div>
+    <div class="metric-card"><div class="mc-icon">💰</div><div class="mc-val">₹0</div><div class="mc-lbl">Cost</div><div class="mc-sub">Phone camera + screen record</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-head-left"><span class="plat-badge yt">Setup</span><div><h3>Channel Setup — Do This Once</h3></div></div></div>
+    <div class="card-body">
+      <div class="checklist">
+        <div class="check-item"><div class="ci-box"></div><div>Channel name: "Stitch Manager Pro" or "Himanshu Rajput - Stitch Manager Pro" (searchability matters more than personal branding here)</div></div>
+        <div class="check-item"><div class="ci-box"></div><div>Channel description: who it's for, in plain language — "Tailoring shop owners ke liye easy management app. Free demo: stitchingmanagerpro.com"</div></div>
+        <div class="check-item"><div class="ci-box"></div><div>Link in bio → stitchingmanagerpro.com (not himanshurajput.com — keep it product-focused)</div></div>
+        <div class="check-item"><div class="ci-box"></div><div>Use your existing brand colors (violet/purple gradient) for banner and thumbnail consistency</div></div>
+        <div class="check-item"><div class="ci-box"></div><div>Post your first 3-5 Shorts before doing any outreach — an empty channel looks unfinished if a prospect checks it</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-head-left"><span class="plat-badge yt">Content Engine</span><div><h3>4 Repeatable Short Formats — Mix These Weekly</h3></div></div></div>
+    <div class="card-body" style="display:flex; flex-direction:column; gap:16px;">
+      <div><strong style="font-size:13px;">1. Problem-Agitation Hook</strong><div style="font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.6;">Open on a relatable pain point ("Diary mein order dhundte dhundte customer chala gaya?"), then 10-15 seconds of screen-recorded app solving it. These perform best for cold reach — they don't require anyone to already know your product.</div></div>
+      <div><strong style="font-size:13px;">2. Feature-in-15-Seconds</strong><div style="font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.6;">Pick ONE feature per video (e.g. just the WhatsApp auto-alert, just the PDF export). Single-feature clips are easier to make consistently than trying to show everything every time.</div></div>
+      <div><strong style="font-size:13px;">3. Real Customer Reaction (Phase 2+, once you have customers)</strong><div style="font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.6;">Film a 15-second clip of an actual shop owner using the app or saying one sentence about it. This is your highest-converting format once available — nothing beats a real person who isn't you saying it works.</div></div>
+      <div><strong style="font-size:13px;">4. "Before vs After" Split</strong><div style="font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.6;">Messy diary photo vs clean Kanban board screen. Extremely fast to make, strong visual contrast, works well as a recurring weekly series.</div></div>
+    </div>
+  </div>
+
+  <div class="reel-card">
+    <div class="reel-head">
+      <div><h3>▶️ Short #1 — "Diary Tension" Hook</h3><p>20 seconds — cold-reach format</p></div>
+      <span class="reel-duration">⏱ 20 sec</span>
+    </div>
+    <div class="reel-body">
+      <div class="reel-hook">"Customer ka order bhool gaye? Yeh dekhiye solution"</div>
+      <div class="reel-timeline">
+        <div class="reel-beat"><div class="reel-time">0-2s</div><div class="reel-action"><strong>[TEXT ON SCREEN]</strong> "Tailor shop owners — yeh problem aapke saath bhi hoti hai? 😩" over a photo of a messy order diary</div></div>
+        <div class="reel-beat"><div class="reel-time">2-6s</div><div class="reel-action"><strong>[VOICEOVER]</strong> "Diary mein likha order kahan gaya, customer ka number kya tha, kab tak deliver karna tha — sab gum ho jaata hai"</div></div>
+        <div class="reel-beat"><div class="reel-time">6-16s</div><div class="reel-action"><strong>[SCREEN RECORD]</strong> Open app, show Kanban board with orders clearly organized by stage. Voiceover: "Stitch Manager Pro mein sab ek jagah, ek click mein"</div></div>
+        <div class="reel-beat"><div class="reel-time">16-20s</div><div class="reel-action"><strong>[TEXT CARD]</strong> "FREE Demo — Bio mein link 👆" + your WhatsApp number on screen</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="reel-card">
+    <div class="reel-head">
+      <div><h3>▶️ Short #2 — Single Feature: WhatsApp Auto-Alert</h3><p>15 seconds — feature spotlight</p></div>
+      <span class="reel-duration">⏱ 15 sec</span>
+    </div>
+    <div class="reel-body">
+      <div class="reel-hook">"Customer ko bina call kiye bata do order ready hai"</div>
+      <div class="reel-timeline">
+        <div class="reel-beat"><div class="reel-time">0-3s</div><div class="reel-action"><strong>[HOOK]</strong> "Yeh feature aapka time bachayega 👇"</div></div>
+        <div class="reel-beat"><div class="reel-time">3-11s</div><div class="reel-action"><strong>[SCREEN RECORD]</strong> Mark order as "Ready" → show WhatsApp message auto-sending to customer's number</div></div>
+        <div class="reel-beat"><div class="reel-time">11-15s</div><div class="reel-action"><strong>[CTA]</strong> "Aapki shop ke liye — link bio mein"</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="reel-card">
+    <div class="reel-head">
+      <div><h3>▶️ Short #3 — Before vs After</h3><p>12 seconds — fastest to produce, post weekly</p></div>
+      <span class="reel-duration">⏱ 12 sec</span>
+    </div>
+    <div class="reel-body">
+      <div class="reel-hook">"Pehle vs Ab — tailoring shop record-keeping"</div>
+      <div class="reel-timeline">
+        <div class="reel-beat"><div class="reel-time">0-1s</div><div class="reel-action"><strong>[SPLIT SCREEN]</strong> Left labeled "PEHLE", right labeled "AB" — both blank for a beat</div></div>
+        <div class="reel-beat"><div class="reel-time">1-6s</div><div class="reel-action"><strong>[LEFT]</strong> Photo/footage of messy handwritten order diary, scribbles, torn pages</div></div>
+        <div class="reel-beat"><div class="reel-time">6-11s</div><div class="reel-action"><strong>[RIGHT]</strong> Clean app Kanban screen with organized order cards</div></div>
+        <div class="reel-beat"><div class="reel-time">11-12s</div><div class="reel-action"><strong>[TEXT]</strong> "Link in bio — Free demo"</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert-box info">
+    <div class="alert-icon">💡</div>
+    <div>
+      <h4>Posting tips that matter more than production quality</h4>
+      <ul>
+        <li>Post consistently (3-5/week) rather than occasionally going for a "perfect" video — the algorithm rewards frequency early on</li>
+        <li>Always caption in Hinglish/Hindi if your audience is Hindi-speaking shop owners — don't default to English captions</li>
+        <li>Put the link to stitchingmanagerpro.com in your bio and mention "link in bio" verbally/on-screen in every video</li>
+        <li>Reuse the same screen-recording demo footage across multiple Shorts with different hooks/voiceovers — you don't need new footage every time</li>
+        <li>Once you have 3+ real customers, customer-reaction clips will outperform anything you make yourself — prioritize asking for those</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+
+<div class="panel" id="panel-paidads">
+  <div class="sec-head">
+    <div class="sec-eyebrow">Phase 3 · Days 61-90 · ₹5,000-10,000</div>
+    <h2>Paid Ads — Only After Phases 1 & 2</h2>
+    <p>By the time you reach this tab for real, you should have 15-25 paying customers, at least 3 testimonials, a tested landing page, and a clear sense of which message converts. Don't open this tab on Day 1 and start spending — it'll waste money relative to where it'll go after Phase 1-2 proof.</p>
+  </div>
+
+  <div class="alert-box info">
+    <div class="alert-icon">🎯</div>
+    <div>
+      <h4>Start with one platform, not three at once</h4>
+      <p>With ₹5,000-10,000/month, splitting across Facebook + Instagram + Google dilutes your budget so much that no single campaign gets enough data to optimize. Start with Meta (Facebook + Instagram run from one campaign) since it's cheaper per click for awareness-stage products. Add Google Search only once you have a proven Meta cost-per-lead under ₹150 — Google clicks are typically 2-3x more expensive but higher-intent.</p>
+    </div>
+  </div>
+
+  <div class="strategy-2col">
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-head"><div class="card-head-left"><span class="plat-badge fb">Meta</span><div><h3>Facebook + Instagram — Lead Gen Campaign</h3></div></div></div>
+      <div class="card-body" style="font-size:12.5px; color:#444; line-height:1.7;">
+        <strong>Objective:</strong> Leads (use the on-platform lead form, not website clicks, for the first test — fewer steps means cheaper leads)<br><br>
+        <strong>Audience:</strong> Location: your state + 2-3 neighboring states. Interests: small business owners, tailoring, fashion design. Age: 28-55. Start broad — let Meta's algorithm find the actual converters rather than over-narrowing on day one.<br><br>
+        <strong>Creative:</strong> Use your best-performing organic Short as the ad video. Don't write new ad copy from scratch — use the exact hook that already got engagement organically.<br><br>
+        <strong>Budget:</strong> ₹150-200/day to start, run for at least 4-5 days before judging results (Meta needs ~50 conversions per ad set to exit learning phase, but at this budget judge on cost-per-lead trend, not full optimization).
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-head"><div class="card-head-left"><span class="plat-badge gg">Google</span><div><h3>Search Ads — Add Only After Meta Works</h3></div></div></div>
+      <div class="card-body" style="font-size:12.5px; color:#444; line-height:1.7;">
+        <strong>Why later:</strong> Search ads target people already looking for a solution ("tailoring shop software", "darzi management app") — high intent but low volume in most Tier 2/3 markets, and CPCs add up fast on a small budget.<br><br>
+        <strong>Keywords to start with:</strong> "tailoring shop software", "boutique management app India", "darzi app", "tailor order management software" — exact and phrase match only, avoid broad match until you have negative keywords built up.<br><br>
+        <strong>Budget:</strong> ₹100-150/day, capped tightly. Check search terms report daily for the first week and add negative keywords aggressively (you'll get irrelevant clicks like "tailoring courses" or "sewing machine price").
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-head-left"><span class="plat-badge violet">Setup Now, Use Later</span><div><h3>Two Things to Set Up Today, Even Though You Won't Run Ads Yet</h3></div></div></div>
+    <div class="card-body">
+      <div class="checklist">
+        <div class="check-item"><div class="ci-box"></div><div><strong>Meta Pixel</strong> on stitchingmanagerpro.com — free, 15 minutes, and every visitor between now and Phase 3 builds a retargeting/lookalike audience you'll use later at no extra cost</div></div>
+        <div class="check-item"><div class="ci-box"></div><div><strong>Google Tag</strong> on the same site, same reason — conversion data compounds, and there's no downside to having it running from day one</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-head-left"><span class="plat-badge gold">Retargeting</span><div><h3>Retargeting — Your Highest-ROI Ad Budget Line</h3></div></div></div>
+    <div class="card-body" style="font-size:12.5px;color:#444;line-height:1.7;">
+      Once the Pixel has been live a few weeks, run a small (₹50-100/day) retargeting campaign to anyone who visited stitchingmanagerpro.com but didn't book a demo. These people already know what the product is — they just need a nudge, often with a testimonial or a limited-time offer ("First month ₹349 — this week only"). Retargeting consistently produces the lowest cost-per-lead of any campaign type, so even on a tiny budget, don't skip it once you have site traffic to retarget.
+    </div>
+  </div>
+</div>
+
+
+<div class="panel" id="panel-calendar">
+  <div class="sec-head">
+    <div class="sec-eyebrow">Week 1 — Get Moving</div>
+    <h2>Your First 7 Days, Day by Day</h2>
+    <p>A concrete starting week so you're not staring at a strategy document wondering what to actually do Monday morning.</p>
+  </div>
+
+  <div class="cal-grid">
+    <div class="cal-day-head">Mon</div><div class="cal-day-head">Tue</div><div class="cal-day-head">Wed</div><div class="cal-day-head">Thu</div><div class="cal-day-head">Fri</div><div class="cal-day-head">Sat</div><div class="cal-day-head">Sun</div>
+
+    <div class="cal-cell">
+      <div class="cal-date">Day 1</div>
+      <div class="cal-event v">Fix site issues</div>
+      <div class="cal-event v">Replace placeholders</div>
+    </div>
+    <div class="cal-cell">
+      <div class="cal-date">Day 2</div>
+      <div class="cal-event v">Build stitchingmanagerpro.com 1-pager</div>
+      <div class="cal-event wa">Set up WA Business</div>
+    </div>
+    <div class="cal-cell">
+      <div class="cal-date">Day 3</div>
+      <div class="cal-event yt">Create YT channel</div>
+      <div class="cal-event yt">Record demo footage</div>
+    </div>
+    <div class="cal-cell">
+      <div class="cal-date">Day 4</div>
+      <div class="cal-event yt">Edit & post Short #1</div>
+      <div class="cal-event wa">List 10 target shops</div>
+    </div>
+    <div class="cal-cell">
+      <div class="cal-date">Day 5</div>
+      <div class="cal-event wa">Send outreach to 10 shops</div>
+      <div class="cal-event yt">Post Short #2</div>
+    </div>
+    <div class="cal-cell">
+      <div class="cal-date">Day 6</div>
+      <div class="cal-event wa">Follow up + run demos</div>
+      <div class="cal-event wa">Visit 3-5 local shops in person</div>
+    </div>
+    <div class="cal-cell">
+      <div class="cal-date">Day 7</div>
+      <div class="cal-event gold">Review: replies? demos booked?</div>
+      <div class="cal-event yt">Post Short #3</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px;">
+    <div class="card-head"><div class="card-head-left"><span class="plat-badge gold">Weeks 2-4</span><div><h3>Ongoing Weekly Rhythm (Repeat Through Phase 1)</h3></div></div></div>
+    <div class="card-body">
+      <div class="checklist">
+        <div class="check-item"><div class="ci-box"></div><div><strong>Every weekday:</strong> 10 new shops contacted via WhatsApp/visit, follow-ups on prior week's contacts</div></div>
+        <div class="check-item"><div class="ci-box"></div><div><strong>3-5x/week:</strong> New YouTube Short posted, mixing the 4 formats from the YouTube tab</div></div>
+        <div class="check-item"><div class="ci-box"></div><div><strong>Every Sunday:</strong> 30-min review — how many demos booked, how many converted, which objection came up most, which Short got the most views</div></div>
+        <div class="check-item"><div class="ci-box"></div><div><strong>After every sale:</strong> Ask for a 15-second video testimonial or even a written one — this becomes Phase 2/3 fuel</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="panel" id="panel-budget">
+  <div class="sec-head">
+    <div class="sec-eyebrow">Money & Numbers</div>
+    <h2>Realistic Budget & What To Track</h2>
+    <p>Built around your actual starting point: zero customers, sub-₹10,000/month available. The numbers below are deliberately conservative — better to be pleasantly surprised than to plan around a best case that doesn't happen.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-head-left"><span class="plat-badge gold">💰 Budget</span><div><h3>Monthly Spend by Phase</h3></div></div></div>
+    <div class="card-body" style="padding:0; overflow:auto;">
+      <table class="budget-table">
+        <thead><tr><th>Phase</th><th>Ad Spend</th><th>Where It Goes</th><th>Target Customers</th><th>Est. MRR</th></tr></thead>
+        <tbody>
+          <tr><td>Phase 1 (Days 1-30)</td><td>₹0</td><td>Your time only — WhatsApp, visits, Shorts</td><td>5-10</td><td>₹3,500-12,000</td></tr>
+          <tr><td>Phase 2 (Days 31-60)</td><td>₹0-3,000</td><td>Boosting best organic post only</td><td>+10-15 (15-25 total)</td><td>₹10,000-30,000</td></tr>
+          <tr><td>Phase 3 (Days 61-90)</td><td>₹5,000-10,000</td><td>Meta lead gen + retargeting, Google if Meta proven</td><td>+10-20 (30-40 total)</td><td>₹25,000-50,000+</td></tr>
+          <tr class="total"><td><strong>90-Day Total</strong></td><td><strong>~₹8,000-13,000</strong></td><td></td><td><strong>30-40 customers</strong></td><td><strong>₹25,000-50,000+ MRR</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-card"><div class="mc-icon">📲</div><div class="mc-val">₹100-200</div><div class="mc-lbl">Target Cost Per Lead</div><div class="mc-sub">Phase 3 only</div></div>
+    <div class="metric-card"><div class="mc-icon">🎯</div><div class="mc-val">1 in 10</div><div class="mc-lbl">Cold Outreach Close Rate</div><div class="mc-sub">Realistic, not best-case</div></div>
+    <div class="metric-card"><div class="mc-icon">✅</div><div class="mc-val">20-35%</div><div class="mc-lbl">Demo to Customer Rate</div><div class="mc-sub">With good follow-up</div></div>
+    <div class="metric-card"><div class="mc-icon">💰</div><div class="mc-val">&lt;₹500</div><div class="mc-lbl">Target CAC</div><div class="mc-sub">Should stay well under 1 month's revenue</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-head-left"><span class="plat-badge all">Weekly</span><div><h3>What To Track Every Week (Keep It Simple)</h3></div></div></div>
+    <div class="card-body">
+      <div class="strategy-2col" style="margin-bottom:0;">
+        <div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Sales Numbers</div>
+          <div style="display:flex;flex-direction:column;gap:7px;font-size:12.5px;">
+            <div>☐ Shops contacted this week</div>
+            <div>☐ Demos booked / completed</div>
+            <div>☐ New paying customers</div>
+            <div>☐ Most common objection heard</div>
+            <div>☐ Total active customers & MRR</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Content Numbers</div>
+          <div style="display:flex;flex-direction:column;gap:7px;font-size:12.5px;">
+            <div>☐ Shorts posted this week</div>
+            <div>☐ Best-performing Short (views/engagement)</div>
+            <div>☐ Any DMs/comments asking about pricing — follow up directly</div>
+            <div>☐ (Phase 3) Cost per lead by platform</div>
+            <div>☐ (Phase 3) Pause anything above ₹250 CPL for 3+ days</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert-box info">
+    <div class="alert-icon">📌</div>
+    <div>
+      <h4>The one number that matters most right now</h4>
+      <p>Not impressions, not followers, not CPL — it's "how many of the shop owners I personally talked to said yes." That number tells you whether the product and pitch work at all, independent of any platform's algorithm. Everything else in this plan exists to find more people to ask that question to.</p>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  event.target.classList.add('active');
+  window.scrollTo({top: document.querySelector('.main').offsetTop - 60, behavior:'smooth'});
+}
+function copyText(btn, id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText).then(() => {
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => { btn.textContent = '📋 Copy'; }, 2000);
+  });
+}
+</script>
+</body>
+</html>

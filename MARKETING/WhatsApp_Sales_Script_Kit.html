@@ -1,0 +1,1652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatsApp Sales Script Kit — Stitching Manager Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --ink:    #0F0F0F;
+  --wa:     #25D366;
+  --wa2:    #128C7E;
+  --wa3:    #DCF8C6;
+  --gold:   #C9922A;
+  --dark:   #1A1A2E;
+  --bg:     #ECEAE5;
+  --card:   #FFFFFF;
+  --muted:  #7A7060;
+  --rule:   #E2DDD5;
+  --warm:   #FAF8F3;
+  --bubble: #E7FDD8;
+  --sent:   #DCF8C6;
+  --accent: #0550AE;
+}
+body {
+  font-family: 'Sora', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+}
+
+/* ── HEADER ── */
+.header {
+  background: var(--dark);
+  padding: 20px 0 0;
+  text-align: center;
+}
+.header-inner { max-width: 860px; margin: 0 auto; padding: 0 24px 24px; }
+.header-logo-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.header-icon {
+  width: 52px; height: 52px;
+  background: var(--wa);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+  box-shadow: 0 4px 20px rgba(37,211,102,0.35);
+}
+.header-title h1 {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.2;
+}
+.header-title p {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.header-desc {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  font-weight: 300;
+  line-height: 1.7;
+  max-width: 520px;
+  margin: 0 auto 20px;
+}
+.header-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.tab-btn {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.6);
+  font-family: 'Sora', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.04em;
+}
+.tab-btn.active, .tab-btn:hover {
+  background: var(--wa);
+  border-color: var(--wa);
+  color: #fff;
+}
+.header-bottom-strip {
+  background: rgba(0,0,0,0.25);
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.strip-item {
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.05em;
+}
+.strip-item span { color: var(--wa); font-weight: 700; }
+
+/* ── MAIN ── */
+.main {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 32px 16px 60px;
+}
+
+/* ── SECTION PANEL ── */
+.script-panel { display: none; }
+.script-panel.active { display: block; }
+
+/* ── SCRIPT CARD ── */
+.script-card {
+  background: var(--card);
+  border-radius: 16px;
+  margin-bottom: 20px;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+}
+.sc-head {
+  background: var(--dark);
+  padding: 16px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sc-head-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sc-badge {
+  background: var(--wa);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+.sc-badge.objection { background: #E67E22; }
+.sc-badge.followup  { background: var(--accent); }
+.sc-badge.closing   { background: #8B1A1A; }
+.sc-badge.demo      { background: var(--wa2); }
+.sc-head h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+.sc-head p {
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+  margin-top: 1px;
+}
+.copy-all-btn {
+  background: rgba(37,211,102,0.15);
+  border: 1px solid rgba(37,211,102,0.3);
+  color: var(--wa);
+  font-family: 'Sora', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.copy-all-btn:hover, .copy-all-btn.copied {
+  background: var(--wa);
+  color: #fff;
+  border-color: var(--wa);
+}
+
+/* ── CHAT BUBBLE PREVIEW ── */
+.chat-preview {
+  background: #ECE5DD;
+  padding: 20px 20px;
+  position: relative;
+}
+.chat-preview::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23c8b8a2' fill-opacity='0.15'%3E%3Cpath d='M20 20c0-5.5-4.5-10-10-10S0 14.5 0 20s4.5 10 10 10 10-4.5 10-10zm10 0c0-5.5 4.5-10 10-10s10 4.5 10 10-4.5 10-10 10-10-4.5-10-10z'/%3E%3C/g%3E%3C/svg%3E");
+  pointer-events: none;
+}
+.bubble-wrap {
+  display: flex;
+  justify-content: flex-end;
+  position: relative;
+  z-index: 1;
+}
+.bubble {
+  background: var(--sent);
+  border-radius: 12px 2px 12px 12px;
+  padding: 12px 16px;
+  max-width: 88%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  position: relative;
+}
+.bubble::after {
+  content: '';
+  position: absolute;
+  top: 0; right: -8px;
+  width: 0; height: 0;
+  border-left: 8px solid var(--sent);
+  border-bottom: 8px solid transparent;
+}
+.bubble-text {
+  font-family: 'Sora', sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: #111;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.bubble-time {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 10px;
+  color: rgba(0,0,0,0.35);
+}
+.bubble-time .ticks { color: #53BDEB; font-size: 12px; }
+
+/* ── SCRIPT TEXT BOX ── */
+.script-text-box {
+  padding: 20px 22px;
+  border-top: 1px solid var(--rule);
+  background: var(--warm);
+}
+.stb-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stb-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+.stb-content {
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.75;
+  white-space: pre-wrap;
+  font-weight: 400;
+  font-family: 'Sora', sans-serif;
+  background: #fff;
+  border: 1.5px solid var(--rule);
+  border-radius: 10px;
+  padding: 16px 18px;
+  cursor: text;
+  user-select: all;
+  position: relative;
+}
+
+/* ── TIPS ROW ── */
+.tips-row {
+  padding: 14px 22px;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.tip-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #F0FFF4;
+  border: 1px solid rgba(37,211,102,0.25);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--wa2);
+}
+.tip-chip.warn { background: #FFF8EC; border-color: rgba(230,126,34,0.3); color: #A05A00; }
+.tip-chip.info { background: #EFF6FF; border-color: rgba(59,130,246,0.25); color: #1D4ED8; }
+
+/* ── SECTION LABEL ── */
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  margin-top: 8px;
+}
+.section-label h2 {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.section-label .sl-line {
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, var(--wa) 0%, transparent 100%);
+}
+.section-label .sl-desc {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 400;
+  margin-top: 2px;
+}
+
+/* ── FLOW DIAGRAM ── */
+.flow-diagram {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid var(--rule);
+  margin-bottom: 24px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.05);
+}
+.flow-diagram h3 {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.flow-steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+.flow-step {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.flow-box {
+  background: var(--dark);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 8px;
+  text-align: center;
+  line-height: 1.3;
+  min-width: 90px;
+}
+.flow-box em { color: var(--wa); font-style: normal; display: block; font-size: 9px; font-weight: 400; margin-top: 2px; letter-spacing: 0.06em; text-transform: uppercase; }
+.flow-arrow {
+  font-size: 16px;
+  color: var(--rule);
+  padding: 0 6px;
+  flex-shrink: 0;
+}
+
+/* ── WA CTA STRIP ── */
+.wa-cta-strip {
+  background: linear-gradient(135deg, #075E54 0%, #128C7E 100%);
+  border-radius: 14px;
+  padding: 22px 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.wa-cta-left h3 { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+.wa-cta-left p  { font-size: 12px; color: rgba(255,255,255,0.6); line-height: 1.5; }
+.wa-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--wa);
+  color: #fff;
+  font-family: 'Sora', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 13px 24px;
+  border-radius: 10px;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 15px rgba(37,211,102,0.4);
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+}
+.wa-cta-btn:hover { background: #20C45A; transform: translateY(-1px); }
+
+/* ── DO / DON'T ── */
+.do-dont-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.do-card, .dont-card {
+  border-radius: 12px;
+  padding: 18px;
+  border: 1.5px solid;
+}
+.do-card {
+  background: #F0FFF4;
+  border-color: rgba(37,211,102,0.3);
+}
+.dont-card {
+  background: #FFF5F5;
+  border-color: rgba(220,38,38,0.2);
+}
+.do-card h4 { color: #166534; font-size: 12px; font-weight: 800; margin-bottom: 10px; letter-spacing: 0.06em; }
+.dont-card h4 { color: #991B1B; font-size: 12px; font-weight: 800; margin-bottom: 10px; letter-spacing: 0.06em; }
+.do-card li, .dont-card li {
+  font-size: 11.5px;
+  line-height: 1.6;
+  margin-bottom: 6px;
+  list-style: none;
+  display: flex;
+  gap: 7px;
+}
+.do-card li::before  { content: '✓'; color: var(--wa); font-weight: 800; flex-shrink:0; }
+.dont-card li::before { content: '✗'; color: #DC2626; font-weight: 800; flex-shrink:0; }
+
+/* ── OBJECTION ACCORDION ── */
+.obj-item {
+  background: var(--card);
+  border-radius: 12px;
+  border: 1px solid var(--rule);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.obj-q {
+  padding: 14px 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  user-select: none;
+}
+.obj-q:hover { background: var(--warm); }
+.obj-q-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.obj-q-text .emoji { font-size: 16px; }
+.obj-chevron { color: var(--muted); font-size: 14px; transition: transform 0.2s; flex-shrink:0; }
+.obj-item.open .obj-chevron { transform: rotate(180deg); }
+.obj-a {
+  display: none;
+  border-top: 1px solid var(--rule);
+}
+.obj-item.open .obj-a { display: block; }
+.obj-a-inner {
+  padding: 16px 18px;
+  background: var(--warm);
+}
+.obj-reply-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.obj-bubble {
+  background: var(--sent);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+  position: relative;
+  cursor: text;
+  user-select: all;
+}
+.obj-copy-btn {
+  margin-top: 8px;
+  background: none;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  font-family: 'Sora', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.04em;
+}
+.obj-copy-btn:hover { background: var(--wa); color: #fff; border-color: var(--wa); }
+
+/* ── PRINT AREA ── */
+@media print {
+  .header-tabs, .tab-btn, .copy-all-btn, .obj-copy-btn, .wa-cta-btn { display: none !important; }
+  .script-panel { display: block !important; }
+  .obj-a { display: block !important; }
+}
+
+/* ── PRINT BUTTON ── */
+.action-bar {
+  max-width: 860px;
+  margin: 16px auto 0;
+  padding: 0 16px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.action-btn {
+  background: var(--dark);
+  color: #fff;
+  border: none;
+  font-family: 'Sora', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+.action-btn.wa { background: var(--wa); }
+
+@media (max-width: 600px) {
+  .do-dont-grid { grid-template-columns: 1fr; }
+  .flow-steps { flex-direction: column; align-items: flex-start; }
+  .flow-arrow { transform: rotate(90deg); }
+  .bubble { max-width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<div class="header">
+  <div class="header-inner">
+    <div class="header-logo-row">
+      <div class="header-icon">💬</div>
+      <div class="header-title">
+        <h1>WhatsApp Sales Script Kit</h1>
+        <p>Stitching Manager Pro · Swaroop Threads</p>
+      </div>
+    </div>
+    <p class="header-desc">Complete mix Hindi-English scripts for every stage — first contact to close. Copy karo, bhejo, deal karo. 🎯</p>
+    <div class="header-tabs">
+      <button class="tab-btn active" onclick="showPanel('cold')">🥶 Cold Outreach</button>
+      <button class="tab-btn" onclick="showPanel('warm')">🔥 Warm Follow-Up</button>
+      <button class="tab-btn" onclick="showPanel('demo')">📱 Demo Request</button>
+      <button class="tab-btn" onclick="showPanel('objection')">🛡️ Objections</button>
+      <button class="tab-btn" onclick="showPanel('closing')">🏆 Closing</button>
+      <button class="tab-btn" onclick="showPanel('tips')">💡 Tips & Rules</button>
+    </div>
+  </div>
+  <div class="header-bottom-strip">
+    <div class="strip-item">✂️ <span>Stitching Manager Pro</span></div>
+    <div class="strip-item">💬 For WhatsApp outreach to tailors & boutiques</div>
+    <div class="strip-item">📋 <span>5 stages</span> · 12+ ready scripts</div>
+    <div class="strip-item">🇮🇳 Hindi + English mix</div>
+  </div>
+</div>
+
+<div class="action-bar">
+  <button class="action-btn" onclick="window.print()">🖨️ Print / PDF</button>
+  <a class="action-btn wa" href="https://wa.me/91XXXXXXXXXX" target="_blank">💬 Open WhatsApp</a>
+</div>
+
+<div class="main">
+
+<!-- ══════════════════════════════════════
+     PANEL 1 — COLD OUTREACH
+══════════════════════════════════════ -->
+<div class="script-panel active" id="panel-cold">
+
+  <div class="section-label">
+    <div>
+      <h2>🥶 Cold Outreach Scripts</h2>
+      <div class="sl-desc">Pehli baar contact karne ke liye — no prior relationship</div>
+    </div>
+    <div class="sl-line"></div>
+  </div>
+
+  <!-- Flow -->
+  <div class="flow-diagram">
+    <h3>📍 Cold Outreach Flow</h3>
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="flow-box">Message 1<em>Day 1</em></div>
+        <div class="flow-arrow">→</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-box">Wait 24–48h<em>If no reply</em></div>
+        <div class="flow-arrow">→</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-box">Message 2<em>Follow Up</em></div>
+        <div class="flow-arrow">→</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-box">Demo Offer<em>If interested</em></div>
+        <div class="flow-arrow">→</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-box">Close / Next<em>Action</em></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script 1 -->
+  <div class="script-card">
+    <div class="sc-head">
+      <div class="sc-head-left">
+        <span class="sc-badge">Cold #1</span>
+        <div>
+          <h3>First Contact — Hook Message</h3>
+          <p>Pehla message — short, curious, non-salesy</p>
+        </div>
+      </div>
+      <button class="copy-all-btn" onclick="copyScript(this, 'cold1')">📋 Copy</button>
+    </div>
+    <div class="chat-preview">
+      <div class="bubble-wrap">
+        <div class="bubble">
+          <div class="bubble-text" id="cold1">Namaste ji! 🙏
+
+Kya aap apni tailoring shop ke orders paper ya diary mein likhte hain?
+
+Main Swaroop Threads se bol raha/rahi hoon — hamne ek simple app banaya hai sirf tailors ke liye, jisse aap apna paisa aur time dono bachayein. 💰⏰
+
+Kya main 2 minute aapka le sakta/sakti hoon?</div>
+          <div class="bubble-time">3:14 PM <span class="ticks">✓✓</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="script-text-box">
+      <div class="stb-label">Copy-Ready Text</div>
+      <div class="stb-content" onclick="selectAll(this)">Namaste ji! 🙏
+
+Kya aap apni tailoring shop ke orders paper ya diary mein likhte hain?
+
+Main Swaroop Threads se bol raha/rahi hoon — hamne ek simple app banaya hai sirf tailors ke liye, jisse aap apna paisa aur time dono bachayein. 💰⏰
+
+Kya main 2 minute aapka le sakta/sakti hoon?</div>
+    </div>
+    <div class="tips-row">
+      <div class="tip-chip">✅ Short rakho — 4 lines max pehla message</div>
+      <div class="tip-chip warn">⚠️ Abhi price mat batao</div>
+      <div class="tip-chip info">💡 Subah 10–12 ya shaam 5–7 baje bhejo</div>
+    </div>
+  </div>
+
+  <!-- Script 2 -->
+  <div class="script-card">
+    <div class="sc-head">
+      <div class="sc-head-left">
+        <span class="sc-badge">Cold #2</span>
+        <div>
+          <h3>Value Drop — Features + Pain Points</h3>
+          <p>Agar unhone reply kiya ya curious lage</p>
+        </div>
+      </div>
+      <button class="copy-all-btn" onclick="copyScript(this, 'cold2')">📋 Copy</button>
+    </div>
+    <div class="chat-preview">
+      <div class="bubble-wrap">
+        <div class="bubble">
+          <div class="bubble-text" id="cold2">Ji bilkul! 😊 Bahut khushi hui aapka reply dekhke.
+
+Hamara app *Stitching Manager Pro* — specifically tailoring shops ke liye banaya gaya hai:
+
+✂️ *Apna paisa bachayein* — har order track hoga, koi payment miss nahi hogi
+⏰ *Time save karein* — paper likhna, dhundna sab band. 2 click mein sab ready
+💬 *Customer ko khush rakhein* — directly WhatsApp pe order ready, delivery alerts bhejo
+📊 *Reports dekhein* — kaunsa garment zyada bikta hai, kitna income hua — sab ek jagah
+🤝 *Hamesha connected rahein* — app mobile, laptop dono pe chalti hai, kabhi bhi
+
+Aur best part? *Sirf ₹699/month* se shuru — ek customer ki stitching ki kamai se bhi kam! 🎯
+
+Kya aap ek FREE live demo dekhna chahenge?</div>
+          <div class="bubble-time">3:17 PM <span class="ticks">✓✓</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="script-text-box">
+      <div class="stb-label">Copy-Ready Text</div>
+      <div class="stb-content" onclick="selectAll(this)">Ji bilkul! 😊 Bahut khushi hui aapka reply dekhke.
+
+Hamara app *Stitching Manager Pro* — specifically tailoring shops ke liye banaya gaya hai:
+
+✂️ *Apna paisa bachayein* — har order track hoga, koi payment miss nahi hogi
+⏰ *Time save karein* — paper likhna, dhundna sab band. 2 click mein sab ready
+💬 *Customer ko khush rakhein* — directly WhatsApp pe order ready, delivery alerts bhejo
+📊 *Reports dekhein* — kaunsa garment zyada bikta hai, kitna income hua — sab ek jagah
+🤝 *Hamesha connected rahein* — app mobile, laptop dono pe chalti hai, kabhi bhi
+
+Aur best part? *Sirf ₹699/month* se shuru — ek customer ki stitching ki kamai se bhi kam! 🎯
+
+Kya aap ek FREE live demo dekhna chahenge?</div>
+    </div>
+    <div class="tips-row">
+      <div class="tip-chip">✅ Bold text (*word*) WhatsApp mein highlight hota hai</div>
+      <div class="tip-chip info">💡 Price sirf tab batao jab interest dikhaye</div>
+    </div>
+  </div>
+
+  <!-- Script 3 -->
+  <div class="script-card">
+    <div class="sc-head">
+      <div class="sc-head-left">
+        <span class="sc-badge">Cold #3</span>
+        <div>
+          <h3>Referral / Known Contact Opening</h3>
+          <p>Jab koi aapko refer kare ya aap unhe personally jaante ho</p>
+        </div>
+      </div>
+      <button class="copy-all-btn" onclick="copyScript(this, 'cold3')">📋 Copy</button>
+    </div>
+    <div class="chat-preview">
+      <div class="bubble-wrap">
+        <div class="bubble">
+          <div class="bubble-text" id="cold3">Namaste [Name] ji! 🙏
+
+[Referral name] ne aapka number diya — bole ki aap ek bahut acha boutique chalate hain! 😊
+
+Main Swaroop Threads se hoon. Humne recently kuch tailoring shops ko ek digital app se connect kiya hai jisse unka:
+💰 Paisa waste hona band hua
+🕐 Order manage karna aasaan ho gaya
+😊 Customers bahut khush hain — WhatsApp pe directly update milti hai
+
+[Referral name] khud use kar rahe/rahi hain — aur recommend kiya aapko!
+
+Kya aap 10 minute ki FREE demo ke liye available hain aaj ya kal? 📱</div>
+          <div class="bubble-time">11:32 AM <span class="ticks">✓✓</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="script-text-box">
+      <div class="stb-label">Copy-Ready Text</div>
+      <div class="stb-content" onclick="selectAll(this)">Namaste [Name] ji! 🙏
+
+[Referral name] ne aapka number diya — bole ki aap ek bahut acha boutique chalate hain! 😊
+
+Main Swaroop Threads se hoon. Humne recently kuch tailoring shops ko ek digital app se connect kiya hai jisse unka:
+💰 Paisa waste hona band hua
+🕐 Order manage karna aasaan ho gaya
+😊 Customers bahut khush hain — WhatsApp pe directly update milti hai
+
+[Referral name] khud use kar rahe/rahi hain — aur recommend kiya aapko!
+
+Kya aap 10 minute ki FREE demo ke liye available hain aaj ya kal? 📱</div>
+    </div>
+    <div class="tips-row">
+      <div class="tip-chip">✅ [Name] aur [Referral name] replace karna mat bhulen</div>
+      <div class="tip-chip">✅ Social proof sabse powerful hook hai</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════
+     PANEL 2 — WARM FOLLOW-UP
+══════════════════════════════════════ -->
+<div class="script-panel" id="panel-warm">
+
+  <div class="section-label">
+    <div>
+      <h2>🔥 Warm Follow-Up Scripts</h2>
+      <div class="sl-desc">Jinhone pehle reply kiya tha ya interested the</div>
+    </div>
+    <div class="sl-line"></div>
+  </div>
+
+  <!-- Script W1 -->
+  <div class="script-card">
+    <div class="sc-head">
+      <div class="sc-head-left">
+        <span class="sc-badge followup">Follow-Up #1</span>
+        <div>
+          <h3>24–48 Hours After No Reply</h3>
+          <p>Gentle nudge — non-pushy</p>
+        </div>
+      </div>
+      <button class="copy-all-btn" onclick="copyScript(this, 'warm1')">📋 Copy</button>
+    </div>
+    <div class="chat-preview">
+      <div class="bubble-wrap">
+        <div class="bubble">
+          <div class="bubble-text" id="warm1">Namaste ji! 🙏
+
+Kal message bheja tha — aap busy honge, isliye ek baar reminder de raha/rahi hoon.
+
+Aapki shop ka kaam smooth ho jaye, orders kabhi miss na hon, customers khush rahein — bas yahi goal hai hamara. 😊
+
+*Ek FREE demo* ke liye sirf 10–15 minute chahiye. Aap ready ho jab, hum hain! 📱
+
+Aaj kaisa time rehega? ☎️</div>
+          <div class="bubble-time">10:05 AM <span class="ticks">✓✓</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="script-text-box">
+      <div class="stb-label">Copy-Ready Text</div>
+      <div class="stb-content" onclick="selectAll(this)">Namaste ji! 🙏
+
+Kal message bheja tha — aap busy honge, isliye ek baar reminder de raha/rahi hoon.
+
+Aapki shop ka kaam smooth ho jaye, orders kabhi miss na hon, customers khush rahein — bas yahi goal hai hamara. 😊
+
+*Ek FREE demo* ke liye sirf 10–15 minute chahiye. Aap ready ho jab, hum hain! 📱
+
+Aaj kaisa time rehega? ☎️</div>
+    </div>
+    <div class="tips-row">
+      <div class="tip-chip warn">⚠️ 3 se zyada follow-up mat karo same week mein</div>
+      <div class="tip-chip">✅ Tone friendly rakho — desperate nahi</div>
+    </div>
+  </div>
+
+  <!-- Script W2 -->
+  <div class="script-card">
+    <div class="sc-head">
+      <div class="sc-head-left">
+        <span class="sc-badge followup">Follow-Up #2</span>
+        <div>
+          <h3>Value-Add Follow-Up — Social Proof</h3>
+          <p>Ek week baad — proof ke saath</p>
+        </div>
+      </div>
+      <button class="copy-all-btn" onclick="copyScript(this, 'warm2')">📋 Copy</button>
+    </div>
+    <div class="chat-preview">
+      <div class="bubble-wrap">
+        <div class="bubble">
+          <div class="bubble-text" id="warm2">Ji, phir se Namaste! 🙏✂️
+
+Aapke jaisi hi ek boutique — Sunita Ladies Boutique, Dehradun — ne hamare app se start kiya.
+
+Unka kehna hai:
+*"Pehle orders miss ho jaate the. Ab ek bhi nahi hota — sab track hota hai. Customers bhi bahut khush hain!"* ⭐⭐⭐⭐⭐
+
+Jo problem aap aaj face kar rahe hain — wahi humne solve ki hai:
+✅ Paper se azaadi
+✅ Apna time aur paisa bachayein
+✅ Customer hamesha connected rahe aapse
+✅ Business report — har roz haath mein
+
+Kya hum aaj ya kal *FREE LIVE demo* schedule kar sakte hain? 🗓️
+
+Reply karein — hum aajayenge! 🙏</div>
+          <div class="bubble-time">6:42 PM <span class="ticks">✓✓</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="script-text-box">
+      <div class="stb-label">Copy-Ready Text</div>
+      <div class="stb-content" onclick="selectAll(this)">Ji, phir se Namaste! 🙏✂️
+
+Aapke jaisi hi ek boutique — Sunita Ladies Boutique, Dehradun — ne hamare app se start kiya.
+
+Unka kehna hai:
+*"Pehle orders miss ho jaate the. Ab ek bhi nahi hota — sab track hota hai. Customers bhi bahut khush hain!"* ⭐⭐⭐⭐⭐
+
+Jo problem aap aaj face kar rahe hain — wahi humne solve ki hai:
+✅ Paper se azaadi
+✅ Apna time aur paisa bachayein
+✅ Customer hamesha connected rahe aapse
+✅ Business report — har roz haath mein
+
+Kya hum aaj ya kal *FREE LIVE demo* schedule kar sakte hain? 🗓️
+
+Reply karein — hum aajayenge! 🙏</div>
+    </div>
+    <div class="tips-row">
+      <div class="tip-chip">✅ Real client names use karo (with permission)</div>
+      <div class="tip-chip info">💡 Testimonial = highest converting element</div>
+    </div>
+  </div>
+
+  <!-- Script W3 — Final Breakup -->
+  <div class="script-card">
+    <div class="sc-head">
+      <div class="sc-head-left">
+        <span class="sc-badge followup">Follow-Up #3</span>
+        <div>
+          <h3>"Last Message" — Breakup Script</h3>
+          <p>3rd follow-up ke baad bhi reply nahi — yeh bhejo</p>
+        </div>
+      </div>
+      <button class="copy-all-btn" onclick="copyScript(this, 'warm3')">📋 Copy</button>
+    </div>
+    <div class="chat-preview">
+      <div class="bubble-wrap">
+        <div class="bubble">
+          <div class="bubble-text" id="warm3">Namaste ji 🙏
+
+Mujhe pata hai aap bahut busy hain — isliye yeh mera last message hai.
+
+Agar kabhi bhi lagey ki aapki shop ko ek better system chahiye — orders track karne ke liye, customers se connected rehne ke liye, paisa aur time bachane ke liye — toh hum hamesha available hain. 😊
+
+Bas yeh message dekh lena:
+👉 *Stitching Manager Pro* — Free demo: wa.me/91XXXXXXXXXX
+
+Aapki shop ke liye best wishes! ✂️🙏
+— Swaroop Threads Team</div>
+          <div class="bubble-time">4:18 PM <span class="ticks">✓✓</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="script-text-box">
+      <div class="stb-label">Copy-Ready Text</div>
+      <div class="stb-content" onclick="selectAll(this)">Namaste ji 🙏
+
+Mujhe pata hai aap bahut busy hain — isliye yeh mera last message hai.
+
+Agar kabhi bhi lagey ki aapki shop ko ek better system chahiye — orders track karne ke liye, customers se connected rehne ke liye, paisa aur time bachane ke liye — toh hum hamesha available hain. 😊
+
+Bas yeh message dekh lena:
+👉 *Stitching Manager Pro* — Free demo: wa.me/91XXXXXXXXXX
+
+Aapki shop ke liye best wishes! ✂️🙏
+— Swaroop Threads Team</div>
+    </div>
+    <div class="tips-row">
+      <div class="tip-chip">✅ Breakup messages often get replies — works surprisingly well</div>
+      <div class="tip-chip warn">⚠️ Iske baad aur message nahi — 30 din wait karo</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════
+     PANEL 3 — DEMO REQUEST
+══════════════════════════════════════ -->
+<div class="script-panel" id="panel-demo">
+
+  <div class="section-label">
+    <div>
+      <h2>📱 Demo Request Scripts</h2>
+      <div class="sl-desc">Live demo ke liye invite karo — yahi sabse important step hai</div>
+    </div>
+    <div class="sl-line"></div>
+  </div>
+
+  <div class="wa-cta-strip">
+    <div class="wa-cta-left">
+      <h3>💬 LIVE Demo ke liye WhatsApp karein</h3>
+      <p>Client interested ho gaye? Turant demo book karo. 10–15 minute mein poora app dikhao — live, on their own phone.</p>
+    </div>
+    <a class="wa-cta-btn" href="https://wa.me/91XXXXXXXXXX?text=Hi%2C%20I%20want%20a%20FREE%20demo%20of%20Stitching%20Manager%20Pro" target="_blank">
+      💬 WhatsApp for Demo
+    </a>
+  </div>
+
+  <!-- Demo Invite -->
+  <div class="script-card">
+    <div class="sc-head">
+      <div class="sc-head-left">
+        <span class="sc-badge demo">Demo #1</span>
+        <div>
+          <h3>Demo Booking Confirmation</h3>
+          <p>Jab client demo ke liye ready ho</p>
+        </div>
+      </div>
+      <button class="copy-all-btn" onclick="copyScript(this, 'demo1')">📋 Copy</button>
+    </div>
+    <div class="chat-preview">
+      <div class="bubble-wrap">
+        <div class="bubble">
+          <div class="bubble-text" id="demo1">Bahut badhiya ji! 🎉
+
+Aapka FREE LIVE demo confirm hua:
+📅 *Date:* [Date daalen]
+⏰ *Time:* [Time daalen]
+📱 *Zariya:* Is WhatsApp call pe hi / Screen share
+
+Kya prepare karein aap:
+✅ Phone ya laptop ready rakhen
+✅ 15 minute ka time free rakhen
+✅ Koi bhi sawaal hoga toh note kar lena
+
+Hum aapko apni khud ki shop jaisi setting mein demo dikhayenge — koi bhi doubt nahi rahega! 💪
+
+Kal milte hain! 🙏✂️
+— Swaroop Threads</div>
+          <div class="bubble-time">7:05 PM <span class="ticks">✓✓</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="script-text-box">
+      <div class="stb-label">Copy-Ready Text</div>
+      <div class="stb-content" onclick="selectAll(this)">Bahut badhiya ji! 🎉
+
+Aapka FREE LIVE demo confirm hua:
+📅 *Date:* [Date daalen]
+⏰ *Time:* [Time daalen]
+📱 *Zariya:* Is WhatsApp call pe hi / Screen share
+
+Kya prepare karein aap:
+✅ Phone ya laptop ready rakhen
+✅ 15 minute ka time free rakhen
+✅ Koi bhi sawaal hoga toh note kar lena
+
+Hum aapko apni khud ki shop jaisi setting mein demo dikhayenge — koi bhi doubt nahi rahega! 💪
+
+Kal milte hain! 🙏✂️
+— Swaroop Threads</div>
+    </div>
+    <div class="tips-row">
+      <div class="tip-chip">✅ Demo se 1 ghanta pehle reminder bhejo</div>
+      <div class="tip-chip info">💡 Demo mein unka khud ka shop name dikhao — wow factor</div>
+    </div>
+  </div>
+
+  <!-- Demo Reminder -->
+  <div class="script-card">
+    <div class="sc-head">
+      <div class="sc-head-left">
+        <span class="sc-badge demo">Demo #2</span>
+        <div>
+          <h3>Demo Day Reminder (1 hour before)</h3>
+          <p>Demo se 1 ghanta pehle bhejo</p>
+        </div>
+      </div>
+      <button class="copy-all-btn" onclick="copyScript(this, 'demo2')">📋 Copy</button>
+    </div>
+    <div class="chat-preview">
+      <div class="bubble-wrap">
+        <div class="bubble">
+          <div class="bubble-text" id="demo2">Namaste ji! 🙏✂️
+
+Aaj ka *FREE demo* 1 ghante mein start hoga! 🕐
+
+Yaad dilana chahta/chahti tha:
+📱 Phone/laptop charge rakhein
+📶 Internet connection check karein
+⏰ [Time] pe ready rahein
+
+Koi bhi last minute sawaal hain toh abhi poochh sakte hain! 😊
+
+Bahut excited hain aapko apni shop ka digital version dikhane ke liye! 🚀
+
+See you soon! 🙏</div>
+          <div class="bubble-time">2:00 PM <span class="ticks">✓✓</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="script-text-box">
+      <div class="stb-label">Copy-Ready Text</div>
+      <div class="stb-content" onclick="selectAll(this)">Namaste ji! 🙏✂️
+
+Aaj ka *FREE demo* 1 ghante mein start hoga! 🕐
+
+Yaad dilana chahta/chahti tha:
+📱 Phone/laptop charge rakhein
+📶 Internet connection check karein
+⏰ [Time] pe ready rahein
+
+Koi bhi last minute sawaal hain toh abhi poochh sakte hain! 😊
+
+Bahut excited hain aapko apni shop ka digital version dikhane ke liye! 🚀
+
+See you soon! 🙏</div>
+    </div>
+    <div class="tips-row">
+      <div class="tip-chip">✅ Reminder bhejne se no-show 60% kam hote hain</div>
+    </div>
+  </div>
+
+  <!-- Post Demo -->
+  <div class="script-card">
+    <div class="sc-head">
+      <div class="sc-head-left">
+        <span class="sc-badge demo">Demo #3</span>
+        <div>
+          <h3>Post-Demo Thank You + Next Step</h3>
+          <p>Demo ke turant baad — strike while iron is hot</p>
+        </div>
+      </div>
+      <button class="copy-all-btn" onclick="copyScript(this, 'demo3')">📋 Copy</button>
+    </div>
+    <div class="chat-preview">
+      <div class="bubble-wrap">
+        <div class="bubble">
+          <div class="bubble-text" id="demo3">Bahut shukriya aapka aaj time dene ke liye! 🙏😊
+
+App aapko kaisi lagi? Koi sawaal ho toh zaroor poochhen! 
+
+Jo humne aaj dekha:
+✅ Order tracking — ek click mein
+✅ Customer measurements — hamesha safe
+✅ WhatsApp alerts — automatic
+✅ Reports — roz ka hisaab kitaab
+✅ Apna paisa aur time dono bachega!
+
+Aapki shop ke liye *Professional Plan* (₹1,199/month) best rahega — 4 logins, unlimited orders, sab features.
+
+Aaj hi start karein toh *pehla mahina FREE* milega! 🎁
+
+Setup mein sirf 30 minute lagte hain — hum sab karenge aapke liye! 
+
+Kya aap aaj confirm karna chahenge? 🙏</div>
+          <div class="bubble-time">5:45 PM <span class="ticks">✓✓</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="script-text-box">
+      <div class="stb-label">Copy-Ready Text</div>
+      <div class="stb-content" onclick="selectAll(this)">Bahut shukriya aapka aaj time dene ke liye! 🙏😊
+
+App aapko kaisi lagi? Koi sawaal ho toh zaroor poochhen!
+
+Jo humne aaj dekha:
+✅ Order tracking — ek click mein
+✅ Customer measurements — hamesha safe
+✅ WhatsApp alerts — automatic
+✅ Reports — roz ka hisaab kitaab
+✅ Apna paisa aur time dono bachega!
+
+Aapki shop ke liye *Professional Plan* (₹1,199/month) best rahega — 4 logins, unlimited orders, sab features.
+
+Aaj hi start karein toh *pehla mahina FREE* milega! 🎁
+
+Setup mein sirf 30 minute lagte hain — hum sab karenge aapke liye!
+
+Kya aap aaj confirm karna chahenge? 🙏</div>
+    </div>
+    <div class="tips-row">
+      <div class="tip-chip">✅ Demo ke 30 min ke andar bhejo</div>
+      <div class="tip-chip info">💡 "Pehla mahina FREE" — apni discretion pe use karo</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════
+     PANEL 4 — OBJECTION HANDLING
+══════════════════════════════════════ -->
+<div class="script-panel" id="panel-objection">
+
+  <div class="section-label">
+    <div>
+      <h2>🛡️ Objection Handling Scripts</h2>
+      <div class="sl-desc">Har objection ka ready-made jawab — click to expand</div>
+    </div>
+    <div class="sl-line"></div>
+  </div>
+
+  <div class="obj-item">
+    <div class="obj-q" onclick="toggleObj(this)">
+      <div class="obj-q-text"><span class="emoji">💸</span> "Bahut mehnga hai / budget nahi hai"</div>
+      <div class="obj-chevron">▼</div>
+    </div>
+    <div class="obj-a">
+      <div class="obj-a-inner">
+        <div class="obj-reply-label">Your Reply</div>
+        <div class="obj-bubble">Ji bilkul samajh aata hai! 🙏
+
+Lekin ek baat sochein — agar sirf *2-3 orders ka payment* track nahi hota mahine mein, toh aap ₹699 se zyada lose kar lete hain already!
+
+Hamara app:
+💰 Miss payments pakad leta hai
+⏰ Paper work ka time bachata hai (2-3 ghante/day)
+😊 Customers itna khush rahte hain ki woh baar baar aate hain
+
+*₹699/month = ₹23 per day* — ek chai se bhi sasta! ☕
+
+Starter plan se shuru karein — risk zero, kyunki *pehle 7 din FREE trial* hai! 🎁</div>
+        <button class="obj-copy-btn" onclick="copyObjReply(this)">📋 Copy Reply</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="obj-item">
+    <div class="obj-q" onclick="toggleObj(this)">
+      <div class="obj-q-text"><span class="emoji">📵</span> "Mujhe apps nahi aate / technology samajh nahi"</div>
+      <div class="obj-chevron">▼</div>
+    </div>
+    <div class="obj-a">
+      <div class="obj-a-inner">
+        <div class="obj-reply-label">Your Reply</div>
+        <div class="obj-bubble">Yeh sunke bahut acha laga! 😊 Sach bolunga/bolungi — hamara app *specifically unke liye* banaya gaya jo tech experts nahi hain!
+
+Agar aap WhatsApp use kar sakte hain, toh aap yeh app use kar sakte hain — guaranteed! 📱
+
+Aur hum:
+✅ Poora setup khud karte hain aapke liye
+✅ Live training dete hain — step by step
+✅ WhatsApp support 7 din available hai
+✅ Kabhi bhi confusion ho — hum hain!
+
+Ek baar FREE demo dekh lein — aap khud bol denge "itna simple hai!" 😄
+
+Kya 15 minute nikal sakte hain kal? 🗓️</div>
+        <button class="obj-copy-btn" onclick="copyObjReply(this)">📋 Copy Reply</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="obj-item">
+    <div class="obj-q" onclick="toggleObj(this)">
+      <div class="obj-q-text"><span class="emoji">🤔</span> "Abhi sochna hai / baad mein batata hoon"</div>
+      <div class="obj-chevron">▼</div>
+    </div>
+    <div class="obj-a">
+      <div class="obj-a-inner">
+        <div class="obj-reply-label">Your Reply</div>
+        <div class="obj-bubble">Bilkul ji! Sochna zaroori hai — yeh ek important decision hai aapki shop ke liye. 🙏
+
+Bas ek cheez share karna chahta/chahti hoon:
+
+Humne dekha hai ki jo log *"baad mein"* kehte hain — woh phir bhi wahi paper system pe hote hain 6 mahine baad. Aur regret karte hain ki pehle kyun nahi kiya!
+
+Kya main aapko ek simple sawal poochh sakta/sakti hoon?
+👉 *Aapki main problem kya hai aaj apni shop mein?*
+
+Wahi solve karenge hum — aur phir aap decide kar lena. No pressure! 😊</div>
+        <button class="obj-copy-btn" onclick="copyObjReply(this)">📋 Copy Reply</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="obj-item">
+    <div class="obj-q" onclick="toggleObj(this)">
+      <div class="obj-q-text"><span class="emoji">📝</span> "Paper system theek chal raha hai mere liye"</div>
+      <div class="obj-chevron">▼</div>
+    </div>
+    <div class="obj-a">
+      <div class="obj-a-inner">
+        <div class="obj-reply-label">Your Reply</div>
+        <div class="obj-bubble">Bahut achha ji! Matlab aap already organized hain — yeh toh aur bhi achha hai! 😊
+
+Sirf ek cheez poochhun:
+
+❓ Kya kabhi hua hai ki:
+— Customer ne measurement poochha aur diary nahi mili?
+— Payment ka hisaab yaad nahi raha?
+— Kaun sa order ready hai — turant pata nahi chala?
+— Customer ko call karke poochha — "aapka order ready hua?"
+
+Agar kabhi bhi haan hua hain — toh hamara app sirf *wahi ek problem* solve karta hai.
+
+FREE demo mein sirf yeh dikhao — phir aap khud decide karo. 15 minute? 🙏</div>
+        <button class="obj-copy-btn" onclick="copyObjReply(this)">📋 Copy Reply</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="obj-item">
+    <div class="obj-q" onclick="toggleObj(this)">
+      <div class="obj-q-text"><span class="emoji">🏪</span> "Meri shop chhoti hai — app ki zaroorat nahi"</div>
+      <div class="obj-chevron">▼</div>
+    </div>
+    <div class="obj-a">
+      <div class="obj-a-inner">
+        <div class="obj-reply-label">Your Reply</div>
+        <div class="obj-bubble">Ji yeh toh aur achhi baat hai! 😊
+
+Choti shop mein *time aur paisa dono zyada valuable hain* — ek bhi order miss hua toh directly pocket pe asar hota hai!
+
+Hamara Starter Plan *₹699/month sirf* — chhoti shops ke liye hi banaya gaya hai:
+✅ 1 login kaafi hai solo tailor ke liye
+✅ 200 orders/month — kaafi hai start mein
+✅ Customer ka record hamesha safe
+✅ Aap hamesha apne customer se connected rahein
+
+Aur ek baat — *chhoti shops hi sabse zyada grow karte hain* jab woh professional dikhti hain customers ko! 📈
+
+Demo dekh lein? 🙏</div>
+        <button class="obj-copy-btn" onclick="copyObjReply(this)">📋 Copy Reply</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="obj-item">
+    <div class="obj-q" onclick="toggleObj(this)">
+      <div class="obj-q-text"><span class="emoji">🔒</span> "Data safe rahega? Privacy ka kya?"</div>
+      <div class="obj-chevron">▼</div>
+    </div>
+    <div class="obj-a">
+      <div class="obj-a-inner">
+        <div class="obj-reply-label">Your Reply</div>
+        <div class="obj-bubble">Bahut achha sawaal hai ji! Yeh toh poochha hi jaana chahiye! 👍
+
+Hamara app *Supabase* platform pe run hota hai — same technology jo duniya ke bade companies use karte hain.
+
+Aapka data:
+🔐 Fully encrypted hai
+☁️ Cloud pe securely store hota hai
+👤 Sirf aap access kar sakte hain — koi aur nahi
+🚫 Kisi third party ko share nahi hota
+✅ Daily backup automatically hoti hai
+
+Aur agar aap kabhi app chhod dein — aapka saara data export karke de denge hum! 
+
+Koi bhi aur sawaal? 😊</div>
+        <button class="obj-copy-btn" onclick="copyObjReply(this)">📋 Copy Reply</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════
+     PANEL 5 — CLOSING
+══════════════════════════════════════ -->
+<div class="script-panel" id="panel-closing">
+
+  <div class="section-label">
+    <div>
+      <h2>🏆 Closing Scripts</h2>
+      <div class="sl-desc">Deal close karne ke liye final push — confident aur friendly</div>
+    </div>
+    <div class="sl-line"></div>
+  </div>
+
+  <div class="script-card">
+    <div class="sc-head">
+      <div class="sc-head-left">
+        <span class="sc-badge closing">Close #1</span>
+        <div>
+          <h3>Urgency Close — Limited Offer</h3>
+          <p>Jab client almost ready ho but delay kar raha ho</p>
+        </div>
+      </div>
+      <button class="copy-all-btn" onclick="copyScript(this, 'close1')">📋 Copy</button>
+    </div>
+    <div class="chat-preview">
+      <div class="bubble-wrap">
+        <div class="bubble">
+          <div class="bubble-text" id="close1">Namaste ji! 🙏
+
+Aapke liye ek special offer abhi available hai — lekin *sirf [date] tak*:
+
+🎁 *Pehla mahina HALF PRICE* — ₹599 ki jagah sirf ₹299
+🚀 *Free setup* — hum sab configure kar denge
+✅ *30-day money-back guarantee* — pasand na aaye toh paise wapas
+
+Aapki shop aaj se hi professional ho sakti hai — paper, diary sab band! 📵
+
+*Aaj confirm karein?* 
+
+Setup sirf 30 minute mein ho jaata hai — aaj raat tak live! 🌙✂️</div>
+          <div class="bubble-time">12:30 PM <span class="ticks">✓✓</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="script-text-box">
+      <div class="stb-label">Copy-Ready Text</div>
+      <div class="stb-content" onclick="selectAll(this)">Namaste ji! 🙏
+
+Aapke liye ek special offer abhi available hai — lekin *sirf [date] tak*:
+
+🎁 *Pehla mahina HALF PRICE* — ₹599 ki jagah sirf ₹299
+🚀 *Free setup* — hum sab configure kar denge
+✅ *30-day money-back guarantee* — pasand na aaye toh paise wapas
+
+Aapki shop aaj se hi professional ho sakti hai — paper, diary sab band! 📵
+
+*Aaj confirm karein?*
+
+Setup sirf 30 minute mein ho jaata hai — aaj raat tak live! 🌙✂️</div>
+    </div>
+    <div class="tips-row">
+      <div class="tip-chip warn">⚠️ Only use if aap genuinely offer de sakte ho</div>
+      <div class="tip-chip">✅ Real deadline do — fake urgency mat banao</div>
+    </div>
+  </div>
+
+  <div class="script-card">
+    <div class="sc-head">
+      <div class="sc-head-left">
+        <span class="sc-badge closing">Close #2</span>
+        <div>
+          <h3>Soft Close — Easy Yes</h3>
+          <p>No-pressure closing — best for hesitant clients</p>
+        </div>
+      </div>
+      <button class="copy-all-btn" onclick="copyScript(this, 'close2')">📋 Copy</button>
+    </div>
+    <div class="chat-preview">
+      <div class="bubble-wrap">
+        <div class="bubble">
+          <div class="bubble-text" id="close2">Ji, main samajhta/samajhti hoon — koi bhi naya kaam shuru karna thoda scary lagta hai! 😊
+
+Isliye hamne rakha hai:
+✅ Pehle FREE demo — no payment
+✅ Phir setup — hum karte hain
+✅ Phir *7 din use karo FREE*
+✅ Uske baad hi payment — tab jab aap khud satisfied ho
+
+Ek simple sawal:
+👉 Kya aap *aaj sirf demo* ke liye haan bol sakte hain? 
+
+Baaki sab baad mein sochenge! 🙏
+
+Kya kehna hai? 😊</div>
+          <div class="bubble-time">8:20 PM <span class="ticks">✓✓</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="script-text-box">
+      <div class="stb-label">Copy-Ready Text</div>
+      <div class="stb-content" onclick="selectAll(this)">Ji, main samajhta/samajhti hoon — koi bhi naya kaam shuru karna thoda scary lagta hai! 😊
+
+Isliye hamne rakha hai:
+✅ Pehle FREE demo — no payment
+✅ Phir setup — hum karte hain
+✅ Phir *7 din use karo FREE*
+✅ Uske baad hi payment — tab jab aap khud satisfied ho
+
+Ek simple sawal:
+👉 Kya aap *aaj sirf demo* ke liye haan bol sakte hain?
+
+Baaki sab baad mein sochenge! 🙏
+
+Kya kehna hai? 😊</div>
+    </div>
+    <div class="tips-row">
+      <div class="tip-chip">✅ Micro-commitment — demo to payment is easier than direct payment</div>
+    </div>
+  </div>
+
+  <!-- Welcome after close -->
+  <div class="script-card">
+    <div class="sc-head">
+      <div class="sc-head-left">
+        <span class="sc-badge closing">Close #3</span>
+        <div>
+          <h3>Welcome Message — After Deal is Closed 🎉</h3>
+          <p>Client ne haan bol diya — yeh bhejo abhi</p>
+        </div>
+      </div>
+      <button class="copy-all-btn" onclick="copyScript(this, 'close3')">📋 Copy</button>
+    </div>
+    <div class="chat-preview">
+      <div class="bubble-wrap">
+        <div class="bubble">
+          <div class="bubble-text" id="close3">🎉 *Welcome to Stitching Manager Pro, [Name] ji!*
+
+Aap ne bahut sahi decision liya! Aapki shop ab professional level pe aa gayi! ✂️💪
+
+Aage kya hoga:
+📋 *Step 1* — Onboarding form bhejte hain aapko (5 min)
+⚙️ *Step 2* — Hum aapki shop setup karte hain (30 min)
+📱 *Step 3* — Aapke phone pe install aur training (15 min)
+🚀 *Step 4* — Aap LIVE hain! Pehla order daalo!
+
+Aapka setup call schedule:
+📅 *[Date]*  ⏰ *[Time]*
+
+Koi bhi sawaal ho — hum 24/7 WhatsApp pe hain! 🙏
+
+Aapki shop ki tarakki ke liye best wishes! 🌟
+— Swaroop Threads Team</div>
+          <div class="bubble-time">Now <span class="ticks">✓✓</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="script-text-box">
+      <div class="stb-label">Copy-Ready Text</div>
+      <div class="stb-content" onclick="selectAll(this)">🎉 *Welcome to Stitching Manager Pro, [Name] ji!*
+
+Aap ne bahut sahi decision liya! Aapki shop ab professional level pe aa gayi! ✂️💪
+
+Aage kya hoga:
+📋 *Step 1* — Onboarding form bhejte hain aapko (5 min)
+⚙️ *Step 2* — Hum aapki shop setup karte hain (30 min)
+📱 *Step 3* — Aapke phone pe install aur training (15 min)
+🚀 *Step 4* — Aap LIVE hain! Pehla order daalo!
+
+Aapka setup call schedule:
+📅 *[Date]*  ⏰ *[Time]*
+
+Koi bhi sawaal ho — hum 24/7 WhatsApp pe hain! 🙏
+
+Aapki shop ki tarakki ke liye best wishes! 🌟
+— Swaroop Threads Team</div>
+    </div>
+    <div class="tips-row">
+      <div class="tip-chip">✅ Turant bhejo — excitement peak pe hai abhi</div>
+      <div class="tip-chip info">💡 Onboarding form ka link saath mein attach karo</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════
+     PANEL 6 — TIPS
+══════════════════════════════════════ -->
+<div class="script-panel" id="panel-tips">
+
+  <div class="section-label">
+    <div>
+      <h2>💡 Rules & Pro Tips</h2>
+      <div class="sl-desc">WhatsApp selling ke golden rules — in follow karo, results aayenge</div>
+    </div>
+    <div class="sl-line"></div>
+  </div>
+
+  <div class="do-dont-grid">
+    <div class="do-card">
+      <h4>✅ ALWAYS DO THIS</h4>
+      <ul>
+        <li>Personalized message bhejo — naam leke baat karo</li>
+        <li>Morning 10–12 ya evening 5–7 baje bhejo</li>
+        <li>WhatsApp *bold* use karo key points ke liye</li>
+        <li>Ek message mein ek hi call-to-action rakho</li>
+        <li>Sawaal poochho — response rate badhti hai</li>
+        <li>Demo ke baad 30 min mein follow-up karo</li>
+        <li>Har message ke baad note rakho CRM mein</li>
+        <li>Client ki language mein baat karo (Hindi/Urdu)</li>
+      </ul>
+    </div>
+    <div class="dont-card">
+      <h4>❌ NEVER DO THIS</h4>
+      <ul>
+        <li>Price pehle message mein mat batao</li>
+        <li>Same message copy-paste mat karo sab ko</li>
+        <li>Raat 9 baje ke baad message mat karo</li>
+        <li>3 se zyada unanswered follow-up mat karo</li>
+        <li>Paragraph pe paragraph mat likhoo — short rakho</li>
+        <li>Desperate ya begging tone mat use karo</li>
+        <li>Jhoothe offers ya fake deadlines mat do</li>
+        <li>WhatsApp groups mein spam mat karo</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Timing Guide -->
+  <div class="script-card" style="border:none; box-shadow:none; background:var(--card);">
+    <div class="sc-head">
+      <div class="sc-head-left">
+        <span class="sc-badge">⏰ Timing</span>
+        <div><h3>Best Times to Send Messages</h3></div>
+      </div>
+    </div>
+    <div class="script-text-box" style="border-top:none;">
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px;">
+        <div style="background:#F0FFF4; border:1px solid rgba(37,211,102,0.2); border-radius:10px; padding:14px; text-align:center;">
+          <div style="font-size:22px; margin-bottom:6px;">🌅</div>
+          <div style="font-size:12px; font-weight:700; color:#166534;">Morning</div>
+          <div style="font-size:13px; font-weight:800; color:#0D0D0D; margin:4px 0;">10 AM – 12 PM</div>
+          <div style="font-size:10px; color:#6B7280;">Shop opening time — fresh mindset</div>
+        </div>
+        <div style="background:#EFF6FF; border:1px solid rgba(59,130,246,0.2); border-radius:10px; padding:14px; text-align:center;">
+          <div style="font-size:22px; margin-bottom:6px;">🌇</div>
+          <div style="font-size:12px; font-weight:700; color:#1D4ED8;">Evening</div>
+          <div style="font-size:13px; font-weight:800; color:#0D0D0D; margin:4px 0;">5 PM – 7 PM</div>
+          <div style="font-size:10px; color:#6B7280;">After busy hours — more responsive</div>
+        </div>
+        <div style="background:#FFF8EC; border:1px solid rgba(230,126,34,0.2); border-radius:10px; padding:14px; text-align:center;">
+          <div style="font-size:22px; margin-bottom:6px;">🚫</div>
+          <div style="font-size:12px; font-weight:700; color:#A05A00;">Avoid</div>
+          <div style="font-size:13px; font-weight:800; color:#0D0D0D; margin:4px 0;">After 9 PM</div>
+          <div style="font-size:10px; color:#6B7280;">Personal time — leave it alone</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WhatsApp CTA -->
+  <div class="wa-cta-strip">
+    <div class="wa-cta-left">
+      <h3>💬 LIVE Demo ke liye — Abhi WhatsApp Karen</h3>
+      <p>Koi bhi tailor ya boutique owner jo app dekhna chahta/chahti hai — directly yahan send karo unhe.</p>
+    </div>
+    <a class="wa-cta-btn" href="https://wa.me/91XXXXXXXXXX?text=Hi%21%20Mujhe%20Stitching%20Manager%20Pro%20ka%20FREE%20demo%20chahiye%20%F0%9F%99%8F" target="_blank">
+      💬 WhatsApp for FREE Demo
+    </a>
+  </div>
+
+</div>
+
+</div><!-- end main -->
+
+<script>
+function showPanel(id) {
+  document.querySelectorAll('.script-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  event.target.classList.add('active');
+  window.scrollTo({top: document.querySelector('.main').offsetTop - 20, behavior: 'smooth'});
+}
+
+function copyScript(btn, id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText).then(() => {
+    btn.textContent = '✅ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '📋 Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function copyObjReply(btn) {
+  const bubble = btn.previousElementSibling;
+  navigator.clipboard.writeText(bubble.innerText).then(() => {
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => { btn.textContent = '📋 Copy Reply'; }, 2000);
+  });
+}
+
+function selectAll(el) {
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function toggleObj(el) {
+  const item = el.parentElement;
+  item.classList.toggle('open');
+}
+</script>
+</body>
+</html>

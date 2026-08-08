@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Welcome to Stitching Manager Pro</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; }
+
+/* ── Hero ── */
+.hero {
+  background: linear-gradient(135deg, #6d28d9 0%, #4f46e5 50%, #2563eb 100%);
+  color: white; text-align: center; padding: 52px 24px 44px;
+}
+.hero-logo { font-size: 52px; margin-bottom: 12px; }
+.hero-brand { font-size: 11px; letter-spacing: .2em; font-weight: 700; opacity: 0.7; text-transform: uppercase; margin-bottom: 10px; }
+.hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.2; margin-bottom: 8px; }
+.hero-sub { font-size: 14px; opacity: 0.85; max-width: 440px; margin: 0 auto 24px; line-height: 1.6; }
+.hero-url-card {
+  display: inline-flex; flex-direction: column; align-items: center;
+  background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.3);
+  border-radius: 14px; padding: 14px 28px; backdrop-filter: blur(8px); margin-bottom: 20px;
+}
+.hero-url-label { font-size: 10px; letter-spacing: .15em; font-weight: 700; opacity: 0.7; text-transform: uppercase; margin-bottom: 4px; }
+.hero-url { font-size: 16px; font-weight: 700; letter-spacing: 0.02em; }
+.hero-cta {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: white; color: #6d28d9; border: none; border-radius: 12px;
+  padding: 13px 28px; font-size: 15px; font-weight: 700; cursor: pointer;
+  text-decoration: none; box-shadow: 0 4px 20px rgba(0,0,0,0.15); font-family: inherit;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.hero-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,0.2); }
+
+/* ── Page ── */
+.page { max-width: 720px; margin: 0 auto; padding: 36px 16px 60px; }
+
+/* ── Section title ── */
+.section-title {
+  font-size: 11px; font-weight: 800; color: #6d28d9; text-transform: uppercase;
+  letter-spacing: 0.6px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+}
+.section-title::after { content: ''; flex: 1; height: 1.5px; background: #e2e8f0; }
+
+/* ── Steps (numbered) ── */
+.steps-list { margin-bottom: 32px; }
+.step-row { display: flex; gap: 14px; margin-bottom: 10px; }
+.step-num {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, #6d28d9, #4f46e5); color: white;
+  display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800;
+  margin-top: 2px;
+}
+.step-content { flex: 1; background: white; border: 1.5px solid #f1f5f9; border-radius: 10px; padding: 12px 16px; }
+.step-content h4 { font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+.step-content p { font-size: 12.5px; color: #64748b; line-height: 1.55; }
+
+/* ── Feature grid ── */
+.features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 32px; }
+.feature-card {
+  background: white; border: 1.5px solid #f1f5f9; border-radius: 12px;
+  padding: 16px 14px; text-align: center;
+}
+.feature-card:hover { border-color: #ddd6fe; box-shadow: 0 2px 12px rgba(109,40,217,0.08); }
+.feature-icon { font-size: 26px; margin-bottom: 8px; }
+.feature-name { font-size: 12.5px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+.feature-desc { font-size: 11px; color: #64748b; line-height: 1.5; }
+
+/* ── PWA install card ── */
+.pwa-card {
+  background: linear-gradient(135deg, #faf5ff, #ede9fe);
+  border: 1.5px solid #ddd6fe; border-radius: 14px; padding: 22px 24px; margin-bottom: 32px;
+}
+.pwa-card h3 { font-size: 14px; font-weight: 800; color: #6d28d9; margin-bottom: 4px; }
+.pwa-card p { font-size: 12.5px; color: #5b21b6; margin-bottom: 14px; line-height: 1.55; }
+.pwa-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pwa-step { background: white; border-radius: 9px; padding: 11px 13px; border: 1px solid #ddd6fe; }
+.pwa-step .os { font-size: 10px; font-weight: 700; color: #6d28d9; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+.pwa-step p { font-size: 11.5px; color: #4c1d95; line-height: 1.5; }
+
+/* ── Staff roles table ── */
+.roles-table { width: 100%; border-collapse: collapse; margin-bottom: 32px; font-size: 12.5px; }
+.roles-table th { background: #6d28d9; color: white; padding: 9px 12px; text-align: left; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+.roles-table th:first-child { border-radius: 8px 0 0 0; }
+.roles-table th:last-child { border-radius: 0 8px 0 0; }
+.roles-table td { padding: 9px 12px; border-bottom: 1px solid #f1f5f9; color: #374151; }
+.roles-table tr:last-child td { border-bottom: none; }
+.roles-table tr:nth-child(even) td { background: #fafbff; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10.5px; font-weight: 700; }
+.tag.admin { background: #fef3c7; color: #92400e; }
+.tag.mgr   { background: #dbeafe; color: #1e40af; }
+.tag.tailor{ background: #f3f4f6; color: #374151; }
+.tag.sales { background: #d1fae5; color: #065f46; }
+.check-yes { color: #16a34a; font-size: 15px; }
+.check-no  { color: #d1d5db; font-size: 15px; }
+
+/* ── Support card ── */
+.support-card {
+  background: white; border: 1.5px solid #f1f5f9; border-radius: 14px;
+  padding: 22px 24px; display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap;
+}
+.support-icon { font-size: 36px; flex-shrink: 0; }
+.support-text h3 { font-size: 15px; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
+.support-text p { font-size: 12.5px; color: #64748b; margin-bottom: 12px; line-height: 1.55; }
+.wa-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: #25d366; border: none; border-radius: 10px;
+  padding: 10px 18px; font-size: 13px; font-weight: 700; color: white;
+  cursor: pointer; text-decoration: none; font-family: inherit;
+}
+.wa-btn:hover { background: #1ebe5d; }
+
+/* ── Footer ── */
+.footer { text-align: center; font-size: 11px; color: #94a3b8; padding: 24px 0 0; border-top: 1px solid #f1f5f9; margin-top: 32px; }
+
+/* ── Tips chip ── */
+.tip { display: inline-flex; align-items: center; gap: 6px; background: #fef9c3; border: 1px solid #fde68a; border-radius: 7px; padding: 4px 10px; font-size: 11.5px; color: #78350f; margin: 4px 0; }
+
+/* ── Responsive ── */
+@media (max-width: 560px) {
+  .hero h1 { font-size: 22px; }
+  .features-grid { grid-template-columns: repeat(2, 1fr); }
+  .pwa-steps { grid-template-columns: 1fr; }
+  .roles-table { font-size: 11px; }
+}
+@media print {
+  body { background: white; }
+  .hero-cta { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════ HERO ════════════════════════════ -->
+<div class="hero">
+  <div class="hero-logo">✂️</div>
+  <div class="hero-brand">Stitching Manager Pro</div>
+  <h1>Welcome to your new<br>Tailoring Management App!</h1>
+  <p class="hero-sub">Your shop is live. Everything you need to manage orders, customers, tailors, and payments — in one place.</p>
+  <div class="hero-url-card">
+    <div class="hero-url-label">Your App URL</div>
+    <div class="hero-url" id="shopUrl">https://yourshop.swarooponline.com</div>
+  </div><br>
+  <a class="hero-cta" id="openAppBtn" href="#" target="_blank">🚀 Open My App</a>
+</div>
+
+<div class="page">
+
+  <!-- ══ Quick Start ══ -->
+  <div class="section-title">🚀 Quick Start — 3 Steps to Get Going</div>
+  <div class="steps-list">
+    <div class="step-row">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h4>Open your app and create your account</h4>
+        <p>Go to your URL above → Click <strong>"First time? Create account"</strong> → Enter your email and a password → Check your email for a confirmation link → Click it to verify → Sign in.</p>
+        <div class="tip">💡 You will automatically become the <strong>Admin</strong> — the first account always gets full access.</div>
+      </div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h4>Set up your shop</h4>
+        <p>After signing in → Go to <strong>Settings ⚙️</strong> → Fill in your <strong>Shop Name</strong>, upload your logo, add your tailors' names, and set your rate card. Takes about 3 minutes.</p>
+      </div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <h4>Add your first order</h4>
+        <p>Click the <strong>+ New Order</strong> button → Enter customer name, mobile number, garment type, measurements, and delivery date → Save. Your order is live!</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Features ══ -->
+  <div class="section-title">✨ What You Can Do</div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">📋</div>
+      <div class="feature-name">Orders Board</div>
+      <div class="feature-desc">Track every order from received → stitching → ready → delivered</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">👤</div>
+      <div class="feature-name">Customer CRM</div>
+      <div class="feature-desc">Save measurements, order history, and notes for every customer</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">💰</div>
+      <div class="feature-name">Payments</div>
+      <div class="feature-desc">Track advance, balance, and full payment per order</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <div class="feature-name">Reports</div>
+      <div class="feature-desc">Daily revenue, order counts, pending deliveries at a glance</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔔</div>
+      <div class="feature-name">Notifications</div>
+      <div class="feature-desc">Get alerts when orders change stage or are marked ready</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📷</div>
+      <div class="feature-name">Photo Capture</div>
+      <div class="feature-desc">Attach reference photos to orders using camera or gallery</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📱</div>
+      <div class="feature-name">Works on Mobile</div>
+      <div class="feature-desc">Full mobile experience — install as an app on any phone</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">👥</div>
+      <div class="feature-name">Multi-Staff</div>
+      <div class="feature-desc">Add tailors, managers, and sales staff with separate access levels</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📡</div>
+      <div class="feature-name">Live Sync</div>
+      <div class="feature-desc">All changes sync instantly across all devices and staff members</div>
+    </div>
+  </div>
+
+  <!-- ══ Install as App ══ -->
+  <div class="section-title">📲 Install on Your Phone (Recommended)</div>
+  <div class="pwa-card">
+    <h3>📲 Install as a Mobile App — It's Free!</h3>
+    <p>No app store needed. Install directly from your browser and use it like a native app — with a home screen icon, offline access, and full-screen mode.</p>
+    <div class="pwa-steps">
+      <div class="pwa-step">
+        <div class="os">📱 Android (Chrome)</div>
+        <p>Open your URL in Chrome → Tap the <strong>3-dot menu (⋮)</strong> → Tap <strong>"Install App"</strong> or <strong>"Add to Home Screen"</strong> → Tap Install.</p>
+      </div>
+      <div class="pwa-step">
+        <div class="os">🍎 iPhone (Safari)</div>
+        <p>Open your URL in Safari → Tap the <strong>Share button (□↑)</strong> → Scroll down → Tap <strong>"Add to Home Screen"</strong> → Tap Add.</p>
+      </div>
+      <div class="pwa-step">
+        <div class="os">💻 Desktop (Chrome)</div>
+        <p>Open your URL → Look for the <strong>install icon (⊕)</strong> in the address bar → Click it → Click <strong>Install</strong>.</p>
+      </div>
+      <div class="pwa-step">
+        <div class="os">💡 Tip</div>
+        <p>Once installed, open the app and tap <strong>Sign In with Mobile</strong> — your tailors can log in with just their phone number + password.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Staff Roles ══ -->
+  <div class="section-title">👥 Adding Staff — Who Can Do What</div>
+  <table class="roles-table">
+    <thead>
+      <tr>
+        <th>Role</th>
+        <th>View Orders</th>
+        <th>Edit Orders</th>
+        <th>Payments</th>
+        <th>Reports</th>
+        <th>Settings</th>
+        <th>Users</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="tag admin">👑 Admin</span></td>
+        <td><span class="check-yes">✓</span></td>
+        <td><span class="check-yes">✓</span></td>
+        <td><span class="check-yes">✓</span></td>
+        <td><span class="check-yes">✓</span></td>
+        <td><span class="check-yes">✓</span></td>
+        <td><span class="check-yes">✓</span></td>
+      </tr>
+      <tr>
+        <td><span class="tag mgr">🏢 Manager</span></td>
+        <td><span class="check-yes">✓</span></td>
+        <td><span class="check-yes">✓</span></td>
+        <td><span class="check-yes">✓</span></td>
+        <td><span class="check-yes">✓</span></td>
+        <td><span class="check-yes">✓</span></td>
+        <td><span class="check-no">—</span></td>
+      </tr>
+      <tr>
+        <td><span class="tag sales">🛒 Sales</span></td>
+        <td><span class="check-yes">✓</span></td>
+        <td><span class="check-yes">✓</span></td>
+        <td><span class="check-no">—</span></td>
+        <td><span class="check-no">—</span></td>
+        <td><span class="check-no">—</span></td>
+        <td><span class="check-no">—</span></td>
+      </tr>
+      <tr>
+        <td><span class="tag tailor">✂️ Tailor</span></td>
+        <td><span class="check-yes">✓</span></td>
+        <td><span class="check-yes">✓</span></td>
+        <td><span class="check-no">—</span></td>
+        <td><span class="check-no">—</span></td>
+        <td><span class="check-no">—</span></td>
+        <td><span class="check-no">—</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:#64748b;margin-bottom:32px;">
+    To add a staff member: they open the app URL → Create account → You go to <strong>Settings → Users</strong> → Change their role from Tailor to the right level.
+  </p>
+
+  <!-- ══ Tips ══ -->
+  <div class="section-title">💡 Tips for Best Results</div>
+  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:32px;">
+    <div class="tip">📌 Always add a <strong>delivery date</strong> when creating an order — it helps you see which orders are due soon.</div>
+    <div class="tip">📌 Use the <strong>Kanban board (Board view)</strong> to drag orders between stages visually.</div>
+    <div class="tip">📌 Save customer <strong>measurements</strong> in the CRM once — they auto-fill on the next order.</div>
+    <div class="tip">📌 The <strong>Activity Log</strong> shows a full history of every change made by any staff member.</div>
+    <div class="tip">📌 Use <strong>WhatsApp share</strong> on the order to send a delivery reminder directly to the customer.</div>
+  </div>
+
+  <!-- ══ Support ══ -->
+  <div class="section-title">🆘 Need Help?</div>
+  <div class="support-card">
+    <div class="support-icon">🤝</div>
+    <div class="support-text">
+      <h3>We're here to help</h3>
+      <p>Facing an issue? Want to add a feature? Need help onboarding your staff?<br>
+      Reach out on WhatsApp — we typically respond within a few hours.</p>
+      <a class="wa-btn" href="https://wa.me/91XXXXXXXXXX?text=Hi%2C%20I%20need%20help%20with%20Stitching%20Manager%20Pro" target="_blank" id="waLink">
+        💬 Chat on WhatsApp
+      </a>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>✂️ Stitching Manager Pro · © 2026 Swaroop Threads · All rights reserved</p>
+    <p style="margin-top:4px;">Your app: <strong id="footerUrl">—</strong></p>
+  </div>
+
+</div><!-- /page -->
+
+<!-- ════════════════ CONFIG SCRIPT ════════════════
+  Fill in the values below when sending to a client.
+  Or open in browser and edit the fields manually.
+──────────────────────────────────────────────── -->
+<script>
+// ── EDIT THESE 2 VALUES FOR EACH CLIENT ────────────────────────
+var CLIENT_SHOP_NAME = 'Your Shop';                          // e.g. "Ravi Tailors"
+var CLIENT_URL       = 'https://yourshop.swarooponline.com'; // e.g. "https://ravi.swarooponline.com"
+var SUPPORT_PHONE    = '91XXXXXXXXXX';                       // WhatsApp number with country code, no +
+// ────────────────────────────────────────────────────────────────
+
+(function() {
+  // Update URL displays
+  var urlEl    = document.getElementById('shopUrl');
+  var openBtn  = document.getElementById('openAppBtn');
+  var footerUrl= document.getElementById('footerUrl');
+  var waLink   = document.getElementById('waLink');
+
+  if (CLIENT_URL && CLIENT_URL !== 'https://yourshop.swarooponline.com') {
+    if (urlEl)    urlEl.textContent = CLIENT_URL;
+    if (openBtn)  { openBtn.href = CLIENT_URL; }
+    if (footerUrl) footerUrl.textContent = CLIENT_URL;
+  }
+
+  // Update page title and hero with shop name
+  if (CLIENT_SHOP_NAME && CLIENT_SHOP_NAME !== 'Your Shop') {
+    document.title = 'Welcome — ' + CLIENT_SHOP_NAME + ' · Stitching Manager Pro';
+    var h1 = document.querySelector('.hero h1');
+    if (h1) h1.innerHTML = 'Welcome to<br>' + CLIENT_SHOP_NAME + '!';
+  }
+
+  // WhatsApp support link
+  if (SUPPORT_PHONE && SUPPORT_PHONE !== '91XXXXXXXXXX') {
+    if (waLink) waLink.href = 'https://wa.me/' + SUPPORT_PHONE + '?text=Hi%2C%20I%20need%20help%20with%20Stitching%20Manager%20Pro';
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Social Media & Google Ads Master Plan — Stitching Manager Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Satoshi:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --ink:    #0A0A0F;
+  --ink2:   #16162A;
+  --fb:     #1877F2;
+  --fb2:    #E7F0FD;
+  --ig:     #E1306C;
+  --ig2:    #FFF0F5;
+  --ig-gr:  linear-gradient(135deg,#833AB4,#FD1D1D,#FCAF45);
+  --gg:     #4285F4;
+  --gg2:    #EEF3FF;
+  --green:  #00B37E;
+  --gold:   #F0A500;
+  --gold2:  #FFF8E6;
+  --red:    #E5383B;
+  --bg:     #F0EDE8;
+  --card:   #FFFFFF;
+  --warm:   #FAF8F5;
+  --rule:   #E5E0D8;
+  --muted:  #7B7568;
+  --tag-bg: #EEEAE3;
+}
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* ── HERO HEADER ── */
+.hero {
+  background: var(--ink2);
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+}
+.hero-mesh {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 80% at 80% 20%, rgba(24,119,242,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 10% 80%, rgba(225,48,108,0.1) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(66,133,244,0.06) 0%, transparent 60%);
+  pointer-events: none;
+}
+.hero-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 52px 28px 40px;
+  position: relative;
+  z-index: 2;
+}
+.hero-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+  flex-wrap: wrap;
+  margin-bottom: 36px;
+}
+.hero-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.hero-brand-icon {
+  width: 52px; height: 52px;
+  background: linear-gradient(135deg, var(--fb) 0%, var(--ig) 100%);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+}
+.hero-brand h1 {
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+}
+.hero-brand p {
+  font-size: 10px;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.hero-budget-pill {
+  background: rgba(240,165,0,0.15);
+  border: 1px solid rgba(240,165,0,0.35);
+  border-radius: 10px;
+  padding: 12px 20px;
+  text-align: right;
+}
+.hero-budget-pill .bp-label { font-size: 9px; color: rgba(255,255,255,0.4); letter-spacing: 0.1em; text-transform: uppercase; }
+.hero-budget-pill .bp-val   { font-size: 22px; font-weight: 800; color: var(--gold); line-height: 1.2; }
+.hero-budget-pill .bp-sub   { font-size: 10px; color: rgba(255,255,255,0.45); }
+
+.hero-headline {
+  font-size: 48px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.08;
+  margin-bottom: 14px;
+  letter-spacing: -0.02em;
+}
+.hero-headline em { font-style: italic; font-weight: 300; color: rgba(255,255,255,0.5); }
+.hero-headline .accent-fb { color: #6BA5F5; }
+.hero-headline .accent-ig { color: #FF7BAD; }
+.hero-headline .accent-gg { color: #FBBC04; }
+
+.hero-desc {
+  font-size: 14px;
+  font-weight: 300;
+  color: rgba(255,255,255,0.5);
+  max-width: 560px;
+  line-height: 1.75;
+  margin-bottom: 28px;
+}
+
+.platform-pills {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.platform-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid rgba(255,255,255,0.12);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.platform-pill.fb { background: rgba(24,119,242,0.15); color: #6BA5F5; }
+.platform-pill.ig { background: rgba(225,48,108,0.15); color: #FF7BAD; }
+.platform-pill.gg { background: rgba(66,133,244,0.12); color: #FBBC04; }
+.platform-pill.wa { background: rgba(37,211,102,0.12); color: #5DDA94; }
+.platform-pill.all { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
+.platform-pill.active, .platform-pill:hover { border-color: currentColor; transform: translateY(-1px); }
+
+.hero-stats-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 28px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+.hstat {
+  text-align: center;
+}
+.hstat .hs-num { font-size: 24px; font-weight: 800; color: #fff; line-height: 1; }
+.hstat .hs-lbl { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 4px; letter-spacing: 0.04em; }
+
+/* ── NAV TABS ── */
+.nav-tabs {
+  background: var(--ink);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.nav-tabs-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 28px;
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+}
+.nav-tab {
+  padding: 14px 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  letter-spacing: 0.03em;
+}
+.nav-tab:hover { color: rgba(255,255,255,0.7); }
+.nav-tab.active { color: #fff; border-bottom-color: var(--gold); }
+
+/* ── MAIN CONTENT ── */
+.main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 28px 80px;
+}
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ── SECTION HEAD ── */
+.sec-head {
+  margin-bottom: 24px;
+}
+.sec-head .sec-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sec-head .sec-eyebrow::before { content:''; display:inline-block; width:20px; height:2px; background:var(--gold); }
+.sec-head h2 {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.15;
+}
+.sec-head p {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 6px;
+  font-weight: 400;
+  line-height: 1.65;
+}
+
+/* ── CARD BASE ── */
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  border: 1px solid var(--rule);
+  overflow: hidden;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.05);
+  margin-bottom: 20px;
+}
+.card-head {
+  padding: 16px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.card-head-left { display: flex; align-items: center; gap: 12px; }
+.card-head h3 { font-size: 14px; font-weight: 700; color: var(--ink); }
+.card-head p  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.card-body { padding: 22px; }
+
+/* Platform badge */
+.plat-badge {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+.plat-badge.fb  { background: var(--fb2); color: var(--fb); }
+.plat-badge.ig  { background: var(--ig2); color: var(--ig); }
+.plat-badge.gg  { background: var(--gg2); color: var(--gg); }
+.plat-badge.all { background: var(--tag-bg); color: var(--muted); }
+.plat-badge.gold { background: var(--gold2); color: #9A6800; }
+
+/* ── STRATEGY GRID ── */
+.strategy-3col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.strategy-2col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+/* ── PLATFORM CARD ── */
+.plat-card {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  background: var(--card);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+}
+.plat-card-top {
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.plat-icon {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.plat-icon.fb  { background: var(--fb2); }
+.plat-icon.ig  { background: var(--ig2); }
+.plat-icon.gg  { background: var(--gg2); }
+.plat-icon.wa  { background: #E8FFF2; }
+.plat-card-top h3 { font-size: 15px; font-weight: 800; color: var(--ink); }
+.plat-card-top p  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.plat-card-body { padding: 0 20px 20px; }
+.plat-stat-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.plat-stat {
+  background: var(--warm);
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid var(--rule);
+}
+.plat-stat .ps-val { font-size: 20px; font-weight: 800; color: var(--ink); line-height: 1; }
+.plat-stat .ps-lbl { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+/* ── AD COPY CARD ── */
+.ad-copy-card {
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  background: var(--card);
+}
+.ac-platform-bar {
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.ac-platform-bar.fb-bar { background: var(--fb); color: #fff; }
+.ac-platform-bar.ig-bar { background: var(--ig-gr); color: #fff; }
+.ac-platform-bar.gg-bar { background: var(--gg); color: #fff; }
+.ac-platform-bar.gold-bar { background: linear-gradient(90deg, #C9922A, #F0A500); color: #fff; }
+.copy-btn {
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  transition: all 0.15s;
+}
+.copy-btn:hover, .copy-btn.done { background: rgba(255,255,255,0.35); }
+.ac-preview {
+  padding: 18px;
+  background: var(--warm);
+  border-bottom: 1px solid var(--rule);
+}
+.ac-preview-label { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.ac-headline {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+.ac-body {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+.ac-cta-preview {
+  display: inline-block;
+  margin-top: 12px;
+  background: var(--fb);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 18px;
+  border-radius: 6px;
+}
+.ac-cta-preview.ig { background: var(--ig); }
+.ac-cta-preview.gg { background: var(--gg); }
+.ac-copy-text {
+  padding: 14px 18px;
+}
+.act-label { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.act-content {
+  font-size: 12.5px;
+  color: var(--ink);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  background: #fff;
+  border: 1.5px solid var(--rule);
+  border-radius: 8px;
+  padding: 14px 16px;
+  cursor: text;
+  user-select: all;
+}
+.act-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.act-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--tag-bg);
+  color: var(--muted);
+}
+.act-tag.fb { background: var(--fb2); color: var(--fb); }
+.act-tag.ig { background: var(--ig2); color: var(--ig); }
+.act-tag.gg { background: var(--gg2); color: var(--gg); }
+
+/* ── BUDGET TABLE ── */
+.budget-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.budget-table th {
+  background: var(--ink);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 12px 16px;
+  text-align: left;
+}
+.budget-table th:first-child { border-radius: 8px 0 0 0; }
+.budget-table th:last-child  { border-radius: 0 8px 0 0; }
+.budget-table td {
+  padding: 12px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: middle;
+}
+.budget-table tr:nth-child(even) td { background: var(--warm); }
+.budget-table tr:last-child td { font-weight: 700; background: var(--gold2); border-bottom: none; }
+.budget-table .plat-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+/* ── KEYWORD TABLE ── */
+.kw-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.kw-table th {
+  background: var(--gg);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 10px 14px;
+  text-align: left;
+}
+.kw-table td {
+  padding: 10px 14px;
+  font-size: 12.5px;
+  border-bottom: 1px solid var(--rule);
+}
+.kw-table tr:nth-child(even) td { background: #F5F8FF; }
+.intent-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.06em;
+}
+.intent-badge.high   { background: #DCFCE7; color: #166534; }
+.intent-badge.medium { background: #FEF9C3; color: #854D0E; }
+.intent-badge.brand  { background: var(--gg2); color: var(--gg); }
+.vol-bar { display: flex; align-items: center; gap: 8px; }
+.vol-fill { height: 6px; border-radius: 3px; background: var(--gg); flex-shrink:0; }
+
+/* ── CONTENT CALENDAR ── */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+.cal-day-head {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 0;
+}
+.cal-cell {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 8px;
+  min-height: 80px;
+  background: #fff;
+  font-size: 9px;
+  cursor: default;
+  transition: box-shadow 0.15s;
+}
+.cal-cell:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+.cal-cell.empty { background: var(--warm); opacity: 0.4; }
+.cal-date { font-size: 11px; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+.cal-event {
+  border-radius: 4px;
+  padding: 3px 5px;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 3px;
+}
+.cal-event.fb  { background: var(--fb2); color: var(--fb); }
+.cal-event.ig  { background: var(--ig2); color: var(--ig); }
+.cal-event.gg  { background: var(--gg2); color: var(--gg); }
+.cal-event.wa  { background: #E8FFF2; color: #166534; }
+.cal-event.gold { background: var(--gold2); color: #9A6800; }
+
+/* ── REEL SCRIPTS ── */
+.reel-card {
+  background: var(--ink2);
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 16px;
+}
+.reel-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.reel-head h3 { font-size: 14px; font-weight: 700; color: #fff; }
+.reel-head p  { font-size: 10px; color: rgba(255,255,255,0.4); margin-top:2px; }
+.reel-duration {
+  background: rgba(225,48,108,0.2);
+  border: 1px solid rgba(225,48,108,0.3);
+  color: #FF7BAD;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 5px;
+}
+.reel-body { padding: 20px; }
+.reel-timeline { display: flex; flex-direction: column; gap: 10px; }
+.reel-beat {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.reel-time {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--ig);
+  width: 36px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+.reel-action {
+  flex: 1;
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+  line-height: 1.5;
+}
+.reel-action strong { color: #fff; }
+.reel-hook {
+  background: rgba(225,48,108,0.1);
+  border-left: 3px solid var(--ig);
+  padding: 10px 14px;
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: #fff;
+  font-weight: 600;
+  font-style: italic;
+}
+
+/* ── TARGETING BOX ── */
+.target-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.target-box {
+  background: var(--warm);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 18px;
+}
+.target-box h4 {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.target-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink);
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+.target-item::before { content: '→'; color: var(--gold); font-weight: 700; flex-shrink:0; }
+
+/* ── PHASE TRACKER ── */
+.phase-track {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.phase-col {
+  padding: 20px;
+  border-right: 1px solid var(--rule);
+  position: relative;
+}
+.phase-col:last-child { border-right: none; }
+.phase-num {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  margin-bottom: 10px;
+  color: #fff;
+}
+.phase-col:nth-child(1) .phase-num { background: var(--fb); }
+.phase-col:nth-child(2) .phase-num { background: var(--ig); }
+.phase-col:nth-child(3) .phase-num { background: var(--gg); }
+.phase-col:nth-child(4) .phase-num { background: var(--green); }
+.phase-col h4 { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.phase-col .ph-week { font-size: 10px; color: var(--muted); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; }
+.phase-col p { font-size: 11px; color: var(--muted); line-height: 1.55; }
+.phase-col ul { list-style: none; }
+.phase-col li { font-size: 11px; color: var(--muted); margin-bottom: 5px; display: flex; gap: 6px; line-height:1.4; }
+.phase-col li::before { content:'✓'; color: var(--green); font-weight:700; flex-shrink:0; }
+
+/* ── METRICS TABLE ── */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.metric-card {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+}
+.metric-card .mc-icon { font-size: 24px; margin-bottom: 8px; }
+.metric-card .mc-val  { font-size: 22px; font-weight: 800; color: var(--ink); line-height: 1; }
+.metric-card .mc-lbl  { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.metric-card .mc-sub  { font-size: 10px; color: var(--green); font-weight: 600; margin-top: 3px; }
+
+/* ── PRINT / ACTION ── */
+.action-strip {
+  max-width: 1100px;
+  margin: 0 auto 0;
+  padding: 12px 28px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.action-btn {
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: none;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+}
+.action-btn.dark { background: var(--ink); color: #fff; }
+.action-btn.gold { background: var(--gold); color: #fff; }
+
+@media print {
+  .nav-tabs, .action-strip { display: none; }
+  .panel { display: block !important; page-break-before: always; }
+  .panel:first-child { page-break-before: avoid; }
+}
+@media (max-width: 700px) {
+  .strategy-3col, .strategy-2col, .hero-stats-row { grid-template-columns: 1fr 1fr; }
+  .target-grid, .phase-track, .metrics-grid { grid-template-columns: 1fr 1fr; }
+  .cal-grid { grid-template-columns: repeat(4, 1fr); }
+  .hero-headline { font-size: 30px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ HERO ══ -->
+<div class="hero">
+  <div class="hero-mesh"></div>
+  <div class="hero-inner">
+    <div class="hero-top-row">
+      <div class="hero-brand">
+        <div class="hero-brand-icon">📣</div>
+        <div>
+          <h1>Social Media & Google Ads Master Plan</h1>
+          <p>Stitching Manager Pro · Swaroop Threads · 2026</p>
+        </div>
+      </div>
+      <div class="hero-budget-pill">
+        <div class="bp-label">Recommended Monthly Budget</div>
+        <div class="bp-val">₹15,000–25,000</div>
+        <div class="bp-sub">FB + Instagram + Google Ads combined</div>
+      </div>
+    </div>
+    <div class="hero-headline">
+      Your Complete Playbook for<br>
+      <span class="accent-fb">Facebook</span>, <span class="accent-ig">Instagram</span><br>
+      <em>&</em> <span class="accent-gg">Google Ads</span>
+    </div>
+    <p class="hero-desc">Ad copies, targeting strategy, content calendar, reel scripts, keyword plan, and budget allocation — everything you need to launch and scale paid campaigns from Day 1.</p>
+    <div class="platform-pills">
+      <div class="platform-pill fb">𝗳 Facebook Ads</div>
+      <div class="platform-pill ig">📸 Instagram Ads</div>
+      <div class="platform-pill gg">🔍 Google Ads</div>
+      <div class="platform-pill wa">💬 WhatsApp CTA</div>
+    </div>
+    <div class="hero-stats-row">
+      <div class="hstat"><div class="hs-num">3</div><div class="hs-lbl">Platforms</div></div>
+      <div class="hstat"><div class="hs-num">12+</div><div class="hs-lbl">Ad Copies</div></div>
+      <div class="hstat"><div class="hs-num">30+</div><div class="hs-lbl">Keywords</div></div>
+      <div class="hstat"><div class="hs-num">4</div><div class="hs-lbl">Launch Phases</div></div>
+      <div class="hstat"><div class="hs-num">90</div><div class="hs-lbl">Day Plan</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ NAV ══ -->
+<div class="nav-tabs">
+  <div class="nav-tabs-inner">
+    <div class="nav-tab active" onclick="showPanel('strategy')">📊 Strategy Overview</div>
+    <div class="nav-tab" onclick="showPanel('facebook')">𝗳 Facebook Ads</div>
+    <div class="nav-tab" onclick="showPanel('instagram')">📸 Instagram Ads</div>
+    <div class="nav-tab" onclick="showPanel('google')">🔍 Google Ads</div>
+    <div class="nav-tab" onclick="showPanel('content')">📅 Content Calendar</div>
+    <div class="nav-tab" onclick="showPanel('reels')">🎬 Reel Scripts</div>
+    <div class="nav-tab" onclick="showPanel('budget')">💰 Budget & KPIs</div>
+  </div>
+</div>
+
+<div class="action-strip">
+  <button class="action-btn dark" onclick="window.print()">🖨️ Print / Save PDF</button>
+  <button class="action-btn gold">📋 Export Plan</button>
+</div>
+
+<div class="main">
+
+<!-- ══════════════════════════════════════════════
+     PANEL 1 — STRATEGY OVERVIEW
+══════════════════════════════════════════════ -->
+<div class="panel active" id="panel-strategy">
+  <div class="sec-head">
+    <div class="sec-eyebrow">Campaign Foundation</div>
+    <h2>Strategy Overview</h2>
+    <p>Before running a single ad — understand the market, target audience, and campaign structure. This is your north star.</p>
+  </div>
+
+  <!-- Who We're Targeting -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="plat-badge all">🎯 Audience</span>
+        <div><h3>Who Are We Targeting?</h3><p>Primary and secondary audience profiles</p></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="target-grid">
+        <div class="target-box">
+          <h4>🥇 Primary Audience</h4>
+          <div class="target-item">Ladies boutique owners & female tailors</div>
+          <div class="target-item">Age 25–55, India (Tier 2 & 3 cities primarily)</div>
+          <div class="target-item">UP, Uttarakhand, Delhi, Haryana, Punjab, Rajasthan</div>
+          <div class="target-item">Running shops with 10–100 orders/month</div>
+          <div class="target-item">Use WhatsApp daily, basic smartphone users</div>
+          <div class="target-item">Pain: paper diary, missed orders, no tracking</div>
+        </div>
+        <div class="target-box">
+          <h4>🥈 Secondary Audience</h4>
+          <div class="target-item">Male tailors — gents, bridal, sherwani shops</div>
+          <div class="target-item">Age 28–50, small business owners</div>
+          <div class="target-item">Metro cities — Delhi, Mumbai, Lucknow, Hyderabad</div>
+          <div class="target-item">Already using some digital tools (Excel, WhatsApp)</div>
+          <div class="target-item">Want to scale, hire staff, track payments better</div>
+          <div class="target-item">Budget-conscious — price-sensitive decision makers</div>
+        </div>
+        <div class="target-box">
+          <h4>📍 Facebook Interest Targeting</h4>
+          <div class="target-item">Tailoring, Stitching, Boutique, Fashion Design</div>
+          <div class="target-item">Small Business, Self Employed, Entrepreneur</div>
+          <div class="target-item">Salwar Kameez, Lehenga, Blouse, Kurti</div>
+          <div class="target-item">WhatsApp Business, Vyapar App, Tally users</div>
+          <div class="target-item">Engaged shoppers — recently shopped online</div>
+        </div>
+        <div class="target-box">
+          <h4>📍 Google Search Audience</h4>
+          <div class="target-item">In-market: Small Business Software</div>
+          <div class="target-item">Affinity: Fashion & Style enthusiasts</div>
+          <div class="target-item">Custom Intent: Tailoring shop management software</div>
+          <div class="target-item">Customer Match: Upload your WhatsApp contact list</div>
+          <div class="target-item">Similar Audiences: Based on your existing client list</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4-Phase Plan -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="plat-badge gold">🗓️ 90-Day Plan</span>
+        <div><h3>4-Phase Launch Strategy</h3><p>Week-by-week campaign rollout</p></div>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <div class="phase-track" style="border:none; border-radius:0;">
+        <div class="phase-col" style="background:#F0F7FF;">
+          <div class="phase-num">1</div>
+          <h4>Awareness</h4>
+          <div class="ph-week">Week 1–2</div>
+          <ul>
+            <li>Set up FB & IG Business pages</li>
+            <li>Install Meta Pixel on website</li>
+            <li>Run awareness video ads</li>
+            <li>Post 3x/week organic content</li>
+            <li>Start Google Search ads</li>
+            <li>Budget: ₹5,000</li>
+          </ul>
+        </div>
+        <div class="phase-col" style="background:#FFF0F5;">
+          <div class="phase-num">2</div>
+          <h4>Engagement</h4>
+          <div class="ph-week">Week 3–4</div>
+          <ul>
+            <li>Retarget video viewers (50%+ watch)</li>
+            <li>Run lead generation ads</li>
+            <li>Post Reels — before/after content</li>
+            <li>WhatsApp CTA on all ads</li>
+            <li>Collect first 50 demo leads</li>
+            <li>Budget: ₹8,000</li>
+          </ul>
+        </div>
+        <div class="phase-col" style="background:#EEF3FF;">
+          <div class="phase-num">3</div>
+          <h4>Conversion</h4>
+          <div class="ph-week">Week 5–8</div>
+          <ul>
+            <li>Conversion campaigns (leads → demo)</li>
+            <li>Testimonial video ads</li>
+            <li>Google Display retargeting</li>
+            <li>Special offer ad — limited time</li>
+            <li>Target: 20 paying clients</li>
+            <li>Budget: ₹12,000</li>
+          </ul>
+        </div>
+        <div class="phase-col" style="background:#F0FFF8;">
+          <div class="phase-num">4</div>
+          <h4>Scale</h4>
+          <div class="ph-week">Month 3+</div>
+          <ul>
+            <li>Scale winning ad sets 2x budget</li>
+            <li>Lookalike audiences (1–3%)</li>
+            <li>Referral campaign — word of mouth</li>
+            <li>YouTube Shorts ads</li>
+            <li>Target: 50+ active clients</li>
+            <li>Budget: ₹20,000+</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PANEL 2 — FACEBOOK ADS
+══════════════════════════════════════════════ -->
+<div class="panel" id="panel-facebook">
+  <div class="sec-head">
+    <div class="sec-eyebrow">Facebook Ads</div>
+    <h2>Facebook Ad Copies & Strategy</h2>
+    <p>Complete ad copies, audience targeting, and campaign structure for Facebook. Copy each ad directly into Ads Manager.</p>
+  </div>
+
+  <!-- Page Setup Guide -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="plat-badge fb">𝗳 Page Setup</span>
+        <div><h3>Facebook Page — Setup Checklist</h3><p>Before running any ads, complete this</p></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="strategy-2col">
+        <div>
+          <div style="font-size:11px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:12px;">Page Details</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;gap:10px;font-size:12.5px;align-items:flex-start;"><span style="color:var(--fb);font-weight:700;">→</span><span><strong>Page Name:</strong> Stitching Manager Pro</span></div>
+            <div style="display:flex;gap:10px;font-size:12.5px;align-items:flex-start;"><span style="color:var(--fb);font-weight:700;">→</span><span><strong>Category:</strong> Software · Computer & Internet</span></div>
+            <div style="display:flex;gap:10px;font-size:12.5px;align-items:flex-start;"><span style="color:var(--fb);font-weight:700;">→</span><span><strong>Username:</strong> @StitchingManagerPro</span></div>
+            <div style="display:flex;gap:10px;font-size:12.5px;align-items:flex-start;"><span style="color:var(--fb);font-weight:700;">→</span><span><strong>Profile Photo:</strong> SP logo (square, 180×180px)</span></div>
+            <div style="display:flex;gap:10px;font-size:12.5px;align-items:flex-start;"><span style="color:var(--fb);font-weight:700;">→</span><span><strong>Cover Photo:</strong> App screenshot on phone (820×312px)</span></div>
+            <div style="display:flex;gap:10px;font-size:12.5px;align-items:flex-start;"><span style="color:var(--fb);font-weight:700;">→</span><span><strong>CTA Button:</strong> "Send Message" → WhatsApp</span></div>
+            <div style="display:flex;gap:10px;font-size:12.5px;align-items:flex-start;"><span style="color:var(--fb);font-weight:700;">→</span><span><strong>Website:</strong> swarooponline.com</span></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:12px;">Page Bio (Copy This)</div>
+          <div style="background:var(--warm); border:1.5px solid var(--rule); border-radius:10px; padding:14px; font-size:12.5px; line-height:1.7; user-select:all; cursor:text; color:var(--ink);">✂️ Tailoring Shop Management App — sirf aapke liye!
+
+📋 Orders track karein
+👥 Customers manage karein
+📊 Reports dekhein
+💬 WhatsApp alerts bhejein
+
+🚀 FREE LIVE Demo ke liye WhatsApp karein!
+📱 wa.me/91XXXXXXXXXX
+
+swarooponline.com</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FB Ad 1 — Awareness -->
+  <div class="ad-copy-card">
+    <div class="ac-platform-bar fb-bar">
+      <span>𝗳 Facebook · Awareness Campaign · Video/Image Ad</span>
+      <button class="copy-btn" onclick="copyAd(this,'fb-ad1')">📋 Copy Ad</button>
+    </div>
+    <div class="ac-preview">
+      <div class="ac-preview-label">Ad Preview</div>
+      <div class="ac-headline">Abhi bhi diary mein order likhte hain? 📔❌</div>
+      <div class="ac-body">Ek tailoring shop owner ki sabse badi problem — orders track karna, customer yaad rakhna, payment miss hona.
+
+Stitching Manager Pro ne yeh sab solve kar diya. 10,000+ orders manage ho chuke hain is app se.
+
+✅ Paper-free shop in 30 minutes
+✅ Customers hamesha khush rehte hain
+✅ Har rupaye ka hisaab — haath mein</div>
+      <div class="ac-cta-preview">📱 FREE Demo Dekhein</div>
+    </div>
+    <div class="ac-copy-text">
+      <div class="act-label">Full Ad Copy — Paste in Ads Manager</div>
+      <div class="act-content" id="fb-ad1">✂️ Abhi bhi diary mein order likhte hain?
+
+Agar haan — toh aap har mahine ₹2,000–5,000 ka nuksaan utha rahe hain bina jaane!
+
+❌ Order miss hota hai
+❌ Customer payment yaad nahi rehti
+❌ Kaun sa kapda ready hai — pata nahi
+
+Stitching Manager Pro aapki shop ko digital kar deta hai — sirf 30 minute mein! 🚀
+
+✅ Apna paisa bachayein — har payment tracked
+✅ Time save karein — 2+ ghante roz
+✅ Customer ko khush rakhein — WhatsApp pe automatic alerts
+✅ Hamesha connected rahein — mobile, laptop, kahin bhi
+
+📱 FREE Live Demo — aaj hi dekhein!
+👉 WhatsApp karein: wa.me/91XXXXXXXXXX
+
+#TailoringShop #BoutiqueManagement #StitchingApp #SmallBusiness #TailorIndia</div>
+      <div class="act-tags">
+        <div class="act-tag fb">Objective: Awareness / Traffic</div>
+        <div class="act-tag">Placement: Facebook Feed + Reels</div>
+        <div class="act-tag">Format: Image or 15-sec video</div>
+        <div class="act-tag">Budget: ₹200–500/day</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FB Ad 2 — Lead Gen -->
+  <div class="ad-copy-card">
+    <div class="ac-platform-bar fb-bar">
+      <span>𝗳 Facebook · Lead Generation Campaign</span>
+      <button class="copy-btn" onclick="copyAd(this,'fb-ad2')">📋 Copy Ad</button>
+    </div>
+    <div class="ac-preview">
+      <div class="ac-preview-label">Ad Preview</div>
+      <div class="ac-headline">FREE Demo — Apni Shop Ka Digital System Dekhein 🚀</div>
+      <div class="ac-body">Sirf 15 minute mein apni tailoring shop ka poora management system LIVE dekho — aapke phone pe, aapki shop ki setting mein.</div>
+      <div class="ac-cta-preview">📋 Free Demo Book Karein</div>
+    </div>
+    <div class="ac-copy-text">
+      <div class="act-label">Full Ad Copy</div>
+      <div class="act-content" id="fb-ad2">🎁 BILKUL FREE — Stitching Manager Pro LIVE Demo
+
+Tailoring shop owners ke liye ek khaas offer:
+
+Hamare expert aapko 15 minute mein dikhayenge:
+📋 Orders kaise track karein — zero paper
+👥 Customer database kaise banayein
+💬 WhatsApp pe automatic alerts kaise bhejein
+📊 Daily income report kaise dekhein
+💰 Missed payments kaise pakdein
+
+Yeh demo aapki khud ki shop ki jaisi setting mein hogi — real data, real garments, real prices.
+
+Koi bhi commitment nahi — bilkul FREE!
+
+👇 Neeche form fill karein — hum 2 ghante mein contact karenge.
+
+#FreeDemoBook #TailoringApp #BoutiqueManagement</div>
+      <div class="act-tags">
+        <div class="act-tag fb">Objective: Lead Generation</div>
+        <div class="act-tag">Form: Name + Phone + City</div>
+        <div class="act-tag">Placement: Facebook Feed</div>
+        <div class="act-tag">Budget: ₹300–600/day</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FB Ad 3 — Retargeting -->
+  <div class="ad-copy-card">
+    <div class="ac-platform-bar fb-bar">
+      <span>𝗳 Facebook · Retargeting — Website Visitors & Video Viewers</span>
+      <button class="copy-btn" onclick="copyAd(this,'fb-ad3')">📋 Copy Ad</button>
+    </div>
+    <div class="ac-preview">
+      <div class="ac-preview-label">Ad Preview</div>
+      <div class="ac-headline">Aapne Stitching Manager Pro dekha — lekin abhi tak demo nahi liya? 🤔</div>
+      <div class="ac-body">Jo aap soch rahe hain — woh sahi hai. Yeh app aapki shop ke liye bana hai. Aaj FREE demo lo — kal se paper se azaadi!</div>
+      <div class="ac-cta-preview">💬 WhatsApp Pe Demo Book Karein</div>
+    </div>
+    <div class="ac-copy-text">
+      <div class="act-label">Full Ad Copy</div>
+      <div class="act-content" id="fb-ad3">Namaste! 🙏
+
+Aapne hamare app ke baare mein pehle dekha tha — aur hum jaante hain aap busy hain.
+
+Isliye ek last baat:
+
+Sunita ji (Dehradun) kehti hain:
+⭐ "Pehle paper pe sab likhte the. Ab ek bhi order miss nahi hota. Customers bahut khush hain — WhatsApp pe alert milta hai!"
+
+Priya ji (Lucknow) kehti hain:
+⭐ "Reports se pata chalta hai business kaise chal raha hai. Paise bhi zyada bach rahe hain!"
+
+Aapki shop bhi aise hi ho sakti hai.
+
+🎁 Aaj FREE demo lijiye — sirf 15 minute
+📱 WhatsApp: wa.me/91XXXXXXXXXX
+
+Kal se paper-free! ✂️</div>
+      <div class="act-tags">
+        <div class="act-tag fb">Objective: Conversions</div>
+        <div class="act-tag">Audience: Website visitors (30 days)</div>
+        <div class="act-tag">Audience: Video viewers 50%+</div>
+        <div class="act-tag">Budget: ₹150–300/day</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FB Campaign Structure -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="plat-badge fb">𝗳 Campaign</span>
+        <div><h3>Facebook Ads Manager — Campaign Structure</h3></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="background:#EEF5FF;border:1px solid rgba(24,119,242,0.2);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;font-weight:800;color:var(--fb);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">Campaign Level — Awareness</div>
+          <div style="font-size:12px;color:var(--ink);line-height:1.6;">Objective: Brand Awareness · Budget: ₹5,000/month · Ad Set: Ladies Tailors India · Ad Set: Men's Tailor Shops · Creative: App demo video 15–30 sec</div>
+        </div>
+        <div style="background:#EEF5FF;border:1px solid rgba(24,119,242,0.2);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;font-weight:800;color:var(--fb);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">Campaign Level — Lead Generation</div>
+          <div style="font-size:12px;color:var(--ink);line-height:1.6;">Objective: Lead Gen · Budget: ₹6,000/month · Lead Form: Name + WhatsApp + City + Shop Type · Instant form — no website needed · Auto-reply via WhatsApp Business API</div>
+        </div>
+        <div style="background:#EEF5FF;border:1px solid rgba(24,119,242,0.2);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;font-weight:800;color:var(--fb);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">Campaign Level — Retargeting</div>
+          <div style="font-size:12px;color:var(--ink);line-height:1.6;">Objective: Conversions · Budget: ₹3,000/month · Custom Audience: Website visitors, video viewers 50%+, lead form openers · Testimonial-based creatives</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PANEL 3 — INSTAGRAM ADS
+══════════════════════════════════════════════ -->
+<div class="panel" id="panel-instagram">
+  <div class="sec-head">
+    <div class="sec-eyebrow">Instagram Ads</div>
+    <h2>Instagram Ad Copies & Strategy</h2>
+    <p>Instagram works best with visual content. Reels, Stories, and Carousel ads — all optimised for India's tailoring audience.</p>
+  </div>
+
+  <!-- IG Page Setup -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="plat-badge ig">📸 Profile</span>
+        <div><h3>Instagram Profile — Setup Guide</h3><p>Set this up before running any ad</p></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="strategy-2col">
+        <div>
+          <div style="font-size:11px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:12px;">Profile Details</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;gap:10px;font-size:12.5px;align-items:flex-start;"><span style="color:var(--ig);font-weight:700;">→</span><span><strong>Username:</strong> @stitchingmanagerpro</span></div>
+            <div style="display:flex;gap:10px;font-size:12.5px;align-items:flex-start;"><span style="color:var(--ig);font-weight:700;">→</span><span><strong>Name:</strong> Stitching Manager Pro ✂️</span></div>
+            <div style="display:flex;gap:10px;font-size:12.5px;align-items:flex-start;"><span style="color:var(--ig);font-weight:700;">→</span><span><strong>Category:</strong> Software Company</span></div>
+            <div style="display:flex;gap:10px;font-size:12.5px;align-items:flex-start;"><span style="color:var(--ig);font-weight:700;">→</span><span><strong>Profile Photo:</strong> SP logo on dark background</span></div>
+            <div style="display:flex;gap:10px;font-size:12.5px;align-items:flex-start;"><span style="color:var(--ig);font-weight:700;">→</span><span><strong>Link in Bio:</strong> swarooponline.com or Linktree</span></div>
+            <div style="display:flex;gap:10px;font-size:12.5px;align-items:flex-start;"><span style="color:var(--ig);font-weight:700;">→</span><span><strong>Story Highlights:</strong> Features / Demo / Reviews / Pricing</span></div>
+            <div style="display:flex;gap:10px;font-size:12.5px;align-items:flex-start;"><span style="color:var(--ig);font-weight:700;">→</span><span><strong>Contact Button:</strong> WhatsApp number</span></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:12px;">Bio (Copy This)</div>
+          <div style="background:var(--warm); border:1.5px solid var(--rule); border-radius:10px; padding:14px; font-size:12.5px; line-height:1.7; user-select:all; cursor:text; color:var(--ink);">✂️ Tailoring Shop Management App
+📋 Orders | 👥 Customers | 📊 Reports
+💬 WhatsApp Alerts | 🏆 Loyalty Points
+
+🚀 FREE Live Demo Available!
+📱 DM us or WhatsApp below ↓
+
+🌐 swarooponline.com</div>
+          <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Hashtag Strategy</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.8;user-select:all;cursor:text;">#TailoringShop #BoutiqueManagement #StitchingApp #TailorIndia #LadiesBoutique #DarziBusiness #SmallBusinessIndia #BoutiqueOwner #FashionBusiness #KurtiBoutique #LehengaBoutique #TailoringBusiness #StitchingBusiness #DigitalDukaan #BusinessApp</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IG Ad 1 — Reels Ad -->
+  <div class="ad-copy-card">
+    <div class="ac-platform-bar ig-bar">
+      <span>📸 Instagram · Reels Ad (Most Powerful Format)</span>
+      <button class="copy-btn" onclick="copyAd(this,'ig-ad1')">📋 Copy Ad</button>
+    </div>
+    <div class="ac-preview">
+      <div class="ac-preview-label">Reel Ad — Caption Preview</div>
+      <div class="ac-headline">Yeh dekho — paper se app tak 30 minute! 🤯</div>
+      <div class="ac-body">Aapki tailoring shop abhi bhi diary pe chal rahi hai? Hum aapko dikhate hain kaise aap aaj se digital ho sakte hain.</div>
+      <div class="ac-cta-preview ig">💬 FREE Demo Lein</div>
+    </div>
+    <div class="ac-copy-text">
+      <div class="act-label">Reel Caption — Copy & Paste</div>
+      <div class="act-content" id="ig-ad1">✂️ Kya aapki tailoring shop abhi bhi diary pe chal rahi hai?
+
+Hamare ek client ne kaha: "Pehle roz 2 ghante sirf order likhne mein jaate the. Ab 5 minute mein sab ho jaata hai!"
+
+Stitching Manager Pro se:
+💰 Apna paisa bachayein — koi payment miss nahi
+⏰ Time save karein — paper se azaadi
+😊 Customer ko khush rakhein — WhatsApp pe automatic update
+📊 Business report — daily, haath mein
+🤝 Hamesha connected rahein — phone ya laptop pe
+
+🎁 FREE LIVE Demo — sirf 15 minute aapka waqt
+📱 WhatsApp: wa.me/91XXXXXXXXXX
+
+👇 Bio mein link hai ya DM karein!
+
+#TailoringShop #BoutiqueManagement #StitchingApp #TailorIndia #LadiesBoutique #SmallBusinessIndia #DarziBusiness #DigitalDukaan #BusinessApp #BoutiqueOwner #FashionBusiness #KurtiBoutique #TailoringBusiness</div>
+      <div class="act-tags">
+        <div class="act-tag ig">Format: Reels 15–30 sec vertical</div>
+        <div class="act-tag">Objective: Reach / Awareness</div>
+        <div class="act-tag">Placement: Reels + Explore</div>
+        <div class="act-tag">Budget: ₹200–400/day</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IG Ad 2 — Stories -->
+  <div class="ad-copy-card">
+    <div class="ac-platform-bar ig-bar">
+      <span>📸 Instagram Stories Ad — Swipe Up / Link Sticker</span>
+      <button class="copy-btn" onclick="copyAd(this,'ig-ad2')">📋 Copy Ad</button>
+    </div>
+    <div class="ac-preview">
+      <div class="ac-preview-label">Story Ad — Text Overlay (Full Screen)</div>
+      <div class="ac-headline" style="font-size:24px;">Tailoring Shop Owner? 🧵<br>Yeh 10 second zaroor dekho 👇</div>
+      <div class="ac-body" style="font-size:11px;">Swipe up for FREE demo</div>
+      <div class="ac-cta-preview ig">👆 Swipe Up</div>
+    </div>
+    <div class="ac-copy-text">
+      <div class="act-label">Story Ad — Text Content (Overlay on App Screenshot)</div>
+      <div class="act-content" id="ig-ad2">📱 [VISUAL: App screenshot on phone — Kanban board showing orders]
+
+TEXT OVERLAY ON STORY:
+Line 1: "Tailoring shop owner? 🧵"
+Line 2: "Paper diary band karo!"
+Line 3: "✂️ Stitching Manager Pro"
+Line 4: "FREE Demo 👆 Swipe Up"
+
+CAPTION (if used):
+Aapki shop digital hone mein sirf 30 minute lagte hain! 🚀
+
+Order tracking ✅
+Customer records ✅
+WhatsApp alerts ✅
+Business reports ✅
+
+🎁 FREE demo — aaj hi!
+📱 wa.me/91XXXXXXXXXX</div>
+      <div class="act-tags">
+        <div class="act-tag ig">Format: 9:16 Story (1080×1920px)</div>
+        <div class="act-tag">Duration: 5–10 seconds</div>
+        <div class="act-tag">CTA: Swipe Up / Link Sticker</div>
+        <div class="act-tag">Budget: ₹150–250/day</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IG Ad 3 — Carousel -->
+  <div class="ad-copy-card">
+    <div class="ac-platform-bar ig-bar">
+      <span>📸 Instagram Carousel Ad — 5-Slide Problem-Solution</span>
+      <button class="copy-btn" onclick="copyAd(this,'ig-ad3')">📋 Copy Ad</button>
+    </div>
+    <div class="ac-preview">
+      <div class="ac-preview-label">Carousel Slides Plan</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:8px;">
+        <div style="background:#1A1A2E;color:#fff;border-radius:8px;padding:10px;text-align:center;font-size:10px;font-weight:700;line-height:1.4;">Slide 1<br><span style="color:var(--ig);">PROBLEM</span><br>Diary se thak gaye?</div>
+        <div style="background:#1A1A2E;color:#fff;border-radius:8px;padding:10px;text-align:center;font-size:10px;font-weight:700;line-height:1.4;">Slide 2<br><span style="color:#6BA5F5;">FEATURE 1</span><br>Order Board</div>
+        <div style="background:#1A1A2E;color:#fff;border-radius:8px;padding:10px;text-align:center;font-size:10px;font-weight:700;line-height:1.4;">Slide 3<br><span style="color:#6BA5F5;">FEATURE 2</span><br>WhatsApp Alert</div>
+        <div style="background:#1A1A2E;color:#fff;border-radius:8px;padding:10px;text-align:center;font-size:10px;font-weight:700;line-height:1.4;">Slide 4<br><span style="color:var(--gold);">PROOF</span><br>Client Review</div>
+        <div style="background:var(--ig);color:#fff;border-radius:8px;padding:10px;text-align:center;font-size:10px;font-weight:700;line-height:1.4;">Slide 5<br>CTA<br>FREE Demo!</div>
+      </div>
+    </div>
+    <div class="ac-copy-text">
+      <div class="act-label">Carousel Caption + All 5 Slides Text</div>
+      <div class="act-content" id="ig-ad3">MAIN CAPTION:
+✂️ 5 reasons kyun aapko Stitching Manager Pro chahiye → Swipe karo!
+
+SLIDE 1 — PROBLEM:
+Headline: "Diary se thak gaye? 😩"
+Text: "Roz orders likhna, dhundna, miss karna — yeh sab band karo!"
+
+SLIDE 2 — ORDER TRACKING:
+Headline: "📋 Visual Order Board"
+Text: "Received → In Progress → Ready → Delivered. Ek nazar mein poori shop!"
+
+SLIDE 3 — WHATSAPP ALERTS:
+Headline: "💬 Automatic WhatsApp Alerts"
+Text: "Customer ko khud WhatsApp karne ki zaroorat nahi. App automatically bhejta hai!"
+
+SLIDE 4 — SOCIAL PROOF:
+Headline: "⭐ Sunita ji, Dehradun boli..."
+Text: '"Ab ek bhi order miss nahi hota. Customers bahut khush hain!"'
+
+SLIDE 5 — CTA:
+Headline: "🎁 FREE LIVE Demo — Aaj Hi!"
+Text: "15 minute mein apni shop ka digital system dekho. Zero risk, zero cost!"
+CTA Button: "WhatsApp Karein"
+
+HASHTAGS:
+#TailoringApp #BoutiqueManagement #StitchingApp #TailorIndia #SmallBusinessIndia #DarziBusiness #DigitalDukaan</div>
+      <div class="act-tags">
+        <div class="act-tag ig">Format: Carousel 1:1 (1080×1080px)</div>
+        <div class="act-tag">Slides: 5 (max)</div>
+        <div class="act-tag">Objective: Traffic / Leads</div>
+        <div class="act-tag">Budget: ₹200–400/day</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PANEL 4 — GOOGLE ADS
+══════════════════════════════════════════════ -->
+<div class="panel" id="panel-google">
+  <div class="sec-head">
+    <div class="sec-eyebrow">Google Ads</div>
+    <h2>Google Search & Display Ads</h2>
+    <p>People already searching for tailoring shop software — capture them at the exact moment of intent. Highest quality leads come from Google Search.</p>
+  </div>
+
+  <!-- Keywords -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="plat-badge gg">🔍 Keywords</span>
+        <div><h3>Complete Keyword Strategy — 30+ Keywords</h3><p>Organized by intent and bid priority</p></div>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0; overflow:auto;">
+      <table class="kw-table">
+        <thead>
+          <tr>
+            <th>Keyword</th>
+            <th>Match Type</th>
+            <th>Intent</th>
+            <th>Est. CPC</th>
+            <th>Priority</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>tailoring shop management software</td><td>[Exact]</td><td><span class="intent-badge high">High</span></td><td>₹15–35</td><td>⭐⭐⭐</td></tr>
+          <tr><td>tailoring app India</td><td>[Exact]</td><td><span class="intent-badge high">High</span></td><td>₹10–25</td><td>⭐⭐⭐</td></tr>
+          <tr><td>boutique management software</td><td>[Exact]</td><td><span class="intent-badge high">High</span></td><td>₹20–40</td><td>⭐⭐⭐</td></tr>
+          <tr><td>darzi shop app</td><td>[Exact]</td><td><span class="intent-badge high">High</span></td><td>₹5–15</td><td>⭐⭐⭐</td></tr>
+          <tr><td>tailor order management system</td><td>[Exact]</td><td><span class="intent-badge high">High</span></td><td>₹12–28</td><td>⭐⭐⭐</td></tr>
+          <tr><td>stitching shop software</td><td>[Phrase]</td><td><span class="intent-badge high">High</span></td><td>₹8–20</td><td>⭐⭐⭐</td></tr>
+          <tr><td>ladies boutique management app</td><td>[Phrase]</td><td><span class="intent-badge high">High</span></td><td>₹10–22</td><td>⭐⭐⭐</td></tr>
+          <tr><td>order tracking app for tailor</td><td>[Phrase]</td><td><span class="intent-badge high">High</span></td><td>₹8–18</td><td>⭐⭐</td></tr>
+          <tr><td>customer management software for boutique</td><td>[Phrase]</td><td><span class="intent-badge high">High</span></td><td>₹15–30</td><td>⭐⭐</td></tr>
+          <tr><td>tailoring business software India</td><td>[Phrase]</td><td><span class="intent-badge high">High</span></td><td>₹12–25</td><td>⭐⭐</td></tr>
+          <tr><td>how to manage tailoring shop</td><td>[Phrase]</td><td><span class="intent-badge medium">Medium</span></td><td>₹5–12</td><td>⭐⭐</td></tr>
+          <tr><td>tailor measurement app</td><td>[Phrase]</td><td><span class="intent-badge medium">Medium</span></td><td>₹6–15</td><td>⭐⭐</td></tr>
+          <tr><td>boutique billing software</td><td>[Broad-M]</td><td><span class="intent-badge medium">Medium</span></td><td>₹10–22</td><td>⭐⭐</td></tr>
+          <tr><td>fashion boutique app</td><td>[Broad-M]</td><td><span class="intent-badge medium">Medium</span></td><td>₹8–18</td><td>⭐</td></tr>
+          <tr><td>small business management app India</td><td>[Broad-M]</td><td><span class="intent-badge medium">Medium</span></td><td>₹10–25</td><td>⭐</td></tr>
+          <tr><td>Stitching Manager Pro</td><td>[Exact]</td><td><span class="intent-badge brand">Brand</span></td><td>₹2–5</td><td>⭐⭐⭐</td></tr>
+          <tr><td>swarooponline tailoring app</td><td>[Exact]</td><td><span class="intent-badge brand">Brand</span></td><td>₹2–5</td><td>⭐⭐⭐</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Google Ad Copies -->
+  <div class="ad-copy-card">
+    <div class="ac-platform-bar gg-bar">
+      <span>🔍 Google Search Ad — Responsive Search Ad #1 (Main)</span>
+      <button class="copy-btn" onclick="copyAd(this,'gg-ad1')">📋 Copy Ad</button>
+    </div>
+    <div class="ac-preview">
+      <div class="ac-preview-label">SERP Preview — How It Looks on Google</div>
+      <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:14px;font-family:Arial,sans-serif;">
+        <div style="font-size:12px;color:#202124;margin-bottom:2px;">Ad · swarooponline.com</div>
+        <div style="font-size:19px;color:#1558D6;font-weight:400;margin-bottom:3px;line-height:1.3;">Tailoring Shop App — FREE Demo Today | Orders, CRM & Reports</div>
+        <div style="font-size:13px;color:#202124;line-height:1.5;">Manage your boutique from your phone. Track orders, customers, payments — all in one app. Setup in 30 min. Try FREE today.</div>
+      </div>
+    </div>
+    <div class="ac-copy-text">
+      <div class="act-label">All Headlines & Descriptions — Enter in Google Ads RSA</div>
+      <div class="act-content" id="gg-ad1">HEADLINES (add all 15 — Google auto-mixes):
+1. Tailoring Shop Management App
+2. FREE Demo — Book Today
+3. Orders, CRM & Reports — All In One
+4. Digital System for Your Boutique
+5. Manage Shop from Your Phone
+6. Setup in 30 Minutes — Go Live Today
+7. Darzi Shop App — India's Best
+8. Track Orders & Payments Easily
+9. Ladies Boutique Software India
+10. ₹699/Month — Start Today
+11. Free WhatsApp Demo Available
+12. Stop Using Diary — Go Digital
+13. Auto WhatsApp Alerts for Customers
+14. Reports & Income Tracking Daily
+15. Trusted by Tailors Across India
+
+DESCRIPTIONS (add all 4):
+1. Manage your tailoring shop from anywhere. Track orders, customers, measurements and payments. FREE live demo — WhatsApp us today!
+2. India's only tailoring shop management app. Visual order board, customer CRM, 6 business reports, WhatsApp integration. ₹699/month only.
+3. Paper diary se azaadi! Orders track karein, customers manage karein, payments kabhi miss na ho. Setup sirf 30 minute mein.
+4. Free demo available. 4 staff logins, unlimited orders, loyalty points, audio notes. Professional boutique management starts at ₹699/month.
+
+DISPLAY URL: swarooponline.com/free-demo
+FINAL URL: https://swarooponline.com (or demo landing page)</div>
+      <div class="act-tags">
+        <div class="act-tag gg">Format: Responsive Search Ad</div>
+        <div class="act-tag">Campaign: Search — High Intent Keywords</div>
+        <div class="act-tag">Bid Strategy: Maximize Conversions</div>
+        <div class="act-tag">Daily Budget: ₹300–600</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ad-copy-card">
+    <div class="ac-platform-bar gg-bar">
+      <span>🔍 Google Search Ad — Responsive Search Ad #2 (Price/Value)</span>
+      <button class="copy-btn" onclick="copyAd(this,'gg-ad2')">📋 Copy Ad</button>
+    </div>
+    <div class="ac-copy-text" style="border-top:none;">
+      <div class="act-label">Ad Copy #2 — Value/Price Focused</div>
+      <div class="act-content" id="gg-ad2">HEADLINES:
+1. ₹699/Month — Boutique App India
+2. Cheap Tailoring Software — Free Trial
+3. Affordable Shop Management App
+4. Less Than ₹25/Day — Full Features
+5. No Hidden Charges — Cancel Anytime
+6. Free Setup + Free Training Included
+7. Unlimited Orders — ₹1199/Month Only
+8. Best Tailoring App India 2026
+9. Free Demo — No Credit Card Needed
+10. Trusted by 100+ Tailoring Shops
+
+DESCRIPTIONS:
+1. Starter plan at just ₹699/month. Unlimited customer records, order tracking, WhatsApp alerts. FREE setup & training included. Try it today!
+2. No annual commitment. Cancel anytime. Start with FREE 7-day trial. Setup included. WhatsApp us now for live demo in your shop!
+
+SITELINK EXTENSIONS:
+- "Free Demo" → /demo
+- "Pricing Plans" → /pricing
+- "Features" → /features
+- "WhatsApp Us" → wa.me/91XXXXXXXXXX
+
+CALLOUT EXTENSIONS:
+Free Setup Included · WhatsApp Support · Cancel Anytime · Works on Mobile · 3 Languages</div>
+      <div class="act-tags">
+        <div class="act-tag gg">Target: Price-sensitive searchers</div>
+        <div class="act-tag">Match: Phrase + Broad-M</div>
+        <div class="act-tag">Ad Extensions: Sitelinks + Callouts + Call</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google Campaign Structure -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="plat-badge gg">🔍 Structure</span>
+        <div><h3>Google Ads Account Structure</h3></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div style="background:#EEF3FF;border:1px solid rgba(66,133,244,0.2);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;font-weight:800;color:var(--gg);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Campaign 1 — Search (High Intent)</div>
+          <div style="font-size:12px;color:var(--ink);line-height:1.7;">Ad Group 1: Tailoring App (exact)<br>Ad Group 2: Boutique Software (exact)<br>Ad Group 3: Order Management (phrase)<br>Budget: ₹400/day<br>Bid: Target CPA ₹150–300</div>
+        </div>
+        <div style="background:#EEF3FF;border:1px solid rgba(66,133,244,0.2);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;font-weight:800;color:var(--gg);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Campaign 2 — Brand Terms</div>
+          <div style="font-size:12px;color:var(--ink);line-height:1.7;">Ad Group: Stitching Manager Pro<br>Ad Group: Swaroop Threads App<br>Budget: ₹50/day (low CPC)<br>Bid: Manual CPC ₹5–10</div>
+        </div>
+        <div style="background:#EEF3FF;border:1px solid rgba(66,133,244,0.2);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;font-weight:800;color:var(--gg);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Campaign 3 — Display Retargeting</div>
+          <div style="font-size:12px;color:var(--ink);line-height:1.7;">Audience: Website visitors 30 days<br>Audience: YouTube viewers<br>Visual banners: App screenshots<br>Budget: ₹100/day<br>Bid: Target ROAS</div>
+        </div>
+        <div style="background:#EEF3FF;border:1px solid rgba(66,133,244,0.2);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;font-weight:800;color:var(--gg);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Conversion Tracking Setup</div>
+          <div style="font-size:12px;color:var(--ink);line-height:1.7;">Install Google Tag on website<br>Track: WhatsApp button click<br>Track: Form submission<br>Track: Phone call from ad<br>Import: GA4 goals as conversions</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PANEL 5 — CONTENT CALENDAR
+══════════════════════════════════════════════ -->
+<div class="panel" id="panel-content">
+  <div class="sec-head">
+    <div class="sec-eyebrow">Content Calendar</div>
+    <h2>Month 1 Content Calendar</h2>
+    <p>Organic + Paid content plan for Facebook & Instagram. Post consistently before boosting with ad budget.</p>
+  </div>
+
+  <!-- Week 1 -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-left">
+        <span class="plat-badge gold">📅 Week 1</span>
+        <div><h3>Week 1 — Brand Introduction</h3><p>Introduce the app, explain the problem it solves</p></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:grid;grid-template-columns:80px 1fr 1fr 120px;gap:12px;align-items:start;padding:12px;background:var(--warm);border-radius:10px;border:1px solid var(--rule);">
+          <div><div style="font-size:11px;font-weight:800;color:var(--muted);">MON</div><div style="font-size:12px;font-weight:700;color:var(--ink);">Day 1</div></div>
+          <div><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Post Idea</div><div style="font-size:12.5px;color:var(--ink);">📸 <strong>Introduction Post</strong> — "Namaskar! Hum hain Stitching Manager Pro — India ka pehla app sirf tailoring shops ke liye" + App screenshot</div></div>
+          <div><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Caption Hook</div><div style="font-size:12px;color:var(--ink);font-style:italic;">"Kya aap abhi bhi paper diary use karte hain? 📔 Waqt aa gaya hai change ka!"</div></div>
+          <div><span class="plat-badge fb">FB</span>&nbsp;<span class="plat-badge ig">IG</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:80px 1fr 1fr 120px;gap:12px;align-items:start;padding:12px;background:var(--warm);border-radius:10px;border:1px solid var(--rule);">
+          <div><div style="font-size:11px;font-weight:800;color:var(--muted);">WED</div><div style="font-size:12px;font-weight:700;color:var(--ink);">Day 3</div></div>
+          <div><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Post Idea</div><div style="font-size:12.5px;color:var(--ink);">🎬 <strong>Reel #1</strong> — "Tailoring shop mein yeh 5 problems hoti hain — aur in sab ka ek solution hai" (screen recording of app)</div></div>
+          <div><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Caption Hook</div><div style="font-size:12px;color:var(--ink);font-style:italic;">"Save karo aur apne tailor dost ko bhi dikhao! ✂️"</div></div>
+          <div><span class="plat-badge ig">IG Reel</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:80px 1fr 1fr 120px;gap:12px;align-items:start;padding:12px;background:var(--warm);border-radius:10px;border:1px solid var(--rule);">
+          <div><div style="font-size:11px;font-weight:800;color:var(--muted);">FRI</div><div style="font-size:12px;font-weight:700;color:var(--ink);">Day 5</div></div>
+          <div><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Post Idea</div><div style="font-size:12.5px;color:var(--ink);">📊 <strong>Infographic</strong> — "Paper diary vs Stitching Manager Pro — 5 differences" (comparison graphic)</div></div>
+          <div><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Caption Hook</div><div style="font-size:12px;color:var(--ink);font-style:italic;">"Aap kaunsi side par hain? Comment karo! 👇"</div></div>
+          <div><span class="plat-badge fb">FB</span>&nbsp;<span class="plat-badge ig">IG</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:80px 1fr 1fr 120px;gap:12px;align-items:start;padding:12px;background:var(--warm);border-radius:10px;border:1px solid var(--rule);">
+          <div><div style="font-size:11px;font-weight:800;color:var(--muted);">SUN</div><div style="font-size:12px;font-weight:700;color:var(--ink);">Day 7</div></div>
+          <div><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Post Idea</div><div style="font-size:12.5px;color:var(--ink);">💬 <strong>WhatsApp Feature Showcase</strong> — "Dekho kaise app directly customer ko WhatsApp karta hai jab order ready ho" (screenshot)</div></div>
+          <div><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Caption Hook</div><div style="font-size:12px;color:var(--ink);font-style:italic;">"Customer call karna band — app khud notify karega! 🚀"</div></div>
+          <div><span class="plat-badge fb">FB</span>&nbsp;<span class="plat-badge ig">IG</span></div>
+        </div>
+      </div>
+    </d
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Weeks 2-4 Summary -->
+  <div class="strategy-3col">
+    <div class="card">
+      <div class="card-head" style="border-bottom:1px solid var(--rule);">
+        <div class="card-head-left"><span class="plat-badge gold">Week 2</span><div><h3>Feature Deep-Dives</h3></div></div>
+      </div>
+      <div class="card-body" style="padding:16px;">
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;">
+          <div>📋 <strong>Mon:</strong> Order Kanban Board explainer reel</div>
+          <div>👥 <strong>Wed:</strong> Customer CRM — measurements save karein</div>
+          <div>🏆 <strong>Fri:</strong> Loyalty Points — customers ko wapas laao</div>
+          <div>📊 <strong>Sun:</strong> Reports feature — apna business samjho</div>
+          <div style="margin-top:8px;padding:8px;background:var(--ig2);border-radius:6px;font-size:11px;color:var(--ig);font-weight:600;">Boost Best Post: ₹500 FB/IG boost</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head" style="border-bottom:1px solid var(--rule);">
+        <div class="card-head-left"><span class="plat-badge gold">Week 3</span><div><h3>Social Proof & Testimonials</h3></div></div>
+      </div>
+      <div class="card-body" style="padding:16px;">
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;">
+          <div>⭐ <strong>Mon:</strong> Client testimonial #1 screenshot/video</div>
+          <div>🎬 <strong>Wed:</strong> Reel — 30 minute mein setup screen record</div>
+          <div>📱 <strong>Fri:</strong> Before &amp; After — paper diary vs app</div>
+          <div>🎁 <strong>Sun:</strong> FREE Demo offer post + WhatsApp CTA</div>
+          <div style="margin-top:8px;padding:8px;background:var(--ig2);border-radius:6px;font-size:11px;color:var(--ig);font-weight:600;">Run Lead Gen Ad: ₹300/day</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head" style="border-bottom:1px solid var(--rule);">
+        <div class="card-head-left"><span class="plat-badge gold">Week 4</span><div><h3>Offer &amp; Conversion Push</h3></div></div>
+      </div>
+      <div class="card-body" style="padding:16px;">
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;">
+          <div>🎁 <strong>Mon:</strong> Special offer post — Month-end offer</div>
+          <div>❓ <strong>Wed:</strong> FAQ post — 5 sawaal jo log poochhhte hain</div>
+          <div>🎬 <strong>Fri:</strong> Reel — Clients ki real reactions dekho</div>
+          <div>🚀 <strong>Sun:</strong> Month recap + next month teaser</div>
+          <div style="margin-top:8px;padding:8px;background:var(--ig2);border-radius:6px;font-size:11px;color:var(--ig);font-weight:600;">Retarget All Engagers: ₹200/day</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL 6 REELS -->
+<div class="panel" id="panel-reels">
+  <div class="sec-head">
+    <div class="sec-eyebrow">Reels &amp; Video Content</div>
+    <h2>Instagram &amp; Facebook Reel Scripts</h2>
+    <p>Ready-to-shoot scripts. Film on your phone — screen record the app + voiceover in Hindi/Hinglish.</p>
+  </div>
+  <div class="reel-card">
+    <div class="reel-head">
+      <div><h3>🎬 Reel #1 — The Problem Hook</h3><p>30 seconds — Awareness reel</p></div>
+      <span class="reel-duration">⏱ 30 sec</span>
+    </div>
+    <div class="reel-body">
+      <div class="reel-hook">"Kyun aapki tailoring shop mein yeh hota hai?" — Hook jo reel rokti hai scroll se</div>
+      <div class="reel-timeline">
+        <div class="reel-beat"><div class="reel-time">0–3s</div><div class="reel-action"><strong>[HOOK TEXT]</strong> "Tailoring shop mein yeh 5 problems hoti hain... 😩" — paper diary image</div></div>
+        <div class="reel-beat"><div class="reel-time">3–8s</div><div class="reel-action"><strong>[VOICEOVER]</strong> "Orders dhundna, customer yaad rakhna, payment miss hona — kya aapki bhi yahi life hai?"</div></div>
+        <div class="reel-beat"><div class="reel-time">8–22s</div><div class="reel-action"><strong>[SCREEN RECORD]</strong> App demo — add new order, show it move across Kanban board. Voiceover: "Stitching Manager Pro — ek click mein sab ready!"</div></div>
+        <div class="reel-beat"><div class="reel-time">22–28s</div><div class="reel-action"><strong>[TEXT CARDS]</strong> Order Board ✅ Customer CRM ✅ WhatsApp Alerts ✅ Reports ✅ Mobile App ✅</div></div>
+        <div class="reel-beat"><div class="reel-time">28–30s</div><div class="reel-action"><strong>[CTA CARD]</strong> "FREE Demo — WhatsApp Karein 📱" + your number</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="reel-card">
+    <div class="reel-head">
+      <div><h3>🎬 Reel #2 — Before &amp; After</h3><p>20 seconds — High-converting format</p></div>
+      <span class="reel-duration">⏱ 20 sec</span>
+    </div>
+    <div class="reel-body">
+      <div class="reel-hook">"Pehle vs Abhi — ek tailoring shop owner ki real life"</div>
+      <div class="reel-timeline">
+        <div class="reel-beat"><div class="reel-time">0–2s</div><div class="reel-action"><strong>[SPLIT SCREEN]</strong> Left: "PEHLE 😩" Right: "ABHI 😊"</div></div>
+        <div class="reel-beat"><div class="reel-time">2–8s</div><div class="reel-action"><strong>[PEHLE]</strong> Photo of diary with scribbled orders. Text: "Diary, paper, confusion, tension"</div></div>
+        <div class="reel-beat"><div class="reel-time">8–15s</div><div class="reel-action"><strong>[ABHI]</strong> App screenshot — clean Kanban board. Voiceover: "Sab organized, sab track, zero tension!"</div></div>
+        <div class="reel-beat"><div class="reel-time">15–20s</div><div class="reel-action"><strong>[CTA]</strong> "FREE Demo Book Karein 👇 WhatsApp link in bio"</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="reel-card">
+    <div class="reel-head">
+      <div><h3>🎬 Reel #3 — Feature Walkthrough</h3><p>45 sec — Screen recording only, no camera needed</p></div>
+      <span class="reel-duration">⏱ 45 sec</span>
+    </div>
+    <div class="reel-body">
+      <div class="reel-hook">"Dekho — ek tailoring shop ka poora management sirf 3 clicks mein!"</div>
+      <div class="reel-timeline">
+        <div class="reel-beat"><div class="reel-time">0–3s</div><div class="reel-action"><strong>[HOOK]</strong> "Tailoring shop manage karna itna aasaan hai? 🤯 Dekho..."</div></div>
+        <div class="reel-beat"><div class="reel-time">3–15s</div><div class="reel-action"><strong>[SCREEN RECORD]</strong> Add new order. Voiceover: "New order — bas 30 second mein!"</div></div>
+        <div class="reel-beat"><div class="reel-time">15–25s</div><div class="reel-action"><strong>[SCREEN RECORD]</strong> Order moves stages. WhatsApp alert sends. Voiceover: "Customer ko automatic alert — done!"</div></div>
+        <div class="reel-beat"><div class="reel-time">25–35s</div><div class="reel-action"><strong>[SCREEN RECORD]</strong> Reports → daily income graph. Voiceover: "Aaj kitna income — ek click mein!"</div></div>
+        <div class="reel-beat"><div class="reel-time">35–45s</div><div class="reel-action"><strong>[CTA CARDS]</strong> ₹699/month → FREE demo → Setup 30 min → WhatsApp number</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL 7 BUDGET -->
+<div class="panel" id="panel-budget">
+  <div class="sec-head">
+    <div class="sec-eyebrow">Budget &amp; Performance</div>
+    <h2>Budget Allocation &amp; KPIs</h2>
+    <p>Exactly where to spend every rupee and what results to expect. Review weekly, optimize monthly.</p>
+  </div>
+  <div class="metrics-grid">
+    <div class="metric-card"><div class="mc-icon">📲</div><div class="mc-val">₹80–200</div><div class="mc-lbl">Cost Per Lead Target</div><div class="mc-sub">All platforms</div></div>
+    <div class="metric-card"><div class="mc-icon">🎯</div><div class="mc-val">15–30%</div><div class="mc-lbl">Lead to Demo Rate</div><div class="mc-sub">With follow-up scripts</div></div>
+    <div class="metric-card"><div class="mc-icon">✅</div><div class="mc-val">20–40%</div><div class="mc-lbl">Demo to Client Rate</div><div class="mc-sub">With proper scripting</div></div>
+    <div class="metric-card"><div class="mc-icon">💰</div><div class="mc-val">₹700–2000</div><div class="mc-lbl">Customer Acquisition Cost</div><div class="mc-sub">Target at scale</div></div>
+  </div>
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-head">
+      <div class="card-head-left"><span class="plat-badge gold">💰 Budget</span><div><h3>Monthly Budget — ₹15,000 Starter Plan</h3></div></div>
+    </div>
+    <div class="card-body" style="padding:0;overflow:auto;">
+      <table class="budget-table">
+        <thead><tr><th>Platform / Campaign</th><th>Monthly Budget</th><th>Daily Budget</th><th>Expected Leads</th><th>Est. CPL</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr><td>𝗳 Facebook Lead Gen</td><td>₹4,500</td><td>₹150/day</td><td>30–45</td><td>₹100–150</td><td>⭐⭐⭐</td></tr>
+          <tr><td>📸 Instagram Reels Ads</td><td>₹3,000</td><td>₹100/day</td><td>15–25</td><td>₹120–200</td><td>⭐⭐⭐</td></tr>
+          <tr><td>🔍 Google Search Ads</td><td>₹5,000</td><td>₹165/day</td><td>20–35</td><td>₹140–250</td><td>⭐⭐⭐</td></tr>
+          <tr><td>𝗳 Facebook Retargeting</td><td>₹1,500</td><td>₹50/day</td><td>High quality</td><td>₹50–100</td><td>⭐⭐</td></tr>
+          <tr><td>🔍 Google Display RTG</td><td>₹1,000</td><td>₹33/day</td><td>Brand recall</td><td>₹80–150</td><td>⭐⭐</td></tr>
+          <tr><td><strong>TOTAL</strong></td><td><strong>₹15,000</strong></td><td><strong>~₹500/day</strong></td><td><strong>65–105 leads</strong></td><td><strong>~₹143 avg</strong></td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="strategy-3col">
+    <div class="card">
+      <div class="card-head" style="border-bottom:1px solid var(--rule);"><div class="card-head-left"><span class="plat-badge all">Month 1</span><div><h3>Test &amp; Learn</h3></div></div></div>
+      <div class="card-body" style="padding:16px;">
+        <div style="font-size:28px;font-weight:800;color:var(--fb);margin-bottom:4px;">₹15,000</div>
+        <div style="font-size:12px;display:flex;flex-direction:column;gap:6px;color:var(--muted);">
+          <div>✓ Test 3–4 ad creatives each platform</div><div>✓ Identify best-performing audiences</div>
+          <div>✓ A/B test Hindi vs Hinglish copy</div><div>✓ Target: 50–80 leads</div>
+          <div>✓ Target: 5–10 paying clients</div><div style="color:var(--green);font-weight:700;">✓ Revenue: ₹3,500–12,000</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head" style="border-bottom:1px solid var(--rule);"><div class="card-head-left"><span class="plat-badge all">Month 2</span><div><h3>Optimize &amp; Grow</h3></div></div></div>
+      <div class="card-body" style="padding:16px;">
+        <div style="font-size:28px;font-weight:800;color:var(--ig);margin-bottom:4px;">₹20,000</div>
+        <div style="font-size:12px;display:flex;flex-direction:column;gap:6px;color:var(--muted);">
+          <div>✓ Scale winning ads 1.5–2x</div><div>✓ Kill underperforming ad sets</div>
+          <div>✓ Add testimonial-based creatives</div><div>✓ Target: 100–150 leads</div>
+          <div>✓ Target: 15–20 paying clients</div><div style="color:var(--green);font-weight:700;">✓ Revenue: ₹10,000–24,000</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head" style="border-bottom:1px solid var(--rule);"><div class="card-head-left"><span class="plat-badge all">Month 3+</span><div><h3>Scale to Profit</h3></div></div></div>
+      <div class="card-body" style="padding:16px;">
+        <div style="font-size:28px;font-weight:800;color:var(--green);margin-bottom:4px;">₹25,000+</div>
+        <div style="font-size:12px;display:flex;flex-direction:column;gap:6px;color:var(--muted);">
+          <div>✓ Lookalike audiences 1–3%</div><div>✓ YouTube Shorts ads</div>
+          <div>✓ Referral campaign launch</div><div>✓ Target: 200+ leads/month</div>
+          <div>✓ Target: 30–50 paying clients</div><div style="color:var(--green);font-weight:700;">✓ MRR: ₹21,000–60,000</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><div class="card-head-left"><span class="plat-badge gold">📋 Weekly</span><div><h3>Weekly Campaign Checklist — Every Monday (30 min)</h3></div></div></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Review</div>
+          <div style="display:flex;flex-direction:column;gap:7px;font-size:12.5px;">
+            <div>☐ Check leads — how many, from which platform?</div>
+            <div>☐ CPL above ₹250? Pause that ad set</div>
+            <div>☐ CTR below 1%? Change creative</div>
+            <div>☐ Frequency above 3? Expand audience or refresh</div>
+            <div>☐ Note which ad copy performed best</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Actions</div>
+          <div style="display:flex;flex-direction:column;gap:7px;font-size:12.5px;">
+            <div>☐ Increase top-performing ad budget by 20%</div>
+            <div>☐ Pause ads CTR below 0.8% for 3+ days</div>
+            <div>☐ Post 2–3 organic posts this week</div>
+            <div>☐ Follow up on all leads from last week</div>
+            <div>☐ Google Ads — add negative keywords</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end main -->
+<script>
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  event.target.classList.add('active');
+  window.scrollTo({top: document.querySelector('.main').offsetTop - 60, behavior:'smooth'});
+}
+function copyAd(btn, id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText).then(() => {
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => { btn.textContent = '📋 Copy Ad'; }, 2000);
+  });
+}
+</script>
+</body>
+</html>

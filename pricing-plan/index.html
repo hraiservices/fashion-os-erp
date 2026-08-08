@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stitch Manager Pro — Pricing Plans</title>
+<style>
+  :root{
+    --purple-900:#2e1065;
+    --purple-800:#4c1d95;
+    --purple-700:#6d28d9;
+    --purple-600:#7c3aed;
+    --purple-500:#8b5cf6;
+    --purple-100:#ede9fe;
+    --purple-50:#f5f3ff;
+    --gold:#d4af37;
+    --ink:#1f1a2e;
+    --muted:#6b6478;
+    --card-bg:#ffffff;
+    --border:#e7e1f5;
+    --green:#16a34a;
+    --shadow: 0 4px 20px rgba(76,29,149,0.08);
+    --shadow-lg: 0 12px 40px rgba(76,29,149,0.18);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    color:var(--ink);
+    background: linear-gradient(180deg, var(--purple-50) 0%, #ffffff 300px);
+    line-height:1.5;
+  }
+
+  [contenteditable="true"]{
+    outline: none;
+    border-radius: 4px;
+    transition: background .15s ease, box-shadow .15s ease;
+  }
+  [contenteditable="true"]:hover{
+    background: rgba(124,58,237,0.06);
+    box-shadow: 0 0 0 2px rgba(124,58,237,0.15);
+  }
+  [contenteditable="true"]:focus{
+    background: rgba(124,58,237,0.09);
+    box-shadow: 0 0 0 2px var(--purple-500);
+  }
+
+  .toolbar{
+    position: sticky; top:0; z-index:100;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px; flex-wrap:wrap;
+    padding:10px 24px;
+    background: rgba(255,255,255,0.9);
+    backdrop-filter: blur(8px);
+    border-bottom:1px solid var(--border);
+  }
+  .toolbar .brand{ font-weight:700; color:var(--purple-800); font-size:14px; }
+  .toolbar .actions{ display:flex; gap:8px; flex-wrap:wrap; }
+  .btn{
+    border:1px solid var(--purple-600);
+    background:var(--purple-600);
+    color:#fff;
+    padding:8px 14px;
+    border-radius:8px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    transition: transform .1s ease, background .15s ease;
+  }
+  .btn:hover{ background:var(--purple-700); transform: translateY(-1px); }
+  .btn.secondary{
+    background:#fff; color:var(--purple-700);
+  }
+  .btn.secondary:hover{ background:var(--purple-50); }
+
+  .wrap{ max-width:1160px; margin:0 auto; padding:36px 24px 80px; }
+
+  header.hero{
+    text-align:center;
+    padding: 28px 16px 40px;
+  }
+  header.hero h1{
+    font-size: clamp(28px, 4vw, 42px);
+    margin:0 0 8px;
+    color: var(--purple-900);
+    letter-spacing:-0.5px;
+  }
+  header.hero .tagline{
+    font-size:16px;
+    font-weight:600;
+    color:var(--purple-600);
+    margin-bottom:18px;
+  }
+  header.hero .quote{
+    font-style:italic;
+    font-size:18px;
+    color:var(--muted);
+    max-width:640px;
+    margin:0 auto 18px;
+    border-left:3px solid var(--purple-400, var(--purple-500));
+    padding-left:14px;
+    text-align:left;
+    display:inline-block;
+  }
+  header.hero .intro{
+    max-width:760px;
+    margin:0 auto;
+    color:var(--ink);
+    font-size:15px;
+    background:var(--purple-50);
+    border:1px solid var(--border);
+    padding:16px 20px;
+    border-radius:12px;
+  }
+
+  section{ margin-bottom:56px; }
+  h2.section-title{
+    font-size:24px;
+    color:var(--purple-800);
+    text-align:center;
+    margin-bottom:28px;
+  }
+
+  /* Plan cards */
+  .plans{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap:22px;
+    align-items:start;
+  }
+  @media (max-width: 980px){
+    .plans{ grid-template-columns: 1fr; }
+  }
+  .plan-card{
+    background:var(--card-bg);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:24px;
+    box-shadow:var(--shadow);
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .plan-card.recommended{
+    border:2px solid var(--gold);
+    box-shadow:var(--shadow-lg);
+    transform: translateY(-6px);
+  }
+  .badge{
+    position:absolute;
+    top:-14px; left:50%;
+    transform:translateX(-50%);
+    background:linear-gradient(90deg,var(--gold),#f0c75e);
+    color:#3d2b00;
+    font-weight:700;
+    font-size:12px;
+    padding:6px 14px;
+    border-radius:999px;
+    white-space:nowrap;
+    box-shadow:0 4px 10px rgba(212,175,55,0.4);
+  }
+  .plan-name{
+    font-size:20px;
+    font-weight:800;
+    color:var(--purple-800);
+    margin:4px 0 2px;
+  }
+  .plan-sub{
+    font-size:13px;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  .plan-price{
+    font-size:30px;
+    font-weight:800;
+    color:var(--purple-700);
+  }
+  .plan-price small{
+    font-size:14px;
+    font-weight:600;
+    color:var(--muted);
+  }
+  .plan-plus{
+    font-size:13px;
+    font-weight:700;
+    color:var(--green);
+    background:#ecfdf3;
+    border:1px solid #bbf7d0;
+    padding:6px 10px;
+    border-radius:8px;
+  }
+  .feature-list{
+    list-style:none;
+    margin:0; padding:0;
+    display:flex; flex-direction:column; gap:8px;
+    font-size:14px;
+  }
+  .feature-list li{
+    display:flex; gap:8px; align-items:flex-start;
+  }
+  .feature-list li .tick{ color:var(--green); flex-shrink:0; }
+  .feature-list li.mobile{ font-weight:700; color:var(--purple-700); }
+
+  .mini-table{ width:100%; border-collapse:collapse; font-size:13px; margin-top:4px; }
+  .mini-table th, .mini-table td{
+    border:1px solid var(--border);
+    padding:6px 8px;
+    text-align:left;
+  }
+  .mini-table th{ background:var(--purple-50); color:var(--purple-800); }
+  .block-title{
+    font-size:13px;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:.4px;
+    color:var(--purple-600);
+    margin-top:6px;
+  }
+
+  /* Full width tables */
+  .table-card{
+    background:var(--card-bg);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:20px;
+    box-shadow:var(--shadow);
+    overflow-x:auto;
+  }
+  table.full{
+    width:100%;
+    border-collapse:collapse;
+    font-size:14px;
+    min-width:520px;
+  }
+  table.full th{
+    background:var(--purple-700);
+    color:#fff;
+    padding:10px 12px;
+    text-align:left;
+  }
+  table.full td{
+    padding:10px 12px;
+    border-bottom:1px solid var(--border);
+  }
+  table.full tr:nth-child(even) td{ background:var(--purple-50); }
+  table.full tr:hover td{ background:var(--purple-100); }
+  .note{ font-size:12px; color:var(--muted); margin-top:8px; }
+
+  .two-col{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:22px;
+  }
+  @media (max-width: 800px){ .two-col{ grid-template-columns:1fr; } }
+
+  .promise{
+    background: linear-gradient(135deg, var(--purple-800), var(--purple-600));
+    color:#fff;
+    border-radius:18px;
+    padding:36px 30px;
+    text-align:center;
+  }
+  .promise h2{ margin-top:0; color:#fff; }
+  .promise ul{
+    list-style:none; padding:0; margin:18px 0;
+    display:flex; flex-wrap:wrap; justify-content:center; gap:10px 24px;
+    font-size:14px;
+  }
+  .promise ul li:before{ content:"✔ "; color:var(--gold); }
+  .promise .lead{ font-size:18px; font-weight:700; margin-bottom:6px; }
+  .promise .cta-line{
+    font-size:17px; font-weight:700; margin-top:16px; color:var(--gold);
+  }
+  .promise .footer-brand{
+    margin-top:20px; font-size:13px; opacity:.85;
+  }
+
+  footer.page-footer{
+    text-align:center;
+    color:var(--muted);
+    font-size:12px;
+    margin-top:40px;
+  }
+
+  @media print{
+    .toolbar{ display:none; }
+    body{ background:#fff; }
+    .plan-card.recommended{ transform:none; }
+    [contenteditable="true"]:hover, [contenteditable="true"]:focus{
+      background:none; box-shadow:none;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="brand">💜 Stitch Manager Pro — Pricing (Editable)</div>
+  <div class="actions">
+    <button class="btn secondary" id="toggleEdit">🔒 Lock Editing</button>
+    <button class="btn secondary" onclick="window.print()">🖨️ Print / Save PDF</button>
+    <button class="btn" id="saveBtn">💾 Save Changes</button>
+  </div>
+</div>
+
+<div class="wrap" id="page">
+
+  <header class="hero">
+    <h1 contenteditable="true">💜 Stitch Manager Pro Pricing Plans</h1>
+    <div class="tagline" contenteditable="true">Simple • Fair • Scales as Your Business Grows</div>
+    <div class="quote" contenteditable="true">"Your software grows only when your business grows."</div>
+    <div class="intro" contenteditable="true">Every completed customer order uses 1 Growth Credit. If your business grows beyond your included credits, you simply pay a small amount for additional Growth Credits. No disruption. No hidden charges.</div>
+  </header>
+
+  <!-- PLANS -->
+  <section>
+    <div class="plans">
+
+      <!-- STARTER -->
+      <div class="plan-card">
+        <div class="plan-name" contenteditable="true">🥉 STARTER</div>
+        <div class="plan-sub" contenteditable="true">Perfect for Home Tailors & Small Boutiques</div>
+        <div class="plan-price" contenteditable="true">₹2,999 <small>/ Month</small></div>
+
+        <div class="block-title">Includes</div>
+        <ul class="feature-list" contenteditable="true">
+          <li><span class="tick">✅</span> 300 Growth Credits (Orders) / Month</li>
+          <li><span class="tick">✅</span> 2 Staff Users</li>
+          <li><span class="tick">✅</span> Unlimited Customers</li>
+          <li><span class="tick">✅</span> Unlimited Measurements</li>
+          <li><span class="tick">✅</span> Customer History</li>
+          <li><span class="tick">✅</span> Order Management</li>
+          <li><span class="tick">✅</span> Garment Management</li>
+          <li><span class="tick">✅</span> PDF Invoice & Receipt</li>
+          <li><span class="tick">✅</span> Dashboard</li>
+          <li><span class="tick">✅</span> WhatsApp Reminders</li>
+          <li><span class="tick">✅</span> Cloud Backup</li>
+          <li><span class="tick">✅</span> 10 GB Secure Storage</li>
+          <li class="mobile"><span class="tick">🚀</span> Mobile App (Android & iOS) – Included at Launch</li>
+          <li><span class="tick">✅</span> Email Support</li>
+          <li><span class="tick">✅</span> Free Updates</li>
+        </ul>
+
+        <div class="block-title">Growth Credits</div>
+        <table class="mini-table" contenteditable="true">
+          <tr><th>Orders</th><th>Pricing</th></tr>
+          <tr><td>0–300</td><td>Included</td></tr>
+          <tr><td>301 onwards</td><td>₹3 per additional order</td></tr>
+        </table>
+
+        <div class="block-title">Billing</div>
+        <table class="mini-table" contenteditable="true">
+          <tr><th>Plan</th><th>Price</th></tr>
+          <tr><td>Monthly</td><td>₹2,999</td></tr>
+          <tr><td>Quarterly</td><td>₹7,999</td></tr>
+          <tr><td>Yearly</td><td>₹29,999 (Save ₹5,989)</td></tr>
+        </table>
+      </div>
+
+      <!-- RECOMMENDED -->
+      <div class="plan-card recommended">
+        <div class="badge">⭐ RECOMMENDED · MOST POPULAR</div>
+        <div class="plan-name" contenteditable="true">⭐ RECOMMENDED</div>
+        <div class="plan-sub" contenteditable="true">Perfect for Growing Boutiques</div>
+        <div class="plan-price" contenteditable="true">₹5,999 <small>/ Month</small></div>
+        <div class="plan-plus" contenteditable="true">Everything in Starter PLUS</div>
+
+        <div class="block-title">Includes</div>
+        <ul class="feature-list" contenteditable="true">
+          <li><span class="tick">✅</span> 800 Growth Credits (Orders) / Month</li>
+          <li><span class="tick">✅</span> Unlimited Staff Users</li>
+          <li><span class="tick">✅</span> Advanced Customer CRM</li>
+          <li><span class="tick">✅</span> Loyalty Program</li>
+          <li><span class="tick">✅</span> Tailor Performance Dashboard</li>
+          <li><span class="tick">✅</span> Expense Management</li>
+          <li><span class="tick">✅</span> Advanced Reports</li>
+          <li><span class="tick">✅</span> Pending Payment Tracking</li>
+          <li><span class="tick">✅</span> Business Analytics</li>
+          <li><span class="tick">✅</span> Designer Workflow</li>
+          <li><span class="tick">✅</span> Barcode Support</li>
+          <li><span class="tick">✅</span> Priority Support</li>
+          <li><span class="tick">✅</span> 50 GB Secure Storage</li>
+          <li class="mobile"><span class="tick">🚀</span> Mobile App (Android & iOS) – Included at Launch</li>
+          <li><span class="tick">✅</span> Free Updates</li>
+        </ul>
+
+        <div class="block-title">Growth Credits</div>
+        <table class="mini-table" contenteditable="true">
+          <tr><th>Orders</th><th>Pricing</th></tr>
+          <tr><td>0–800</td><td>Included</td></tr>
+          <tr><td>801 onwards</td><td>₹2.50 per additional order</td></tr>
+        </table>
+
+        <div class="block-title">Billing</div>
+        <table class="mini-table" contenteditable="true">
+          <tr><th>Plan</th><th>Price</th></tr>
+          <tr><td>Monthly</td><td>₹5,999</td></tr>
+          <tr><td>Quarterly</td><td>₹15,999</td></tr>
+          <tr><td>Yearly</td><td>₹59,999 (Save ₹11,989)</td></tr>
+        </table>
+      </div>
+
+      <!-- BUSINESS -->
+      <div class="plan-card">
+        <div class="plan-name" contenteditable="true">🏆 BUSINESS</div>
+        <div class="plan-sub" contenteditable="true">Built for High-Volume Fashion Businesses</div>
+        <div class="plan-price" contenteditable="true">₹9,999 <small>/ Month</small></div>
+        <div class="plan-plus" contenteditable="true">Everything in Recommended PLUS</div>
+
+        <div class="block-title">Includes</div>
+        <ul class="feature-list" contenteditable="true">
+          <li><span class="tick">✅</span> 2,000 Growth Credits (Orders) / Month</li>
+          <li><span class="tick">✅</span> Unlimited Staff Users</li>
+          <li><span class="tick">✅</span> Multi-Branch Management</li>
+          <li><span class="tick">✅</span> Advanced Analytics Dashboard</li>
+          <li><span class="tick">✅</span> Profit & Loss Reports</li>
+          <li><span class="tick">✅</span> Role-Based Permissions</li>
+          <li><span class="tick">✅</span> WhatsApp Automation</li>
+          <li><span class="tick">✅</span> API Access</li>
+          <li><span class="tick">✅</span> Custom Reports</li>
+          <li><span class="tick">✅</span> Multi-Device Sync</li>
+          <li><span class="tick">✅</span> Dedicated Account Manager</li>
+          <li><span class="tick">✅</span> Unlimited Storage (Fair Usage Policy)</li>
+          <li class="mobile"><span class="tick">🚀</span> Mobile App (Android & iOS) – Included at Launch</li>
+          <li><span class="tick">✅</span> Premium Support</li>
+          <li><span class="tick">✅</span> Free Updates</li>
+        </ul>
+
+        <div class="block-title">Growth Credits</div>
+        <table class="mini-table" contenteditable="true">
+          <tr><th>Orders</th><th>Pricing</th></tr>
+          <tr><td>0–2,000</td><td>Included</td></tr>
+          <tr><td>2,001 onwards</td><td>₹2 per additional order</td></tr>
+        </table>
+
+        <div class="block-title">Billing</div>
+        <table class="mini-table" contenteditable="true">
+          <tr><th>Plan</th><th>Price</th></tr>
+          <tr><td>Monthly</td><td>₹9,999</td></tr>
+          <tr><td>Quarterly</td><td>₹26,999</td></tr>
+          <tr><td>Yearly</td><td>₹99,999 (Save ₹19,989)</td></tr>
+        </table>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- GROWTH CREDIT SUMMARY -->
+  <section>
+    <h2 class="section-title" contenteditable="true">🚀 Growth Credit Pricing</h2>
+    <div class="table-card">
+      <table class="full" contenteditable="true">
+        <thead>
+          <tr><th>Plan</th><th>Included Growth Credits</th><th>Additional Growth Credit</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>🥉 Starter</td><td>300</td><td>₹3 / Order</td></tr>
+          <tr><td>⭐ Recommended</td><td>800</td><td>₹2.50 / Order</td></tr>
+          <tr><td>🏆 Business</td><td>2,000</td><td>₹2 / Order</td></tr>
+        </tbody>
+      </table>
+      <div class="note" contenteditable="true">1 Growth Credit = 1 Completed Customer Order</div>
+    </div>
+  </section>
+
+  <!-- ONBOARDING + ADDONS -->
+  <section class="two-col">
+    <div>
+      <h2 class="section-title" contenteditable="true">💎 One-Time Onboarding Services</h2>
+      <div class="table-card">
+        <table class="full" contenteditable="true">
+          <thead><tr><th>Service</th><th>Price</th></tr></thead>
+          <tbody>
+            <tr><td>Business Setup & Configuration</td><td>₹4,999</td></tr>
+            <tr><td>Excel Data Migration</td><td>₹2,999</td></tr>
+            <tr><td>Staff Training Session</td><td>₹4,999</td></tr>
+            <tr><td>Custom Branding</td><td>₹7,999</td></tr>
+            <tr><td>WhatsApp API Configuration</td><td>₹4,999</td></tr>
+            <tr><td>Premium Onboarding Package</td><td>₹9,999</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div>
+      <h2 class="section-title" contenteditable="true">➕ Optional Add-ons</h2>
+      <div class="table-card">
+        <table class="full" contenteditable="true">
+          <thead><tr><th>Add-on</th><th>Price</th></tr></thead>
+          <tbody>
+            <tr><td>Additional Branch</td><td>₹999/month</td></tr>
+            <tr><td>Additional 100 GB Storage</td><td>₹499/month</td></tr>
+            <tr><td>SMS Credits</td><td>Pay as you use</td></tr>
+            <tr><td>WhatsApp API Messaging</td><td>Pay as you use</td></tr>
+            <tr><td>Custom Reports</td><td>From ₹9,999</td></tr>
+            <tr><td>Premium Support</td><td>₹999/month</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHY THIS PRICING WORKS -->
+  <section>
+    <h2 class="section-title" contenteditable="true">📊 Why This Pricing Works</h2>
+    <div class="table-card">
+      <table class="full" contenteditable="true">
+        <thead>
+          <tr>
+            <th>Business Size</th>
+            <th>Avg. Monthly Orders</th>
+            <th>Approx. Business Revenue*</th>
+            <th>Typical Software Cost</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Home Tailor</td><td>100</td><td>₹70,000</td><td>₹2,999</td></tr>
+          <tr><td>Small Boutique</td><td>400</td><td>₹2.80 Lakh</td><td>₹6,299</td></tr>
+          <tr><td>Growing Boutique</td><td>900</td><td>₹6.30 Lakh</td><td>₹6,249</td></tr>
+          <tr><td>Large Boutique</td><td>1,500</td><td>₹10.50 Lakh</td><td>₹9,999</td></tr>
+          <tr><td>Fashion Studio</td><td>2,500</td><td>₹17.50 Lakh</td><td>₹10,999</td></tr>
+        </tbody>
+      </table>
+      <div class="note" contenteditable="true">*Based on an average order value of ₹700.</div>
+    </div>
+  </section>
+
+  <!-- PROMISE -->
+  <section>
+    <div class="promise">
+      <h2 contenteditable="true">🎯 Our Promise</h2>
+      <div class="lead" contenteditable="true">We grow only when your business grows.</div>
+      <ul contenteditable="true">
+        <li>No limits on customers</li>
+        <li>No limits on measurements</li>
+        <li>No limits on invoices</li>
+        <li>No limits on business growth</li>
+      </ul>
+      <div contenteditable="true">Simply process more orders and continue working seamlessly with affordable Growth Credits.</div>
+      <div class="cta-line" contenteditable="true">Start small. Grow confidently. Pay fairly.</div>
+      <div class="footer-brand" contenteditable="true">Stitch Manager Pro — The Operating System for Modern Tailoring & Fashion Businesses.</div>
+    </div>
+  </section>
+
+  <footer class="page-footer">
+    Click any text or table cell above to edit. Use "Save Changes" to keep edits in this browser, or "Print / Save PDF" to export.
+  </footer>
+
+</div>
+
+<script>
+  const STORAGE_KEY = 'stitchManagerProPricingHTML';
+  const page = document.getElementById('page');
+  const toggleBtn = document.getElementById('toggleEdit');
+  const saveBtn = document.getElementById('saveBtn');
+  let editable = true;
+
+  function setEditable(state){
+    editable = state;
+    document.querySelectorAll('[contenteditable]').forEach(el => {
+      el.setAttribute('contenteditable', state ? 'true' : 'false');
+    });
+    toggleBtn.textContent = state ? '🔒 Lock Editing' : '✏️ Enable Editing';
+  }
+
+  toggleBtn.addEventListener('click', () => setEditable(!editable));
+
+  saveBtn.addEventListener('click', () => {
+    localStorage.setItem(STORAGE_KEY, page.innerHTML);
+    saveBtn.textContent = '✅ Saved!';
+    setTimeout(() => saveBtn.textContent = '💾 Save Changes', 1500);
+  });
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) page.innerHTML = saved;
+  });
+</script>
+
+</body>
+</html>

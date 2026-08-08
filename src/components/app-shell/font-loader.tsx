@@ -1,0 +1,36 @@
+"use client";
+
+import { useEffect } from "react";
+import { useAppSetting } from "@/hooks/use-app-setting";
+import { DEFAULT_FONT_CONFIG, googleFontUrl, type FontConfig } from "@/lib/fonts";
+
+const LINK_ID = "sw-google-font-link";
+
+/**
+ * Applies the shop-wide font (family/weight/size) chosen in Settings → Font to the
+ * whole app. Renders nothing — injects a Google Fonts <link> and sets inline styles
+ * on <html>, which win over Tailwind's font-sans utility via normal CSS specificity.
+ */
+export function FontLoader() {
+  const { data } = useAppSetting<FontConfig>("font", DEFAULT_FONT_CONFIG);
+
+  useEffect(() => {
+    const cfg = data || DEFAULT_FONT_CONFIG;
+
+    let link = document.getElementById(LINK_ID) as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement("link");
+      link.id = LINK_ID;
+      link.rel = "stylesheet";
+      document.head.appendChild(link);
+    }
+    link.href = googleFontUrl(cfg.family, cfg.weight);
+
+    const root = document.documentElement;
+    root.style.setProperty("font-family", `"${cfg.family}", sans-serif`);
+    root.style.setProperty("font-weight", String(cfg.weight));
+    root.style.setProperty("font-size", `${cfg.size}px`);
+  }, [data]);
+
+  return null;
+}

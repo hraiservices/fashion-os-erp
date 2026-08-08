@@ -1,0 +1,111 @@
+"use client";
+
+import Link from "next/link";
+import { Wallet } from "lucide-react";
+import { getNextStage, buildWhatsAppUrl, STAGE_META } from "@/lib/business-rules";
+import { STAGE_STYLE } from "@/lib/design/stages";
+import { resolveWaType } from "@/lib/wa-type";
+import { inr, fmtDateShort } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { DueBadge } from "@/components/orders/stage-badge";
+import { Button } from "@/components/ui/button";
+import { BalanceDue } from "@/components/ui/money-text";
+import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import type { Order } from "@/lib/types";
+import type { Shop } from "@/lib/settings";
+
+/**
+ * Kanban board card. OrderCard(), Stitching_Manager_Pro_v16.html ~line 6033.
+ * The stage is implied by the column, so the card omits the stage badge and spends
+ * that space on the details a tailor actually scans for: who, what, when, how much.
+ */
+export function OrderCard({
+  order,
+  canChangeStage,
+  onAdvance,
+  advancing,
+  shop,
+  draggable,
+  onDragStart,
+  onDragEnd,
+  dragging,
+  onRecordPayment,
+}: {
+  order: Order;
+  canChangeStage?: boolean;
+  onAdvance?: (id: string) => void;
+  advancing?: boolean;
+  shop?: Shop;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragEnd?: () => void;
+  dragging?: boolean;
+  onRecordPayment?: (order: Order) => void;
+}) {
+  const next = getNextStage(order.status);
+
+  return (
+    <div
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      className={cn(
+        "group overflow-hidden rounded-lg border bg-card shadow-sm transition-shadow hover:shadow-md",
+        draggable && "cursor-grab active:cursor-grabbing",
+        dragging && "opacity-40"
+      )}
+    >
+      <Link href={`/orders/${order.id}`} className="block p-3">
+        <div className="flex items-start justify-between gap-2">
+          <p className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">{order.name}</p>
+          <span className="shrink-0 text-sm font-semibold tabular-nums">{inr(order.total)}</span>
+        </div>
+        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{order.id}</p>
+
+        <p className="mt-2 truncate text-xs text-muted-foreground">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>
+
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-muted-foreground">{fmtDateShort(order.deliveryDate)}</span>
+          <DueBadge order={order} />
+          <BalanceDue amount={order.balance} suffix=" due" className="ml-auto text-[11px]" />
+        </div>
+      </Link>
+
+      <div className="flex items-center gap-1.5 border-t bg-muted/30 p-1.5">
+        {canChangeStage && next && (
+          <Button
+            size="sm"
+            className={cn("h-8 flex-1 px-2 text-[11px]", STAGE_STYLE[next].solid)}
+            disabled={advancing}
+            onClick={(e) => {
+              e.preventDefault();
+              onAdvance?.(order.id);
+            }}
+          >
+            {advancing ? "…" : `Move to ${STAGE_META[next].label}`}
+          </Button>
+        )}
+        {onRecordPayment && order.balance > 0 && (
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="size-8 shrink-0"
+            aria-label={`Record payment for ${order.name}`}
+            title="Record payment"
+            onClick={(e) => {
+              e.preventDefault();
+              onRecordPayment(order);
+            }}
+          >
+            <Wallet className="size-3.5" />
+          </Button>
+        )}
+        <WhatsAppIconButton
+          href={buildWhatsAppUrl(order, resolveWaType(order), shop)}
+          label={`WhatsApp ${order.name}`}
+          className="size-8"
+        />
+      </div>
+    </div>
+  );
+}

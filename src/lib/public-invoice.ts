@@ -11,6 +11,9 @@ export interface PublicInvoiceData {
   balance: number;
   shopName: string;
   shopPhone: string;
+  shopAddress: string;
+  shopGstin: string;
+  customerGstin: string;
   template: InvoiceTemplateConfig;
 }
 
@@ -20,6 +23,9 @@ interface GetPublicInvoiceResult {
   creditsTotal: number;
   shopName: string;
   shopPhone: string;
+  shopAddress: string;
+  shopGstin: string;
+  customerGstin: string;
   invoiceTemplates: InvoiceTemplatesSetting | null;
 }
 
@@ -40,6 +46,9 @@ export async function fetchPublicInvoice(supabase: SupabaseClient<Database>, tok
     balance: deriveInvoiceBalance(invoice.total, creditsTotal, paidTotal),
     shopName: result.shopName || "",
     shopPhone: result.shopPhone || "",
+    shopAddress: result.shopAddress || "",
+    shopGstin: result.shopGstin || "",
+    customerGstin: result.customerGstin || "",
     template: getDefaultTemplate(result.invoiceTemplates || DEFAULT_INVOICE_TEMPLATES_SETTING),
   };
 }

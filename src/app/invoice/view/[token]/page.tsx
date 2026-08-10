@@ -11,16 +11,27 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
   const data = await fetchPublicInvoice(supabase, token);
   if (!data) notFound();
 
-  const { invoice, paidTotal, balance, shopName, shopPhone } = data;
+  const { invoice, paidTotal, balance, shopName, shopPhone, shopAddress, shopGstin, customerGstin, template } = data;
   const lineSubtotal = invoice.items.reduce((s, i) => s + i.amount, 0);
   const discountAmount = lineSubtotal - invoice.taxableAmount + invoice.shippingCharges;
+  const showLogo = template.showLogo && template.logoDataUrl;
+  const showQrCode = template.showQrCode && template.qrCodeDataUrl;
+  const showSignature = template.showSignature && template.signatureDataUrl;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4 py-8 sm:p-6">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-lg font-semibold">{shopName || "Invoice"}</h1>
-          {shopPhone && <p className="text-sm text-muted-foreground">{shopPhone}</p>}
+        <div className="flex items-center gap-3">
+          {showLogo && (
+            // eslint-disable-next-line @next/next/no-img-element -- data URL, not an optimizable remote image
+            <img src={template.logoDataUrl!} alt={shopName || "Shop logo"} className="h-12 w-12 shrink-0 rounded object-contain" />
+          )}
+          <div>
+            <h1 className="text-lg font-semibold">{shopName || "Invoice"}</h1>
+            {shopAddress && <p className="text-sm text-muted-foreground">{shopAddress}</p>}
+            {shopPhone && <p className="text-sm text-muted-foreground">{shopPhone}</p>}
+            {shopGstin && <p className="text-sm text-muted-foreground">GSTIN: {shopGstin}</p>}
+          </div>
         </div>
         <div className="text-right">
           <p className="text-xl font-semibold">INVOICE</p>
@@ -42,6 +53,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Billed to</p>
           <p className="mt-1 font-medium">{invoice.customerName}</p>
           <p className="text-sm text-muted-foreground">{invoice.customerMobile}</p>
+          {customerGstin && <p className="text-sm text-muted-foreground">GSTIN: {customerGstin}</p>}
         </div>
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Invoice date</p>
@@ -158,6 +170,22 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
         <div className="border-t pt-4 text-xs text-muted-foreground">
           <p className="mb-1 font-medium text-foreground">Terms & Conditions</p>
           <p className="whitespace-pre-line">{invoice.terms}</p>
+        </div>
+      )}
+
+      {showQrCode && (
+        <div className="flex flex-col items-center gap-1.5 border-t pt-4">
+          {/* eslint-disable-next-line @next/next/no-img-element -- data URL, not an optimizable remote image */}
+          <img src={template.qrCodeDataUrl!} alt="Scan to pay" className="size-24 object-contain" />
+          <p className="text-xs text-muted-foreground">Scan to pay</p>
+        </div>
+      )}
+
+      {showSignature && (
+        <div className="flex flex-col items-end gap-1 pt-6">
+          {/* eslint-disable-next-line @next/next/no-img-element -- data URL, not an optimizable remote image */}
+          <img src={template.signatureDataUrl!} alt="Authorized signature" className="h-10 w-24 object-contain" />
+          <p className="min-w-24 border-t pt-1 text-center text-xs text-muted-foreground">Authorized Signatory</p>
         </div>
       )}
 

@@ -68,6 +68,9 @@ export function InvoiceDocument({
   invoice,
   shopName,
   shopPhone,
+  shopAddress,
+  shopGstin,
+  customerGstin,
   paidTotal,
   balance,
   template,
@@ -75,6 +78,9 @@ export function InvoiceDocument({
   invoice: SalesInvoice;
   shopName: string;
   shopPhone: string;
+  shopAddress?: string;
+  shopGstin?: string;
+  customerGstin?: string;
   paidTotal: number;
   balance: number;
   template?: InvoiceTemplateConfig;
@@ -90,13 +96,15 @@ export function InvoiceDocument({
       <Page size={PAPER_SIZE[t.paperSize]} orientation={t.orientation} style={{ padding: t.margin, fontSize: 10, fontFamily: t.font, color: "#111827" }}>
         <View style={styles.headerRow}>
           <View>
-            {t.showLogo && t.logoDataUrl && <Image src={t.logoDataUrl} style={styles.logo} />}
-            <Text style={[styles.shopName, { fontFamily: bold }]}>{shopName || "Your Shop"}</Text>
+            {t.showLogo && t.logoDataUrl && <Image src={t.logoDataUrl} style={[styles.logo, { width: t.logoWidth, height: t.logoWidth }]} />}
+            <Text style={[styles.shopName, { fontSize: t.shopNameFontSize, fontFamily: t.boldShopName ? bold : t.font }]}>{shopName || "Your Shop"}</Text>
+            {shopAddress && <Text style={styles.muted}>{shopAddress}</Text>}
             {shopPhone && <Text style={styles.muted}>{shopPhone}</Text>}
+            {shopGstin && <Text style={styles.muted}>GSTIN: {shopGstin}</Text>}
           </View>
           <View>
-            <Text style={[styles.invoiceTitle, { fontFamily: bold, color: accent }]}>INVOICE</Text>
-            <Text style={styles.badge}>{invoice.invoiceNumber}</Text>
+            <Text style={[styles.invoiceTitle, { fontSize: t.invoiceTitleFontSize, fontFamily: bold, color: accent }]}>INVOICE</Text>
+            <Text style={[styles.badge, { fontSize: t.invoiceNumberFontSize }]}>{invoice.invoiceNumber}</Text>
             <Text style={styles.badge}>{DOC_STATUS_LABELS[invoice.docStatus]}</Text>
           </View>
         </View>
@@ -104,8 +112,9 @@ export function InvoiceDocument({
         <View style={[styles.section, styles.twoCol]}>
           <View>
             <Text style={styles.label}>Billed to</Text>
-            <Text style={styles.value}>{invoice.customerName}</Text>
+            <Text style={[styles.value, { fontSize: t.customerNameFontSize, fontFamily: t.boldCustomerName ? bold : t.font }]}>{invoice.customerName}</Text>
             <Text style={styles.value}>{invoice.customerMobile}</Text>
+            {customerGstin && <Text style={styles.value}>GSTIN: {customerGstin}</Text>}
           </View>
           <View>
             <Text style={styles.label}>Invoice date</Text>

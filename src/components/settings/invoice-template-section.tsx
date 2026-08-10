@@ -218,6 +218,36 @@ export function InvoiceTemplateSection() {
         </div>
 
         <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">Typography &amp; sizing</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Logo size (px)</label>
+              <Input type="number" min={16} max={200} value={active.logoWidth} onChange={(e) => updateActive({ logoWidth: Number(e.target.value) || 64 })} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Shop name size</label>
+              <Input type="number" min={8} max={40} value={active.shopNameFontSize} onChange={(e) => updateActive({ shopNameFontSize: Number(e.target.value) || 16 })} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">"INVOICE" title size</label>
+              <Input type="number" min={8} max={40} value={active.invoiceTitleFontSize} onChange={(e) => updateActive({ invoiceTitleFontSize: Number(e.target.value) || 18 })} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Customer name size</label>
+              <Input type="number" min={6} max={30} value={active.customerNameFontSize} onChange={(e) => updateActive({ customerNameFontSize: Number(e.target.value) || 11 })} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Invoice number size</label>
+              <Input type="number" min={6} max={30} value={active.invoiceNumberFontSize} onChange={(e) => updateActive({ invoiceNumberFontSize: Number(e.target.value) || 10 })} />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-4 pt-1">
+            <CheckboxRow label="Bold shop name" checked={active.boldShopName} onChange={(v) => updateActive({ boldShopName: v })} />
+            <CheckboxRow label="Bold customer name" checked={active.boldCustomerName} onChange={(v) => updateActive({ boldCustomerName: v })} />
+          </div>
+        </div>
+
+        <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground">Fields shown on the PDF</p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <CheckboxRow label="Line subtotal" checked={active.showSubtotal} onChange={(v) => updateActive({ showSubtotal: v })} />

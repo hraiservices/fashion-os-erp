@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
-const TYPES: SalesWhatsAppType[] = ["invoiceSent", "paymentReminder", "paymentReceived"];
+const TYPES: SalesWhatsAppType[] = ["invoiceSent", "paymentReminder", "paymentReceived", "sendPdfLink"];
 
 /** Unlike stitching-order WhatsApp templates (hardcoded), Sales templates are editable per business decision. */
 export function WhatsAppSalesSection() {

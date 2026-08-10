@@ -57,6 +57,7 @@ export interface Database {
           payment_terms: string;
           price_list_id: string | null;
           tags: string[];
+          gstin: string;
           created_at: string;
           updated_at: string;
         };
@@ -309,6 +310,7 @@ export interface Database {
           ref_id: string | null;
           note: string;
           created_by: string | null;
+          warehouse_id: string | null;
           created_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["inventory_ledger"]["Row"]> & {
@@ -318,6 +320,21 @@ export interface Database {
           ref_type: string;
         };
         Update: Partial<Database["public"]["Tables"]["inventory_ledger"]["Row"]>;
+        Relationships: [];
+      };
+      warehouses: {
+        Row: {
+          id: string;
+          name: string;
+          address: string;
+          is_default: boolean;
+          active: boolean;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["warehouses"]["Row"]> & {
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["warehouses"]["Row"]>;
         Relationships: [];
       };
       vendors: {

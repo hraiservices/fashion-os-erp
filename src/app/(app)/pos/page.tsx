@@ -2,13 +2,15 @@
 
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ScanBarcode, Camera, Trash2, Plus, Minus, User, X, Lock, Unlock } from "lucide-react";
+import { ScanBarcode, Camera, Trash2, Plus, Minus, User, X, Lock, Unlock, Printer } from "lucide-react";
 import { useProducts } from "@/hooks/use-products";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useSaveInvoice, useRecordSalesPayment } from "@/hooks/use-sales-mutations";
 import { useOpenPosSession, useOpenRegister, useCloseRegister, useSessionCashTotal } from "@/hooks/use-pos-session";
 import { genInvoiceNumber, computeLineItemsTotal, type SalesLineItem } from "@/lib/sales";
 import { computeInvoiceTotals } from "@/lib/invoice-totals";
+import { printThermalReceipt } from "@/lib/thermal-receipt";
 import { inr } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -120,6 +122,7 @@ function CloseRegisterDialog({ open, onOpenChange, sessionId, openingCash }: { o
 function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash: number }) {
   const { data: user } = useCurrentUser();
   const { data: products, isLoading: productsLoading } = useProducts();
+  const { data: shop } = useShopSettings();
   const saveInvoice = useSaveInvoice();
   const recordPayment = useRecordSalesPayment();
 
@@ -131,6 +134,8 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
   const [scannerOpen, setScannerOpen] = useState(false);
   const [tenders, setTenders] = useState<{ method: string; amount: string }[]>([{ method: "Cash", amount: "" }]);
   const [submitting, setSubmitting] = useState(false);
+  const [autoPrint, setAutoPrint] = useState(true);
+  const [lastReceipt, setLastReceipt] = useState<Parameters<typeof printThermalReceipt>[0] | null>(null);
   const scanRef = useRef<HTMLInputElement>(null);
 
   const total = useMemo(() => computeLineItemsTotal(cart.map((c) => ({ productId: c.productId, productName: c.productName, qty: c.qty, unitPrice: c.unitPrice, discountPercent: 0, amount: c.qty * c.unitPrice } as SalesLineItem))), [cart]);
@@ -200,11 +205,12 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
       const items: SalesLineItem[] = cart.map((c) => ({ productId: c.productId, productName: c.productName, qty: c.qty, unitPrice: c.unitPrice, discountPercent: 0, amount: c.qty * c.unitPrice }));
       const totals = computeInvoiceTotals(items, 0, "flat", 0, 0, "none");
       const invoiceNumber = genInvoiceNumber();
+      const invoiceDate = new Date().toISOString().slice(0, 10);
       const invoice = await saveInvoice.mutateAsync({
         invoiceNumber,
         customerMobile: customer?.mobile || "walk-in",
         customerName: customer?.name || "Walk-in customer",
-        invoiceDate: new Date().toISOString().slice(0, 10),
+        invoiceDate,
         items,
         subject: "POS sale",
         shippingCharges: 0,
@@ -236,6 +242,22 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
 
       const balanceDue = Math.max(0, Math.round((totals.total - tenderTotal) * 100) / 100);
       toast.success(balanceDue > 0 ? `Sale complete · ${invoiceNumber} · ${inr(balanceDue)} balance due` : `Sale complete · ${invoiceNumber} · ${inr(totals.total)}`);
+
+      const receipt = {
+        shopName: shop?.name || "",
+        shopPhone: shop?.phone || "",
+        invoiceNumber,
+        date: invoiceDate,
+        customerName: customer?.name,
+        items,
+        total: totals.total,
+        paid: tenderTotal,
+        balance: balanceDue,
+        paymentMethod: tenders.filter((t) => (parseFloat(t.amount) || 0) > 0).map((t) => t.method).join(" + "),
+      };
+      setLastReceipt(receipt);
+      if (autoPrint) printThermalReceipt(receipt);
+
       setCart([]);
       setCustomer(null);
       setTenders([{ method: "Cash", amount: "" }]);
@@ -259,9 +281,20 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
         title="POS"
         description="Fast checkout — scan or search, then take payment"
         actions={
-          <Button variant="outline" onClick={() => setCloseOpen(true)}>
-            <Lock className="size-4" /> Close Register
-          </Button>
+          <>
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <input type="checkbox" checked={autoPrint} onChange={(e) => setAutoPrint(e.target.checked)} className="size-3.5" />
+              Auto-print receipt
+            </label>
+            {lastReceipt && (
+              <Button variant="outline" size="sm" onClick={() => printThermalReceipt(lastReceipt)}>
+                <Printer className="size-4" /> Reprint Last
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setCloseOpen(true)}>
+              <Lock className="size-4" /> Close Register
+            </Button>
+          </>
         }
       />
 

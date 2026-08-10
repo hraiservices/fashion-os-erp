@@ -30,6 +30,7 @@ const schema = z.object({
   dob: z.string().optional(),
   anniversary: z.string().optional(),
   address: z.string().optional(),
+  gstin: z.string().optional(),
   notes: z.string().optional(),
   paymentTerms: z.string().optional(),
   priceListId: z.string().optional(),
@@ -76,6 +77,7 @@ export function EditCustomerModal({ cust, open, onOpenChange }: { cust: Customer
       dob: cust.dob || "",
       anniversary: cust.anniversary || "",
       address: cust.address || "",
+      gstin: cust.gstin || "",
       notes: cust.notes || "",
       paymentTerms: cust.paymentTerms || "due_on_receipt",
       priceListId: cust.priceListId || NO_PRICE_LIST,
@@ -93,6 +95,7 @@ export function EditCustomerModal({ cust, open, onOpenChange }: { cust: Customer
         dob: values.dob || "",
         anniversary: values.anniversary || "",
         address: values.address || "",
+        gstin: values.gstin || "",
         notes: values.notes || "",
         paymentTerms: values.paymentTerms || "due_on_receipt",
         priceListId: values.priceListId && values.priceListId !== NO_PRICE_LIST ? values.priceListId : null,
@@ -195,6 +198,9 @@ export function EditCustomerModal({ cust, open, onOpenChange }: { cust: Customer
               <div className="space-y-3">
                 <Field label="Address">
                   <Textarea placeholder="House no., street, city, pincode…" rows={2} {...register("address")} />
+                </Field>
+                <Field label="GSTIN">
+                  <Input placeholder="e.g. 09ABCDE1234F1Z5" className="uppercase" {...register("gstin")} />
                 </Field>
                 <Field label="Notes">
                   <Textarea placeholder="Fit preferences, fabric choices, anything special…" rows={2} {...register("notes")} />

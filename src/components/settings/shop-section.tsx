@@ -80,6 +80,14 @@ export function ShopSection() {
           <Label>Phone (shown in WhatsApp messages)</Label>
           <Input value={shop.phone} onChange={(e) => setShop({ ...shop, phone: e.target.value })} />
         </div>
+        <div className="space-y-2">
+          <Label>Business address (shown on invoices)</Label>
+          <Input value={shop.address} onChange={(e) => setShop({ ...shop, address: e.target.value })} placeholder="Shop no., street, city, pincode…" />
+        </div>
+        <div className="space-y-2">
+          <Label>GSTIN (shown on invoices)</Label>
+          <Input value={shop.gstin} onChange={(e) => setShop({ ...shop, gstin: e.target.value })} placeholder="e.g. 09ABCDE1234F1Z5" className="uppercase" />
+        </div>
         <Button disabled={save.isPending} onClick={onSave}>
           Save changes
         </Button>

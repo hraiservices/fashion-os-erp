@@ -200,6 +200,52 @@ interface StockAdjustmentInput {
   userEmail?: string;
 }
 
+interface StockTransferInput {
+  itemType: ItemType;
+  itemId: string;
+  itemName: string;
+  fromWarehouseId: string | null;
+  toWarehouseId: string;
+  qty: number;
+  note: string;
+  userEmail?: string;
+}
+
+/** Moves stock between warehouses as a paired transfer_out/transfer_in ledger entry. */
+export function useTransferStock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: StockTransferInput) => {
+      const supabase = createClient();
+      if (!input.qty || input.qty <= 0) throw new Error("Enter a quantity greater than zero");
+      if (input.fromWarehouseId === input.toWarehouseId) throw new Error("Source and destination warehouses must differ");
+      const { error } = await supabase.from("inventory_ledger").insert([
+        {
+          item_type: input.itemType,
+          item_id: input.itemId,
+          movement: -input.qty,
+          ref_type: "transfer_out",
+          note: input.note.trim(),
+          warehouse_id: input.fromWarehouseId,
+          created_by: input.userEmail || null,
+        },
+        {
+          item_type: input.itemType,
+          item_id: input.itemId,
+          movement: input.qty,
+          ref_type: "transfer_in",
+          note: input.note.trim(),
+          warehouse_id: input.toWarehouseId,
+          created_by: input.userEmail || null,
+        },
+      ]);
+      if (error) throw error;
+      await logAction(supabase, input.userEmail, `Stock transfer: ${input.itemName} (${input.qty})`, null, input.note);
+    },
+    onSuccess: () => invalidateInventory(qc),
+  });
+}
+
 /** Manual correction — the only ledger write path exposed directly to users in Phase 1. */
 export function useRecordStockAdjustment() {
   const qc = useQueryClient();

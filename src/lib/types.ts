@@ -126,6 +126,7 @@ export interface Customer {
   paymentTerms: string;
   priceListId: string | null;
   tags: string[];
+  gstin: string;
 }
 
 /** mapCust(), line ~2324. */
@@ -147,6 +148,7 @@ export function mapCustomerRow(r: CustomerRow): Customer {
     paymentTerms: r.payment_terms || "due_on_receipt",
     priceListId: r.price_list_id,
     tags: Array.isArray(r.tags) ? r.tags : [],
+    gstin: r.gstin || "",
   };
 }
 
@@ -283,6 +285,7 @@ export interface LedgerEntry {
   note: string;
   createdBy: string | null;
   createdAt: string;
+  warehouseId: string | null;
 }
 
 export function mapLedgerRow(r: LedgerEntryRow): LedgerEntry {
@@ -296,6 +299,7 @@ export function mapLedgerRow(r: LedgerEntryRow): LedgerEntry {
     note: r.note || "",
     createdBy: r.created_by,
     createdAt: r.created_at,
+    warehouseId: r.warehouse_id ?? null,
   };
 }
 
@@ -906,6 +910,28 @@ export function mapAttendanceRow(r: AttendanceRow): Attendance {
     checkIn: r.check_in,
     checkOut: r.check_out,
     notes: r.notes || "",
+    createdAt: r.created_at,
+  };
+}
+
+export type WarehouseRow = Database["public"]["Tables"]["warehouses"]["Row"];
+
+export interface Warehouse {
+  id: string;
+  name: string;
+  address: string;
+  isDefault: boolean;
+  active: boolean;
+  createdAt: string;
+}
+
+export function mapWarehouseRow(r: WarehouseRow): Warehouse {
+  return {
+    id: r.id,
+    name: r.name || "",
+    address: r.address || "",
+    isDefault: r.is_default,
+    active: r.active,
     createdAt: r.created_at,
   };
 }

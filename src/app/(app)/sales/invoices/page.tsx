@@ -93,6 +93,20 @@ export default function SalesInvoicesPage() {
     });
   }
 
+  function sendPdfUrl(inv: SalesInvoiceWithBalance) {
+    const tpl = templates?.sendPdfLink || DEFAULT_SALES_WHATSAPP_TEMPLATES.sendPdfLink;
+    return buildSalesWhatsAppUrl(inv.customerMobile, tpl, {
+      name: inv.customerName,
+      invoiceNo: inv.invoiceNumber,
+      total: inv.total,
+      balance: inv.balance,
+      dueDate: inv.dueDate,
+      shopName: shop?.name,
+      shopPhone: shop?.phone,
+      invoiceLink: typeof window !== "undefined" ? `${window.location.origin}/invoice/view/${inv.shareToken}` : "",
+    });
+  }
+
   const quoteNumberById = useMemo(() => new Map((quotes || []).map((q) => [q.id, q.quoteNumber])), [quotes]);
 
   const summary = useMemo(() => {
@@ -374,6 +388,7 @@ export default function SalesInvoicesPage() {
                             </Button>
                           )}
                           {inv.balance > 0 && <WhatsAppIconButton href={reminderUrl(inv)} label={`WhatsApp reminder to ${inv.customerName}`} />}
+                          <WhatsAppIconButton href={sendPdfUrl(inv)} label={`Send PDF link to ${inv.customerName}`} />
                           <Link
                             href={`/sales/invoices/new?cloneId=${inv.id}`}
                             className="inline-flex items-center gap-1 rounded-md p-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"

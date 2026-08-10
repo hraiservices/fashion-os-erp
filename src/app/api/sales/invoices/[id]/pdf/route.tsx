@@ -29,11 +29,23 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const paidTotal = (payments || []).reduce((s, p) => s + (p.amount || 0), 0);
   const creditsTotal = (credits || []).reduce((s, c) => s + (c.total || 0), 0);
   const balance = deriveInvoiceBalance(invoice.total, creditsTotal, paidTotal);
-  const shop = (shopSetting?.value as { name?: string; phone?: string } | null) || {};
+  const shop = (shopSetting?.value as { name?: string; phone?: string; address?: string; gstin?: string } | null) || {};
   const template = getDefaultTemplate((templateSetting?.value as InvoiceTemplatesSetting | null) || DEFAULT_INVOICE_TEMPLATES_SETTING);
 
+  const { data: customerRow } = await supabase.from("customers").select("gstin").eq("mobile", invoice.customerMobile).maybeSingle();
+
   const buffer = await renderToBuffer(
-    <InvoiceDocument invoice={invoice} shopName={shop.name || ""} shopPhone={shop.phone || ""} paidTotal={paidTotal} balance={balance} template={template} />
+    <InvoiceDocument
+      invoice={invoice}
+      shopName={shop.name || ""}
+      shopPhone={shop.phone || ""}
+      shopAddress={shop.address || ""}
+      shopGstin={shop.gstin || ""}
+      customerGstin={customerRow?.gstin || ""}
+      paidTotal={paidTotal}
+      balance={balance}
+      template={template}
+    />
   );
 
   return new NextResponse(new Uint8Array(buffer), {

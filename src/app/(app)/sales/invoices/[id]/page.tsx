@@ -4,18 +4,21 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Receipt, Wallet, Undo2, Trash2, Pencil, Send, Download, Copy, Link2 } from "lucide-react";
+import { ArrowLeft, Receipt, Wallet, Undo2, Trash2, Pencil, Send, Download, Copy, Link2, Printer } from "lucide-react";
+import { printThermalReceipt } from "@/lib/thermal-receipt";
 import { useSalesInvoice } from "@/hooks/use-sales-invoices";
 import { useSalesPaymentsForInvoice } from "@/hooks/use-sales-payments";
 import { useSalesCreditNotesForInvoice } from "@/hooks/use-sales-credit-notes";
 import { useDeleteInvoice, useSetInvoiceDocStatus } from "@/hooks/use-sales-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
+import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { inr, fmtDate } from "@/lib/format";
 import { INVOICE_STATUS_LABELS, DOC_STATUS_LABELS } from "@/lib/sales";
 import { GST_TYPE_LABELS } from "@/lib/gst";
 import { DEFAULT_SALES_WHATSAPP_TEMPLATES, buildSalesWhatsAppUrl, type SalesWhatsAppTemplates } from "@/lib/sales-whatsapp";
+import { DEFAULT_INVOICE_TEMPLATES_SETTING, getDefaultTemplate, type InvoiceTemplatesSetting } from "@/lib/invoice-template";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -45,8 +48,15 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
   const { data: templates } = useAppSetting<SalesWhatsAppTemplates>("salesWhatsAppTemplates", DEFAULT_SALES_WHATSAPP_TEMPLATES);
+  const { data: invoiceTemplates } = useAppSetting<InvoiceTemplatesSetting>("invoiceTemplates", DEFAULT_INVOICE_TEMPLATES_SETTING);
+  const { data: customer } = useCustomerByMobile(invoice?.customerMobile || "");
   const deleteInvoice = useDeleteInvoice();
   const setDocStatus = useSetInvoiceDocStatus();
+
+  const template = getDefaultTemplate(invoiceTemplates || DEFAULT_INVOICE_TEMPLATES_SETTING);
+  const showLogo = template.showLogo && template.logoDataUrl;
+  const showQrCode = template.showQrCode && template.qrCodeDataUrl;
+  const showSignature = template.showSignature && template.signatureDataUrl;
 
   const [creditOpen, setCreditOpen] = useState(false);
 
@@ -97,6 +107,7 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
       dueDate: invoice.dueDate,
       shopName: shop?.name,
       shopPhone: shop?.phone,
+      invoiceLink: typeof window !== "undefined" ? `${window.location.origin}/invoice/view/${invoice.shareToken}` : "",
     });
   }
 
@@ -127,13 +138,20 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
       </Link>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{invoice.invoiceNumber}</h1>
-          {invoice.subject && <p className="mt-0.5 text-sm">{invoice.subject}</p>}
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {invoice.customerName} · {fmtDate(invoice.invoiceDate)}
-            {invoice.dueDate && ` · Due ${fmtDate(invoice.dueDate)}`}
-          </p>
+        <div className="flex items-start gap-3">
+          {showLogo && (
+            // eslint-disable-next-line @next/next/no-img-element -- data URL, not an optimizable remote image
+            <img src={template.logoDataUrl!} alt="Shop logo" className="h-12 w-12 shrink-0 rounded object-contain" />
+          )}
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">{invoice.invoiceNumber}</h1>
+            {invoice.subject && <p className="mt-0.5 text-sm">{invoice.subject}</p>}
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {invoice.customerName} · {fmtDate(invoice.invoiceDate)}
+              {invoice.dueDate && ` · Due ${fmtDate(invoice.dueDate)}`}
+            </p>
+            {customer?.gstin && <p className="mt-0.5 text-xs text-muted-foreground">Customer GSTIN: {customer.gstin}</p>}
+          </div>
         </div>
         <div className="flex shrink-0 gap-1.5">
           <Badge variant="outline">{DOC_STATUS_LABELS[invoice.docStatus]}</Badge>
@@ -246,6 +264,24 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
             </div>
           )}
 
+          {showQrCode && (
+            <div className="flex flex-col items-center gap-1.5 rounded-xl border bg-muted/30 p-4">
+              {/* eslint-disable-next-line @next/next/no-img-element -- data URL, not an optimizable remote image */}
+              <img src={template.qrCodeDataUrl!} alt="Scan to pay" className="size-24 object-contain" />
+              <p className="text-xs text-muted-foreground">Scan to pay</p>
+            </div>
+          )}
+
+          {showSignature && (
+            <div className="flex justify-end rounded-xl border bg-muted/30 p-4">
+              <div className="flex flex-col items-center gap-1">
+                {/* eslint-disable-next-line @next/next/no-img-element -- data URL, not an optimizable remote image */}
+                <img src={template.signatureDataUrl!} alt="Authorized signature" className="h-10 w-24 object-contain" />
+                <p className="min-w-24 border-t pt-1 text-center text-xs text-muted-foreground">Authorized Signatory</p>
+              </div>
+            </div>
+          )}
+
           {(payments?.length || 0) > 0 && (
             <section className="rounded-xl border bg-card">
               <div className="border-b px-4 py-3">
@@ -329,10 +365,32 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
                 label={invoice.balance > 0 ? "Payment Reminder" : "Send Invoice"}
               />
               {(payments?.length || 0) > 0 && <WhatsAppButton className="w-full justify-start" href={waHref("paymentReceived")} label="Send Receipt" />}
+              <WhatsAppButton className="w-full justify-start" href={waHref("sendPdfLink")} label="Send PDF on WhatsApp" />
               <Button variant="outline" className="w-full justify-start" onClick={handleCopyShareLink}>
                 <Link2 className="size-4" /> Copy share link
               </Button>
               <PrintButton className="w-full justify-start" />
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() =>
+                  printThermalReceipt({
+                    shopName: shop?.name || "",
+                    shopPhone: shop?.phone || "",
+                    invoiceNumber: invoice.invoiceNumber,
+                    date: invoice.invoiceDate,
+                    customerName: invoice.customerName,
+                    items: invoice.items,
+                    shippingCharges: invoice.shippingCharges,
+                    total: invoice.total,
+                    paid: invoice.paidTotal,
+                    balance: invoice.balance,
+                    notes: invoice.notes,
+                  })
+                }
+              >
+                <Printer className="size-4" /> Thermal Receipt
+              </Button>
               <Button
                 variant="outline"
                 className="w-full justify-start"

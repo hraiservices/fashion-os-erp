@@ -10,6 +10,13 @@ export interface InvoiceTemplateConfig {
   orientation: InvoiceOrientation;
   margin: number;
   font: InvoiceTemplateFont;
+  logoWidth: number;
+  shopNameFontSize: number;
+  invoiceTitleFontSize: number;
+  customerNameFontSize: number;
+  invoiceNumberFontSize: number;
+  boldShopName: boolean;
+  boldCustomerName: boolean;
   showSubtotal: boolean;
   showTax: boolean;
   showShipping: boolean;
@@ -40,6 +47,13 @@ export function blankInvoiceTemplate(name = "Default"): InvoiceTemplateConfig {
     orientation: "portrait",
     margin: 32,
     font: "Helvetica",
+    logoWidth: 64,
+    shopNameFontSize: 16,
+    invoiceTitleFontSize: 18,
+    customerNameFontSize: 11,
+    invoiceNumberFontSize: 10,
+    boldShopName: true,
+    boldCustomerName: true,
     showSubtotal: true,
     showTax: true,
     showShipping: true,

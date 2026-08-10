@@ -19,6 +19,7 @@ interface SaveCustomerInput {
   priceListId?: string | null;
   measurements?: Record<string, Json>;
   tags?: string[];
+  gstin?: string;
   userEmail?: string;
 }
 
@@ -26,7 +27,7 @@ interface SaveCustomerInput {
 export function useSaveCustomer() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ name, mobile, email, dob, anniversary, address, notes, paymentTerms, priceListId, measurements, tags, userEmail }: SaveCustomerInput) => {
+    mutationFn: async ({ name, mobile, email, dob, anniversary, address, notes, paymentTerms, priceListId, measurements, tags, gstin, userEmail }: SaveCustomerInput) => {
       const supabase = createClient();
       const { error } = await supabase.from("customers").upsert({
         id: customerIdFromMobile(mobile),
@@ -39,6 +40,7 @@ export function useSaveCustomer() {
         notes,
         payment_terms: paymentTerms || "due_on_receipt",
         price_list_id: priceListId || null,
+        gstin: gstin || "",
         ...(measurements ? { measurements: measurements as Json } : {}),
         ...(tags ? { tags } : {}),
       });

@@ -12,7 +12,9 @@ export type LedgerRefType =
   | "sale_return"
   | "work_order_consume"
   | "work_order_produce"
-  | "adjustment";
+  | "adjustment"
+  | "transfer_out"
+  | "transfer_in";
 
 export const LEDGER_REF_LABELS: Record<LedgerRefType, string> = {
   opening: "Opening stock",
@@ -23,6 +25,8 @@ export const LEDGER_REF_LABELS: Record<LedgerRefType, string> = {
   work_order_consume: "Manufacturing consumption",
   work_order_produce: "Manufacturing output",
   adjustment: "Manual adjustment",
+  transfer_out: "Transfer out",
+  transfer_in: "Transfer in",
 };
 
 export interface LedgerRow {

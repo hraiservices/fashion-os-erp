@@ -124,6 +124,8 @@ export const INVENTORY_GROUP: NavGroup = {
     { href: "/inventory/raw-materials", label: "Raw Materials", newHref: "/inventory/raw-materials?new=1" },
     { href: "/inventory/products", label: "Products", newHref: "/inventory/products?new=1" },
     { href: "/inventory/adjustments", label: "Adjustments" },
+    { href: "/inventory/warehouses", label: "Warehouses" },
+    { href: "/inventory/stock-transfer", label: "Stock Transfer" },
   ],
 };
 

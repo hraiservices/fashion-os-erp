@@ -1,0 +1,7 @@
+[
+  {
+    "name": "Example Tailoring Shop",
+    "supabaseUrl": "https://xxxxxxxxxxxx.supabase.co",
+    "serviceRoleKey": "your-service-role-key-from-supabase-project-settings"
+  }
+]

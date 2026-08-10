@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Sidebar } from "@/components/app-shell/sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
 import { MobileTabBar } from "@/components/app-shell/mobile-nav";
+import { ExpiryBanner } from "@/components/app-shell/expiry-banner";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { RESTRICTED_FALLBACK_ROUTE, isRestrictedRoute } from "@/lib/permissions";
 
@@ -30,6 +31,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="print:hidden">
           <Topbar />
         </div>
+        <ExpiryBanner />
         {/* pb-24 on mobile keeps content clear of the fixed bottom tab bar. */}
         <main className="flex-1 pb-24 lg:pb-0 print:pb-0">{children}</main>
       </div>

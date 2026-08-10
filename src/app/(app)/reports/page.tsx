@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, ChevronRight, LayoutGrid, BarChart3, Scissors, ShoppingCart, Users, Package, Truck, Factory, Wallet, type LucideIcon } from "lucide-react";
-import { REPORTS_GROUP } from "@/components/app-shell/nav-config";
+import { REPORTS_GROUP, resolveReportSection } from "@/components/app-shell/nav-config";
+import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
+import { isReportEnabled } from "@/lib/entitlements";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -31,13 +33,14 @@ interface ReportItem {
  * with the sidebar submenu.
  */
 export default function ReportsIndexPage() {
+  const { data: entitlements } = useModuleEntitlements();
+
   const allReports = useMemo<ReportItem[]>(() => {
-    let category = "";
-    return REPORTS_GROUP.children.map((leaf) => {
-      if (leaf.section) category = leaf.section;
-      return { href: leaf.href, label: leaf.label, category };
-    });
-  }, []);
+    if (!entitlements) return [];
+    return REPORTS_GROUP.children
+      .map((leaf) => ({ href: leaf.href, label: leaf.label, category: resolveReportSection(leaf.href) || "" }))
+      .filter((r) => isReportEnabled(entitlements, r.href, r.category));
+  }, [entitlements]);
 
   const categories = useMemo(() => {
     const seen = new Set<string>();

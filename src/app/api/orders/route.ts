@@ -6,6 +6,7 @@ import { newOrderId, customerIdFromMobile, deriveBalance, fmtNow, computeEarnPoi
 import { logAction } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
+import type { ModuleEntitlements } from "@/lib/entitlements";
 import type { Json } from "@/lib/supabase/database.types";
 
 const garmentSchema = z.object({
@@ -32,6 +33,7 @@ const bodySchema = z.object({
   /** Redeem the customer's loyalty points against this order's balance at creation. */
   usePoints: z.boolean().optional().default(false),
   orderType: z.enum(["new", "alteration"]).optional().default("new"),
+  paymentMethod: z.string().optional(),
 });
 
 /**
@@ -82,7 +84,9 @@ export async function POST(request: Request) {
   const balance = deriveBalance(fd.total, advance);
 
   const historyLine =
-    `📥 Received — ${fmtNow()} by ${userName}` + (ptDiscount > 0 ? ` · 🎁 ₹${ptDiscount} loyalty pts applied` : "");
+    `📥 Received — ${fmtNow()} by ${userName}` +
+    (cashAdvance > 0 && fd.paymentMethod ? ` · 💳 ${fd.paymentMethod}` : "") +
+    (ptDiscount > 0 ? ` · 🎁 ₹${ptDiscount} loyalty pts applied` : "");
 
   const { data: insertedRow, error: insertError } = await supabase
     .from("orders")
@@ -162,5 +166,19 @@ export async function POST(request: Request) {
     await logAction(supabase, user.email, `⚠️ Customer record not synced for order ${id}`, id, customerSyncError);
   }
 
-  return NextResponse.json({ order: mapOrderRow(insertedRow), ptDiscount, ptsToRedeem });
+  // Soft usage-cap warning — never blocks the order, which has already been created above.
+  let limitWarning: string | undefined;
+  const { data: entSetting } = await supabase.from("app_settings").select("value").eq("key", "moduleEntitlements").maybeSingle();
+  const maxOrders = (entSetting?.value as ModuleEntitlements | null)?.limits?.maxOrdersPerMonth;
+  if (maxOrders != null) {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const { count } = await supabase.from("orders").select("id", { count: "exact", head: true }).gte("created_at", startOfMonth.toISOString());
+    if (count != null && count >= maxOrders) {
+      limitWarning = `You've reached your plan's order limit (${count}/${maxOrders} this month). Contact us to upgrade.`;
+    }
+  }
+
+  return NextResponse.json({ order: mapOrderRow(insertedRow), ptDiscount, ptsToRedeem, limitWarning });
 }

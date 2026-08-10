@@ -246,6 +246,7 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
       const receipt = {
         shopName: shop?.name || "",
         shopPhone: shop?.phone || "",
+        logoDataUrl: shop?.logoDataUrl,
         invoiceNumber,
         date: invoiceDate,
         customerName: customer?.name,

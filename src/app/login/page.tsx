@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ensureUserRole } from "@/lib/supabase/role-bootstrap";
 import { isValidEmail, mapAuthError, normalizePhone } from "@/lib/auth-errors";
+import { useShopSettings } from "@/hooks/use-shop-settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,7 @@ type Method = "email" | "mobile";
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
+  const { data: shop } = useShopSettings();
 
   const [mode, setMode] = useState<Mode>("login");
   const [method, setMethod] = useState<Method>("email");
@@ -158,7 +160,13 @@ export default function LoginPage() {
     <div className="flex flex-1 items-center justify-center bg-gradient-to-br from-blue-950 via-zinc-950 to-zinc-700 p-5">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Stitching Manager Pro</CardTitle>
+          <div className="mb-1 flex items-center gap-2.5">
+            {shop?.logoDataUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={shop.logoDataUrl} alt={shop.name || "Shop logo"} className="size-9 shrink-0 rounded-lg border bg-white object-contain" />
+            )}
+            <CardTitle>{shop?.name || "Stitching Manager Pro"}</CardTitle>
+          </div>
           <CardDescription>
             {mode === "reset"
               ? "Set a new password"

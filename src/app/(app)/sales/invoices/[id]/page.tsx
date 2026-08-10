@@ -377,6 +377,7 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
                   printThermalReceipt({
                     shopName: shop?.name || "",
                     shopPhone: shop?.phone || "",
+                    logoDataUrl: shop?.logoDataUrl,
                     invoiceNumber: invoice.invoiceNumber,
                     date: invoice.invoiceDate,
                     customerName: invoice.customerName,

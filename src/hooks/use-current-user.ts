@@ -9,6 +9,13 @@ export interface CurrentUser {
   role: string;
   perms: Permissions;
   restricted: boolean;
+  /** Platform owner, identified by a fixed env-var email — governs module licensing, not per-shop roles/permissions. */
+  isSuperAdmin: boolean;
+}
+
+function checkSuperAdmin(email: string): boolean {
+  const ownerEmail = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL;
+  return !!ownerEmail && email.toLowerCase() === ownerEmail.toLowerCase();
 }
 
 async function fetchCurrentUser(): Promise<CurrentUser | null> {
@@ -27,7 +34,7 @@ async function fetchCurrentUser(): Promise<CurrentUser | null> {
   const role = roleRow?.role || "tailor";
   const perms = resolvePerms(role, roleRow?.custom_permissions as Partial<Permissions> | null);
 
-  return { email: user.email, role, perms, restricted: isRestrictedRole(role) };
+  return { email: user.email, role, perms, restricted: isRestrictedRole(role), isSuperAdmin: checkSuperAdmin(user.email) };
 }
 
 export function useCurrentUser() {

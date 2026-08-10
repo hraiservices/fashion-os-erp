@@ -115,6 +115,16 @@ export const REPORTS_GROUP: NavGroup = {
   ],
 };
 
+/** Resolves the effective section for a REPORTS_GROUP leaf, filling forward from the last `section`-tagged leaf — mirrors how the sidebar/Reports index visually group unlabeled leaves under the preceding section header. Needed anywhere a single leaf's conceptual category matters (module-licensing cascade), not just the sequential render. */
+export function resolveReportSection(href: string): string | undefined {
+  let category: string | undefined;
+  for (const leaf of REPORTS_GROUP.children) {
+    if (leaf.section) category = leaf.section;
+    if (leaf.href === href) return category;
+  }
+  return undefined;
+}
+
 export const INVENTORY_GROUP: NavGroup = {
   id: "inventory",
   label: "Inventory",
@@ -210,11 +220,13 @@ export const SETTINGS_GROUP: NavGroup = {
     { href: "/settings/users", label: "Users & Roles" },
     { href: "/settings/font", label: "Appearance" },
     { href: "/settings/navigation", label: "Sidebar Navigation" },
+    { href: "/settings/module-licensing", label: "Module Licensing" },
   ],
 };
 
-/** Per-section Settings gating, mirroring the old app's rules. */
-export function settingsLeafVisible(href: string, isAdmin: boolean, canManageShop: boolean): boolean {
+/** Per-section Settings gating, mirroring the old app's rules. Module Licensing is platform-owner-only — invisible to every shop's own admin, including "admin" role. */
+export function settingsLeafVisible(href: string, isAdmin: boolean, canManageShop: boolean, isSuperAdmin: boolean): boolean {
+  if (href === "/settings/module-licensing") return isSuperAdmin;
   if (["/settings/shop", "/settings/tailors", "/settings/rates", "/settings/measurements"].includes(href)) return canManageShop;
   if (["/settings/loyalty", "/settings/whatsapp-sales", "/settings/invoice-terms", "/settings/invoice-template", "/settings/price-lists", "/settings/bot", "/settings/copilot", "/settings/users", "/settings/font", "/settings/navigation"].includes(href)) return isAdmin;
   return true; // /settings/account — everyone

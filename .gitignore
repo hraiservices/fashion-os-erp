@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# per-customer service-role keys for scripts/usage-report.mjs — never commit real credentials
+/scripts/customers.local.json
+
 # debug
 npm-debug.log*
 yarn-debug.log*

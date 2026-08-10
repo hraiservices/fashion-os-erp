@@ -44,8 +44,11 @@ const formSchema = z.object({
   tailor: z.string(),
   special: z.string(),
   advance: z.number().min(0),
+  paymentMethod: z.string(),
   garments: z.array(garmentSchema).min(1, "Add at least one garment"),
 });
+
+const PAYMENT_METHODS = ["Cash", "UPI", "Card", "Bank Transfer"];
 
 type FormValues = z.infer<typeof formSchema>;
 type RateCard = Record<string, Record<Lining, number>>;
@@ -177,6 +180,7 @@ function OrderFormFields({
           tailor: existingOrder.tailor,
           special: existingOrder.special,
           advance: existingOrder.advance,
+          paymentMethod: "Cash",
           garments:
             existingOrder.garments.length > 0
               ? existingOrder.garments.map((g) => ({ type: g.type, lining: g.lining || "s", no: g.no || 1, amount: g.amount || 0 }))
@@ -190,6 +194,7 @@ function OrderFormFields({
           tailor: defaultTailor,
           special: "",
           advance: 0,
+          paymentMethod: "Cash",
           garments: [{ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0 }],
         },
   });
@@ -239,7 +244,7 @@ function OrderFormFields({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function onSubmit(values: FormValues) {
+  async function onSubmit({ paymentMethod, ...values }: FormValues) {
     const measurementPayload = compactMeasurements(measurements);
     try {
       if (existingOrder) {
@@ -269,8 +274,10 @@ function OrderFormFields({
           videos,
           usePoints,
           orderType,
+          paymentMethod: values.advance > 0 ? paymentMethod : undefined,
         });
         toast.success(res.ptDiscount > 0 ? `Order ${res.order.id} created · ${inr(res.ptDiscount)} points discount applied` : `Order ${res.order.id} created`);
+        if (res.limitWarning) toast.warning(res.limitWarning);
         router.push(`/orders/${res.order.id}`);
       }
     } catch (e) {
@@ -517,8 +524,44 @@ function OrderFormFields({
                 <p className="mt-0.5 text-xl font-semibold tabular-nums">{inr(total)}</p>
               </div>
               <Field label="Advance received">
-                <Input type="number" min={0} inputMode="numeric" {...register("advance", { valueAsNumber: true })} />
+                <Controller
+                  control={control}
+                  name="advance"
+                  render={({ field }) => (
+                    <Input
+                      type="number"
+                      min={0}
+                      inputMode="numeric"
+                      placeholder="0"
+                      value={field.value ? String(field.value) : ""}
+                      onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
+                      onBlur={field.onBlur}
+                    />
+                  )}
+                />
               </Field>
+              {advance > 0 && (
+                <Field label="Payment method">
+                  <Controller
+                    control={control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PAYMENT_METHODS.map((m) => (
+                            <SelectItem key={m} value={m}>
+                              {m}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </Field>
+              )}
               <div className="rounded-lg bg-muted/50 p-3">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Balance</p>
                 <BalanceDue amount={balance} paidLabel={inr(balance)} className="mt-0.5 block text-xl" />

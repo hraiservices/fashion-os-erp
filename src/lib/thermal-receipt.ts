@@ -4,6 +4,7 @@ import type { SalesLineItem } from "@/lib/sales";
 export interface ThermalReceiptData {
   shopName: string;
   shopPhone?: string;
+  logoDataUrl?: string | null;
   invoiceNumber: string;
   date: string;
   customerName?: string;
@@ -78,6 +79,7 @@ export function printThermalReceipt(data: ThermalReceiptData) {
 </head>
 <body>
   <div class="center">
+    ${data.logoDataUrl ? `<img src="${data.logoDataUrl}" style="max-width:50mm;max-height:20mm;object-fit:contain;margin-bottom:4px;" alt="" />` : ""}
     <div class="shop-name">${data.shopName || "Receipt"}</div>
     ${data.shopPhone ? `<div class="muted">${data.shopPhone}</div>` : ""}
   </div>

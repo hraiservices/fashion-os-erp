@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "usage-report": "node scripts/usage-report.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

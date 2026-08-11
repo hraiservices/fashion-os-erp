@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, Users, UserPlus, LayoutGrid, LayoutList, ArrowUpDown } from "lucide-react";
+import { Search, Users, UserPlus, LayoutGrid, LayoutList, ArrowUpDown, Upload } from "lucide-react";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -135,6 +135,11 @@ function CrmContent() {
                 <LayoutList className="size-4" /> List
               </button>
             </div>
+            {canAdd && (
+              <Button variant="outline" nativeButton={false} render={<Link href="/crm/import" />}>
+                <Upload className="size-4" /> Import
+              </Button>
+            )}
             {canAdd && (
               <Button nativeButton={false} render={<Link href="/crm/new" />}>
                 <UserPlus className="size-4" /> Add customer

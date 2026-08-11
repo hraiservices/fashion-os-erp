@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, LayoutList, KanbanSquare, ArrowRight, Trash2 } from "lucide-react";
+import { Plus, Search, LayoutList, KanbanSquare, ArrowRight, Trash2, Upload } from "lucide-react";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { useOrders } from "@/hooks/use-orders";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -262,6 +262,11 @@ function OrdersContent() {
                 { value: "board", label: "Board", icon: KanbanSquare },
               ]}
             />
+            {user?.perms.addOrder && (
+              <Button variant="outline" nativeButton={false} render={<Link href="/orders/import" />}>
+                <Upload className="size-4" /> Import
+              </Button>
+            )}
             {user?.perms.addOrder && (
               <Button nativeButton={false} render={<Link href="/orders/new" />} className="hidden sm:inline-flex">
                 <Plus className="size-4" /> New order

@@ -1,8 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Upload, LogOut, User } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Button } from "@/components/ui/button";
@@ -43,16 +42,6 @@ export function Topbar() {
       </div>
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="size-9 sm:size-8 hidden sm:inline-flex"
-          aria-label="Import orders"
-          title="Import orders"
-          onClick={() => toast("Bulk order import is coming soon")}
-        >
-          <Upload className="size-4" />
-        </Button>
         <PwaInstaller />
         <ThemeToggle />
         <NotificationBell />

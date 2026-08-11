@@ -6,8 +6,10 @@ import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Plus, Trash2, User, Shirt, Wallet, Ruler, Gift, Check } from "lucide-react";
+import { Plus, Trash2, User, Shirt, Wallet, Ruler, Gift, Check, Search } from "lucide-react";
 import { useCreateOrder, useUpdateOrder } from "@/hooks/use-order-mutations";
+import { CustomerPicker } from "@/components/sales/customer-picker";
+import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useActiveTailorNames } from "@/hooks/use-employees";
@@ -161,6 +163,7 @@ function OrderFormFields({
   const [usePoints, setUsePoints] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
   const [measureOpen, setMeasureOpen] = useState(!isAlteration);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const {
     register,
@@ -289,25 +292,29 @@ function OrderFormFields({
     <form onSubmit={handleSubmit(onSubmit)} className="pb-32 lg:pb-0">
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         <div className="space-y-4 lg:col-span-2">
-          <Section icon={User} title="Customer" description="Who is this order for?">
+          <Section
+            icon={User}
+            title="Customer"
+            description="Who is this order for?"
+            action={
+              !existingOrder && (
+                <Button type="button" variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
+                  <Search className="size-3.5" /> Find customer
+                </Button>
+              )
+            }
+          >
             {!existingOrder && (
-              <div className="mb-4 inline-flex rounded-lg border p-0.5" role="group" aria-label="Order type">
-                <button
-                  type="button"
-                  onClick={() => setOrderType("new")}
-                  aria-pressed={orderType === "new"}
-                  className={cn("min-h-9 rounded-md px-3 text-xs font-medium transition-colors sm:min-h-8", orderType === "new" ? "bg-muted" : "text-muted-foreground")}
-                >
-                  New order
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOrderType("alteration")}
-                  aria-pressed={orderType === "alteration"}
-                  className={cn("min-h-9 rounded-md px-3 text-xs font-medium transition-colors sm:min-h-8", orderType === "alteration" ? "bg-muted" : "text-muted-foreground")}
-                >
-                  Alteration / rework
-                </button>
+              <div className="mb-4">
+                <SegmentedToggle
+                  ariaLabel="Order type"
+                  value={orderType}
+                  onChange={setOrderType}
+                  options={[
+                    { value: "new", label: "New order" },
+                    { value: "alteration", label: "Alteration / rework" },
+                  ]}
+                />
               </div>
             )}
             <div className="grid gap-4 sm:grid-cols-2">
@@ -540,7 +547,11 @@ function OrderFormFields({
                   )}
                 />
               </Field>
-              {advance > 0 && (
+              {/* Only meaningful when creating an order — editing an existing order doesn't send
+                  paymentMethod anywhere (advance changes on an existing order aren't a single new
+                  payment event with one method), so showing this in edit mode would be a dropdown
+                  whose value is silently discarded on save. */}
+              {!existingOrder && advance > 0 && (
                 <Field label="Payment method">
                   <Controller
                     control={control}
@@ -589,6 +600,20 @@ function OrderFormFields({
           {isSubmitting ? "Saving…" : existingOrder ? "Save changes" : `Create order · ${inr(total)}`}
         </Button>
       </div>
+
+      {!existingOrder && (
+        <CustomerPicker
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          onSelect={(c) => {
+            setValue("mobile", c.mobile, { shouldValidate: true });
+            setValue("name", c.name, { shouldValidate: true });
+            // The mobile/measurements/loyalty auto-prefill effect above watches `mobile` and
+            // fires the moment it's a full 10 digits — picking a customer here just feeds that
+            // same effect instead of duplicating its prefill logic.
+          }}
+        />
+      )}
     </form>
   );
 }

@@ -12,6 +12,7 @@ import { genWoNumber, prefillMaterialsFromBom, type WorkOrderMaterial } from "@/
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -206,13 +207,12 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
                           <td className="p-2">{m.rawMaterialName}</td>
                           <td className="p-2 text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                              <Input
-                                type="number"
+                              <NumberInput
                                 min={0}
                                 step="0.001"
                                 className="w-24 text-right"
                                 value={m.qtyPlanned}
-                                onChange={(e) => updateMaterialQty(m.rawMaterialId, parseFloat(e.target.value) || 0)}
+                                onChange={(v) => updateMaterialQty(m.rawMaterialId, v)}
                               />
                               <span className="text-xs text-muted-foreground">{m.unitName}</span>
                             </div>

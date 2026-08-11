@@ -1,13 +1,12 @@
 "use client";
 
 import { useMemo } from "react";
-import { Truck, Download } from "lucide-react";
+import { Truck } from "lucide-react";
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders";
 import { useVendors } from "@/hooks/use-vendors";
 import { inr } from "@/lib/format";
-import { exportCSV } from "@/lib/export";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
-import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -37,13 +36,7 @@ export default function PurchaseOrdersByVendorPage() {
       description="Purchase order count and value per vendor."
       actions={
         rows.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => exportCSV(rows.map((r) => ({ Vendor: vendorNameById.get(r.vendorId) || "", "PO Count": r.count, Total: r.total })), "po_by_vendor")}
-          >
-            <Download className="size-4" /> Export CSV
-          </Button>
+          <ExportMenu rows={rows.map((r) => ({ Vendor: vendorNameById.get(r.vendorId) || "", "PO Count": r.count, Total: r.total }))} filename="po_by_vendor" />
         )
       }
     >

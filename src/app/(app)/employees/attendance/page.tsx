@@ -78,7 +78,7 @@ export default function AttendancePage() {
                       disabled={!canManage || markAttendance.isPending}
                       onClick={() => mark(e.id, s.value)}
                       className={cn(
-                        "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50",
+                        "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50",
                         current?.status === s.value ? s.tone : "border-border text-muted-foreground hover:bg-muted"
                       )}
                     >

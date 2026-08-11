@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Receipt, Search, ArrowUpDown, Copy, Upload, Wallet, Send, Trash2, Download } from "lucide-react";
+import { Plus, Receipt, Search, ArrowUpDown, Copy, Upload, Wallet, Send, Trash2 } from "lucide-react";
 import { useSalesInvoices, type SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import { useSalesQuotations } from "@/hooks/use-sales-quotations";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -16,7 +16,7 @@ import { useRowSelection } from "@/hooks/use-row-selection";
 import { inr, fmtDate } from "@/lib/format";
 import { invoiceDueBadge, avgDaysToGetPaid, DOC_STATUS_LABELS, type DueTone } from "@/lib/sales";
 import { DEFAULT_SALES_WHATSAPP_TEMPLATES, buildSalesWhatsAppUrl, type SalesWhatsAppTemplates } from "@/lib/sales-whatsapp";
-import { exportCSV } from "@/lib/export";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
@@ -199,21 +200,16 @@ export default function SalesInvoicesPage() {
     else toast.success(`${selectedInvoices.length} invoice(s) deleted — stock reverted`);
   }
 
-  function bulkExport() {
-    exportCSV(
-      selectedInvoices.map((inv) => ({
-        Invoice: inv.invoiceNumber,
-        Date: inv.invoiceDate,
-        Customer: inv.customerName,
-        Mobile: inv.customerMobile,
-        Amount: inv.total,
-        Balance: inv.balance,
-        DueDate: inv.dueDate || "",
-        DocStatus: DOC_STATUS_LABELS[inv.docStatus],
-      })),
-      "invoices_export"
-    );
-  }
+  const bulkExportRows = selectedInvoices.map((inv) => ({
+    Invoice: inv.invoiceNumber,
+    Date: inv.invoiceDate,
+    Customer: inv.customerName,
+    Mobile: inv.customerMobile,
+    Amount: inv.total,
+    Balance: inv.balance,
+    DueDate: inv.dueDate || "",
+    DocStatus: DOC_STATUS_LABELS[inv.docStatus],
+  }));
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
@@ -267,9 +263,7 @@ export default function SalesInvoicesPage() {
             <Button variant="outline" size="sm" onClick={bulkMarkSent} disabled={bulkBusy}>
               <Send className="size-3.5" /> Mark as sent
             </Button>
-            <Button variant="outline" size="sm" onClick={bulkExport} disabled={bulkBusy}>
-              <Download className="size-3.5" /> Export CSV
-            </Button>
+            <ExportMenu rows={bulkExportRows} filename="invoices_export" disabled={bulkBusy} />
             <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
               <Trash2 className="size-3.5" /> Delete
             </Button>
@@ -302,7 +296,7 @@ export default function SalesInvoicesPage() {
       ) : filtered.length === 0 ? (
         <EmptyState icon={Search} title="No invoices match your search" />
       ) : (
-        <div className="overflow-hidden rounded-xl border">
+        <div className="hidden overflow-hidden rounded-xl border sm:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -406,6 +400,33 @@ export default function SalesInvoicesPage() {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {!isLoading && invoices && invoices.length > 0 && filtered.length > 0 && (
+        <MobileRecordList>
+          {filtered.map((inv) => {
+            const badge = invoiceDueBadge(inv.dueDate, inv.paymentStatus);
+            return (
+              <MobileRecordCard key={inv.id} href={`/sales/invoices/${inv.id}`}>
+                <MobileRecordHeader
+                  title={inv.customerName}
+                  subtitle={inv.customerMobile}
+                  value={<BalanceDue amount={inv.balance} paidLabel="" />}
+                />
+                <MobileRecordRow label="Invoice#" value={inv.invoiceNumber} />
+                <MobileRecordRow label="Date" value={fmtDate(inv.invoiceDate)} />
+                <MobileRecordRow label="Quote#" value={inv.quoteId ? quoteNumberById.get(inv.quoteId) || "—" : "—"} />
+                <MobileRecordRow label="Amount" value={inr(inv.total)} />
+                <MobileRecordRow label="Due Date" value={inv.dueDate ? fmtDate(inv.dueDate) : "—"} />
+                <MobileRecordRow label="Doc" value={<Badge variant="outline">{DOC_STATUS_LABELS[inv.docStatus]}</Badge>} />
+                <MobileRecordRow
+                  label="Status"
+                  value={<span className={cn("text-xs font-medium uppercase tracking-wide", TONE_CLASS[badge.tone])}>{badge.text}</span>}
+                />
+              </MobileRecordCard>
+            );
+          })}
+        </MobileRecordList>
       )}
 
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>

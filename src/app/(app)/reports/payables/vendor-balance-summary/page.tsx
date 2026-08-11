@@ -2,14 +2,13 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { Truck, Download, Link2 } from "lucide-react";
+import { Truck, Link2 } from "lucide-react";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
 import { avgDaysToPayVendor } from "@/lib/purchases";
 import { inr } from "@/lib/format";
-import { exportCSV } from "@/lib/export";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
-import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BalanceDue } from "@/components/ui/money-text";
@@ -46,25 +45,17 @@ export default function VendorBalanceSummaryPage() {
       description="Total billed, paid, outstanding balance, and average days to pay per vendor."
       actions={
         rows.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              exportCSV(
-                rows.map((r) => ({
-                  Vendor: vendorNameById.get(r.vendorId) || "Unknown",
-                  Bills: r.billCount,
-                  Total: r.total,
-                  Paid: r.paid,
-                  Balance: r.balance,
-                  "Avg Days to Pay": r.avgDaysToPay ?? "",
-                })),
-                "vendor_balance_summary"
-              )
-            }
-          >
-            <Download className="size-4" /> Export CSV
-          </Button>
+          <ExportMenu
+            rows={rows.map((r) => ({
+              Vendor: vendorNameById.get(r.vendorId) || "Unknown",
+              Bills: r.billCount,
+              Total: r.total,
+              Paid: r.paid,
+              Balance: r.balance,
+              "Avg Days to Pay": r.avgDaysToPay ?? "",
+            }))}
+            filename="vendor_balance_summary"
+          />
         )
       }
     >

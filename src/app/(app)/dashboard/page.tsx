@@ -7,6 +7,8 @@ import { Plus, Scissors, UserPlus, TrendingUp, CreditCard, Users, ClipboardList,
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useDashboardLayout } from "@/hooks/use-dashboard-layout";
+import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
+import { isWidgetEnabled } from "@/lib/entitlements";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,17 +22,22 @@ export default function DashboardPage() {
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
   const { widgets: savedWidgets, isLoading: layoutLoading, save } = useDashboardLayout();
+  const { data: entitlements, isLoading: entitlementsLoading } = useModuleEntitlements();
 
   const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
   const initializedRef = useRef(false);
 
   useEffect(() => {
-    if (!layoutLoading && !initializedRef.current) {
-      setWidgets(savedWidgets);
+    if (!layoutLoading && entitlements && !initializedRef.current) {
+      // Entitlement-disabled builtin widgets are dropped from the editable set entirely — they
+      // can't be shown/hidden from the customize panel, and won't be re-persisted on save.
+      // reconcileLayout() silently re-adds them (visible, at the end) if the module is licensed
+      // back on later, so nothing is lost long-term.
+      setWidgets(savedWidgets.filter((w) => w.kind === "custom" || isWidgetEnabled(entitlements, w.builtinKey!)));
       initializedRef.current = true;
     }
-  }, [layoutLoading, savedWidgets]);
+  }, [layoutLoading, savedWidgets, entitlements]);
 
   function handleChange(next: WidgetInstance[]) {
     setWidgets(next);
@@ -93,7 +100,7 @@ export default function DashboardPage() {
         {user?.perms.manageManufacturing && <QuickAction href="/manufacturing/new" icon={CreditCard} label="New work order" />}
       </div>
 
-      {!initializedRef.current && layoutLoading ? (
+      {!initializedRef.current && (layoutLoading || entitlementsLoading) ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-24 w-full" />

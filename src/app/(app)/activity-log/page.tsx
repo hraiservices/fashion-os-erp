@@ -1,13 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Download, History, Wallet, Trash2, FilePlus2, ArrowRight, Pencil, Activity } from "lucide-react";
+import { Search, History, Wallet, Trash2, FilePlus2, ArrowRight, Pencil, Activity } from "lucide-react";
 import { useActivityLog } from "@/hooks/use-activity-log";
-import { exportCSV } from "@/lib/export";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
@@ -54,25 +53,17 @@ export default function ActivityLogPage() {
         description={`${filtered.length} recorded actions`}
         actions={
           filtered.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                exportCSV(
-                  filtered.map((l) => ({
-                    Time: l.created_at,
-                    User: l.user_email || "",
-                    Name: l.user_name || "",
-                    Action: l.action || "",
-                    OrderID: l.order_id || "",
-                    Details: l.details || "",
-                  })),
-                  "activity_log"
-                )
-              }
-            >
-              <Download className="size-4" /> Export CSV
-            </Button>
+            <ExportMenu
+              rows={filtered.map((l) => ({
+                Time: l.created_at,
+                User: l.user_email || "",
+                Name: l.user_name || "",
+                Action: l.action || "",
+                OrderID: l.order_id || "",
+                Details: l.details || "",
+              }))}
+              filename="activity_log"
+            />
           )
         }
       />

@@ -18,6 +18,7 @@ import type { CostSheetWithItems } from "@/hooks/use-cost-sheet";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,17 +62,16 @@ function LineItemsEditor({
             <Input className="col-span-4" placeholder="Item name" value={item.expense_name} onChange={(e) => update(i, { expense_name: e.target.value })} />
             {showQtyUnit && (
               <>
-                <Input className="col-span-2" type="number" min={0} placeholder="Qty" value={item.quantity} onChange={(e) => update(i, { quantity: parseFloat(e.target.value) || 0 })} />
+                <NumberInput className="col-span-2" min={0} placeholder="Qty" value={item.quantity} onChange={(v) => update(i, { quantity: v })} />
                 <Input className="col-span-2" placeholder="Unit" value={item.unit} onChange={(e) => update(i, { unit: e.target.value })} />
               </>
             )}
-            <Input
+            <NumberInput
               className={showQtyUnit ? "col-span-2" : "col-span-5"}
-              type="number"
               min={0}
               placeholder="Rate"
               value={item.rate}
-              onChange={(e) => update(i, { rate: parseFloat(e.target.value) || 0 })}
+              onChange={(v) => update(i, { rate: v })}
             />
             <div className="col-span-1 text-right text-sm">{inr(item.amount)}</div>
             <Button type="button" variant="ghost" size="sm" className="col-span-1" onClick={() => items.length > 1 && onChange(items.filter((_, j) => j !== i))}><X className="size-4" /></Button>
@@ -203,15 +203,14 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
                   setTailors(next);
                 }}
               />
-              <Input
+              <NumberInput
                 className="col-span-3"
-                type="number"
                 min={0}
                 placeholder="Charge"
                 value={t.tailor_charge}
-                onChange={(e) => {
+                onChange={(v) => {
                   const next = tailors.slice();
-                  next[i] = { ...next[i], tailor_charge: parseFloat(e.target.value) || 0 };
+                  next[i] = { ...next[i], tailor_charge: v };
                   setTailors(next);
                 }}
               />
@@ -243,12 +242,12 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
           {profit.mode === "percent" ? (
             <div className="space-y-2">
               <Label>Percent</Label>
-              <Input type="number" min={0} value={profit.percent} onChange={(e) => setProfit({ ...profit, percent: parseFloat(e.target.value) || 0 })} className="w-32" />
+              <NumberInput min={0} value={profit.percent} onChange={(v) => setProfit({ ...profit, percent: v })} className="w-32" />
             </div>
           ) : (
             <div className="space-y-2">
               <Label>Amount</Label>
-              <Input type="number" min={0} value={profit.amount} onChange={(e) => setProfit({ ...profit, amount: parseFloat(e.target.value) || 0 })} className="w-32" />
+              <NumberInput min={0} value={profit.amount} onChange={(v) => setProfit({ ...profit, amount: v })} className="w-32" />
             </div>
           )}
           <div className="ml-auto space-y-1 text-right">

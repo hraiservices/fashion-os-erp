@@ -1,12 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { PieChart, Download } from "lucide-react";
+import { PieChart } from "lucide-react";
 import { useExpenses } from "@/hooks/use-expenses";
 import { inr } from "@/lib/format";
-import { exportCSV } from "@/lib/export";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
-import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -35,13 +34,10 @@ export default function ExpensesByCategoryPage() {
       description="Where expense spend goes, grouped by category."
       actions={
         rows.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => exportCSV(rows.map((r) => ({ Category: r.category, "Expense Count": r.count, Total: r.total, "% of Total": r.pct.toFixed(1) })), "expenses_by_category")}
-          >
-            <Download className="size-4" /> Export CSV
-          </Button>
+          <ExportMenu
+            rows={rows.map((r) => ({ Category: r.category, "Expense Count": r.count, Total: r.total, "% of Total": r.pct.toFixed(1) }))}
+            filename="expenses_by_category"
+          />
         )
       }
     >

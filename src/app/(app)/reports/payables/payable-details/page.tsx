@@ -2,13 +2,12 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { Wallet, Download } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
 import { inr, fmtDate } from "@/lib/format";
-import { exportCSV } from "@/lib/export";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
-import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -30,18 +29,10 @@ export default function PayableDetailsPage() {
       description="Every bill with an outstanding balance, ranked by amount owed."
       actions={
         rows.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              exportCSV(
-                rows.map((b) => ({ Bill: b.billNumber, Vendor: vendorNameById.get(b.vendorId) || "", "Bill Date": b.billDate, "Due Date": b.dueDate || "", Total: b.total, Balance: b.balance })),
-                "payable_details"
-              )
-            }
-          >
-            <Download className="size-4" /> Export CSV
-          </Button>
+          <ExportMenu
+            rows={rows.map((b) => ({ Bill: b.billNumber, Vendor: vendorNameById.get(b.vendorId) || "", "Bill Date": b.billDate, "Due Date": b.dueDate || "", Total: b.total, Balance: b.balance }))}
+            filename="payable_details"
+          />
         )
       }
     >

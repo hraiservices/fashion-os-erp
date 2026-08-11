@@ -58,8 +58,8 @@ export default function ManufacturingPage() {
             key={f.value}
             onClick={() => setFilter(f.value)}
             className={cn(
-              "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-              filter === f.value ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
+              "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
+              filter === f.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
             {f.label}

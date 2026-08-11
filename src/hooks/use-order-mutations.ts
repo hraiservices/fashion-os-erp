@@ -25,6 +25,7 @@ interface CreateOrderInput {
   videos?: string[];
   usePoints?: boolean;
   orderType?: "new" | "alteration";
+  paymentMethod?: string;
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -37,7 +38,7 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
 export function useCreateOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateOrderInput) => postJson<{ order: Order; ptDiscount: number }>("/api/orders", input),
+    mutationFn: (input: CreateOrderInput) => postJson<{ order: Order; ptDiscount: number; limitWarning?: string }>("/api/orders", input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["customers"] });

@@ -2,14 +2,13 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { FileMinus, Download } from "lucide-react";
+import { FileMinus } from "lucide-react";
 import { useSalesCreditNotes } from "@/hooks/use-sales-credit-notes";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { inr, fmtDate } from "@/lib/format";
-import { exportCSV } from "@/lib/export";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
-import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -30,25 +29,17 @@ export default function CreditNoteDetailsPage() {
       description="Every credit note issued against a Product Sales invoice — used to reduce a customer's balance without a cash refund."
       actions={
         rows.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              exportCSV(
-                rows.map((c) => ({
-                  "Credit#": c.creditNumber,
-                  Date: c.date,
-                  Customer: invoiceById.get(c.invoiceId)?.customerName || "",
-                  Invoice: invoiceById.get(c.invoiceId)?.invoiceNumber || "",
-                  Amount: c.total,
-                  Reason: c.reason,
-                })),
-                "credit_note_details"
-              )
-            }
-          >
-            <Download className="size-4" /> Export CSV
-          </Button>
+          <ExportMenu
+            rows={rows.map((c) => ({
+              "Credit#": c.creditNumber,
+              Date: c.date,
+              Customer: invoiceById.get(c.invoiceId)?.customerName || "",
+              Invoice: invoiceById.get(c.invoiceId)?.invoiceNumber || "",
+              Amount: c.total,
+              Reason: c.reason,
+            }))}
+            filename="credit_note_details"
+          />
         )
       }
     >

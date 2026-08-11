@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, SETTINGS_GROUP, settingsLeafVisible } from "@/components/app-shell/nav-config";
+import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, resolveReportSection, SETTINGS_GROUP, settingsLeafVisible } from "@/components/app-shell/nav-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useOrders } from "@/hooks/use-orders";
+import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
+import { isReportEnabled, isSettingEnabled } from "@/lib/entitlements";
 import { STAGE_META } from "@/lib/business-rules";
 
 /**
@@ -17,17 +19,22 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   const router = useRouter();
   const { data: user } = useCurrentUser();
   const { data: orders } = useOrders();
+  const { data: entitlements } = useModuleEntitlements();
   const restricted = !!user?.restricted;
   const isAdmin = user?.role === "admin";
+  const isSuperAdmin = !!user?.isSuperAdmin;
 
   const pages = useMemo(() => {
     const flat = [...PRIMARY_NAV, ...SECONDARY_NAV].filter((i) => !(restricted && i.restricted)).map((i) => ({ href: i.href, label: i.label }));
-    const reports = restricted ? [] : REPORTS_GROUP.children.map((c) => ({ href: c.href, label: `Reports · ${c.label}` }));
+    const reports =
+      restricted || !entitlements
+        ? []
+        : REPORTS_GROUP.children.filter((c) => isReportEnabled(entitlements, c.href, resolveReportSection(c.href))).map((c) => ({ href: c.href, label: `Reports · ${c.label}` }));
     const settings = SETTINGS_GROUP.children
-      .filter((c) => settingsLeafVisible(c.href, isAdmin, !restricted))
+      .filter((c) => settingsLeafVisible(c.href, isAdmin, !restricted, isSuperAdmin) && (isSuperAdmin || !entitlements || isSettingEnabled(entitlements, c.href)))
       .map((c) => ({ href: c.href, label: `Settings · ${c.label}` }));
     return { flat, reports, settings };
-  }, [restricted, isAdmin]);
+  }, [restricted, isAdmin, isSuperAdmin, entitlements]);
 
   function go(href: string) {
     onOpenChange(false);

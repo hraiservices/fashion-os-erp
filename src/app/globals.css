@@ -501,3 +501,73 @@
     display: table-header-group;
   }
 }
+
+/* Login screen — animated aurora background blobs + logo float/glow. Scoped to their own
+   classes rather than generic names so they can't accidentally collide with anything else. */
+@keyframes login-blob-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(4%, -6%) scale(1.08); }
+  66% { transform: translate(-3%, 4%) scale(0.95); }
+}
+@keyframes login-logo-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes login-logo-glow {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.12); }
+}
+@keyframes login-card-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-login-blob {
+  animation: login-blob-drift 16s ease-in-out infinite;
+}
+.animate-login-blob-slow {
+  animation: login-blob-drift 22s ease-in-out infinite reverse;
+}
+.animate-login-logo-float {
+  animation: login-logo-float 4.5s ease-in-out infinite;
+}
+.animate-login-logo-glow {
+  animation: login-logo-glow 3s ease-in-out infinite;
+}
+.animate-login-card-in {
+  animation: login-card-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-login-blob,
+  .animate-login-blob-slow,
+  .animate-login-logo-float,
+  .animate-login-logo-glow,
+  .animate-login-card-in {
+    animation: none;
+  }
+}
+
+/* Hides the scrollbar on an overflow-x-auto row while keeping it fully scrollable by touch/drag
+   — for horizontal pill/tab rails where the visible scrollbar track reads as clutter. */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Report tables (src/components/reports/report-shell.tsx `ReportTable`) commonly run 4-12
+   columns wide — real horizontal scroll is expected/fine on desktop, but on a phone it's easy
+   to scroll the row's identifying first column (name/date) out of view and lose track of what
+   you're looking at. Below `sm`, pin just that first column in place while the rest scrolls —
+   applies to every /reports/* page automatically, no per-page changes needed. */
+@media (max-width: 639px) {
+  .report-table-pinned th:first-child,
+  .report-table-pinned td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--card);
+    box-shadow: 1px 0 0 0 var(--border);
+  }
+}

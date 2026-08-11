@@ -5,11 +5,13 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronRight, ChevronDown, Plus, Scissors } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PRIMARY_NAV, SECONDARY_NAV, MANUFACTURING_NAV_ITEM, COPILOT_NAV_ITEM, POS_NAV_ITEM, settingsLeafVisible, type NavGroup, type NavLeaf, type NavFlatItem } from "@/components/app-shell/nav-config";
+import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, resolveReportSection, MANUFACTURING_NAV_ITEM, COPILOT_NAV_ITEM, POS_NAV_ITEM, settingsLeafVisible, type NavGroup, type NavLeaf, type NavFlatItem } from "@/components/app-shell/nav-config";
 import { resolveNavLayout, DEFAULT_NAV_LAYOUT, type NavLayoutSetting } from "@/lib/nav-layout";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
+import { isModuleEnabled, isReportEnabled, isSettingEnabled } from "@/lib/entitlements";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
@@ -225,12 +227,14 @@ function NavContentInner({ onNavigate }: { onNavigate?: () => void }) {
   const searchParams = useSearchParams();
   const { data: user, isLoading } = useCurrentUser();
   const { data: savedLayout, isLoading: layoutLoading } = useAppSetting<NavLayoutSetting>("navLayout", DEFAULT_NAV_LAYOUT);
+  const { data: entitlements, isLoading: entitlementsLoading } = useModuleEntitlements();
 
   const isAdmin = user?.role === "admin";
   const canManageShop = !user?.restricted;
   const restricted = !!user?.restricted;
+  const isSuperAdmin = !!user?.isSuperAdmin;
 
-  if (isLoading || layoutLoading) {
+  if (isLoading || layoutLoading || entitlementsLoading || !entitlements) {
     return (
       <div className="space-y-1.5 px-3">
         {Array.from({ length: 7 }).map((_, i) => (
@@ -247,23 +251,24 @@ function NavContentInner({ onNavigate }: { onNavigate?: () => void }) {
   function rootVisible(node: (typeof roots)[number]): boolean {
     if (node.kind === "flat") {
       if (node.item.href === MANUFACTURING_NAV_ITEM.href) return !!user?.perms.manageManufacturing;
-      if (node.item.href === COPILOT_NAV_ITEM.href) return !!user?.perms.useChatbot;
-      if (node.item.href === POS_NAV_ITEM.href) return !!user?.perms.usePOS;
+      if (node.item.href === COPILOT_NAV_ITEM.href) return !!user?.perms.useChatbot && isModuleEnabled(entitlements!, "copilot");
+      if (node.item.href === POS_NAV_ITEM.href) return !!user?.perms.usePOS && isModuleEnabled(entitlements!, "pos");
       if (SECONDARY_NAV.some((i) => i.href === node.item.href)) return !restricted;
       return !(restricted && node.item.restricted);
     }
     switch (node.group.id) {
       case "reports":
+        return !restricted && isModuleEnabled(entitlements!, "reports") && REPORTS_GROUP.children.some((c) => isReportEnabled(entitlements!, c.href, resolveReportSection(c.href)));
       case "expenses":
-        return !restricted;
+        return !restricted && isModuleEnabled(entitlements!, "expenses");
       case "sales":
-        return !!user?.perms.manageSales;
+        return !!user?.perms.manageSales && isModuleEnabled(entitlements!, "sales");
       case "inventory":
-        return !!user?.perms.manageInventory;
+        return !!user?.perms.manageInventory && isModuleEnabled(entitlements!, "inventory");
       case "purchases":
-        return !!user?.perms.managePurchases;
+        return !!user?.perms.managePurchases && isModuleEnabled(entitlements!, "purchases");
       case "employees":
-        return !!user?.perms.manageEmployees;
+        return !!user?.perms.manageEmployees && isModuleEnabled(entitlements!, "employees");
       case "settings":
         return true;
       default:
@@ -284,7 +289,11 @@ function NavContentInner({ onNavigate }: { onNavigate?: () => void }) {
             group={node.group}
             childrenOverride={node.children}
             pathname={pathname}
-            filterLeaf={node.group.id === "settings" ? (href) => settingsLeafVisible(href, isAdmin, canManageShop) : undefined}
+            filterLeaf={
+              node.group.id === "settings"
+                ? (href) => settingsLeafVisible(href, isAdmin, canManageShop, isSuperAdmin) && (isSuperAdmin || isSettingEnabled(entitlements!, href))
+                : undefined
+            }
             onNavigate={onNavigate}
           />
         )
@@ -305,7 +314,7 @@ export function NavBrand() {
           <Scissors className="size-4" />
         </span>
       )}
-      <span className="truncate text-[15px] font-semibold tracking-tight">{shop?.name || "Stitch Manager"}</span>
+      <span className="truncate text-[15px] font-semibold tracking-tight">{shop?.name || "Fashion Flow"}</span>
     </div>
   );
 }

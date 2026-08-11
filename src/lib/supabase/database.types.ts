@@ -132,6 +132,38 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["app_settings"]["Row"]>;
         Relationships: [];
       };
+      push_subscriptions: {
+        Row: {
+          id: string;
+          email: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["push_subscriptions"]["Row"]> & {
+          email: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["push_subscriptions"]["Row"]>;
+        Relationships: [];
+      };
+      billing_events: {
+        Row: {
+          id: string;
+          event_type: string;
+          razorpay_payload: Json;
+          processed_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["billing_events"]["Row"]> & {
+          event_type: string;
+          razorpay_payload: Json;
+        };
+        Update: Partial<Database["public"]["Tables"]["billing_events"]["Row"]>;
+        Relationships: [];
+      };
       activity_log: {
         Row: {
           id: number;
@@ -851,6 +883,10 @@ export interface Database {
           p_ref_id: string;
           p_rows: Json;
         };
+        Returns: undefined;
+      };
+      set_module_entitlements: {
+        Args: { p_value: Json };
         Returns: undefined;
       };
     };

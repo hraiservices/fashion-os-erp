@@ -3,14 +3,14 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Receipt, ChevronRight, Download, Trash2 } from "lucide-react";
+import { Plus, Receipt, ChevronRight, Trash2 } from "lucide-react";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDeleteBill } from "@/hooks/use-purchase-mutations";
 import { useRowSelection } from "@/hooks/use-row-selection";
 import { inr, fmtDate } from "@/lib/format";
-import { exportCSV } from "@/lib/export";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { BILL_STATUS_LABELS } from "@/lib/purchases";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -53,19 +53,14 @@ export default function PurchaseBillsPage() {
     else toast.success(`${selectedBills.length} bill(s) deleted — stock reverted`);
   }
 
-  function bulkExport() {
-    exportCSV(
-      selectedBills.map((b) => ({
-        Bill: b.billNumber,
-        Date: b.billDate,
-        Vendor: vendorNameById.get(b.vendorId) || "",
-        Total: b.total,
-        Balance: b.balance,
-        Status: BILL_STATUS_LABELS[b.paymentStatus],
-      })),
-      "bills_export"
-    );
-  }
+  const bulkExportRows = selectedBills.map((b) => ({
+    Bill: b.billNumber,
+    Date: b.billDate,
+    Vendor: vendorNameById.get(b.vendorId) || "",
+    Total: b.total,
+    Balance: b.balance,
+    Status: BILL_STATUS_LABELS[b.paymentStatus],
+  }));
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
@@ -85,9 +80,7 @@ export default function PurchaseBillsPage() {
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
           <span className="text-sm font-medium">{selection.count} selected</span>
           <div className="ml-auto flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={bulkExport} disabled={bulkBusy}>
-              <Download className="size-3.5" /> Export CSV
-            </Button>
+            <ExportMenu rows={bulkExportRows} filename="bills_export" disabled={bulkBusy} />
             <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
               <Trash2 className="size-3.5" /> Delete
             </Button>

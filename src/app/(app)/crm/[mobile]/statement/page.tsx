@@ -106,8 +106,8 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
               type="button"
               onClick={() => setTypeFilter(v)}
               className={cn(
-                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                typeFilter === v ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
+                "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
+                typeFilter === v ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
               {v === "all" ? "All" : v === "stitching" ? "Stitching Orders" : "Product Sales"}

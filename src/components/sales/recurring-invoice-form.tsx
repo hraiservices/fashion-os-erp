@@ -32,6 +32,11 @@ function placeholderCustomer(name: string, mobile: string): Customer {
   return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms: "due_on_receipt", priceListId: null, tags: [], gstin: "" };
 }
 
+/** Renders blank (with the input's own "0" placeholder) instead of a literal typed "0" for fields where zero and "not entered" should look the same. */
+function blankIfZero(n: number | null | undefined): string {
+  return n ? String(n) : "";
+}
+
 export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoiceProfile }) {
   const router = useRouter();
   const { data: user } = useCurrentUser();
@@ -47,14 +52,14 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
   const [subject, setSubject] = useState(existing?.subject || "");
   const [lines, setLines] = useState<EditableSalesLine[]>(
     existing
-      ? existing.items.map((item, i) => ({ key: `existing-${i}`, productId: item.productId, qty: String(item.qty), unitPrice: String(item.unitPrice), discountPercent: String(item.discountPercent || 0) }))
+      ? existing.items.map((item, i) => ({ key: `existing-${i}`, productId: item.productId, qty: String(item.qty), unitPrice: String(item.unitPrice), discountPercent: blankIfZero(item.discountPercent) }))
       : [blankSalesLine()]
   );
   const [gstType, setGstType] = useState<GstType>(existing?.gstType || "none");
   const [taxRate, setTaxRate] = useState(String(existing?.taxRate ?? 5));
-  const [shippingCharges, setShippingCharges] = useState(String(existing?.shippingCharges ?? 0));
+  const [shippingCharges, setShippingCharges] = useState(blankIfZero(existing?.shippingCharges));
   const [discountType, setDiscountType] = useState<DiscountType>(existing?.discountType || "flat");
-  const [discountValue, setDiscountValue] = useState(String(existing?.discountValue ?? 0));
+  const [discountValue, setDiscountValue] = useState(blankIfZero(existing?.discountValue));
   const [terms, setTerms] = useState(existing?.terms ?? defaultTerms ?? "");
   const [notes, setNotes] = useState(existing?.notes || "");
 

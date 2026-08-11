@@ -1,12 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { Users, Download } from "lucide-react";
+import { Users } from "lucide-react";
 import { useExpenses } from "@/hooks/use-expenses";
 import { inr } from "@/lib/format";
-import { exportCSV } from "@/lib/export";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
-import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -34,9 +33,7 @@ export default function ExpensesByEmployeePage() {
       description="Expense totals grouped by the user who recorded each one."
       actions={
         rows.length > 0 && (
-          <Button variant="outline" size="sm" onClick={() => exportCSV(rows.map((r) => ({ User: r.user, "Expense Count": r.count, Total: r.total })), "expenses_by_employee")}>
-            <Download className="size-4" /> Export CSV
-          </Button>
+          <ExportMenu rows={rows.map((r) => ({ User: r.user, "Expense Count": r.count, Total: r.total }))} filename="expenses_by_employee" />
         )
       }
     >

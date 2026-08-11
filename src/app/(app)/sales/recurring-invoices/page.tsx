@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 
 export default function RecurringInvoicesPage() {
   const { data: user } = useCurrentUser();
@@ -88,7 +89,7 @@ export default function RecurringInvoicesPage() {
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border">
+        <div className="hidden overflow-hidden rounded-xl border sm:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -149,6 +150,48 @@ export default function RecurringInvoicesPage() {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {!isLoading && profiles && profiles.length > 0 && (
+        <MobileRecordList>
+          {profiles.map((p) => {
+            const ended = recurringProfileHasEnded(p);
+            const due = recurringProfileIsDue(p);
+            const total = p.items.reduce((s, i) => s + i.amount, 0);
+            return (
+              <MobileRecordCard key={p.id}>
+                <MobileRecordHeader title={p.name} subtitle={p.customerName} value={inr(total)} showChevron={false} />
+                <MobileRecordRow label="Mobile" value={p.customerMobile} />
+                <MobileRecordRow label="Frequency" value={RECURRING_FREQUENCY_LABELS[p.frequency]} />
+                <MobileRecordRow
+                  label="Next run"
+                  value={fmtDate(p.nextRunDate)}
+                  valueClassName={due ? "font-medium text-amber-700 dark:text-amber-400" : "text-muted-foreground"}
+                />
+                <MobileRecordRow
+                  label="Status"
+                  value={ended ? <Badge variant="outline">Ended</Badge> : p.active ? <Badge variant="secondary">Active</Badge> : <Badge variant="outline">Paused</Badge>}
+                />
+                {canManage && (
+                  <div className="flex justify-end gap-1 pt-1">
+                    <Button variant="outline" size="sm" onClick={() => handleGenerateNow(p)} disabled={generateNow.isPending || ended}>
+                      Generate now
+                    </Button>
+                    <Button variant="ghost" size="icon-sm" onClick={() => handleToggleActive(p.id, p.active)} disabled={ended} aria-label={p.active ? "Pause" : "Resume"}>
+                      {p.active ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+                    </Button>
+                    <Button variant="ghost" size="icon-sm" nativeButton={false} render={<Link href={`/sales/recurring-invoices/${p.id}/edit`} />} aria-label="Edit">
+                      <Pencil className="size-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(p.id, p.name)} aria-label="Delete">
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </MobileRecordCard>
+            );
+          })}
+        </MobileRecordList>
       )}
     </div>
   );

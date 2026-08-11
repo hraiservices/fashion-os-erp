@@ -13,8 +13,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Per-deployment white-labeling: since each customer already runs a separate deployment (see
+// src/lib/entitlements.ts's architecture notes), the app name is a build-time env var rather
+// than a runtime Supabase read — avoids converting this static metadata export into an async
+// generateMetadata(). Favicon/theme-color are swapped per-deployment at the file level instead
+// (public/icon*.svg, viewport.themeColor below) — see docs/module-licensing-runbook.md.
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Fashion Flow";
+
 export const metadata: Metadata = {
-  title: "Stitching Manager Pro",
+  title: APP_NAME,
   description: "Tailoring shop management — orders, CRM, billing, reports.",
   manifest: "/manifest.json",
   icons: {
@@ -24,7 +31,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "StitchPro",
+    title: APP_NAME,
   },
 };
 

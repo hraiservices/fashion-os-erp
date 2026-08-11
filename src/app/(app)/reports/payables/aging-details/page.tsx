@@ -2,14 +2,13 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { Wallet, Download } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
 import { daysLeft } from "@/lib/business-rules";
 import { inr, fmtDate } from "@/lib/format";
-import { exportCSV } from "@/lib/export";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
-import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -35,24 +34,16 @@ export default function ApAgingDetailsPage() {
       description="Every outstanding bill, ranked by how overdue it is."
       actions={
         rows.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              exportCSV(
-                rows.map((b) => ({
-                  Bill: b.billNumber,
-                  Vendor: vendorNameById.get(b.vendorId) || "",
-                  "Due Date": b.dueDate || "",
-                  Balance: b.balance,
-                  "Days Overdue": b.daysOverdue,
-                })),
-                "ap_aging_details"
-              )
-            }
-          >
-            <Download className="size-4" /> Export CSV
-          </Button>
+          <ExportMenu
+            rows={rows.map((b) => ({
+              Bill: b.billNumber,
+              Vendor: vendorNameById.get(b.vendorId) || "",
+              "Due Date": b.dueDate || "",
+              Balance: b.balance,
+              "Days Overdue": b.daysOverdue,
+            }))}
+            filename="ap_aging_details"
+          />
         )
       }
     >

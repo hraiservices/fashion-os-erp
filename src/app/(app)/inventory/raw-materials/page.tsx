@@ -10,6 +10,7 @@ import { useDeleteRawMaterial } from "@/hooks/use-inventory-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { isLowStock } from "@/lib/inventory";
 import { inr } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -97,7 +99,7 @@ function RawMaterialsPageContent() {
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border">
+        <div className="hidden overflow-hidden rounded-xl border sm:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -161,6 +163,28 @@ function RawMaterialsPageContent() {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {!isLoading && filtered.length > 0 && (
+        <MobileRecordList>
+          {filtered.map((m) => {
+            const low = isLowStock(m.stockQty, m.lowStockAlert);
+            return (
+              <MobileRecordCard key={m.id} onClick={canManage ? () => openEdit(m) : undefined}>
+                <MobileRecordHeader title={m.name} subtitle={m.category || undefined} value={inr(m.costPerUnit)} showChevron={canManage} />
+                <MobileRecordRow
+                  label="Stock"
+                  value={
+                    <span className={cn("inline-flex items-center gap-1", low && "font-medium text-amber-700 dark:text-amber-400")}>
+                      {low && <AlertTriangle className="size-3.5 text-amber-600 dark:text-amber-400" />}
+                      {m.stockQty} {m.unitName}
+                    </span>
+                  }
+                />
+              </MobileRecordCard>
+            );
+          })}
+        </MobileRecordList>
       )}
 
     </div>

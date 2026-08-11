@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { CheckCircle2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { useCompleteWorkOrder } from "@/hooks/use-work-order-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { computeWoCost, type WorkOrderMaterial } from "@/lib/manufacturing";
@@ -88,23 +88,21 @@ export function CompleteWorkOrderDialog({ open, onOpenChange, wo }: { open: bool
                       </td>
                       <td className="p-2 text-right tabular-nums text-muted-foreground">{r.qtyPlanned}</td>
                       <td className="p-2 text-right">
-                        <Input
-                          type="number"
+                        <NumberInput
                           min={0}
                           step="0.001"
                           className="w-20 text-right"
                           value={r.qtyUsed ?? 0}
-                          onChange={(e) => updateRow(r.rawMaterialId, { qtyUsed: parseFloat(e.target.value) || 0 })}
+                          onChange={(v) => updateRow(r.rawMaterialId, { qtyUsed: v })}
                         />
                       </td>
                       <td className="p-2 text-right">
-                        <Input
-                          type="number"
+                        <NumberInput
                           min={0}
                           step="0.001"
                           className="w-20 text-right"
                           value={r.qtyWasted ?? 0}
-                          onChange={(e) => updateRow(r.rawMaterialId, { qtyWasted: parseFloat(e.target.value) || 0 })}
+                          onChange={(v) => updateRow(r.rawMaterialId, { qtyWasted: v })}
                         />
                       </td>
                     </tr>

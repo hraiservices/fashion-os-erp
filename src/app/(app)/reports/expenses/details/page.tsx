@@ -1,14 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Wallet, Download, Search } from "lucide-react";
+import { Wallet, Search } from "lucide-react";
 import { useExpenses } from "@/hooks/use-expenses";
 import { inr, fmtDate } from "@/lib/format";
-import { exportCSV } from "@/lib/export";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -33,18 +32,10 @@ export default function ExpenseDetailsPage() {
       description="Every expense logged, with category, method, and who recorded it."
       actions={
         rows.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              exportCSV(
-                rows.map((e) => ({ Date: e.date, Category: e.category, Description: e.description, Amount: e.amount, Method: e.payMethod, "Recorded By": e.createdBy || "" })),
-                "expense_details"
-              )
-            }
-          >
-            <Download className="size-4" /> Export CSV
-          </Button>
+          <ExportMenu
+            rows={rows.map((e) => ({ Date: e.date, Category: e.category, Description: e.description, Amount: e.amount, Method: e.payMethod, "Recorded By": e.createdBy || "" }))}
+            filename="expense_details"
+          />
         )
       }
     >

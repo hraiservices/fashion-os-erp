@@ -1,15 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Download, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { buildWhatsAppUrl } from "@/lib/business-rules";
-import { exportCSV } from "@/lib/export";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
@@ -34,18 +33,10 @@ export default function BalanceAgingPage() {
       description={aging.length > 0 ? `${inr(totalDue)} outstanding across ${aging.length} orders` : undefined}
       actions={
         aging.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              exportCSV(
-                aging.map((o) => ({ Order: o.id, Name: o.name, Mobile: o.mobile, Balance: o.balance, Band: o.agingBand, DaysOverdue: o.daysOver })),
-                "balance_aging"
-              )
-            }
-          >
-            <Download className="size-4" /> Export CSV
-          </Button>
+          <ExportMenu
+            rows={aging.map((o) => ({ Order: o.id, Name: o.name, Mobile: o.mobile, Balance: o.balance, Band: o.agingBand, DaysOverdue: o.daysOver }))}
+            filename="balance_aging"
+          />
         )
       }
     >

@@ -10,8 +10,10 @@ import type { Shop } from "@/lib/settings";
 
 /**
  * KanbanDesktop(), Stitching_Manager_Pro_v16.html ~line 6253.
- * Horizontal scroll is correct *here* (it's a board — users expect to swipe between
- * columns), with snap points so each column lands cleanly on touch devices.
+ * Desktop keeps the full multi-column horizontal-scroll board (users expect to swipe between
+ * columns there). On phone widths, seeing several partial columns side by side reads as
+ * confusing horizontal scroll rather than "a board" — so below `sm` this instead shows one
+ * stage at a time (picked via a row of tab pills) at full width, no sideways scrolling.
  */
 export function KanbanBoard({
   orders,
@@ -37,6 +39,7 @@ export function KanbanBoard({
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<Stage | null>(null);
+  const [mobileStage, setMobileStage] = useState<Stage>(STAGES[0]);
   // The state above drives rendering, but dragover can fire before React has flushed the
   // dragstart update — so the handlers read the id from this ref, which is set synchronously.
   const draggingRef = useRef<string | null>(null);
@@ -55,6 +58,71 @@ export function KanbanBoard({
     onSetStage?.(id, stage);
   }
 
+  function renderColumn(stage: Stage, className?: string) {
+    const meta = STAGE_META[stage];
+    const style = STAGE_STYLE[stage];
+    const Icon = style.icon;
+    const items = orders.filter((o) => o.status === stage);
+    return (
+      <section
+        key={stage}
+        className={className}
+        onDragOver={(e) => {
+          if (!dndEnabled || !draggingRef.current) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          setDropTarget(stage);
+        }}
+        onDragLeave={() => setDropTarget((t) => (t === stage ? null : t))}
+        onDrop={(e) => {
+          if (!dndEnabled) return;
+          e.preventDefault();
+          handleDrop(stage);
+        }}
+      >
+        <header className={cn("flex items-center gap-2 rounded-t-xl border border-b-0 px-3 py-2.5", style.surface)}>
+          <Icon className="size-4 shrink-0" />
+          <h2 className="flex-1 truncate text-sm font-semibold">{meta.label}</h2>
+          <span className="shrink-0 rounded-full bg-background/70 px-2 py-0.5 text-xs font-medium tabular-nums">{items.length}</span>
+        </header>
+        <div
+          className={cn(
+            "min-h-[6rem] space-y-2 rounded-b-xl border bg-muted/20 p-2 transition-colors",
+            dropTarget === stage && draggingId && "border-primary bg-primary/5 ring-1 ring-primary"
+          )}
+        >
+          {items.map((o) => (
+            <OrderCard
+              key={o.id}
+              order={o}
+              canChangeStage={canChangeStage}
+              onAdvance={onAdvance}
+              advancing={advancingId === o.id}
+              shop={shop}
+              onRecordPayment={onRecordPayment}
+              draggable={dndEnabled}
+              dragging={draggingId === o.id}
+              onDragStart={(e) => {
+                draggingRef.current = o.id;
+                setDraggingId(o.id);
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", o.id);
+              }}
+              onDragEnd={() => {
+                draggingRef.current = null;
+                setDraggingId(null);
+                setDropTarget(null);
+              }}
+            />
+          ))}
+          {items.length === 0 && (
+            <p className="py-6 text-center text-xs text-muted-foreground">{dropTarget === stage && draggingId ? "Drop here" : "Nothing here"}</p>
+          )}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-3">
@@ -64,71 +132,35 @@ export function KanbanBoard({
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{progressPct}% complete</span>
       </div>
 
-      <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 sm:mx-0 sm:snap-none sm:px-0">
-        {STAGES.map((stage) => {
-          const meta = STAGE_META[stage];
-          const style = STAGE_STYLE[stage];
-          const Icon = style.icon;
-          const items = orders.filter((o) => o.status === stage);
-          return (
-            <section
-              key={stage}
-              className="w-[17rem] shrink-0 snap-start sm:w-72"
-              onDragOver={(e) => {
-                if (!dndEnabled || !draggingRef.current) return;
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-                setDropTarget(stage);
-              }}
-              onDragLeave={() => setDropTarget((t) => (t === stage ? null : t))}
-              onDrop={(e) => {
-                if (!dndEnabled) return;
-                e.preventDefault();
-                handleDrop(stage);
-              }}
-            >
-              <header className={cn("flex items-center gap-2 rounded-t-xl border border-b-0 px-3 py-2.5", style.surface)}>
-                <Icon className="size-4 shrink-0" />
-                <h2 className="flex-1 truncate text-sm font-semibold">{meta.label}</h2>
-                <span className="shrink-0 rounded-full bg-background/70 px-2 py-0.5 text-xs font-medium tabular-nums">{items.length}</span>
-              </header>
-              <div
+      {/* Mobile: one stage at a time, picked via tab pills — no sideways-scrolling board. */}
+      <div className="sm:hidden">
+        <div className="scrollbar-hide -mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 pb-1">
+          {STAGES.map((stage) => {
+            const meta = STAGE_META[stage];
+            const count = orders.filter((o) => o.status === stage).length;
+            const active = stage === mobileStage;
+            return (
+              <button
+                key={stage}
+                type="button"
+                onClick={() => setMobileStage(stage)}
                 className={cn(
-                  "min-h-[6rem] space-y-2 rounded-b-xl border bg-muted/20 p-2 transition-colors",
-                  dropTarget === stage && draggingId && "border-primary bg-primary/5 ring-1 ring-primary"
+                  "flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
+                  active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
-                {items.map((o) => (
-                  <OrderCard
-                    key={o.id}
-                    order={o}
-                    canChangeStage={canChangeStage}
-                    onAdvance={onAdvance}
-                    advancing={advancingId === o.id}
-                    shop={shop}
-                    onRecordPayment={onRecordPayment}
-                    draggable={dndEnabled}
-                    dragging={draggingId === o.id}
-                    onDragStart={(e) => {
-                      draggingRef.current = o.id;
-                      setDraggingId(o.id);
-                      e.dataTransfer.effectAllowed = "move";
-                      e.dataTransfer.setData("text/plain", o.id);
-                    }}
-                    onDragEnd={() => {
-                      draggingRef.current = null;
-                      setDraggingId(null);
-                      setDropTarget(null);
-                    }}
-                  />
-                ))}
-                {items.length === 0 && (
-                  <p className="py-6 text-center text-xs text-muted-foreground">{dropTarget === stage && draggingId ? "Drop here" : "Nothing here"}</p>
-                )}
-              </div>
-            </section>
-          );
-        })}
+                {meta.label}
+                <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] tabular-nums", active ? "bg-primary-foreground/20" : "bg-muted")}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+        {renderColumn(mobileStage)}
+      </div>
+
+      {/* Desktop: full multi-column board, horizontal scroll expected here. */}
+      <div className="hidden gap-3 overflow-x-auto pb-4 sm:flex">
+        {STAGES.map((stage) => renderColumn(stage, "w-72 shrink-0"))}
       </div>
     </div>
   );

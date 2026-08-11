@@ -13,6 +13,7 @@ import {
 } from "@/lib/invoice-template";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -146,7 +147,7 @@ export function InvoiceTemplateSection() {
               key={t.id}
               type="button"
               onClick={() => setActiveId(t.id)}
-              className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${t.id === activeId ? "border-primary bg-primary/10" : ""}`}
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1 text-xs ${t.id === activeId ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted"}`}
             >
               {t.name}
               {t.id === setting.defaultId && <Star className="size-3 fill-current text-amber-500" />}
@@ -208,11 +209,10 @@ export function InvoiceTemplateSection() {
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Margin (pt)</label>
-            <Input
-              type="number"
+            <NumberInput
               min={0}
               value={active.margin}
-              onChange={(e) => updateActive({ margin: Number(e.target.value) || 0 })}
+              onChange={(v) => updateActive({ margin: v || 0 })}
             />
           </div>
         </div>
@@ -222,23 +222,23 @@ export function InvoiceTemplateSection() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Logo size (px)</label>
-              <Input type="number" min={16} max={200} value={active.logoWidth} onChange={(e) => updateActive({ logoWidth: Number(e.target.value) || 64 })} />
+              <NumberInput min={16} max={200} value={active.logoWidth} onChange={(v) => updateActive({ logoWidth: v || 64 })} />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Shop name size</label>
-              <Input type="number" min={8} max={40} value={active.shopNameFontSize} onChange={(e) => updateActive({ shopNameFontSize: Number(e.target.value) || 16 })} />
+              <NumberInput min={8} max={40} value={active.shopNameFontSize} onChange={(v) => updateActive({ shopNameFontSize: v || 16 })} />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">"INVOICE" title size</label>
-              <Input type="number" min={8} max={40} value={active.invoiceTitleFontSize} onChange={(e) => updateActive({ invoiceTitleFontSize: Number(e.target.value) || 18 })} />
+              <NumberInput min={8} max={40} value={active.invoiceTitleFontSize} onChange={(v) => updateActive({ invoiceTitleFontSize: v || 18 })} />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Customer name size</label>
-              <Input type="number" min={6} max={30} value={active.customerNameFontSize} onChange={(e) => updateActive({ customerNameFontSize: Number(e.target.value) || 11 })} />
+              <NumberInput min={6} max={30} value={active.customerNameFontSize} onChange={(v) => updateActive({ customerNameFontSize: v || 11 })} />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Invoice number size</label>
-              <Input type="number" min={6} max={30} value={active.invoiceNumberFontSize} onChange={(e) => updateActive({ invoiceNumberFontSize: Number(e.target.value) || 10 })} />
+              <NumberInput min={6} max={30} value={active.invoiceNumberFontSize} onChange={(v) => updateActive({ invoiceNumberFontSize: v || 10 })} />
             </div>
           </div>
           <div className="flex flex-wrap gap-4 pt-1">

@@ -3,6 +3,7 @@
 import { Fragment, useState } from "react";
 import { toast } from "sonner";
 import { useUserRoles, useSetUserRole, useRenameUserEmail, useSetUserPhone, type UserRoleRow } from "@/hooks/use-user-roles";
+import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -94,6 +95,7 @@ function RoleReferenceCard() {
 /** UsersSection(), Stitching_Manager_Pro_v16.html ~line 13397. Admin only. */
 export function UsersSection() {
   const { data: rows, isLoading } = useUserRoles();
+  const { data: entitlements } = useModuleEntitlements();
   const setRole = useSetUserRole();
   const renameEmail = useRenameUserEmail();
   const setPhone = useSetUserPhone();
@@ -108,10 +110,17 @@ export function UsersSection() {
 
   async function assignRole() {
     if (!newEmail.trim()) return toast.error("Enter email");
+    const isNewUser = !rows?.some((r) => r.email.toLowerCase() === newEmail.trim().toLowerCase());
     try {
       await setRole.mutateAsync({ email: newEmail.trim(), role: newRole });
       setNewEmail("");
       toast.success("Role assigned");
+      // Soft cap only — the assignment above already succeeded regardless of this check.
+      const maxStaff = entitlements?.limits?.maxStaffAccounts;
+      const newCount = (rows?.length || 0) + (isNewUser ? 1 : 0);
+      if (isNewUser && maxStaff != null && newCount >= maxStaff) {
+        toast.warning(`You've reached your plan's staff account limit (${newCount}/${maxStaff}). Contact us to upgrade.`);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
     }

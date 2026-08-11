@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -85,7 +85,7 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
 
         <div className="space-y-2">
           <Label>Amount received</Label>
-          <Input type="number" min={0} value={amount} onChange={(e) => setAmount(parseInt(e.target.value, 10) || 0)} />
+          <NumberInput min={0} value={amount} onChange={setAmount} />
         </div>
         <div className="space-y-2">
           <Label>Payment method</Label>

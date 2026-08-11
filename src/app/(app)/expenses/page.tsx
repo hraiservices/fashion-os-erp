@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -121,7 +122,8 @@ function ExpensesPageContent() {
         ) : !expenses?.length ? (
           <EmptyState icon={Wallet} title="No expenses yet" description="Add your first expense to start tracking costs." className="border-0" />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -190,6 +192,34 @@ function ExpensesPageContent() {
               </tbody>
             </table>
           </div>
+
+          <MobileRecordList className="p-2">
+            {expenses.map((e) => (
+              <MobileRecordCard key={e.id}>
+                <MobileRecordHeader title={e.category} subtitle={e.description || undefined} value={inr(e.amount)} showChevron={false} />
+                <MobileRecordRow label="Date" value={fmtDateShort(e.date)} />
+                <MobileRecordRow label="Method" value={e.payMethod} />
+                {canAdd && (
+                  <div className="flex items-center justify-end gap-1 pt-1">
+                    <Button variant="ghost" size="icon-sm" className="size-8 text-muted-foreground" nativeButton={false} render={<Link href={`/expenses/${e.id}/edit`} />} aria-label="Edit expense">
+                      <Pencil className="size-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="size-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleDelete(e.id)}
+                      disabled={deleteExpense.isPending}
+                      aria-label="Delete expense"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
+          </>
         )}
       </div>
 

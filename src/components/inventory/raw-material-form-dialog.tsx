@@ -9,6 +9,7 @@ import { Package } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { UnitPicker } from "@/components/inventory/unit-picker";
@@ -131,15 +132,15 @@ export function RawMaterialFormDialog({
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Stock & cost</p>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Cost per unit (₹)" error={errors.costPerUnit?.message}>
-                  <Input type="number" min={0} step="0.01" {...register("costPerUnit")} />
+                  <Controller control={control} name="costPerUnit" render={({ field }) => <NumberInput min={0} step="0.01" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
                 </Field>
                 <Field label="Low stock alert" error={errors.lowStockAlert?.message}>
-                  <Input type="number" min={0} step="0.01" {...register("lowStockAlert")} />
+                  <Controller control={control} name="lowStockAlert" render={({ field }) => <NumberInput min={0} step="0.01" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
                 </Field>
               </div>
               {!isEdit && (
                 <Field label="Opening stock" error={errors.openingStock?.message}>
-                  <Input type="number" min={0} step="0.01" placeholder="0" {...register("openingStock")} />
+                  <Controller control={control} name="openingStock" render={({ field }) => <NumberInput min={0} step="0.01" value={field.value ?? 0} onChange={field.onChange} onBlur={field.onBlur} />} />
                 </Field>
               )}
             </section>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import { ShoppingBag, Plus, X, ListTree, Printer } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -71,6 +72,7 @@ export function ProductFormDialog({
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema) as never,
@@ -164,7 +166,7 @@ export function ProductFormDialog({
                   <Input placeholder="e.g. Formalwear" {...register("category")} />
                 </Field>
                 <Field label="Tax rate (%)" error={errors.taxRate?.message}>
-                  <Input type="number" min={0} max={100} step="0.01" {...register("taxRate")} />
+                  <Controller control={control} name="taxRate" render={({ field }) => <NumberInput min={0} max={100} step={0.01} value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
                 </Field>
               </div>
               {isEdit && product?.barcode && (
@@ -184,17 +186,17 @@ export function ProductFormDialog({
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pricing & stock</p>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Selling price (₹)" error={errors.sellingPrice?.message}>
-                  <Input type="number" min={0} step="0.01" {...register("sellingPrice")} />
+                  <Controller control={control} name="sellingPrice" render={({ field }) => <NumberInput min={0} step={0.01} value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
                 </Field>
                 <Field label="Cost price (₹)" error={errors.costPrice?.message}>
-                  <Input type="number" min={0} step="0.01" placeholder="Optional — for margin tracking" {...register("costPrice")} />
+                  <Controller control={control} name="costPrice" render={({ field }) => <NumberInput min={0} step={0.01} placeholder="Optional — for margin tracking" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
                 </Field>
                 <Field label="Low stock alert" error={errors.lowStockAlert?.message}>
-                  <Input type="number" min={0} step="0.01" {...register("lowStockAlert")} />
+                  <Controller control={control} name="lowStockAlert" render={({ field }) => <NumberInput min={0} step={0.01} value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
                 </Field>
                 {!isEdit && (
                   <Field label="Opening stock" error={errors.openingStock?.message}>
-                    <Input type="number" min={0} step="0.01" placeholder="0" {...register("openingStock")} />
+                    <Controller control={control} name="openingStock" render={({ field }) => <NumberInput min={0} step={0.01} placeholder="0" value={field.value ?? 0} onChange={field.onChange} onBlur={field.onBlur} />} />
                   </Field>
                 )}
               </div>
@@ -242,7 +244,7 @@ export function ProductFormDialog({
                         value={row.qtyRequired}
                         onChange={(e) => updateBomRow(row.key, { qtyRequired: e.target.value })}
                       />
-                      <Button type="button" variant="ghost" size="icon-sm" onClick={() => removeBomRow(row.key)} aria-label="Remove material">
+                      <Button type="button" variant="ghost" size="icon-sm" className="size-9 sm:size-7" onClick={() => removeBomRow(row.key)} aria-label="Remove material">
                         <X className="size-3.5" />
                       </Button>
                     </div>

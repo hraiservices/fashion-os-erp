@@ -6,7 +6,7 @@ import { useAppSetting } from "@/hooks/use-app-setting";
 import { DEFAULT_LOYALTY_CONFIG, type LoyaltyConfig } from "@/lib/business-rules";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -31,7 +31,7 @@ export function LoyaltySection() {
   function field(key: keyof LoyaltyConfig) {
     return {
       value: lc[key] as number,
-      onChange: (e: React.ChangeEvent<HTMLInputElement>) => setLc({ ...lc, [key]: parseInt(e.target.value, 10) || 0 }),
+      onChange: (v: number) => setLc({ ...lc, [key]: v }),
     };
   }
 
@@ -51,23 +51,23 @@ export function LoyaltySection() {
           <CardContent className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Points earned per ₹100 spent</Label>
-              <Input type="number" min={1} {...field("earnPer100")} />
+              <NumberInput min={1} {...field("earnPer100")} />
             </div>
             <div className="space-y-2">
               <Label>Bonus pts on new order</Label>
-              <Input type="number" min={0} {...field("orderBonus")} />
+              <NumberInput min={0} {...field("orderBonus")} />
             </div>
             <div className="space-y-2">
               <Label>Bonus pts on delivery</Label>
-              <Input type="number" min={0} {...field("deliveryBonus")} />
+              <NumberInput min={0} {...field("deliveryBonus")} />
             </div>
             <div className="space-y-2">
               <Label>₹ discount per 100 pts redeemed</Label>
-              <Input type="number" min={1} {...field("redeemPer100pts")} />
+              <NumberInput min={1} {...field("redeemPer100pts")} />
             </div>
             <div className="space-y-2">
               <Label>Minimum pts to redeem</Label>
-              <Input type="number" min={0} {...field("minRedeem")} />
+              <NumberInput min={0} {...field("minRedeem")} />
             </div>
           </CardContent>
         )}
@@ -90,15 +90,15 @@ export function LoyaltySection() {
             </div>
             <div className="space-y-1 rounded-md bg-slate-50 p-3">
               <Label className="text-xs">Silver from</Label>
-              <Input type="number" min={1} {...field("tierSilver")} />
+              <NumberInput min={1} {...field("tierSilver")} />
             </div>
             <div className="space-y-1 rounded-md bg-amber-50 p-3">
               <Label className="text-xs">Gold from</Label>
-              <Input type="number" min={1} {...field("tierGold")} />
+              <NumberInput min={1} {...field("tierGold")} />
             </div>
             <div className="col-span-3 space-y-1 rounded-md bg-zinc-100 p-3">
               <Label className="text-xs">Platinum from</Label>
-              <Input type="number" min={1} className="max-w-40" {...field("tierPlatinum")} />
+              <NumberInput min={1} className="max-w-40" {...field("tierPlatinum")} />
             </div>
           </CardContent>
           <CardContent className="pt-0">

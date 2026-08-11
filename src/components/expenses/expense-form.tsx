@@ -10,6 +10,7 @@ import { useCreateExpense, useUpdateExpense } from "@/hooks/use-expenses";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -88,7 +89,11 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs font-medium">Amount (₹)</Label>
-                <Input type="number" step="0.01" placeholder="0.00" {...register("amount")} />
+                <Controller
+                  control={control}
+                  name="amount"
+                  render={({ field }) => <NumberInput step={0.01} placeholder="0.00" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
+                />
                 {errors.amount && <p className="text-xs text-destructive">{errors.amount.message}</p>}
               </div>
               <div className="space-y-1">

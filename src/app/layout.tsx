@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 // than a runtime Supabase read — avoids converting this static metadata export into an async
 // generateMetadata(). Favicon/theme-color are swapped per-deployment at the file level instead
 // (public/icon*.svg, viewport.themeColor below) — see docs/module-licensing-runbook.md.
-const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Stitching Manager Pro";
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Fashion Flow";
 
 export const metadata: Metadata = {
   title: APP_NAME,

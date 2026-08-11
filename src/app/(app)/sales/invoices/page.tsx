@@ -25,6 +25,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
@@ -302,7 +303,7 @@ export default function SalesInvoicesPage() {
       ) : filtered.length === 0 ? (
         <EmptyState icon={Search} title="No invoices match your search" />
       ) : (
-        <div className="overflow-hidden rounded-xl border">
+        <div className="hidden overflow-hidden rounded-xl border sm:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -406,6 +407,33 @@ export default function SalesInvoicesPage() {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {!isLoading && invoices && invoices.length > 0 && filtered.length > 0 && (
+        <MobileRecordList>
+          {filtered.map((inv) => {
+            const badge = invoiceDueBadge(inv.dueDate, inv.paymentStatus);
+            return (
+              <MobileRecordCard key={inv.id} href={`/sales/invoices/${inv.id}`}>
+                <MobileRecordHeader
+                  title={inv.customerName}
+                  subtitle={inv.customerMobile}
+                  value={<BalanceDue amount={inv.balance} paidLabel="" />}
+                />
+                <MobileRecordRow label="Invoice#" value={inv.invoiceNumber} />
+                <MobileRecordRow label="Date" value={fmtDate(inv.invoiceDate)} />
+                <MobileRecordRow label="Quote#" value={inv.quoteId ? quoteNumberById.get(inv.quoteId) || "—" : "—"} />
+                <MobileRecordRow label="Amount" value={inr(inv.total)} />
+                <MobileRecordRow label="Due Date" value={inv.dueDate ? fmtDate(inv.dueDate) : "—"} />
+                <MobileRecordRow label="Doc" value={<Badge variant="outline">{DOC_STATUS_LABELS[inv.docStatus]}</Badge>} />
+                <MobileRecordRow
+                  label="Status"
+                  value={<span className={cn("text-xs font-medium uppercase tracking-wide", TONE_CLASS[badge.tone])}>{badge.text}</span>}
+                />
+              </MobileRecordCard>
+            );
+          })}
+        </MobileRecordList>
       )}
 
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>

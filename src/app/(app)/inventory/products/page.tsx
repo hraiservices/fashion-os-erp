@@ -16,10 +16,12 @@ import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,17 +39,17 @@ import type { Product } from "@/lib/types";
 function EditablePrice({ product, canEdit, userEmail }: { product: Product; canEdit: boolean; userEmail?: string }) {
   const quickUpdate = useQuickUpdateProduct();
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(String(product.sellingPrice));
+  const [value, setValue] = useState(product.sellingPrice);
 
   function startEdit() {
     if (!canEdit) return;
-    setValue(String(product.sellingPrice));
+    setValue(product.sellingPrice);
     setEditing(true);
   }
 
   async function commit() {
     setEditing(false);
-    const num = parseFloat(value);
+    const num = value;
     if (Number.isNaN(num) || num < 0 || num === product.sellingPrice) return;
     try {
       await quickUpdate.mutateAsync({ id: product.id, sellingPrice: num, userEmail, name: product.name });
@@ -72,14 +74,13 @@ function EditablePrice({ product, canEdit, userEmail }: { product: Product; canE
   }
 
   return (
-    <Input
-      type="number"
+    <NumberInput
       min={0}
       step="0.01"
       autoFocus
       className="h-7 w-24 text-right tabular-nums"
       value={value}
-      onChange={(e) => setValue(e.target.value)}
+      onChange={setValue}
       onBlur={commit}
       onKeyDown={(e) => {
         if (e.key === "Enter") commit();
@@ -189,7 +190,7 @@ function ProductsPageContent() {
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border">
+        <div className="hidden overflow-hidden rounded-xl border sm:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -290,6 +291,41 @@ function ProductsPageContent() {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {!isLoading && filtered.length > 0 && (
+        <MobileRecordList>
+          {filtered.map((p) => {
+            const low = isLowStock(p.stockQty, p.lowStockAlert);
+            return (
+              <MobileRecordCard key={p.id} onClick={canManage ? () => openEdit(p) : undefined}>
+                <MobileRecordHeader title={p.name} subtitle={p.sku} value={inr(p.sellingPrice)} showChevron={canManage} />
+                <MobileRecordRow
+                  label="Stock"
+                  value={
+                    <span className={cn("inline-flex items-center gap-1", low && "font-medium text-amber-700 dark:text-amber-400")}>
+                      {low && <AlertTriangle className="size-3.5 text-amber-600 dark:text-amber-400" />}
+                      {p.stockQty} pcs
+                    </span>
+                  }
+                />
+                <MobileRecordRow
+                  label="Margin"
+                  value={
+                    p.costPrice > 0 ? (
+                      <span className={p.sellingPrice - p.costPrice >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
+                        {inr(p.sellingPrice - p.costPrice)}
+                      </span>
+                    ) : (
+                      "—"
+                    )
+                  }
+                />
+                <MobileRecordRow label="BOM" value={p.bom.length > 0 ? <Badge variant="secondary">{p.bom.length} items</Badge> : "Not set"} />
+              </MobileRecordCard>
+            );
+          })}
+        </MobileRecordList>
       )}
 
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>

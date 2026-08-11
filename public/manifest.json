@@ -1,6 +1,6 @@
 {
-  "name": "Stitching Manager Pro",
-  "short_name": "StitchPro",
+  "name": "Fashion Flow",
+  "short_name": "Fashion Flow",
   "description": "Complete order & tailor management for boutique shops",
   "start_url": "/dashboard",
   "scope": "/",

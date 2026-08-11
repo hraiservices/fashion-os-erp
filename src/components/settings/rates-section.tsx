@@ -6,6 +6,7 @@ import { useAppSetting } from "@/hooks/use-app-setting";
 import { DEFAULT_RATES, type Lining } from "@/lib/business-rules";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -63,13 +64,12 @@ export function RatesSection() {
           <div key={type} className="grid grid-cols-12 items-center gap-2 border-b pb-2">
             <div className="col-span-4 font-medium">{type}</div>
             {LININGS.map((l) => (
-              <Input
+              <NumberInput
                 key={l}
                 className="col-span-2"
-                type="number"
                 min={0}
                 value={rate[l]}
-                onChange={(e) => updateRate(type, l, parseInt(e.target.value, 10) || 0)}
+                onChange={(v) => updateRate(type, l, v)}
               />
             ))}
             <Button variant="ghost" size="sm" className="col-span-2" onClick={() => removeGarment(type)}><X className="size-4" /></Button>
@@ -78,9 +78,9 @@ export function RatesSection() {
 
         <div className="grid grid-cols-12 items-center gap-2 pt-2">
           <Input className="col-span-4" placeholder="New garment type" value={newType} onChange={(e) => setNewType(e.target.value)} />
-          <Input className="col-span-2" type="number" placeholder="Simple" value={newS} onChange={(e) => setNewS(parseInt(e.target.value, 10) || 0)} />
-          <Input className="col-span-2" type="number" placeholder="Half" value={newH} onChange={(e) => setNewH(parseInt(e.target.value, 10) || 0)} />
-          <Input className="col-span-2" type="number" placeholder="Full" value={newF} onChange={(e) => setNewF(parseInt(e.target.value, 10) || 0)} />
+          <NumberInput className="col-span-2" placeholder="Simple" value={newS} onChange={setNewS} />
+          <NumberInput className="col-span-2" placeholder="Half" value={newH} onChange={setNewH} />
+          <NumberInput className="col-span-2" placeholder="Full" value={newF} onChange={setNewF} />
           <Button className="col-span-2" onClick={addGarment}>
             Add
           </Button>

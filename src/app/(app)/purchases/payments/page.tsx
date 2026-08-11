@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -121,7 +122,7 @@ export default function VendorPaymentsPage() {
       ) : filtered.length === 0 ? (
         <EmptyState icon={Wallet} title="No payments recorded yet" description="Payments recorded against any purchase bill will appear here." />
       ) : (
-        <div className="overflow-hidden rounded-xl border">
+        <div className="hidden overflow-hidden rounded-xl border sm:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -184,6 +185,28 @@ export default function VendorPaymentsPage() {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {!isLoading && filtered.length > 0 && (
+        <MobileRecordList>
+          {filtered.map((p) => {
+            const bill = billById.get(p.billId);
+            return (
+              <MobileRecordCard key={p.id} href={bill ? `/purchases/bills/${bill.id}` : undefined}>
+                <MobileRecordHeader
+                  title={vendorNameById.get(p.vendorId) || "—"}
+                  subtitle={fmtDate(p.date)}
+                  value={inr(p.amount)}
+                  valueClassName="text-red-600 dark:text-red-400"
+                  showChevron={!!bill}
+                />
+                <MobileRecordRow label="Bill#" value={bill ? bill.billNumber : "—"} />
+                <MobileRecordRow label="Mode" value={p.method} />
+                <MobileRecordRow label="Note" value={p.note || "—"} />
+              </MobileRecordCard>
+            );
+          })}
+        </MobileRecordList>
       )}
 
       <AlertDialog open={!!confirmOne} onOpenChange={(v) => !v && setConfirmOne(null)}>

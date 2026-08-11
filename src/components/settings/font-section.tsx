@@ -98,7 +98,7 @@ export function FontSection() {
         <div className="rounded-lg border bg-muted/30 p-4">
           <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Preview</div>
           <p style={{ fontFamily: `"${cfg.family}", sans-serif`, fontWeight: cfg.weight, fontSize: cfg.size }}>
-            Stitching Manager Pro — Order SOR-2AB97E0 for Hims, ₹1,400 total, balance due ₹0.
+            Fashion Flow — Order SOR-2AB97E0 for Hims, ₹1,400 total, balance due ₹0.
           </p>
         </div>
 

@@ -69,7 +69,7 @@ export default function ReportsIndexPage() {
       {/* Category rail */}
       <div className="shrink-0 border-b p-3 lg:w-56 lg:border-b-0 lg:border-r lg:p-4">
         <h1 className="mb-3 px-1 text-lg font-semibold tracking-tight">Reports</h1>
-        <nav className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
+        <nav className="scrollbar-hide flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
           <button
             type="button"
             onClick={() => setActiveCategory(null)}

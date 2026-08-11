@@ -314,7 +314,7 @@ export function NavBrand() {
           <Scissors className="size-4" />
         </span>
       )}
-      <span className="truncate text-[15px] font-semibold tracking-tight">{shop?.name || "Stitch Manager"}</span>
+      <span className="truncate text-[15px] font-semibold tracking-tight">{shop?.name || "Fashion Flow"}</span>
     </div>
   );
 }

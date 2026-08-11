@@ -30,6 +30,11 @@ const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
 const paymentTermLabel = (v: unknown) => PAYMENT_TERM_LABELS[v as PaymentTerm] ?? "";
 const discountTypeLabel = (v: unknown) => (v === "percent" ? "Percent (%)" : "Flat (₹)");
 
+/** Renders blank (with the input's own "0" placeholder) instead of a literal typed "0" for fields where zero and "not entered" should look the same. */
+function blankIfZero(n: number | null | undefined): string {
+  return n ? String(n) : "";
+}
+
 function placeholderCustomer(name: string, mobile: string, paymentTerms = "due_on_receipt"): Customer {
   return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms, priceListId: null, tags: [], gstin: "" };
 }
@@ -59,9 +64,9 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, existing }: { pref
   );
   const [gstType, setGstType] = useState<GstType>(existing?.gstType || "none");
   const [taxRate, setTaxRate] = useState(String(existing?.taxRate ?? 5));
-  const [shippingCharges, setShippingCharges] = useState(String(existing?.shippingCharges ?? 0));
+  const [shippingCharges, setShippingCharges] = useState(blankIfZero(existing?.shippingCharges));
   const [discountType, setDiscountType] = useState<DiscountType>(existing?.discountType || "flat");
-  const [discountValue, setDiscountValue] = useState(String(existing?.discountValue ?? 0));
+  const [discountValue, setDiscountValue] = useState(blankIfZero(existing?.discountValue));
   const [terms, setTerms] = useState(existing?.terms ?? "");
   const [notes, setNotes] = useState(existing?.notes || "");
 
@@ -81,7 +86,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, existing }: { pref
         productId: item.productId,
         qty: String(item.qty),
         unitPrice: String(item.unitPrice),
-        discountPercent: String(item.discountPercent || 0),
+        discountPercent: blankIfZero(item.discountPercent),
       }))
     );
     setGstType(prefillQuote.gstType);
@@ -98,14 +103,14 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, existing }: { pref
         productId: item.productId,
         qty: String(item.qty),
         unitPrice: String(item.unitPrice),
-        discountPercent: String(item.discountPercent || 0),
+        discountPercent: blankIfZero(item.discountPercent),
       }))
     );
     setGstType(prefillClone.gstType);
     setTaxRate(String(prefillClone.taxRate));
-    setShippingCharges(String(prefillClone.shippingCharges));
+    setShippingCharges(blankIfZero(prefillClone.shippingCharges));
     setDiscountType(prefillClone.discountType);
-    setDiscountValue(String(prefillClone.discountValue));
+    setDiscountValue(blankIfZero(prefillClone.discountValue));
     setTerms(prefillClone.terms);
     setNotes(prefillClone.notes);
     // eslint-disable-next-line react-hooks/exhaustive-deps

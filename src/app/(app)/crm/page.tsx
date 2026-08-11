@@ -15,9 +15,13 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableHeader, TableBody, TableRow, TableHead } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { CustomerCard } from "@/components/crm/customer-card";
 import { CustomerListRow } from "@/components/crm/customer-list-row";
 import { PaymentModal } from "@/components/orders/payment-modal";
+import { BalanceDue } from "@/components/ui/money-text";
+import { inr, fmtDateShort } from "@/lib/format";
+import { loyaltyTier } from "@/lib/business-rules";
 import { sumOrdersOutstanding } from "@/lib/balances";
 import { cn } from "@/lib/utils";
 import type { Order } from "@/lib/types";
@@ -187,7 +191,7 @@ function CrmContent() {
           }
         />
       ) : view === "list" ? (
-        <div className="overflow-hidden rounded-xl border">
+        <div className="hidden overflow-hidden rounded-xl border sm:block">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -241,6 +245,40 @@ function CrmContent() {
             <CustomerCard key={c.mobile} cust={c} loyaltyCfg={loyaltyCfg} />
           ))}
         </div>
+      )}
+
+      {!isLoading && filtered.length > 0 && view === "list" && (
+        <MobileRecordList>
+          {filtered.map((c) => {
+            const tier = loyaltyCfg?.enabled ? loyaltyTier(c.totalEarned, loyaltyCfg) : null;
+            const outstanding = sumOrdersOutstanding(c.orders);
+            const latestOrder = [...c.orders].sort((a, b) => new Date(b.inDate).getTime() - new Date(a.inDate).getTime())[0];
+            return (
+              <MobileRecordCard key={c.mobile} href={`/crm/${c.mobile}`}>
+                <MobileRecordHeader
+                  title={c.name}
+                  subtitle={c.mobile}
+                  value={outstanding > 0 ? <BalanceDue amount={outstanding} suffix=" due" paidLabel="" /> : "—"}
+                />
+                <MobileRecordRow label="Stitch Orders" value={c.orders.length} />
+                <MobileRecordRow label="Spent" value={inr(c.spent)} />
+                <MobileRecordRow label="Last order" value={fmtDateShort(latestOrder?.inDate || "")} />
+                <MobileRecordRow
+                  label="Tier"
+                  value={
+                    tier ? (
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ background: tier.bg, color: tier.color }}>
+                        {tier.label}
+                      </span>
+                    ) : (
+                      "—"
+                    )
+                  }
+                />
+              </MobileRecordCard>
+            );
+          })}
+        </MobileRecordList>
       )}
 
       {paymentOrder && <PaymentModal order={paymentOrder} open={!!paymentOrder} onOpenChange={(v) => !v && setPaymentOrder(null)} />}

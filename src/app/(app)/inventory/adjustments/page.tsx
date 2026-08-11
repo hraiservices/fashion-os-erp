@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { StockAdjustmentForm } from "@/components/inventory/stock-adjustment-form";
 
 export default function InventoryAdjustmentsPage() {
@@ -45,7 +46,7 @@ export default function InventoryAdjustmentsPage() {
         ) : !ledger || ledger.length === 0 ? (
           <EmptyState icon={History} title="No stock movements yet" className="border-0" />
         ) : (
-          <div className="overflow-hidden rounded-xl border">
+          <div className="hidden overflow-hidden rounded-xl border sm:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -74,6 +75,24 @@ export default function InventoryAdjustmentsPage() {
               </TableBody>
             </Table>
           </div>
+        )}
+
+        {!isLoading && ledger && ledger.length > 0 && (
+          <MobileRecordList>
+            {ledger.map((entry) => (
+              <MobileRecordCard key={entry.id}>
+                <MobileRecordHeader
+                  title={itemNameById.get(`${entry.itemType}:${entry.itemId}`) || "Unknown"}
+                  subtitle={fmtDate(entry.createdAt)}
+                  value={`${entry.movement > 0 ? "+" : ""}${entry.movement}`}
+                  valueClassName={entry.movement > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
+                  showChevron={false}
+                />
+                <MobileRecordRow label="Type" value={<Badge variant="secondary">{LEDGER_REF_LABELS[entry.refType as keyof typeof LEDGER_REF_LABELS] || entry.refType}</Badge>} />
+                <MobileRecordRow label="Note" value={entry.note || "—"} />
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
         )}
       </div>
     </div>

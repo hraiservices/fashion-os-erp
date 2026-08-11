@@ -189,7 +189,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
         </div>
       )}
 
-      <p className="pt-4 text-center text-xs text-muted-foreground">{shopName || "Your Shop"} · Generated from Stitching Manager Pro</p>
+      <p className="pt-4 text-center text-xs text-muted-foreground">{shopName || "Your Shop"} · Generated from Fashion Flow</p>
     </div>
   );
 }

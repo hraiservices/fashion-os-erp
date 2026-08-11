@@ -10,6 +10,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -170,7 +171,11 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
                 />
               </Field>
               <Field label="Rate">
-                <Input type="number" min={0} step={0.01} {...register("commissionRate", { valueAsNumber: true })} />
+                <Controller
+                  control={control}
+                  name="commissionRate"
+                  render={({ field }) => <NumberInput min={0} step={0.01} value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
+                />
               </Field>
             </div>
           </section>
@@ -200,7 +205,11 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
                   />
                 </Field>
                 <Field label="Rate (₹)">
-                  <Input type="number" min={0} step={0.01} {...register("salaryRate", { valueAsNumber: true })} />
+                  <Controller
+                    control={control}
+                    name="salaryRate"
+                    render={({ field }) => <NumberInput min={0} step={0.01} value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
+                  />
                 </Field>
               </div>
             </section>

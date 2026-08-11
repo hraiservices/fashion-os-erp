@@ -15,6 +15,7 @@ import { inr } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -35,11 +36,11 @@ interface CartLine {
 function OpenRegisterGate() {
   const { data: user } = useCurrentUser();
   const openRegister = useOpenRegister();
-  const [opening, setOpening] = useState("0");
+  const [opening, setOpening] = useState(0);
 
   async function handleOpen() {
     try {
-      await openRegister.mutateAsync({ openingCash: parseFloat(opening) || 0, userEmail: user?.email });
+      await openRegister.mutateAsync({ openingCash: opening || 0, userEmail: user?.email });
       toast.success("Register opened");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to open register");
@@ -53,7 +54,7 @@ function OpenRegisterGate() {
         <h2 className="text-lg font-semibold">Register is closed</h2>
         <p className="text-sm text-muted-foreground">Enter today&apos;s opening cash to start selling.</p>
       </div>
-      <Input type="number" min={0} step="0.01" className="text-center" value={opening} onChange={(e) => setOpening(e.target.value)} />
+      <NumberInput min={0} step={0.01} className="text-center" value={opening} onChange={setOpening} />
       <Button className="w-full" onClick={handleOpen} disabled={openRegister.isPending}>
         <Unlock className="size-4" /> {openRegister.isPending ? "Opening…" : "Open Register"}
       </Button>

@@ -1,6 +1,6 @@
-/* Stitching Manager Pro — Service Worker */
+/* Fashion Flow — Service Worker */
 /* Bump the cache name on every release to force a refresh. */
-var CACHE = "stitch-pro-next-v1";
+var CACHE = "fashion-flow-v1";
 var OFFLINE_URL = "/dashboard";
 
 /* App-shell only — Next.js build assets are content-hashed so a stale cache never
@@ -55,5 +55,40 @@ self.addEventListener("fetch", function (e) {
           return cached || caches.match(OFFLINE_URL);
         });
       })
+  );
+});
+
+/* Web Push — the payload is JSON `{ title, body, url }` sent from src/lib/push.ts. Falls back
+   to a generic notification if the payload is missing/unparseable so a malformed push never
+   silently does nothing. */
+self.addEventListener("push", function (e) {
+  var data = { title: "Fashion Flow", body: "You have a new notification.", url: "/dashboard" };
+  try {
+    if (e.data) data = Object.assign(data, e.data.json());
+  } catch (err) {
+    /* non-JSON payload — keep the defaults */
+  }
+  e.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { url: data.url || "/dashboard" },
+    })
+  );
+});
+
+/* Focus an already-open tab on the target URL if one exists, otherwise open a new one — avoids
+   piling up duplicate tabs every time a notification is tapped. */
+self.addEventListener("notificationclick", function (e) {
+  e.notification.close();
+  var targetUrl = (e.notification.data && e.notification.data.url) || "/dashboard";
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (clients) {
+      for (var i = 0; i < clients.length; i++) {
+        if (clients[i].url.indexOf(targetUrl) !== -1 && "focus" in clients[i]) return clients[i].focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    })
   );
 });

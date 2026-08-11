@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { buildBriefingSummary } from "@/lib/ai-briefing";
 import { generateBriefing } from "@/lib/chatbot/gemini";
+import { sendPushToAll } from "@/lib/push";
 
 /**
  * Cron entry point — hit daily by vercel.json's schedule, mirroring the recurring-invoices
@@ -44,6 +45,10 @@ export async function GET(req: Request) {
     read: false,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Best-effort — a push failure (or push not configured at all) shouldn't fail the briefing
+  // itself, which already succeeded and is visible via the in-app notification bell regardless.
+  await sendPushToAll({ title: "Daily Briefing", body: message, url: "/dashboard" }).catch(() => {});
 
   return NextResponse.json({ generated: true, summary, message });
 }

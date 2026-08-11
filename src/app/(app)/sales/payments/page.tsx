@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -117,7 +118,7 @@ export default function SalesPaymentsPage() {
       ) : filtered.length === 0 ? (
         <EmptyState icon={Wallet} title="No payments recorded yet" description="Payments recorded against any sales invoice will appear here." />
       ) : (
-        <div className="overflow-hidden rounded-xl border">
+        <div className="hidden overflow-hidden rounded-xl border sm:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -183,6 +184,29 @@ export default function SalesPaymentsPage() {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {!isLoading && filtered.length > 0 && (
+        <MobileRecordList>
+          {filtered.map((p) => {
+            const inv = invoiceById.get(p.invoiceId);
+            return (
+              <MobileRecordCard key={p.id} href={inv ? `/sales/invoices/${inv.id}` : undefined}>
+                <MobileRecordHeader
+                  title={inv?.customerName || "—"}
+                  subtitle={p.customerMobile}
+                  value={inr(p.amount)}
+                  valueClassName="text-emerald-600 dark:text-emerald-400"
+                  showChevron={!!inv}
+                />
+                <MobileRecordRow label="Invoice#" value={inv ? inv.invoiceNumber : "—"} />
+                <MobileRecordRow label="Date" value={fmtDate(p.date)} />
+                <MobileRecordRow label="Mode" value={p.method} />
+                <MobileRecordRow label="Note" value={p.note || "—"} />
+              </MobileRecordCard>
+            );
+          })}
+        </MobileRecordList>
       )}
 
       <AlertDialog open={!!confirmOne} onOpenChange={(v) => !v && setConfirmOne(null)}>

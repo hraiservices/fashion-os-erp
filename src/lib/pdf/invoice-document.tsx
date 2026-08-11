@@ -258,7 +258,7 @@ export function InvoiceDocument({
         )}
 
         <View style={styles.footer} fixed>
-          <Text>{shopName || "Your Shop"} · Generated from Stitching Manager Pro</Text>
+          <Text>{shopName || "Your Shop"} · Generated from Fashion Flow</Text>
           {t.showPageNumbers && <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />}
         </View>
       </Page>

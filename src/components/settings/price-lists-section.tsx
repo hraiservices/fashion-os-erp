@@ -101,7 +101,7 @@ export function PriceListsSection() {
               key={pl.id}
               type="button"
               onClick={() => setActiveId(pl.id)}
-              className={`rounded-full border px-3 py-1 text-xs ${pl.id === active?.id ? "border-primary bg-primary/10" : ""}`}
+              className={`rounded-lg border px-3 py-1 text-xs ${pl.id === active?.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted"}`}
             >
               {pl.name}
             </button>

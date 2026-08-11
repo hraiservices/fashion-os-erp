@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -127,7 +128,7 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
         <EmptyState icon={Wallet} title="No payslips" description="No active employees at the time this run was generated." />
       ) : (
         <div className="overflow-hidden rounded-xl border">
-          <div className="overflow-x-auto">
+          <div className="hidden overflow-x-auto sm:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -167,6 +168,27 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
               </TableBody>
             </Table>
           </div>
+
+          <MobileRecordList className="p-2">
+            {payslips.map((p) => (
+              <MobileRecordCard key={p.id}>
+                <MobileRecordHeader title={employeeName(p.employeeId)} value={inr(p.netPay)} showChevron={false} />
+                <MobileRecordRow label="Present / Absent / Half / Leave" value={`${p.presentDays} / ${p.absentDays} / ${p.halfDays} / ${p.leaveDays}`} />
+                <MobileRecordRow label="Gross" value={inr(p.grossPay)} />
+                <MobileRecordRow label="Deductions" value={p.deductions > 0 ? `− ${inr(p.deductions)}` : "—"} valueClassName={p.deductions > 0 ? "text-red-600 dark:text-red-400" : undefined} />
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs text-muted-foreground">Status</span>
+                  {p.status === "paid" ? (
+                    <Badge variant="secondary">Paid</Badge>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => handleMarkPaid(p.id)} disabled={markPaid.isPending}>
+                      Mark Paid
+                    </Button>
+                  )}
+                </div>
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
         </div>
       )}
 

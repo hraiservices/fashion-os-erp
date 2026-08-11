@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, Truck, Pencil, Trash2, ChevronRight } from "lucide-react";
+import { Plus, Search, Truck, Pencil, Trash2, ChevronRight, Upload } from "lucide-react";
 import { useVendors } from "@/hooks/use-vendors";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useDeleteVendor } from "@/hooks/use-purchase-mutations";
@@ -72,9 +72,14 @@ function VendorsPageContent() {
         description={`${filtered.length} of ${vendors?.length ?? 0} vendors`}
         actions={
           canManage && (
-            <Button nativeButton={false} render={<Link href="/purchases/vendors/new" />}>
-              <Plus className="size-4" /> Add vendor
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" nativeButton={false} render={<Link href="/purchases/vendors/import" />}>
+                <Upload className="size-4" /> Import
+              </Button>
+              <Button nativeButton={false} render={<Link href="/purchases/vendors/new" />}>
+                <Plus className="size-4" /> Add vendor
+              </Button>
+            </div>
           )
         }
       />

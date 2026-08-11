@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, ShoppingBag, Pencil, Trash2, AlertTriangle, Printer } from "lucide-react";
+import { Plus, Search, ShoppingBag, Pencil, Trash2, AlertTriangle, Printer, Upload } from "lucide-react";
 import { printBarcodeLabel } from "@/lib/barcode";
 import { useProducts } from "@/hooks/use-products";
 import { useDeleteProduct, useBulkDeleteProducts, useQuickUpdateProduct } from "@/hooks/use-inventory-mutations";
@@ -144,9 +144,14 @@ function ProductsPageContent() {
         description={`${filtered.length} of ${products?.length ?? 0} products`}
         actions={
           canManage && (
-            <Button nativeButton={false} render={<Link href="/inventory/products/new" />}>
-              <Plus className="size-4" /> Add product
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" nativeButton={false} render={<Link href="/inventory/products/import" />}>
+                <Upload className="size-4" /> Import
+              </Button>
+              <Button nativeButton={false} render={<Link href="/inventory/products/new" />}>
+                <Plus className="size-4" /> Add product
+              </Button>
+            </div>
           )
         }
       />

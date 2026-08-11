@@ -47,7 +47,7 @@ export function CustomerPicker({
             <Input autoFocus placeholder="Search name or mobile…" className="pl-8 h-9 text-sm" value={query} onChange={(e) => setQuery(e.target.value)} />
           </div>
         </div>
-        <div className="max-h-[400px] overflow-y-auto">
+        <div className="max-h-[60dvh] overflow-y-auto">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
               <User className="size-8 text-muted-foreground/30" />

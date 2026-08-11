@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, Trash2, Pencil, Wallet } from "lucide-react";
+import { Plus, Trash2, Pencil, Wallet, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useExpenses, useDeleteExpense, useBulkDeleteExpenses } from "@/hooks/use-expenses";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -69,9 +69,14 @@ function ExpensesPageContent() {
         description="Track your shop's operating costs"
         actions={
           canAdd && (
-            <Button nativeButton={false} render={<Link href="/expenses/new" />}>
-              <Plus className="size-4" /> Add Expense
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" nativeButton={false} render={<Link href="/expenses/import" />}>
+                <Upload className="size-4" /> Import
+              </Button>
+              <Button nativeButton={false} render={<Link href="/expenses/new" />}>
+                <Plus className="size-4" /> Add Expense
+              </Button>
+            </div>
           )
         }
       />

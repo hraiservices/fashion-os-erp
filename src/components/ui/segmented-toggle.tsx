@@ -20,7 +20,7 @@ export function SegmentedToggle<T extends string>({
   ariaLabel: string;
 }) {
   return (
-    <div className="inline-flex rounded-lg border p-0.5" role="group" aria-label={ariaLabel}>
+    <div className="flex w-full rounded-lg border p-0.5" role="group" aria-label={ariaLabel}>
       {options.map((o) => {
         const Icon = o.icon;
         return (
@@ -30,7 +30,7 @@ export function SegmentedToggle<T extends string>({
             onClick={() => onChange(o.value)}
             aria-pressed={value === o.value}
             className={cn(
-              "flex min-h-9 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors sm:min-h-8",
+              "flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors sm:min-h-8",
               value === o.value ? "bg-muted" : "text-muted-foreground"
             )}
           >

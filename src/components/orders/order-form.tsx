@@ -289,7 +289,7 @@ function OrderFormFields({
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="pb-32 lg:pb-0">
+    <form onSubmit={handleSubmit(onSubmit)}>
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         <div className="space-y-4 lg:col-span-2">
           <Section
@@ -580,7 +580,7 @@ function OrderFormFields({
               </div>
             </div>
 
-            <div className="mt-4 hidden gap-2 border-t pt-4 lg:flex">
+            <div className="mt-4 flex gap-2 border-t pt-4">
               <Button type="button" variant="outline" className="flex-1" onClick={() => router.back()}>
                 Cancel
               </Button>
@@ -590,15 +590,6 @@ function OrderFormFields({
             </div>
           </Section>
         </div>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-16 z-30 flex gap-2 border-t bg-background/95 p-3 backdrop-blur lg:hidden">
-        <Button type="button" variant="outline" className="flex-1" onClick={() => router.back()}>
-          Cancel
-        </Button>
-        <Button type="submit" className="flex-1" disabled={isSubmitting}>
-          {isSubmitting ? "Saving…" : existingOrder ? "Save changes" : `Create order · ${inr(total)}`}
-        </Button>
       </div>
 
       {!existingOrder && (

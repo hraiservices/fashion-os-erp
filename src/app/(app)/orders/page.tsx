@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Plus, Search, LayoutList, KanbanSquare, ArrowRight, Trash2 } from "lucide-react";
+import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { useOrders } from "@/hooks/use-orders";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAdvanceStage, useSetStage, useDeleteOrder } from "@/hooks/use-order-mutations";
@@ -252,24 +253,15 @@ function OrdersContent() {
         description={`${filtered.length} of ${orders?.length ?? 0} orders`}
         actions={
           <>
-            <div className="inline-flex rounded-lg border p-0.5" role="group" aria-label="View mode">
-              <button
-                type="button"
-                onClick={() => setView("list")}
-                aria-pressed={view === "list"}
-                className={cn("flex min-h-9 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors sm:min-h-8", view === "list" ? "bg-muted" : "text-muted-foreground")}
-              >
-                <LayoutList className="size-4" /> List
-              </button>
-              <button
-                type="button"
-                onClick={() => setView("board")}
-                aria-pressed={view === "board"}
-                className={cn("flex min-h-9 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors sm:min-h-8", view === "board" ? "bg-muted" : "text-muted-foreground")}
-              >
-                <KanbanSquare className="size-4" /> Board
-              </button>
-            </div>
+            <SegmentedToggle
+              ariaLabel="View mode"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: "list", label: "List", icon: LayoutList },
+                { value: "board", label: "Board", icon: KanbanSquare },
+              ]}
+            />
             {user?.perms.addOrder && (
               <Button nativeButton={false} render={<Link href="/orders/new" />} className="hidden sm:inline-flex">
                 <Plus className="size-4" /> New order

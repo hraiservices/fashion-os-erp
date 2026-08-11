@@ -13,11 +13,9 @@ import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useRecordPayment } from "@/hooks/use-order-mutations";
 import { computeRedemption } from "@/lib/business-rules";
+import { inr } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { Order } from "@/lib/types";
-
-function inr(n: number): string {
-  return "₹" + Number(n || 0).toLocaleString("en-IN");
-}
 
 /** PaymentModal(), Stitching_Manager_Pro_v16.html ~line 4146. */
 export function PaymentModal({ order, open, onOpenChange }: { order: Order; open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -57,10 +55,10 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
           <DialogTitle>Collect payment</DialogTitle>
         </DialogHeader>
 
-        <div className="rounded-lg border bg-amber-50 p-4">
-          <div className="text-xs font-medium text-amber-800">BALANCE DUE</div>
-          <div className="text-3xl font-light text-amber-700">{inr(order.balance)}</div>
-          <div className="mt-1 text-xs text-amber-900">
+        <div className="rounded-lg border bg-amber-50 p-4 dark:bg-amber-950/40">
+          <div className="text-xs font-medium text-amber-800 dark:text-amber-300">BALANCE DUE</div>
+          <div className="text-3xl font-light text-amber-700 dark:text-amber-400">{inr(order.balance)}</div>
+          <div className="mt-1 text-xs text-amber-900 dark:text-amber-300/80">
             Total: {inr(order.total)} · Paid: {inr(order.advance)}
           </div>
         </div>
@@ -69,11 +67,11 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
           <button
             type="button"
             onClick={() => setUsePoints((u) => !u)}
-            className={`flex items-center gap-3 rounded-xl border p-3 text-left text-sm ${usePoints ? "border-zinc-800 bg-zinc-50" : "border-zinc-200"}`}
+            className={cn("flex items-center gap-3 rounded-xl border p-3 text-left text-sm transition-colors", usePoints ? "border-primary bg-primary/5" : "hover:bg-muted/50")}
           >
-            <div className={`flex h-5 w-5 items-center justify-center rounded-md border-2 ${usePoints ? "border-zinc-800 bg-zinc-800 text-white" : "border-zinc-300"}`}>
+            <span className={cn("flex size-5 shrink-0 items-center justify-center rounded border-2", usePoints ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40")}>
               {usePoints && <Check className="size-3.5" />}
-            </div>
+            </span>
             <div>
               <div className="font-medium">Use loyalty points</div>
               <div className="text-xs text-muted-foreground">

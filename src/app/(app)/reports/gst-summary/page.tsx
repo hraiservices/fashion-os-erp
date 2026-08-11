@@ -1,15 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Download, Receipt, FileWarning } from "lucide-react";
+import { Receipt, FileWarning } from "lucide-react";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { GST_TYPE_LABELS, type GstType } from "@/lib/gst";
 import { inr } from "@/lib/format";
-import { exportCSV } from "@/lib/export";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -71,26 +70,18 @@ export default function GstSummaryReportPage() {
         <div className="flex items-center gap-2">
           <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="h-9 w-40" />
           {groups.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                exportCSV(
-                  groups.map((g) => ({
-                    "GST Type": GST_TYPE_LABELS[g.gstType],
-                    "Tax Rate %": g.taxRate,
-                    Invoices: g.invoiceCount,
-                    "Taxable Value": g.taxableValue,
-                    CGST: g.cgst,
-                    SGST: g.sgst,
-                    IGST: g.igst,
-                  })),
-                  `gst_summary_${month}`
-                )
-              }
-            >
-              <Download className="size-4" /> Export CSV
-            </Button>
+            <ExportMenu
+              rows={groups.map((g) => ({
+                "GST Type": GST_TYPE_LABELS[g.gstType],
+                "Tax Rate %": g.taxRate,
+                Invoices: g.invoiceCount,
+                "Taxable Value": g.taxableValue,
+                CGST: g.cgst,
+                SGST: g.sgst,
+                IGST: g.igst,
+              }))}
+              filename={`gst_summary_${month}`}
+            />
           )}
         </div>
       }

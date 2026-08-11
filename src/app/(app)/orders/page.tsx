@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, LayoutList, KanbanSquare, ArrowRight, Download, Trash2 } from "lucide-react";
+import { Plus, Search, LayoutList, KanbanSquare, ArrowRight, Trash2 } from "lucide-react";
 import { useOrders } from "@/hooks/use-orders";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAdvanceStage, useSetStage, useDeleteOrder } from "@/hooks/use-order-mutations";
@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
 import { SavedViewsMenu } from "@/components/ui/saved-views-menu";
-import { exportCSV } from "@/lib/export";
+import { ExportMenu } from "@/components/ui/export-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -167,21 +167,16 @@ function OrdersContent() {
     else toast.success(`${selectedOrders.length} order(s) deleted`);
   }
 
-  function bulkExportOrders() {
-    exportCSV(
-      selectedOrders.map((o) => ({
-        Order: o.id,
-        Date: o.inDate,
-        Customer: o.name,
-        Mobile: o.mobile,
-        Stage: o.status,
-        Delivery: o.deliveryDate,
-        Total: o.total,
-        Balance: o.balance,
-      })),
-      "orders_export"
-    );
-  }
+  const bulkExportRows = selectedOrders.map((o) => ({
+    Order: o.id,
+    Date: o.inDate,
+    Customer: o.name,
+    Mobile: o.mobile,
+    Stage: o.status,
+    Delivery: o.deliveryDate,
+    Total: o.total,
+    Balance: o.balance,
+  }));
 
   /** Called when user clicks the advance button on a card. */
   function handleAdvance(id: string) {
@@ -320,9 +315,7 @@ function OrdersContent() {
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
           <span className="text-sm font-medium">{selection.count} selected</span>
           <div className="ml-auto flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={bulkExportOrders} disabled={bulkBusy}>
-              <Download className="size-3.5" /> Export CSV
-            </Button>
+            <ExportMenu rows={bulkExportRows} filename="orders_export" disabled={bulkBusy} />
             <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
               <Trash2 className="size-3.5" /> Delete
             </Button>

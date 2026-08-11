@@ -14,6 +14,35 @@ export function exportCSV(rows: Record<string, unknown>[], filename: string): vo
   URL.revokeObjectURL(a.href);
 }
 
+/** Excel export (.xlsx) — same row-shape contract as exportCSV, just a different output format. Uses SheetJS (`xlsx`, free/open-source community edition — only its write path is used here, never parsing untrusted files). */
+export async function exportXLSX(rows: Record<string, unknown>[], filename: string, sheetName = "Sheet1"): Promise<void> {
+  if (!rows.length) return;
+  const XLSX = await import("xlsx");
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.slice(0, 31)); // Excel sheet-name limit
+  XLSX.writeFile(workbook, `${filename}.xlsx`);
+}
+
+/** Multi-sheet Excel export — one sheet per table, for bundling several related datasets (e.g. the full account data export) into a single file instead of a JSON blob. */
+export async function exportXLSXMultiSheet(sheets: { name: string; rows: Record<string, unknown>[] }[], filename: string): Promise<void> {
+  const usable = sheets.filter((s) => s.rows.length > 0);
+  if (!usable.length) return;
+  const XLSX = await import("xlsx");
+  const workbook = XLSX.utils.book_new();
+  const usedNames = new Set<string>();
+  for (const sheet of usable) {
+    let name = sheet.name.slice(0, 31) || "Sheet";
+    let n = 1;
+    while (usedNames.has(name)) {
+      name = `${sheet.name.slice(0, 28)}_${n++}`;
+    }
+    usedNames.add(name);
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(sheet.rows), name);
+  }
+  XLSX.writeFile(workbook, `${filename}.xlsx`);
+}
+
 // printReport(), line ~2354.
 export function printReport(title: string, tableHtml: string, shopName?: string, logoDataUrl?: string | null): void {
   const shopLabel = logoDataUrl

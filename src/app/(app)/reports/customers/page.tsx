@@ -1,12 +1,11 @@
 "use client";
 
-import { Download, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
-import { exportCSV } from "@/lib/export";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /** ReportsView's `clvData`, Stitching_Manager_Pro_v16.html ~line 8071. */
@@ -21,26 +20,18 @@ export default function CustomerLifetimePage() {
       description="Ranked by lifetime value (repeat customers weighted higher)"
       actions={
         clvData.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              exportCSV(
-                clvData.map((c) => ({
-                  Name: c.name,
-                  Mobile: c.mobile,
-                  Orders: c.totalOrders,
-                  Spent: c.totalSpent,
-                  AvgOrder: c.avgOrder,
-                  MonthsActive: c.monthsActive,
-                  CLVScore: c.clvScore,
-                })),
-                "customer_lifetime"
-              )
-            }
-          >
-            <Download className="size-4" /> Export CSV
-          </Button>
+          <ExportMenu
+            rows={clvData.map((c) => ({
+              Name: c.name,
+              Mobile: c.mobile,
+              Orders: c.totalOrders,
+              Spent: c.totalSpent,
+              AvgOrder: c.avgOrder,
+              MonthsActive: c.monthsActive,
+              CLVScore: c.clvScore,
+            }))}
+            filename="customer_lifetime"
+          />
         )
       }
     >

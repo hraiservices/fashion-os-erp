@@ -1,16 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Link2, Receipt, Download } from "lucide-react";
+import { Link2, Receipt } from "lucide-react";
 import Link from "next/link";
 import { useOrders } from "@/hooks/use-orders";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { inr } from "@/lib/format";
-import { exportCSV } from "@/lib/export";
 import { buildUnifiedSales, filterByType, type SaleTypeFilter } from "@/lib/unified-sales";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { SalesTypeFilter } from "@/components/reports/sales-type-filter";
-import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BalanceDue } from "@/components/ui/money-text";
@@ -43,18 +42,10 @@ export default function SalesByCustomerPage() {
       description="Revenue ranked by customer, combining Stitching Orders and Product Sales."
       actions={
         rows.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              exportCSV(
-                rows.map((r) => ({ Customer: r.customerName, Mobile: r.customerMobile, Transactions: r.count, Billed: r.billed, Paid: r.paid, Balance: r.balance })),
-                "sales_by_customer"
-              )
-            }
-          >
-            <Download className="size-4" /> Export CSV
-          </Button>
+          <ExportMenu
+            rows={rows.map((r) => ({ Customer: r.customerName, Mobile: r.customerMobile, Transactions: r.count, Billed: r.billed, Paid: r.paid, Balance: r.balance }))}
+            filename="sales_by_customer"
+          />
         )
       }
     >

@@ -2,14 +2,13 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { Clock, Download } from "lucide-react";
+import { Clock } from "lucide-react";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { avgDaysToGetPaid } from "@/lib/sales";
 import { fmtDate } from "@/lib/format";
-import { exportCSV } from "@/lib/export";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
-import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -46,18 +45,10 @@ export default function TimeToGetPaidPage() {
       description="Days between invoice date and the payment that fully settled it."
       actions={
         rows.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              exportCSV(
-                rows.map((r) => ({ Invoice: r.invoiceNumber, Customer: r.customerName, "Invoice Date": r.invoiceDate, "Last Payment": r.lastPaymentDate, "Days to Pay": r.days })),
-                "time_to_get_paid"
-              )
-            }
-          >
-            <Download className="size-4" /> Export CSV
-          </Button>
+          <ExportMenu
+            rows={rows.map((r) => ({ Invoice: r.invoiceNumber, Customer: r.customerName, "Invoice Date": r.invoiceDate, "Last Payment": r.lastPaymentDate, "Days to Pay": r.days }))}
+            filename="time_to_get_paid"
+          />
         )
       }
     >

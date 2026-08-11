@@ -1,14 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
-import { Wallet, Download } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { daysLeft } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
-import { exportCSV } from "@/lib/export";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
-import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -54,13 +53,10 @@ export default function ApAgingSummaryPage() {
       description="Outstanding payables grouped by how overdue they are."
       actions={
         totalPayable > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => exportCSV(BANDS.map((b) => ({ Band: b.label, Bills: buckets.get(b.key)!.count, Total: buckets.get(b.key)!.total })), "ap_aging_summary")}
-          >
-            <Download className="size-4" /> Export CSV
-          </Button>
+          <ExportMenu
+            rows={BANDS.map((b) => ({ Band: b.label, Bills: buckets.get(b.key)!.count, Total: buckets.get(b.key)!.total }))}
+            filename="ap_aging_summary"
+          />
         )
       }
     >

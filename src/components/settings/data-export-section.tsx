@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Download } from "lucide-react";
+import { Download, FileJson, FileSpreadsheet } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { exportXLSXMultiSheet } from "@/lib/export";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 /** Every business-data table — deliberately excludes internal/system tables (app_settings, activity_log, chatbot_messages, admin_notifications, user_dashboard_layout, billing_events) which are operational noise, not "my data" a customer would want in a portable export. */
 const EXPORT_TABLES = [
@@ -49,23 +51,43 @@ export function DataExportSection() {
 
   if (user?.role !== "admin") return null;
 
-  async function handleExport() {
+  async function fetchAllTables(): Promise<Record<string, Record<string, unknown>[]>> {
+    const supabase = createClient();
+    const tables: Record<string, Record<string, unknown>[]> = {};
+    for (const table of EXPORT_TABLES) {
+      const { data, error } = await supabase.from(table).select("*");
+      if (error) throw new Error(`${table}: ${error.message}`);
+      tables[table] = data || [];
+    }
+    return tables;
+  }
+
+  async function handleExportJson() {
     setBusy(true);
     try {
-      const supabase = createClient();
-      const tables: Record<string, unknown[]> = {};
-      for (const table of EXPORT_TABLES) {
-        const { data, error } = await supabase.from(table).select("*");
-        if (error) throw new Error(`${table}: ${error.message}`);
-        tables[table] = data || [];
-      }
-
+      const tables = await fetchAllTables();
       const bundle = { exportedAt: new Date().toISOString(), tables };
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" }));
       a.download = `fashion-os-erp-export-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(a.href);
+      toast.success("Export downloaded");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleExportXlsx() {
+    setBusy(true);
+    try {
+      const tables = await fetchAllTables();
+      await exportXLSXMultiSheet(
+        Object.entries(tables).map(([name, rows]) => ({ name, rows })),
+        `fashion-os-erp-export-${new Date().toISOString().slice(0, 10)}`
+      );
       toast.success("Export downloaded");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Export failed");
@@ -81,11 +103,25 @@ export function DataExportSection() {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Exports every order, customer, invoice, inventory record, and other business data as one JSON file — useful as a backup, or if you ever move off this app.
+          Exports every order, customer, invoice, inventory record, and other business data — useful as a backup, or if you ever move off this app. Excel puts each table on its own sheet; JSON is the fully complete, re-importable format.
         </p>
-        <Button variant="outline" disabled={busy} onClick={handleExport}>
-          <Download className="size-4" /> {busy ? "Exporting…" : "Download all my data"}
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button variant="outline" disabled={busy}>
+                <Download className="size-4" /> {busy ? "Exporting…" : "Download all my data"}
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={handleExportXlsx}>
+              <FileSpreadsheet className="size-4" /> Excel (.xlsx, one sheet per table)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportJson}>
+              <FileJson className="size-4" /> JSON (complete, re-importable)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </CardContent>
     </Card>
   );

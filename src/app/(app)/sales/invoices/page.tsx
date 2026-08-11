@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Receipt, Search, ArrowUpDown, Copy, Upload, Wallet, Send, Trash2, Download } from "lucide-react";
+import { Plus, Receipt, Search, ArrowUpDown, Copy, Upload, Wallet, Send, Trash2 } from "lucide-react";
 import { useSalesInvoices, type SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import { useSalesQuotations } from "@/hooks/use-sales-quotations";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -16,7 +16,7 @@ import { useRowSelection } from "@/hooks/use-row-selection";
 import { inr, fmtDate } from "@/lib/format";
 import { invoiceDueBadge, avgDaysToGetPaid, DOC_STATUS_LABELS, type DueTone } from "@/lib/sales";
 import { DEFAULT_SALES_WHATSAPP_TEMPLATES, buildSalesWhatsAppUrl, type SalesWhatsAppTemplates } from "@/lib/sales-whatsapp";
-import { exportCSV } from "@/lib/export";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -200,21 +200,16 @@ export default function SalesInvoicesPage() {
     else toast.success(`${selectedInvoices.length} invoice(s) deleted — stock reverted`);
   }
 
-  function bulkExport() {
-    exportCSV(
-      selectedInvoices.map((inv) => ({
-        Invoice: inv.invoiceNumber,
-        Date: inv.invoiceDate,
-        Customer: inv.customerName,
-        Mobile: inv.customerMobile,
-        Amount: inv.total,
-        Balance: inv.balance,
-        DueDate: inv.dueDate || "",
-        DocStatus: DOC_STATUS_LABELS[inv.docStatus],
-      })),
-      "invoices_export"
-    );
-  }
+  const bulkExportRows = selectedInvoices.map((inv) => ({
+    Invoice: inv.invoiceNumber,
+    Date: inv.invoiceDate,
+    Customer: inv.customerName,
+    Mobile: inv.customerMobile,
+    Amount: inv.total,
+    Balance: inv.balance,
+    DueDate: inv.dueDate || "",
+    DocStatus: DOC_STATUS_LABELS[inv.docStatus],
+  }));
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
@@ -268,9 +263,7 @@ export default function SalesInvoicesPage() {
             <Button variant="outline" size="sm" onClick={bulkMarkSent} disabled={bulkBusy}>
               <Send className="size-3.5" /> Mark as sent
             </Button>
-            <Button variant="outline" size="sm" onClick={bulkExport} disabled={bulkBusy}>
-              <Download className="size-3.5" /> Export CSV
-            </Button>
+            <ExportMenu rows={bulkExportRows} filename="invoices_export" disabled={bulkBusy} />
             <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
               <Trash2 className="size-3.5" /> Delete
             </Button>

@@ -1,13 +1,12 @@
 "use client";
 
 import { useMemo } from "react";
-import { ShoppingBag, Download, Info } from "lucide-react";
+import { ShoppingBag, Info } from "lucide-react";
 import Link from "next/link";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { inr } from "@/lib/format";
-import { exportCSV } from "@/lib/export";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
-import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -37,13 +36,7 @@ export default function SalesByItemPage() {
       description="Quantity sold and revenue per product, from Product Sales invoices."
       actions={
         rows.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => exportCSV(rows.map((r) => ({ Product: r.productName, "Qty sold": r.qty, Invoices: r.orders, Revenue: r.revenue })), "sales_by_item")}
-          >
-            <Download className="size-4" /> Export CSV
-          </Button>
+          <ExportMenu rows={rows.map((r) => ({ Product: r.productName, "Qty sold": r.qty, Invoices: r.orders, Revenue: r.revenue }))} filename="sales_by_item" />
         )
       }
     >

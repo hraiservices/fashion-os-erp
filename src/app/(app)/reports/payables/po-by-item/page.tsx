@@ -1,13 +1,12 @@
 "use client";
 
 import { useMemo } from "react";
-import { Package, Download } from "lucide-react";
+import { Package } from "lucide-react";
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders";
 import { inr } from "@/lib/format";
-import { exportCSV } from "@/lib/export";
 import { purchaseItemId, purchaseItemName } from "@/lib/purchases";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
-import { Button } from "@/components/ui/button";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -38,18 +37,10 @@ export default function PurchaseOrderByItemPage() {
       description="Quantity and value ordered per item, across every purchase order."
       actions={
         rows.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              exportCSV(
-                rows.map((r) => ({ Item: r.itemName, Unit: r.unitName, "Qty Ordered": r.qty, "Purchase Orders": r.poCount, "Total Value": r.amount })),
-                "po_by_item"
-              )
-            }
-          >
-            <Download className="size-4" /> Export CSV
-          </Button>
+          <ExportMenu
+            rows={rows.map((r) => ({ Item: r.itemName, Unit: r.unitName, "Qty Ordered": r.qty, "Purchase Orders": r.poCount, "Total Value": r.amount }))}
+            filename="po_by_item"
+          />
         )
       }
     >

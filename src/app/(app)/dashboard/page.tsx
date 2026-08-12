@@ -34,7 +34,7 @@ export default function DashboardPage() {
     // before the user/email resolves would fire the effect against the defaultLayout() fallback,
     // permanently locking out the real fetched layout on client-side navigation.
     if (layoutRawData !== undefined && entitlements && !initializedRef.current) {
-      setWidgets(layoutRawData.filter((w) => w.kind === "custom" || isWidgetEnabled(entitlements, w.builtinKey!)));
+      setWidgets(savedWidgets.filter((w) => w.kind === "custom" || isWidgetEnabled(entitlements, w.builtinKey!)));
       initializedRef.current = true;
     }
   }, [layoutRawData, entitlements]);

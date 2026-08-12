@@ -21,7 +21,7 @@ import type { WidgetInstance } from "@/lib/dashboard-widgets";
 export default function DashboardPage() {
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
-  const { widgets: savedWidgets, isLoading: layoutLoading, save } = useDashboardLayout();
+  const { widgets: savedWidgets, rawData: layoutRawData, isLoading: layoutLoading, save } = useDashboardLayout();
   const { data: entitlements, isLoading: entitlementsLoading } = useModuleEntitlements();
 
   const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
@@ -29,16 +29,15 @@ export default function DashboardPage() {
   const initializedRef = useRef(false);
 
   useEffect(() => {
-    // Wait for user (and therefore email) before locking in the layout — without it, the
-    // layout query is disabled and savedWidgets is just the defaultLayout() fallback. If we
-    // initialize from that fallback and set the ref, the real layout that arrives moments later
-    // is silently ignored (ref guard blocks re-entry), causing all cards to appear empty after
-    // client-side navigation where entitlements is already cached but user/email isn't yet.
-    if (user && !layoutLoading && entitlements && !initializedRef.current) {
-      setWidgets(savedWidgets.filter((w) => w.kind === "custom" || isWidgetEnabled(entitlements, w.builtinKey!)));
+    // Guard on layoutRawData (the actual fetched array, not the defaultLayout() fallback) so the
+    // ref is only locked once real data arrives. Without this, entitlements arriving from cache
+    // before the user/email resolves would fire the effect against the defaultLayout() fallback,
+    // permanently locking out the real fetched layout on client-side navigation.
+    if (layoutRawData !== undefined && entitlements && !initializedRef.current) {
+      setWidgets(layoutRawData.filter((w) => w.kind === "custom" || isWidgetEnabled(entitlements, w.builtinKey!)));
       initializedRef.current = true;
     }
-  }, [user, layoutLoading, savedWidgets, entitlements]);
+  }, [layoutRawData, entitlements]);
 
   function handleChange(next: WidgetInstance[]) {
     setWidgets(next);
@@ -101,7 +100,7 @@ export default function DashboardPage() {
         {user?.perms.manageManufacturing && <QuickAction href="/manufacturing/new" icon={CreditCard} label="New work order" />}
       </div>
 
-      {!initializedRef.current && (!user || layoutLoading || entitlementsLoading) ? (
+      {!initializedRef.current && (layoutLoading || entitlementsLoading) ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-24 w-full" />

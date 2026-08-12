@@ -71,17 +71,18 @@ Rules:
   nothing meaningful is not allowed — instead set "sql" to an empty string.
 Respond with JSON only: {"sql": "<the query>"}.`;
 
-const ANSWER_SYSTEM_PROMPT = `You are a friendly, precise business assistant for a tailoring
-shop's ERP. You'll be given the original question and the JSON rows a database query returned
-for it. Turn that into a short, direct natural-language answer.
+const ANSWER_SYSTEM_PROMPT = `You are a friendly, sharp business assistant for an Indian
+tailoring shop's ERP. You'll be given the original question, any recent conversation context,
+and the JSON rows a database query returned. Turn that into a concise, actionable answer.
 
 Rules:
-- Reply in the same language / language-mix the question was asked in (if it was Hinglish,
-  answer in Hinglish; if English, answer in English).
-- State the actual numbers from the data — don't round unnecessarily, use ₹ for currency.
-- If the rows are empty, say so plainly rather than guessing.
-- Keep it conversational and short — a sentence or two, occasionally a short list for multiple
-  items. No markdown tables, no code blocks.`;
+- Reply in the same language / language-mix as the question (Hinglish → Hinglish; English → English).
+- Lead with the most important number or fact.
+- Use ₹ for currency, state real numbers — don't round or hedge unnecessarily.
+- If the rows array is empty, say so clearly and suggest what they might try instead.
+- For lists of 5 or fewer items, name them. For longer lists give the count and top examples.
+- Keep it short and conversational — 1-3 sentences or a tight bullet list. No markdown tables, no code blocks.
+- If the answer implies something actionable (overdue balance, pending delivery), say so.`;
 
 function buildGlossaryBlock(glossary: GlossaryEntry[]): string {
   if (!glossary.length) return "";
@@ -89,10 +90,23 @@ function buildGlossaryBlock(glossary: GlossaryEntry[]): string {
   return `\n\nBUSINESS VOCABULARY (set by the shop admin — these override your own guesses about what a term means):\n${lines}`;
 }
 
-export async function generateSql(question: string, glossary: GlossaryEntry[] = []): Promise<string> {
+function buildHistoryBlock(history: { question: string; answer: string }[]): string {
+  if (!history.length) return "";
+  const lines = history.map((h) => `Q: ${h.question}\nA: ${h.answer}`).join("\n\n");
+  return `\n\nRECENT CONVERSATION (last ${history.length} turns — use for context when the new question is a follow-up):\n${lines}`;
+}
+
+export async function generateSql(
+  question: string,
+  glossary: GlossaryEntry[] = [],
+  history: { question: string; answer: string }[] = [],
+): Promise<string> {
   const ai = getClient();
   const today = new Date().toISOString().slice(0, 10);
-  const systemInstruction = SQL_SYSTEM_PROMPT.replace("{{TODAY}}", today) + buildGlossaryBlock(glossary);
+  const systemInstruction =
+    SQL_SYSTEM_PROMPT.replace("{{TODAY}}", today) +
+    buildGlossaryBlock(glossary) +
+    buildHistoryBlock(history);
   const response = await ai.models.generateContent({
     model: MODEL,
     contents: [{ role: "user", parts: [{ text: question }] }],
@@ -138,14 +152,21 @@ export async function generateBriefing(summary: unknown): Promise<string> {
   return response.text?.trim() || "Couldn't generate today's briefing — try again shortly.";
 }
 
-export async function generateAnswer(question: string, rows: unknown[]): Promise<string> {
+export async function generateAnswer(
+  question: string,
+  rows: unknown[],
+  history: { question: string; answer: string }[] = [],
+): Promise<string> {
   const ai = getClient();
+  const historyBlock = history.length
+    ? `\n\nPrior conversation:\n${history.map((h) => `Q: ${h.question}\nA: ${h.answer}`).join("\n\n")}`
+    : "";
   const response = await ai.models.generateContent({
     model: MODEL,
     contents: [
       {
         role: "user",
-        parts: [{ text: `Question: ${question}\n\nQuery result (JSON array, may be empty): ${JSON.stringify(rows).slice(0, 8000)}` }],
+        parts: [{ text: `Question: ${question}${historyBlock}\n\nQuery result (JSON array, may be empty): ${JSON.stringify(rows).slice(0, 8000)}` }],
       },
     ],
     config: {

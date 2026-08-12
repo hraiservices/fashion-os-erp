@@ -26,12 +26,22 @@ export async function POST(request: Request) {
 
   try {
     const glossary = await getChatbotGlossary(supabase);
-    sql = await generateSql(question, glossary);
+
+    // Pass recent conversation so the model can handle follow-up questions correctly.
+    const { data: recentMessages } = await supabase
+      .from("chatbot_messages")
+      .select("question, answer")
+      .eq("user_email", user.email)
+      .order("created_at", { ascending: false })
+      .limit(5);
+    const history = (recentMessages || []).reverse();
+
+    sql = await generateSql(question, glossary, history);
     if (!sql) {
       answer = NO_DATA_ANSWER;
     } else {
       const rows = await runChatbotQuery(sql);
-      answer = await generateAnswer(question, rows);
+      answer = await generateAnswer(question, rows, history);
     }
   } catch (e) {
     errorMessage = e instanceof Error ? e.message : "Unknown error";

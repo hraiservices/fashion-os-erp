@@ -29,15 +29,16 @@ export default function DashboardPage() {
   const initializedRef = useRef(false);
 
   useEffect(() => {
-    if (!layoutLoading && entitlements && !initializedRef.current) {
-      // Entitlement-disabled builtin widgets are dropped from the editable set entirely — they
-      // can't be shown/hidden from the customize panel, and won't be re-persisted on save.
-      // reconcileLayout() silently re-adds them (visible, at the end) if the module is licensed
-      // back on later, so nothing is lost long-term.
+    // Wait for user (and therefore email) before locking in the layout — without it, the
+    // layout query is disabled and savedWidgets is just the defaultLayout() fallback. If we
+    // initialize from that fallback and set the ref, the real layout that arrives moments later
+    // is silently ignored (ref guard blocks re-entry), causing all cards to appear empty after
+    // client-side navigation where entitlements is already cached but user/email isn't yet.
+    if (user && !layoutLoading && entitlements && !initializedRef.current) {
       setWidgets(savedWidgets.filter((w) => w.kind === "custom" || isWidgetEnabled(entitlements, w.builtinKey!)));
       initializedRef.current = true;
     }
-  }, [layoutLoading, savedWidgets, entitlements]);
+  }, [user, layoutLoading, savedWidgets, entitlements]);
 
   function handleChange(next: WidgetInstance[]) {
     setWidgets(next);
@@ -100,7 +101,7 @@ export default function DashboardPage() {
         {user?.perms.manageManufacturing && <QuickAction href="/manufacturing/new" icon={CreditCard} label="New work order" />}
       </div>
 
-      {!initializedRef.current && (layoutLoading || entitlementsLoading) ? (
+      {!initializedRef.current && (!user || layoutLoading || entitlementsLoading) ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-24 w-full" />

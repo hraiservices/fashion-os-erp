@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { GripVertical, EyeOff, Maximize2, Minimize2 } from "lucide-react";
+import { GripHorizontal, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const COL_SPAN_CLASS: Record<1 | 2 | 3 | 4, string> = {
@@ -48,7 +48,6 @@ export function WidgetShell({
     lastCols: 1 | 2 | 3 | 4; lastH: number;
   } | null>(null);
 
-  // Drag reorder — only initiates when grip handle is pressed
   function handleDragStart(e: React.DragEvent) {
     if (!gripPressed.current) { e.preventDefault(); return; }
     onDragStart?.(e);
@@ -58,7 +57,6 @@ export function WidgetShell({
     onDragEnd?.();
   }
 
-  // Free-form resize — tracks mouse globally while handle is held
   function handleResizeMouseDown(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
@@ -74,16 +72,12 @@ export function WidgetShell({
       const s = resizeState.current;
       const el = containerRef.current;
       if (!s || !el) return;
-
       const grid = el.closest("[data-dashboard-grid]") as HTMLElement | null;
       const gridW = grid ? grid.clientWidth : el.offsetWidth * 4;
-      const GAP = 16, COLS = 4;
-      const colW = (gridW - GAP * (COLS - 1)) / COLS;
-
+      const colW = (gridW - 16 * 3) / 4;
       const newW = s.startW + (ev.clientX - s.startX);
       const newH = Math.max(80, s.startH + (ev.clientY - s.startY));
       const newCols = Math.max(1, Math.min(4, Math.round(newW / colW))) as 1 | 2 | 3 | 4;
-
       s.lastCols = newCols;
       s.lastH = Math.round(newH);
       onResizeProgress?.(newCols, s.lastH);
@@ -92,9 +86,7 @@ export function WidgetShell({
     function onMouseUp() {
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
-      if (resizeState.current) {
-        onResizeEnd?.(resizeState.current.lastCols, resizeState.current.lastH);
-      }
+      if (resizeState.current) onResizeEnd?.(resizeState.current.lastCols, resizeState.current.lastH);
       resizeState.current = null;
     }
 
@@ -108,7 +100,7 @@ export function WidgetShell({
       className={cn(
         "group relative col-span-1",
         COL_SPAN_CLASS[colSpan],
-        editing && "rounded-xl outline-dashed outline-2 outline-transparent transition-all hover:outline-primary/40",
+        editing && "outline-dashed outline-2 outline-transparent transition-all hover:outline-primary/40 rounded-xl",
         dragging && "opacity-40",
         dropTarget && "outline-primary/60"
       )}
@@ -118,35 +110,30 @@ export function WidgetShell({
       onDrop={onDrop}
       onDragEnd={handleDragEnd}
     >
-      {/* Hover control bar — grip (left) + resize indicator + hide (right) */}
-      <div className="pointer-events-none absolute inset-x-0 -top-3 z-20 flex items-center justify-between px-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
+      {/* Thin hover bar inside the card — grip left, hide right */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between rounded-t-xl px-2 py-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 bg-black/[0.04] dark:bg-white/[0.06]">
         <button
           type="button"
           aria-label="Drag to reorder"
-          className="flex size-6 cursor-grab items-center justify-center rounded-full border bg-background shadow-sm hover:bg-muted active:cursor-grabbing"
+          className="flex cursor-grab items-center gap-1 text-muted-foreground/70 hover:text-muted-foreground active:cursor-grabbing"
           onMouseDown={() => { gripPressed.current = true; }}
           onMouseUp={() => { gripPressed.current = false; }}
         >
-          <GripVertical className="size-3.5" />
+          <GripHorizontal className="size-3.5" />
         </button>
-        <div className="flex items-center gap-1">
-          {colSpan < 4
-            ? <Maximize2 className="size-3 text-muted-foreground/50" />
-            : <Minimize2 className="size-3 text-muted-foreground/50" />}
-          {onHide && (
-            <button
-              type="button"
-              onClick={onHide}
-              aria-label="Hide widget"
-              className="flex size-6 items-center justify-center rounded-full border bg-background shadow-sm hover:bg-destructive/10 hover:text-destructive"
-            >
-              <EyeOff className="size-3.5" />
-            </button>
-          )}
-        </div>
+        {onHide && (
+          <button
+            type="button"
+            onClick={onHide}
+            aria-label="Hide widget"
+            className="flex items-center text-muted-foreground/70 hover:text-destructive"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
       </div>
 
-      {/* Widget content — fixed height when set, scrollable */}
+      {/* Widget content */}
       <div
         className={cn(dragging && "pointer-events-none select-none")}
         style={heightPx ? { height: heightPx, overflow: "auto" } : undefined}
@@ -154,13 +141,13 @@ export function WidgetShell({
         {children}
       </div>
 
-      {/* Resize handle — bottom-right corner, visible on hover */}
+      {/* Resize handle — bottom-right corner, subtle on hover */}
       <div
         className="absolute bottom-0 right-0 z-20 h-5 w-5 cursor-se-resize opacity-0 transition-opacity group-hover:opacity-100"
         onMouseDown={handleResizeMouseDown}
         aria-label="Resize widget"
       >
-        <svg viewBox="0 0 10 10" className="h-full w-full text-muted-foreground/60">
+        <svg viewBox="0 0 10 10" className="h-full w-full text-muted-foreground/40">
           <path d="M 9 1 L 9 9 L 1 9" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M 9 5 L 5 9" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>

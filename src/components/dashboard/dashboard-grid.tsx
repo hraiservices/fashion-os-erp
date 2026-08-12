@@ -66,6 +66,10 @@ export function DashboardGrid({
     onChange(widgets.map((w) => (w.id !== id ? w : { ...w, colSpan, heightPx })));
   }
 
+  function resetWidgetSize(id: string) {
+    onChange(widgets.map((w) => (w.id !== id ? w : { ...w, colSpan: undefined, heightPx: undefined })));
+  }
+
   function renderContent(w: WidgetInstance) {
     if (w.kind === "custom" && w.customConfig) return <CustomCardWidget config={w.customConfig} />;
     if (w.kind === "builtin" && w.builtinKey) {
@@ -95,6 +99,7 @@ export function DashboardGrid({
             onHide={() => hideWidget(w.id)}
             onResizeProgress={(cols, h) => handleResizeProgress(w.id, cols, h)}
             onResizeEnd={(cols, h) => handleResizeEnd(w.id, cols, h)}
+            onResetSize={() => resetWidgetSize(w.id)}
             onDragStart={(e) => {
               draggingRef.current = w.id;
               setDraggingId(w.id);

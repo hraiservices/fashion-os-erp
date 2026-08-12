@@ -26,10 +26,12 @@ export function WidgetShell({
   onHide,
   onResizeProgress,
   onResizeEnd,
+  onResetSize,
   children,
 }: {
   colSpan: 1 | 2 | 3 | 4;
   heightPx?: number;
+  href?: string;
   editing: boolean;
   dragging?: boolean;
   dropTarget?: boolean;
@@ -37,10 +39,10 @@ export function WidgetShell({
   onDragOver?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
-  href?: string;
   onHide?: () => void;
   onResizeProgress?: (colSpan: 1 | 2 | 3 | 4, heightPx: number) => void;
   onResizeEnd?: (colSpan: 1 | 2 | 3 | 4, heightPx: number) => void;
+  onResetSize?: () => void;
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -81,10 +83,9 @@ export function WidgetShell({
       const colW = (gridW - 16 * 3) / 4;
       const newW = s.startW + (ev.clientX - s.startX);
       const newH = Math.max(80, s.startH + (ev.clientY - s.startY));
-      const newCols = Math.max(1, Math.min(4, Math.round(newW / colW))) as 1 | 2 | 3 | 4;
-      s.lastCols = newCols;
+      s.lastCols = Math.max(1, Math.min(4, Math.round(newW / colW))) as 1 | 2 | 3 | 4;
       s.lastH = Math.round(newH);
-      onResizeProgress?.(newCols, s.lastH);
+      onResizeProgress?.(s.lastCols, s.lastH);
     }
 
     function onMouseUp() {
@@ -104,7 +105,7 @@ export function WidgetShell({
       className={cn(
         "group relative col-span-1",
         COL_SPAN_CLASS[colSpan],
-        editing && "outline-dashed outline-2 outline-transparent transition-all hover:outline-primary/40 rounded-xl",
+        editing && "rounded-xl outline-dashed outline-2 outline-transparent transition-all hover:outline-primary/40",
         dragging && "opacity-40",
         dropTarget && "outline-primary/60"
       )}
@@ -114,32 +115,46 @@ export function WidgetShell({
       onDrop={onDrop}
       onDragEnd={handleDragEnd}
       onClick={href ? (e) => {
+        // Let internal links/buttons handle their own navigation
         if ((e.target as HTMLElement).closest("a, button, input, select, textarea")) return;
         router.push(href);
       } : undefined}
-      style={href ? { cursor: "pointer" } : undefined}
     >
-      {/* Thin hover bar inside the card — grip left, hide right */}
+      {/* Hover control bar — transparent, grip left, hide right */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between rounded-t-xl px-2 py-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
         <button
           type="button"
           aria-label="Drag to reorder"
-          className="flex cursor-grab items-center gap-1 text-muted-foreground/70 hover:text-muted-foreground active:cursor-grabbing"
+          className="cursor-grab text-muted-foreground/60 hover:text-muted-foreground active:cursor-grabbing"
           onMouseDown={() => { gripPressed.current = true; }}
           onMouseUp={() => { gripPressed.current = false; }}
         >
           <GripHorizontal className="size-3.5" />
         </button>
-        {onHide && (
-          <button
-            type="button"
-            onClick={onHide}
-            aria-label="Hide widget"
-            className="flex items-center text-muted-foreground/70 hover:text-destructive"
-          >
-            <X className="size-3.5" />
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {/* Double-click resize zone to reset height/width to default */}
+          {(heightPx || colSpan) && onResetSize && (
+            <button
+              type="button"
+              onClick={onResetSize}
+              title="Reset to default size"
+              aria-label="Reset size"
+              className="text-[10px] font-medium text-muted-foreground/50 hover:text-muted-foreground"
+            >
+              reset
+            </button>
+          )}
+          {onHide && (
+            <button
+              type="button"
+              onClick={onHide}
+              aria-label="Hide widget"
+              className="text-muted-foreground/60 hover:text-destructive"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Widget content */}
@@ -150,12 +165,18 @@ export function WidgetShell({
         {children}
       </div>
 
-      {/* Invisible resize zone — bottom-right corner, no visual indicator */}
+      {/* Resize zone — bottom-right corner, larger hit area, 3-dot indicator on hover */}
       <div
-        className="absolute bottom-0 right-0 z-20 h-6 w-6 cursor-se-resize"
+        className="absolute bottom-0 right-0 z-20 flex h-8 w-8 cursor-se-resize items-end justify-end p-1.5 opacity-0 transition-opacity group-hover:opacity-100"
         onMouseDown={handleResizeMouseDown}
-        aria-label="Resize widget"
-      />
+        title="Drag to resize"
+      >
+        <svg width="8" height="8" viewBox="0 0 8 8" className="text-muted-foreground/40">
+          <circle cx="6" cy="6" r="1" fill="currentColor" />
+          <circle cx="6" cy="2" r="1" fill="currentColor" />
+          <circle cx="2" cy="6" r="1" fill="currentColor" />
+        </svg>
+      </div>
     </div>
   );
 }

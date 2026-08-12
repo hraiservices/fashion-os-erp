@@ -10,29 +10,31 @@ export interface BuiltinWidgetMeta {
   title: string;
   size: WidgetSize;
   description: string;
+  /** Where clicking the card body navigates. */
+  href?: string;
 }
 
 export const BUILTIN_WIDGETS: BuiltinWidgetMeta[] = [
-  { key: "upcoming-deliveries", title: "Delivery Countdown", size: "lg", description: "Live days:hours:minutes:seconds countdown for the next 10 customers by delivery deadline" },
-  { key: "upcoming-payments-countdown", title: "Payment Countdown", size: "lg", description: "Live days:hours:minutes:seconds countdown for the next 10 customers by overdue/upcoming payment" },
-  { key: "outstanding-balance", title: "Outstanding Balance", size: "lg", description: "Stitching balance due, current vs overdue" },
-  { key: "total-revenue", title: "Total Revenue", size: "lg", description: "All-time billed vs collected (stitching)" },
-  { key: "stitching-dues", title: "Stitching Dues", size: "sm", description: "Outstanding balance on stitching orders" },
-  { key: "sales-dues", title: "Product Sales Dues", size: "sm", description: "Outstanding balance on product sales invoices" },
-  { key: "total-receivable", title: "Total Receivable", size: "sm", description: "Stitching Orders + Product Sales dues combined" },
-  { key: "inventory-value", title: "Inventory Value", size: "sm", description: "Raw material + finished goods stock value" },
-  { key: "low-stock-items", title: "Low Stock Items", size: "sm", description: "Items at or below their alert threshold" },
-  { key: "purchases-payable", title: "Purchases Payable", size: "sm", description: "Outstanding amount owed to vendors" },
-  { key: "manufacturing-active", title: "Active Work Orders", size: "sm", description: "Work orders not yet completed" },
-  { key: "manufacturing-cost", title: "Production Cost", size: "sm", description: "Total cost of completed work orders" },
-  { key: "revenue-flow", title: "Revenue Flow", size: "lg", description: "Billed vs collected, last 6 months" },
-  { key: "pipeline", title: "Pipeline", size: "lg", description: "Orders by stage" },
-  { key: "monthly-overview", title: "Monthly Overview", size: "lg", description: "Billed vs collected bar chart" },
-  { key: "top-expenses", title: "Top Expenses", size: "lg", description: "Expense breakdown by category" },
-  { key: "pending-payments", title: "Pending Payments", size: "full", description: "Stitching orders with balance due" },
-  { key: "needs-attention", title: "Needs Attention", size: "lg", description: "Overdue or ready-for-pickup orders" },
-  { key: "recent-orders", title: "Recent Orders", size: "lg", description: "Latest stitching orders" },
-  { key: "tailor-load", title: "Tailor Load", size: "lg", description: "Active orders per tailor" },
+  { key: "upcoming-deliveries",         title: "Delivery Countdown",   size: "lg",   href: "/orders?view=board",     description: "Live days:hours:minutes:seconds countdown for the next 10 customers by delivery deadline" },
+  { key: "upcoming-payments-countdown", title: "Payment Countdown",    size: "lg",   href: "/reports/aging",         description: "Live days:hours:minutes:seconds countdown for the next 10 customers by overdue/upcoming payment" },
+  { key: "outstanding-balance",         title: "Outstanding Balance",  size: "lg",   href: "/reports/aging",         description: "Stitching balance due, current vs overdue" },
+  { key: "total-revenue",               title: "Total Revenue",        size: "lg",   href: "/reports/monthly",       description: "All-time billed vs collected (stitching)" },
+  { key: "stitching-dues",              title: "Stitching Dues",       size: "sm",   href: "/orders",                description: "Outstanding balance on stitching orders" },
+  { key: "sales-dues",                  title: "Product Sales Dues",   size: "sm",   href: "/sales/invoices",        description: "Outstanding balance on product sales invoices" },
+  { key: "total-receivable",            title: "Total Receivable",     size: "sm",   href: "/reports/aging",         description: "Stitching Orders + Product Sales dues combined" },
+  { key: "inventory-value",             title: "Inventory Value",      size: "sm",   href: "/inventory",             description: "Raw material + finished goods stock value" },
+  { key: "low-stock-items",             title: "Low Stock Items",      size: "sm",   href: "/inventory",             description: "Items at or below their alert threshold" },
+  { key: "purchases-payable",           title: "Purchases Payable",    size: "sm",   href: "/purchases",             description: "Outstanding amount owed to vendors" },
+  { key: "manufacturing-active",        title: "Active Work Orders",   size: "sm",   href: "/manufacturing",         description: "Work orders not yet completed" },
+  { key: "manufacturing-cost",          title: "Production Cost",      size: "sm",   href: "/manufacturing",         description: "Total cost of completed work orders" },
+  { key: "revenue-flow",                title: "Revenue Flow",         size: "lg",   href: "/reports/monthly",       description: "Billed vs collected, last 6 months" },
+  { key: "pipeline",                    title: "Pipeline",             size: "lg",   href: "/orders?view=board",     description: "Orders by stage" },
+  { key: "monthly-overview",            title: "Monthly Overview",     size: "lg",   href: "/reports/monthly",       description: "Billed vs collected bar chart" },
+  { key: "top-expenses",                title: "Top Expenses",         size: "lg",   href: "/expenses",              description: "Expense breakdown by category" },
+  { key: "pending-payments",            title: "Pending Payments",     size: "full", href: "/orders",                description: "Stitching orders with balance due" },
+  { key: "needs-attention",             title: "Needs Attention",      size: "lg",   href: "/orders",                description: "Overdue or ready-for-pickup orders" },
+  { key: "recent-orders",               title: "Recent Orders",        size: "lg",   href: "/orders",                description: "Latest stitching orders" },
+  { key: "tailor-load",                 title: "Tailor Load",          size: "lg",   href: "/orders?view=board",     description: "Active orders per tailor" },
 ];
 
 export const BUILTIN_WIDGET_BY_KEY = new Map(BUILTIN_WIDGETS.map((w) => [w.key, w]));

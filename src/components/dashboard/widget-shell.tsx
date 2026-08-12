@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { useRouter } from "next/navigation";
 import { GripHorizontal, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,7 @@ const COL_SPAN_CLASS: Record<1 | 2 | 3 | 4, string> = {
 export function WidgetShell({
   colSpan,
   heightPx,
+  href,
   editing,
   dragging,
   dropTarget,
@@ -35,11 +37,13 @@ export function WidgetShell({
   onDragOver?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
+  href?: string;
   onHide?: () => void;
   onResizeProgress?: (colSpan: 1 | 2 | 3 | 4, heightPx: number) => void;
   onResizeEnd?: (colSpan: 1 | 2 | 3 | 4, heightPx: number) => void;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const gripPressed = useRef(false);
   const resizeState = useRef<{
@@ -109,9 +113,14 @@ export function WidgetShell({
       onDragOver={onDragOver}
       onDrop={onDrop}
       onDragEnd={handleDragEnd}
+      onClick={href ? (e) => {
+        if ((e.target as HTMLElement).closest("a, button, input, select, textarea")) return;
+        router.push(href);
+      } : undefined}
+      style={href ? { cursor: "pointer" } : undefined}
     >
       {/* Thin hover bar inside the card — grip left, hide right */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between rounded-t-xl px-2 py-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 bg-black/[0.04] dark:bg-white/[0.06]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between rounded-t-xl px-2 py-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
         <button
           type="button"
           aria-label="Drag to reorder"

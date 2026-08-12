@@ -81,12 +81,14 @@ export function DashboardGrid({
         const isResizing = resizeLive?.id === w.id;
         const colSpan = isResizing ? resizeLive.colSpan : getEffectiveCols(w);
         const heightPx = isResizing ? resizeLive.heightPx : w.heightPx;
+        const href = w.kind === "builtin" ? BUILTIN_WIDGET_BY_KEY.get(w.builtinKey || "")?.href : undefined;
 
         return (
           <WidgetShell
             key={w.id}
             colSpan={colSpan}
             heightPx={heightPx}
+            href={href}
             editing={editing}
             dragging={draggingId === w.id}
             dropTarget={dropTargetId === w.id}

@@ -6,12 +6,16 @@ import { WIDGET_COMPONENTS } from "@/components/dashboard/widget-registry";
 import { WidgetShell } from "@/components/dashboard/widget-shell";
 import { CustomCardWidget } from "@/components/dashboard/custom-card-widget";
 
-const SIZE_CYCLE: Record<WidgetSize, WidgetSize> = { sm: "lg", lg: "full", full: "sm" };
+const SIZE_TO_COLS: Record<WidgetSize, 1 | 2 | 3 | 4> = { sm: 1, lg: 2, full: 4 };
 
-function getEffectiveSize(w: WidgetInstance): WidgetSize {
-  if (w.sizeOverride) return w.sizeOverride;
-  if (w.kind === "custom") return "sm";
-  return BUILTIN_WIDGET_BY_KEY.get(w.builtinKey || "")?.size || "sm";
+function getDefaultCols(w: WidgetInstance): 1 | 2 | 3 | 4 {
+  if (w.kind === "custom") return 1;
+  const size = BUILTIN_WIDGET_BY_KEY.get(w.builtinKey || "")?.size ?? "sm";
+  return SIZE_TO_COLS[size];
+}
+
+function getEffectiveCols(w: WidgetInstance): 1 | 2 | 3 | 4 {
+  return w.colSpan ?? getDefaultCols(w);
 }
 
 export function DashboardGrid({
@@ -28,6 +32,9 @@ export function DashboardGrid({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const draggingRef = useRef<string | null>(null);
+
+  // Live resize preview — not saved until mouseup
+  const [resizeLive, setResizeLive] = useState<{ id: string; colSpan: 1 | 2 | 3 | 4; heightPx: number } | null>(null);
 
   function handleDrop(targetId: string) {
     const sourceId = draggingRef.current;
@@ -50,13 +57,13 @@ export function DashboardGrid({
     onChange(widgets.map((w) => (w.id === id ? { ...w, visible: false } : w)));
   }
 
-  function resizeWidget(id: string) {
-    onChange(
-      widgets.map((w) => {
-        if (w.id !== id) return w;
-        return { ...w, sizeOverride: SIZE_CYCLE[getEffectiveSize(w)] };
-      })
-    );
+  function handleResizeProgress(id: string, colSpan: 1 | 2 | 3 | 4, heightPx: number) {
+    setResizeLive({ id, colSpan, heightPx });
+  }
+
+  function handleResizeEnd(id: string, colSpan: 1 | 2 | 3 | 4, heightPx: number) {
+    setResizeLive(null);
+    onChange(widgets.map((w) => (w.id !== id ? w : { ...w, colSpan, heightPx })));
   }
 
   function renderContent(w: WidgetInstance) {
@@ -69,18 +76,23 @@ export function DashboardGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-4" data-dashboard-grid>
       {visible.map((w) => {
-        const size = getEffectiveSize(w);
+        const isResizing = resizeLive?.id === w.id;
+        const colSpan = isResizing ? resizeLive.colSpan : getEffectiveCols(w);
+        const heightPx = isResizing ? resizeLive.heightPx : w.heightPx;
+
         return (
           <WidgetShell
             key={w.id}
-            size={size}
+            colSpan={colSpan}
+            heightPx={heightPx}
             editing={editing}
             dragging={draggingId === w.id}
             dropTarget={dropTargetId === w.id}
-            onResize={() => resizeWidget(w.id)}
             onHide={() => hideWidget(w.id)}
+            onResizeProgress={(cols, h) => handleResizeProgress(w.id, cols, h)}
+            onResizeEnd={(cols, h) => handleResizeEnd(w.id, cols, h)}
             onDragStart={(e) => {
               draggingRef.current = w.id;
               setDraggingId(w.id);

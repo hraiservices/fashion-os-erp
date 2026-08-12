@@ -2,6 +2,9 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Force Tailwind to emit col-span utilities used dynamically in the dashboard grid */
+@source inline("sm:col-span-1 sm:col-span-2 sm:col-span-3 sm:col-span-4");
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

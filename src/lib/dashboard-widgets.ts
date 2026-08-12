@@ -45,8 +45,10 @@ export interface WidgetInstance {
   customConfig?: CustomCardConfig;
   visible: boolean;
   order: number;
-  /** User-chosen size override; when absent the builtin default (BUILTIN_WIDGET_BY_KEY) is used. */
-  sizeOverride?: WidgetSize;
+  /** Width in grid columns (1–4). Absent = use the builtin default. */
+  colSpan?: 1 | 2 | 3 | 4;
+  /** Height in pixels. Absent = natural content height. */
+  heightPx?: number;
 }
 
 export function defaultLayout(): WidgetInstance[] {

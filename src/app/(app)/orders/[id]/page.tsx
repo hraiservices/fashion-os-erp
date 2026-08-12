@@ -92,7 +92,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 pb-28 sm:p-6 lg:pb-6">
+    <div className="mx-auto max-w-3xl space-y-4 p-4 pb-36 sm:p-6 sm:pb-36 lg:pb-6">
       <Link href="/orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" /> Orders
       </Link>

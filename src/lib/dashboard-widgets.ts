@@ -45,6 +45,8 @@ export interface WidgetInstance {
   customConfig?: CustomCardConfig;
   visible: boolean;
   order: number;
+  /** User-chosen size override; when absent the builtin default (BUILTIN_WIDGET_BY_KEY) is used. */
+  sizeOverride?: WidgetSize;
 }
 
 export function defaultLayout(): WidgetInstance[] {

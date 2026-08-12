@@ -1,15 +1,19 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { BUILTIN_WIDGET_BY_KEY, type WidgetInstance } from "@/lib/dashboard-widgets";
+import { BUILTIN_WIDGET_BY_KEY, type WidgetInstance, type WidgetSize } from "@/lib/dashboard-widgets";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widget-registry";
 import { WidgetShell } from "@/components/dashboard/widget-shell";
 import { CustomCardWidget } from "@/components/dashboard/custom-card-widget";
 
-/**
- * Renders the visible widgets in order and — while editing — supports HTML5 drag-and-drop
- * reordering, same pattern as the Kanban board's drag handlers.
- */
+const SIZE_CYCLE: Record<WidgetSize, WidgetSize> = { sm: "lg", lg: "full", full: "sm" };
+
+function getEffectiveSize(w: WidgetInstance): WidgetSize {
+  if (w.sizeOverride) return w.sizeOverride;
+  if (w.kind === "custom") return "sm";
+  return BUILTIN_WIDGET_BY_KEY.get(w.builtinKey || "")?.size || "sm";
+}
+
 export function DashboardGrid({
   widgets,
   editing,
@@ -46,6 +50,15 @@ export function DashboardGrid({
     onChange(widgets.map((w) => (w.id === id ? { ...w, visible: false } : w)));
   }
 
+  function resizeWidget(id: string) {
+    onChange(
+      widgets.map((w) => {
+        if (w.id !== id) return w;
+        return { ...w, sizeOverride: SIZE_CYCLE[getEffectiveSize(w)] };
+      })
+    );
+  }
+
   function renderContent(w: WidgetInstance) {
     if (w.kind === "custom" && w.customConfig) return <CustomCardWidget config={w.customConfig} />;
     if (w.kind === "builtin" && w.builtinKey) {
@@ -58,7 +71,7 @@ export function DashboardGrid({
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
       {visible.map((w) => {
-        const size = w.kind === "custom" ? "sm" : BUILTIN_WIDGET_BY_KEY.get(w.builtinKey || "")?.size || "sm";
+        const size = getEffectiveSize(w);
         return (
           <WidgetShell
             key={w.id}
@@ -66,6 +79,8 @@ export function DashboardGrid({
             editing={editing}
             dragging={draggingId === w.id}
             dropTarget={dropTargetId === w.id}
+            onResize={() => resizeWidget(w.id)}
+            onHide={() => hideWidget(w.id)}
             onDragStart={(e) => {
               draggingRef.current = w.id;
               setDraggingId(w.id);
@@ -87,7 +102,6 @@ export function DashboardGrid({
               setDraggingId(null);
               setDropTargetId(null);
             }}
-            onHide={() => hideWidget(w.id)}
           >
             {renderContent(w)}
           </WidgetShell>

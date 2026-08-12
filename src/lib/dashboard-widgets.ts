@@ -13,8 +13,8 @@ export interface BuiltinWidgetMeta {
 }
 
 export const BUILTIN_WIDGETS: BuiltinWidgetMeta[] = [
-  { key: "upcoming-deliveries", title: "Delivery Countdown", size: "full", description: "Live days:hours:minutes:seconds countdown for the next 10 customers by delivery deadline" },
-  { key: "upcoming-payments-countdown", title: "Payment Countdown", size: "full", description: "Live days:hours:minutes:seconds countdown for the next 10 customers by overdue/upcoming payment" },
+  { key: "upcoming-deliveries", title: "Delivery Countdown", size: "lg", description: "Live days:hours:minutes:seconds countdown for the next 10 customers by delivery deadline" },
+  { key: "upcoming-payments-countdown", title: "Payment Countdown", size: "lg", description: "Live days:hours:minutes:seconds countdown for the next 10 customers by overdue/upcoming payment" },
   { key: "outstanding-balance", title: "Outstanding Balance", size: "lg", description: "Stitching balance due, current vs overdue" },
   { key: "total-revenue", title: "Total Revenue", size: "lg", description: "All-time billed vs collected (stitching)" },
   { key: "stitching-dues", title: "Stitching Dues", size: "sm", description: "Outstanding balance on stitching orders" },

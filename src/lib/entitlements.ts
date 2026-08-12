@@ -96,7 +96,8 @@ const REPORT_SECTION_MODULE: Record<string, ModuleId | null> = {
 
 /** Maps a BUILTIN_WIDGETS key to the ModuleId that gates it, or null for widgets that are always core. */
 const WIDGET_MODULE: Record<string, ModuleId | null> = {
-  "live-countdown": null,
+  "upcoming-deliveries": null,
+  "upcoming-payments-countdown": null,
   "outstanding-balance": null,
   "total-revenue": null,
   "stitching-dues": null,

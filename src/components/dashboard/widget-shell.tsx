@@ -48,6 +48,7 @@ export function WidgetShell({
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const gripPressed = useRef(false);
+  const resizeDragged = useRef(false); // true if mouse moved during resize — suppresses the post-drag click
   const resizeState = useRef<{
     startX: number; startY: number;
     startW: number; startH: number;
@@ -75,6 +76,7 @@ export function WidgetShell({
     };
 
     function onMouseMove(ev: MouseEvent) {
+      resizeDragged.current = true;
       const s = resizeState.current;
       const el = containerRef.current;
       if (!s || !el) return;
@@ -93,6 +95,9 @@ export function WidgetShell({
       document.removeEventListener("mouseup", onMouseUp);
       if (resizeState.current) onResizeEnd?.(resizeState.current.lastCols, resizeState.current.lastH);
       resizeState.current = null;
+      // The browser fires a click on the container after mouseup — clear the flag
+      // in the next microtask so the onClick handler can read it first.
+      setTimeout(() => { resizeDragged.current = false; }, 0);
     }
 
     document.addEventListener("mousemove", onMouseMove);
@@ -115,7 +120,7 @@ export function WidgetShell({
       onDrop={onDrop}
       onDragEnd={handleDragEnd}
       onClick={href ? (e) => {
-        // Let internal links/buttons handle their own navigation
+        if (resizeDragged.current) return; // drag just ended — not a real click
         if ((e.target as HTMLElement).closest("a, button, input, select, textarea")) return;
         router.push(href);
       } : undefined}

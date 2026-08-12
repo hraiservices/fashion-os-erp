@@ -141,17 +141,12 @@ export function WidgetShell({
         {children}
       </div>
 
-      {/* Resize handle — bottom-right corner, subtle on hover */}
+      {/* Invisible resize zone — bottom-right corner, no visual indicator */}
       <div
-        className="absolute bottom-0 right-0 z-20 h-5 w-5 cursor-se-resize opacity-0 transition-opacity group-hover:opacity-100"
+        className="absolute bottom-0 right-0 z-20 h-6 w-6 cursor-se-resize"
         onMouseDown={handleResizeMouseDown}
         aria-label="Resize widget"
-      >
-        <svg viewBox="0 0 10 10" className="h-full w-full text-muted-foreground/40">
-          <path d="M 9 1 L 9 9 L 1 9" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M 9 5 L 5 9" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      </div>
+      />
     </div>
   );
 }

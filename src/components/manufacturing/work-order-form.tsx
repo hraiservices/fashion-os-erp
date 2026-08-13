@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { ArrowLeft, Settings2, CalendarDays, Layers, FileText, Factory } from "lucide-react";
+import Link from "next/link";
 import { useProducts } from "@/hooks/use-products";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useActiveTailorNames } from "@/hooks/use-employees";
 import { useCreateWorkOrder, useUpdateWorkOrder } from "@/hooks/use-work-order-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { genWoNumber, prefillMaterialsFromBom, type WorkOrderMaterial } from "@/lib/manufacturing";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
@@ -18,6 +19,29 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { inr } from "@/lib/format";
 import type { WorkOrder } from "@/lib/types";
+
+function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+  return (
+    <div className="flex items-center gap-2 border-b pb-2 mb-4">
+      <div className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+        <Icon className="size-3.5 text-primary" />
+      </div>
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+function FieldGroup({ label, required, children, hint }: { label: string; required?: boolean; children: React.ReactNode; hint?: string }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-medium text-foreground/80">
+        {label}{required && <span className="ml-0.5 text-red-500">*</span>}
+      </Label>
+      {children}
+      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
 
 export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
   const router = useRouter();
@@ -40,8 +64,6 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
   const [notes, setNotes] = useState(existing?.notes || "");
   const [materials, setMaterials] = useState<WorkOrderMaterial[]>(existing?.materials || []);
 
-  // Skips exactly one BOM-recompute — the initial mount when editing — so the existing
-  // (possibly manually adjusted) material list isn't clobbered before the user changes anything.
   const skipNextRecompute = useRef(!!existing);
 
   const product = (products || []).find((p) => p.id === productId);
@@ -60,7 +82,6 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
     }
     const qty = parseFloat(qtyToProduce) || 0;
     setMaterials(prefillMaterialsFromBom(product.bom, qty, costByMaterialId));
-    // Only re-derive when product or qty changes — user edits to individual rows shouldn't be wiped by unrelated renders.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId, qtyToProduce]);
 
@@ -120,76 +141,94 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle className="text-sm">{isEdit ? `Edit work order · ${woNumber}` : `New work order · ${woNumber}`}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Product *</Label>
-              <Select value={productId} onValueChange={(v) => v && setProductId(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select product…">{productLabel}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {(products || []).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} {p.bom.length === 0 && "(no BOM set)"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Qty to produce *</Label>
-              <Input type="number" min={1} step="1" value={qtyToProduce} onChange={(e) => setQtyToProduce(e.target.value)} />
-            </div>
+    <div className="min-h-screen bg-muted/30">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
+        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
+          <Link href="/manufacturing" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="size-4" />
+            <span className="hidden sm:inline">Work orders</span>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-base font-semibold">{isEdit ? "Edit Work Order" : "New Work Order"}</h1>
+            <p className="text-[11px] text-muted-foreground font-mono">{woNumber}</p>
           </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => router.back()} disabled={isPending}>Cancel</Button>
+            <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={handleSave} disabled={isPending}>
+              <Factory className="size-3.5" />
+              {isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(estTotalCost)}` : `Create WO · ${inr(estTotalCost)}`}
+            </Button>
+          </div>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Tailor *</Label>
-              {(tailors || []).length > 0 ? (
-                <Select value={tailor} onValueChange={(v) => v && setTailor(v)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Assign a tailor" />
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
+        {/* Main form */}
+        <div className="lg:col-span-2 space-y-5">
+          {/* Product & production */}
+          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+            <SectionHeading icon={Settings2} label="Product & production" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FieldGroup label="Product to produce" required>
+                <Select value={productId} onValueChange={(v) => v && setProductId(v)}>
+                  <SelectTrigger className="h-10 w-full">
+                    <SelectValue placeholder="Select product…">{productLabel}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {(tailors || []).map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
+                    {(products || []).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name} {p.bom.length === 0 && "(no BOM set)"}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              ) : (
-                <Input value={tailor} onChange={(e) => setTailor(e.target.value)} placeholder="Add tailors in Employees" />
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Labor cost per piece (₹)</Label>
-              <Input type="number" min={0} step="0.01" value={laborCostPerPiece} onChange={(e) => setLaborCostPerPiece(e.target.value)} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Start date</Label>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Due date</Label>
-              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              </FieldGroup>
+              <FieldGroup label="Quantity to produce" required>
+                <Input type="number" min={1} step="1" value={qtyToProduce} onChange={(e) => setQtyToProduce(e.target.value)} className="h-10" />
+              </FieldGroup>
+              <FieldGroup label="Labor cost per piece (₹)" hint="Per unit labor cost for payroll calculations.">
+                <Input type="number" min={0} step="0.01" value={laborCostPerPiece} onChange={(e) => setLaborCostPerPiece(e.target.value)} className="h-10" />
+              </FieldGroup>
             </div>
           </div>
 
+          {/* Schedule & team */}
+          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+            <SectionHeading icon={CalendarDays} label="Schedule & team" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FieldGroup label="Assigned tailor" required>
+                {(tailors || []).length > 0 ? (
+                  <Select value={tailor} onValueChange={(v) => v && setTailor(v)}>
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue placeholder="Assign a tailor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(tailors || []).map((t) => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input value={tailor} onChange={(e) => setTailor(e.target.value)} placeholder="Add tailors in Employees" className="h-10" />
+                )}
+              </FieldGroup>
+              <div /> {/* spacer for grid alignment */}
+              <FieldGroup label="Start date">
+                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-10" />
+              </FieldGroup>
+              <FieldGroup label="Due date">
+                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-10" />
+              </FieldGroup>
+            </div>
+          </div>
+
+          {/* Materials */}
           {product && (
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Materials required (from Bill of Materials × qty)</Label>
+            <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+              <SectionHeading icon={Layers} label="Materials required" />
               {materials.length === 0 ? (
-                <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">
+                <p className="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">
                   This product has no Bill of Materials set. Add one from Inventory → Products, or continue without material tracking.
                 </p>
               ) : (
@@ -226,20 +265,23 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Notes</Label>
-            <Textarea rows={2} placeholder="Optional notes…" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          {/* Notes */}
+          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+            <SectionHeading icon={FileText} label="Notes" />
+            <FieldGroup label="Production notes">
+              <Textarea rows={3} placeholder="Special instructions, quality standards, rush notes…" value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none" />
+            </FieldGroup>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      <div className="space-y-4 lg:sticky lg:top-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Estimated cost</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-1 text-sm">
+        {/* Cost sidebar */}
+        <div className="mt-5 lg:mt-0 lg:sticky lg:top-[61px] space-y-4">
+          <div className="rounded-xl border bg-white dark:bg-card shadow-sm overflow-hidden">
+            <div className="bg-primary px-5 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary-foreground/70">Estimated cost</p>
+              <p className="text-2xl font-bold text-primary-foreground tabular-nums">{inr(estTotalCost)}</p>
+            </div>
+            <div className="px-5 py-4 space-y-2 text-sm">
               <div className="flex justify-between text-muted-foreground">
                 <span>Material cost</span>
                 <span className="tabular-nums">{inr(estMaterialCost)}</span>
@@ -248,16 +290,19 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
                 <span>Labor cost</span>
                 <span className="tabular-nums">{inr(estLaborCost)}</span>
               </div>
-              <div className="flex justify-between border-t pt-1 text-base font-semibold">
-                <span>Total</span>
+              <div className="flex justify-between border-t pt-2 font-semibold text-base">
+                <span>Total est. cost</span>
                 <span className="tabular-nums">{inr(estTotalCost)}</span>
               </div>
             </div>
-            <Button className="w-full" onClick={handleSave} disabled={isPending}>
-              {isPending ? "Saving…" : isEdit ? "Save changes" : "Create work order"}
-            </Button>
-          </CardContent>
-        </Card>
+            <div className="border-t px-5 py-4">
+              <Button className="w-full h-10 gap-2" onClick={handleSave} disabled={isPending}>
+                <Factory className="size-4" />
+                {isPending ? "Saving…" : isEdit ? "Save Changes" : "Create Work Order"}
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

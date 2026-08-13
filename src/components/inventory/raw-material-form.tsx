@@ -5,7 +5,8 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowLeft, Layers, BarChart2, FileText, Save } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
@@ -27,12 +28,26 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+  return (
+    <div className="flex items-center gap-2 border-b pb-2 mb-4">
+      <div className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+        <Icon className="size-3.5 text-primary" />
+      </div>
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+function FieldGroup({ label, required, error, children, hint }: { label: string; required?: boolean; error?: string; children: React.ReactNode; hint?: string }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium">{label}</Label>
+      <Label className="text-xs font-medium text-foreground/80">
+        {label}{required && <span className="ml-0.5 text-red-500">*</span>}
+      </Label>
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
+      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -76,57 +91,73 @@ export function RawMaterialForm({ existing }: { existing?: RawMaterial }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">{isEdit ? `Edit raw material · ${existing!.name}` : "New raw material"}</CardTitle>
-      </CardHeader>
-      <form onSubmit={handleSubmit(onSubmit as never)}>
-        <CardContent className="space-y-5">
-          <section className="space-y-3">
-            <Field label="Name *" error={errors.name?.message}>
-              <Input placeholder="e.g. Cotton Fabric" {...register("name")} />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Unit *" error={errors.unitId?.message}>
-                <Controller control={control} name="unitId" render={({ field }) => <UnitPicker value={field.value} onChange={field.onChange} />} />
-              </Field>
-              <Field label="Category">
-                <Input placeholder="e.g. Fabric" {...register("category")} />
-              </Field>
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Stock & cost</p>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Cost per unit (₹)" error={errors.costPerUnit?.message}>
-                <Controller control={control} name="costPerUnit" render={({ field }) => <NumberInput min={0} step="0.01" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
-              </Field>
-              <Field label="Low stock alert" error={errors.lowStockAlert?.message}>
-                <Controller control={control} name="lowStockAlert" render={({ field }) => <NumberInput min={0} step="0.01" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
-              </Field>
-            </div>
-            {!isEdit && (
-              <Field label="Opening stock" error={errors.openingStock?.message}>
-                <Controller control={control} name="openingStock" render={({ field }) => <NumberInput min={0} step="0.01" value={field.value ?? 0} onChange={field.onChange} onBlur={field.onBlur} />} />
-              </Field>
-            )}
-          </section>
-
-          <Field label="Notes">
-            <Textarea placeholder="Optional notes…" rows={2} {...register("notes")} />
-          </Field>
-        </CardContent>
-
-        <div className="flex justify-end gap-2 border-t px-6 py-4">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Saving…" : isEdit ? "Save changes" : "Add material"}
-          </Button>
+    <form onSubmit={handleSubmit(onSubmit as never)} className="min-h-screen bg-muted/30">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
+        <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3 sm:px-6">
+          <Link href="/inventory/raw-materials" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="size-4" />
+            <span className="hidden sm:inline">Raw materials</span>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-base font-semibold">{isEdit ? "Edit Raw Material" : "New Raw Material"}</h1>
+            {isEdit && <p className="text-[11px] font-mono text-muted-foreground">{existing!.name}</p>}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
+            <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
+              <Save className="size-3.5" />
+              {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : "Add Material"}
+            </Button>
+          </div>
         </div>
-      </form>
-    </Card>
+      </div>
+
+      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 space-y-5">
+        {/* Material info */}
+        <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <SectionHeading icon={Layers} label="Material info" />
+          <div className="space-y-4">
+            <FieldGroup label="Material name" required error={errors.name?.message}>
+              <Input placeholder="e.g. Cotton Fabric" className="h-10" {...register("name")} />
+            </FieldGroup>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FieldGroup label="Unit" required error={errors.unitId?.message} hint="e.g. metres, kg, pieces">
+                <Controller control={control} name="unitId" render={({ field }) => <UnitPicker value={field.value} onChange={field.onChange} />} />
+              </FieldGroup>
+              <FieldGroup label="Category">
+                <Input placeholder="e.g. Fabric, Thread, Button" className="h-10" {...register("category")} />
+              </FieldGroup>
+            </div>
+          </div>
+        </div>
+
+        {/* Stock & cost */}
+        <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <SectionHeading icon={BarChart2} label="Stock & cost" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FieldGroup label="Cost per unit (₹)" error={errors.costPerUnit?.message}>
+              <Controller control={control} name="costPerUnit" render={({ field }) => <NumberInput min={0} step="0.01" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
+            </FieldGroup>
+            <FieldGroup label="Low stock alert" hint="Get notified when stock falls below this.">
+              <Controller control={control} name="lowStockAlert" render={({ field }) => <NumberInput min={0} step="0.01" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
+            </FieldGroup>
+            {!isEdit && (
+              <FieldGroup label="Opening stock" error={errors.openingStock?.message} hint="Current stock on hand when you add this item.">
+                <Controller control={control} name="openingStock" render={({ field }) => <NumberInput min={0} step="0.01" value={field.value ?? 0} onChange={field.onChange} onBlur={field.onBlur} />} />
+              </FieldGroup>
+            )}
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <SectionHeading icon={FileText} label="Notes" />
+          <FieldGroup label="Internal notes">
+            <Textarea placeholder="Supplier info, quality notes, storage instructions…" rows={3} className="resize-none" {...register("notes")} />
+          </FieldGroup>
+        </div>
+      </div>
+    </form>
   );
 }

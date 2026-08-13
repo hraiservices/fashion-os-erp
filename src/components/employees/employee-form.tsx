@@ -5,9 +5,10 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { ArrowLeft, User, TrendingUp, Banknote, Save } from "lucide-react";
+import Link from "next/link";
 import { useSaveEmployee } from "@/hooks/use-employee-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
@@ -41,12 +42,26 @@ type FormValues = z.infer<typeof schema>;
 const commissionLabel = (v: unknown) => COMMISSION_LABELS[v as CommissionType] ?? "";
 const salaryLabel = (v: unknown) => SALARY_TYPE_LABELS[v as SalaryType] ?? "";
 
-function Field({ label, error, children, className }: { label: string; error?: string; children: React.ReactNode; className?: string }) {
+function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
-    <div className={`space-y-1.5 ${className || ""}`}>
-      <Label className="text-xs font-medium">{label}</Label>
+    <div className="flex items-center gap-2 border-b pb-2 mb-4">
+      <div className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+        <Icon className="size-3.5 text-primary" />
+      </div>
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+function FieldGroup({ label, required, error, children, hint }: { label: string; required?: boolean; error?: string; children: React.ReactNode; hint?: string }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-medium text-foreground/80">
+        {label}{required && <span className="ml-0.5 text-red-500">*</span>}
+      </Label>
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
+      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -106,30 +121,50 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">{isEdit ? `Edit employee · ${existing!.name}` : "New employee"}</CardTitle>
-      </CardHeader>
-      <form onSubmit={handleSubmit(onSubmit as never)}>
-        <CardContent className="space-y-5">
-          <section className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Full name *" error={errors.name?.message} className="col-span-2">
-                <Input placeholder="e.g. Ramesh Kumar" {...register("name")} />
-              </Field>
-              <Field label="Mobile">
-                <Input type="tel" placeholder="10-digit" {...register("mobile")} />
-              </Field>
-              <Field label="Role">
-                <Input placeholder="e.g. Tailor, Salesperson, Cutter" {...register("role")} />
-              </Field>
-              <Field label="Employment type">
+    <form onSubmit={handleSubmit(onSubmit as never)} className="min-h-screen bg-muted/30">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
+        <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3 sm:px-6">
+          <Link href="/employees" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="size-4" />
+            <span className="hidden sm:inline">Employees</span>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-base font-semibold">{isEdit ? "Edit Employee" : "New Employee"}</h1>
+            {isEdit && <p className="text-[11px] font-mono text-muted-foreground">{existing!.name}</p>}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
+            <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
+              <Save className="size-3.5" />
+              {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : "Add Employee"}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 space-y-5">
+        {/* Basic info */}
+        <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <SectionHeading icon={User} label="Basic info" />
+          <div className="space-y-4">
+            <FieldGroup label="Full name" required error={errors.name?.message}>
+              <Input placeholder="e.g. Ramesh Kumar" className="h-10" {...register("name")} />
+            </FieldGroup>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FieldGroup label="Mobile">
+                <Input type="tel" placeholder="10-digit" className="h-10" {...register("mobile")} />
+              </FieldGroup>
+              <FieldGroup label="Role">
+                <Input placeholder="e.g. Tailor, Salesperson, Cutter" className="h-10" {...register("role")} />
+              </FieldGroup>
+              <FieldGroup label="Employment type">
                 <Controller
                   control={control}
                   name="employmentType"
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="h-10 w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -140,102 +175,94 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
                     </Select>
                   )}
                 />
-              </Field>
-              <Field label="Joined">
-                <Input type="date" {...register("joinedDate")} />
-              </Field>
+              </FieldGroup>
+              <FieldGroup label="Joined date">
+                <Input type="date" className="h-10" {...register("joinedDate")} />
+              </FieldGroup>
             </div>
-          </section>
+            <div className="flex items-center gap-2 pt-1">
+              <input type="checkbox" id="active" className="size-4 rounded" {...register("active")} />
+              <Label htmlFor="active" className="text-xs font-medium text-foreground/80 cursor-pointer">
+                Active — show in tailor dropdown and daily attendance register
+              </Label>
+            </div>
+          </div>
+        </div>
 
-          <section className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Commission</p>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Type">
+        {/* Commission */}
+        <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <SectionHeading icon={TrendingUp} label="Commission" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FieldGroup label="Commission type">
+              <Controller
+                control={control}
+                name="commissionType"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue>{commissionLabel}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(COMMISSION_LABELS) as CommissionType[]).map((c) => (
+                        <SelectItem key={c} value={c}>{COMMISSION_LABELS[c]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FieldGroup>
+            <FieldGroup label="Commission rate" hint="% of sales or flat ₹ per order.">
+              <Controller
+                control={control}
+                name="commissionRate"
+                render={({ field }) => <NumberInput min={0} step={0.01} value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
+              />
+            </FieldGroup>
+          </div>
+        </div>
+
+        {/* Salary */}
+        {user?.perms.managePayroll && (
+          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+            <SectionHeading icon={Banknote} label="Salary" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FieldGroup label="Pay basis">
                 <Controller
                   control={control}
-                  name="commissionType"
+                  name="salaryType"
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue>{commissionLabel}</SelectValue>
+                      <SelectTrigger className="h-10 w-full">
+                        <SelectValue>{salaryLabel}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        {(Object.keys(COMMISSION_LABELS) as CommissionType[]).map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {COMMISSION_LABELS[c]}
-                          </SelectItem>
+                        {(Object.keys(SALARY_TYPE_LABELS) as SalaryType[]).map((t) => (
+                          <SelectItem key={t} value={t}>{SALARY_TYPE_LABELS[t]}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   )}
                 />
-              </Field>
-              <Field label="Rate">
+              </FieldGroup>
+              <FieldGroup label="Rate (₹)" hint="Per month / per day / per hour based on pay basis.">
                 <Controller
                   control={control}
-                  name="commissionRate"
+                  name="salaryRate"
                   render={({ field }) => <NumberInput min={0} step={0.01} value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
                 />
-              </Field>
+              </FieldGroup>
             </div>
-          </section>
-
-          {user?.perms.managePayroll && (
-            <section className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Salary</p>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Pay basis">
-                  <Controller
-                    control={control}
-                    name="salaryType"
-                    render={({ field }) => (
-                      <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue>{salaryLabel}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(Object.keys(SALARY_TYPE_LABELS) as SalaryType[]).map((t) => (
-                            <SelectItem key={t} value={t}>
-                              {SALARY_TYPE_LABELS[t]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </Field>
-                <Field label="Rate (₹)">
-                  <Controller
-                    control={control}
-                    name="salaryRate"
-                    render={({ field }) => <NumberInput min={0} step={0.01} value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
-                  />
-                </Field>
-              </div>
-            </section>
-          )}
-
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="active" className="size-4" {...register("active")} />
-            <Label htmlFor="active" className="text-xs font-medium">
-              Active (shows in the Tailor dropdown and daily attendance register)
-            </Label>
           </div>
+        )}
 
-          <Field label="Notes">
-            <Textarea placeholder="Optional notes…" rows={2} {...register("notes")} />
-          </Field>
-        </CardContent>
-
-        <div className="flex justify-end gap-2 border-t px-6 py-4">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Saving…" : isEdit ? "Save changes" : "Add employee"}
-          </Button>
+        {/* Notes */}
+        <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <SectionHeading icon={Banknote} label="Notes" />
+          <FieldGroup label="Internal notes">
+            <Textarea placeholder="Optional notes…" rows={2} className="resize-none" {...register("notes")} />
+          </FieldGroup>
         </div>
-      </form>
-    </Card>
+      </div>
+    </form>
   );
 }

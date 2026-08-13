@@ -6,8 +6,8 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { User, MapPin, Ruler } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowLeft, User, MapPin, Ruler, Save } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,12 +34,26 @@ type FormValues = z.infer<typeof schema>;
 
 const paymentTermLabel = (v: unknown) => PAYMENT_TERM_LABELS[v as PaymentTerm] ?? "";
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+  return (
+    <div className="flex items-center gap-2 border-b pb-2 mb-4">
+      <div className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+        <Icon className="size-3.5 text-primary" />
+      </div>
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+function FieldGroup({ label, required, error, children, hint }: { label: string; required?: boolean; error?: string; children: React.ReactNode; hint?: string }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium">{label}</Label>
+      <Label className="text-xs font-medium text-foreground/80">
+        {label}{required && <span className="ml-0.5 text-red-500">*</span>}
+      </Label>
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
+      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -89,111 +103,112 @@ export function CustomerForm() {
   const fields = measureFields || [];
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">New customer</CardTitle>
-      </CardHeader>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <CardContent className="space-y-5">
-          <section>
-            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <User className="size-3.5" /> Basic info
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Full name *" error={errors.name?.message}>
-                <Input placeholder="e.g. Priya Sharma" {...register("name")} />
-              </Field>
-              <Field label="Mobile number *" error={errors.mobile?.message}>
-                <Input type="tel" placeholder="10-digit" maxLength={10} {...register("mobile")} />
-              </Field>
-              <Field label="Email" error={errors.email?.message}>
-                <Input type="email" placeholder="priya@example.com" {...register("email")} />
-              </Field>
-              <Field label="Date of birth">
-                <Input type="date" {...register("dob")} />
-              </Field>
-              <Field label="Anniversary">
-                <Input type="date" {...register("anniversary")} />
-              </Field>
-              <Field label="Payment terms">
+    <form onSubmit={handleSubmit(onSubmit)} className="min-h-screen bg-muted/30">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
+        <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3 sm:px-6">
+          <Link href="/crm" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="size-4" />
+            <span className="hidden sm:inline">Customers</span>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-base font-semibold">New Customer</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
+            <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
+              <Save className="size-3.5" />
+              {isSubmitting ? "Saving…" : "Add Customer"}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 space-y-5">
+        {/* Basic info */}
+        <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <SectionHeading icon={User} label="Basic info" />
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FieldGroup label="Full name" required error={errors.name?.message}>
+                <Input placeholder="e.g. Priya Sharma" className="h-10" {...register("name")} />
+              </FieldGroup>
+              <FieldGroup label="Mobile number" required error={errors.mobile?.message}>
+                <Input type="tel" placeholder="10-digit" maxLength={10} className="h-10" {...register("mobile")} />
+              </FieldGroup>
+              <FieldGroup label="Email" error={errors.email?.message}>
+                <Input type="email" placeholder="priya@example.com" className="h-10" {...register("email")} />
+              </FieldGroup>
+              <FieldGroup label="Payment terms">
                 <Controller
                   control={control}
                   name="paymentTerms"
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="h-10 w-full">
                         <SelectValue>{paymentTermLabel}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {PAYMENT_TERMS.map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {PAYMENT_TERM_LABELS[t]}
-                          </SelectItem>
+                          <SelectItem key={t} value={t}>{PAYMENT_TERM_LABELS[t]}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   )}
                 />
-              </Field>
+              </FieldGroup>
+              <FieldGroup label="Date of birth">
+                <Input type="date" className="h-10" {...register("dob")} />
+              </FieldGroup>
+              <FieldGroup label="Anniversary">
+                <Input type="date" className="h-10" {...register("anniversary")} />
+              </FieldGroup>
             </div>
-            <div className="mt-3">
-              <Field label="Tags">
-                <TagPicker value={tags} onChange={setTags} />
-              </Field>
-            </div>
-          </section>
-
-          <section>
-            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <MapPin className="size-3.5" /> Address & notes
-            </div>
-            <div className="space-y-3">
-              <Field label="Address">
-                <Textarea placeholder="House no., street, city, pincode…" rows={2} {...register("address")} />
-              </Field>
-              <Field label="Notes">
-                <Textarea placeholder="Fit preferences, fabric choices, anything special…" rows={2} {...register("notes")} />
-              </Field>
-            </div>
-          </section>
-
-          {fields.length > 0 && (
-            <section>
-              <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <Ruler className="size-3.5" /> Measurements
-              </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
-                {fields.map((label) => {
-                  const key = toMKey(label);
-                  return (
-                    <div key={key} className="space-y-1">
-                      <label className="block text-[11px] font-medium text-muted-foreground">{label}</label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={0.5}
-                        placeholder="—"
-                        className="h-8 text-sm"
-                        value={measurements[key] ?? ""}
-                        onChange={(e) => setMeasurements((m) => ({ ...m, [key]: e.target.value }))}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-        </CardContent>
-
-        <div className="flex justify-end gap-2 border-t px-6 py-4">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Saving…" : "Add customer"}
-          </Button>
+            <FieldGroup label="Tags" hint="Useful for filtering and segmenting customers.">
+              <TagPicker value={tags} onChange={setTags} />
+            </FieldGroup>
+          </div>
         </div>
-      </form>
-    </Card>
+
+        {/* Address & notes */}
+        <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <SectionHeading icon={MapPin} label="Address & notes" />
+          <div className="space-y-4">
+            <FieldGroup label="Address">
+              <Textarea placeholder="House no., street, city, pincode…" rows={2} className="resize-none" {...register("address")} />
+            </FieldGroup>
+            <FieldGroup label="Notes" hint="Fit preferences, fabric choices, anything special.">
+              <Textarea placeholder="Customer preferences, special instructions…" rows={2} className="resize-none" {...register("notes")} />
+            </FieldGroup>
+          </div>
+        </div>
+
+        {/* Measurements */}
+        {fields.length > 0 && (
+          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+            <SectionHeading icon={Ruler} label="Measurements" />
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+              {fields.map((label) => {
+                const key = toMKey(label);
+                return (
+                  <div key={key} className="space-y-1.5">
+                    <label className="block text-[11px] font-medium text-muted-foreground">{label}</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      placeholder="—"
+                      className="h-9 text-sm"
+                      value={measurements[key] ?? ""}
+                      onChange={(e) => setMeasurements((m) => ({ ...m, [key]: e.target.value }))}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </form>
   );
 }

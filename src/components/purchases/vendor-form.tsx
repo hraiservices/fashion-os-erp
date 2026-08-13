@@ -5,9 +5,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { ArrowLeft, Building2, MapPin, FileText, Save } from "lucide-react";
+import Link from "next/link";
 import { useSaveVendor } from "@/hooks/use-purchase-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,12 +26,26 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-function Field({ label, error, children, className }: { label: string; error?: string; children: React.ReactNode; className?: string }) {
+function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
-    <div className={`space-y-1.5 ${className || ""}`}>
-      <Label className="text-xs font-medium">{label}</Label>
+    <div className="flex items-center gap-2 border-b pb-2 mb-4">
+      <div className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+        <Icon className="size-3.5 text-primary" />
+      </div>
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+function FieldGroup({ label, required, error, children, hint }: { label: string; required?: boolean; error?: string; children: React.ReactNode; hint?: string }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-medium text-foreground/80">
+        {label}{required && <span className="ml-0.5 text-red-500">*</span>}
+      </Label>
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
+      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -73,55 +88,73 @@ export function VendorForm({ existing }: { existing?: Vendor }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">{isEdit ? `Edit vendor · ${existing!.name}` : "New vendor"}</CardTitle>
-      </CardHeader>
-      <form onSubmit={handleSubmit(onSubmit as never)}>
-        <CardContent className="space-y-5">
-          <section className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Name *" error={errors.name?.message} className="col-span-2">
-                <Input placeholder="e.g. Anand Fabrics" {...register("name")} />
-              </Field>
-              <Field label="Mobile">
-                <Input type="tel" placeholder="10-digit" {...register("mobile")} />
-              </Field>
-              <Field label="Email" error={errors.email?.message}>
-                <Input type="email" placeholder="vendor@example.com" {...register("email")} />
-              </Field>
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tax & address</p>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="GSTIN">
-                <Input placeholder="22AAAAA0000A1Z5" {...register("gstin")} />
-              </Field>
-              <Field label="State">
-                <Input placeholder="e.g. Maharashtra" {...register("state")} />
-              </Field>
-            </div>
-            <Field label="Address">
-              <Textarea placeholder="Street, city, pincode…" rows={2} {...register("address")} />
-            </Field>
-          </section>
-
-          <Field label="Notes">
-            <Textarea placeholder="Optional notes…" rows={2} {...register("notes")} />
-          </Field>
-        </CardContent>
-
-        <div className="flex justify-end gap-2 border-t px-6 py-4">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Saving…" : isEdit ? "Save changes" : "Add vendor"}
-          </Button>
+    <form onSubmit={handleSubmit(onSubmit as never)} className="min-h-screen bg-muted/30">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
+        <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3 sm:px-6">
+          <Link href="/purchases/vendors" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="size-4" />
+            <span className="hidden sm:inline">Vendors</span>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-base font-semibold">{isEdit ? "Edit Vendor" : "New Vendor"}</h1>
+            {isEdit && <p className="text-[11px] font-mono text-muted-foreground">{existing!.name}</p>}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
+            <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
+              <Save className="size-3.5" />
+              {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : "Add Vendor"}
+            </Button>
+          </div>
         </div>
-      </form>
-    </Card>
+      </div>
+
+      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 space-y-5">
+        {/* Vendor details */}
+        <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <SectionHeading icon={Building2} label="Vendor details" />
+          <div className="space-y-4">
+            <FieldGroup label="Business / vendor name" required error={errors.name?.message}>
+              <Input placeholder="e.g. Anand Fabrics" className="h-10" {...register("name")} />
+            </FieldGroup>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FieldGroup label="Mobile">
+                <Input type="tel" placeholder="10-digit" className="h-10" {...register("mobile")} />
+              </FieldGroup>
+              <FieldGroup label="Email" error={errors.email?.message}>
+                <Input type="email" placeholder="vendor@example.com" className="h-10" {...register("email")} />
+              </FieldGroup>
+            </div>
+          </div>
+        </div>
+
+        {/* Tax & address */}
+        <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <SectionHeading icon={MapPin} label="Tax & address" />
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FieldGroup label="GSTIN">
+                <Input placeholder="22AAAAA0000A1Z5" className="h-10" {...register("gstin")} />
+              </FieldGroup>
+              <FieldGroup label="State">
+                <Input placeholder="e.g. Maharashtra" className="h-10" {...register("state")} />
+              </FieldGroup>
+            </div>
+            <FieldGroup label="Address">
+              <Textarea placeholder="Street, city, pincode…" rows={2} className="resize-none" {...register("address")} />
+            </FieldGroup>
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <SectionHeading icon={FileText} label="Notes" />
+          <FieldGroup label="Internal notes" hint="Not shared with the vendor.">
+            <Textarea placeholder="Payment habits, quality notes, contact preferences…" rows={3} className="resize-none" {...register("notes")} />
+          </FieldGroup>
+        </div>
+      </div>
+    </form>
   );
 }

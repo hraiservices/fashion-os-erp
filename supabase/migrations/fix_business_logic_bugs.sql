@@ -72,10 +72,11 @@ DROP POLICY IF EXISTS "block_module_entitlements_direct_write" ON app_settings;
 CREATE POLICY "block_module_entitlements_direct_write" ON app_settings
   AS RESTRICTIVE
   FOR INSERT TO authenticated
-  USING (key <> 'moduleEntitlements');
+  WITH CHECK (key <> 'moduleEntitlements');
 
 DROP POLICY IF EXISTS "block_module_entitlements_direct_update" ON app_settings;
 CREATE POLICY "block_module_entitlements_direct_update" ON app_settings
   AS RESTRICTIVE
   FOR UPDATE TO authenticated
-  USING (key <> 'moduleEntitlements');
+  USING (key <> 'moduleEntitlements')
+  WITH CHECK (key <> 'moduleEntitlements');

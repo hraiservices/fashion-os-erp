@@ -66,15 +66,16 @@ CREATE TRIGGER trg_guard_stock_not_negative
 -- A full solution would move all writes through functions, but that's a larger
 -- refactor — this patch closes the licence-bypass specifically.
 
--- Create a policy-protected update function as the intended write path for
--- module entitlements specifically. Direct table modifications are blocked by
--- adding a restrictive policy:
-CREATE POLICY IF NOT EXISTS "block_module_entitlements_direct_write" ON app_settings
+-- Block direct writes to the moduleEntitlements key. DROP first so this is
+-- idempotent (re-running the migration won't error on a duplicate policy name).
+DROP POLICY IF EXISTS "block_module_entitlements_direct_write" ON app_settings;
+CREATE POLICY "block_module_entitlements_direct_write" ON app_settings
   AS RESTRICTIVE
   FOR INSERT TO authenticated
   USING (key <> 'moduleEntitlements');
 
-CREATE POLICY IF NOT EXISTS "block_module_entitlements_direct_update" ON app_settings
+DROP POLICY IF EXISTS "block_module_entitlements_direct_update" ON app_settings;
+CREATE POLICY "block_module_entitlements_direct_update" ON app_settings
   AS RESTRICTIVE
   FOR UPDATE TO authenticated
   USING (key <> 'moduleEntitlements');

@@ -91,6 +91,10 @@ export function EditCustomerModal({ cust, open, onOpenChange }: { cust: Customer
     try {
       await saveCustomer.mutateAsync({
         ...values,
+        // Customer id is derived from the mobile, so changing it re-keys the record.
+        // Send the original so the server migrates loyalty + orders instead of
+        // stranding them on an orphaned row.
+        originalMobile: cust.mobile,
         email: values.email || "",
         dob: values.dob || "",
         anniversary: values.anniversary || "",

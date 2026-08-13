@@ -1,15 +1,17 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
-import { logAction } from "@/lib/logging";
-import { customerIdFromMobile } from "@/lib/business-rules";
-import { awardLoyaltyPoints } from "@/lib/loyalty";
 import type { Json } from "@/lib/supabase/database.types";
 
 interface SaveCustomerInput {
   name: string;
   mobile: string;
+  /**
+   * The mobile the customer had when the form opened. Customer identity is keyed as
+   * 'CUST-' || mobile, so a changed number re-keys the row — the server uses this to
+   * migrate loyalty balance, history and existing orders instead of orphaning them.
+   */
+  originalMobile?: string;
   email?: string;
   dob?: string;
   anniversary?: string;
@@ -23,30 +25,28 @@ interface SaveCustomerInput {
   userEmail?: string;
 }
 
-/** saveCust(), Stitching_Manager_Pro_v16.html ~line 6805. Loyalty fields are never touched here. */
+async function sendJson<T>(url: string, method: string, body?: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method,
+    ...(body !== undefined ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+/**
+ * Save a customer profile. Routed through POST /api/customers so manageCustomers is
+ * enforced server-side (this used to write straight to Supabase, making the permission
+ * UI-only) and so a changed mobile number migrates rather than orphans the record.
+ * Loyalty fields are never sent — only the loyalty RPCs may move points.
+ */
 export function useSaveCustomer() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ name, mobile, email, dob, anniversary, address, notes, paymentTerms, priceListId, measurements, tags, gstin, userEmail }: SaveCustomerInput) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("customers").upsert({
-        id: customerIdFromMobile(mobile),
-        name,
-        mobile,
-        email: email || null,
-        dob: dob || null,
-        anniversary: anniversary || null,
-        address: address || null,
-        notes,
-        payment_terms: paymentTerms || "due_on_receipt",
-        price_list_id: priceListId || null,
-        gstin: gstin || "",
-        ...(measurements ? { measurements: measurements as Json } : {}),
-        ...(tags ? { tags } : {}),
-      });
-      if (error) throw error;
-      await logAction(supabase, userEmail, `✏️ Customer profile updated: ${name} (${mobile})`);
-    },
+    // userEmail is ignored: the server derives the actor from the session cookie.
+    mutationFn: ({ userEmail: _ignored, ...input }: SaveCustomerInput) =>
+      sendJson<{ ok: true }>("/api/customers", "POST", input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["customers"] });
       qc.invalidateQueries({ queryKey: ["customer-by-mobile"] });
@@ -55,19 +55,20 @@ export function useSaveCustomer() {
 }
 
 /**
- * doDeleteCust(), line ~6869. Deletes the customer's ENTIRE order history along with the
- * customer row — a deliberately destructive action, gated by the deleteCustomers permission
- * and (in the UI) a confirmation that surfaces outstanding balance / in-progress orders.
+ * Delete a customer and their order history.
+ *
+ * This previously ran as two unguarded client-side deletes — `orders` by mobile, then the
+ * customer row — with no server-side authorization whatsoever. Any authenticated user
+ * could erase every order for a customer, including delivered and fully-paid ones, which
+ * also sidestepped the paid/delivered guard on the per-order delete route. It now goes
+ * through DELETE /api/customers/[mobile], which enforces deleteCustomers and refuses when
+ * settled orders or an outstanding balance exist.
  */
 export function useDeleteCustomerAndOrders() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ mobile, name, custId, userEmail }: { mobile: string; name: string; custId?: string; userEmail?: string }) => {
-      const supabase = createClient();
-      await supabase.from("orders").delete().eq("mobile", mobile);
-      if (custId) await supabase.from("customers").delete().eq("id", custId);
-      await logAction(supabase, userEmail, `🗑️ Deleted: ${name} (${mobile})`);
-    },
+    mutationFn: ({ mobile }: { mobile: string; name: string; custId?: string; userEmail?: string }) =>
+      sendJson<{ ok: true; deletedOrders: number }>(`/api/customers/${encodeURIComponent(mobile)}`, "DELETE"),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["customers"] });
@@ -76,14 +77,17 @@ export function useDeleteCustomerAndOrders() {
   });
 }
 
-/** Manual bonus grant, line ~7871 — now routed through the same atomic RPC as other awards. */
+/**
+ * Manual loyalty grant. Routed through the server so manageCustomers is enforced and the
+ * amount is bounded — the browser previously called the award RPC directly with no
+ * permission check and no cap, so any authenticated user could mint unlimited points
+ * and convert them straight into discounts.
+ */
 export function useGiveLoyaltyBonus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ mobile, name, pts }: { mobile: string; name: string; pts: number }) => {
-      const supabase = createClient();
-      await awardLoyaltyPoints(supabase, mobile, name, pts, "manual", null, "Manual bonus");
-    },
+    mutationFn: ({ mobile, name, pts }: { mobile: string; name: string; pts: number }) =>
+      sendJson<{ ok: true }>(`/api/customers/${encodeURIComponent(mobile)}/loyalty-bonus`, "POST", { name, pts }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["customers"] });
       qc.invalidateQueries({ queryKey: ["customer-by-mobile"] });

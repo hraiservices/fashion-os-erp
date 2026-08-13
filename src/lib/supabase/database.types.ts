@@ -928,6 +928,14 @@ export interface Database {
         Args: { p_mobile: string; p_pts: number; p_order_id?: string | null; p_note?: string | null };
         Returns: boolean;
       };
+      change_customer_mobile: {
+        Args: { p_old_mobile: string; p_new_mobile: string };
+        Returns: boolean;
+      };
+      delete_customer_cascade: {
+        Args: { p_mobile: string };
+        Returns: number;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

@@ -21,7 +21,7 @@ import type { WidgetInstance } from "@/lib/dashboard-widgets";
 export default function DashboardPage() {
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
-  const { widgets: savedWidgets, isLoading: layoutLoading, save } = useDashboardLayout();
+  const { widgets: savedWidgets, rawData: layoutRawData, isLoading: layoutLoading, save } = useDashboardLayout();
   const { data: entitlements, isLoading: entitlementsLoading } = useModuleEntitlements();
 
   const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
@@ -29,15 +29,15 @@ export default function DashboardPage() {
   const initializedRef = useRef(false);
 
   useEffect(() => {
-    if (!layoutLoading && entitlements && !initializedRef.current) {
-      // Entitlement-disabled builtin widgets are dropped from the editable set entirely — they
-      // can't be shown/hidden from the customize panel, and won't be re-persisted on save.
-      // reconcileLayout() silently re-adds them (visible, at the end) if the module is licensed
-      // back on later, so nothing is lost long-term.
+    // Guard on layoutRawData (the actual fetched array, not the defaultLayout() fallback) so the
+    // ref is only locked once real data arrives. Without this, entitlements arriving from cache
+    // before the user/email resolves would fire the effect against the defaultLayout() fallback,
+    // permanently locking out the real fetched layout on client-side navigation.
+    if (layoutRawData !== undefined && entitlements && !initializedRef.current) {
       setWidgets(savedWidgets.filter((w) => w.kind === "custom" || isWidgetEnabled(entitlements, w.builtinKey!)));
       initializedRef.current = true;
     }
-  }, [layoutLoading, savedWidgets, entitlements]);
+  }, [layoutRawData, entitlements]);
 
   function handleChange(next: WidgetInstance[]) {
     setWidgets(next);

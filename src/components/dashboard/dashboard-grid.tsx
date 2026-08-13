@@ -1,15 +1,23 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { BUILTIN_WIDGET_BY_KEY, type WidgetInstance } from "@/lib/dashboard-widgets";
+import { BUILTIN_WIDGET_BY_KEY, type WidgetInstance, type WidgetSize } from "@/lib/dashboard-widgets";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widget-registry";
 import { WidgetShell } from "@/components/dashboard/widget-shell";
 import { CustomCardWidget } from "@/components/dashboard/custom-card-widget";
 
-/**
- * Renders the visible widgets in order and — while editing — supports HTML5 drag-and-drop
- * reordering, same pattern as the Kanban board's drag handlers.
- */
+const SIZE_TO_COLS: Record<WidgetSize, 1 | 2 | 3 | 4> = { sm: 1, lg: 2, full: 4 };
+
+function getDefaultCols(w: WidgetInstance): 1 | 2 | 3 | 4 {
+  if (w.kind === "custom") return 1;
+  const size = BUILTIN_WIDGET_BY_KEY.get(w.builtinKey || "")?.size ?? "sm";
+  return SIZE_TO_COLS[size];
+}
+
+function getEffectiveCols(w: WidgetInstance): 1 | 2 | 3 | 4 {
+  return w.colSpan ?? getDefaultCols(w);
+}
+
 export function DashboardGrid({
   widgets,
   editing,
@@ -24,6 +32,9 @@ export function DashboardGrid({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const draggingRef = useRef<string | null>(null);
+
+  // Live resize preview — not saved until mouseup
+  const [resizeLive, setResizeLive] = useState<{ id: string; colSpan: 1 | 2 | 3 | 4; heightPx: number } | null>(null);
 
   function handleDrop(targetId: string) {
     const sourceId = draggingRef.current;
@@ -46,6 +57,19 @@ export function DashboardGrid({
     onChange(widgets.map((w) => (w.id === id ? { ...w, visible: false } : w)));
   }
 
+  function handleResizeProgress(id: string, colSpan: 1 | 2 | 3 | 4, heightPx: number) {
+    setResizeLive({ id, colSpan, heightPx });
+  }
+
+  function handleResizeEnd(id: string, colSpan: 1 | 2 | 3 | 4, heightPx: number) {
+    setResizeLive(null);
+    onChange(widgets.map((w) => (w.id !== id ? w : { ...w, colSpan, heightPx })));
+  }
+
+  function resetWidgetSize(id: string) {
+    onChange(widgets.map((w) => (w.id !== id ? w : { ...w, colSpan: undefined, heightPx: undefined })));
+  }
+
   function renderContent(w: WidgetInstance) {
     if (w.kind === "custom" && w.customConfig) return <CustomCardWidget config={w.customConfig} />;
     if (w.kind === "builtin" && w.builtinKey) {
@@ -56,16 +80,26 @@ export function DashboardGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-4" data-dashboard-grid>
       {visible.map((w) => {
-        const size = w.kind === "custom" ? "sm" : BUILTIN_WIDGET_BY_KEY.get(w.builtinKey || "")?.size || "sm";
+        const isResizing = resizeLive?.id === w.id;
+        const colSpan = isResizing ? resizeLive.colSpan : getEffectiveCols(w);
+        const heightPx = isResizing ? resizeLive.heightPx : w.heightPx;
+        const href = w.kind === "builtin" ? BUILTIN_WIDGET_BY_KEY.get(w.builtinKey || "")?.href : undefined;
+
         return (
           <WidgetShell
             key={w.id}
-            size={size}
+            colSpan={colSpan}
+            heightPx={heightPx}
+            href={href}
             editing={editing}
             dragging={draggingId === w.id}
             dropTarget={dropTargetId === w.id}
+            onHide={() => hideWidget(w.id)}
+            onResizeProgress={(cols, h) => handleResizeProgress(w.id, cols, h)}
+            onResizeEnd={(cols, h) => handleResizeEnd(w.id, cols, h)}
+            onResetSize={() => resetWidgetSize(w.id)}
             onDragStart={(e) => {
               draggingRef.current = w.id;
               setDraggingId(w.id);
@@ -87,7 +121,6 @@ export function DashboardGrid({
               setDraggingId(null);
               setDropTargetId(null);
             }}
-            onHide={() => hideWidget(w.id)}
           >
             {renderContent(w)}
           </WidgetShell>

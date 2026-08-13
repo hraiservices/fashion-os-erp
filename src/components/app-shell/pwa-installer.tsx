@@ -52,6 +52,29 @@ export function PwaInstaller() {
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
+  // A fresh deploy activates a new service worker in already-open tabs (sw.js calls
+  // skipWaiting + clients.claim) without reloading them — a tab left open across a deploy
+  // silently keeps running the old JS bundle, so client-side navigation can render against
+  // stale code until the tab is manually refreshed. Reload once, but only for a genuine
+  // mid-session update — the very first controllerchange on a fresh tab is just the new
+  // worker claiming a page that had no controller yet, not something to reload for.
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    let hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    function onControllerChange() {
+      if (!hadController) {
+        hadController = true;
+        return;
+      }
+      if (reloaded) return;
+      reloaded = true;
+      window.location.reload();
+    }
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+    return () => navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+  }, []);
+
   if (showIOSHint) {
     return (
       <Button

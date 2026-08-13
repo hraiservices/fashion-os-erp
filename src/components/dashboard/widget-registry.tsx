@@ -1,3 +1,4 @@
+import { UpcomingDeliveriesWidget, UpcomingPaymentsWidget } from "@/components/dashboard/widgets/countdown-widgets";
 import { OutstandingBalanceWidget } from "@/components/dashboard/widgets/outstanding-balance-widget";
 import { TotalRevenueWidget } from "@/components/dashboard/widgets/total-revenue-widget";
 import { RevenueFlowWidget } from "@/components/dashboard/widgets/revenue-flow-widget";
@@ -21,6 +22,8 @@ import {
 
 /** Maps a builtin widget key to its render component — the single source of truth the dashboard grid renders from. */
 export const WIDGET_COMPONENTS: Record<string, React.ComponentType> = {
+  "upcoming-deliveries": UpcomingDeliveriesWidget,
+  "upcoming-payments-countdown": UpcomingPaymentsWidget,
   "outstanding-balance": OutstandingBalanceWidget,
   "total-revenue": TotalRevenueWidget,
   "stitching-dues": StitchingDuesWidget,

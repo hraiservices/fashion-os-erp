@@ -39,5 +39,5 @@ export function useDashboardLayout() {
     },
   });
 
-  return { widgets: query.data || defaultLayout(), isLoading: query.isLoading, save };
+  return { widgets: query.data || defaultLayout(), rawData: query.data, isLoading: query.isLoading, save };
 }

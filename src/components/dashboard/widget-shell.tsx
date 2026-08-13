@@ -1,22 +1,21 @@
 "use client";
 
-import { GripVertical, EyeOff } from "lucide-react";
+import { useRef } from "react";
+import { useRouter } from "next/navigation";
+import { GripHorizontal, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { WidgetSize } from "@/lib/dashboard-widgets";
 
-const SPAN_CLASS: Record<WidgetSize, string> = {
-  sm: "sm:col-span-1",
-  lg: "sm:col-span-2",
-  full: "sm:col-span-4",
+const COL_SPAN_CLASS: Record<1 | 2 | 3 | 4, string> = {
+  1: "sm:col-span-1",
+  2: "sm:col-span-2",
+  3: "sm:col-span-3",
+  4: "sm:col-span-4",
 };
 
-/**
- * Wraps any widget for the customize grid: adds a drag handle + hide button in edit mode.
- * While editing, the widget's own links/buttons are made inert (pointer-events-none) so
- * dragging to reorder doesn't accidentally navigate — same trick as iOS's home-screen jiggle mode.
- */
 export function WidgetShell({
-  size,
+  colSpan,
+  heightPx,
+  href,
   editing,
   dragging,
   dropTarget,
@@ -25,9 +24,14 @@ export function WidgetShell({
   onDrop,
   onDragEnd,
   onHide,
+  onResizeProgress,
+  onResizeEnd,
+  onResetSize,
   children,
 }: {
-  size: WidgetSize;
+  colSpan: 1 | 2 | 3 | 4;
+  heightPx?: number;
+  href?: string;
   editing: boolean;
   dragging?: boolean;
   dropTarget?: boolean;
@@ -36,39 +40,148 @@ export function WidgetShell({
   onDrop?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
   onHide?: () => void;
+  onResizeProgress?: (colSpan: 1 | 2 | 3 | 4, heightPx: number) => void;
+  onResizeEnd?: (colSpan: 1 | 2 | 3 | 4, heightPx: number) => void;
+  onResetSize?: () => void;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const gripPressed = useRef(false);
+  const resizeDragged = useRef(false); // true if mouse moved during resize — suppresses the post-drag click
+  const resizeState = useRef<{
+    startX: number; startY: number;
+    startW: number; startH: number;
+    lastCols: 1 | 2 | 3 | 4; lastH: number;
+  } | null>(null);
+
+  function handleDragStart(e: React.DragEvent) {
+    if (!gripPressed.current) { e.preventDefault(); return; }
+    onDragStart?.(e);
+  }
+  function handleDragEnd() {
+    gripPressed.current = false;
+    onDragEnd?.();
+  }
+
+  function handleResizeMouseDown(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const el = containerRef.current;
+    if (!el) return;
+    resizeState.current = {
+      startX: e.clientX, startY: e.clientY,
+      startW: el.offsetWidth, startH: el.offsetHeight,
+      lastCols: colSpan, lastH: heightPx ?? el.offsetHeight,
+    };
+
+    function onMouseMove(ev: MouseEvent) {
+      resizeDragged.current = true;
+      const s = resizeState.current;
+      const el = containerRef.current;
+      if (!s || !el) return;
+      const grid = el.closest("[data-dashboard-grid]") as HTMLElement | null;
+      const gridW = grid ? grid.clientWidth : el.offsetWidth * 4;
+      const colW = (gridW - 16 * 3) / 4;
+      const newW = s.startW + (ev.clientX - s.startX);
+      const newH = Math.max(80, s.startH + (ev.clientY - s.startY));
+      s.lastCols = Math.max(1, Math.min(4, Math.round(newW / colW))) as 1 | 2 | 3 | 4;
+      s.lastH = Math.round(newH);
+      onResizeProgress?.(s.lastCols, s.lastH);
+    }
+
+    function onMouseUp() {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      if (resizeState.current) onResizeEnd?.(resizeState.current.lastCols, resizeState.current.lastH);
+      resizeState.current = null;
+      // The browser fires a click on the container after mouseup — clear the flag
+      // in the next microtask so the onClick handler can read it first.
+      setTimeout(() => { resizeDragged.current = false; }, 0);
+    }
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }
+
   return (
     <div
+      ref={containerRef}
       className={cn(
-        "relative col-span-1",
-        SPAN_CLASS[size],
+        "group relative col-span-1",
+        COL_SPAN_CLASS[colSpan],
         editing && "rounded-xl outline-dashed outline-2 outline-transparent transition-all hover:outline-primary/40",
         dragging && "opacity-40",
         dropTarget && "outline-primary/60"
       )}
-      draggable={editing}
-      onDragStart={onDragStart}
+      draggable
+      onDragStart={handleDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
-      onDragEnd={onDragEnd}
+      onDragEnd={handleDragEnd}
+      onClick={href ? (e) => {
+        if (resizeDragged.current) return; // drag just ended — not a real click
+        if ((e.target as HTMLElement).closest("a, button, input, select, textarea")) return;
+        router.push(href);
+      } : undefined}
     >
-      {editing && (
-        <>
-          <button
-            type="button"
-            onClick={onHide}
-            className="absolute -top-2 -right-2 z-10 flex size-6 items-center justify-center rounded-full border bg-background shadow-sm hover:bg-destructive/10 hover:text-destructive"
-            aria-label="Hide widget"
-          >
-            <EyeOff className="size-3.5" />
-          </button>
-          <div className="absolute -top-2 -left-2 z-10 flex size-6 cursor-grab items-center justify-center rounded-full border bg-background shadow-sm active:cursor-grabbing">
-            <GripVertical className="size-3.5" />
-          </div>
-        </>
-      )}
-      <div className={editing ? "pointer-events-none select-none" : ""}>{children}</div>
+      {/* Hover control bar — transparent, grip left, hide right */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between rounded-t-xl px-2 py-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
+        <button
+          type="button"
+          aria-label="Drag to reorder"
+          className="cursor-grab text-muted-foreground/60 hover:text-muted-foreground active:cursor-grabbing"
+          onMouseDown={() => { gripPressed.current = true; }}
+          onMouseUp={() => { gripPressed.current = false; }}
+        >
+          <GripHorizontal className="size-3.5" />
+        </button>
+        <div className="flex items-center gap-1">
+          {/* Double-click resize zone to reset height/width to default */}
+          {(heightPx || colSpan) && onResetSize && (
+            <button
+              type="button"
+              onClick={onResetSize}
+              title="Reset to default size"
+              aria-label="Reset size"
+              className="text-[10px] font-medium text-muted-foreground/50 hover:text-muted-foreground"
+            >
+              reset
+            </button>
+          )}
+          {onHide && (
+            <button
+              type="button"
+              onClick={onHide}
+              aria-label="Hide widget"
+              className="text-muted-foreground/60 hover:text-destructive"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Widget content */}
+      <div
+        className={cn(dragging && "pointer-events-none select-none")}
+        style={heightPx ? { height: heightPx, overflow: "auto" } : undefined}
+      >
+        {children}
+      </div>
+
+      {/* Resize zone — bottom-right corner, larger hit area, 3-dot indicator on hover */}
+      <div
+        className="absolute bottom-0 right-0 z-20 flex h-8 w-8 cursor-se-resize items-end justify-end p-1.5 opacity-0 transition-opacity group-hover:opacity-100"
+        onMouseDown={handleResizeMouseDown}
+        title="Drag to resize"
+      >
+        <svg width="8" height="8" viewBox="0 0 8 8" className="text-muted-foreground/40">
+          <circle cx="6" cy="6" r="1" fill="currentColor" />
+          <circle cx="6" cy="2" r="1" fill="currentColor" />
+          <circle cx="2" cy="6" r="1" fill="currentColor" />
+        </svg>
+      </div>
     </div>
   );
 }

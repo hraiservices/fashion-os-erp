@@ -9,16 +9,6 @@ import { getLoyaltyConfig } from "@/lib/settings";
 
 const bodySchema = z.object({ stage: z.enum(STAGES as unknown as [Stage, ...Stage[]]) });
 
-/**
- * Move an order to an arbitrary stage — what the Kanban board's drag-and-drop needs,
- * since a card can be dropped into any column (including an earlier one) rather than
- * only stepping forward like /advance-stage.
- *
- * Everything the advance path does is preserved here: the changeStage permission gate,
- * the history line, the activity-log entry, the admin notification, and the delivery
- * bonus. The bonus stays idempotent via the (type, orderId) guard inside
- * award_loyalty_points, so dragging out of and back into "Delivered" cannot double-award.
- */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { supabase, user } = await getServerUser();
@@ -34,51 +24,69 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const order = mapOrderRow(row);
   if (order.status === target) return NextResponse.json({ order });
-  // Cannot drag to "payment" while balance is outstanding
+
+  // M1: once an order is financially closed it cannot be re-opened via drag.
+  if (order.status === "payment") {
+    return NextResponse.json({ error: "Cannot reopen a closed financial record." }, { status: 409 });
+  }
+
+  // H8: moving to 'payment' is a financial close — requires managePayments, not just changeStage.
+  // Tailors have changeStage but not managePayments and must not be able to close orders.
+  if (target === "payment" && !user.perms.managePayments) {
+    return NextResponse.json({ error: "No permission to close orders financially." }, { status: 403 });
+  }
+
   if (target === "payment" && order.balance > 0) {
     return NextResponse.json({ error: `Cannot close order — ₹${order.balance} balance still due. Record full payment first.` }, { status: 400 });
   }
 
-  const curMeta = STAGE_META[order.status];
+  const curMeta  = STAGE_META[order.status];
   const nextMeta = STAGE_META[target];
   const userName = user.email.split("@")[0] || "user";
   const historyLine = `${nextMeta.emoji} ${nextMeta.label} — ${fmtNow()} by ${userName}`;
 
+  // C2: optimistic-lock on current status prevents skipping stages under concurrency.
   const { data: updatedRows, error: updateError } = await supabase.rpc("set_order_stage", {
-    p_order_id: id,
-    p_new_status: target,
-    p_history_line: historyLine,
+    p_order_id:        id,
+    p_new_status:      target,
+    p_history_line:    historyLine,
+    p_expected_status: order.status,
   });
   const updatedRow = updatedRows?.[0];
-  if (updateError || !updatedRow) return NextResponse.json({ error: updateError?.message || "Update failed" }, { status: 500 });
+  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+  if (!updatedRow) return NextResponse.json({ error: "Stage was already changed by another request. Please refresh." }, { status: 409 });
 
   await logAction(
-    supabase,
-    user.email,
+    supabase, user.email,
     `${curMeta.emoji} → ${nextMeta.emoji} Stage changed: ${curMeta.label} → ${nextMeta.label} for ${order.name}`,
-    id,
-    `Tailor: ${order.tailor}`
+    id, `Tailor: ${order.tailor}`
   );
   await sendAdminNotification(supabase, user.email, {
-    orderId: id,
-    customerName: order.name,
-    fromStage: curMeta.label,
-    toStage: nextMeta.label,
+    orderId: id, customerName: order.name, fromStage: curMeta.label, toStage: nextMeta.label,
   });
 
-  const loyaltyCfg = await getLoyaltyConfig(supabase);
-  if (loyaltyCfg.enabled) {
-    if (target === "delivered") {
-      await awardLoyaltyPoints(supabase, order.mobile, order.name, deliveryBonusPoints(loyaltyCfg), "delivery", id, "Order delivered");
-    }
-    // Earn points when dragging a fully-prepaid order to "payment"
-    // (idempotency guard inside award_loyalty_points prevents double-award)
-    if (target === "payment" && order.balance === 0) {
-      const earnPts = computeEarnPoints(order.total, loyaltyCfg);
-      if (earnPts > 0) {
-        await awardLoyaltyPoints(supabase, order.mobile, order.name, earnPts, "earn", id, `Full payment received ₹${order.total}`);
+  // H7/M9: loyalty calls happen after stage is committed — wrap in try/catch so a loyalty
+  // RPC failure doesn't return HTTP 500 with a stale Kanban cache (stage already changed in DB).
+  try {
+    const loyaltyCfg = await getLoyaltyConfig(supabase);
+    if (loyaltyCfg.enabled) {
+      if (target === "delivered") {
+        await awardLoyaltyPoints(supabase, order.mobile, order.name, deliveryBonusPoints(loyaltyCfg), "delivery", id, "Order delivered");
+      }
+      if (target === "payment" && order.balance === 0) {
+        // H5: earn on net total (total - any loyalty discount already applied to this order).
+        const netTotal = Math.max(0, order.total - (order.history || []).reduce((s, h) => {
+          const m = typeof h === "string" ? h.match(/🎁\s+₹(\d+)/) : null;
+          return s + (m ? parseInt(m[1], 10) || 0 : 0);
+        }, 0));
+        const earnPts = computeEarnPoints(netTotal, loyaltyCfg);
+        if (earnPts > 0) {
+          await awardLoyaltyPoints(supabase, order.mobile, order.name, earnPts, "earn", id, `Full payment received ₹${order.total}`);
+        }
       }
     }
+  } catch (loyaltyErr) {
+    await logAction(supabase, user.email, `⚠️ Loyalty award failed for stage change on ${id} — manual correction needed`, id, String(loyaltyErr));
   }
 
   return NextResponse.json({ order: mapOrderRow(updatedRow) });

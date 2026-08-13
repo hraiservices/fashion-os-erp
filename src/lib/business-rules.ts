@@ -44,9 +44,9 @@ export function customerIdFromMobile(mobile: string): string {
   return `CUST-${mobile}`;
 }
 
-/** fmtNow(), line ~2173 — used in history log lines. */
+/** fmtNow(), line ~2173 — used in history log lines. Always formats in IST regardless of server timezone. */
 export function fmtNow(): string {
-  return new Date().toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  return new Date().toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" });
 }
 
 export interface StageMeta {
@@ -134,6 +134,7 @@ export interface DueBadge {
 /** dueBadge(), line ~2217. Returns null for delivered/payment stages (no due date pressure). */
 export function dueBadge(order: { status: string; deliveryDate: string }): DueBadge | null {
   if (order.status === "delivered" || order.status === "payment") return null;
+  if (!order.deliveryDate) return null; // no date set — don't falsely show "Due TODAY!"
   const d = daysLeft(order.deliveryDate);
   if (d < 0) return { text: `${Math.abs(d)}d OVERDUE`, bg: "#FEE2E2", color: "#991B1B", urgent: true };
   if (d === 0) return { text: "Due TODAY!", bg: "#FEF3C7", color: "#92400E", urgent: true };

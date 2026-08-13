@@ -1,13 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
-import { logAction } from "@/lib/logging";
-import { deriveBalance } from "@/lib/business-rules";
 import type { Order } from "@/lib/types";
-import type { Database } from "@/lib/supabase/database.types";
-
-type OrderUpdate = Database["public"]["Tables"]["orders"]["Update"];
 
 interface CreateOrderInput {
   name: string;
@@ -30,6 +24,13 @@ interface CreateOrderInput {
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+async function patchJson<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Request failed");
   return data;
@@ -94,64 +95,20 @@ export function useRecordPayment() {
   });
 }
 
-/** Plain edits (no loyalty side effects) — mirrors the editOrder branch of _handleSave(), line ~16970. */
+/**
+ * Order edit — delegates to PATCH /api/orders/[id] (server route) so:
+ *   • editOrder permission is enforced server-side (C4 — was bypassed before)
+ *   • all fields updated atomically via edit_order() SQL RPC (C5 — history TOCTOU fix)
+ *   • userEmail and timestamp come from the server session (H3, M8)
+ *   • advance > total validated server-side (B5)
+ * The userEmail parameter is accepted for call-site compatibility but ignored here —
+ * the server resolves the authenticated user from the session cookie.
+ */
 export function useUpdateOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, patch, userEmail }: { id: string; patch: Partial<Order>; userEmail?: string }) => {
-      const supabase = createClient();
-
-      // Fetch current row so we can compute balance accurately even when only total OR
-      // advance is in the patch (not both). Without this, defaulting advance to 0 would
-      // write balance = total, wiping all previously-recorded payments.
-      const { data: currentRow } = await supabase.from("orders").select("total,advance,balance").eq("id", id).single();
-      const currentTotal   = currentRow?.total   ?? 0;
-      const currentAdvance = currentRow?.advance ?? 0;
-
-      const dbPatch: OrderUpdate = {};
-      if (patch.name !== undefined) dbPatch.name = patch.name;
-      if (patch.mobile !== undefined) dbPatch.mobile = patch.mobile;
-      if (patch.inDate !== undefined) dbPatch.in_date = patch.inDate;
-      if (patch.deliveryDate !== undefined) dbPatch.delivery_date = patch.deliveryDate;
-      if (patch.garments !== undefined) dbPatch.garments = patch.garments;
-      if (patch.total !== undefined) dbPatch.total = patch.total;
-      if (patch.advance !== undefined) dbPatch.advance = patch.advance;
-      // Recompute balance using the resolved total/advance (falling back to current DB values)
-      if (patch.total !== undefined || patch.advance !== undefined) {
-        const newTotal   = dbPatch.total   ?? currentTotal;
-        const newAdvance = dbPatch.advance ?? currentAdvance;
-        if (newTotal < newAdvance) {
-          throw new Error(`Total (₹${newTotal}) cannot be less than advance already collected (₹${newAdvance}). Record a refund or reduce the advance first.`);
-        }
-        dbPatch.balance = deriveBalance(newTotal, newAdvance);
-      }
-      if (patch.tailor !== undefined) dbPatch.tailor = patch.tailor;
-      if (patch.orderType !== undefined) dbPatch.order_type = patch.orderType;
-      if (patch.special !== undefined) dbPatch.special = patch.special;
-      if (patch.measurements !== undefined) dbPatch.measurements = patch.measurements;
-      // Attachments are stored as base64 data URLs in JSONB columns; omitting them here
-      // would silently drop every photo/voice note the edit form shows as attached.
-      if (patch.images !== undefined) dbPatch.images = patch.images;
-      if (patch.audios !== undefined) dbPatch.audios = patch.audios;
-      if (patch.videos !== undefined) dbPatch.videos = patch.videos;
-      // Append a history entry for financial changes so the in-order audit trail reflects
-      // who changed the price and when — not just the activity log.
-      const financialChanged = patch.total !== undefined || patch.advance !== undefined;
-      if (financialChanged) {
-        const newTotal   = dbPatch.total   ?? currentTotal;
-        const newAdvance = dbPatch.advance ?? currentAdvance;
-        const userName = userEmail?.split("@")[0] || "user";
-        const now = new Date().toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: true });
-        const historyLine = `✏️ Edited — Total ₹${currentTotal}→₹${newTotal}, Advance ₹${currentAdvance}→₹${newAdvance} by ${userName} — ${now}`;
-        const { data: orderNow } = await supabase.from("orders").select("history").eq("id", id).single();
-        const history: string[] = Array.isArray(orderNow?.history) ? (orderNow.history as string[]) : [];
-        dbPatch.history = [...history, historyLine] as never;
-      }
-
-      const { error } = await supabase.from("orders").update(dbPatch).eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `✏️ Order edited: ${patch.name || ""}`, id);
-    },
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<Order>; userEmail?: string }) =>
+      patchJson<{ order: Order }>(`/api/orders/${id}`, patch),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["order", vars.id] });

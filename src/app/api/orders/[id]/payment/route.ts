@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { mapOrderRow } from "@/lib/types";
-import { computeRedemption, computeEarnPoints, fmtNow, customerIdFromMobile } from "@/lib/business-rules";
+import { computeRedemption, computeEarnPoints, loyaltyDiscountOf, fmtNow, customerIdFromMobile } from "@/lib/business-rules";
 // customerIdFromMobile retained for loyalty lookup below
 import { logAction } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
@@ -77,17 +77,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     `Balance: ₹${newBalance}`
   );
 
-  if (ptDiscount > 0 && redemption.ptsToRedeem > 0) {
-    await awardLoyaltyPoints(supabase, order.mobile, order.name, -redemption.ptsToRedeem, "redeem", id, `Redeemed for ₹${ptDiscount} discount`);
-  }
-
-  // Earn points are granted exactly once, whichever path first brings balance to 0 —
-  // either here (payment) or at order creation (paid in full). See computeEarnPoints doc.
-  if (isFullyPaid && loyaltyCfg.enabled) {
-    const earnPts = computeEarnPoints(order.total, loyaltyCfg);
-    if (earnPts > 0) {
-      await awardLoyaltyPoints(supabase, order.mobile, order.name, earnPts, "earn", id, `Full payment received ₹${order.total}`);
+  // H7: loyalty calls run after the payment is already committed in the DB.
+  // Wrap in try/catch — a loyalty RPC failure must not return HTTP 500 here (the payment
+  // is real and the client cache must be invalidated). Log for manual correction.
+  // H5: earn on net total (total - any loyalty discount already applied to this order).
+  try {
+    if (ptDiscount > 0 && redemption.ptsToRedeem > 0) {
+      await awardLoyaltyPoints(supabase, order.mobile, order.name, -redemption.ptsToRedeem, "redeem", id, `Redeemed for ₹${ptDiscount} discount`);
     }
+    if (isFullyPaid && loyaltyCfg.enabled) {
+      const priorDiscount = loyaltyDiscountOf(order);
+      const netTotal = Math.max(0, order.total - priorDiscount);
+      const earnPts = computeEarnPoints(netTotal, loyaltyCfg);
+      if (earnPts > 0) {
+        await awardLoyaltyPoints(supabase, order.mobile, order.name, earnPts, "earn", id, `Full payment received ₹${order.total}`);
+      }
+    }
+  } catch (loyaltyErr) {
+    await logAction(supabase, user.email, `⚠️ Loyalty award failed for payment on ${id} — manual correction needed`, id, String(loyaltyErr));
   }
 
   return NextResponse.json({ order: mapOrderRow(updatedRow) });

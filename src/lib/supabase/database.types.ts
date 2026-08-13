@@ -894,8 +894,34 @@ export interface Database {
           p_order_id: string;
           p_new_status: string;
           p_history_line: string;
+          p_expected_status?: string;
         };
         Returns: Database["public"]["Tables"]["orders"]["Row"][];
+      };
+      edit_order: {
+        Args: {
+          p_order_id: string;
+          p_name?: string | null;
+          p_mobile?: string | null;
+          p_in_date?: string | null;
+          p_delivery_date?: string | null;
+          p_garments?: unknown;
+          p_total?: number | null;
+          p_advance?: number | null;
+          p_tailor?: string | null;
+          p_special?: string | null;
+          p_measurements?: unknown;
+          p_images?: unknown;
+          p_audios?: unknown;
+          p_videos?: unknown;
+          p_order_type?: string | null;
+          p_history_line?: string | null;
+        };
+        Returns: Database["public"]["Tables"]["orders"]["Row"][];
+      };
+      reserve_loyalty_discount: {
+        Args: { p_mobile: string; p_pts_to_redeem: number };
+        Returns: boolean;
       };
     };
     Enums: Record<string, never>;

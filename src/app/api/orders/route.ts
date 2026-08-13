@@ -61,6 +61,11 @@ export async function POST(request: Request) {
   // separate balance, because balance is always derived as total − advance everywhere
   // else; the "🎁 ₹N loyalty pts" marker in the history line is what lets
   // loyaltyDiscountOf() subtract it back out of collected revenue.
+  // H4: reject advance > total before any computation — prevent silent overpayment.
+  if (fd.advance > fd.total) {
+    return NextResponse.json({ error: `Advance (₹${fd.advance}) cannot exceed total (₹${fd.total})` }, { status: 400 });
+  }
+
   const cashAdvance = Math.round(fd.advance);
   let ptDiscount = 0;
   let ptsToRedeem = 0;
@@ -75,8 +80,17 @@ export async function POST(request: Request) {
     const balanceBeforePoints = deriveBalance(fd.total, cashAdvance);
     const redemption = computeRedemption(availablePoints, balanceBeforePoints, loyaltyCfg);
     if (redemption.canRedeem) {
-      ptDiscount = redemption.maxPtDiscount;
-      ptsToRedeem = redemption.ptsToRedeem;
+      // C1: atomically reserve loyalty points before inserting the order so two concurrent
+      // orders for the same customer can't both claim the same points balance.
+      const { data: reserved } = await supabase.rpc("reserve_loyalty_discount", {
+        p_mobile: fd.mobile,
+        p_pts_to_redeem: redemption.ptsToRedeem,
+      });
+      if (reserved) {
+        ptDiscount = redemption.maxPtDiscount;
+        ptsToRedeem = redemption.ptsToRedeem;
+      }
+      // If not reserved (concurrent order won the race), proceed without discount — no error.
     }
   }
 
@@ -116,21 +130,23 @@ export async function POST(request: Request) {
 
   await logAction(supabase, user.email, `📋 New order created: ${fd.name}`, id, `₹${fd.total} · Tailor: ${fd.tailor}`);
 
+  // C3: loyalty side-effects run after the order INSERT has committed. Any failure must
+  // NOT propagate as HTTP 500 (client would retry and create a duplicate order). Log and
+  // return a warning instead.
+  // C1: redemption points were already deducted by reserve_loyalty_discount above, so we
+  // skip the awardLoyaltyPoints redemption call (it would double-deduct).
+  // H5: earn points on the net amount actually paid (total - ptDiscount), not gross total.
   if (loyaltyCfg.enabled) {
-    // Deduct only the points that funded the (capped) discount.
-    if (ptsToRedeem > 0) {
-      await awardLoyaltyPoints(supabase, fd.mobile, fd.name, -ptsToRedeem, "redeem", id, `Redeemed for ₹${ptDiscount} discount`);
-    }
-    // Earn points when the order is settled at creation. NOTE: the old app tested cash
-    // advance alone here, so an order settled partly by points would never earn — and the
-    // payment modal would never fire either (balance already ₹0), leaving those points
-    // permanently unawarded. We test the settled balance instead. The (type, orderId)
-    // idempotency guard inside award_loyalty_points still prevents any double-award.
-    if (balance === 0) {
-      const earnPts = computeEarnPoints(fd.total, loyaltyCfg);
-      if (earnPts > 0) {
-        await awardLoyaltyPoints(supabase, fd.mobile, fd.name, earnPts, "earn", id, `Order paid in full ₹${fd.total}`);
+    try {
+      if (balance === 0) {
+        const netTotal = Math.max(0, fd.total - ptDiscount);
+        const earnPts = computeEarnPoints(netTotal, loyaltyCfg);
+        if (earnPts > 0) {
+          await awardLoyaltyPoints(supabase, fd.mobile, fd.name, earnPts, "earn", id, `Order paid in full ₹${fd.total}`);
+        }
       }
+    } catch (loyaltyErr) {
+      await logAction(supabase, user.email, `⚠️ Loyalty earn failed for ${id} — manual correction needed`, id, String(loyaltyErr));
     }
   }
 

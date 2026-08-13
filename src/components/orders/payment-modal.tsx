@@ -33,10 +33,11 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
   const ptDiscount = usePoints && redemption.canRedeem ? redemption.maxPtDiscount : 0;
   const effectiveBalance = Math.max(0, order.balance - ptDiscount);
 
+  // L7: refresh amount when order.balance changes (another device recorded a partial payment
+  // while this modal was open) or when the loyalty-points toggle changes effective balance.
   useEffect(() => {
     setAmount(effectiveBalance);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [usePoints]);
+  }, [effectiveBalance]);
 
   async function save() {
     try {

@@ -20,6 +20,20 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["inventory-ledger"] });
 }
 
+async function apiPost<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+async function apiDelete<T>(url: string): Promise<T> {
+  const res = await fetch(url, { method: "DELETE" });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
 // ── Vendors ───────────────────────────────────────────────────────────────
 
 interface SaveVendorInput {
@@ -180,10 +194,6 @@ export function useSaveBill() {
         .single();
       if (error) throw error;
 
-      // Stock-in: replace any prior ledger rows for this bill (edit case) atomically — a
-      // single RPC call (delete + insert in one transaction) instead of two separate
-      // requests, so a concurrent edit or a mid-operation failure can't double-count or
-      // silently drop stock movement.
       const ledgerRows = input.items
         .filter((i) => purchaseItemId(i) && i.qty > 0)
         .map((i) => ({
@@ -207,17 +217,17 @@ export function useSaveBill() {
   });
 }
 
+/**
+ * Delete a purchase bill via the server route.
+ *
+ * H-3: The API route blocks delete if vendor payments or credits exist.
+ * C-1: Permission enforced server-side.
+ */
 export function useDeleteBill() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, billNumber, userEmail }: { id: string; billNumber: string; userEmail?: string }) => {
-      const supabase = createClient();
-      // Reversing the ledger rows automatically corrects stock — it's always SUM(movement).
-      await supabase.from("inventory_ledger").delete().eq("ref_type", "purchase").eq("ref_id", id);
-      const { error } = await supabase.from("purchase_bills").delete().eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `Bill deleted: ${billNumber}`);
-    },
+    mutationFn: ({ id }: { id: string; billNumber: string; userEmail?: string }) =>
+      apiDelete<{ ok: true }>(`/api/purchases/bills/${id}`),
     onSuccess: () => invalidateAll(qc),
   });
 }
@@ -235,51 +245,38 @@ interface RecordPaymentInput {
   userEmail?: string;
 }
 
+/**
+ * Record a vendor payment via the server route.
+ *
+ * H-1: The API route checks the outstanding balance and rejects overpayments.
+ * C-1: Permission enforced server-side.
+ * H-8: created_by from server session.
+ */
 export function useRecordVendorPayment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: RecordPaymentInput) => {
-      const supabase = createClient();
-      if (!input.amount || input.amount <= 0) throw new Error("Enter a valid payment amount");
-      const { error } = await supabase.from("vendor_payments").insert({
-        bill_id: input.billId,
-        vendor_id: input.vendorId,
-        amount: input.amount,
-        method: input.method,
-        date: input.date,
-        note: input.note.trim(),
-        created_by: input.userEmail || null,
-      });
-      if (error) throw error;
-      await logAction(supabase, input.userEmail, `Payment to vendor: ₹${input.amount} for bill ${input.billNumber}`);
-    },
+    mutationFn: ({ userEmail: _ignored, ...input }: RecordPaymentInput) =>
+      apiPost<{ ok: true }>("/api/purchases/payments", input),
     onSuccess: () => invalidateAll(qc),
   });
 }
 
-/** Deletes a single vendor payment — the bill's paid/balance figures are always derived live from remaining `vendor_payments` rows. */
+/** Deletes a single vendor payment. Permission enforced server-side. */
 export function useDeleteVendorPayment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, amount, billNumber, userEmail }: { id: string; amount: number; billNumber: string; userEmail?: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("vendor_payments").delete().eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `Vendor payment deleted: ₹${amount} for bill ${billNumber}`);
-    },
+    mutationFn: ({ id }: { id: string; amount: number; billNumber: string; userEmail?: string }) =>
+      apiDelete<{ ok: true }>(`/api/purchases/payments/${id}`),
     onSuccess: () => invalidateAll(qc),
   });
 }
 
-/** Deletes several vendor payments in one go — for the "select all" bulk-delete on the Payments Made list. */
+/** Bulk-delete vendor payment records. */
 export function useBulkDeleteVendorPayments() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ ids, userEmail }: { ids: string[]; userEmail?: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("vendor_payments").delete().in("id", ids);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `${ids.length} vendor payment(s) deleted`);
+    mutationFn: async ({ ids }: { ids: string[]; userEmail?: string }) => {
+      await Promise.all(ids.map((id) => apiDelete(`/api/purchases/payments/${id}`)));
     },
     onSuccess: () => invalidateAll(qc),
   });

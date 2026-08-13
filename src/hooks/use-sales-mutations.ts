@@ -19,6 +19,20 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["inventory-ledger"] });
 }
 
+async function apiPost<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+async function apiDelete<T>(url: string): Promise<T> {
+  const res = await fetch(url, { method: "DELETE" });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
 // ── Quotations (planning documents — no stock impact) ───────────────────────
 
 interface SaveQuotationInput {
@@ -112,68 +126,23 @@ interface SaveInvoiceInput {
   userEmail?: string;
 }
 
+/**
+ * Create or update a sales invoice via the server API route.
+ *
+ * H-3: The API route blocks financial edits (item changes) if any payments have
+ * been recorded — prevents replace_inventory_ledger from silently crediting
+ * stock that was genuinely sold and paid for.
+ *
+ * C-1: Permission check (manageSales) is now server-enforced, not UI-only.
+ *
+ * H-8: created_by is resolved from the server session, not the client body.
+ */
 export function useSaveInvoice() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: SaveInvoiceInput) => {
-      const supabase = createClient();
-      const isNew = !input.id;
-      const totals = computeInvoiceTotals(input.items, input.shippingCharges, input.discountType, input.discountValue, input.taxRate, input.gstType);
-
-      const { data, error } = await supabase
-        .from("sales_invoices")
-        .upsert({
-          id: input.id,
-          invoice_number: input.invoiceNumber,
-          customer_mobile: input.customerMobile,
-          customer_name: input.customerName,
-          quote_id: input.quoteId || null,
-          invoice_date: input.invoiceDate,
-          due_date: input.dueDate || null,
-          items: input.items as never,
-          subject: input.subject.trim(),
-          shipping_charges: totals.shippingCharges,
-          discount_type: input.discountType,
-          discount_value: input.discountValue,
-          taxable_amount: totals.taxableAmount,
-          gst_type: input.gstType,
-          tax_rate: input.taxRate,
-          cgst: totals.cgst,
-          sgst: totals.sgst,
-          igst: totals.igst,
-          round_off: totals.roundOff,
-          total: totals.total,
-          doc_status: input.docStatus,
-          terms: input.terms.trim(),
-          notes: input.notes.trim(),
-          created_by: input.userEmail || null,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-
-      // Stock-out: replace any prior ledger rows for this invoice (edit case) atomically —
-      // a single RPC call (delete + insert in one transaction) instead of two separate
-      // requests, so a concurrent edit or a mid-operation failure can't double-count or
-      // silently drop stock movement.
-      const ledgerRows = input.items
-        .filter((i) => i.productId && i.qty > 0)
-        .map((i) => ({
-          item_type: "product" as const,
-          item_id: i.productId,
-          movement: -i.qty,
-          note: `Invoice ${input.invoiceNumber}`,
-          created_by: input.userEmail || null,
-        }));
-      const { error: ledgerError } = await supabase.rpc("replace_inventory_ledger", {
-        p_ref_type: "sale",
-        p_ref_id: data.id,
-        p_rows: ledgerRows,
-      });
-      if (ledgerError) throw ledgerError;
-
-      await logAction(supabase, input.userEmail, isNew ? `Invoice created: ${input.invoiceNumber}` : `Invoice updated: ${input.invoiceNumber}`, null, `₹${totals.total}`);
-      return data;
+    mutationFn: async ({ userEmail: _ignored, ...input }: SaveInvoiceInput) => {
+      const res = await apiPost<{ ok: true; data: { id: string } }>("/api/sales/invoices", input);
+      return res.data;
     },
     onSuccess: () => invalidateAll(qc),
   });
@@ -193,17 +162,17 @@ export function useSetInvoiceDocStatus() {
   });
 }
 
+/**
+ * Delete a sales invoice via the server route.
+ *
+ * H-3: The API route blocks delete if payments or credit notes exist.
+ * C-1: Permission enforced server-side.
+ */
 export function useDeleteInvoice() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, invoiceNumber, userEmail }: { id: string; invoiceNumber: string; userEmail?: string }) => {
-      const supabase = createClient();
-      // Reversing the ledger rows automatically corrects stock — it's always SUM(movement).
-      await supabase.from("inventory_ledger").delete().eq("ref_type", "sale").eq("ref_id", id);
-      const { error } = await supabase.from("sales_invoices").delete().eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `Invoice deleted: ${invoiceNumber}`);
-    },
+    mutationFn: ({ id }: { id: string; invoiceNumber: string; userEmail?: string }) =>
+      apiDelete<{ ok: true }>(`/api/sales/invoices/${id}`),
     onSuccess: () => invalidateAll(qc),
   });
 }
@@ -222,52 +191,38 @@ interface RecordSalesPaymentInput {
   userEmail?: string;
 }
 
+/**
+ * Record a sales payment via the server route.
+ *
+ * H-1: The API route checks the outstanding balance and rejects overpayments.
+ * C-1: Permission enforced server-side.
+ * H-8: created_by from server session.
+ */
 export function useRecordSalesPayment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: RecordSalesPaymentInput) => {
-      const supabase = createClient();
-      if (!input.amount || input.amount <= 0) throw new Error("Enter a valid payment amount");
-      const { error } = await supabase.from("sales_payments").insert({
-        invoice_id: input.invoiceId,
-        customer_mobile: input.customerMobile,
-        amount: input.amount,
-        method: input.method,
-        date: input.date,
-        note: input.note.trim(),
-        pos_session_id: input.posSessionId || null,
-        created_by: input.userEmail || null,
-      });
-      if (error) throw error;
-      await logAction(supabase, input.userEmail, `Payment received: ₹${input.amount} for invoice ${input.invoiceNumber}`);
-    },
+    mutationFn: ({ userEmail: _ignored, ...input }: RecordSalesPaymentInput) =>
+      apiPost<{ ok: true }>("/api/sales/payments", input),
     onSuccess: () => invalidateAll(qc),
   });
 }
 
-/** Deletes a single payment record — the invoice's paid/balance figures are always derived live from remaining `sales_payments` rows, so nothing else needs updating. */
+/** Deletes a single payment record. Permission enforced server-side. */
 export function useDeleteSalesPayment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, amount, invoiceNumber, userEmail }: { id: string; amount: number; invoiceNumber: string; userEmail?: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("sales_payments").delete().eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `Payment deleted: ₹${amount} for invoice ${invoiceNumber}`);
-    },
+    mutationFn: ({ id }: { id: string; amount: number; invoiceNumber: string; userEmail?: string }) =>
+      apiDelete<{ ok: true }>(`/api/sales/payments/${id}`),
     onSuccess: () => invalidateAll(qc),
   });
 }
 
-/** Deletes several payment records in one go — for the "select all" bulk-delete on the Payments Received list. */
+/** Bulk-delete payment records. */
 export function useBulkDeleteSalesPayments() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ ids, userEmail }: { ids: string[]; userEmail?: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("sales_payments").delete().in("id", ids);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `${ids.length} payment(s) deleted`);
+      await Promise.all(ids.map((id) => apiDelete(`/api/sales/payments/${id}`)));
     },
     onSuccess: () => invalidateAll(qc),
   });
@@ -287,50 +242,18 @@ interface RaiseSalesCreditInput {
   userEmail?: string;
 }
 
+/**
+ * Raise a sales credit note via the server route.
+ *
+ * H-2: The API route caps the credit at the invoice total minus prior credits,
+ * preventing free-money exploits and phantom stock creation.
+ * C-1: Permission enforced server-side.
+ */
 export function useRaiseSalesCreditNote() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: RaiseSalesCreditInput) => {
-      const supabase = createClient();
-      const total = computeLineItemsTotal(input.items);
-      if (total <= 0) throw new Error("Add at least one returned item");
-
-      const { data, error } = await supabase
-        .from("sales_credit_notes")
-        .insert({
-          credit_number: input.creditNumber,
-          invoice_id: input.invoiceId,
-          customer_mobile: input.customerMobile,
-          date: input.date,
-          items: input.items as never,
-          total,
-          reason: input.reason.trim(),
-          notes: input.notes.trim(),
-          created_by: input.userEmail || null,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-
-      const ledgerRows = input.items
-        .filter((i) => i.productId && i.qty > 0)
-        .map((i) => ({
-          item_type: "product" as const,
-          item_id: i.productId,
-          movement: i.qty,
-          ref_type: "sale_return" as const,
-          ref_id: data.id,
-          note: `Return against invoice ${input.invoiceNumber}`,
-          created_by: input.userEmail || null,
-        }));
-      if (ledgerRows.length) {
-        const { error: ledgerError } = await supabase.from("inventory_ledger").insert(ledgerRows);
-        if (ledgerError) throw ledgerError;
-      }
-
-      await logAction(supabase, input.userEmail, `Credit note raised: ${input.creditNumber} (₹${total}) against invoice ${input.invoiceNumber}`);
-      return data;
-    },
+    mutationFn: ({ userEmail: _ignored, ...input }: RaiseSalesCreditInput) =>
+      apiPost<{ ok: true; id: string }>("/api/sales/credit-notes", input),
     onSuccess: () => invalidateAll(qc),
   });
 }

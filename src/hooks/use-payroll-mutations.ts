@@ -3,8 +3,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { logAction } from "@/lib/logging";
-import { computeGrossPay, countAttendance } from "@/lib/payroll";
-import { mapEmployeeRow, mapAttendanceRow } from "@/lib/types";
 
 function invalidatePayroll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["payroll-runs"] });
@@ -13,94 +11,43 @@ function invalidatePayroll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["employee-advances"] });
 }
 
+async function apiJson<T>(url: string, method: string, body?: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method,
+    ...(body !== undefined ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
 /**
- * Generates one payslip per active employee for the given period: pulls their attendance
- * records in-range, computes gross pay via lib/payroll.ts, subtracts any not-yet-deducted
- * advances (dated on/before the period end), and links those advances to the new payslip so
- * they're never double-deducted in a later run.
+ * Run payroll via the server route.
+ *
+ * C-1: Permission check (managePayroll) is now server-enforced.
+ * C-3: Advance deductions no longer silently forgive shortfalls.
+ * C-4: Duplicate period runs rejected by DB UNIQUE constraint + preflight check.
+ * C-5: Monthly employees with no attendance records get ₹0, not full salary.
+ * H-8: Actor email resolved from session cookie, not client body.
  */
 export function useRunPayroll() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ periodStart, periodEnd, userEmail }: { periodStart: string; periodEnd: string; userEmail?: string }) => {
-      const supabase = createClient();
-
-      const { data: runRow, error: runError } = await supabase.from("payroll_runs").insert({ period_start: periodStart, period_end: periodEnd, created_by: userEmail || null, status: "draft" }).select().single();
-      if (runError) throw runError;
-      const runId = runRow.id as string;
-
-      const { data: employeeRows, error: empError } = await supabase.from("employees").select("*").eq("active", true);
-      if (empError) throw empError;
-      const employees = (employeeRows || []).map(mapEmployeeRow);
-
-      for (const employee of employees) {
-        const { data: attRows } = await supabase
-          .from("employee_attendance")
-          .select("*")
-          .eq("employee_id", employee.id)
-          .gte("date", periodStart)
-          .lte("date", periodEnd);
-        const attendance = (attRows || []).map(mapAttendanceRow);
-        const counts = countAttendance(attendance);
-        const grossPay = computeGrossPay(employee, periodStart, periodEnd, counts);
-
-        const { data: advanceRows } = await supabase
-          .from("employee_advances")
-          .select("*")
-          .eq("employee_id", employee.id)
-          .is("payslip_id", null)
-          .lte("date", periodEnd);
-        const deductions = (advanceRows || []).reduce((s, a) => s + (a.amount || 0), 0);
-        const netPay = Math.max(0, Math.round((grossPay - deductions) * 100) / 100);
-
-        const { data: payslip, error: payslipError } = await supabase
-          .from("payslips")
-          .upsert(
-            {
-              payroll_run_id: runId,
-              employee_id: employee.id,
-              present_days: counts.presentDays,
-              absent_days: counts.absentDays,
-              half_days: counts.halfDays,
-              leave_days: counts.leaveDays,
-              gross_pay: grossPay,
-              deductions,
-              net_pay: netPay,
-              status: "draft",
-            },
-            { onConflict: "payroll_run_id,employee_id" }
-          )
-          .select()
-          .single();
-        if (payslipError) throw payslipError;
-
-        if ((advanceRows || []).length > 0) {
-          await supabase
-            .from("employee_advances")
-            .update({ payslip_id: payslip.id })
-            .in("id", (advanceRows || []).map((a) => a.id));
-        }
-      }
-
-      await logAction(supabase, userEmail, `Payroll run generated: ${periodStart} to ${periodEnd} (${employees.length} employees)`);
-      return runId;
-    },
+    mutationFn: ({ periodStart, periodEnd }: { periodStart: string; periodEnd: string; userEmail?: string }) =>
+      apiJson<{ ok: true; runId: string }>("/api/payroll/run", "POST", { periodStart, periodEnd }),
     onSuccess: () => invalidatePayroll(qc),
   });
 }
 
+/**
+ * Delete a payroll run. Finalized runs are rejected server-side.
+ * Cascades to payslips (FK ON DELETE CASCADE) and un-links advances (ON DELETE SET NULL).
+ */
 export function useDeletePayrollRun() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, userEmail }: { id: string; userEmail?: string }) => {
-      const supabase = createClient();
-      // Deleting the run cascades to its payslips (FK ON DELETE CASCADE), which in turn
-      // un-links any advances that were deducted against them (ON DELETE SET NULL) — so a
-      // mis-run draft can be safely discarded and regenerated.
-      const { error } = await supabase.from("payroll_runs").delete().eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `Payroll run deleted: ${id}`);
-    },
+    mutationFn: ({ id }: { id: string; userEmail?: string }) =>
+      apiJson<{ ok: true }>(`/api/payroll/run/${id}`, "DELETE"),
     onSuccess: () => invalidatePayroll(qc),
   });
 }
@@ -108,12 +55,8 @@ export function useDeletePayrollRun() {
 export function useFinalizePayrollRun() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, userEmail }: { id: string; userEmail?: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("payroll_runs").update({ status: "finalized", finalized_at: new Date().toISOString() }).eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `Payroll run finalized: ${id}`);
-    },
+    mutationFn: ({ id }: { id: string; userEmail?: string }) =>
+      apiJson<{ ok: true }>(`/api/payroll/run/${id}`, "PATCH", { action: "finalize" }),
     onSuccess: () => invalidatePayroll(qc),
   });
 }

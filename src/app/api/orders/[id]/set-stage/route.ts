@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { mapOrderRow } from "@/lib/types";
-import { STAGES, STAGE_META, fmtNow, deliveryBonusPoints, computeEarnPoints, type Stage } from "@/lib/business-rules";
+import { STAGES, STAGE_META, fmtNow, deliveryBonusPoints, computeEarnPoints, loyaltyDiscountOf, type Stage } from "@/lib/business-rules";
 import { logAction, sendAdminNotification } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
@@ -75,10 +75,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
       if (target === "payment" && order.balance === 0) {
         // H5: earn on net total (total - any loyalty discount already applied to this order).
-        const netTotal = Math.max(0, order.total - (order.history || []).reduce((s, h) => {
-          const m = typeof h === "string" ? h.match(/🎁\s+₹(\d+)/) : null;
-          return s + (m ? parseInt(m[1], 10) || 0 : 0);
-        }, 0));
+        const netTotal = Math.max(0, order.total - loyaltyDiscountOf(order));
         const earnPts = computeEarnPoints(netTotal, loyaltyCfg);
         if (earnPts > 0) {
           await awardLoyaltyPoints(supabase, order.mobile, order.name, earnPts, "earn", id, `Full payment received ₹${order.total}`);

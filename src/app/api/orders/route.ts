@@ -85,6 +85,8 @@ export async function POST(request: Request) {
       const { data: reserved } = await supabase.rpc("reserve_loyalty_discount", {
         p_mobile: fd.mobile,
         p_pts_to_redeem: redemption.ptsToRedeem,
+        p_order_id: id,
+        p_note: `Redeemed for ₹${redemption.maxPtDiscount} discount`,
       });
       if (reserved) {
         ptDiscount = redemption.maxPtDiscount;
@@ -126,7 +128,20 @@ export async function POST(request: Request) {
     })
     .select("*")
     .single();
-  if (insertError || !insertedRow) return NextResponse.json({ error: insertError?.message || "Insert failed" }, { status: 500 });
+  if (insertError || !insertedRow) {
+    // Points were already deducted by reserve_loyalty_discount above. The order does not
+    // exist, so nothing will ever consume that discount — hand the points back, otherwise
+    // a failed insert silently burns the customer's balance.
+    if (ptsToRedeem > 0) {
+      await supabase.rpc("refund_loyalty_discount", {
+        p_mobile: fd.mobile,
+        p_pts: ptsToRedeem,
+        p_order_id: id,
+        p_note: "Order creation failed — redemption reversed",
+      });
+    }
+    return NextResponse.json({ error: insertError?.message || "Insert failed" }, { status: 500 });
+  }
 
   await logAction(supabase, user.email, `📋 New order created: ${fd.name}`, id, `₹${fd.total} · Tailor: ${fd.tailor}`);
 

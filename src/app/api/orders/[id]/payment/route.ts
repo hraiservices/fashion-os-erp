@@ -86,7 +86,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       await awardLoyaltyPoints(supabase, order.mobile, order.name, -redemption.ptsToRedeem, "redeem", id, `Redeemed for ₹${ptDiscount} discount`);
     }
     if (isFullyPaid && loyaltyCfg.enabled) {
-      const priorDiscount = loyaltyDiscountOf(order);
+      // `order` was read before record_order_payment ran, so its history does not yet
+      // contain this payment's own discount line — add ptDiscount explicitly or the
+      // customer earns points on money they never paid.
+      const priorDiscount = loyaltyDiscountOf(order) + ptDiscount;
       const netTotal = Math.max(0, order.total - priorDiscount);
       const earnPts = computeEarnPoints(netTotal, loyaltyCfg);
       if (earnPts > 0) {

@@ -916,11 +916,16 @@ export interface Database {
           p_videos?: unknown;
           p_order_type?: string | null;
           p_history_line?: string | null;
+          p_expected_advance?: number | null;
         };
         Returns: Database["public"]["Tables"]["orders"]["Row"][];
       };
       reserve_loyalty_discount: {
-        Args: { p_mobile: string; p_pts_to_redeem: number };
+        Args: { p_mobile: string; p_pts_to_redeem: number; p_order_id?: string | null; p_note?: string | null };
+        Returns: boolean;
+      };
+      refund_loyalty_discount: {
+        Args: { p_mobile: string; p_pts: number; p_order_id?: string | null; p_note?: string | null };
         Returns: boolean;
       };
     };

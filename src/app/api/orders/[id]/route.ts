@@ -29,6 +29,12 @@ const patchSchema = z.object({
   audios: z.array(z.string()).optional(),
   videos: z.array(z.string()).optional(),
   orderType: z.enum(["new", "alteration"]).optional(),
+  /**
+   * The `advance` value the client was showing when the edit form was opened. Sent only
+   * when the caller intends to change advance. If a payment landed in the meantime the
+   * stored advance no longer matches and edit_order aborts rather than overwriting it.
+   */
+  expectedAdvance: z.number().optional(),
 });
 
 /**
@@ -48,10 +54,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const patch = parsed.data;
 
-  const financialChanged = patch.total !== undefined || patch.advance !== undefined;
+  const financialSubmitted = patch.total !== undefined || patch.advance !== undefined;
   let historyLine: string | null = null;
 
-  if (financialChanged) {
+  if (financialSubmitted) {
     const { data: cur } = await supabase.from("orders").select("total,advance").eq("id", id).maybeSingle();
     const curTotal   = cur?.total   ?? 0;
     const curAdvance = cur?.advance ?? 0;
@@ -60,8 +66,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (newAdvance > newTotal) {
       return NextResponse.json({ error: `Advance (₹${newAdvance}) cannot exceed total (₹${newTotal})` }, { status: 400 });
     }
-    const userName = user.email.split("@")[0] || "user";
-    historyLine = `✏️ Edited — Total ₹${curTotal}→₹${newTotal}, Advance ₹${curAdvance}→₹${newAdvance} by ${userName} — ${fmtNow()}`;
+    // Only append a history line when the numbers actually moved. The edit form submits
+    // total/advance on every save, so writing unconditionally would spam the audit trail
+    // with "Total ₹2000→₹2000" entries on unrelated edits (e.g. fixing a name typo).
+    if (newTotal !== curTotal || newAdvance !== curAdvance) {
+      const userName = user.email.split("@")[0] || "user";
+      historyLine = `✏️ Edited — Total ₹${curTotal}→₹${newTotal}, Advance ₹${curAdvance}→₹${newAdvance} by ${userName} — ${fmtNow()}`;
+    }
   }
 
   const { data: updatedRows, error } = await supabase.rpc("edit_order", {
@@ -81,10 +92,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     p_videos:        patch.videos        ?? null,
     p_order_type:    patch.orderType     ?? null,
     p_history_line:  historyLine,
+    p_expected_advance: patch.advance !== undefined ? (patch.expectedAdvance ?? null) : null,
   });
   const updatedRow = updatedRows?.[0];
   if (error || !updatedRow) {
-    if (error?.message?.includes("cannot exceed") || error?.message?.includes("Invalid")) {
+    // A payment landed while the edit form was open — refuse rather than overwrite it.
+    if (error?.message?.includes("STALE_ADVANCE")) {
+      return NextResponse.json(
+        { error: "A payment was recorded while you were editing this order. Reload the page and try again." },
+        { status: 409 }
+      );
+    }
+    if (error?.message?.includes("cannot exceed") || error?.message?.includes("Invalid") || error?.message?.includes("negative")) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     return NextResponse.json({ error: error?.message || "Update failed" }, { status: 500 });

@@ -262,6 +262,11 @@ function OrderFormFields({
             audios,
             videos,
             orderType,
+            // The form captured `advance` when it mounted. If a payment was collected
+            // since then, the stored advance has moved on and blindly writing our stale
+            // copy back would erase that payment — send what we saw so the server can
+            // detect the conflict and reject instead.
+            expectedAdvance: existingOrder.advance,
           },
           userEmail: user?.email,
         });

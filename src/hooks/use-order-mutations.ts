@@ -104,10 +104,13 @@ export function useRecordPayment() {
  * The userEmail parameter is accepted for call-site compatibility but ignored here —
  * the server resolves the authenticated user from the session cookie.
  */
+/** Patch payload — order fields plus the optimistic-concurrency baseline for `advance`. */
+type OrderEditPatch = Partial<Order> & { expectedAdvance?: number };
+
 export function useUpdateOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<Order>; userEmail?: string }) =>
+    mutationFn: ({ id, patch }: { id: string; patch: OrderEditPatch; userEmail?: string }) =>
       patchJson<{ order: Order }>(`/api/orders/${id}`, patch),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["orders"] });

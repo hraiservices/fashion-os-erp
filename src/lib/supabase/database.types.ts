@@ -889,6 +889,14 @@ export interface Database {
         Args: { p_value: Json };
         Returns: undefined;
       };
+      set_order_stage: {
+        Args: {
+          p_order_id: string;
+          p_new_status: string;
+          p_history_line: string;
+        };
+        Returns: Database["public"]["Tables"]["orders"]["Row"][];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

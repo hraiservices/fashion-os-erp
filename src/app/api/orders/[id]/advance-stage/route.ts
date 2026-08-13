@@ -33,12 +33,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const userName = user.email.split("@")[0] || "user";
   const historyLine = `${nextMeta.emoji} ${nextMeta.label} — ${fmtNow()} by ${userName}`;
 
-  const { data: updatedRow, error: updateError } = await supabase
-    .from("orders")
-    .update({ status: next, history: [...order.history, historyLine] })
-    .eq("id", id)
-    .select("*")
-    .single();
+  const { data: updatedRows, error: updateError } = await supabase.rpc("set_order_stage", {
+    p_order_id: id,
+    p_new_status: next,
+    p_history_line: historyLine,
+  });
+  const updatedRow = updatedRows?.[0];
   if (updateError || !updatedRow) return NextResponse.json({ error: updateError?.message || "Update failed" }, { status: 500 });
 
   await logAction(

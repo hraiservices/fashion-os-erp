@@ -24,5 +24,5 @@ export async function awardLoyaltyPoints(
     p_order_id: orderId,
     p_note: note,
   });
-  if (error) console.warn("Loyalty award error:", error.message);
+  if (error) throw new Error(`Loyalty award failed: ${error.message}`);
 }

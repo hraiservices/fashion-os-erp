@@ -86,6 +86,10 @@ export function useRecordPayment() {
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["order", vars.orderId] });
+      // Loyalty points may have been redeemed or earned — invalidate customer cache so
+      // the next payment modal shows the correct available points.
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["customer-by-mobile"] });
     },
   });
 }
@@ -114,10 +118,12 @@ export function useUpdateOrder() {
       if (patch.advance !== undefined) dbPatch.advance = patch.advance;
       // Recompute balance using the resolved total/advance (falling back to current DB values)
       if (patch.total !== undefined || patch.advance !== undefined) {
-        dbPatch.balance = deriveBalance(
-          dbPatch.total   ?? currentTotal,
-          dbPatch.advance ?? currentAdvance,
-        );
+        const newTotal   = dbPatch.total   ?? currentTotal;
+        const newAdvance = dbPatch.advance ?? currentAdvance;
+        if (newTotal < newAdvance) {
+          throw new Error(`Total (₹${newTotal}) cannot be less than advance already collected (₹${newAdvance}). Record a refund or reduce the advance first.`);
+        }
+        dbPatch.balance = deriveBalance(newTotal, newAdvance);
       }
       if (patch.tailor !== undefined) dbPatch.tailor = patch.tailor;
       if (patch.orderType !== undefined) dbPatch.order_type = patch.orderType;
@@ -128,6 +134,20 @@ export function useUpdateOrder() {
       if (patch.images !== undefined) dbPatch.images = patch.images;
       if (patch.audios !== undefined) dbPatch.audios = patch.audios;
       if (patch.videos !== undefined) dbPatch.videos = patch.videos;
+      // Append a history entry for financial changes so the in-order audit trail reflects
+      // who changed the price and when — not just the activity log.
+      const financialChanged = patch.total !== undefined || patch.advance !== undefined;
+      if (financialChanged) {
+        const newTotal   = dbPatch.total   ?? currentTotal;
+        const newAdvance = dbPatch.advance ?? currentAdvance;
+        const userName = userEmail?.split("@")[0] || "user";
+        const now = new Date().toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: true });
+        const historyLine = `✏️ Edited — Total ₹${currentTotal}→₹${newTotal}, Advance ₹${currentAdvance}→₹${newAdvance} by ${userName} — ${now}`;
+        const { data: orderNow } = await supabase.from("orders").select("history").eq("id", id).single();
+        const history: string[] = Array.isArray(orderNow?.history) ? (orderNow.history as string[]) : [];
+        dbPatch.history = [...history, historyLine] as never;
+      }
+
       const { error } = await supabase.from("orders").update(dbPatch).eq("id", id);
       if (error) throw error;
       await logAction(supabase, userEmail, `✏️ Order edited: ${patch.name || ""}`, id);
@@ -142,11 +162,10 @@ export function useUpdateOrder() {
 export function useDeleteOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name, userEmail }: { id: string; name: string; userEmail?: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("orders").delete().eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `🗑️ Order deleted: ${name}`, id);
+    mutationFn: async ({ id }: { id: string; name: string; userEmail?: string }) => {
+      const res = await fetch(`/api/orders/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Delete failed");
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });

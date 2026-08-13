@@ -28,7 +28,12 @@ BEGIN
   SET
     advance = LEAST(advance + p_cash_paid + p_pt_discount, total),
     balance = GREATEST(0, total - LEAST(advance + p_cash_paid + p_pt_discount, total)),
-    status = CASE WHEN GREATEST(0, total - LEAST(advance + p_cash_paid + p_pt_discount, total)) = 0 THEN 'payment' ELSE status END,
+    status = CASE
+               WHEN GREATEST(0, total - LEAST(advance + p_cash_paid + p_pt_discount, total)) = 0
+                    AND status = 'delivered'
+               THEN 'payment'
+               ELSE status
+             END,
     history = history || to_jsonb(p_history_line)
   WHERE id = p_order_id
   RETURNING *;

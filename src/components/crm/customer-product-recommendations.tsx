@@ -2,18 +2,22 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Sparkles, ChevronDown } from "lucide-react";
 import { useProducts } from "@/hooks/use-products";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
+import { useSendRecommendation } from "@/hooks/use-recommend-mutation";
 import { matchProductsForCustomer } from "@/lib/customer-product-matching";
 import { inr } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 
 /** "What should I sell this customer?" (Phase 4) — reverse of ProductCustomerMatches. */
 export function CustomerProductRecommendations({ customer }: { customer: { mobile: string; name: string } }) {
   const { data: products } = useProducts();
   const { data: invoices } = useSalesInvoices();
   const [expanded, setExpanded] = useState(false);
+  const sendRecommendation = useSendRecommendation();
 
   const matches = useMemo(() => {
     if (!products || !invoices) return [];
@@ -21,6 +25,23 @@ export function CustomerProductRecommendations({ customer }: { customer: { mobil
     const productsById = new Map(products.map((p) => [p.id, p]));
     return matchProductsForCustomer(custInvoices, products, productsById);
   }, [customer, products, invoices]);
+
+  async function handleSend(productId: string, productName: string, category: string, price: number, score: number) {
+    const res = await sendRecommendation.mutateAsync({
+      mobile: customer.mobile,
+      customerName: customer.name,
+      productId,
+      productName,
+      category,
+      price,
+      score,
+    });
+    if (res.blocked) {
+      toast.info(`Already messaged ${customer.name} about this product recently (within ${res.cooldownDays} days).`);
+    } else if (res.sentViaApi) {
+      toast.success(`WhatsApp message sent to ${customer.name}`);
+    }
+  }
 
   if (matches.length === 0) return null;
 
@@ -53,6 +74,18 @@ export function CustomerProductRecommendations({ customer }: { customer: { mobil
               <p className="text-sm font-semibold tabular-nums">{inr(m.product.sellingPrice)}</p>
               <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">{m.score}% match</span>
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              className="shrink-0"
+              aria-label={`Send WhatsApp about ${m.product.name}`}
+              title="Send WhatsApp"
+              disabled={sendRecommendation.isPending}
+              onClick={() => handleSend(m.product.id, m.product.name, m.product.category, m.product.sellingPrice, m.score)}
+            >
+              <WhatsAppIcon className="size-3.5 text-[#25D366]" />
+            </Button>
           </li>
         ))}
       </ul>

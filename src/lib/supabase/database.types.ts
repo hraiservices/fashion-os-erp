@@ -325,6 +325,26 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["products"]["Row"]>;
         Relationships: [];
       };
+      customer_recommendations: {
+        Row: {
+          id: string;
+          customer_mobile: string;
+          customer_name: string;
+          product_id: string;
+          product_name: string;
+          score: number;
+          channel: string;
+          message: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["customer_recommendations"]["Row"]> & {
+          customer_mobile: string;
+          product_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["customer_recommendations"]["Row"]>;
+        Relationships: [];
+      };
       bill_of_materials: {
         Row: {
           id: string;

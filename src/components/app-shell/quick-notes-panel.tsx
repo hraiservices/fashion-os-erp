@@ -35,17 +35,18 @@ function nextColor(notes: QuickNote[]): NoteColor {
   return NOTE_COLORS[notes.length % NOTE_COLORS.length];
 }
 
-/** Zoho Notebook-style quick notes — a slim launcher tab fixed to the right edge (desktop
- *  only; there's no room for this on mobile) that slides open a narrow panel of personal
- *  sticky notes, scoped to the logged-in user. */
-export function QuickNotesPanel() {
+/**
+ * Zoho Notebook-style quick notes panel — content only, no launcher of its own. Rendered by
+ * RightSidebar (right-sidebar.tsx) when the "notes" rail item is active, so this component
+ * doesn't own its own open/close state or fixed positioning.
+ */
+export function QuickNotesPanel({ onClose }: { onClose: () => void }) {
   const { data: user } = useCurrentUser();
   const { data: notes } = useQuickNotes(user?.email);
   const createNote = useCreateQuickNote();
   const updateNote = useUpdateQuickNote();
   const deleteNote = useDeleteQuickNote();
 
-  const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [composing, setComposing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -91,121 +92,101 @@ export function QuickNotesPanel() {
   }
 
   return (
-    <div className="hidden lg:block print:hidden">
-      {/* Launcher tab — vertically centered on the right edge. */}
-      {!open && (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label="Open notes"
-          className="fixed right-0 top-1/2 z-40 flex -translate-y-1/2 flex-col items-center gap-1 rounded-l-lg border border-r-0 bg-card px-1.5 py-3 text-muted-foreground shadow-sm transition-colors hover:text-foreground hover:bg-muted"
-        >
-          <StickyNote className="size-4" />
-        </button>
-      )}
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <StickyNote className="size-4 text-muted-foreground" /> Notes
+        </h2>
+        <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close notes">
+          <X className="size-4" />
+        </Button>
+      </div>
 
-      {/* Panel */}
-      <div
-        className={cn(
-          "fixed right-0 top-0 z-40 flex h-dvh w-80 flex-col border-l bg-card shadow-xl transition-transform duration-200",
-          open ? "translate-x-0" : "translate-x-full"
-        )}
-      >
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <StickyNote className="size-4 text-muted-foreground" /> Notes
-          </h2>
-          <Button variant="ghost" size="icon-sm" onClick={() => setOpen(false)} aria-label="Close notes">
-            <X className="size-4" />
-          </Button>
+      <div className="flex items-center gap-2 border-b px-3 py-2">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input placeholder="Search notes…" className="h-8 pl-8 text-xs" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
+        <Button variant="ghost" size="icon-sm" onClick={() => setComposing(true)} aria-label="Add note">
+          <Plus className="size-4" />
+        </Button>
+      </div>
 
-        <div className="flex items-center gap-2 border-b px-3 py-2">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search notes…" className="h-8 pl-8 text-xs" value={search} onChange={(e) => setSearch(e.target.value)} />
-          </div>
-          <Button variant="ghost" size="icon-sm" onClick={() => setComposing(true)} aria-label="Add note">
-            <Plus className="size-4" />
-          </Button>
-        </div>
-
-        <div className="flex-1 space-y-2 overflow-y-auto p-3">
-          {composing && (
-            <div className={cn("space-y-2 rounded-lg p-3", COLOR_CLASSES[nextColor(notes || [])])}>
-              <Textarea
-                autoFocus
-                rows={3}
-                placeholder="Type a note…"
-                className="border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") { setComposing(false); setDraft(""); }
-                }}
-              />
-              <div className="flex justify-end gap-1.5">
-                <Button variant="ghost" size="sm" onClick={() => { setComposing(false); setDraft(""); }}>Cancel</Button>
-                <Button size="sm" onClick={handleCreate} disabled={createNote.isPending}>
-                  <Check className="size-3.5" /> Save
-                </Button>
-              </div>
+      <div className="flex-1 space-y-2 overflow-y-auto p-3">
+        {composing && (
+          <div className={cn("space-y-2 rounded-lg p-3", COLOR_CLASSES[nextColor(notes || [])])}>
+            <Textarea
+              autoFocus
+              rows={3}
+              placeholder="Type a note…"
+              className="border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") { setComposing(false); setDraft(""); }
+              }}
+            />
+            <div className="flex justify-end gap-1.5">
+              <Button variant="ghost" size="sm" onClick={() => { setComposing(false); setDraft(""); }}>Cancel</Button>
+              <Button size="sm" onClick={handleCreate} disabled={createNote.isPending}>
+                <Check className="size-3.5" /> Save
+              </Button>
             </div>
-          )}
+          </div>
+        )}
 
-          {filtered.length === 0 && !composing ? (
-            <p className="px-1 py-8 text-center text-xs text-muted-foreground">
-              {search ? "No notes match your search." : "No notes yet — click + to add one."}
-            </p>
-          ) : (
-            filtered.map((note) => (
-              <div key={note.id} className={cn("group relative rounded-lg p-3", COLOR_CLASSES[note.color])}>
-                {editingId === note.id ? (
-                  <div className="space-y-2">
-                    <Textarea
-                      autoFocus
-                      rows={3}
-                      className="border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
-                      value={editDraft}
-                      onChange={(e) => setEditDraft(e.target.value)}
-                    />
-                    <div className="flex justify-end gap-1.5">
-                      <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
-                      <Button size="sm" onClick={() => handleSaveEdit(note.id)} disabled={updateNote.isPending}>
-                        <Check className="size-3.5" /> Save
-                      </Button>
-                    </div>
+        {filtered.length === 0 && !composing ? (
+          <p className="px-1 py-8 text-center text-xs text-muted-foreground">
+            {search ? "No notes match your search." : "No notes yet — click + to add one."}
+          </p>
+        ) : (
+          filtered.map((note) => (
+            <div key={note.id} className={cn("group relative rounded-lg p-3", COLOR_CLASSES[note.color])}>
+              {editingId === note.id ? (
+                <div className="space-y-2">
+                  <Textarea
+                    autoFocus
+                    rows={3}
+                    className="border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+                    value={editDraft}
+                    onChange={(e) => setEditDraft(e.target.value)}
+                  />
+                  <div className="flex justify-end gap-1.5">
+                    <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
+                    <Button size="sm" onClick={() => handleSaveEdit(note.id)} disabled={updateNote.isPending}>
+                      <Check className="size-3.5" /> Save
+                    </Button>
                   </div>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className="block w-full pr-6 text-left text-sm whitespace-pre-wrap break-words text-foreground/90"
-                      onClick={() => { setEditingId(note.id); setEditDraft(note.content); }}
-                    >
-                      {note.content}
-                    </button>
-                    <p className="mt-1.5 text-[11px] text-foreground/50">{relativeDate(note.createdAt)}</p>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <button type="button" aria-label="Note actions" className="absolute right-2 top-2 rounded p-0.5 text-foreground/40 opacity-0 hover:bg-black/5 group-hover:opacity-100">
-                            <MoreVertical className="size-3.5" />
-                          </button>
-                        }
-                      />
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem variant="destructive" onClick={() => handleDelete(note.id)}>
-                          <Trash2 className="size-4" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </>
-                )}
-              </div>
-            ))
-          )}
-        </div>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="block w-full pr-6 text-left text-sm whitespace-pre-wrap break-words text-foreground/90"
+                    onClick={() => { setEditingId(note.id); setEditDraft(note.content); }}
+                  >
+                    {note.content}
+                  </button>
+                  <p className="mt-1.5 text-[11px] text-foreground/50">{relativeDate(note.createdAt)}</p>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <button type="button" aria-label="Note actions" className="absolute right-2 top-2 rounded p-0.5 text-foreground/40 opacity-0 hover:bg-black/5 group-hover:opacity-100">
+                          <MoreVertical className="size-3.5" />
+                        </button>
+                      }
+                    />
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem variant="destructive" onClick={() => handleDelete(note.id)}>
+                        <Trash2 className="size-4" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              )}
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

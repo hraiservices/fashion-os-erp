@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Camera, LogOut, MapPin, CheckCircle2, Clock } from "lucide-react";
+import { Camera, LogOut, MapPin, CheckCircle2, Clock, History } from "lucide-react";
 import { CameraModal } from "@/components/orders/camera-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,19 @@ interface MeResponse {
   checkedOutAt: string | null;
   hoursWorked: number | null;
   overtimeHours: number;
+}
+
+interface HistoryDay {
+  date: string;
+  status: string;
+  checkInAt: string | null;
+  checkOutAt: string | null;
+  hoursWorked: number | null;
+  overtimeHours: number;
+}
+
+function fmtDayShort(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
 }
 
 type Step = "login" | "loading" | "ready";
@@ -35,6 +48,8 @@ export default function CheckInPage() {
   const [loginError, setLoginError] = useState("");
 
   const [me, setMe] = useState<MeResponse | null>(null);
+  const [history, setHistory] = useState<HistoryDay[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<Action>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -49,6 +64,14 @@ export default function CheckInPage() {
     if (res.ok) {
       setMe(data);
       setStep("ready");
+    }
+  }
+
+  async function loadHistory() {
+    const res = await fetch("/api/attendance/history");
+    if (res.ok) {
+      const data = await res.json();
+      setHistory(data.days || []);
     }
   }
 
@@ -205,6 +228,36 @@ export default function CheckInPage() {
                 <p className="text-xs text-muted-foreground">
                   {me.hoursWorked ?? 0}h worked{me.overtimeHours > 0 ? ` · ${me.overtimeHours}h overtime` : ""}
                 </p>
+              </div>
+            )}
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full gap-1.5 text-muted-foreground"
+              onClick={() => {
+                if (!showHistory) loadHistory();
+                setShowHistory((v) => !v);
+              }}
+            >
+              <History className="size-3.5" /> {showHistory ? "Hide history" : "View my history"}
+            </Button>
+
+            {showHistory && (
+              <div className="max-h-64 space-y-1.5 overflow-y-auto rounded-lg border p-2">
+                {history.length === 0 ? (
+                  <p className="py-4 text-center text-xs text-muted-foreground">No attendance history yet</p>
+                ) : (
+                  history.map((d) => (
+                    <div key={d.date} className="flex items-center justify-between rounded-md px-2 py-1.5 text-xs">
+                      <span className="font-medium">{fmtDayShort(d.date)}</span>
+                      <span className="text-muted-foreground">
+                        {d.checkInAt ? fmtTime(d.checkInAt) : "—"} – {d.checkOutAt ? fmtTime(d.checkOutAt) : "—"}
+                      </span>
+                      <span className="tabular-nums text-muted-foreground">{d.hoursWorked != null ? `${d.hoursWorked}h` : "—"}</span>
+                    </div>
+                  ))
+                )}
               </div>
             )}
 

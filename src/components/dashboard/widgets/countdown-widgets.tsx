@@ -10,10 +10,18 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Order } from "@/lib/types";
 
-/** Delivery dates carry no time component — treat the deadline as end-of-day, so a live
- * second-level countdown has a real millisecond target instead of just a calendar-day diff. */
-function endOfDay(dateStr: string): number {
+/** Resolves the delivery deadline to an exact millisecond target. When the order has a
+ * delivery_time ("HH:mm"), that's the real promised moment. Legacy/blank-time orders fall
+ * back to end-of-day, same as before this field existed. */
+function deliveryTarget(dateStr: string, timeStr?: string): number {
   const d = new Date(dateStr);
+  if (timeStr) {
+    const [h, m] = timeStr.split(":").map(Number);
+    if (!Number.isNaN(h) && !Number.isNaN(m)) {
+      d.setHours(h, m, 0, 0);
+      return d.getTime();
+    }
+  }
   d.setHours(23, 59, 59, 999);
   return d.getTime();
 }
@@ -26,22 +34,27 @@ function topCustomersByDeadline(orders: Order[], predicate: (o: Order) => boolea
   for (const o of orders) {
     if (!o.deliveryDate || !predicate(o)) continue;
     const key = o.mobile || o.id;
-    const target = endOfDay(o.deliveryDate);
+    const target = deliveryTarget(o.deliveryDate, o.deliveryTime);
     const existing = byCustomer.get(key);
     if (!existing || target < existing.target) byCustomer.set(key, { order: o, target });
   }
   return [...byCustomer.values()].sort((a, b) => a.target - b.target).slice(0, limit);
 }
 
-function formatCountdown(ms: number): { text: string; overdue: boolean } {
+function formatCountdown(ms: number): { prefix: string; seconds: string; overdue: boolean } {
   const overdue = ms < 0;
   const abs = Math.abs(ms);
   const days = Math.floor(abs / 86_400_000);
   const hours = Math.floor((abs % 86_400_000) / 3_600_000);
   const minutes = Math.floor((abs % 3_600_000) / 60_000);
-  const seconds = Math.floor((abs % 60_000) / 1_000);
+  const secs = Math.floor((abs % 60_000) / 1_000);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return { text: `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`, overdue };
+  const dayPart = days === 1 ? "1 Day" : `${days} Days`;
+  return {
+    prefix: `${dayPart} ${pad(hours)}:${pad(minutes)}:`,
+    seconds: pad(secs),
+    overdue,
+  };
 }
 
 function useTicker() {
@@ -54,7 +67,7 @@ function useTicker() {
 }
 
 function CountdownRow({ order, target, now, amount }: { order: Order; target: number; now: number; amount?: number }) {
-  const { text, overdue } = formatCountdown(target - now);
+  const { prefix, seconds, overdue } = formatCountdown(target - now);
   return (
     <li>
       <Link href={`/orders/${order.id}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
@@ -66,9 +79,10 @@ function CountdownRow({ order, target, now, amount }: { order: Order; target: nu
           </p>
         </div>
         <div className="shrink-0 text-right">
-          <p className="font-mono text-sm font-bold tabular-nums text-red-600 dark:text-red-400">
+          <p className="font-mono text-sm tabular-nums text-red-600 dark:text-red-400">
             {overdue && "−"}
-            {text}
+            {prefix}
+            <span className="text-green-600 dark:text-green-400">{seconds}</span>
           </p>
           <p className="text-[10px] font-medium uppercase tracking-wide text-red-600/70 dark:text-red-400/70">
             {overdue ? "overdue" : "remaining"}

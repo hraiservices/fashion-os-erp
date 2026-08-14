@@ -44,7 +44,9 @@ const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
   mobile: z.string().min(10, "Enter a valid 10-digit mobile number"),
   inDate: z.string().min(1),
+  inTime: z.string(),
   deliveryDate: z.string().min(1, "Delivery date is required"),
+  deliveryTime: z.string(),
   tailor: z.string(),
   special: z.string(),
   advance: z.number().min(0),
@@ -61,6 +63,12 @@ const LININGS = Object.keys(LINING_LABELS) as Lining[];
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/** "HH:mm" in local time — the current wall-clock moment an order is being received. */
+function nowHHMM(): string {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 function SectionHeading({ icon: Icon, label, action }: { icon: React.ElementType; label: string; action?: React.ReactNode }) {
@@ -170,7 +178,9 @@ function OrderFormFields({
           name: existingOrder.name,
           mobile: existingOrder.mobile,
           inDate: existingOrder.inDate || todayISO(),
+          inTime: existingOrder.inTime,
           deliveryDate: existingOrder.deliveryDate,
+          deliveryTime: existingOrder.deliveryTime,
           tailor: existingOrder.tailor,
           special: existingOrder.special,
           advance: existingOrder.advance,
@@ -184,7 +194,11 @@ function OrderFormFields({
           name: "",
           mobile: prefillMobile ?? "",
           inDate: todayISO(),
+          inTime: nowHHMM(),
           deliveryDate: "",
+          // Delivery time starts out matching order-received time — the tailor can change
+          // it once a delivery date/time is actually agreed with the customer.
+          deliveryTime: nowHHMM(),
           tailor: defaultTailor,
           special: "",
           advance: 0,
@@ -346,12 +360,22 @@ function OrderFormFields({
               <FieldGroup label="Name" required error={errors.name?.message}>
                 <Input {...register("name")} placeholder="Customer name" autoComplete="name" className="h-10" />
               </FieldGroup>
-              <FieldGroup label="Order date" required>
-                <Controller control={control} name="inDate" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} />} />
-              </FieldGroup>
-              <FieldGroup label="Delivery date" required error={errors.deliveryDate?.message}>
-                <Controller control={control} name="deliveryDate" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} placeholder="Pick delivery date" />} />
-              </FieldGroup>
+              <div className="grid grid-cols-2 gap-3 sm:col-span-2">
+                <FieldGroup label="Order date" required>
+                  <Controller control={control} name="inDate" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} />} />
+                </FieldGroup>
+                <FieldGroup label="Order time" hint="When the order was received">
+                  <Input type="time" {...register("inTime")} className="h-10" />
+                </FieldGroup>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:col-span-2">
+                <FieldGroup label="Delivery date" required error={errors.deliveryDate?.message}>
+                  <Controller control={control} name="deliveryDate" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} placeholder="Pick delivery date" />} />
+                </FieldGroup>
+                <FieldGroup label="Delivery time" hint="Countdown uses this if set">
+                  <Input type="time" {...register("deliveryTime")} className="h-10" />
+                </FieldGroup>
+              </div>
               <FieldGroup label="Tailor" className="sm:col-span-2">
                 {tailors.length > 0 ? (
                   <Controller

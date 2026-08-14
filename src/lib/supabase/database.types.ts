@@ -14,6 +14,8 @@ export interface Database {
           mobile: string;
           in_date: string;
           delivery_date: string;
+          in_time: string | null;
+          delivery_time: string | null;
           garments: Json;
           total: number;
           advance: number;
@@ -917,6 +919,8 @@ export interface Database {
           p_order_type?: string | null;
           p_history_line?: string | null;
           p_expected_advance?: number | null;
+          p_in_time?: string | null;
+          p_delivery_time?: string | null;
         };
         Returns: Database["public"]["Tables"]["orders"]["Row"][];
       };

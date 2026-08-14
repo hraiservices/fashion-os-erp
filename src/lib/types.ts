@@ -59,6 +59,9 @@ export interface Order {
   mobile: string;
   inDate: string;
   deliveryDate: string;
+  /** "HH:mm" 24h local time, or "" when not captured — treat as end-of-day (matches legacy rows). */
+  inTime: string;
+  deliveryTime: string;
   garments: Garment[];
   total: number;
   advance: number;
@@ -89,6 +92,8 @@ export function mapOrderRow(r: OrderRow): Order {
     mobile: r.mobile || "",
     inDate: typeof r.in_date === "string" ? r.in_date : "",
     deliveryDate: typeof r.delivery_date === "string" ? r.delivery_date : "",
+    inTime: r.in_time || "",
+    deliveryTime: r.delivery_time || "",
     garments: (Array.isArray(r.garments) ? r.garments : []) as unknown as Garment[],
     total,
     advance,

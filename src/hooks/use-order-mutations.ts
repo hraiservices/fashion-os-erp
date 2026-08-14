@@ -8,6 +8,8 @@ interface CreateOrderInput {
   mobile: string;
   inDate: string;
   deliveryDate: string;
+  inTime?: string;
+  deliveryTime?: string;
   garments: { type: string; lining?: string; no?: number; amount?: number }[];
   total: number;
   advance: number;

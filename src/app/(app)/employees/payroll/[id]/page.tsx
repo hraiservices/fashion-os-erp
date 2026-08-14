@@ -3,7 +3,7 @@
 import { use } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, Wallet, CheckCircle2, Trash2 } from "lucide-react";
+import { ArrowLeft, Wallet, CheckCircle2, Trash2, FileDown } from "lucide-react";
 import { usePayrollRun, usePayslipsForRun } from "@/hooks/use-payroll";
 import { useFinalizePayrollRun, useMarkPayslipPaid, useDeletePayrollRun } from "@/hooks/use-payroll-mutations";
 import { useEmployees } from "@/hooks/use-employees";
@@ -142,6 +142,7 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
                   <TableHead className="text-right">Deductions</TableHead>
                   <TableHead className="text-right">Net Pay</TableHead>
                   <TableHead className="text-right">Status</TableHead>
+                  <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -164,6 +165,18 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
                           Mark Paid
                         </Button>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Download payslip for ${employeeName(p.employeeId)}`}
+                        title="Download payslip"
+                        nativeButton={false}
+                        render={<a href={`/api/employees/payslips/${p.id}/pdf`} target="_blank" rel="noopener noreferrer" />}
+                      >
+                        <FileDown className="size-3.5" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -189,6 +202,15 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
                     </Button>
                   )}
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 w-full gap-1.5"
+                  nativeButton={false}
+                  render={<a href={`/api/employees/payslips/${p.id}/pdf`} target="_blank" rel="noopener noreferrer" />}
+                >
+                  <FileDown className="size-3.5" /> Download Payslip
+                </Button>
               </MobileRecordCard>
             ))}
           </MobileRecordList>

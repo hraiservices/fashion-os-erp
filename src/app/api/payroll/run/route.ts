@@ -4,6 +4,7 @@ import { getServerUser } from "@/lib/auth-server";
 import { logAction } from "@/lib/logging";
 import { computeGrossPay, countAttendance } from "@/lib/payroll";
 import { mapEmployeeRow, mapAttendanceRow } from "@/lib/types";
+import { DEFAULT_ATTENDANCE_SETTINGS, type AttendanceSettings } from "@/lib/attendance-settings";
 
 const bodySchema = z.object({
   periodStart: z.string().min(1),
@@ -83,6 +84,11 @@ export async function POST(request: Request) {
     const employees = (employeeRows || []).map((r) => mapEmployeeRow(r));
     employeeCount = employees.length;
 
+    // Flat rupees-per-hour OT rate (per the "flat OT rate" decision, not a multiplier of each
+    // employee's own rate) — one shop-wide setting, read once for the whole run.
+    const { data: attSettingRow } = await supabase.from("app_settings").select("value").eq("key", "attendanceSettings").maybeSingle();
+    const attendanceSettings: AttendanceSettings = { ...DEFAULT_ATTENDANCE_SETTINGS, ...((attSettingRow?.value as Partial<AttendanceSettings>) || {}) };
+
     // Compute all payslips in memory first so the batch insert is all-or-nothing.
     type PayslipRow = {
       payroll_run_id: string;
@@ -94,6 +100,9 @@ export async function POST(request: Request) {
       gross_pay: number;
       deductions: number;
       net_pay: number;
+      hours_worked: number;
+      overtime_hours: number;
+      overtime_pay: number;
       status: string;
     };
     const payslipRows: PayslipRow[] = [];
@@ -122,6 +131,13 @@ export async function POST(request: Request) {
 
       const counts = countAttendance(attendance);
 
+      // Hours/overtime are only ever populated by self-service checkout (Phase 2) — manual
+      // attendance rows have hours_worked=null and overtime_hours=0, so they simply contribute
+      // nothing here rather than needing separate handling.
+      const totalHoursWorked = Math.round(attendance.reduce((s, a) => s + (a.hoursWorked || 0), 0) * 100) / 100;
+      const totalOvertimeHours = Math.round(attendance.reduce((s, a) => s + (a.overtimeHours || 0), 0) * 100) / 100;
+      const overtimePay = Math.round(totalOvertimeHours * attendanceSettings.otRatePerHour * 100) / 100;
+
       const { data: advanceRows } = await supabase
         .from("employee_advances")
         .select("*")
@@ -130,10 +146,10 @@ export async function POST(request: Request) {
         .lte("date", periodEnd)
         .order("date", { ascending: true });
 
-      // C-3: Only link advances that fit within the gross pay budget.
+      // C-3: Only link advances that fit within the gross pay + overtime budget.
       // Excess advances roll forward to the next payroll run instead of
       // being silently written off.
-      let budgetLeft = grossPay;
+      let budgetLeft = grossPay + overtimePay;
       const advancesToLink: string[] = [];
       let actualDeductions = 0;
 
@@ -148,7 +164,7 @@ export async function POST(request: Request) {
         // be picked up in the next run when the employee has earned enough.
       }
 
-      const netPay = Math.max(0, Math.round((grossPay - actualDeductions) * 100) / 100);
+      const netPay = Math.max(0, Math.round((grossPay + overtimePay - actualDeductions) * 100) / 100);
 
       const rowKey = employee.id;
       payslipRows.push({
@@ -161,6 +177,9 @@ export async function POST(request: Request) {
         gross_pay: grossPay,
         deductions: actualDeductions,
         net_pay: netPay,
+        hours_worked: totalHoursWorked,
+        overtime_hours: totalOvertimeHours,
+        overtime_pay: overtimePay,
         status: "draft",
       });
       advanceLinkMap.set(rowKey, advancesToLink);

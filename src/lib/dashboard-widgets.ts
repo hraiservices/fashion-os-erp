@@ -35,6 +35,7 @@ export const BUILTIN_WIDGETS: BuiltinWidgetMeta[] = [
   { key: "needs-attention",             title: "Needs Attention",      size: "lg",   href: "/orders",                description: "Overdue or ready-for-pickup orders" },
   { key: "recent-orders",               title: "Recent Orders",        size: "lg",   href: "/orders",                description: "Latest stitching orders" },
   { key: "tailor-load",                 title: "Tailor Load",          size: "lg",   href: "/orders?view=board",     description: "Active orders per tailor" },
+  { key: "sales-opportunities",         title: "Sales Opportunities",  size: "lg",   href: "/inventory/products",    description: "Customers who may want current stock, based on purchase history" },
 ];
 
 export const BUILTIN_WIDGET_BY_KEY = new Map(BUILTIN_WIDGETS.map((w) => [w.key, w]));

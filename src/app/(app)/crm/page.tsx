@@ -8,6 +8,9 @@ import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
+import { useSalesInvoices } from "@/hooks/use-sales-invoices";
+import { useProducts } from "@/hooks/use-products";
+import { computeSegments, type CustomerSegment } from "@/lib/customer-segments";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -27,6 +30,7 @@ import { cn } from "@/lib/utils";
 import type { Order } from "@/lib/types";
 
 const ALL_TAGS = "__all__";
+const ALL_SEGMENTS = "__all_segments__";
 const tagFilterLabel = (v: unknown) => (v === ALL_TAGS ? "All tags" : String(v ?? ""));
 
 type SortKey = "name" | "orders" | "spent" | "lastOrder" | "balance";
@@ -38,8 +42,11 @@ function CrmContent() {
   const { data: loyaltyCfg } = useLoyaltyConfig();
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
+  const { data: allInvoices } = useSalesInvoices();
+  const { data: allProducts } = useProducts();
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState(ALL_TAGS);
+  const [segmentFilter, setSegmentFilter] = useState(ALL_SEGMENTS);
   const [paymentOrder, setPaymentOrder] = useState<Order | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("lastOrder");
   const [sortAsc, setSortAsc] = useState(false);
@@ -73,10 +80,35 @@ function CrmContent() {
     return Array.from(set).sort();
   }, [profiles]);
 
+  // Derived customer segments (Phase 7) — computed fresh from live retail sales data, not
+  // stored. Keyed by mobile since that's the join key sales_invoices uses.
+  const segmentsByMobile = useMemo(() => {
+    const map = new Map<string, CustomerSegment[]>();
+    if (!allInvoices || !allProducts) return map;
+    const productsById = new Map(allProducts.map((p) => [p.id, p]));
+    const invoicesByMobile = new Map<string, typeof allInvoices>();
+    for (const inv of allInvoices) {
+      const list = invoicesByMobile.get(inv.customerMobile);
+      if (list) list.push(inv);
+      else invoicesByMobile.set(inv.customerMobile, [inv]);
+    }
+    for (const c of profiles) {
+      map.set(c.mobile, computeSegments(invoicesByMobile.get(c.mobile) || [], productsById));
+    }
+    return map;
+  }, [profiles, allInvoices, allProducts]);
+
+  const segmentOptions = useMemo(() => {
+    const byKey = new Map<string, string>();
+    segmentsByMobile.forEach((segs) => segs.forEach((s) => byKey.set(s.key, s.label)));
+    return [...byKey.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [segmentsByMobile]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = !q ? profiles : profiles.filter((c) => c.name.toLowerCase().includes(q) || c.mobile.includes(q));
     if (tagFilter !== ALL_TAGS) list = list.filter((c) => c.tags.includes(tagFilter));
+    if (segmentFilter !== ALL_SEGMENTS) list = list.filter((c) => (segmentsByMobile.get(c.mobile) || []).some((s) => s.key === segmentFilter));
 
     function lastOrderTime(c: (typeof profiles)[number]) {
       return c.orders.reduce((max, o) => Math.max(max, new Date(o.inDate).getTime() || 0), 0);
@@ -108,7 +140,7 @@ function CrmContent() {
       return sortAsc ? diff : -diff;
     });
     return sorted;
-  }, [profiles, search, tagFilter, sortKey, sortAsc]);
+  }, [profiles, search, tagFilter, segmentFilter, segmentsByMobile, sortKey, sortAsc]);
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
@@ -170,6 +202,21 @@ function CrmContent() {
               {allTags.map((t) => (
                 <SelectItem key={t} value={t}>
                   {t}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {segmentOptions.length > 0 && (
+          <Select value={segmentFilter} onValueChange={(v) => v && setSegmentFilter(v)}>
+            <SelectTrigger className="h-10 w-44">
+              <SelectValue>{(v: unknown) => (v === ALL_SEGMENTS ? "All segments" : segmentOptions.find(([k]) => k === v)?.[1] ?? String(v))}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_SEGMENTS}>All segments</SelectItem>
+              {segmentOptions.map(([key, label]) => (
+                <SelectItem key={key} value={key}>
+                  {label}
                 </SelectItem>
               ))}
             </SelectContent>

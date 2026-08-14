@@ -15,6 +15,7 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { CategoryPicker } from "@/components/expenses/category-picker";
 import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/customer-picker";
 import type { Customer, Expense } from "@/lib/types";
@@ -126,7 +127,7 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
           <SectionHeading icon={Receipt} label="Expense details" />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FieldGroup label="Date" required error={errors.date?.message}>
-              <Input type="date" className="h-10" {...register("date")} />
+              <Controller control={control} name="date" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} />} />
             </FieldGroup>
             <FieldGroup label="Amount (₹)" required error={errors.amount?.message}>
               <Controller

@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { LineItemsEditor, linesToItems, blankLine, lineFromItem, type EditableLine } from "@/components/purchases/line-items-editor";
 import type { PurchaseBill } from "@/lib/types";
 
@@ -158,7 +159,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FieldGroup label="Bill date" required>
-                <Input type="date" value={billDate} onChange={(e) => handleBillDateChange(e.target.value)} className="h-10" />
+                <DatePicker value={billDate} onChange={handleBillDateChange} />
               </FieldGroup>
               <FieldGroup label="Payment terms">
                 <Select value={paymentTerm} onValueChange={(v) => v && handleTermChange(v as PaymentTerm)}>
@@ -173,7 +174,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
                 </Select>
               </FieldGroup>
               <FieldGroup label="Due date">
-                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-10" />
+                <DatePicker value={dueDate} onChange={setDueDate} />
               </FieldGroup>
             </div>
           </div>

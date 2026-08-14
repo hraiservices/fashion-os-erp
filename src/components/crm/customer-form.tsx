@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TagPicker } from "@/components/ui/tag-picker";
+import { DatePicker } from "@/components/ui/date-picker";
 import { useSaveCustomer } from "@/hooks/use-customer-mutations";
 import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -158,10 +159,10 @@ export function CustomerForm() {
                 />
               </FieldGroup>
               <FieldGroup label="Date of birth">
-                <Input type="date" className="h-10" {...register("dob")} />
+                <Controller control={control} name="dob" render={({ field }) => <DatePicker value={field.value || ""} onChange={field.onChange} />} />
               </FieldGroup>
               <FieldGroup label="Anniversary">
-                <Input type="date" className="h-10" {...register("anniversary")} />
+                <Controller control={control} name="anniversary" render={({ field }) => <DatePicker value={field.value || ""} onChange={field.onChange} />} />
               </FieldGroup>
             </div>
             <FieldGroup label="Tags" hint="Useful for filtering and segmenting customers.">

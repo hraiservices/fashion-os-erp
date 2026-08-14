@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/customer-picker";
+import { DatePicker } from "@/components/ui/date-picker";
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
 import { usePriceListItemsMap } from "@/hooks/use-price-lists";
 import type { Customer, SalesInvoice, InvoiceDocStatus } from "@/lib/types";
@@ -245,7 +246,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, existing }: { pref
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FieldGroup label="Invoice date" required>
-                <Input type="date" value={invoiceDate} onChange={(e) => handleInvoiceDateChange(e.target.value)} className="h-10" />
+                <DatePicker value={invoiceDate} onChange={handleInvoiceDateChange} />
               </FieldGroup>
               <FieldGroup label="Payment terms">
                 <Select value={paymentTerm} onValueChange={(v) => v && handleTermChange(v as PaymentTerm)}>
@@ -260,7 +261,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, existing }: { pref
                 </Select>
               </FieldGroup>
               <FieldGroup label="Due date">
-                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-10" />
+                <DatePicker value={dueDate} onChange={setDueDate} />
               </FieldGroup>
               <FieldGroup label="Subject">
                 <Input placeholder="What this invoice is for…" value={subject} onChange={(e) => setSubject(e.target.value)} className="h-10" />

@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { LineItemsEditor, linesToItems, blankLine, lineFromItem, type EditableLine } from "@/components/purchases/line-items-editor";
 import { inr } from "@/lib/format";
 import type { PurchaseOrder } from "@/lib/types";
@@ -116,7 +117,7 @@ export function PurchaseOrderForm({ existing }: { existing?: PurchaseOrder }) {
                 </Select>
               </FieldGroup>
               <FieldGroup label="Order date" required>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-10" />
+                <DatePicker value={date} onChange={setDate} />
               </FieldGroup>
             </div>
           </div>

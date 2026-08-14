@@ -17,6 +17,7 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { inr } from "@/lib/format";
 import type { WorkOrder } from "@/lib/types";
 
@@ -215,10 +216,10 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
               </FieldGroup>
               <div /> {/* spacer for grid alignment */}
               <FieldGroup label="Start date">
-                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-10" />
+                <DatePicker value={startDate} onChange={setStartDate} />
               </FieldGroup>
               <FieldGroup label="Due date">
-                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-10" />
+                <DatePicker value={dueDate} onChange={setDueDate} />
               </FieldGroup>
             </div>
           </div>

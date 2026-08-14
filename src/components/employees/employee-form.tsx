@@ -15,6 +15,7 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import type { Employee, CommissionType, SalaryType } from "@/lib/types";
 import { SALARY_TYPE_LABELS } from "@/lib/payroll";
 
@@ -177,7 +178,7 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
                 />
               </FieldGroup>
               <FieldGroup label="Joined date">
-                <Input type="date" className="h-10" {...register("joinedDate")} />
+                <Controller control={control} name="joinedDate" render={({ field }) => <DatePicker value={field.value || ""} onChange={field.onChange} />} />
               </FieldGroup>
             </div>
             <div className="flex items-center gap-2 pt-1">

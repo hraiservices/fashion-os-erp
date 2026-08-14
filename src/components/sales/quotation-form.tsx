@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/customer-picker";
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
 import { usePriceListItemsMap } from "@/hooks/use-price-lists";
@@ -139,10 +140,10 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FieldGroup label="Quote date" required>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-10" />
+                <DatePicker value={date} onChange={setDate} />
               </FieldGroup>
               <FieldGroup label="Valid until">
-                <Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} className="h-10" />
+                <DatePicker value={validUntil} onChange={setValidUntil} />
               </FieldGroup>
             </div>
           </div>

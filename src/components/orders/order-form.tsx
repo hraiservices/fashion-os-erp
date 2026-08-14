@@ -31,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const garmentSchema = z.object({
   type: z.string().min(1, "Select a garment"),
@@ -346,10 +347,10 @@ function OrderFormFields({
                 <Input {...register("name")} placeholder="Customer name" autoComplete="name" className="h-10" />
               </FieldGroup>
               <FieldGroup label="Order date" required>
-                <Input type="date" {...register("inDate")} className="h-10" />
+                <Controller control={control} name="inDate" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} />} />
               </FieldGroup>
               <FieldGroup label="Delivery date" required error={errors.deliveryDate?.message}>
-                <Input type="date" {...register("deliveryDate")} className="h-10" />
+                <Controller control={control} name="deliveryDate" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} placeholder="Pick delivery date" />} />
               </FieldGroup>
               <FieldGroup label="Tailor" className="sm:col-span-2">
                 {tailors.length > 0 ? (

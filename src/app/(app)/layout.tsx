@@ -9,7 +9,6 @@ import { ExpiryBanner } from "@/components/app-shell/expiry-banner";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { RESTRICTED_FALLBACK_ROUTE, isRestrictedRoute } from "@/lib/permissions";
 import { CopilotBubble } from "@/components/app-shell/copilot-bubble";
-import { RightSidebar } from "@/components/app-shell/right-sidebar";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: user } = useCurrentUser();
@@ -29,9 +28,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="print:hidden">
         <Sidebar />
       </div>
-      {/* lg:pr-12 reserves space for the fixed right-sidebar icon rail so it doesn't float
-          over page content (tables, buttons) near the right edge. */}
-      <div className="flex min-w-0 flex-1 flex-col lg:pr-12 print:pr-0 print:block">
+      <div className="flex min-w-0 flex-1 flex-col print:block">
         <div className="print:hidden">
           <Topbar />
         </div>
@@ -43,7 +40,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <MobileTabBar />
       </div>
       <CopilotBubble />
-      <RightSidebar />
     </div>
   );
 }

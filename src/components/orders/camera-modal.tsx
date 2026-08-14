@@ -12,10 +12,22 @@ import { Button } from "@/components/ui/button";
  * The old app had a known leak here (orphaned camera streams on unmount, noted at
  * line ~10355); the cleanup below stops every track on close, unmount, and facing switch.
  */
-export function CameraModal({ open, onOpenChange, onCapture }: { open: boolean; onOpenChange: (open: boolean) => void; onCapture: (dataUrl: string) => void }) {
+export function CameraModal({
+  open,
+  onOpenChange,
+  onCapture,
+  defaultFacing = "environment",
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCapture: (dataUrl: string) => void;
+  /** "user" = front/selfie camera. Defaults to "environment" (back camera) — unchanged for
+   *  existing callers (order reference photos). */
+  defaultFacing?: "environment" | "user";
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const [facing, setFacing] = useState<"environment" | "user">("environment");
+  const [facing, setFacing] = useState<"environment" | "user">(defaultFacing);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 

@@ -731,6 +731,8 @@ export interface Database {
           salary_rate: number;
           pin_hash: string | null;
           location_id: string | null;
+          failed_pin_attempts: number;
+          pin_locked_until: string | null;
           created_at: string;
           updated_at: string;
         };

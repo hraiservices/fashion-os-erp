@@ -5,10 +5,11 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, User, TrendingUp, Banknote, Save } from "lucide-react";
+import { ArrowLeft, User, TrendingUp, Banknote, Save, MapPin } from "lucide-react";
 import Link from "next/link";
 import { useSaveEmployee } from "@/hooks/use-employee-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useActiveShopLocations } from "@/hooks/use-shop-locations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
@@ -16,8 +17,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
+import { EmployeePinManager } from "@/components/employees/employee-pin-manager";
 import type { Employee, CommissionType, SalaryType } from "@/lib/types";
 import { SALARY_TYPE_LABELS } from "@/lib/payroll";
+
+const NO_LOCATION = "__no_location__";
 
 const COMMISSION_LABELS: Record<CommissionType, string> = {
   none: "No commission",
@@ -37,6 +41,7 @@ const schema = z.object({
   notes: z.string().optional(),
   salaryType: z.enum(["monthly", "daily", "hourly"]),
   salaryRate: z.number().min(0),
+  locationId: z.string(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -70,6 +75,7 @@ function FieldGroup({ label, required, error, children, hint }: { label: string;
 export function EmployeeForm({ existing }: { existing?: Employee }) {
   const router = useRouter();
   const { data: user } = useCurrentUser();
+  const { data: locations } = useActiveShopLocations();
   const saveEmployee = useSaveEmployee();
   const isEdit = !!existing;
 
@@ -93,8 +99,9 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
           notes: existing.notes,
           salaryType: existing.salaryType,
           salaryRate: existing.salaryRate,
+          locationId: existing.locationId || NO_LOCATION,
         }
-      : { name: "", mobile: "", role: "", employmentType: "full_time", commissionType: "none", commissionRate: 0, active: true, joinedDate: "", notes: "", salaryType: "monthly", salaryRate: 0 },
+      : { name: "", mobile: "", role: "", employmentType: "full_time", commissionType: "none", commissionRate: 0, active: true, joinedDate: "", notes: "", salaryType: "monthly", salaryRate: 0, locationId: NO_LOCATION },
   });
 
   async function onSubmit(values: FormValues) {
@@ -112,6 +119,7 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
         notes: values.notes || "",
         salaryType: values.salaryType,
         salaryRate: values.salaryRate || 0,
+        locationId: values.locationId === NO_LOCATION ? null : values.locationId,
         userEmail: user?.email,
       });
       toast.success(isEdit ? "Employee updated" : "Employee added");
@@ -219,6 +227,37 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
                 render={({ field }) => <NumberInput min={0} step={0.01} className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
               />
             </FieldGroup>
+          </div>
+        </div>
+
+        {/* Attendance */}
+        <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <SectionHeading icon={MapPin} label="Attendance" />
+          <div className="space-y-4">
+            <FieldGroup label="Shop location" hint="Required for self check-in — geofencing checks against this location.">
+              <Controller
+                control={control}
+                name="locationId"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue>{(v: unknown) => (v === NO_LOCATION ? "No location assigned" : locations?.find((l) => l.id === v)?.name ?? "")}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_LOCATION}>No location assigned</SelectItem>
+                      {(locations || []).map((l) => (
+                        <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FieldGroup>
+            {isEdit ? (
+              <EmployeePinManager employeeId={existing!.id} />
+            ) : (
+              <p className="text-[11px] text-muted-foreground">Save this employee first, then come back to set their self check-in PIN.</p>
+            )}
           </div>
         </div>
 

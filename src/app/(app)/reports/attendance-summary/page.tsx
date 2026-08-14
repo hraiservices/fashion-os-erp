@@ -42,7 +42,10 @@ export default function AttendanceSummaryReportPage() {
         const markedDays = counts.presentDays + counts.absentDays + counts.halfDays + counts.leaveDays;
         const attendedEquivalent = counts.presentDays + 0.5 * counts.halfDays;
         const attendancePct = markedDays > 0 ? Math.round((attendedEquivalent / markedDays) * 100) : 0;
-        return { employee: e, ...counts, markedDays, attendancePct };
+        const hoursWorked = Math.round(records.reduce((s, r) => s + (r.hoursWorked || 0), 0) * 100) / 100;
+        const overtimeHours = Math.round(records.reduce((s, r) => s + (r.overtimeHours || 0), 0) * 100) / 100;
+        const flaggedDays = records.filter((r) => r.checkInWithinGeofence === false || r.checkOutWithinGeofence === false).length;
+        return { employee: e, ...counts, markedDays, attendancePct, hoursWorked, overtimeHours, flaggedDays };
       })
       .sort((a, b) => a.employee.name.localeCompare(b.employee.name));
   }, [employees, attendance]);
@@ -63,8 +66,11 @@ export default function AttendanceSummaryReportPage() {
               onClick={() =>
                 printReport(
                   "Attendance Summary",
-                  `<table><thead><tr><th>Employee</th><th>Present</th><th>Absent</th><th>Half Day</th><th>Leave</th><th>Attendance %</th></tr></thead><tbody>${rows
-                    .map((r) => `<tr><td>${r.employee.name}</td><td>${r.presentDays}</td><td>${r.absentDays}</td><td>${r.halfDays}</td><td>${r.leaveDays}</td><td>${r.attendancePct}%</td></tr>`)
+                  `<table><thead><tr><th>Employee</th><th>Present</th><th>Absent</th><th>Half Day</th><th>Leave</th><th>Attendance %</th><th>Hours Worked</th><th>Overtime</th><th>Flagged</th></tr></thead><tbody>${rows
+                    .map(
+                      (r) =>
+                        `<tr><td>${r.employee.name}</td><td>${r.presentDays}</td><td>${r.absentDays}</td><td>${r.halfDays}</td><td>${r.leaveDays}</td><td>${r.attendancePct}%</td><td>${r.hoursWorked}h</td><td>${r.overtimeHours}h</td><td>${r.flaggedDays}</td></tr>`
+                    )
                     .join("")}</tbody></table>`
                 )
               }
@@ -88,6 +94,9 @@ export default function AttendanceSummaryReportPage() {
               <Th align="right">Leave</Th>
               <Th align="right">Days Marked</Th>
               <Th align="right">Attendance %</Th>
+              <Th align="right">Hours Worked</Th>
+              <Th align="right">Overtime</Th>
+              <Th align="right">Flagged</Th>
             </tr>
           </thead>
           <tbody>
@@ -101,6 +110,11 @@ export default function AttendanceSummaryReportPage() {
                 <Td align="right">{r.markedDays}</Td>
                 <Td align="right">
                   <span className={r.attendancePct < 75 ? "font-medium text-red-600 dark:text-red-400" : ""}>{r.attendancePct}%</span>
+                </Td>
+                <Td align="right">{r.hoursWorked > 0 ? `${r.hoursWorked}h` : "—"}</Td>
+                <Td align="right">{r.overtimeHours > 0 ? `${r.overtimeHours}h` : "—"}</Td>
+                <Td align="right">
+                  {r.flaggedDays > 0 ? <span className="font-medium text-red-600 dark:text-red-400">{r.flaggedDays}</span> : "—"}
                 </Td>
               </tr>
             ))}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Printer, Wallet } from "lucide-react";
+import { Printer, Wallet, FileDown } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
 import { usePayrollRuns, useAllPayslips } from "@/hooks/use-payroll";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -82,9 +82,11 @@ export default function PayrollSummaryReportPage() {
               <Th>Period</Th>
               <Th>Employee</Th>
               <Th align="right">Gross</Th>
+              <Th align="right">Overtime</Th>
               <Th align="right">Deductions</Th>
               <Th align="right">Net Pay</Th>
               <Th align="right">Status</Th>
+              <Th />
             </tr>
           </thead>
           <tbody>
@@ -95,12 +97,18 @@ export default function PayrollSummaryReportPage() {
                 </Td>
                 <Td>{employeeName(r.payslip.employeeId)}</Td>
                 <Td align="right">{inr(r.payslip.grossPay)}</Td>
+                <Td align="right">{r.payslip.overtimeHours > 0 ? `${r.payslip.overtimeHours}h · ${inr(r.payslip.overtimePay)}` : "—"}</Td>
                 <Td align="right">{r.payslip.deductions > 0 ? `− ${inr(r.payslip.deductions)}` : "—"}</Td>
                 <Td align="right" className="font-semibold">
                   {inr(r.payslip.netPay)}
                 </Td>
                 <Td align="right">
                   <Badge variant={r.payslip.status === "paid" ? "secondary" : "outline"}>{r.payslip.status === "paid" ? "Paid" : "Draft"}</Badge>
+                </Td>
+                <Td>
+                  <a href={`/api/employees/payslips/${r.payslip.id}/pdf`} target="_blank" rel="noopener noreferrer" aria-label="Download payslip" title="Download payslip" className="inline-flex text-muted-foreground hover:text-foreground">
+                    <FileDown className="size-3.5" />
+                  </a>
                 </Td>
               </tr>
             ))}

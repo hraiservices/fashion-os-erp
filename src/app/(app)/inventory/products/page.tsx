@@ -226,9 +226,13 @@ function ProductsPageContent() {
               {filtered.map((p) => {
                 const low = isLowStock(p.stockQty, p.lowStockAlert);
                 return (
-                  <TableRow key={p.id}>
+                  <TableRow
+                    key={p.id}
+                    className={canManage ? "cursor-pointer hover:bg-muted/40" : undefined}
+                    onClick={canManage ? () => openEdit(p) : undefined}
+                  >
                     {canManage && (
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <input type="checkbox" checked={selection.selected.has(p.id)} onChange={() => selection.toggle(p.id)} aria-label={`Select ${p.name}`} />
                       </TableCell>
                     )}
@@ -250,7 +254,7 @@ function ProductsPageContent() {
                         <span className={low ? "font-medium text-amber-700 dark:text-amber-400" : ""}>{p.stockQty} pcs</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <EditablePrice product={p} canEdit={canManage} userEmail={user?.email} />
                     </TableCell>
                     <TableCell className="text-right">
@@ -266,7 +270,7 @@ function ProductsPageContent() {
                       {p.bom.length > 0 ? <Badge variant="secondary">{p.bom.length} items</Badge> : <span className="text-xs text-muted-foreground">Not set</span>}
                     </TableCell>
                     {canManage && (
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           {p.barcode && (
                             <Button variant="ghost" size="icon-sm" onClick={() => printBarcodeLabel(p)} aria-label={`Print barcode label for ${p.name}`} title="Print barcode label">

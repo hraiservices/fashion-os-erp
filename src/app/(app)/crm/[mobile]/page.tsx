@@ -28,6 +28,7 @@ import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { EditCustomerModal } from "@/components/crm/edit-customer-modal";
 import { CustomerMeasurements } from "@/components/crm/customer-measurements";
 import { CustomerBuyingProfileCard } from "@/components/crm/customer-buying-profile-card";
+import { CustomerProductRecommendations } from "@/components/crm/customer-product-recommendations";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -228,6 +229,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
       </div>
 
       <CustomerBuyingProfileCard mobile={cust.mobile} />
+      <CustomerProductRecommendations customer={cust} />
 
       {cust.notes && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">

@@ -19,6 +19,7 @@ import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { fileToDataUrl } from "@/lib/image-utils";
 import { PRODUCT_SIZES, PRODUCT_COLORS, PRODUCT_FABRICS, PRODUCT_PATTERNS, PRODUCT_OCCASIONS } from "@/lib/product-attributes";
+import { ProductCustomerMatches } from "@/components/inventory/product-customer-matches";
 import type { Product } from "@/lib/types";
 
 const UNTAGGED = "__untagged__";
@@ -408,6 +409,8 @@ export function ProductForm({ existing }: { existing?: Product }) {
             </div>
           )}
         </div>
+
+        {isEdit && <ProductCustomerMatches product={existing} />}
       </div>
     </form>
   );

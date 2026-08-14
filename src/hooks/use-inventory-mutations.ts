@@ -5,6 +5,18 @@ import { createClient } from "@/lib/supabase/client";
 import { logAction } from "@/lib/logging";
 import { genBarcode, type ItemType } from "@/lib/inventory";
 
+/** Fire-and-forget: tells the server to run the Phase 3 matching engine and push a notification
+ *  if there are strong customer matches for this restock. Never awaited by callers and never
+ *  throws — a failed/unconfigured push must not block or fail the actual stock write. */
+function notifyStockMatch(productId: string, movement: number) {
+  if (movement <= 0) return;
+  fetch("/api/inventory/stock-match-notify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ productId, movement }),
+  }).catch(() => {});
+}
+
 function invalidateInventory(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["raw-materials"] });
   qc.invalidateQueries({ queryKey: ["products"] });
@@ -156,6 +168,7 @@ export function useSaveProduct() {
           created_by: input.userEmail || null,
         });
         if (ledgerError) throw ledgerError;
+        notifyStockMatch(data.id, input.openingStock);
       }
 
       await logAction(supabase, input.userEmail, isNew ? `Product added: ${input.name}` : `Product updated: ${input.name}`);
@@ -277,6 +290,7 @@ export function useRecordStockAdjustment() {
       });
       if (error) throw error;
       await logAction(supabase, input.userEmail, `Stock adjustment: ${input.itemName} (${input.movement > 0 ? "+" : ""}${input.movement})`, null, input.note);
+      if (input.itemType === "product") notifyStockMatch(input.itemId, input.movement);
     },
     onSuccess: () => invalidateInventory(qc),
   });

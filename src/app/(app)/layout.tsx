@@ -9,6 +9,7 @@ import { ExpiryBanner } from "@/components/app-shell/expiry-banner";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { RESTRICTED_FALLBACK_ROUTE, isRestrictedRoute } from "@/lib/permissions";
 import { CopilotBubble } from "@/components/app-shell/copilot-bubble";
+import { QuickNotesPanel } from "@/components/app-shell/quick-notes-panel";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: user } = useCurrentUser();
@@ -40,6 +41,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <MobileTabBar />
       </div>
       <CopilotBubble />
+      <QuickNotesPanel />
     </div>
   );
 }

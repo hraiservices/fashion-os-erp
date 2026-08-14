@@ -171,7 +171,7 @@ function EmptyRow({ icon: Icon, label }: { icon: React.ComponentType<{ className
 
 export function ItemPickerTrigger({ label, typeBadge, onClick }: { label: string; typeBadge?: string; onClick: () => void }) {
   return (
-    <Button type="button" variant="outline" onClick={onClick} className="flex-1 justify-start gap-2 font-normal">
+    <Button type="button" variant="outline" onClick={onClick} className="h-10 flex-1 justify-start gap-2 font-normal">
       {label ? (
         <>
           <span className="truncate">{label}</span>

@@ -137,14 +137,14 @@ export function RawMaterialForm({ existing }: { existing?: RawMaterial }) {
           <SectionHeading icon={BarChart2} label="Stock & cost" />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FieldGroup label="Cost per unit (₹)" error={errors.costPerUnit?.message}>
-              <Controller control={control} name="costPerUnit" render={({ field }) => <NumberInput min={0} step="0.01" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
+              <Controller control={control} name="costPerUnit" render={({ field }) => <NumberInput min={0} step="0.01" className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
             </FieldGroup>
             <FieldGroup label="Low stock alert" hint="Get notified when stock falls below this.">
-              <Controller control={control} name="lowStockAlert" render={({ field }) => <NumberInput min={0} step="0.01" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
+              <Controller control={control} name="lowStockAlert" render={({ field }) => <NumberInput min={0} step="0.01" className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
             </FieldGroup>
             {!isEdit && (
               <FieldGroup label="Opening stock" error={errors.openingStock?.message} hint="Current stock on hand when you add this item.">
-                <Controller control={control} name="openingStock" render={({ field }) => <NumberInput min={0} step="0.01" value={field.value ?? 0} onChange={field.onChange} onBlur={field.onBlur} />} />
+                <Controller control={control} name="openingStock" render={({ field }) => <NumberInput min={0} step="0.01" className="h-10" value={field.value ?? 0} onChange={field.onChange} onBlur={field.onBlur} />} />
               </FieldGroup>
             )}
           </div>

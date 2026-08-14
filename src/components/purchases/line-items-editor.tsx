@@ -79,8 +79,8 @@ export function LineItemsEditor({ lines, onChange }: { lines: EditableLine[]; on
               typeBadge={line.itemName ? (line.itemType === "product" ? "Product" : "Raw Material") : undefined}
               onClick={() => setPickerForKey(line.key)}
             />
-            <Input type="number" min={0} step="0.001" placeholder="Qty" className="w-24" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
-            <Input type="number" min={0} step="0.01" placeholder="Cost/unit" className="w-28" value={line.unitCost} onChange={(e) => updateLine(line.key, { unitCost: e.target.value })} />
+            <Input type="number" min={0} step="0.001" placeholder="Qty" className="w-24 h-10" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
+            <Input type="number" min={0} step="0.01" placeholder="Cost/unit" className="w-28 h-10" value={line.unitCost} onChange={(e) => updateLine(line.key, { unitCost: e.target.value })} />
             <span className="w-24 shrink-0 text-right text-sm tabular-nums text-muted-foreground">{inr((parseFloat(line.qty) || 0) * (parseFloat(line.unitCost) || 0))}</span>
             <Button type="button" variant="ghost" size="icon-sm" className="size-9 sm:size-7" onClick={() => removeLine(line.key)} aria-label="Remove item">
               <X className="size-3.5" />

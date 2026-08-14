@@ -250,7 +250,7 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
                               <NumberInput
                                 min={0}
                                 step="0.001"
-                                className="w-24 text-right"
+                                className="w-24 h-10 text-right"
                                 value={m.qtyPlanned}
                                 onChange={(v) => updateMaterialQty(m.rawMaterialId, v)}
                               />

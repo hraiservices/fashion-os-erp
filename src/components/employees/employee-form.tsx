@@ -216,7 +216,7 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
               <Controller
                 control={control}
                 name="commissionRate"
-                render={({ field }) => <NumberInput min={0} step={0.01} value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
+                render={({ field }) => <NumberInput min={0} step={0.01} className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
               />
             </FieldGroup>
           </div>
@@ -249,7 +249,7 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
                 <Controller
                   control={control}
                   name="salaryRate"
-                  render={({ field }) => <NumberInput min={0} step={0.01} value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
+                  render={({ field }) => <NumberInput min={0} step={0.01} className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
                 />
               </FieldGroup>
             </div>

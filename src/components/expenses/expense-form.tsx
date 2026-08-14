@@ -133,7 +133,7 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
               <Controller
                 control={control}
                 name="amount"
-                render={({ field }) => <NumberInput step={0.01} placeholder="0.00" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
+                render={({ field }) => <NumberInput step={0.01} placeholder="0.00" className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
               />
             </FieldGroup>
             <FieldGroup label="Category" required error={errors.category?.message}>

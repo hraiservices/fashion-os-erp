@@ -191,7 +191,7 @@ export function ProductLineItemsEditor({
                 updateLine(line.key, { productId: v, unitPrice: line.unitPrice || String(price) });
               }}
             >
-              <SelectTrigger className="flex-1">
+              <SelectTrigger className="flex-1 h-10">
                 <SelectValue placeholder="Select product…">{productLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -202,8 +202,8 @@ export function ProductLineItemsEditor({
                 ))}
               </SelectContent>
             </Select>
-            <Input type="number" min={0} step="1" placeholder="Qty" className="w-20" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
-            <Input type="number" min={0} step="0.01" placeholder="Price" className="w-28" value={line.unitPrice} onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })} />
+            <Input type="number" min={0} step="1" placeholder="Qty" className="w-20 h-10" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
+            <Input type="number" min={0} step="0.01" placeholder="Price" className="w-28 h-10" value={line.unitPrice} onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })} />
             {showDiscount && (
               <Input
                 type="number"
@@ -211,7 +211,7 @@ export function ProductLineItemsEditor({
                 max={100}
                 step="0.01"
                 placeholder="Disc %"
-                className="w-20"
+                className="w-20 h-10"
                 value={line.discountPercent}
                 onChange={(e) => updateLine(line.key, { discountPercent: e.target.value })}
               />

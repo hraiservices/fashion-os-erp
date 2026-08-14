@@ -158,7 +158,7 @@ export function ProductForm({ existing }: { existing?: Product }) {
               <Input placeholder="e.g. Formalwear, Ethnic" className="h-10" {...register("category")} />
             </FieldGroup>
             <FieldGroup label="Tax rate (%)" error={errors.taxRate?.message}>
-              <Controller control={control} name="taxRate" render={({ field }) => <NumberInput min={0} max={100} step={0.01} value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
+              <Controller control={control} name="taxRate" render={({ field }) => <NumberInput min={0} max={100} step={0.01} className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
             </FieldGroup>
           </div>
         </div>
@@ -168,17 +168,17 @@ export function ProductForm({ existing }: { existing?: Product }) {
           <SectionHeading icon={Tag} label="Pricing & stock" />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FieldGroup label="Selling price (₹)" required error={errors.sellingPrice?.message}>
-              <Controller control={control} name="sellingPrice" render={({ field }) => <NumberInput min={0} step={0.01} value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
+              <Controller control={control} name="sellingPrice" render={({ field }) => <NumberInput min={0} step={0.01} className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
             </FieldGroup>
             <FieldGroup label="Cost price (₹)" error={errors.costPrice?.message} hint="Optional — for margin tracking.">
-              <Controller control={control} name="costPrice" render={({ field }) => <NumberInput min={0} step={0.01} value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
+              <Controller control={control} name="costPrice" render={({ field }) => <NumberInput min={0} step={0.01} className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
             </FieldGroup>
             <FieldGroup label="Low stock alert" hint="Notify when stock falls below this.">
-              <Controller control={control} name="lowStockAlert" render={({ field }) => <NumberInput min={0} step={0.01} value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
+              <Controller control={control} name="lowStockAlert" render={({ field }) => <NumberInput min={0} step={0.01} className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
             </FieldGroup>
             {!isEdit && (
               <FieldGroup label="Opening stock" error={errors.openingStock?.message} hint="Current stock on hand.">
-                <Controller control={control} name="openingStock" render={({ field }) => <NumberInput min={0} step={0.01} placeholder="0" value={field.value ?? 0} onChange={field.onChange} onBlur={field.onBlur} />} />
+                <Controller control={control} name="openingStock" render={({ field }) => <NumberInput min={0} step={0.01} placeholder="0" className="h-10" value={field.value ?? 0} onChange={field.onChange} onBlur={field.onBlur} />} />
               </FieldGroup>
             )}
           </div>
@@ -212,7 +212,7 @@ export function ProductForm({ existing }: { existing?: Product }) {
               {bomRows.map((row) => (
                 <div key={row.key} className="flex items-center gap-2">
                   <Select value={row.rawMaterialId} onValueChange={(v) => v && updateBomRow(row.key, { rawMaterialId: v })}>
-                    <SelectTrigger className="flex-1 h-9">
+                    <SelectTrigger className="flex-1 h-10">
                       <SelectValue placeholder="Select material…">{materialLabel}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -226,7 +226,7 @@ export function ProductForm({ existing }: { existing?: Product }) {
                     min={0}
                     step="0.001"
                     placeholder="Qty"
-                    className="w-24 h-9"
+                    className="w-24 h-10"
                     value={row.qtyRequired}
                     onChange={(e) => updateBomRow(row.key, { qtyRequired: e.target.value })}
                   />

@@ -171,7 +171,7 @@ export function CustomerPicker({
 
 export function CustomerPickerTrigger({ customerName, onClick }: { customerName: string; onClick: () => void }) {
   return (
-    <Button type="button" variant="outline" onClick={onClick} className="w-full justify-start font-normal">
+    <Button type="button" variant="outline" onClick={onClick} className="h-10 w-full justify-start font-normal">
       <User className="size-4" /> {customerName || "Select customer…"}
     </Button>
   );

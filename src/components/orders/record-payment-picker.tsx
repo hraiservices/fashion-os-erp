@@ -5,6 +5,7 @@ import { Search, CreditCard, ChevronRight } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { DueBadge } from "@/components/orders/stage-badge";
+import { BalanceDue } from "@/components/ui/money-text";
 import { inr } from "@/lib/format";
 import type { Order } from "@/lib/types";
 
@@ -106,7 +107,7 @@ export function RecordPaymentPicker({ open, onOpenChange, orders, onSelect }: Pr
                     </div>
 
                     <div className="flex shrink-0 flex-col items-end gap-1">
-                      <span className="text-sm font-semibold text-orange-600 tabular-nums">{inr(o.balance)}</span>
+                      <BalanceDue amount={o.balance} paidLabel={inr(o.balance)} className="text-sm font-semibold" />
                       <DueBadge order={o} />
                     </div>
 

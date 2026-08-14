@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Check } from "lucide-react";
+import { Check, Wallet } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PaidAmount, BalanceDue } from "@/components/ui/money-text";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useRecordPayment } from "@/hooks/use-order-mutations";
@@ -53,14 +54,25 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Collect payment</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Wallet className="size-4 text-muted-foreground" /> Collect payment
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="rounded-lg border bg-amber-50 p-4 dark:bg-amber-950/40">
-          <div className="text-xs font-medium text-amber-800 dark:text-amber-300">BALANCE DUE</div>
-          <div className="text-3xl font-light text-amber-700 dark:text-amber-400">{inr(order.balance)}</div>
-          <div className="mt-1 text-xs text-amber-900 dark:text-amber-300/80">
-            Total: {inr(order.total)} · Paid: {inr(order.advance)}
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="grid grid-cols-3 divide-x">
+            <div className="p-3 text-center">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Billed</p>
+              <p className="mt-0.5 text-base font-semibold tabular-nums">{inr(order.total)}</p>
+            </div>
+            <div className="p-3 text-center">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Paid</p>
+              <PaidAmount amount={order.advance} className="mt-0.5 block text-base" />
+            </div>
+            <div className="bg-red-500/5 p-3 text-center">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-red-600/80 dark:text-red-400/80">Balance due</p>
+              <BalanceDue amount={order.balance} paidLabel={inr(order.balance)} className="mt-0.5 block text-base" />
+            </div>
           </div>
         </div>
 

@@ -58,7 +58,7 @@ export function RightSidebar() {
                 isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
-              <Icon className="size-4.5" />
+              <Icon className="size-5" />
             </button>
           );
         })}

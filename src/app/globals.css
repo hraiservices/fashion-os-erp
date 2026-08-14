@@ -549,6 +549,35 @@
   }
 }
 
+/* App-wide slim scrollbar — replaces the browser's default (which can render as a bulky
+   classic Windows-style scrollbar with arrow buttons in some embedded webviews) with a
+   minimal themed one everywhere, not just the elements that opt into scrollbar-hide below. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
+}
+::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+  width: 0;
+}
+
 /* Hides the scrollbar on an overflow-x-auto row while keeping it fully scrollable by touch/drag
    — for horizontal pill/tab rails where the visible scrollbar track reads as clutter. */
 .scrollbar-hide {

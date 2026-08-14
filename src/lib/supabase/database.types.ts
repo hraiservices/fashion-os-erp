@@ -308,6 +308,13 @@ export interface Database {
           low_stock_alert: number;
           notes: string;
           barcode: string | null;
+          size: string | null;
+          color: string | null;
+          fabric: string | null;
+          pattern: string | null;
+          occasion: string | null;
+          brand: string | null;
+          image_data_url: string | null;
           created_at: string;
           updated_at: string;
         };

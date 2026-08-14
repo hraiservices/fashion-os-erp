@@ -6,7 +6,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, Package2, Tag, ListTree, Plus, X, Save } from "lucide-react";
+import { ArrowLeft, Package2, Tag, ListTree, Plus, X, Save, Shirt, ImagePlus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useSaveProduct } from "@/hooks/use-inventory-mutations";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { fileToDataUrl } from "@/lib/image-utils";
+import { PRODUCT_SIZES, PRODUCT_COLORS, PRODUCT_FABRICS, PRODUCT_PATTERNS, PRODUCT_OCCASIONS } from "@/lib/product-attributes";
 import type { Product } from "@/lib/types";
+
+const UNTAGGED = "__untagged__";
+const untaggedLabel = (v: unknown) => (v === UNTAGGED ? "Not set" : (v as string));
 
 const schema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -29,6 +34,12 @@ const schema = z.object({
   lowStockAlert: z.coerce.number().min(0, "Must be 0 or more"),
   notes: z.string().optional(),
   openingStock: z.coerce.number().min(0, "Must be 0 or more").optional(),
+  size: z.string(),
+  color: z.string(),
+  fabric: z.string(),
+  pattern: z.string(),
+  occasion: z.string(),
+  brand: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -70,6 +81,8 @@ export function ProductForm({ existing }: { existing?: Product }) {
   const isEdit = !!existing;
 
   const [bomRows, setBomRows] = useState<BomRow[]>(existing ? existing.bom.map((b) => ({ key: b.id, rawMaterialId: b.rawMaterialId, qtyRequired: String(b.qtyRequired) })) : []);
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(existing?.imageDataUrl ?? null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const {
     register,
@@ -79,9 +92,28 @@ export function ProductForm({ existing }: { existing?: Product }) {
   } = useForm<FormValues>({
     resolver: zodResolver(schema) as never,
     defaultValues: existing
-      ? { name: existing.name, sku: existing.sku, category: existing.category, sellingPrice: existing.sellingPrice, costPrice: existing.costPrice, taxRate: existing.taxRate, lowStockAlert: existing.lowStockAlert, notes: existing.notes, openingStock: 0 }
-      : { name: "", sku: "", category: "", sellingPrice: 0, costPrice: 0, taxRate: 5, lowStockAlert: 0, notes: "", openingStock: 0 },
+      ? {
+          name: existing.name, sku: existing.sku, category: existing.category, sellingPrice: existing.sellingPrice, costPrice: existing.costPrice,
+          taxRate: existing.taxRate, lowStockAlert: existing.lowStockAlert, notes: existing.notes, openingStock: 0,
+          size: existing.size || UNTAGGED, color: existing.color || UNTAGGED, fabric: existing.fabric || UNTAGGED,
+          pattern: existing.pattern || UNTAGGED, occasion: existing.occasion || UNTAGGED, brand: existing.brand,
+        }
+      : { name: "", sku: "", category: "", sellingPrice: 0, costPrice: 0, taxRate: 5, lowStockAlert: 0, notes: "", openingStock: 0, size: UNTAGGED, color: UNTAGGED, fabric: UNTAGGED, pattern: UNTAGGED, occasion: UNTAGGED, brand: "" },
   });
+
+  async function handleImageFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      setImageDataUrl(await fileToDataUrl(file, 800));
+    } catch {
+      toast.error("Could not read image");
+    } finally {
+      setUploadingImage(false);
+    }
+  }
 
   function addBomRow() {
     setBomRows((rows) => [...rows, { key: `new-${Date.now()}-${rows.length}`, rawMaterialId: "", qtyRequired: "" }]);
@@ -109,6 +141,13 @@ export function ProductForm({ existing }: { existing?: Product }) {
         notes: values.notes || "",
         bom: bomRows.filter((r) => r.rawMaterialId).map((r) => ({ rawMaterialId: r.rawMaterialId, qtyRequired: parseFloat(r.qtyRequired) || 0 })),
         openingStock: isEdit ? undefined : values.openingStock,
+        size: values.size === UNTAGGED ? "" : values.size,
+        color: values.color === UNTAGGED ? "" : values.color,
+        fabric: values.fabric === UNTAGGED ? "" : values.fabric,
+        pattern: values.pattern === UNTAGGED ? "" : values.pattern,
+        occasion: values.occasion === UNTAGGED ? "" : values.occasion,
+        brand: values.brand || "",
+        imageDataUrl,
         userEmail: user?.email,
       });
       toast.success(isEdit ? "Product updated" : "Product added");
@@ -159,6 +198,137 @@ export function ProductForm({ existing }: { existing?: Product }) {
             </FieldGroup>
             <FieldGroup label="Tax rate (%)" error={errors.taxRate?.message}>
               <Controller control={control} name="taxRate" render={({ field }) => <NumberInput min={0} max={100} step={0.01} className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
+            </FieldGroup>
+          </div>
+        </div>
+
+        {/* Style & attributes */}
+        <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <SectionHeading icon={Shirt} label="Style & attributes" />
+          <p className="-mt-2 mb-4 text-xs text-muted-foreground">
+            Helps the app suggest this product to the right customers based on what they've bought before.
+          </p>
+
+          <div className="mb-4 flex items-center gap-3">
+            {imageDataUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imageDataUrl} alt="Product" className="h-20 w-20 rounded-lg border object-cover bg-white" />
+            ) : (
+              <div className="flex h-20 w-20 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
+                <ImagePlus className="size-6" />
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled={uploadingImage} nativeButton={false} render={<label className="cursor-pointer" />}>
+                {uploadingImage ? "Uploading…" : imageDataUrl ? "Change photo" : "Upload photo"}
+                <input type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
+              </Button>
+              {imageDataUrl && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setImageDataUrl(null)}>
+                  Remove
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FieldGroup label="Size">
+              <Controller
+                control={control}
+                name="size"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue>{untaggedLabel}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={UNTAGGED}>Not set</SelectItem>
+                      {PRODUCT_SIZES.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FieldGroup>
+            <FieldGroup label="Color">
+              <Controller
+                control={control}
+                name="color"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue>{untaggedLabel}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={UNTAGGED}>Not set</SelectItem>
+                      {PRODUCT_COLORS.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FieldGroup>
+            <FieldGroup label="Fabric">
+              <Controller
+                control={control}
+                name="fabric"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue>{untaggedLabel}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={UNTAGGED}>Not set</SelectItem>
+                      {PRODUCT_FABRICS.map((f) => (
+                        <SelectItem key={f} value={f}>{f}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FieldGroup>
+            <FieldGroup label="Pattern / style">
+              <Controller
+                control={control}
+                name="pattern"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue>{untaggedLabel}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={UNTAGGED}>Not set</SelectItem>
+                      {PRODUCT_PATTERNS.map((p) => (
+                        <SelectItem key={p} value={p}>{p}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FieldGroup>
+            <FieldGroup label="Occasion">
+              <Controller
+                control={control}
+                name="occasion"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue>{untaggedLabel}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={UNTAGGED}>Not set</SelectItem>
+                      {PRODUCT_OCCASIONS.map((o) => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FieldGroup>
+            <FieldGroup label="Brand" hint="Optional — vendor or brand name.">
+              <Input placeholder="e.g. Fabindia" className="h-10" {...register("brand")} />
             </FieldGroup>
           </div>
         </div>

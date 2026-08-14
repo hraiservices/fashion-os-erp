@@ -259,6 +259,17 @@ export interface Product {
   stockQty: number;
   bom: BomLine[];
   barcode: string | null;
+  /** Structured variant attributes for Customer Purchase Intelligence matching — each is one
+   *  value from its fixed vocabulary in lib/product-attributes.ts, or "" if not tagged. */
+  size: string;
+  color: string;
+  fabric: string;
+  pattern: string;
+  occasion: string;
+  /** Free text — vendor/brand names have no bounded vocabulary. */
+  brand: string;
+  /** Resized JPEG data URL (see fileToDataUrl) — same inline-storage pattern as branding images. */
+  imageDataUrl: string | null;
   createdAt: string;
 }
 
@@ -276,6 +287,13 @@ export function mapProductRow(r: ProductRow, stockQty: number, bom: BomLine[]): 
     stockQty,
     bom,
     barcode: r.barcode,
+    size: r.size || "",
+    color: r.color || "",
+    fabric: r.fabric || "",
+    pattern: r.pattern || "",
+    occasion: r.occasion || "",
+    brand: r.brand || "",
+    imageDataUrl: r.image_data_url || null,
     createdAt: r.created_at,
   };
 }

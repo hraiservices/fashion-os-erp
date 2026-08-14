@@ -96,6 +96,13 @@ interface SaveProductInput {
   bom: BomLineInput[];
   openingStock?: number;
   barcode?: string;
+  size?: string;
+  color?: string;
+  fabric?: string;
+  pattern?: string;
+  occasion?: string;
+  brand?: string;
+  imageDataUrl?: string | null;
   userEmail?: string;
 }
 
@@ -119,6 +126,13 @@ export function useSaveProduct() {
           low_stock_alert: input.lowStockAlert,
           notes: input.notes.trim(),
           barcode: input.barcode?.trim() || genBarcode(),
+          size: input.size || null,
+          color: input.color || null,
+          fabric: input.fabric || null,
+          pattern: input.pattern || null,
+          occasion: input.occasion || null,
+          brand: input.brand?.trim() || null,
+          image_data_url: input.imageDataUrl ?? null,
         })
         .select()
         .single();

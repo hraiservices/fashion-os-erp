@@ -7,6 +7,7 @@ import { useAppSetting } from "@/hooks/use-app-setting";
 import { fileToDataUrl } from "@/lib/image-utils";
 import {
   blankInvoiceTemplate,
+  hydrateInvoiceTemplate,
   DEFAULT_INVOICE_TEMPLATES_SETTING,
   type InvoiceTemplateConfig,
   type InvoiceTemplatesSetting,
@@ -23,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 function CheckboxRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="flex items-center gap-2 text-sm">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <input type="checkbox" checked={!!checked} onChange={(e) => onChange(e.target.checked)} />
       {label}
     </label>
   );
@@ -89,7 +90,7 @@ export function InvoiceTemplateSection() {
 
   useEffect(() => {
     if (data) {
-      setSetting(data);
+      setSetting({ ...data, templates: data.templates.map(hydrateInvoiceTemplate) });
       if (!data.templates.some((t) => t.id === activeId)) setActiveId(data.defaultId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

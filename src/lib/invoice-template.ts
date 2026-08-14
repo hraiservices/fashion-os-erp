@@ -82,3 +82,14 @@ DEFAULT_INVOICE_TEMPLATES_SETTING.templates[0].id = "tpl-default";
 export function getDefaultTemplate(setting: InvoiceTemplatesSetting): InvoiceTemplateConfig {
   return setting.templates.find((t) => t.id === setting.defaultId) || setting.templates[0] || blankInvoiceTemplate();
 }
+
+/**
+ * Backfills any field missing from a saved template with blankInvoiceTemplate()'s default —
+ * new config fields (boldShopName, showPageNumbers, etc.) have been added to this shape over
+ * time, and a shop's app_settings row saved before a field existed simply won't have that key.
+ * Without this, a checkbox bound to that key renders `checked={undefined}` on first paint,
+ * which React logs as switching from a controlled to an uncontrolled input.
+ */
+export function hydrateInvoiceTemplate(t: Partial<InvoiceTemplateConfig> & { id: string; name: string }): InvoiceTemplateConfig {
+  return { ...blankInvoiceTemplate(t.name), ...t };
+}

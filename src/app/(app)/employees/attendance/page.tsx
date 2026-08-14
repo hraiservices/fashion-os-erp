@@ -3,17 +3,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, CalendarCheck } from "lucide-react";
+import { ArrowLeft, CalendarCheck, Camera } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
 import { useAttendanceForDate, useMarkAttendance } from "@/hooks/use-attendance";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { PageHeader } from "@/components/ui/page-header";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { AttendanceDetailDialog } from "@/components/employees/attendance-detail-dialog";
 import { cn } from "@/lib/utils";
-import type { AttendanceStatus } from "@/lib/types";
+import type { AttendanceStatus, Attendance } from "@/lib/types";
 
 const STATUSES: { value: AttendanceStatus; label: string; tone: string }[] = [
   { value: "present", label: "Present", tone: "border-green-500/30 bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400" },
@@ -32,6 +33,7 @@ export default function AttendancePage() {
   const { data: attendance, isLoading: attendanceLoading } = useAttendanceForDate(date);
   const { data: user } = useCurrentUser();
   const markAttendance = useMarkAttendance();
+  const [detailFor, setDetailFor] = useState<{ attendance: Attendance; employeeName: string } | null>(null);
 
   const canManage = !!user?.perms.manageEmployees;
   const active = (employees || []).filter((e) => e.active);
@@ -50,7 +52,7 @@ export default function AttendancePage() {
       <Link href="/employees" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" /> Employees
       </Link>
-      <PageHeader title="Attendance" description="Mark daily attendance for active staff" actions={<Input type="date" className="w-40" value={date} onChange={(e) => setDate(e.target.value)} />} />
+      <PageHeader title="Attendance" description="Mark daily attendance for active staff" actions={<DatePicker value={date} onChange={setDate} className="w-40" />} />
 
       {employeesLoading || attendanceLoading ? (
         <div className="space-y-2">
@@ -70,6 +72,22 @@ export default function AttendancePage() {
                   <p className="truncate font-medium">{e.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{e.role || "—"}</p>
                 </div>
+                {current?.source === "self_service" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => setDetailFor({ attendance: current, employeeName: e.name })}
+                  >
+                    <Camera className="size-3.5" />
+                    {current.checkInWithinGeofence === false || current.checkOutWithinGeofence === false ? (
+                      <span className="text-red-600 dark:text-red-400">Flagged</span>
+                    ) : (
+                      "Self check-in"
+                    )}
+                  </Button>
+                )}
                 <div className="flex flex-wrap gap-1.5">
                   {STATUSES.map((s) => (
                     <button
@@ -90,6 +108,15 @@ export default function AttendancePage() {
             );
           })}
         </div>
+      )}
+
+      {detailFor && (
+        <AttendanceDetailDialog
+          attendance={detailFor.attendance}
+          employeeName={detailFor.employeeName}
+          open={!!detailFor}
+          onOpenChange={(v) => !v && setDetailFor(null)}
+        />
       )}
     </div>
   );

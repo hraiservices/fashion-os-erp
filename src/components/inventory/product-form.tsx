@@ -6,7 +6,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, Package2, Tag, ListTree, Plus, X, Save, Shirt, ImagePlus } from "lucide-react";
+import { ArrowLeft, Package2, Tag, ListTree, Plus, X, Save, Shirt, ImagePlus, PackagePlus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { fileToDataUrl } from "@/lib/image-utils";
 import { PRODUCT_SIZES, PRODUCT_COLORS, PRODUCT_FABRICS, PRODUCT_PATTERNS, PRODUCT_OCCASIONS } from "@/lib/product-attributes";
 import { ProductCustomerMatches } from "@/components/inventory/product-customer-matches";
+import { ProductStockAdjustmentDialog } from "@/components/inventory/product-stock-adjustment-dialog";
 import type { Product } from "@/lib/types";
 
 const UNTAGGED = "__untagged__";
@@ -84,6 +85,7 @@ export function ProductForm({ existing }: { existing?: Product }) {
   const [bomRows, setBomRows] = useState<BomRow[]>(existing ? existing.bom.map((b) => ({ key: b.id, rawMaterialId: b.rawMaterialId, qtyRequired: String(b.qtyRequired) })) : []);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(existing?.imageDataUrl ?? null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [stockDialogOpen, setStockDialogOpen] = useState(false);
 
   const {
     register,
@@ -174,6 +176,11 @@ export function ProductForm({ existing }: { existing?: Product }) {
             {isEdit && <p className="text-[11px] font-mono text-muted-foreground">{existing!.sku}</p>}
           </div>
           <div className="flex items-center gap-2">
+            {isEdit && (
+              <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setStockDialogOpen(true)}>
+                <PackagePlus className="size-3.5" /> <span className="hidden sm:inline">Adjust Stock</span>
+              </Button>
+            )}
             <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
             <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
               <Save className="size-3.5" />
@@ -412,6 +419,7 @@ export function ProductForm({ existing }: { existing?: Product }) {
 
         {isEdit && <ProductCustomerMatches product={existing} />}
       </div>
+      {isEdit && <ProductStockAdjustmentDialog product={existing} open={stockDialogOpen} onOpenChange={setStockDialogOpen} />}
     </form>
   );
 }

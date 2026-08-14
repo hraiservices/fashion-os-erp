@@ -92,6 +92,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/customer-balances", label: "Customer Balances", section: "Customers" },
     { href: "/reports/customers", label: "Customer Lifetime" },
     { href: "/reports/loyalty-impact", label: "Loyalty Impact" },
+    { href: "/reports/recommendations", label: "Recommendation Performance" },
 
     { href: "/reports/inventory", label: "Inventory", section: "Inventory" },
 

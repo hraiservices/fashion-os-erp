@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       .select("*")
       .eq("active", true);
     if (empError) throw empError;
-    const employees = (employeeRows || []).map(mapEmployeeRow);
+    const employees = (employeeRows || []).map((r) => mapEmployeeRow(r));
     employeeCount = employees.length;
 
     // Compute all payslips in memory first so the batch insert is all-or-nothing.

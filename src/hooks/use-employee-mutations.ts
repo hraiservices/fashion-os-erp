@@ -5,6 +5,12 @@ import { createClient } from "@/lib/supabase/client";
 import { logAction } from "@/lib/logging";
 import type { CommissionType, SalaryType } from "@/lib/types";
 
+// Excludes pin_hash — see the identical note in use-employees.ts. PIN setting itself goes
+// through a dedicated server route (never this direct-to-Supabase mutation), specifically so
+// the hash is never round-tripped back into a browser response.
+const EMPLOYEE_COLUMNS =
+  "id, name, mobile, role, employment_type, commission_type, commission_rate, active, joined_date, notes, salary_type, salary_rate, location_id, created_at, updated_at";
+
 interface SaveEmployeeInput {
   id?: string;
   name: string;
@@ -18,6 +24,7 @@ interface SaveEmployeeInput {
   notes: string;
   salaryType?: SalaryType;
   salaryRate?: number;
+  locationId?: string | null;
   userEmail?: string;
 }
 
@@ -42,8 +49,9 @@ export function useSaveEmployee() {
           notes: input.notes.trim(),
           ...(input.salaryType ? { salary_type: input.salaryType } : {}),
           ...(input.salaryRate !== undefined ? { salary_rate: input.salaryRate } : {}),
+          ...(input.locationId !== undefined ? { location_id: input.locationId } : {}),
         })
-        .select()
+        .select(EMPLOYEE_COLUMNS)
         .single();
       if (error) throw error;
       await logAction(supabase, input.userEmail, isNew ? `Employee added: ${input.name}` : `Employee updated: ${input.name}`);

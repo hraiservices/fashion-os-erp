@@ -729,6 +729,8 @@ export interface Database {
           notes: string;
           salary_type: string;
           salary_rate: number;
+          pin_hash: string | null;
+          location_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -736,6 +738,25 @@ export interface Database {
           name: string;
         };
         Update: Partial<Database["public"]["Tables"]["employees"]["Row"]>;
+        Relationships: [];
+      };
+      shop_locations: {
+        Row: {
+          id: string;
+          name: string;
+          address: string;
+          latitude: number;
+          longitude: number;
+          geofence_radius_m: number;
+          active: boolean;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["shop_locations"]["Row"]> & {
+          name: string;
+          latitude: number;
+          longitude: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["shop_locations"]["Row"]>;
         Relationships: [];
       };
       employee_advances: {
@@ -786,6 +807,9 @@ export interface Database {
           gross_pay: number;
           deductions: number;
           net_pay: number;
+          hours_worked: number;
+          overtime_hours: number;
+          overtime_pay: number;
           status: string;
           paid_at: string | null;
           notes: string;
@@ -808,6 +832,23 @@ export interface Database {
           notes: string;
           created_by: string | null;
           created_at: string;
+          source: string;
+          check_in_at: string | null;
+          check_out_at: string | null;
+          check_in_lat: number | null;
+          check_in_lng: number | null;
+          check_in_accuracy_m: number | null;
+          check_out_lat: number | null;
+          check_out_lng: number | null;
+          check_out_accuracy_m: number | null;
+          check_in_photo: string | null;
+          check_out_photo: string | null;
+          check_in_within_geofence: boolean | null;
+          check_out_within_geofence: boolean | null;
+          check_in_distance_m: number | null;
+          check_out_distance_m: number | null;
+          hours_worked: number | null;
+          overtime_hours: number;
         };
         Insert: Partial<Database["public"]["Tables"]["employee_attendance"]["Row"]> & {
           employee_id: string;

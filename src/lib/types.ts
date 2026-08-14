@@ -806,10 +806,18 @@ export interface Employee {
   notes: string;
   salaryType: SalaryType;
   salaryRate: number;
+  /** Assigned shop location for geofenced self-check-in — null if not assigned/single-location shop. */
+  locationId: string | null;
+  /** Whether a PIN has been set for self-service attendance login. The hash itself is never
+   *  sent to the client — this is derived server-side (pin_hash != null) so the UI can show
+   *  "PIN set" without ever seeing the hash. */
+  hasPin: boolean;
   createdAt: string;
 }
 
-export function mapEmployeeRow(r: EmployeeRow): Employee {
+/** Deliberately does NOT select pin_hash — see use-employees.ts. `hasPin` must be computed by
+ *  the caller (server-side) and passed in; defaults to false for any caller that omits it. */
+export function mapEmployeeRow(r: EmployeeRow, hasPin = false): Employee {
   return {
     id: r.id,
     name: r.name || "",
@@ -823,6 +831,34 @@ export function mapEmployeeRow(r: EmployeeRow): Employee {
     notes: r.notes || "",
     salaryType: (r.salary_type as SalaryType) || "monthly",
     salaryRate: r.salary_rate || 0,
+    locationId: r.location_id ?? null,
+    hasPin,
+    createdAt: r.created_at,
+  };
+}
+
+export type ShopLocationRow = Database["public"]["Tables"]["shop_locations"]["Row"];
+
+export interface ShopLocation {
+  id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  geofenceRadiusM: number;
+  active: boolean;
+  createdAt: string;
+}
+
+export function mapShopLocationRow(r: ShopLocationRow): ShopLocation {
+  return {
+    id: r.id,
+    name: r.name || "",
+    address: r.address || "",
+    latitude: r.latitude,
+    longitude: r.longitude,
+    geofenceRadiusM: r.geofence_radius_m ?? 200,
+    active: r.active,
     createdAt: r.created_at,
   };
 }
@@ -890,6 +926,9 @@ export interface Payslip {
   grossPay: number;
   deductions: number;
   netPay: number;
+  hoursWorked: number;
+  overtimeHours: number;
+  overtimePay: number;
   status: PayslipStatus;
   paidAt: string | null;
   notes: string;
@@ -907,21 +946,46 @@ export function mapPayslipRow(r: PayslipRow): Payslip {
     grossPay: r.gross_pay || 0,
     deductions: r.deductions || 0,
     netPay: r.net_pay || 0,
+    hoursWorked: r.hours_worked || 0,
+    overtimeHours: r.overtime_hours || 0,
+    overtimePay: r.overtime_pay || 0,
     status: (r.status as PayslipStatus) || "draft",
     paidAt: r.paid_at,
     notes: r.notes || "",
   };
 }
 
+export type AttendanceSource = "manual" | "self_service";
+
 export interface Attendance {
   id: string;
   employeeId: string;
   date: string;
   status: AttendanceStatus;
+  /** Legacy plain-time fields — still written by manager-marked (source="manual") rows. */
   checkIn: string | null;
   checkOut: string | null;
   notes: string;
   createdAt: string;
+  /** "self_service" rows come from the employee's own PIN check-in/out (checkin/route.ts) and
+   *  carry the fields below; "manual" rows (the existing attendance register) don't. */
+  source: AttendanceSource;
+  checkInAt: string | null;
+  checkOutAt: string | null;
+  checkInLat: number | null;
+  checkInLng: number | null;
+  checkInAccuracyM: number | null;
+  checkOutLat: number | null;
+  checkOutLng: number | null;
+  checkOutAccuracyM: number | null;
+  checkInPhoto: string | null;
+  checkOutPhoto: string | null;
+  checkInWithinGeofence: boolean | null;
+  checkOutWithinGeofence: boolean | null;
+  checkInDistanceM: number | null;
+  checkOutDistanceM: number | null;
+  hoursWorked: number | null;
+  overtimeHours: number;
 }
 
 export function mapAttendanceRow(r: AttendanceRow): Attendance {
@@ -934,6 +998,23 @@ export function mapAttendanceRow(r: AttendanceRow): Attendance {
     checkOut: r.check_out,
     notes: r.notes || "",
     createdAt: r.created_at,
+    source: (r.source as AttendanceSource) || "manual",
+    checkInAt: r.check_in_at,
+    checkOutAt: r.check_out_at,
+    checkInLat: r.check_in_lat,
+    checkInLng: r.check_in_lng,
+    checkInAccuracyM: r.check_in_accuracy_m,
+    checkOutLat: r.check_out_lat,
+    checkOutLng: r.check_out_lng,
+    checkOutAccuracyM: r.check_out_accuracy_m,
+    checkInPhoto: r.check_in_photo,
+    checkOutPhoto: r.check_out_photo,
+    checkInWithinGeofence: r.check_in_within_geofence,
+    checkOutWithinGeofence: r.check_out_within_geofence,
+    checkInDistanceM: r.check_in_distance_m,
+    checkOutDistanceM: r.check_out_distance_m,
+    hoursWorked: r.hours_worked,
+    overtimeHours: r.overtime_hours || 0,
   };
 }
 

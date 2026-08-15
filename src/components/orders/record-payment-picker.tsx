@@ -95,7 +95,7 @@ export function RecordPaymentPicker({ open, onOpenChange, orders, onSelect }: Pr
                   >
                     {/* Avatar initials */}
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                      {o.name.trim().split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
+                      {o.name.trim().split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?"}
                     </div>
 
                     <div className="min-w-0 flex-1">

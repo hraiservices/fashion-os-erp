@@ -9,7 +9,7 @@ import { useOrder } from "@/hooks/use-order";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAdvanceStage, useDeleteOrder } from "@/hooks/use-order-mutations";
 import { useShopSettings } from "@/hooks/use-shop-settings";
-import { getNextStage, STAGE_META, buildWhatsAppUrl } from "@/lib/business-rules";
+import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppUrl, type Lining } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
 import { inr, fmtDate } from "@/lib/format";
@@ -71,7 +71,12 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const paymentReminderUrl = buildWhatsAppUrl(order, "paymentDue", shop);
   const paidPct = order.total > 0 ? Math.round((order.advance / order.total) * 100) : 0;
 
+  const orderBalance = order.balance;
   async function advance() {
+    if (next === "payment" && orderBalance > 0) {
+      toast.error(`Clear balance of ${inr(orderBalance)} before marking as paid`);
+      return;
+    }
     try {
       const res = await advanceStage.mutateAsync(id);
       const s = res.order.status;
@@ -194,7 +199,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <div className="min-w-0">
                 <p className="truncate font-medium">{g.type}</p>
                 <p className="text-xs text-muted-foreground">
-                  {g.lining} · qty {g.no || 1}
+                  {LINING_LABELS[g.lining as Lining] ?? g.lining} · qty {g.no || 1}
                 </p>
               </div>
               <span className="shrink-0 tabular-nums">{inr((g.amount || 0) * (g.no || 1))}</span>
@@ -202,8 +207,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           ))}
         </ul>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 border-t px-4 py-3 text-sm sm:grid-cols-3">
-          <Detail icon={Clock} label="Order date" value={fmtDate(order.inDate)} />
-          <Detail icon={Clock} label="Delivery" value={fmtDate(order.deliveryDate)} />
+          <Detail icon={Clock} label="Order date" value={order.inTime ? `${fmtDate(order.inDate)} ${order.inTime}` : fmtDate(order.inDate)} />
+          <Detail icon={Clock} label="Delivery" value={order.deliveryTime ? `${fmtDate(order.deliveryDate)} ${order.deliveryTime}` : fmtDate(order.deliveryDate)} />
           <Detail icon={User} label="Tailor" value={order.tailor || "—"} />
         </dl>
         {order.special && (
@@ -237,7 +242,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         {order.history.length === 0 ? (
           <p className="px-4 py-6 text-center text-sm text-muted-foreground">No history yet.</p>
         ) : (
-          <ol className="divide-y">
+          <ol className="max-h-72 divide-y overflow-y-auto">
             {order.history.map((h, i) => (
               <li key={i} className="px-4 py-2.5 text-sm text-muted-foreground">
                 {h}

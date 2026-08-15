@@ -140,7 +140,7 @@ function DatePresetButtons({ value, onChange }: { value: DatePreset; onChange: (
   return (
     <div className="flex flex-wrap gap-1.5">
       {(["all", "month", "custom"] as DatePreset[]).map((p) => (
-        <Button key={p} type="button" variant={value === p ? "default" : "outline"} size="sm" onClick={() => onChange(p)}>
+        <Button key={p} type="button" variant={value === p ? "default" : "outline"} size="default" onClick={() => onChange(p)}>
           {p === "all" ? "All time" : p === "month" ? "This month" : "Custom"}
         </Button>
       ))}
@@ -184,7 +184,7 @@ export function OrderFilters({
       </div>
 
       {/* Desktop inline bar */}
-      <div className="hidden flex-wrap items-end gap-3 rounded-xl border bg-card p-3 md:flex">
+      <div className="hidden flex-wrap items-end gap-x-3 gap-y-2 rounded-xl border bg-card p-3 md:flex">
         <div className="w-40">
           <Label className="mb-1.5 block text-xs text-muted-foreground">Tailor</Label>
           <TailorSelect value={value.tailor} onChange={(v) => set({ tailor: v })} tailors={tailors} />

@@ -96,7 +96,7 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
 
         <div className="space-y-2">
           <Label>Amount received</Label>
-          <NumberInput min={0} value={amount} onChange={setAmount} />
+          <NumberInput min={0} max={effectiveBalance} value={amount} onChange={(v) => setAmount(Math.min(v, effectiveBalance))} />
         </div>
         <div className="space-y-2">
           <Label>Payment method</Label>

@@ -68,7 +68,7 @@ export function StockAdjustmentForm() {
                 setItemId("");
               }}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="h-10 w-full">
                 <SelectValue>{itemTypeLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -80,7 +80,7 @@ export function StockAdjustmentForm() {
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Item</Label>
             <Select value={itemId} onValueChange={(v) => v && setItemId(v)}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="h-10 w-full">
                 <SelectValue placeholder="Select item…">{itemLabel}</SelectValue>
               </SelectTrigger>
               <SelectContent>

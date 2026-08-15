@@ -38,7 +38,7 @@ export function CategoryPicker({ value, onChange }: { value: string; onChange: (
   if (adding) {
     return (
       <div className="flex gap-1.5">
-        <Input autoFocus placeholder="New category name" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAdd()} />
+        <Input autoFocus placeholder="New category name" className="h-10" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAdd()} />
         <Button type="button" size="sm" onClick={handleAdd} disabled={save.isPending}>
           Add
         </Button>
@@ -58,7 +58,7 @@ export function CategoryPicker({ value, onChange }: { value: string; onChange: (
       }}
       disabled={isLoading}
     >
-      <SelectTrigger className="w-full">
+      <SelectTrigger className="h-10 w-full">
         <SelectValue placeholder="Select category" />
       </SelectTrigger>
       <SelectContent>

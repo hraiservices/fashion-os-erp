@@ -217,7 +217,7 @@ export function VendorImportWizard() {
                     value={mapping[field] || UNMAPPED}
                     onValueChange={(v) => setMapping((m) => ({ ...m, [field]: v === UNMAPPED ? null : v }))}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="h-10 w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

@@ -94,7 +94,7 @@ export default function StockTransferPage() {
                     setItemId("");
                   }}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="h-10 w-full">
                     <SelectValue>{itemTypeLabel}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -106,7 +106,7 @@ export default function StockTransferPage() {
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Item</Label>
                 <Select value={itemId} onValueChange={(v) => v && setItemId(v)}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="h-10 w-full">
                     <SelectValue placeholder="Select item…">{itemLabel}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -124,7 +124,7 @@ export default function StockTransferPage() {
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">From warehouse</Label>
                 <Select value={fromWarehouseId} onValueChange={(v) => v && setFromWarehouseId(v)}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="h-10 w-full">
                     <SelectValue>{warehouseLabel}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -140,7 +140,7 @@ export default function StockTransferPage() {
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">To warehouse</Label>
                 <Select value={toWarehouseId} onValueChange={(v) => v && setToWarehouseId(v)}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="h-10 w-full">
                     <SelectValue placeholder="Select destination…">{warehouseLabel}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>

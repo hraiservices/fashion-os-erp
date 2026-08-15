@@ -134,7 +134,7 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Frequency</Label>
               <Select value={frequency} onValueChange={(v) => v && setFrequency(v as RecurringFrequency)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="h-10 w-full">
                   <SelectValue>{frequencyLabel}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -153,7 +153,7 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Ends</Label>
               <Select value={endType} onValueChange={(v) => v && setEndType(v as RecurringEndType)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="h-10 w-full">
                   <SelectValue>{endTypeLabel}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -189,7 +189,7 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">GST type</Label>
               <Select value={gstType} onValueChange={(v) => v && setGstType(v as GstType)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="h-10 w-full">
                   <SelectValue>{gstTypeLabel}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -213,7 +213,7 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Discount type</Label>
               <Select value={discountType} onValueChange={(v) => v && setDiscountType(v as DiscountType)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="h-10 w-full">
                   <SelectValue>{discountTypeLabel}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>

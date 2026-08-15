@@ -174,7 +174,7 @@ export function InvoiceTemplateSection() {
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Paper size</label>
             <Select value={active.paperSize} onValueChange={(v) => v && updateActive({ paperSize: v as InvoiceTemplateConfig["paperSize"] })}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="h-10 w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -186,7 +186,7 @@ export function InvoiceTemplateSection() {
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Orientation</label>
             <Select value={active.orientation} onValueChange={(v) => v && updateActive({ orientation: v as InvoiceTemplateConfig["orientation"] })}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="h-10 w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -198,7 +198,7 @@ export function InvoiceTemplateSection() {
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Font</label>
             <Select value={active.font} onValueChange={(v) => v && updateActive({ font: v as InvoiceTemplateConfig["font"] })}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="h-10 w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

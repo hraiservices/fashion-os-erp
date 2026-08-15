@@ -69,7 +69,7 @@ const orderTypeLabel = (v: unknown) => ORDER_TYPE_LABEL[v as OrderTypeFilter] ??
 function TailorSelect({ value, onChange, tailors }: { value: string; onChange: (v: string) => void; tailors: string[] }) {
   return (
     <Select value={value} onValueChange={(v) => v && onChange(v)}>
-      <SelectTrigger className="w-full">
+      <SelectTrigger className="h-10 w-full">
         <SelectValue>{tailorLabel}</SelectValue>
       </SelectTrigger>
       <SelectContent>
@@ -87,7 +87,7 @@ function TailorSelect({ value, onChange, tailors }: { value: string; onChange: (
 function StageSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <Select value={value} onValueChange={(v) => v && onChange(v)}>
-      <SelectTrigger className="w-full">
+      <SelectTrigger className="h-10 w-full">
         <SelectValue>{stageLabel}</SelectValue>
       </SelectTrigger>
       <SelectContent>
@@ -105,7 +105,7 @@ function StageSelect({ value, onChange }: { value: string; onChange: (v: string)
 function PrioritySelect({ value, onChange }: { value: Priority; onChange: (v: Priority) => void }) {
   return (
     <Select value={value} onValueChange={(v) => v && onChange(v as Priority)}>
-      <SelectTrigger className="w-full">
+      <SelectTrigger className="h-10 w-full">
         <SelectValue>{priorityLabel}</SelectValue>
       </SelectTrigger>
       <SelectContent>
@@ -122,7 +122,7 @@ function PrioritySelect({ value, onChange }: { value: Priority; onChange: (v: Pr
 function OrderTypeSelect({ value, onChange }: { value: OrderTypeFilter; onChange: (v: OrderTypeFilter) => void }) {
   return (
     <Select value={value} onValueChange={(v) => v && onChange(v as OrderTypeFilter)}>
-      <SelectTrigger className="w-full">
+      <SelectTrigger className="h-10 w-full">
         <SelectValue>{orderTypeLabel}</SelectValue>
       </SelectTrigger>
       <SelectContent>

@@ -55,7 +55,7 @@ export function UnitPicker({ value, onChange }: { value: string; onChange: (unit
       }}
       disabled={isLoading}
     >
-      <SelectTrigger className="w-full">
+      <SelectTrigger className="h-10 w-full">
         <SelectValue placeholder="Select unit…">{unitLabel}</SelectValue>
       </SelectTrigger>
       <SelectContent>

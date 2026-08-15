@@ -119,7 +119,7 @@ export default function RecordSalesPaymentPage({ params }: { params: Promise<{ i
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Payment Mode</Label>
                 <Select value={method} onValueChange={(v) => v && setMethod(v)}>
-                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-10 w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>{METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                 </Select>
               </div>

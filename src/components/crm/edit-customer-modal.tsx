@@ -152,7 +152,7 @@ export function EditCustomerModal({ cust, open, onOpenChange }: { cust: Customer
                     name="paymentTerms"
                     render={({ field }) => (
                       <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className="h-10 w-full">
                           <SelectValue>{paymentTermLabel}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
@@ -172,7 +172,7 @@ export function EditCustomerModal({ cust, open, onOpenChange }: { cust: Customer
                     name="priceListId"
                     render={({ field }) => (
                       <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className="h-10 w-full">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>

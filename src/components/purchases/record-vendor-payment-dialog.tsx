@@ -81,7 +81,7 @@ export function RecordVendorPaymentDialog({
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Method</Label>
               <Select value={method} onValueChange={(v) => v && setMethod(v)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="h-10 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

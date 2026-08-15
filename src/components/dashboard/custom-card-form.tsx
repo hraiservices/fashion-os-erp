@@ -102,7 +102,7 @@ export function CustomCardForm({
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Data source</Label>
               <Select value={config.dataSource} onValueChange={(v) => v && changeDataSource(v as CustomDataSourceKey)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="h-10 w-full">
                   <SelectValue>{dataSourceLabel}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -117,7 +117,7 @@ export function CustomCardForm({
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Aggregation</Label>
               <Select value={config.aggregation} onValueChange={(v) => v && setConfig({ ...config, aggregation: v as Aggregation })}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="h-10 w-full">
                   <SelectValue>{aggregationLabel}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -136,7 +136,7 @@ export function CustomCardForm({
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Field</Label>
                 <Select value={config.field || ""} onValueChange={(v) => v && setConfig({ ...config, field: v })}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="h-10 w-full">
                     <SelectValue placeholder="Select field…" />
                   </SelectTrigger>
                   <SelectContent>
@@ -151,7 +151,7 @@ export function CustomCardForm({
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Display as</Label>
                 <Select value={config.format} onValueChange={(v) => v && setConfig({ ...config, format: v as "number" | "currency" })}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="h-10 w-full">
                     <SelectValue>{formatLabel}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>

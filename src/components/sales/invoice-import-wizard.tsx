@@ -255,7 +255,7 @@ export function InvoiceImportWizard() {
                     value={mapping[field] || UNMAPPED}
                     onValueChange={(v) => setMapping((m) => ({ ...m, [field]: v === UNMAPPED ? null : v }))}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="h-10 w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -272,7 +272,7 @@ export function InvoiceImportWizard() {
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">GST type (applied to all)</label>
                 <Select value={gstType} onValueChange={(v) => v && setGstType(v as GstType)}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="h-10 w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

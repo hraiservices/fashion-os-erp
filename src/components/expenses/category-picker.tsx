@@ -4,27 +4,27 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { useAppSetting } from "@/hooks/use-app-setting";
-import { EXPENSE_CATEGORIES } from "@/lib/types";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { normalizeExpenseCategories, type ExpenseCategoryItem } from "@/lib/types";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 const ADD_NEW = "__add_new__";
 
-/** Category dropdown that lets a user add a brand-new expense category inline, live. */
+/** Category dropdown with subcategory grouping and inline add-new for top-level categories. */
 export function CategoryPicker({ value, onChange }: { value: string; onChange: (category: string) => void }) {
-  const { data: categories, isLoading, save } = useAppSetting<string[]>("expenseCategories", EXPENSE_CATEGORIES as unknown as string[]);
+  const { data: raw, isLoading, save } = useAppSetting<ExpenseCategoryItem[]>("expenseCategories", []);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
 
-  const current = categories || EXPENSE_CATEGORIES;
+  const current: ExpenseCategoryItem[] = normalizeExpenseCategories(raw);
 
   async function handleAdd() {
     const trimmed = newName.trim();
     if (!trimmed) return;
     try {
-      if (!current.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
-        await save.mutateAsync([...current, trimmed]);
+      if (!current.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
+        await save.mutateAsync([...current, { name: trimmed, subcategories: [] }] as unknown as ExpenseCategoryItem[]);
       }
       onChange(trimmed);
       setNewName("");
@@ -38,13 +38,19 @@ export function CategoryPicker({ value, onChange }: { value: string; onChange: (
   if (adding) {
     return (
       <div className="flex gap-1.5">
-        <Input autoFocus placeholder="New category name" className="h-10" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAdd()} />
-        <Button type="button" size="sm" onClick={handleAdd} disabled={save.isPending}>
-          Add
-        </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={() => setAdding(false)}>
-          Cancel
-        </Button>
+        <Input
+          autoFocus
+          placeholder="New category name"
+          className="h-10"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleAdd();
+            if (e.key === "Escape") { setAdding(false); setNewName(""); }
+          }}
+        />
+        <Button type="button" size="sm" onClick={handleAdd} disabled={save.isPending}>Add</Button>
+        <Button type="button" size="sm" variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>
       </div>
     );
   }
@@ -62,11 +68,28 @@ export function CategoryPicker({ value, onChange }: { value: string; onChange: (
         <SelectValue placeholder="Select category" />
       </SelectTrigger>
       <SelectContent>
-        {current.map((c) => (
-          <SelectItem key={c} value={c}>
-            {c}
-          </SelectItem>
-        ))}
+        {current.map((cat) =>
+          cat.subcategories.length > 0 ? (
+            /* Category with subcategories — show as a group; parent is also selectable */
+            <SelectGroup key={cat.name}>
+              <SelectLabel className="py-1.5 text-xs font-semibold">{cat.name}</SelectLabel>
+              {/* Parent itself as first option inside the group */}
+              <SelectItem value={cat.name} className="pl-6 text-xs">
+                {cat.name} (general)
+              </SelectItem>
+              {cat.subcategories.map((sub) => (
+                <SelectItem key={sub} value={`${cat.name} > ${sub}`} className="pl-6 text-xs">
+                  {sub}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          ) : (
+            /* Simple category — single item, no group */
+            <SelectItem key={cat.name} value={cat.name}>
+              {cat.name}
+            </SelectItem>
+          )
+        )}
         <SelectItem value={ADD_NEW}>
           <Plus className="size-3.5" /> Add new category…
         </SelectItem>

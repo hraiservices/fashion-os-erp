@@ -43,6 +43,21 @@ export const EXPENSE_CATEGORIES = [
   "Maintenance",
   "Miscellaneous",
 ] as const;
+
+export interface ExpenseCategoryItem {
+  name: string;
+  subcategories: string[];
+}
+
+/** Converts the stored setting (may be old flat string[] or new ExpenseCategoryItem[]) into the typed shape. */
+export function normalizeExpenseCategories(raw: unknown): ExpenseCategoryItem[] {
+  if (!raw || !Array.isArray(raw) || raw.length === 0)
+    return (EXPENSE_CATEGORIES as unknown as string[]).map((name) => ({ name, subcategories: [] }));
+  if (typeof raw[0] === "string")
+    return (raw as string[]).map((name) => ({ name, subcategories: [] }));
+  return raw as ExpenseCategoryItem[];
+}
+
 export type CustomerRow = Database["public"]["Tables"]["customers"]["Row"];
 
 export interface Garment {

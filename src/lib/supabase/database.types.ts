@@ -746,6 +746,7 @@ export interface Database {
           location_id: string | null;
           failed_pin_attempts: number;
           pin_locked_until: string | null;
+          manager_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -834,6 +835,104 @@ export interface Database {
           employee_id: string;
         };
         Update: Partial<Database["public"]["Tables"]["payslips"]["Row"]>;
+        Relationships: [];
+      };
+      leave_types: {
+        Row: {
+          id: string;
+          name: string;
+          annual_days: number;
+          paid: boolean;
+          carry_forward: boolean;
+          max_carry_forward_days: number | null;
+          active: boolean;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["leave_types"]["Row"]> & {
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["leave_types"]["Row"]>;
+        Relationships: [];
+      };
+      holidays: {
+        Row: {
+          id: string;
+          name: string;
+          date: string;
+          active: boolean;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["holidays"]["Row"]> & {
+          name: string;
+          date: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["holidays"]["Row"]>;
+        Relationships: [];
+      };
+      leave_balances: {
+        Row: {
+          id: string;
+          employee_id: string;
+          leave_type_id: string;
+          year: number;
+          allocated_days: number;
+          carried_forward_days: number;
+        };
+        Insert: Partial<Database["public"]["Tables"]["leave_balances"]["Row"]> & {
+          employee_id: string;
+          leave_type_id: string;
+          year: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["leave_balances"]["Row"]>;
+        Relationships: [];
+      };
+      leave_balance_adjustments: {
+        Row: {
+          id: string;
+          employee_id: string;
+          leave_type_id: string;
+          year: number;
+          days: number;
+          reason: string;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["leave_balance_adjustments"]["Row"]> & {
+          employee_id: string;
+          leave_type_id: string;
+          year: number;
+          days: number;
+          reason: string;
+          created_by: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["leave_balance_adjustments"]["Row"]>;
+        Relationships: [];
+      };
+      leave_requests: {
+        Row: {
+          id: string;
+          employee_id: string;
+          leave_type_id: string;
+          from_date: string;
+          to_date: string;
+          half_day: boolean;
+          days: number;
+          reason: string;
+          status: string;
+          requested_by: string;
+          requested_at: string;
+          decided_by: string | null;
+          decided_at: string | null;
+          rejection_reason: string | null;
+        };
+        Insert: Partial<Database["public"]["Tables"]["leave_requests"]["Row"]> & {
+          employee_id: string;
+          leave_type_id: string;
+          from_date: string;
+          to_date: string;
+          days: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["leave_requests"]["Row"]>;
         Relationships: [];
       };
       employee_attendance: {
@@ -1026,6 +1125,10 @@ export interface Database {
       delete_customer_cascade: {
         Args: { p_mobile: string };
         Returns: number;
+      };
+      approve_leave_request: {
+        Args: { p_leave_request_id: string; p_decided_by: string };
+        Returns: Database["public"]["Tables"]["leave_requests"]["Row"][];
       };
     };
     Enums: Record<string, never>;

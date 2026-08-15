@@ -169,6 +169,7 @@ export const EMPLOYEES_GROUP: NavGroup = {
   children: [
     { href: "/employees", label: "All Employees", newHref: "/employees/new" },
     { href: "/employees/attendance", label: "Attendance" },
+    { href: "/employees/leave", label: "Leave" },
     { href: "/employees/payroll", label: "Payroll" },
   ],
 };
@@ -222,6 +223,7 @@ export const SETTINGS_GROUP: NavGroup = {
     { href: "/settings/font", label: "Appearance" },
     { href: "/settings/navigation", label: "Sidebar Navigation" },
     { href: "/settings/attendance-payroll", label: "Attendance & Payroll" },
+    { href: "/settings/leave-policy", label: "Leave Policy" },
     { href: "/settings/document-numbering", label: "Document Numbering" },
     { href: "/settings/module-licensing", label: "Module Licensing" },
   ],
@@ -231,7 +233,7 @@ export const SETTINGS_GROUP: NavGroup = {
 export function settingsLeafVisible(href: string, isAdmin: boolean, canManageShop: boolean, isSuperAdmin: boolean): boolean {
   if (href === "/settings/module-licensing") return isSuperAdmin;
   if (["/settings/shop", "/settings/tailors", "/settings/rates", "/settings/measurements"].includes(href)) return canManageShop;
-  if (["/settings/loyalty", "/settings/whatsapp-sales", "/settings/invoice-terms", "/settings/invoice-template", "/settings/price-lists", "/settings/bot", "/settings/copilot", "/settings/users", "/settings/font", "/settings/navigation", "/settings/attendance-payroll", "/settings/document-numbering"].includes(href)) return isAdmin;
+  if (["/settings/loyalty", "/settings/whatsapp-sales", "/settings/invoice-terms", "/settings/invoice-template", "/settings/price-lists", "/settings/bot", "/settings/copilot", "/settings/users", "/settings/font", "/settings/navigation", "/settings/attendance-payroll", "/settings/leave-policy", "/settings/document-numbering"].includes(href)) return isAdmin;
   return true; // /settings/account — everyone
 }
 

@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +36,9 @@ interface LocationDraft {
 }
 
 const BLANK_LOCATION: LocationDraft = { name: "", address: "", latitude: "", longitude: "", geofenceRadiusM: "200" };
+
+const NO_WEEKLY_OFF = "none";
+const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 function LocationForm({ draft, onChange, onCancel, onSave, saving }: { draft: LocationDraft; onChange: (d: LocationDraft) => void; onCancel: () => void; onSave: () => void; saving: boolean }) {
   const [locating, setLocating] = useState(false);
@@ -222,6 +226,24 @@ export function AttendancePayrollSection() {
                   <Label className="text-xs font-medium">Overtime rate (₹/hour)</Label>
                   <p className="text-[11px] text-muted-foreground">Flat rate for every hour worked beyond the standard shift, same for all employees.</p>
                   <NumberInput min={0} step={0.5} className="h-10" value={draftSettings.otRatePerHour} onChange={(v) => setDraftSettings({ ...draftSettings, otRatePerHour: v })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Weekly off day</Label>
+                  <p className="text-[11px] text-muted-foreground">Excluded automatically when counting leave-request days.</p>
+                  <Select
+                    value={draftSettings.weeklyOffDay == null ? NO_WEEKLY_OFF : String(draftSettings.weeklyOffDay)}
+                    onValueChange={(v) => v && setDraftSettings({ ...draftSettings, weeklyOffDay: v === NO_WEEKLY_OFF ? null : parseInt(v, 10) })}
+                  >
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_WEEKLY_OFF}>No fixed weekly off</SelectItem>
+                      {DAY_LABELS.map((label, i) => (
+                        <SelectItem key={i} value={String(i)}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <Button size="sm" onClick={handleSaveSettings} disabled={saveSettings.isPending}>

@@ -5,7 +5,13 @@ import { isRestrictedRoute, isRestrictedRole, RESTRICTED_FALLBACK_ROUTE } from "
 import { REPORTS_GROUP, resolveReportSection, SETTINGS_GROUP } from "@/components/app-shell/nav-config";
 import { DEFAULT_ENTITLEMENTS, ROUTE_MODULE_PREFIXES, isModuleEnabled, isReportEnabled, isSettingEnabled, type ModuleEntitlements } from "@/lib/entitlements";
 
-const PUBLIC_PATHS = ["/login", "/invoice/view", "/api/public", "/api/recurring-invoices/generate"];
+// /checkin is the self-service PIN portal (src/app/checkin/page.tsx) — it has its own
+// attendance-session cookie (lib/attendance-auth.ts), entirely separate from Supabase Auth,
+// specifically for shop-floor staff who don't have an email/password account. Without this
+// entry, every unauthenticated visit to /checkin was server-redirected to /login before the
+// page could even render its own PIN login form — silently making self-service check-in (and
+// the leave-management self-service tab) completely unreachable.
+const PUBLIC_PATHS = ["/login", "/checkin", "/invoice/view", "/api/public", "/api/recurring-invoices/generate"];
 
 function isSuperAdminEmail(email: string | undefined): boolean {
   const ownerEmail = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL;

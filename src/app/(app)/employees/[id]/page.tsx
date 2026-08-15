@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EmployeeLeaveSection } from "@/components/employees/employee-leave-section";
 
 const ATTENDANCE_LABEL: Record<string, string> = {
   present: "Present",
@@ -177,6 +178,8 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
           )}
         </section>
       )}
+
+      <EmployeeLeaveSection employeeId={id} />
 
       <section className="rounded-xl border bg-card">
         <div className="border-b px-4 py-3">

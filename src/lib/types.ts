@@ -827,6 +827,9 @@ export interface Employee {
    *  sent to the client — this is derived server-side (pin_hash != null) so the UI can show
    *  "PIN set" without ever seeing the hash. */
   hasPin: boolean;
+  /** Reporting manager (another employee's id) — org-structure data, not yet used to scope
+   *  approval visibility (see leave management plan notes). */
+  managerId: string | null;
   createdAt: string;
 }
 
@@ -848,6 +851,7 @@ export function mapEmployeeRow(r: EmployeeRow, hasPin = false): Employee {
     salaryRate: r.salary_rate || 0,
     locationId: r.location_id ?? null,
     hasPin,
+    managerId: r.manager_id ?? null,
     createdAt: r.created_at,
   };
 }
@@ -899,6 +903,124 @@ export function mapEmployeeAdvanceRow(r: EmployeeAdvanceRow): EmployeeAdvance {
     note: r.note || "",
     payslipId: r.payslip_id,
     createdAt: r.created_at,
+  };
+}
+
+export type LeaveTypeRow = Database["public"]["Tables"]["leave_types"]["Row"];
+
+export interface LeaveType {
+  id: string;
+  name: string;
+  annualDays: number;
+  paid: boolean;
+  carryForward: boolean;
+  maxCarryForwardDays: number | null;
+  active: boolean;
+  createdAt: string;
+}
+
+export function mapLeaveTypeRow(r: LeaveTypeRow): LeaveType {
+  return {
+    id: r.id,
+    name: r.name || "",
+    annualDays: r.annual_days || 0,
+    paid: r.paid,
+    carryForward: r.carry_forward,
+    maxCarryForwardDays: r.max_carry_forward_days,
+    active: r.active,
+    createdAt: r.created_at,
+  };
+}
+
+export type HolidayRow = Database["public"]["Tables"]["holidays"]["Row"];
+
+export interface Holiday {
+  id: string;
+  name: string;
+  date: string;
+  active: boolean;
+  createdAt: string;
+}
+
+export function mapHolidayRow(r: HolidayRow): Holiday {
+  return { id: r.id, name: r.name || "", date: r.date, active: r.active, createdAt: r.created_at };
+}
+
+export type LeaveBalanceAdjustmentRow = Database["public"]["Tables"]["leave_balance_adjustments"]["Row"];
+
+export interface LeaveBalanceAdjustment {
+  id: string;
+  employeeId: string;
+  leaveTypeId: string;
+  year: number;
+  days: number;
+  reason: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export function mapLeaveBalanceAdjustmentRow(r: LeaveBalanceAdjustmentRow): LeaveBalanceAdjustment {
+  return {
+    id: r.id,
+    employeeId: r.employee_id,
+    leaveTypeId: r.leave_type_id,
+    year: r.year,
+    days: r.days || 0,
+    reason: r.reason || "",
+    createdBy: r.created_by || "",
+    createdAt: r.created_at,
+  };
+}
+
+/** Computed balance for one employee/leave-type/year — "used" is always derived from approved
+ *  leave_requests, never a stored counter (same principle as order.balance). */
+export interface LeaveBalanceSummary {
+  leaveTypeId: string;
+  leaveTypeName: string;
+  paid: boolean;
+  allocated: number;
+  carriedForward: number;
+  adjusted: number;
+  used: number;
+  remaining: number;
+}
+
+export type LeaveRequestRow = Database["public"]["Tables"]["leave_requests"]["Row"];
+export type LeaveRequestStatus = "pending" | "approved" | "rejected" | "cancelled";
+
+export interface LeaveRequest {
+  id: string;
+  employeeId: string;
+  leaveTypeId: string;
+  fromDate: string;
+  toDate: string;
+  halfDay: boolean;
+  days: number;
+  reason: string;
+  status: LeaveRequestStatus;
+  requestedBy: string;
+  requestedAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  rejectionReason: string | null;
+}
+
+export function mapLeaveRequestRow(r: LeaveRequestRow): LeaveRequest {
+  return {
+    id: r.id,
+    employeeId: r.employee_id,
+    leaveTypeId: r.leave_type_id,
+    fromDate: r.from_date,
+    toDate: r.to_date,
+    halfDay: r.half_day,
+    days: r.days || 0,
+    reason: r.reason || "",
+    status: (r.status as LeaveRequestStatus) || "pending",
+    requestedBy: r.requested_by || "",
+    requestedAt: r.requested_at || "",
+    decidedBy: r.decided_by,
+    decidedAt: r.decided_at,
+    rejectionReason: r.rejection_reason,
   };
 }
 

@@ -81,14 +81,21 @@ export function MediaCapture({
     if (!files.length) return;
     setBusy(true);
     try {
+      const toAdd: string[] = [];
       for (const file of files) {
         if (!file.type.startsWith("image/")) {
           toast.error(`${file.name} isn't an image.`);
           continue;
         }
         const dataUrl = await compressImage(file);
-        addWithLimit(dataUrl, MAX_IMAGE_BYTES, images, onImagesChange, "photo");
+        const size = approxBytesOfDataUrl(dataUrl);
+        if (size > MAX_IMAGE_BYTES) {
+          toast.error(`${file.name} is ${formatBytes(size)} — too large (limit ${formatBytes(MAX_IMAGE_BYTES)}).`);
+          continue;
+        }
+        toAdd.push(dataUrl);
       }
+      if (toAdd.length) onImagesChange([...images, ...toAdd]);
     } catch {
       toast.error("Could not read that image.");
     } finally {

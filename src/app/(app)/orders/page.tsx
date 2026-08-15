@@ -127,7 +127,7 @@ function OrdersContent() {
     }
 
     if (filters.datePreset === "month") {
-      const ym = new Date().toISOString().slice(0, 7);
+      const ym = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }).slice(0, 7);
       list = list.filter((o) => o.inDate?.startsWith(ym));
     } else if (filters.datePreset === "custom" && filters.customFrom && filters.customTo) {
       list = list.filter((o) => o.inDate >= filters.customFrom && o.inDate <= filters.customTo);

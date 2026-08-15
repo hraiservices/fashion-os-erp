@@ -121,7 +121,7 @@ export function daysLeft(deliveryDate: string): number {
   today.setHours(0, 0, 0, 0);
   const target = new Date(deliveryDate);
   target.setHours(0, 0, 0, 0);
-  return Math.round((target.getTime() - today.getTime()) / 86400000);
+  return Math.floor((target.getTime() - today.getTime()) / 86400000);
 }
 
 export interface DueBadge {
@@ -231,11 +231,11 @@ function fmtDateIN(iso: string): string {
 
 export function buildWhatsAppMessage(order: WhatsAppOrder, type: WhatsAppMessageType, shop?: Shop): string {
   const ph = shop?.phone || "";
-  const sn = shop?.name || "SWAROOP";
+  const sn = shop?.name || "Fashion Boutique";
   const gs = (order.garments || []).map((g) => g.type).join(", ");
   const messages: Record<WhatsAppMessageType, string> = {
     received: `Dear *${order.name}*🙏\n\nYour Stitching Order *${order.id}* Received at *${sn}* Boutique.\n🗓️ Delivery Date is: *${fmtDateIN(order.deliveryDate)}*\n We will notify you when Ready! Thanks.🌸\n📞 ${ph}\n🛍️ Shop Online: https://swarooponline.com`,
-    ready: `Dear *${order.name}*✅\n\nYour Stitching Order *${order.id}* is *READY!* 🎉\n${gs}. Please Collect soon !.\n💰 Balance Payment is : *₹${order.balance || 0}*\n📞 *${ph}*\n_${sn}_ 🌸\n🛍️ Shop Online: https://swarooponline.com`,
+    ready: `Dear *${order.name}*✅\n\nYour Stitching Order *${order.id}* is *READY!* 🎉\n${gs}. Please Collect soon !.${order.balance ? `\n💰 Balance Payment is : *₹${order.balance}*` : ""}\n📞 *${ph}*\n_${sn}_ 🌸`,
     overdue: `Dear *${order.name}* 🙏\n\nYour Stitching Order *${order.id}* was due on *${fmtDateIN(order.deliveryDate)}* and is still in progress.\nWe sincerely apologize for the delay. We will notify you as soon as it is Ready! 🙏\n📞 ${ph}\n_${sn}_\n🛍️ Shop Online: https://swarooponline.com`,
     delivered: `Dear *${order.name}*💐\n Thank you for collecting your garments from *${sn}!* 😍\nPlease Review on Google ! Click Below⭐\n🌐 https://g.page/r/CUqo_lixUDSBEAE/review\n🛍️ Shop Online: https://swarooponline.com`,
     payment: `Dear *${order.name}*🙏\nPayment of *₹${order.balance || 0}* received. Thank you! 💚\n_${sn}_ ✂️\n🛍️ Shop Online: https://swarooponline.com`,

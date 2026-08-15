@@ -62,7 +62,8 @@ export async function POST(request: Request) {
   const numbering: DocumentNumberingSettings = { ...DEFAULT_DOCUMENT_NUMBERING, ...((numberingSetting?.value as Partial<DocumentNumberingSettings>) || {}) };
   const orderNumberFmt = numbering.stitchingOrder;
   if (orderNumberFmt.enabled) {
-    const year = new Date(fd.inDate).getFullYear();
+    const parsedDate = fd.inDate ? new Date(fd.inDate) : new Date();
+    const year = isNaN(parsedDate.getTime()) ? new Date().getFullYear() : parsedDate.getFullYear();
     const { data: nextNumber, error: seqError } = await supabase.rpc("next_document_number", {
       p_doc_type: "stitching_order",
       p_period_key: periodKeyFor(orderNumberFmt, year),

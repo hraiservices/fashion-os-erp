@@ -34,11 +34,21 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
   const ptDiscount = usePoints && redemption.canRedeem ? redemption.maxPtDiscount : 0;
   const effectiveBalance = Math.max(0, order.balance - ptDiscount);
 
-  // L7: refresh amount when order.balance changes (another device recorded a partial payment
-  // while this modal was open) or when the loyalty-points toggle changes effective balance.
+  // Sync amount to effectiveBalance only on initial open or when order.balance changes from
+  // an external source (another device). The loyalty-points toggle also changes effectiveBalance,
+  // but resetting the user's typed amount there is surprising — so track whether the user has
+  // manually edited it and preserve that edit across toggle changes.
+  const [amountEdited, setAmountEdited] = useState(false);
   useEffect(() => {
+    if (!amountEdited) setAmount(effectiveBalance);
+  }, [effectiveBalance, amountEdited]);
+  useEffect(() => {
+    // Reset the "edited" flag whenever the modal is reopened (order.balance changes).
+    setAmountEdited(false);
     setAmount(effectiveBalance);
-  }, [effectiveBalance]);
+    // Intentionally only runs on order.balance changes, not on effectiveBalance (which includes ptDiscount).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order.balance]);
 
   async function save() {
     try {
@@ -96,7 +106,7 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
 
         <div className="space-y-2">
           <Label>Amount received</Label>
-          <NumberInput min={0} max={effectiveBalance} value={amount} onChange={(v) => setAmount(Math.min(v, effectiveBalance))} />
+          <NumberInput min={0} max={effectiveBalance} value={amount} onChange={(v) => { setAmountEdited(true); setAmount(Math.min(v, effectiveBalance)); }} />
         </div>
         <div className="space-y-2">
           <Label>Payment method</Label>

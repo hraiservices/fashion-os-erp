@@ -180,8 +180,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={doDelete}>Delete</AlertDialogAction>
+                <AlertDialogCancel disabled={deleteOrder.isPending}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={doDelete} disabled={deleteOrder.isPending}>
+                  {deleteOrder.isPending ? "Deleting…" : "Delete"}
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

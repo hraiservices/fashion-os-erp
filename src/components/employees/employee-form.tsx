@@ -83,9 +83,11 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
     register,
     handleSubmit,
     control,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema) as never,
+    mode: "onChange",
     defaultValues: existing
       ? {
           name: existing.name,
@@ -103,6 +105,13 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
         }
       : { name: "", mobile: "", role: "", employmentType: "full_time", commissionType: "none", commissionRate: 0, active: true, joinedDate: "", notes: "", salaryType: "monthly", salaryRate: 0, locationId: NO_LOCATION },
   });
+
+  // The Tailor dropdown on Orders is filtered to role.toLowerCase() === "tailor" exactly
+  // (useActiveTailorNames) — role is free text so any other wording (Sales Person, Cutter,
+  // Manager, ...) never appears there. This mirrors that check so the form doesn't imply
+  // every active employee shows up as a tailor.
+  const roleValue = watch("role");
+  const willShowAsTailor = (roleValue || "").trim().toLowerCase() === "tailor";
 
   async function onSubmit(values: FormValues) {
     try {
@@ -164,8 +173,15 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
               <FieldGroup label="Mobile">
                 <Input type="tel" placeholder="10-digit" className="h-10" {...register("mobile")} />
               </FieldGroup>
-              <FieldGroup label="Role">
-                <Input placeholder="e.g. Tailor, Salesperson, Cutter" className="h-10" {...register("role")} />
+              <FieldGroup
+                label="Role"
+                hint={
+                  willShowAsTailor
+                    ? "✓ Appears in the Tailor dropdown on Orders (role is exactly \"Tailor\")."
+                    : "Only employees whose role is exactly \"Tailor\" appear in the Tailor dropdown on Orders. Other roles (Sales Person, Cutter, Manager, Accountant, …) do not."
+                }
+              >
+                <Input placeholder="e.g. Tailor, Sales Person, Cutter, Manager" className="h-10" {...register("role")} />
               </FieldGroup>
               <FieldGroup label="Employment type">
                 <Controller
@@ -192,7 +208,7 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
             <div className="flex items-center gap-2 pt-1">
               <input type="checkbox" id="active" className="size-4 rounded" {...register("active")} />
               <Label htmlFor="active" className="text-xs font-medium text-foreground/80 cursor-pointer">
-                Active — show in tailor dropdown and daily attendance register
+                Active — included in the daily attendance register{willShowAsTailor ? " and the Tailor dropdown" : ""}
               </Label>
             </div>
           </div>
@@ -292,6 +308,11 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
                 />
               </FieldGroup>
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              Overtime is a shop-wide flat ₹/hour rate, not set per employee — configure it under{" "}
+              <Link href="/settings/attendance-payroll" className="underline hover:text-foreground">Settings → Attendance &amp; Payroll</Link>. It applies automatically to hours worked
+              beyond the standard shift, based on this employee&apos;s self check-in/out times.
+            </p>
           </div>
         )}
 

@@ -1,5 +1,10 @@
 # Module Licensing — Runbook
 
+> **Onboarding a new customer?** [`customer-onboarding.md`](./customer-onboarding.md) automates
+> steps 1-3 below (Supabase project, migrations, entitlements, Vercel project, env vars) via
+> `npm run onboard-customer`. This doc is still the reference for what the script does under the
+> hood, and for doing any of it by hand if you ever need to.
+
 Fashion OS ERP is sold as separately-priced packages. Each customer runs their own isolated
 deployment (own Supabase project + own Vercel deployment — not a shared database), and only the
 platform owner (you) decides which modules, reports, and dashboard widgets exist in that

@@ -1,0 +1,61 @@
+/**
+ * Configurable sequential document numbering (Settings > Document Numbering). Off by default —
+ * existing random-ish generators (genInvoiceNumber, newOrderId) keep working unchanged unless a
+ * shop opts in per document type. When enabled, the actual next number comes from the
+ * next_document_number() Postgres function (add_document_numbering.sql) — never generated
+ * client-side, since a real sequence needs an atomic, race-safe increment.
+ */
+
+export type DocType = "invoice" | "stitching_order";
+
+export interface DocNumberFormat {
+  enabled: boolean;
+  /** e.g. "INV" */
+  prefix: string;
+  includeYear: boolean;
+  /** e.g. "/" or "-" */
+  separator: string;
+  /** Digits the running number is zero-padded to, e.g. 4 -> 0001 */
+  padding: number;
+  /** true = counter resets to startNumber every calendar year; false = one continuous sequence forever */
+  resetYearly: boolean;
+  /** Where a brand-new sequence begins — lets a shop continue from their old system's numbering. */
+  startNumber: number;
+}
+
+export interface DocumentNumberingSettings {
+  invoice: DocNumberFormat;
+  stitchingOrder: DocNumberFormat;
+}
+
+const BLANK_FORMAT = (prefix: string): DocNumberFormat => ({
+  enabled: false,
+  prefix,
+  includeYear: true,
+  separator: "/",
+  padding: 4,
+  resetYearly: true,
+  startNumber: 1,
+});
+
+export const DEFAULT_DOCUMENT_NUMBERING: DocumentNumberingSettings = {
+  invoice: BLANK_FORMAT("INV"),
+  stitchingOrder: BLANK_FORMAT("SOR"),
+};
+
+/** The period_key passed to next_document_number() — the year if resetting yearly, else a
+ *  constant so every call shares one continuous sequence. */
+export function periodKeyFor(fmt: DocNumberFormat, year: number): string {
+  return fmt.resetYearly ? String(year) : "ALL";
+}
+
+export function formatDocNumber(fmt: DocNumberFormat, n: number, year: number): string {
+  const num = String(n).padStart(fmt.padding, "0");
+  const parts = [fmt.prefix, ...(fmt.includeYear ? [String(year)] : []), num];
+  return parts.join(fmt.separator);
+}
+
+/** Live one-line preview shown in the settings UI, e.g. "INV/2026/0001". */
+export function previewDocNumber(fmt: DocNumberFormat): string {
+  return formatDocNumber(fmt, fmt.startNumber, new Date().getFullYear());
+}

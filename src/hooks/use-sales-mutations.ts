@@ -141,7 +141,7 @@ export function useSaveInvoice() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ userEmail: _ignored, ...input }: SaveInvoiceInput) => {
-      const res = await apiPost<{ ok: true; data: { id: string } }>("/api/sales/invoices", input);
+      const res = await apiPost<{ ok: true; data: { id: string; invoice_number: string } }>("/api/sales/invoices", input);
       return res.data;
     },
     onSuccess: () => invalidateAll(qc),

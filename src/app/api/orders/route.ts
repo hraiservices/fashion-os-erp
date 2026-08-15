@@ -8,6 +8,7 @@ import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
 import type { ModuleEntitlements } from "@/lib/entitlements";
 import type { Json } from "@/lib/supabase/database.types";
+import { DEFAULT_DOCUMENT_NUMBERING, formatDocNumber, periodKeyFor, type DocumentNumberingSettings } from "@/lib/document-numbering";
 
 const garmentSchema = z.object({
   type: z.string().min(1),
@@ -53,7 +54,23 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
 
-  const id = newOrderId();
+  // Sequential numbering (Settings > Document Numbering) — falls back to the random SOR-xxxxx
+  // id when disabled. Either way this becomes the order's real primary key, so it's resolved
+  // before anything else touches the row.
+  let id = newOrderId();
+  const { data: numberingSetting } = await supabase.from("app_settings").select("value").eq("key", "documentNumbering").maybeSingle();
+  const numbering: DocumentNumberingSettings = { ...DEFAULT_DOCUMENT_NUMBERING, ...((numberingSetting?.value as Partial<DocumentNumberingSettings>) || {}) };
+  const orderNumberFmt = numbering.stitchingOrder;
+  if (orderNumberFmt.enabled) {
+    const year = new Date(fd.inDate).getFullYear();
+    const { data: nextNumber, error: seqError } = await supabase.rpc("next_document_number", {
+      p_doc_type: "stitching_order",
+      p_period_key: periodKeyFor(orderNumberFmt, year),
+      p_start: orderNumberFmt.startNumber,
+    });
+    if (seqError) return NextResponse.json({ error: seqError.message }, { status: 500 });
+    id = formatDocNumber(orderNumberFmt, nextNumber, year);
+  }
   const userName = user.email.split("@")[0] || "user";
   const loyaltyCfg = await getLoyaltyConfig(supabase);
 

@@ -25,6 +25,7 @@ import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/custom
 import { DatePicker } from "@/components/ui/date-picker";
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
 import { usePriceListItemsMap } from "@/hooks/use-price-lists";
+import { DEFAULT_DOCUMENT_NUMBERING, type DocumentNumberingSettings } from "@/lib/document-numbering";
 import type { Customer, SalesInvoice, InvoiceDocStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -71,10 +72,16 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, existing }: { pref
   const { data: prefillQuote } = useSalesQuotation(prefillQuoteId || "");
   const { data: prefillClone } = useSalesInvoice(prefillCloneId || "");
   const { data: defaultTerms } = useAppSetting<string>("invoiceTerms", DEFAULT_INVOICE_TERMS);
+  const { data: numbering } = useAppSetting<DocumentNumberingSettings>("documentNumbering", DEFAULT_DOCUMENT_NUMBERING);
   const saveInvoice = useSaveInvoice();
   const isEdit = !!existing;
 
+  // Sequential numbering (Settings > Document Numbering) is assigned server-side, atomically, at
+  // save time -- this client-generated value is only ever a placeholder for the (required,
+  // non-empty) form payload when it's disabled, or a fallback if settings haven't loaded yet.
+  // It's deliberately never shown to the user as if it were real once custom numbering is on.
   const [invoiceNumber] = useState(existing?.invoiceNumber || genInvoiceNumber());
+  const customNumberingOn = !isEdit && numbering?.invoice.enabled;
   const [customer, setCustomer] = useState<Customer | null>(existing ? placeholderCustomer(existing.customerName, existing.customerMobile) : null);
   const priceOverrides = usePriceListItemsMap(customer?.priceListId);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -187,8 +194,9 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, existing }: { pref
         notes,
         userEmail: user?.email,
       });
+      const finalNumber = res.invoice_number || invoiceNumber;
       toast.success(
-        isEdit ? `Invoice ${invoiceNumber} updated` : `Invoice ${invoiceNumber} ${docStatus === "draft" ? "saved as draft" : "created"}`
+        isEdit ? `Invoice ${finalNumber} updated` : `Invoice ${finalNumber} ${docStatus === "draft" ? "saved as draft" : "created"}`
       );
       router.push(`/sales/invoices/${res.id}`);
     } catch (e) {
@@ -207,7 +215,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, existing }: { pref
           </Link>
           <div className="flex-1">
             <h1 className="text-base font-semibold">{isEdit ? "Edit Invoice" : "New Invoice"}</h1>
-            <p className="text-[11px] text-muted-foreground font-mono">{invoiceNumber}</p>
+            <p className="text-[11px] text-muted-foreground font-mono">{customNumberingOn ? "Assigned automatically on save" : invoiceNumber}</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveInvoice.isPending}>

@@ -325,6 +325,19 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["products"]["Row"]>;
         Relationships: [];
       };
+      document_number_sequences: {
+        Row: {
+          doc_type: string;
+          period_key: string;
+          last_number: number;
+        };
+        Insert: Partial<Database["public"]["Tables"]["document_number_sequences"]["Row"]> & {
+          doc_type: string;
+          period_key: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["document_number_sequences"]["Row"]>;
+        Relationships: [];
+      };
       customer_recommendations: {
         Row: {
           id: string;
@@ -925,6 +938,10 @@ export interface Database {
       };
     };
     Functions: {
+      next_document_number: {
+        Args: { p_doc_type: string; p_period_key: string; p_start?: number };
+        Returns: number;
+      };
       award_loyalty_points: {
         Args: {
           p_mobile: string;

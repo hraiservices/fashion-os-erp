@@ -5,6 +5,7 @@ import { logAction } from "@/lib/logging";
 import { computeInvoiceTotals, type DiscountType } from "@/lib/invoice-totals";
 import { type GstType } from "@/lib/gst";
 import type { SalesLineItem } from "@/lib/sales";
+import { DEFAULT_DOCUMENT_NUMBERING, formatDocNumber, periodKeyFor, type DocumentNumberingSettings } from "@/lib/document-numbering";
 
 const lineItemSchema = z.object({
   productId: z.string().nullable().optional(),
@@ -69,6 +70,26 @@ export async function POST(request: Request) {
     }
   }
 
+  // Sequential numbering (Settings > Document Numbering) always overrides whatever the client
+  // sent for a brand-new invoice -- the client-side value is only ever a fallback placeholder
+  // for when this is disabled. Editing an existing invoice never renumbers it.
+  let invoiceNumber = fd.invoiceNumber;
+  if (!isEdit) {
+    const { data: numberingSetting } = await supabase.from("app_settings").select("value").eq("key", "documentNumbering").maybeSingle();
+    const numbering: DocumentNumberingSettings = { ...DEFAULT_DOCUMENT_NUMBERING, ...((numberingSetting?.value as Partial<DocumentNumberingSettings>) || {}) };
+    const fmt = numbering.invoice;
+    if (fmt.enabled) {
+      const year = new Date(fd.invoiceDate).getFullYear();
+      const { data: nextNumber, error: seqError } = await supabase.rpc("next_document_number", {
+        p_doc_type: "invoice",
+        p_period_key: periodKeyFor(fmt, year),
+        p_start: fmt.startNumber,
+      });
+      if (seqError) return NextResponse.json({ error: seqError.message }, { status: 500 });
+      invoiceNumber = formatDocNumber(fmt, nextNumber, year);
+    }
+  }
+
   const totals = computeInvoiceTotals(
     fd.items as SalesLineItem[],
     fd.shippingCharges,
@@ -82,7 +103,7 @@ export async function POST(request: Request) {
     .from("sales_invoices")
     .upsert({
       id: fd.id,
-      invoice_number: fd.invoiceNumber,
+      invoice_number: invoiceNumber,
       customer_mobile: fd.customerMobile,
       customer_name: fd.customerName,
       quote_id: fd.quoteId ?? null,
@@ -116,7 +137,7 @@ export async function POST(request: Request) {
       item_type: "product" as const,
       item_id: i.productId!,
       movement: -i.qty,
-      note: `Invoice ${fd.invoiceNumber}`,
+      note: `Invoice ${invoiceNumber}`,
       created_by: user.email,
     }));
 
@@ -127,6 +148,6 @@ export async function POST(request: Request) {
   });
   if (ledgerError) return NextResponse.json({ error: ledgerError.message }, { status: 500 });
 
-  await logAction(supabase, user.email, isEdit ? `Invoice updated: ${fd.invoiceNumber}` : `Invoice created: ${fd.invoiceNumber}`, null, `₹${totals.total}`);
+  await logAction(supabase, user.email, isEdit ? `Invoice updated: ${invoiceNumber}` : `Invoice created: ${invoiceNumber}`, null, `₹${totals.total}`);
   return NextResponse.json({ ok: true, data });
 }

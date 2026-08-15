@@ -1,0 +1,18 @@
+{
+  "platformOwnerEmail": "you@example.com",
+  "supabase": {
+    "accessToken": "sbp_your_personal_access_token",
+    "organizationId": "your-supabase-org-id",
+    "region": "ap-south-1",
+    "plan": "free"
+  },
+  "vercel": {
+    "accessToken": "your-vercel-personal-access-token",
+    "teamId": "",
+    "githubRepo": "your-github-username/fashion-os-erp",
+    "productionBranch": "main"
+  },
+  "appDefaults": {
+    "appName": "Fashion Flow"
+  }
+}

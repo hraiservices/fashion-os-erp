@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "usage-report": "node scripts/usage-report.mjs"
+    "usage-report": "node scripts/usage-report.mjs",
+    "onboard-customer": "node scripts/onboard-customer.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

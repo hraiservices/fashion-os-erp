@@ -27,6 +27,9 @@
 # per-customer service-role keys for scripts/usage-report.mjs — never commit real credentials
 /scripts/customers.local.json
 
+# platform-level Supabase/Vercel access tokens for scripts/onboard-customer.mjs — never commit
+/scripts/onboard.local.json
+
 # debug
 npm-debug.log*
 yarn-debug.log*

@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 
 /** Settings > Account — per-device push notification opt-in/out. State is per browser/device, not per account, so this only ever reflects "this device," matching how Web Push actually works. */
 export function PushNotificationsSection() {
-  const { state, busy, subscribe, unsubscribe } = usePushNotifications();
+  const { state, hydrated, busy, subscribe, unsubscribe } = usePushNotifications();
 
-  if (state === "unsupported") return null;
+  // Not yet hydrated (SSR → first client paint) or genuinely unsupported — hide rather than flash.
+  if (!hydrated || state === "unsupported") return null;
 
   async function handleEnable() {
     try {

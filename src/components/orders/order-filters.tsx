@@ -207,9 +207,9 @@ export function OrderFilters({
         </div>
         {value.datePreset === "custom" && (
           <div className="flex items-center gap-2">
-            <Input type="date" className="w-36" value={value.customFrom} onChange={(e) => set({ customFrom: e.target.value })} />
+            <Input type="date" className="h-10 w-36" value={value.customFrom} onChange={(e) => set({ customFrom: e.target.value })} />
             <span className="text-xs text-muted-foreground">to</span>
-            <Input type="date" className="w-36" value={value.customTo} onChange={(e) => set({ customTo: e.target.value })} />
+            <Input type="date" className="h-10 w-36" value={value.customTo} onChange={(e) => set({ customTo: e.target.value })} />
           </div>
         )}
 
@@ -255,9 +255,9 @@ export function OrderFilters({
               <DatePresetButtons value={value.datePreset} onChange={(v) => set({ datePreset: v })} />
               {value.datePreset === "custom" && (
                 <div className="mt-2 flex items-center gap-2">
-                  <Input type="date" value={value.customFrom} onChange={(e) => set({ customFrom: e.target.value })} />
+                  <Input type="date" className="h-10" value={value.customFrom} onChange={(e) => set({ customFrom: e.target.value })} />
                   <span className="text-xs text-muted-foreground">to</span>
-                  <Input type="date" value={value.customTo} onChange={(e) => set({ customTo: e.target.value })} />
+                  <Input type="date" className="h-10" value={value.customTo} onChange={(e) => set({ customTo: e.target.value })} />
                 </div>
               )}
             </div>

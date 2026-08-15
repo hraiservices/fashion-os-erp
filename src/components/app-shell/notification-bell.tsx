@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Bell, Trash2, X, CheckCircle2, AlertTriangle, RefreshCw, Sparkles } from "lucide-react";
 import { useOrders } from "@/hooks/use-orders";
 import { useNotifications, useDismissNotification, markNotificationsSeen, getLastSeenAt, getTimeAgo } from "@/hooks/use-notifications";
@@ -23,9 +24,10 @@ function stageIcon(toStage: string | null) {
 /** StageNotifPanel(), Stitching_Manager_Pro_v16.html ~line 14029. */
 export function NotificationBell() {
   const router = useRouter();
+  const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const { data: orders } = useOrders();
-  const { data: notifs, refetch } = useNotifications();
+  const { data: notifs } = useNotifications();
   const { data: user } = useCurrentUser();
   const dismissNotification = useDismissNotification();
   const isAdminOrManager = user?.role === "admin" || user?.role === "manager";
@@ -45,7 +47,10 @@ export function NotificationBell() {
     const lastSeen = getLastSeenAt();
     const visible = [...stageNotifs, ...briefingNotifs];
     const newNotifs = visible.filter((n) => new Date(n.created_at).getTime() > lastSeen).length;
-    return newNotifs + urgentOrders.length;
+    // Only count urgent orders created after the bell was last opened — orders that have been
+    // sitting in the list (and been seen) shouldn't re-trigger the badge on every render.
+    const newUrgent = urgentOrders.filter((o) => new Date(o.createdAt).getTime() > lastSeen).length;
+    return newNotifs + newUrgent;
   }, [stageNotifs, briefingNotifs, urgentOrders]);
 
   function handleOpenChange(next: boolean) {
@@ -61,8 +66,10 @@ export function NotificationBell() {
 
   async function clearAll() {
     const supabase = createClient();
-    await supabase.from("admin_notifications").delete().neq("id", 0);
-    refetch();
+    // Soft-delete (mark read) rather than hard DELETE — avoids RLS issues and is consistent
+    // with how individual dismiss works. Hard DELETE is blocked by default RLS policies.
+    await supabase.from("admin_notifications").update({ read: true }).eq("read", false);
+    qc.invalidateQueries({ queryKey: ["notifications"] });
   }
 
   const hasItems = urgentOrders.length > 0 || stageNotifs.length > 0 || briefingNotifs.length > 0;

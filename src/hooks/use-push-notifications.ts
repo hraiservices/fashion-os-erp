@@ -17,7 +17,9 @@ export type PushSupportState = "unsupported" | "denied" | "default" | "granted";
 /** Web Push opt-in for the current device — one row in push_subscriptions per device/user. See supabase/migrations/add_push_subscriptions.sql and src/lib/push.ts (server send side). */
 export function usePushNotifications() {
   const { data: user } = useCurrentUser();
-  const [state, setState] = useState<PushSupportState>("unsupported");
+  // null = not yet determined (SSR / hydration); avoids the flash where the component briefly
+  // returns null on first client render before useEffect fires.
+  const [state, setState] = useState<PushSupportState | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -70,5 +72,5 @@ export function usePushNotifications() {
     }
   }, []);
 
-  return { state, busy, subscribe, unsubscribe };
+  return { state: state ?? "unsupported" as PushSupportState, hydrated: state !== null, busy, subscribe, unsubscribe };
 }

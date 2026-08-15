@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { mapOrderRow } from "@/lib/types";
-import { fmtNow, loyaltyDiscountOf } from "@/lib/business-rules";
+import { fmtNow, loyaltyDiscountOf, customerIdFromMobile } from "@/lib/business-rules";
 import { logAction } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
+import type { Json } from "@/lib/supabase/database.types";
 
 const garmentSchema = z.object({
   type: z.string().min(1),
@@ -114,6 +115,36 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   await logAction(supabase, user.email, `✏️ Order edited: ${updatedRow.name}`, id);
+
+  // Sync measurements back to the customer's CRM profile, mirroring the create-order sync
+  // below (and the legacy app's _handleSave, which ran this same upsert for both new AND
+  // edited orders — line ~17070). Without this, editing an order's measurements silently
+  // never reaches the customer record, and CRM measurements go stale after the first order.
+  if (patch.measurements !== undefined) {
+    const { data: existingCustomer, error: lookupError } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("mobile", updatedRow.mobile)
+      .maybeSingle();
+    if (!lookupError) {
+      if (existingCustomer) {
+        const { error } = await supabase.from("customers").update({ measurements: patch.measurements as Json }).eq("id", existingCustomer.id);
+        if (error) await logAction(supabase, user.email, `⚠️ Customer measurements not synced for order ${id}`, id, error.message);
+      } else {
+        const { error } = await supabase.from("customers").insert({
+          id: customerIdFromMobile(updatedRow.mobile),
+          name: updatedRow.name,
+          mobile: updatedRow.mobile,
+          measurements: patch.measurements as Json,
+          loyalty_points: 0,
+          total_points_earned: 0,
+          loyalty_history: [],
+        });
+        if (error) await logAction(supabase, user.email, `⚠️ Customer record not synced for order ${id}`, id, error.message);
+      }
+    }
+  }
+
   return NextResponse.json({ order: mapOrderRow(updatedRow) });
 }
 
@@ -154,8 +185,17 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     if (ptDiscount > 0) {
       const loyaltyCfg = await getLoyaltyConfig(supabase);
       if (loyaltyCfg.enabled) {
-        const redeemPer100 = loyaltyCfg.redeemPer100pts || 10;
-        const ptsToRefund  = Math.round((ptDiscount / redeemPer100) * 100);
+        // Read the exact points spent from the customer's own ledger rather than
+        // recomputing from ptDiscount via the *current* redeemPer100pts config — if that
+        // rate changed since the order was placed, recomputing would over- or under-refund.
+        const { data: custRow } = await supabase
+          .from("customers")
+          .select("loyalty_history")
+          .eq("id", customerIdFromMobile(row.mobile))
+          .maybeSingle();
+        const history = (custRow?.loyalty_history as Array<{ type?: string; orderId?: string | null; pts?: number }> | null) || [];
+        const redeemEntry = history.find((e) => e?.type === "redeem" && e?.orderId === id);
+        const ptsToRefund = redeemEntry ? Math.abs(redeemEntry.pts || 0) : Math.round((ptDiscount / (loyaltyCfg.redeemPer100pts || 10)) * 100);
         if (ptsToRefund > 0) {
           await awardLoyaltyPoints(supabase, row.mobile, row.name, ptsToRefund, "manual", id, `Refund — order ${id} deleted`);
         }

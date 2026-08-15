@@ -88,6 +88,14 @@ export function ShopSection() {
           <Label>GSTIN (shown on invoices)</Label>
           <Input value={shop.gstin} onChange={(e) => setShop({ ...shop, gstin: e.target.value })} placeholder="e.g. 09ABCDE1234F1Z5" className="uppercase" />
         </div>
+        <div className="space-y-2">
+          <Label>Website URL (shown in WhatsApp messages, optional)</Label>
+          <Input value={shop.websiteUrl} onChange={(e) => setShop({ ...shop, websiteUrl: e.target.value })} placeholder="https://yourshop.com" />
+        </div>
+        <div className="space-y-2">
+          <Label>Google review link (shown after delivery, optional)</Label>
+          <Input value={shop.reviewUrl} onChange={(e) => setShop({ ...shop, reviewUrl: e.target.value })} placeholder="https://g.page/r/..." />
+        </div>
         <Button disabled={save.isPending} onClick={onSave}>
           Save changes
         </Button>

@@ -211,6 +211,8 @@ export type WhatsAppMessageType = "received" | "ready" | "overdue" | "delivered"
 export interface Shop {
   name?: string;
   phone?: string;
+  websiteUrl?: string;
+  reviewUrl?: string;
 }
 
 export interface WhatsAppOrder {
@@ -233,12 +235,18 @@ export function buildWhatsAppMessage(order: WhatsAppOrder, type: WhatsAppMessage
   const ph = shop?.phone || "";
   const sn = shop?.name || "Fashion Boutique";
   const gs = (order.garments || []).map((g) => g.type).join(", ");
+  // Both lines are shop-configurable (Settings → Shop Profile) and omitted entirely when
+  // unset — the original template hardcoded the original deployment's own domain and
+  // Google review link, which every other shop running this app would otherwise send
+  // to their customers by mistake.
+  const websiteLine = shop?.websiteUrl ? `\n🛍️ Shop Online: ${shop.websiteUrl}` : "";
+  const reviewLine = shop?.reviewUrl ? `\n🌐 ${shop.reviewUrl}` : "";
   const messages: Record<WhatsAppMessageType, string> = {
-    received: `Dear *${order.name}*🙏\n\nYour Stitching Order *${order.id}* Received at *${sn}* Boutique.\n🗓️ Delivery Date is: *${fmtDateIN(order.deliveryDate)}*\n We will notify you when Ready! Thanks.🌸\n📞 ${ph}\n🛍️ Shop Online: https://swarooponline.com`,
+    received: `Dear *${order.name}*🙏\n\nYour Stitching Order *${order.id}* Received at *${sn}* Boutique.\n🗓️ Delivery Date is: *${fmtDateIN(order.deliveryDate)}*\n We will notify you when Ready! Thanks.🌸\n📞 ${ph}${websiteLine}`,
     ready: `Dear *${order.name}*✅\n\nYour Stitching Order *${order.id}* is *READY!* 🎉\n${gs}. Please Collect soon !.${order.balance ? `\n💰 Balance Payment is : *₹${order.balance}*` : ""}\n📞 *${ph}*\n_${sn}_ 🌸`,
-    overdue: `Dear *${order.name}* 🙏\n\nYour Stitching Order *${order.id}* was due on *${fmtDateIN(order.deliveryDate)}* and is still in progress.\nWe sincerely apologize for the delay. We will notify you as soon as it is Ready! 🙏\n📞 ${ph}\n_${sn}_\n🛍️ Shop Online: https://swarooponline.com`,
-    delivered: `Dear *${order.name}*💐\n Thank you for collecting your garments from *${sn}!* 😍\nPlease Review on Google ! Click Below⭐\n🌐 https://g.page/r/CUqo_lixUDSBEAE/review\n🛍️ Shop Online: https://swarooponline.com`,
-    payment: `Dear *${order.name}*🙏\nPayment of *₹${order.balance || 0}* received. Thank you! 💚\n_${sn}_ ✂️\n🛍️ Shop Online: https://swarooponline.com`,
+    overdue: `Dear *${order.name}* 🙏\n\nYour Stitching Order *${order.id}* was due on *${fmtDateIN(order.deliveryDate)}* and is still in progress.\nWe sincerely apologize for the delay. We will notify you as soon as it is Ready! 🙏\n📞 ${ph}\n_${sn}_${websiteLine}`,
+    delivered: `Dear *${order.name}*💐\n Thank you for collecting your garments from *${sn}!* 😍${reviewLine ? `\nPlease Review on Google ! Click Below⭐${reviewLine}` : ""}${websiteLine}`,
+    payment: `Dear *${order.name}*🙏\nPayment of *₹${order.balance || 0}* received. Thank you! 💚\n_${sn}_ ✂️${websiteLine}`,
     paymentDue: `Dear *${order.name}* 🙏\n\n₹${order.balance || 0} is due against your stitching order *${order.id}*.\nPlease clear at your earliest convenience.\n📞 ${ph}\n_${sn}_`,
   };
   return messages[type] || messages.received;

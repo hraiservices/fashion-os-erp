@@ -2,6 +2,10 @@
 // These are correctness-critical — the numbers/thresholds here must match the old app exactly
 // (see plan doc: loyalty math, due-date badges, balance derivation, WhatsApp templates).
 
+/** How a customer found the shop — free-choice list, not enforced server-side (a blank/custom
+ *  value is fine, this just drives the order-form dropdown and the booking-source report). */
+export const BOOKING_SOURCES = ["Walk-in", "Referral", "Repeat Customer", "Instagram", "Other"] as const;
+
 export const STAGES = ["received", "cutting", "stitching", "ready", "delivered", "payment"] as const;
 export type Stage = (typeof STAGES)[number];
 

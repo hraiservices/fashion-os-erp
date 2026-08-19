@@ -15,6 +15,8 @@ const garmentSchema = z.object({
   lining: z.string().optional(),
   no: z.number().optional(),
   amount: z.number().optional(),
+  /** Per-garment production checklist (cut/stitched/finished/pressed) — see src/lib/garment-checklist.ts. */
+  checklist: z.record(z.string(), z.boolean()).optional(),
 });
 
 const bodySchema = z.object({
@@ -37,6 +39,9 @@ const bodySchema = z.object({
   usePoints: z.boolean().optional().default(false),
   orderType: z.enum(["new", "alteration"]).optional().default("new"),
   paymentMethod: z.string().optional(),
+  bookingSource: z.string().optional().default(""),
+  fabricCost: z.number().min(0).optional().default(0),
+  otherCost: z.number().min(0).optional().default(0),
 });
 
 /**
@@ -147,6 +152,9 @@ export async function POST(request: Request) {
       audios: fd.audios,
       videos: fd.videos,
       order_type: fd.orderType,
+      booking_source: fd.bookingSource,
+      fabric_cost: fd.fabricCost,
+      other_cost: fd.otherCost,
     })
     .select("*")
     .single();

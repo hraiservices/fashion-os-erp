@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, LayoutList, KanbanSquare, ArrowRight, Trash2, Upload } from "lucide-react";
+import { Plus, Search, LayoutList, KanbanSquare, ArrowRight, Trash2, Upload, MessageCircle } from "lucide-react";
+import { BulkWhatsAppDialog } from "@/components/orders/bulk-whatsapp-dialog";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { useOrders } from "@/hooks/use-orders";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -103,6 +104,7 @@ function OrdersContent() {
   const columnTable = useColumnVisibility("orders", ORDER_COLUMNS);
   const savedViews = useSavedViews<OrdersViewFilters>("orders");
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkWhatsAppOpen, setBulkWhatsAppOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const tailors = useMemo(() => Array.from(new Set((orders || []).map((o) => o.tailor).filter(Boolean))), [orders]);
@@ -308,14 +310,21 @@ function OrdersContent() {
         />
       </div>
 
-      {view === "list" && !isLoading && user?.perms.deleteOrder && selection.count > 0 && (
+      {view === "list" && !isLoading && (user?.perms.deleteOrder || user?.perms.managePayments) && selection.count > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
           <span className="text-sm font-medium">{selection.count} selected</span>
           <div className="ml-auto flex flex-wrap gap-2">
             <ExportMenu rows={bulkExportRows} filename="orders_export" disabled={bulkBusy} />
-            <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
-              <Trash2 className="size-3.5" /> Delete
-            </Button>
+            {user?.perms.managePayments && (
+              <Button variant="outline" size="sm" onClick={() => setBulkWhatsAppOpen(true)} disabled={bulkBusy}>
+                <MessageCircle className="size-3.5" /> Send reminders
+              </Button>
+            )}
+            {user?.perms.deleteOrder && (
+              <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
+                <Trash2 className="size-3.5" /> Delete
+              </Button>
+            )}
             <Button variant="ghost" size="sm" onClick={selection.clear} disabled={bulkBusy}>
               Clear
             </Button>
@@ -348,7 +357,7 @@ function OrdersContent() {
           shop={shop}
           onRecordPayment={user?.perms.managePayments ? setPaymentOrder : undefined}
           columnTable={columnTable}
-          selection={user?.perms.deleteOrder ? selection : undefined}
+          selection={user?.perms.deleteOrder || user?.perms.managePayments ? selection : undefined}
         />
       )}
 
@@ -375,6 +384,8 @@ function OrdersContent() {
       </AlertDialog>
 
       {paymentOrder && <PaymentModal order={paymentOrder} open={!!paymentOrder} onOpenChange={(v) => !v && setPaymentOrder(null)} />}
+
+      <BulkWhatsAppDialog orders={selectedOrders} shop={shop} open={bulkWhatsAppOpen} onOpenChange={setBulkWhatsAppOpen} />
 
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
         <AlertDialogContent>

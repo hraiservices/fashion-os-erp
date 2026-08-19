@@ -8,7 +8,7 @@ import { resolveWaType } from "@/lib/wa-type";
 import { inr, fmtDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
-import { AlterationBadge } from "@/components/orders/order-card";
+import { AlterationBadge, ReworkBadge } from "@/components/orders/order-card";
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
@@ -105,6 +105,7 @@ export function OrderCardRow(props: RowProps) {
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           <StageBadge stage={order.status} size="sm" />
           {order.orderType === "alteration" && <AlterationBadge />}
+          {order.reworkFlag && <ReworkBadge />}
           <DueBadge order={order} />
           <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums">{inr(order.total)}</span>
         </div>
@@ -166,6 +167,7 @@ export function OrderTableRow(props: TableRowProps) {
           <div className="flex flex-wrap items-center gap-1.5">
             <StageBadge stage={order.status} />
             {order.orderType === "alteration" && <AlterationBadge />}
+            {order.reworkFlag && <ReworkBadge />}
           </div>
         </td>
       )}

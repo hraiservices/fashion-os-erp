@@ -13,6 +13,7 @@ const garmentSchema = z.object({
   lining: z.string().optional(),
   no: z.number().optional(),
   amount: z.number().optional(),
+  checklist: z.record(z.string(), z.boolean()).optional(),
 });
 
 const patchSchema = z.object({
@@ -32,6 +33,9 @@ const patchSchema = z.object({
   audios: z.array(z.string()).optional(),
   videos: z.array(z.string()).optional(),
   orderType: z.enum(["new", "alteration"]).optional(),
+  bookingSource: z.string().optional(),
+  fabricCost: z.number().min(0).optional(),
+  otherCost: z.number().min(0).optional(),
   /**
    * The `advance` value the client was showing when the edit form was opened. Sent only
    * when the caller intends to change advance. If a payment landed in the meantime the
@@ -96,6 +100,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     p_audios:        patch.audios        ?? null,
     p_videos:        patch.videos        ?? null,
     p_order_type:    patch.orderType     ?? null,
+    p_booking_source: patch.bookingSource ?? null,
+    p_fabric_cost:   patch.fabricCost    ?? null,
+    p_other_cost:    patch.otherCost     ?? null,
     p_history_line:  historyLine,
     p_expected_advance: patch.advance !== undefined ? (patch.expectedAdvance ?? null) : null,
   });

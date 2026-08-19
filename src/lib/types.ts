@@ -92,6 +92,17 @@ export interface Order {
   payments: Json[];
   payBreakdown: Json | null;
   orderType: OrderType;
+  /** How the customer found the shop — Walk-in/Referral/etc. Empty string = not recorded (orders created before this field existed). */
+  bookingSource: string;
+  /** Internal-only cost fields, never shown to the customer — power the order-profitability report. */
+  fabricCost: number;
+  otherCost: number;
+  reworkFlag: boolean;
+  reworkReason: string;
+  reworkFlaggedBy: string | null;
+  reworkFlaggedAt: string | null;
+  /** Set once, the first time the order reaches "ready" — powers the ready-but-uncollected aging report. Null for orders that haven't reached ready yet, or that reached it before this column existed. */
+  readyAt: string | null;
   createdAt: string;
 }
 
@@ -125,6 +136,14 @@ export function mapOrderRow(r: OrderRow): Order {
     payments: (Array.isArray(r.payments) ? r.payments : []) as Json[],
     payBreakdown: r.pay_breakdown ?? null,
     orderType: (r.order_type === "alteration" ? "alteration" : "new") as OrderType,
+    bookingSource: r.booking_source || "",
+    fabricCost: r.fabric_cost || 0,
+    otherCost: r.other_cost || 0,
+    reworkFlag: !!r.rework_flag,
+    reworkReason: r.rework_reason || "",
+    reworkFlaggedBy: r.rework_flagged_by ?? null,
+    reworkFlaggedAt: r.rework_flagged_at ?? null,
+    readyAt: r.ready_at ?? null,
     createdAt: r.created_at || "",
   };
 }

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Wallet } from "lucide-react";
+import { Wallet, RotateCcw } from "lucide-react";
 import { getNextStage, buildWhatsAppUrl, STAGE_META } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
 import { inr, fmtDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { orderChecklistProgress } from "@/lib/garment-checklist";
 import { DueBadge } from "@/components/orders/stage-badge";
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
@@ -20,6 +21,22 @@ export function AlterationBadge() {
       Alteration
     </span>
   );
+}
+
+export function ReworkBadge() {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-red-500/30 bg-red-50 px-1.5 py-0 text-[10px] font-medium text-red-700 dark:bg-red-950/40 dark:text-red-400">
+      <RotateCcw className="size-2.5" /> Rework
+    </span>
+  );
+}
+
+/** "2/4" garment-checklist progress chip, hidden once every step is done (nothing to draw
+ *  attention to) and hidden entirely for orders with no checklist activity yet. */
+export function ChecklistProgressChip({ order }: { order: Order }) {
+  const { done, total } = orderChecklistProgress(order.garments || []);
+  if (total === 0 || done === 0 || done === total) return null;
+  return <span className="shrink-0 rounded-full bg-muted px-1.5 py-0 text-[10px] font-medium tabular-nums text-muted-foreground">{done}/{total}</span>;
 }
 
 /**
@@ -71,6 +88,7 @@ export function OrderCard({
         <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-muted-foreground">
           {order.id}
           {order.orderType === "alteration" && <AlterationBadge />}
+          {order.reworkFlag && <ReworkBadge />}
         </p>
 
         <p className="mt-2 truncate text-xs text-muted-foreground">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>
@@ -78,6 +96,7 @@ export function OrderCard({
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] text-muted-foreground">{fmtDateShort(order.deliveryDate)}</span>
           <DueBadge order={order} />
+          <ChecklistProgressChip order={order} />
           <BalanceDue amount={order.balance} suffix=" due" className="ml-auto text-[11px]" />
         </div>
       </Link>

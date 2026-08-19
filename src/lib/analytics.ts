@@ -355,3 +355,87 @@ export function getLoyaltyImpact(orders: Order[], customers: Customer[], cfg: Lo
 
   return { totalPointsOutstanding, totalPointsEverEarned, totalDiscountGiven, redeemingCustomers, totalCustomers: customers.length, tierCounts };
 }
+
+export interface ReadyUncollectedRow extends Order {
+  daysWaiting: number;
+}
+
+/** Orders sitting in "ready" the longest without being picked up (delivered) — distinct from
+ *  getAgingList, which is about the delivery-date promise, not physical pickup. Orders that
+ *  reached "ready" before the ready_at column existed have no timestamp to measure from and
+ *  are excluded rather than shown with a misleading 0-day wait. */
+export function getReadyUncollected(orders: Order[]): ReadyUncollectedRow[] {
+  return orders
+    .filter((o) => o.status === "ready" && o.readyAt)
+    .map((o) => ({ ...o, daysWaiting: Math.max(0, Math.floor((Date.now() - new Date(o.readyAt!).getTime()) / 86400000)) }))
+    .sort((a, b) => b.daysWaiting - a.daysWaiting);
+}
+
+export interface ReworkRateRow {
+  tailor: string;
+  totalOrders: number;
+  reworkCount: number;
+  reworkRate: number;
+}
+
+/** Rework rate per tailor — feeds off the manually-set rework flag (src/lib/business-rules.ts
+ *  set via the set_order_rework RPC), not an automatic quality signal. */
+export function getReworkRate(orders: Order[]): ReworkRateRow[] {
+  const tailors = Array.from(new Set(orders.map((o) => o.tailor).filter(Boolean)));
+  return tailors
+    .map((tailor) => {
+      const tO = orders.filter((o) => o.tailor === tailor);
+      const reworkCount = tO.filter((o) => o.reworkFlag).length;
+      return { tailor, totalOrders: tO.length, reworkCount, reworkRate: tO.length ? Math.round((reworkCount / tO.length) * 100) : 0 };
+    })
+    .filter((r) => r.totalOrders > 0)
+    .sort((a, b) => b.reworkRate - a.reworkRate);
+}
+
+/** No deposit at all, or a deposit under 20% of the order total — a fixed threshold for v1,
+ *  not yet a configurable setting. Only orders still open (not delivered/paid) are relevant;
+ *  a fully paid order's deposit history no longer matters operationally. */
+const MIN_DEPOSIT_PCT = 0.2;
+
+export function getDepositCompliance(orders: Order[]): Order[] {
+  return orders
+    .filter((o) => o.status !== "delivered" && o.status !== "payment")
+    .filter((o) => o.total > 0 && o.advance / o.total < MIN_DEPOSIT_PCT)
+    .sort((a, b) => a.advance / a.total - b.advance / b.total);
+}
+
+export interface BookingSourceRow {
+  source: string;
+  count: number;
+  revenue: number;
+}
+
+export function getBookingSourceBreakdown(orders: Order[]): BookingSourceRow[] {
+  const m: Record<string, BookingSourceRow> = {};
+  orders.forEach((o) => {
+    const key = o.bookingSource || "Not recorded";
+    m[key] = m[key] || { source: key, count: 0, revenue: 0 };
+    m[key].count += 1;
+    m[key].revenue += o.total || 0;
+  });
+  return Object.values(m).sort((a, b) => b.count - a.count);
+}
+
+export interface OrderProfitabilityRow extends Order {
+  cost: number;
+  profit: number;
+  marginPct: number;
+}
+
+/** Profit = customer price − manually-entered fabric/other cost. Only as accurate as whoever
+ *  fills in those cost fields on the order form — see order-form.tsx's Costs section. */
+export function getOrderProfitability(orders: Order[]): OrderProfitabilityRow[] {
+  return orders
+    .map((o) => {
+      const cost = (o.fabricCost || 0) + (o.otherCost || 0);
+      const profit = (o.total || 0) - cost;
+      const marginPct = o.total ? Math.round((profit / o.total) * 100) : 0;
+      return { ...o, cost, profit, marginPct };
+    })
+    .sort((a, b) => b.profit - a.profit);
+}

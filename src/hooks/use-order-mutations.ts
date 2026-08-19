@@ -22,6 +22,9 @@ interface CreateOrderInput {
   usePoints?: boolean;
   orderType?: "new" | "alteration";
   paymentMethod?: string;
+  bookingSource?: string;
+  fabricCost?: number;
+  otherCost?: number;
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -67,6 +70,19 @@ export function useSetStage() {
   return useMutation({
     mutationFn: ({ orderId, stage }: { orderId: string; stage: string }) =>
       postJson<{ order: Order }>(`/api/orders/${orderId}/set-stage`, { stage }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["order", vars.orderId] });
+    },
+  });
+}
+
+/** Toggles the rework flag — tag only, never moves the order's stage. */
+export function useSetOrderRework() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, flag, reason }: { orderId: string; flag: boolean; reason?: string }) =>
+      postJson<{ order: Order }>(`/api/orders/${orderId}/rework`, { flag, reason }),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["order", vars.orderId] });

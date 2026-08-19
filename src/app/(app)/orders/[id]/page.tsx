@@ -4,10 +4,10 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon } from "lucide-react";
 import { useOrder } from "@/hooks/use-order";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useAdvanceStage, useDeleteOrder } from "@/hooks/use-order-mutations";
+import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework } from "@/hooks/use-order-mutations";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppUrl, type Lining } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
@@ -20,12 +20,16 @@ import { MeasurementView } from "@/components/measurements/measurement-grid";
 import { OrderAttachments } from "@/components/orders/order-attachments";
 import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
 import { PaymentModal } from "@/components/orders/payment-modal";
+import { GarmentChecklistRow } from "@/components/orders/garment-checklist";
+import { ReworkDialog } from "@/components/orders/rework-dialog";
+import { printOrderTag } from "@/lib/order-tag";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { PrintButton } from "@/components/ui/print-button";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { Garment } from "@/lib/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,8 +50,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const { data: shop } = useShopSettings();
   const advanceStage = useAdvanceStage();
   const deleteOrder = useDeleteOrder();
+  const updateOrder = useUpdateOrder();
+  const setRework = useSetOrderRework();
   const { data: measureFields } = useMeasureFields();
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [reworkDialogOpen, setReworkDialogOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -96,6 +103,23 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     }
   }
 
+  async function handleGarmentsChange(next: Garment[]) {
+    try {
+      await updateOrder.mutateAsync({ id, patch: { garments: next }, userEmail: user?.email });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update checklist");
+    }
+  }
+
+  async function clearRework() {
+    try {
+      await setRework.mutateAsync({ orderId: id, flag: false });
+      toast.success("Rework flag cleared");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to clear rework flag");
+    }
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-4 pb-36 sm:p-6 sm:pb-36 lg:pb-6">
       <Link href="/orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
@@ -119,8 +143,25 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <div className="flex shrink-0 flex-wrap items-center gap-1.5">
               <StageBadge stage={order.status} />
               <DueBadge order={order} />
+              {order.reworkFlag && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:bg-red-950/40 dark:text-red-400">
+                  <RotateCcw className="size-3" /> Rework
+                </span>
+              )}
             </div>
           </div>
+
+          {order.reworkFlag && (
+            <div className="mt-3 rounded-lg border border-red-500/30 bg-red-50 p-3 text-sm dark:bg-red-950/40">
+              <p className="font-medium text-red-700 dark:text-red-400">Flagged for rework</p>
+              <p className="mt-0.5 text-xs text-red-700/80 dark:text-red-400/80">{order.reworkReason}</p>
+              {user?.perms.changeStage && (
+                <Button variant="outline" size="sm" className="mt-2" disabled={setRework.isPending} onClick={clearRework}>
+                  Clear rework flag
+                </Button>
+              )}
+            </div>
+          )}
 
           {/* Payment progress — the number the shop cares about most */}
           <div className="mt-4 rounded-lg bg-muted/50 p-3">
@@ -162,6 +203,16 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <span className="hidden lg:inline">Edit</span>
           </Button>
         )}
+        {user?.perms.changeStage && !order.reworkFlag && (
+          <Button variant="outline" aria-label="Flag for rework" onClick={() => setReworkDialogOpen(true)}>
+            <RotateCcw className="size-4" />
+            <span className="hidden lg:inline">Rework</span>
+          </Button>
+        )}
+        <Button variant="outline" aria-label="Print order tag" onClick={() => printOrderTag(order, shop)}>
+          <TagIcon className="size-4" />
+          <span className="hidden lg:inline">Print tag</span>
+        </Button>
         <PrintButton labelClassName="hidden lg:inline" />
         {user?.perms.deleteOrder && (
           <AlertDialog>
@@ -197,14 +248,23 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </div>
         <ul className="divide-y">
           {order.garments.map((g, i) => (
-            <li key={i} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
-              <div className="min-w-0">
-                <p className="truncate font-medium">{g.type}</p>
-                <p className="text-xs text-muted-foreground">
-                  {LINING_LABELS[g.lining as Lining] ?? g.lining} · qty {g.no || 1}
-                </p>
+            <li key={i} className="space-y-2 px-4 py-2.5 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{g.type}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {LINING_LABELS[g.lining as Lining] ?? g.lining} · qty {g.no || 1}
+                  </p>
+                </div>
+                <span className="shrink-0 tabular-nums">{inr((g.amount || 0) * (g.no || 1))}</span>
               </div>
-              <span className="shrink-0 tabular-nums">{inr((g.amount || 0) * (g.no || 1))}</span>
+              <GarmentChecklistRow
+                garment={g}
+                index={i}
+                garments={order.garments}
+                onChange={handleGarmentsChange}
+                disabled={!user?.perms.changeStage || updateOrder.isPending}
+              />
             </li>
           ))}
         </ul>
@@ -212,6 +272,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           <Detail icon={Clock} label="Order date" value={order.inTime ? `${fmtDate(order.inDate)} ${order.inTime}` : fmtDate(order.inDate)} />
           <Detail icon={Clock} label="Delivery" value={order.deliveryTime ? `${fmtDate(order.deliveryDate)} ${order.deliveryTime}` : fmtDate(order.deliveryDate)} />
           <Detail icon={User} label="Tailor" value={order.tailor || "—"} />
+          {order.bookingSource && <Detail icon={User} label="Booking source" value={order.bookingSource} />}
         </dl>
         {order.special && (
           <div className="border-t px-4 py-3">
@@ -255,6 +316,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       </section>
 
       <PaymentModal order={order} open={paymentOpen} onOpenChange={setPaymentOpen} />
+      <ReworkDialog orderId={id} open={reworkDialogOpen} onOpenChange={setReworkDialogOpen} />
     </div>
   );
 }

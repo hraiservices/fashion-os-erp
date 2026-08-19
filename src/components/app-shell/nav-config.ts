@@ -83,6 +83,11 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/tailor-workload", label: "Tailor Workload" },
     { href: "/reports/aging", label: "Balance Aging" },
     { href: "/reports/pending-orders", label: "Pending Orders" },
+    { href: "/reports/ready-uncollected", label: "Ready & Uncollected" },
+    { href: "/reports/rework-rate", label: "Rework Rate" },
+    { href: "/reports/deposit-compliance", label: "Deposit Compliance" },
+    { href: "/reports/order-profitability", label: "Order Profitability" },
+    { href: "/reports/booking-sources", label: "Booking Sources" },
 
     { href: "/reports/employees", label: "Employee Directory", section: "Employees" },
     { href: "/reports/attendance-summary", label: "Attendance Summary" },

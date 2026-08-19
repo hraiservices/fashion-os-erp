@@ -31,6 +31,14 @@ export interface Database {
           payments: Json;
           pay_breakdown: Json | null;
           order_type: string;
+          booking_source: string;
+          fabric_cost: number;
+          other_cost: number;
+          rework_flag: boolean;
+          rework_reason: string;
+          rework_flagged_by: string | null;
+          rework_flagged_at: string | null;
+          ready_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1086,6 +1094,16 @@ export interface Database {
         };
         Returns: Database["public"]["Tables"]["orders"]["Row"][];
       };
+      set_order_rework: {
+        Args: {
+          p_order_id: string;
+          p_flag: boolean;
+          p_reason: string;
+          p_user: string;
+          p_history_line: string;
+        };
+        Returns: Database["public"]["Tables"]["orders"]["Row"][];
+      };
       edit_order: {
         Args: {
           p_order_id: string;
@@ -1107,6 +1125,9 @@ export interface Database {
           p_expected_advance?: number | null;
           p_in_time?: string | null;
           p_delivery_time?: string | null;
+          p_booking_source?: string | null;
+          p_fabric_cost?: number | null;
+          p_other_cost?: number | null;
         };
         Returns: Database["public"]["Tables"]["orders"]["Row"][];
       };

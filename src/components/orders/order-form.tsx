@@ -7,8 +7,9 @@ import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, User2, Shirt, Wallet, Ruler, Gift, Check, ClipboardList } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, User2, Shirt, Wallet, Ruler, Gift, Check, ClipboardList, AlertTriangle, Receipt } from "lucide-react";
 import { useCreateOrder, useUpdateOrder } from "@/hooks/use-order-mutations";
+import { useOrders } from "@/hooks/use-orders";
 import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/customer-picker";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -17,7 +18,8 @@ import { useActiveTailorNames } from "@/hooks/use-employees";
 import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
-import { DEFAULT_RATES, LINING_LABELS, computeRedemption, loyaltyTier, type Lining } from "@/lib/business-rules";
+import { getTailorWorkload } from "@/lib/analytics";
+import { DEFAULT_RATES, LINING_LABELS, BOOKING_SOURCES, computeRedemption, loyaltyTier, type Lining } from "@/lib/business-rules";
 import { hydrateMeasurements, compactMeasurements, toMKey, type MeasureLang } from "@/lib/measurements";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -52,6 +54,9 @@ const formSchema = z.object({
   advance: z.number().min(0),
   paymentMethod: z.string(),
   garments: z.array(garmentSchema).min(1, "Add at least one garment"),
+  bookingSource: z.string().optional(),
+  fabricCost: z.number().min(0).optional(),
+  otherCost: z.number().min(0).optional(),
 });
 
 const PAYMENT_METHODS = ["Cash", "UPI", "Card", "Bank Transfer"];
@@ -189,6 +194,9 @@ function OrderFormFields({
             existingOrder.garments.length > 0
               ? existingOrder.garments.map((g) => ({ type: g.type, lining: g.lining || "s", no: g.no || 1, amount: g.amount || 0 }))
               : [{ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0 }],
+          bookingSource: existingOrder.bookingSource || "",
+          fabricCost: existingOrder.fabricCost || 0,
+          otherCost: existingOrder.otherCost || 0,
         }
       : {
           name: "",
@@ -204,6 +212,9 @@ function OrderFormFields({
           advance: 0,
           paymentMethod: "Cash",
           garments: [{ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0 }],
+          bookingSource: "",
+          fabricCost: 0,
+          otherCost: 0,
         },
   });
 
@@ -212,7 +223,15 @@ function OrderFormFields({
   const advance = watch("advance") || 0;
   const mobile = watch("mobile");
   const name = watch("name");
+  const selectedTailor = watch("tailor");
   const total = garments.reduce((s, g) => s + (g.amount || 0) * (g.no || 1), 0);
+
+  // Advisory-only capacity warning — never blocks save. Reuses the same Low/Normal/High/
+  // Overloaded bucketing the Tailor Workload report already uses (src/lib/analytics.ts), just
+  // surfaced at the point of booking instead of after the fact.
+  const { data: allOrders } = useOrders();
+  const tailorWorkload = allOrders && selectedTailor ? getTailorWorkload(allOrders).find((w) => w.tailor === selectedTailor) : undefined;
+  const showCapacityWarning = !!tailorWorkload && (tailorWorkload.capacity === "High" || tailorWorkload.capacity === "Overloaded") && (!existingOrder || existingOrder.tailor !== selectedTailor);
 
   // Look up an existing customer once the mobile number is complete, so we can offer to
   // reuse their saved measurements and redeem their loyalty points (old app: fillCust()).
@@ -400,6 +419,35 @@ function OrderFormFields({
                   <Input {...register("tailor")} placeholder="Add tailors in Employees" className="h-10" />
                 )}
               </FieldGroup>
+              {showCapacityWarning && tailorWorkload && (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-50 p-2.5 text-xs text-amber-800 sm:col-span-2 dark:bg-amber-950/40 dark:text-amber-300">
+                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                  <span>
+                    <span className="font-medium">{selectedTailor}</span> has {tailorWorkload.active} active order{tailorWorkload.active === 1 ? "" : "s"} —{" "}
+                    <span className="font-medium">{tailorWorkload.capacity}</span> load. Consider another tailor or a later delivery date.
+                  </span>
+                </div>
+              )}
+              <FieldGroup label="How did they find us?" hint="Optional — helps track which channels bring in orders." className="sm:col-span-2">
+                <Controller
+                  control={control}
+                  name="bookingSource"
+                  render={({ field: f }) => (
+                    <Select value={f.value || ""} onValueChange={(v) => f.onChange(v || "")}>
+                      <SelectTrigger className="h-10 w-full">
+                        <SelectValue placeholder="Not recorded" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BOOKING_SOURCES.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {s}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </FieldGroup>
               <FieldGroup label="Special instructions" className="sm:col-span-2">
                 <Textarea {...register("special")} rows={2} placeholder="Anything the tailor should know…" />
               </FieldGroup>
@@ -543,6 +591,51 @@ function OrderFormFields({
               {errors.garments && <p className="text-xs text-destructive">{errors.garments.message as string}</p>}
             </div>
           </div>
+
+          {user?.perms.viewReports && (
+            <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+              <SectionHeading icon={Receipt} label="Costs (internal — not shown to customer)" />
+              <p className="-mt-2 mb-4 text-xs text-muted-foreground">Powers the order-profitability report. Leave blank if unknown.</p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FieldGroup label="Fabric cost">
+                  <Controller
+                    control={control}
+                    name="fabricCost"
+                    render={({ field }) => (
+                      <Input
+                        type="number"
+                        min={0}
+                        inputMode="numeric"
+                        placeholder="0"
+                        className="h-10"
+                        value={field.value ? String(field.value) : ""}
+                        onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
+                        onBlur={field.onBlur}
+                      />
+                    )}
+                  />
+                </FieldGroup>
+                <FieldGroup label="Other cost" hint="Trims, lining fabric, outsourced work, etc.">
+                  <Controller
+                    control={control}
+                    name="otherCost"
+                    render={({ field }) => (
+                      <Input
+                        type="number"
+                        min={0}
+                        inputMode="numeric"
+                        placeholder="0"
+                        className="h-10"
+                        value={field.value ? String(field.value) : ""}
+                        onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
+                        onBlur={field.onBlur}
+                      />
+                    )}
+                  />
+                </FieldGroup>
+              </div>
+            </div>
+          )}
 
           <MediaCapture images={images} audios={audios} videos={videos} onImagesChange={setImages} onAudiosChange={setAudios} onVideosChange={setVideos} />
         </div>

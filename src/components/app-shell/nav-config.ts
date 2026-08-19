@@ -16,6 +16,7 @@ import {
   Scissors,
   UserCog,
   ScanBarcode,
+  Ruler,
   type LucideIcon,
 } from "lucide-react";
 
@@ -52,6 +53,7 @@ export const PRIMARY_NAV: NavFlatItem[] = [
   { href: "/orders?view=board", label: "Board", icon: KanbanSquare },
   { href: "/orders", label: "Stitching Orders", icon: Receipt, newHref: "/orders/new" },
   { href: "/orders?type=alteration", label: "Alterations", icon: Scissors, newHref: "/orders/new?type=alteration" },
+  { href: "/orders/measurements", label: "Measurements", icon: Ruler },
   { href: "/crm", label: "Customers", icon: Users, restricted: true, newHref: "/crm/new" },
 ];
 

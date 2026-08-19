@@ -16,7 +16,6 @@ import {
   Scissors,
   UserCog,
   ScanBarcode,
-  Ruler,
   type LucideIcon,
 } from "lucide-react";
 
@@ -51,11 +50,20 @@ export interface NavFlatItem {
 export const PRIMARY_NAV: NavFlatItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, restricted: true },
   { href: "/orders?view=board", label: "Board", icon: KanbanSquare },
-  { href: "/orders", label: "Stitching Orders", icon: Receipt, newHref: "/orders/new" },
   { href: "/orders?type=alteration", label: "Alterations", icon: Scissors, newHref: "/orders/new?type=alteration" },
-  { href: "/orders/measurements", label: "Measurements", icon: Ruler },
   { href: "/crm", label: "Customers", icon: Users, restricted: true, newHref: "/crm/new" },
 ];
+
+/** Stitching Orders as a dropdown: the order list itself plus the measurement search tool. */
+export const ORDERS_GROUP: NavGroup = {
+  id: "orders",
+  label: "Stitching Orders",
+  icon: Receipt,
+  children: [
+    { href: "/orders", label: "All Orders", newHref: "/orders/new" },
+    { href: "/orders/measurements", label: "Search Measurement" },
+  ],
+};
 
 export const REPORTS_GROUP: NavGroup = {
   id: "reports",

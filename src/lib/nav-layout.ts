@@ -20,6 +20,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   PRIMARY_NAV,
   SECONDARY_NAV,
+  ORDERS_GROUP,
   REPORTS_GROUP,
   EXPENSES_GROUP,
   SALES_GROUP,
@@ -35,16 +36,23 @@ import {
   type NavFlatItem,
 } from "@/components/app-shell/nav-config";
 
-export const MOVABLE_GROUPS: NavGroup[] = [REPORTS_GROUP, EXPENSES_GROUP, SALES_GROUP, INVENTORY_GROUP, PURCHASES_GROUP, EMPLOYEES_GROUP, SETTINGS_GROUP];
+export const MOVABLE_GROUPS: NavGroup[] = [ORDERS_GROUP, REPORTS_GROUP, EXPENSES_GROUP, SALES_GROUP, INVENTORY_GROUP, PURCHASES_GROUP, EMPLOYEES_GROUP, SETTINGS_GROUP];
 
 const GROUP_BY_ID = new Map(MOVABLE_GROUPS.map((g) => [g.id, g]));
 export function getGroup(groupId: string): NavGroup | undefined {
   return GROUP_BY_ID.get(groupId);
 }
 
-/** Everything the sidebar can place at the root level, in its built-in default order. */
+/** Everything the sidebar can place at the root level, in its built-in default order.
+ *  The Stitching Orders group is spliced in right after Board — where the flat "Stitching
+ *  Orders" link used to live — rather than spread from PRIMARY_NAV, since PRIMARY_NAV no
+ *  longer contains it (it's now ORDERS_GROUP, see nav-config.ts). */
 const ROOT_DEFAULTS: { id: string; kind: "flat" | "group" }[] = [
-  ...PRIMARY_NAV.map((i) => ({ id: i.href, kind: "flat" as const })),
+  { id: "/dashboard", kind: "flat" as const },
+  { id: "/orders?view=board", kind: "flat" as const },
+  { id: `group:${ORDERS_GROUP.id}`, kind: "group" as const },
+  { id: "/orders?type=alteration", kind: "flat" as const },
+  { id: "/crm", kind: "flat" as const },
   { id: `group:${REPORTS_GROUP.id}`, kind: "group" as const },
   { id: `group:${EXPENSES_GROUP.id}`, kind: "group" as const },
   ...SECONDARY_NAV.map((i) => ({ id: i.href, kind: "flat" as const })),

@@ -1091,6 +1091,7 @@ export interface Database {
           p_cash_paid: number;
           p_pt_discount: number;
           p_history_line: string;
+          p_expected_advance?: number | null;
         };
         Returns: Database["public"]["Tables"]["orders"]["Row"][];
       };

@@ -168,7 +168,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   // Fetch enough columns for guards + loyalty refund; avoid mapOrderRow on a partial row (M2).
   const { data: row, error: fetchError } = await supabase
     .from("orders")
-    .select("id, name, status, mobile, history")
+    .select("id, name, status, mobile, history, advance")
     .eq("id", id)
     .maybeSingle();
   if (fetchError || !row) return NextResponse.json({ error: "Order not found" }, { status: 404 });
@@ -177,6 +177,16 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (row.status === "payment" || row.status === "delivered") {
     return NextResponse.json(
       { error: `Cannot delete a ${row.status === "payment" ? "paid" : "delivered"} order. Archive it instead.` },
+      { status: 409 }
+    );
+  }
+
+  // Refuse to delete an order that already has money collected against it — there is no
+  // separate order-payments ledger table, so the only record of that cash is this row's
+  // advance/history. Deleting it destroys the only evidence the shop was ever paid.
+  if ((row.advance || 0) > 0) {
+    return NextResponse.json(
+      { error: `This order has ₹${row.advance} collected against it and cannot be deleted. Refund the payment first, or move the order to a closed stage instead.` },
       { status: 409 }
     );
   }

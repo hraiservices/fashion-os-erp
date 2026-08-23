@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 /** yyyy-mm-dd in the LOCAL timezone — `Date#toISOString()` shifts to UTC first, which can
  * roll the date back a day for users east of UTC (all of India). Every date field in this
  * app stores/reads plain yyyy-mm-dd strings, so this must round-trip exactly. */
-function toISODate(d: Date): string {
+export function toISODate(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");

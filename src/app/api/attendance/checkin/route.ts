@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getAttendanceEmployeeId } from "@/lib/attendance-session-server";
 import { checkGeofence } from "@/lib/geofence";
+import { istDateString } from "@/lib/ist-date";
 
 const bodySchema = z.object({
   lat: z.number(),
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = istDateString();
   const nowIso = new Date().toISOString();
 
   const { data: existing } = await supabase.from("employee_attendance").select("id, check_in_at").eq("employee_id", employeeId).eq("date", today).maybeSingle();

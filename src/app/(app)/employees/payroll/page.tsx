@@ -16,14 +16,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { fmtDate } from "@/lib/format";
+import { toISODate } from "@/components/ui/date-picker";
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return toISODate(new Date());
 }
 
 function firstOfMonthISO() {
   const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+  return toISODate(new Date(d.getFullYear(), d.getMonth(), 1));
 }
 
 export default function PayrollRunsPage() {

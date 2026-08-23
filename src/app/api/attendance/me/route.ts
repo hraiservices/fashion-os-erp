@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getAttendanceEmployeeId } from "@/lib/attendance-session-server";
+import { istDateString } from "@/lib/ist-date";
 
 /** Tells the check-in page who's logged in and today's attendance state, so it knows whether
  *  to show "Check in" or "Check out" (or "Done for today"). */
@@ -14,7 +15,7 @@ export async function GET() {
   const { data: employee } = await supabase.from("employees").select("id, name, role, location_id, active").eq("id", employeeId).maybeSingle();
   if (!employee || !employee.active) return NextResponse.json({ error: "Employee not found or inactive" }, { status: 404 });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = istDateString();
   const { data: todayAttendance } = await supabase
     .from("employee_attendance")
     .select("check_in_at, check_out_at, hours_worked, overtime_hours")

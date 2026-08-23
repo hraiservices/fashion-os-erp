@@ -13,6 +13,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { computeCommission } from "@/lib/commission";
 import { SALARY_TYPE_LABELS } from "@/lib/payroll";
 import { inr, fmtDate } from "@/lib/format";
+import { toISODate } from "@/components/ui/date-picker";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -55,7 +56,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
     const amount = parseFloat(advanceAmount);
     if (!amount || amount <= 0) return toast.error("Enter a valid amount");
     try {
-      await addAdvance.mutateAsync({ employeeId: id, date: new Date().toISOString().slice(0, 10), amount, note: advanceNote, userEmail: user?.email });
+      await addAdvance.mutateAsync({ employeeId: id, date: toISODate(new Date()), amount, note: advanceNote, userEmail: user?.email });
       setAdvanceAmount("");
       setAdvanceNote("");
       toast.success("Advance recorded");

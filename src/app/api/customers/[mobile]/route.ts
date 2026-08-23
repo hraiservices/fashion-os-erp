@@ -28,9 +28,15 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
         { status: 409 }
       );
     }
+    if (error.message?.includes("HAS_ISSUED_INVOICES")) {
+      return NextResponse.json(
+        { error: "This customer has issued sales invoices. Those are accounting records and cannot be deleted." },
+        { status: 409 }
+      );
+    }
     if (error.message?.includes("HAS_OUTSTANDING_BALANCE")) {
       return NextResponse.json(
-        { error: "This customer still has an outstanding balance. Settle or write it off before deleting." },
+        { error: "This customer still has an outstanding balance (orders or sales invoices). Settle or write it off before deleting." },
         { status: 409 }
       );
     }

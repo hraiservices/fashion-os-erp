@@ -97,6 +97,7 @@ interface PaymentInput {
   payMethod: string;
   note?: string;
   usePoints?: boolean;
+  expectedAdvance?: number;
 }
 
 export function useRecordPayment() {

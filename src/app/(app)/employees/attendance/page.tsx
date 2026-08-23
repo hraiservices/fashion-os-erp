@@ -8,7 +8,7 @@ import { useEmployees } from "@/hooks/use-employees";
 import { useAttendanceForDate, useMarkAttendance } from "@/hooks/use-attendance";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { PageHeader } from "@/components/ui/page-header";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker, toISODate } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -24,7 +24,7 @@ const STATUSES: { value: AttendanceStatus; label: string; tone: string }[] = [
 ];
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return toISODate(new Date());
 }
 
 export default function AttendancePage() {

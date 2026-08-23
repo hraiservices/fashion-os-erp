@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { getAttendanceEmployeeId } from "@/lib/attendance-session-server";
 import { checkGeofence } from "@/lib/geofence";
 import { DEFAULT_ATTENDANCE_SETTINGS, MAX_SHIFT_HOURS, type AttendanceSettings } from "@/lib/attendance-settings";
+import { istDateString } from "@/lib/ist-date";
 
 const bodySchema = z.object({
   lat: z.number(),
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = istDateString();
   const { data: existing } = await supabase.from("employee_attendance").select("id, check_in_at, check_out_at").eq("employee_id", employeeId).eq("date", today).maybeSingle();
   if (!existing?.check_in_at) return NextResponse.json({ error: "You haven't checked in today" }, { status: 409 });
   if (existing.check_out_at) return NextResponse.json({ error: "You've already checked out today" }, { status: 409 });

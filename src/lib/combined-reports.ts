@@ -44,7 +44,15 @@ export function getCombinedMonthly(
 ): CombinedMonthStat[] {
   return getLast6Months().map((month) => {
     const stitchingRevenue = orders.filter((o) => o.inDate?.startsWith(month)).reduce((s, o) => s + (o.total || 0), 0);
-    const salesRevenue = invoices.filter((i) => i.invoiceDate?.startsWith(month)).reduce((s, i) => s + i.total, 0);
+    // Drafts aren't sales yet (nothing has been issued to the customer), and a credit note
+    // reverses part of a sale (a return) — both must come out of "revenue", the same
+    // total-minus-credits-minus-payments logic already used for an individual invoice's
+    // balance (src/hooks/use-sales-invoices.ts deriveInvoiceBalance). Previously this summed
+    // every invoice's gross total including drafts and fully-refunded sales, which fed
+    // straight into the "Net Profit"/"Margin" cards on this report.
+    const salesRevenue = invoices
+      .filter((i) => i.invoiceDate?.startsWith(month) && i.docStatus !== "draft")
+      .reduce((s, i) => s + Math.max(0, i.total - i.creditsTotal), 0);
     const purchaseCost = bills.filter((b) => b.billDate?.startsWith(month)).reduce((s, b) => s + b.total, 0);
     const laborCost = workOrders
       .filter((w) => w.status === "completed" && w.completedAt?.startsWith(month))

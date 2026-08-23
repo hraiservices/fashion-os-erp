@@ -52,7 +52,7 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
 
   async function save() {
     try {
-      await recordPayment.mutateAsync({ orderId: order.id, amount, payMethod, note, usePoints });
+      await recordPayment.mutateAsync({ orderId: order.id, amount, payMethod, note, usePoints, expectedAdvance: order.advance });
       toast.success(amount + ptDiscount >= order.balance ? "Payment complete" : "Payment recorded");
       onOpenChange(false);
     } catch (e) {

@@ -1,8 +1,6 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
-import { logAction } from "@/lib/logging";
 
 function invalidatePayroll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["payroll-runs"] });
@@ -61,39 +59,33 @@ export function useFinalizePayrollRun() {
   });
 }
 
+/** Mark a payslip paid. Routed through PATCH /api/payroll/payslips/[id] so managePayroll is
+ *  enforced server-side — this used to be a direct browser-to-Supabase update with no
+ *  permission check at all. */
 export function useMarkPayslipPaid() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id }: { id: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("payslips").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: ({ id }: { id: string }) => apiJson<{ ok: true }>(`/api/payroll/payslips/${id}`, "PATCH", { action: "mark_paid" }),
     onSuccess: () => invalidatePayroll(qc),
   });
 }
 
+/** Record an advance. Routed through POST /api/employees/[id]/advances — same reasoning as
+ *  useMarkPayslipPaid above. */
 export function useAddAdvance() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ employeeId, date, amount, note, userEmail }: { employeeId: string; date: string; amount: number; note: string; userEmail?: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("employee_advances").insert({ employee_id: employeeId, date, amount, note, created_by: userEmail || null });
-      if (error) throw error;
-      await logAction(supabase, userEmail, `Advance recorded: ₹${amount}`);
-    },
+    mutationFn: ({ employeeId, date, amount, note }: { employeeId: string; date: string; amount: number; note: string; userEmail?: string }) =>
+      apiJson<{ ok: true }>(`/api/employees/${employeeId}/advances`, "POST", { date, amount, note }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["employee-advances"] }),
   });
 }
 
+/** Delete an advance. Routed through DELETE /api/employees/advances/[id] — same reasoning. */
 export function useDeleteAdvance() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id }: { id: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("employee_advances").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: ({ id }: { id: string }) => apiJson<{ ok: true }>(`/api/employees/advances/${id}`, "DELETE"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["employee-advances"] }),
   });
 }

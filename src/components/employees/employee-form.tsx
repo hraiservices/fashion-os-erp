@@ -126,13 +126,16 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
         active: values.active,
         joinedDate: values.joinedDate || null,
         notes: values.notes || "",
-        salaryType: values.salaryType,
-        salaryRate: values.salaryRate || 0,
+        // Only sent when the Salary section is actually visible/editable (gated below on the
+        // same permission) — otherwise a manageEmployees-but-not-managePayroll user's save of
+        // an unrelated field (e.g. phone number) would silently zero out the real salary,
+        // since the hidden section's form state still holds whatever value it loaded with.
+        ...(user?.perms.managePayroll ? { salaryType: values.salaryType, salaryRate: values.salaryRate || 0 } : {}),
         locationId: values.locationId === NO_LOCATION ? null : values.locationId,
         userEmail: user?.email,
       });
       toast.success(isEdit ? "Employee updated" : "Employee added");
-      router.push(isEdit ? `/employees/${existing!.id}` : `/employees/${res.id}`);
+      router.push(isEdit ? `/employees/${existing!.id}` : `/employees/${res.employee.id}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save employee");
     }

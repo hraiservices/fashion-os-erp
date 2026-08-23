@@ -26,43 +26,42 @@ export function useUserRoles() {
   });
 }
 
-/** setUserRole(), used by assignRole()/updateRole(), line ~13418. Upsert by email. */
+async function postJson<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+/** setUserRole(), used by assignRole()/updateRole(). Routed through POST /api/user-roles so
+ *  manageUsers is enforced server-side — this used to write straight to user_roles from the
+ *  browser, meaning ANY authenticated user could set their own role to admin (see the API
+ *  route's comment for the full explanation). */
 export function useSetUserRole() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ email, role, custom }: { email: string; role: string; custom?: Partial<Permissions> }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("user_roles").upsert({ email: email.trim().toLowerCase(), role, custom_permissions: custom || {} });
-      if (error) throw error;
-    },
+    mutationFn: ({ email, role, custom }: { email: string; role: string; custom?: Partial<Permissions> }) =>
+      postJson<{ ok: true }>("/api/user-roles", { email: email.trim().toLowerCase(), role, custom: custom || {} }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["user-roles"] }),
   });
 }
 
-/** renameUserEmail(), line ~13446. */
+/** renameUserEmail(). Routed through POST /api/user-roles/rename — same manageUsers gate. */
 export function useRenameUserEmail() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ oldEmail, newEmail, role, phone, custom }: { oldEmail: string; newEmail: string; role: string; phone: string | null; custom: Partial<Permissions> | null }) => {
-      const supabase = createClient();
-      const { error: insertError } = await supabase.from("user_roles").insert({ email: newEmail, role, phone, custom_permissions: custom || {} });
-      if (insertError) throw insertError;
-      const { error: deleteError } = await supabase.from("user_roles").delete().eq("email", oldEmail);
-      if (deleteError) throw deleteError;
-    },
+    mutationFn: ({ oldEmail, newEmail, role, phone, custom }: { oldEmail: string; newEmail: string; role: string; phone: string | null; custom: Partial<Permissions> | null }) =>
+      postJson<{ ok: true }>("/api/user-roles/rename", { oldEmail, newEmail, role, phone, custom }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["user-roles"] }),
   });
 }
 
-/** setUserPhone(), line ~13467. */
+/** setUserPhone(). Routed through POST /api/user-roles/phone — same manageUsers gate. */
 export function useSetUserPhone() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ email, phone }: { email: string; phone: string | null }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("user_roles").update({ phone }).eq("email", email);
-      if (error) throw error;
-    },
+    mutationFn: ({ email, phone }: { email: string; phone: string | null }) =>
+      postJson<{ ok: true }>("/api/user-roles/phone", { email, phone }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["user-roles"] }),
   });
 }

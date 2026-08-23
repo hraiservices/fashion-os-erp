@@ -330,14 +330,13 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             {custOrders.map((o) => (
               <li key={o.id}>
                 <Link href={`/orders/${o.id}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
-                  {o.images?.[0] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={o.images[0]} alt="" className="size-10 shrink-0 rounded-lg border object-cover" />
-                  ) : (
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted/50">
-                      <Shirt className="size-4 text-muted-foreground" />
-                    </div>
-                  )}
+                  {/* No thumbnail here by design — cust.orders comes from the list-sourced
+                      useOrders(), which deliberately excludes images/audios/videos (they're
+                      inline base64 up to 4MB each, and that query runs on every page load via
+                      the topbar's notification bell). Open the order to see its photos. */}
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted/50">
+                    <Shirt className="size-4 text-muted-foreground" />
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="text-sm font-medium">{o.id}</span>

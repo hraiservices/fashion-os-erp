@@ -36,6 +36,19 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
 
+  // originalMobile is only ever sent by the edit flow (edit-customer-modal.tsx), set to the
+  // customer's own current mobile. Every "add new customer" caller (customer-form.tsx, the
+  // import wizard, the sales quick-add picker) omits it. Since the customer id is derived
+  // deterministically from the mobile number, a create-new call whose mobile happens to
+  // already belong to someone else would otherwise upsert straight over that existing
+  // customer's profile with no warning. Block it here instead.
+  if (!fd.originalMobile) {
+    const { data: collision } = await supabase.from("customers").select("name").eq("id", customerIdFromMobile(fd.mobile)).maybeSingle();
+    if (collision) {
+      return NextResponse.json({ error: `${fd.mobile} already belongs to ${collision.name}. Edit that customer instead of adding a new one.` }, { status: 409 });
+    }
+  }
+
   // A changed mobile re-keys the customer (id is 'CUST-' || mobile). Migrate first so the
   // loyalty balance, history and existing orders follow them to the new number.
   if (fd.originalMobile && fd.originalMobile !== fd.mobile) {

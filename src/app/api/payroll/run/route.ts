@@ -108,15 +108,31 @@ export async function POST(request: Request) {
     const payslipRows: PayslipRow[] = [];
     const advanceLinkMap: Map<string, string[]> = new Map(); // payslip placeholder → advance ids
 
-    for (const employee of employees) {
-      const { data: attRows } = await supabase
-        .from("employee_attendance")
-        .select("*")
-        .eq("employee_id", employee.id)
-        .gte("date", periodStart)
-        .lte("date", periodEnd);
+    // Batch attendance/advances for every employee in this run into 2 queries total instead
+    // of 2 per employee — a payroll run over a large roster was previously O(N) round trips.
+    const employeeIds = employees.map((e) => e.id);
+    const [{ data: allAttRows }, { data: allAdvanceRows }] = await Promise.all([
+      supabase.from("employee_attendance").select("*").in("employee_id", employeeIds).gte("date", periodStart).lte("date", periodEnd),
+      supabase.from("employee_advances").select("*").in("employee_id", employeeIds).is("payslip_id", null).lte("date", periodEnd).order("date", { ascending: true }),
+    ]);
+    type AttRow = NonNullable<typeof allAttRows>[number];
+    type AdvanceRow = NonNullable<typeof allAdvanceRows>[number];
+    const attByEmployee = new Map<string, AttRow[]>();
+    for (const row of allAttRows || []) {
+      const list = attByEmployee.get(row.employee_id) || [];
+      list.push(row);
+      attByEmployee.set(row.employee_id, list);
+    }
+    const advancesByEmployee = new Map<string, AdvanceRow[]>();
+    for (const row of allAdvanceRows || []) {
+      const list = advancesByEmployee.get(row.employee_id) || [];
+      list.push(row);
+      advancesByEmployee.set(row.employee_id, list);
+    }
 
-      const attendance = (attRows || []).map(mapAttendanceRow);
+    for (const employee of employees) {
+      const attRows = attByEmployee.get(employee.id) || [];
+      const attendance = attRows.map(mapAttendanceRow);
 
       // C-5: Monthly employees with no attendance data would receive full salary
       // since computeGrossPay(monthly, 0 absences, 0 present) = full rate.
@@ -138,13 +154,7 @@ export async function POST(request: Request) {
       const totalOvertimeHours = Math.round(attendance.reduce((s, a) => s + (a.overtimeHours || 0), 0) * 100) / 100;
       const overtimePay = Math.round(totalOvertimeHours * attendanceSettings.otRatePerHour * 100) / 100;
 
-      const { data: advanceRows } = await supabase
-        .from("employee_advances")
-        .select("*")
-        .eq("employee_id", employee.id)
-        .is("payslip_id", null)
-        .lte("date", periodEnd)
-        .order("date", { ascending: true });
+      const advanceRows = advancesByEmployee.get(employee.id) || [];
 
       // C-3: Only link advances that fit within the gross pay + overtime budget.
       // Excess advances roll forward to the next payroll run instead of

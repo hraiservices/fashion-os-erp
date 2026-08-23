@@ -49,7 +49,11 @@ export async function POST(request: Request) {
     await supabase
       .from("employees")
       .update({
-        failed_pin_attempts: lockedOut ? 0 : attempts,
+        // Previously reset to 0 the instant lockout triggered, so the very next attempt
+        // after the 15-minute window expired got a fresh full set of MAX_FAILED_ATTEMPTS
+        // tries instead of re-locking immediately. Keep the counter so it only clears on
+        // a successful login (below).
+        failed_pin_attempts: attempts,
         pin_locked_until: lockedOut ? new Date(Date.now() + LOCKOUT_MINUTES * 60_000).toISOString() : null,
       })
       .eq("id", employee.id);

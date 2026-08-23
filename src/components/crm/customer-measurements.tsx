@@ -39,6 +39,7 @@ export function CustomerMeasurements({ cust }: { cust: CustomerProfile }) {
       await saveCustomer.mutateAsync({
         name: cust.name,
         mobile: cust.mobile,
+        originalMobile: cust.mobile,
         notes: cust.notes || "",
         measurements: compactMeasurements(draft),
         userEmail: user?.email,

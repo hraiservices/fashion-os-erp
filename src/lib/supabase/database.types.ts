@@ -943,6 +943,27 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["leave_requests"]["Row"]>;
         Relationships: [];
       };
+      referral_coupons: {
+        Row: {
+          id: string;
+          code: string;
+          referrer_mobile: string;
+          referrer_name: string;
+          discount_amount: number;
+          issued_at: string;
+          expires_at: string;
+          redeemed_at: string | null;
+          redeemed_order_id: string | null;
+          created_by: string | null;
+        };
+        Insert: Partial<Database["public"]["Tables"]["referral_coupons"]["Row"]> & {
+          code: string;
+          referrer_mobile: string;
+          expires_at: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["referral_coupons"]["Row"]>;
+        Relationships: [];
+      };
       employee_attendance: {
         Row: {
           id: string;
@@ -1150,6 +1171,14 @@ export interface Database {
       approve_leave_request: {
         Args: { p_leave_request_id: string; p_decided_by: string };
         Returns: Database["public"]["Tables"]["leave_requests"]["Row"][];
+      };
+      redeem_referral_coupon: {
+        Args: { p_code: string; p_order_id: string };
+        Returns: Database["public"]["Tables"]["referral_coupons"]["Row"][];
+      };
+      release_referral_coupon: {
+        Args: { p_code: string };
+        Returns: undefined;
       };
     };
     Enums: Record<string, never>;

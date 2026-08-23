@@ -4,13 +4,15 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ArrowLeft, ChevronRight, Mail, MapPin, Cake, Heart, ShoppingBag, FileText } from "lucide-react";
+import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ArrowLeft, ChevronRight, Mail, MapPin, Cake, Heart, ShoppingBag, FileText, Ticket, Shirt } from "lucide-react";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDeleteCustomerAndOrders, useGiveLoyaltyBonus } from "@/hooks/use-customer-mutations";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
-import { loyaltyTier, normalizeIndianMobile } from "@/lib/business-rules";
+import { useIssueReferralCoupon } from "@/hooks/use-referral-coupons";
+import { printCoupon } from "@/lib/order-coupon";
+import { loyaltyTier, normalizeIndianMobile, buildWardrobeSummaryUrl } from "@/lib/business-rules";
 import { LOYALTY_TYPE_LABELS, type LoyaltyHistoryEntry } from "@/lib/crm";
 import { INVOICE_STATUS_LABELS } from "@/lib/sales";
 import { useShopSettings } from "@/hooks/use-shop-settings";
@@ -52,6 +54,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   const giveBonus = useGiveLoyaltyBonus();
   const { data: allInvoices } = useSalesInvoices();
   const { data: shop } = useShopSettings();
+  const issueCoupon = useIssueReferralCoupon();
 
   const [editOpen, setEditOpen] = useState(false);
   const [bonusInput, setBonusInput] = useState("");
@@ -92,6 +95,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   const reminderUrl = `https://wa.me/91${normalizeIndianMobile(mobile)}?text=${encodeURIComponent(
     `Dear *${cust.name}* 🙏\n\n₹${combinedDue} is due on your account at *${shop?.name || "our shop"}* (across orders and invoices).\nPlease clear at your earliest convenience.\n📞 ${shop?.phone || ""}`
   )}`;
+  const wardrobeUrl = buildWardrobeSummaryUrl(mobile, cust.name, custOrders, shop);
   const tier = loyaltyCfg?.enabled ? loyaltyTier(cust.totalEarned, loyaltyCfg) : null;
   const history = (cust.loyaltyHistory as unknown as LoyaltyHistoryEntry[]) || [];
   const initial = cust.name?.[0]?.toUpperCase() || "?";
@@ -103,6 +107,16 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
       router.push("/crm");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Delete failed");
+    }
+  }
+
+  async function handleGiveCoupon() {
+    try {
+      const res = await issueCoupon.mutateAsync(mobile);
+      printCoupon(res.coupon, shop);
+      toast.success(`Coupon ${res.coupon.code} issued and ready to print`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to issue coupon");
     }
   }
 
@@ -192,6 +206,12 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             <FileText className="size-4" /> Statement
           </Button>
           {combinedDue > 0 && <WhatsAppButton href={reminderUrl} label="Payment Reminder" className="flex-1 sm:flex-none" />}
+          {custOrders.length > 0 && <WhatsAppButton href={wardrobeUrl} label="Send wardrobe summary" className="flex-1 sm:flex-none" />}
+          {user?.perms.manageCustomers && (
+            <Button variant="outline" onClick={handleGiveCoupon} disabled={issueCoupon.isPending} className="flex-1 sm:flex-none">
+              <Ticket className="size-4" /> Give referral coupon
+            </Button>
+          )}
           {user?.perms.manageCustomers && (
             <Button variant="outline" onClick={() => setEditOpen(true)} className="flex-1 sm:flex-none">
               <Pencil className="size-4" /> Edit
@@ -300,7 +320,8 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
 
       <section className="rounded-xl border bg-card">
         <div className="border-b px-4 py-3">
-          <h2 className="text-sm font-semibold">Order history ({custOrders.length})</h2>
+          <h2 className="text-sm font-semibold">Wardrobe & order history ({custOrders.length})</h2>
+          <p className="text-xs text-muted-foreground">Everything this customer has had stitched with us.</p>
         </div>
         {custOrders.length === 0 ? (
           <EmptyState icon={Receipt} title="No orders yet" className="border-0" />
@@ -309,6 +330,14 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             {custOrders.map((o) => (
               <li key={o.id}>
                 <Link href={`/orders/${o.id}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
+                  {o.images?.[0] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={o.images[0]} alt="" className="size-10 shrink-0 rounded-lg border object-cover" />
+                  ) : (
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted/50">
+                      <Shirt className="size-4 text-muted-foreground" />
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="text-sm font-medium">{o.id}</span>

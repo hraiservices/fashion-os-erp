@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useOrders } from "@/hooks/use-orders";
 import { useCustomers } from "@/hooks/use-customers";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
+import { useReferralCoupons } from "@/hooks/use-referral-coupons";
 import {
   getMonthly,
   getTailorStats,
@@ -23,6 +24,8 @@ import {
   getDepositCompliance,
   getBookingSourceBreakdown,
   getOrderProfitability,
+  getReorderCandidates,
+  getTopReferrers,
 } from "@/lib/analytics";
 
 /** Shared aggregation for every /reports/* page — keeps each page a thin render layer. */
@@ -30,9 +33,11 @@ export function useReportsData() {
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const { data: customers, isLoading: customersLoading } = useCustomers();
   const { data: loyaltyCfg } = useLoyaltyConfig();
+  const { data: coupons } = useReferralCoupons();
 
   const list = orders || [];
   const custList = customers || [];
+  const couponList = coupons || [];
 
   const monthly = useMemo(() => getMonthly(list), [list]);
   const tailorStats = useMemo(() => getTailorStats(list), [list]);
@@ -52,6 +57,8 @@ export function useReportsData() {
   const depositCompliance = useMemo(() => getDepositCompliance(list), [list]);
   const bookingSourceBreakdown = useMemo(() => getBookingSourceBreakdown(list), [list]);
   const orderProfitability = useMemo(() => getOrderProfitability(list), [list]);
+  const reorderCandidates = useMemo(() => getReorderCandidates(list), [list]);
+  const topReferrers = useMemo(() => getTopReferrers(couponList), [couponList]);
 
   return {
     orders: list,
@@ -75,5 +82,7 @@ export function useReportsData() {
     depositCompliance,
     bookingSourceBreakdown,
     orderProfitability,
+    reorderCandidates,
+    topReferrers,
   };
 }

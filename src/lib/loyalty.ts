@@ -11,7 +11,7 @@ export async function awardLoyaltyPoints(
   mobile: string,
   name: string,
   pts: number,
-  type: "earn" | "redeem" | "delivery" | "manual" | "payment_bonus",
+  type: "earn" | "redeem" | "delivery" | "manual" | "payment_bonus" | "referral",
   orderId: string | null,
   note: string
 ): Promise<void> {

@@ -1043,6 +1043,36 @@ export function mapLeaveRequestRow(r: LeaveRequestRow): LeaveRequest {
   };
 }
 
+export type ReferralCouponRow = Database["public"]["Tables"]["referral_coupons"]["Row"];
+
+export interface ReferralCoupon {
+  id: string;
+  code: string;
+  referrerMobile: string;
+  referrerName: string;
+  discountAmount: number;
+  issuedAt: string;
+  expiresAt: string;
+  redeemedAt: string | null;
+  redeemedOrderId: string | null;
+  createdBy: string | null;
+}
+
+export function mapReferralCouponRow(r: ReferralCouponRow): ReferralCoupon {
+  return {
+    id: r.id,
+    code: r.code,
+    referrerMobile: r.referrer_mobile,
+    referrerName: r.referrer_name || "",
+    discountAmount: r.discount_amount || 0,
+    issuedAt: r.issued_at,
+    expiresAt: r.expires_at,
+    redeemedAt: r.redeemed_at,
+    redeemedOrderId: r.redeemed_order_id,
+    createdBy: r.created_by,
+  };
+}
+
 export type PayrollRunRow = Database["public"]["Tables"]["payroll_runs"]["Row"];
 export type PayrollRunStatus = "draft" | "finalized";
 

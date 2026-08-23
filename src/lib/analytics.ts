@@ -1,7 +1,7 @@
 // Ported from Stitching_Manager_Pro_v16.html ~lines 2373-2524 (Analytics helpers).
-import { daysLeft, loyaltyDiscountOf, loyaltyTier, DEFAULT_LOYALTY_CONFIG, type LoyaltyConfig } from "@/lib/business-rules";
+import { daysLeft, loyaltyDiscountOf, couponDiscountOf, loyaltyTier, DEFAULT_LOYALTY_CONFIG, type LoyaltyConfig } from "@/lib/business-rules";
 import { isOrderOutstanding } from "@/lib/balances";
-import type { Order, Customer } from "@/lib/types";
+import type { Order, Customer, ReferralCoupon } from "@/lib/types";
 
 function fmtMon(yyyyMm: string): string {
   const [y, m] = yyyyMm.split("-").map(Number);
@@ -39,7 +39,7 @@ export function getMonthly(orders: Order[]): MonthlyStat[] {
       // collected = real cash received = advance (capped at total) minus loyalty discounts.
       // Clamping advance prevents an over-advance (e.g. after a price reduction edit) from
       // reporting collected > billed and pushing collectionPct above 100%.
-      collected: mo.reduce((s, o) => s + Math.max(0, Math.min(o.advance || 0, o.total || 0) - loyaltyDiscountOf(o)), 0),
+      collected: mo.reduce((s, o) => s + Math.max(0, Math.min(o.advance || 0, o.total || 0) - loyaltyDiscountOf(o) - couponDiscountOf(o)), 0),
       // pending = authoritative stored balance when present, falling back to total - advance
       pending: mo.reduce((s, o) => s + Math.max(0, o.balance ?? Math.max(0, (o.total || 0) - (o.advance || 0))), 0),
       count: mo.length,
@@ -429,6 +429,64 @@ export interface OrderProfitabilityRow extends Order {
 
 /** Profit = customer price − manually-entered fabric/other cost. Only as accurate as whoever
  *  fills in those cost fields on the order form — see order-form.tsx's Costs section. */
+export interface ReorderCandidateRow {
+  name: string;
+  mobile: string;
+  lastOrderDate: string;
+  monthsSince: number;
+  orders: Order[];
+}
+
+/** Customers whose most recent stitching order is older than the threshold — a pure
+ *  computation over already-fetched data, same shape as every other report here. No
+ *  persistence: a customer stays on this list until they place a new order, same as
+ *  getReadyUncollected staying populated until an order is actually collected. */
+export function getReorderCandidates(orders: Order[], monthsThreshold = 6): ReorderCandidateRow[] {
+  const byMobile = new Map<string, Order[]>();
+  orders.forEach((o) => {
+    if (!o.mobile) return;
+    const list = byMobile.get(o.mobile) || [];
+    list.push(o);
+    byMobile.set(o.mobile, list);
+  });
+
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - monthsThreshold);
+
+  const rows: ReorderCandidateRow[] = [];
+  byMobile.forEach((custOrders, mobile) => {
+    const sorted = [...custOrders].sort((a, b) => (b.inDate || "").localeCompare(a.inDate || ""));
+    const last = sorted[0];
+    if (!last?.inDate) return;
+    const lastDate = new Date(last.inDate);
+    if (Number.isNaN(lastDate.getTime()) || lastDate >= cutoff) return;
+    const monthsSince = Math.floor((Date.now() - lastDate.getTime()) / (30.44 * 86400000));
+    rows.push({ name: last.name, mobile, lastOrderDate: last.inDate, monthsSince, orders: sorted });
+  });
+
+  return rows.sort((a, b) => b.monthsSince - a.monthsSince);
+}
+
+export interface TopReferrerRow {
+  referrerMobile: string;
+  referrerName: string;
+  issued: number;
+  redeemed: number;
+  redemptionRate: number;
+}
+
+export function getTopReferrers(coupons: ReferralCoupon[]): TopReferrerRow[] {
+  const m: Record<string, TopReferrerRow> = {};
+  coupons.forEach((c) => {
+    const row = (m[c.referrerMobile] ||= { referrerMobile: c.referrerMobile, referrerName: c.referrerName, issued: 0, redeemed: 0, redemptionRate: 0 });
+    row.issued += 1;
+    if (c.redeemedAt) row.redeemed += 1;
+  });
+  return Object.values(m)
+    .map((r) => ({ ...r, redemptionRate: r.issued ? Math.round((r.redeemed / r.issued) * 100) : 0 }))
+    .sort((a, b) => b.redeemed - a.redeemed);
+}
+
 export function getOrderProfitability(orders: Order[]): OrderProfitabilityRow[] {
   return orders
     .map((o) => {

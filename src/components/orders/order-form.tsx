@@ -19,7 +19,7 @@ import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { getTailorWorkload } from "@/lib/analytics";
-import { DEFAULT_RATES, LINING_LABELS, BOOKING_SOURCES, computeRedemption, loyaltyTier, type Lining } from "@/lib/business-rules";
+import { DEFAULT_RATES, LINING_LABELS, BOOKING_SOURCES, REFERRAL_COUPON_DISCOUNT, computeRedemption, loyaltyTier, type Lining } from "@/lib/business-rules";
 import { hydrateMeasurements, compactMeasurements, toMKey, type MeasureLang } from "@/lib/measurements";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -165,6 +165,7 @@ function OrderFormFields({
   const [audios, setAudios] = useState<string[]>(existingOrder?.audios || []);
   const [videos, setVideos] = useState<string[]>(existingOrder?.videos || []);
   const [usePoints, setUsePoints] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
   const [prefilled, setPrefilled] = useState(false);
   const [measureOpen, setMeasureOpen] = useState(!isAlteration);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -308,6 +309,7 @@ function OrderFormFields({
           usePoints,
           orderType,
           paymentMethod: values.advance > 0 ? paymentMethod : undefined,
+          couponCode: couponCode.trim() || undefined,
         });
         toast.success(res.ptDiscount > 0 ? `Order ${res.order.id} created · ${inr(res.ptDiscount)} points discount applied` : `Order ${res.order.id} created`);
         if (res.limitWarning) toast.warning(res.limitWarning);
@@ -674,6 +676,17 @@ function OrderFormFields({
                     </p>
                   </div>
                 </button>
+              )}
+
+              {!isEdit && (
+                <FieldGroup label="Referral coupon code" hint={`Applies ₹${REFERRAL_COUPON_DISCOUNT} off if valid — checked when you create the order.`}>
+                  <Input
+                    placeholder="e.g. REF-AB12CD"
+                    className="h-10 uppercase"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  />
+                </FieldGroup>
               )}
 
               <FieldGroup label="Advance received">

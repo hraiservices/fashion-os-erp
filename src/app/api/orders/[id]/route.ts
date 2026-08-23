@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { mapOrderRow } from "@/lib/types";
-import { fmtNow, loyaltyDiscountOf, customerIdFromMobile } from "@/lib/business-rules";
+import { fmtNow, loyaltyDiscountOf, couponDiscountOf, customerIdFromMobile, REFERRAL_BONUS_POINTS } from "@/lib/business-rules";
 import { logAction } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
@@ -211,6 +211,22 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   } catch {
     // Loyalty refund failure must not block the delete confirmation — log separately.
     await logAction(supabase, user.email, `⚠️ Loyalty refund failed after deleting ${id} — manual correction may be needed`, id);
+  }
+
+  // Release any referral coupon redeemed on this order — otherwise deleting the order that
+  // used it permanently burns the coupon even though it was never actually fulfilled, and
+  // reverse the referral bonus points already credited to the referrer for it.
+  try {
+    const couponAmount = couponDiscountOf({ history: Array.isArray(row.history) ? (row.history as string[]) : [] });
+    if (couponAmount > 0) {
+      const { data: couponRow } = await supabase.from("referral_coupons").select("code, referrer_mobile, referrer_name").eq("redeemed_order_id", id).maybeSingle();
+      if (couponRow) {
+        await supabase.rpc("release_referral_coupon", { p_code: couponRow.code });
+        await awardLoyaltyPoints(supabase, couponRow.referrer_mobile, couponRow.referrer_name, -REFERRAL_BONUS_POINTS, "manual", id, `Referral bonus reversed — order ${id} deleted`);
+      }
+    }
+  } catch {
+    await logAction(supabase, user.email, `⚠️ Referral coupon release failed after deleting ${id} — manual correction may be needed`, id);
   }
 
   return NextResponse.json({ ok: true });

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { mapOrderRow } from "@/lib/types";
-import { computeRedemption, computeEarnPoints, loyaltyDiscountOf, fmtNow, customerIdFromMobile } from "@/lib/business-rules";
+import { computeRedemption, computeEarnPoints, loyaltyDiscountOf, couponDiscountOf, fmtNow, customerIdFromMobile } from "@/lib/business-rules";
 // customerIdFromMobile retained for loyalty lookup below
 import { logAction } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
@@ -88,8 +88,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (isFullyPaid && loyaltyCfg.enabled) {
       // `order` was read before record_order_payment ran, so its history does not yet
       // contain this payment's own discount line — add ptDiscount explicitly or the
-      // customer earns points on money they never paid.
-      const priorDiscount = loyaltyDiscountOf(order) + ptDiscount;
+      // customer earns points on money they never paid. Also excludes any referral-coupon
+      // discount already applied to this order, same "not real cash" treatment.
+      const priorDiscount = loyaltyDiscountOf(order) + couponDiscountOf(order) + ptDiscount;
       const netTotal = Math.max(0, order.total - priorDiscount);
       const earnPts = computeEarnPoints(netTotal, loyaltyCfg);
       if (earnPts > 0) {

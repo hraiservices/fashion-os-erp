@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { mapOrderRow } from "@/lib/types";
-import { newOrderId, customerIdFromMobile, deriveBalance, fmtNow, computeEarnPoints, computeRedemption } from "@/lib/business-rules";
+import { newOrderId, customerIdFromMobile, deriveBalance, fmtNow, computeEarnPoints, computeRedemption, REFERRAL_BONUS_POINTS } from "@/lib/business-rules";
 import { logAction } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
@@ -42,6 +42,8 @@ const bodySchema = z.object({
   bookingSource: z.string().optional().default(""),
   fabricCost: z.number().min(0).optional().default(0),
   otherCost: z.number().min(0).optional().default(0),
+  /** Referral coupon code to redeem against this order's balance at creation. */
+  couponCode: z.string().optional(),
 });
 
 /**
@@ -121,13 +123,43 @@ export async function POST(request: Request) {
     }
   }
 
-  const advance = Math.min(cashAdvance + ptDiscount, fd.total);
+  // ── Referral coupon redemption at creation ──────────────────────────────────
+  // Same shape as loyalty redemption above: reserve atomically before the order exists (the
+  // discount must be known to compute advance/balance below), release on insert failure.
+  let couponDiscount = 0;
+  let redeemedCouponCode: string | null = null;
+  let couponReferrerMobile: string | null = null;
+  let couponReferrerName: string | null = null;
+  if (fd.couponCode?.trim()) {
+    const code = fd.couponCode.trim().toUpperCase();
+    const { data: redeemedRows, error: couponError } = await supabase.rpc("redeem_referral_coupon", { p_code: code, p_order_id: id });
+    if (couponError) {
+      const msg = couponError.message.includes("COUPON_NOT_FOUND")
+        ? "That coupon code wasn't found"
+        : couponError.message.includes("COUPON_ALREADY_REDEEMED")
+          ? "That coupon has already been used"
+          : couponError.message.includes("COUPON_EXPIRED")
+            ? "That coupon has expired"
+            : couponError.message;
+      return NextResponse.json({ error: msg }, { status: 400 });
+    }
+    const redeemed = redeemedRows?.[0];
+    if (redeemed) {
+      couponDiscount = redeemed.discount_amount || 0;
+      redeemedCouponCode = redeemed.code;
+      couponReferrerMobile = redeemed.referrer_mobile;
+      couponReferrerName = redeemed.referrer_name;
+    }
+  }
+
+  const advance = Math.min(cashAdvance + ptDiscount + couponDiscount, fd.total);
   const balance = deriveBalance(fd.total, advance);
 
   const historyLine =
     `📥 Received — ${fmtNow()} by ${userName}` +
     (cashAdvance > 0 && fd.paymentMethod ? ` · 💳 ${fd.paymentMethod}` : "") +
-    (ptDiscount > 0 ? ` · 🎁 ₹${ptDiscount} loyalty pts applied` : "");
+    (ptDiscount > 0 ? ` · 🎁 ₹${ptDiscount} loyalty pts applied` : "") +
+    (couponDiscount > 0 ? ` · 🎟️ ₹${couponDiscount} referral coupon applied` : "");
 
   const { data: insertedRow, error: insertError } = await supabase
     .from("orders")
@@ -170,6 +202,10 @@ export async function POST(request: Request) {
         p_note: "Order creation failed — redemption reversed",
       });
     }
+    // Same reasoning for a reserved-but-now-orphaned referral coupon.
+    if (redeemedCouponCode) {
+      await supabase.rpc("release_referral_coupon", { p_code: redeemedCouponCode });
+    }
     return NextResponse.json({ error: insertError?.message || "Insert failed" }, { status: 500 });
   }
 
@@ -180,11 +216,11 @@ export async function POST(request: Request) {
   // return a warning instead.
   // C1: redemption points were already deducted by reserve_loyalty_discount above, so we
   // skip the awardLoyaltyPoints redemption call (it would double-deduct).
-  // H5: earn points on the net amount actually paid (total - ptDiscount), not gross total.
+  // H5: earn points on the net amount actually paid (total - ptDiscount - couponDiscount), not gross total.
   if (loyaltyCfg.enabled) {
     try {
       if (balance === 0) {
-        const netTotal = Math.max(0, fd.total - ptDiscount);
+        const netTotal = Math.max(0, fd.total - ptDiscount - couponDiscount);
         const earnPts = computeEarnPoints(netTotal, loyaltyCfg);
         if (earnPts > 0) {
           await awardLoyaltyPoints(supabase, fd.mobile, fd.name, earnPts, "earn", id, `Order paid in full ₹${fd.total}`);
@@ -192,6 +228,16 @@ export async function POST(request: Request) {
       }
     } catch (loyaltyErr) {
       await logAction(supabase, user.email, `⚠️ Loyalty earn failed for ${id} — manual correction needed`, id, String(loyaltyErr));
+    }
+  }
+
+  // Referral bonus — credited to whoever issued the coupon, independent of the loyalty program
+  // toggle above (a referral reward is a separate mechanic from points-per-rupee-spent).
+  if (couponReferrerMobile) {
+    try {
+      await awardLoyaltyPoints(supabase, couponReferrerMobile, couponReferrerName || "", REFERRAL_BONUS_POINTS, "referral", id, `Referral coupon redeemed by ${fd.name}`);
+    } catch (referralErr) {
+      await logAction(supabase, user.email, `⚠️ Referral bonus failed for ${id} — manual correction needed`, id, String(referralErr));
     }
   }
 

@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useOrders } from "@/hooks/use-orders";
 import { getMonthly, getTailorStats, getCustMap, getGarmentStats } from "@/lib/analytics";
-import { daysLeft, loyaltyDiscountOf } from "@/lib/business-rules";
+import { daysLeft, loyaltyDiscountOf, couponDiscountOf } from "@/lib/business-rules";
 import { isOrderOutstanding, getOrderOutstanding } from "@/lib/balances";
 
 /** Shared stitching-side aggregation used by multiple dashboard widgets — kept in one place so every widget agrees on the same numbers. */
@@ -29,7 +29,7 @@ export function useDashboardStats() {
     // — real cash received, i.e. advance capped at total, minus any loyalty-point-funded
     // discount (which isn't cash). Using `total - balance` here would double-count loyalty
     // discounts as if they were collected cash, and silently disagree with Monthly P&L.
-    const totalCollected = orders.reduce((s, o) => s + Math.max(0, Math.min(o.advance || 0, o.total || 0) - loyaltyDiscountOf(o)), 0);
+    const totalCollected = orders.reduce((s, o) => s + Math.max(0, Math.min(o.advance || 0, o.total || 0) - loyaltyDiscountOf(o) - couponDiscountOf(o)), 0);
     const totalUnpaid = totalRev - totalCollected;
 
     const custMap = getCustMap(orders);

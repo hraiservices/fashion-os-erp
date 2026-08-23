@@ -209,6 +209,26 @@ export function loyaltyDiscountOf(order: { history?: string[] }): number {
   }, 0);
 }
 
+// ── Referral coupons ─────────────────────────────────────────────────────────
+export const REFERRAL_COUPON_DISCOUNT = 100;
+export const REFERRAL_COUPON_VALIDITY_DAYS = 90;
+/** Loyalty points credited to the referrer once their coupon is redeemed. Plain constant for
+ *  v1, not yet a Settings-configurable value (same treatment as BOOKING_SOURCES). */
+export const REFERRAL_BONUS_POINTS = 50;
+
+/**
+ * Sum of referral-coupon discounts applied to an order — same "rolled into advance but not
+ * real cash" treatment as loyaltyDiscountOf, and must be excluded from "collected" revenue the
+ * same way. Parsed from the creation-path history line "🎟️ ₹N referral coupon applied".
+ */
+export function couponDiscountOf(order: { history?: string[] }): number {
+  return (order.history || []).reduce((sum, h) => {
+    if (!h || typeof h !== "string") return sum;
+    const m = h.match(/🎟️\s+₹(\d+)/);
+    return sum + (m ? parseInt(m[1], 10) || 0 : 0);
+  }, 0);
+}
+
 // ── WhatsApp deep links (openWA, lines ~2245-2264) ──────────────────────────
 export type WhatsAppMessageType = "received" | "ready" | "overdue" | "delivered" | "payment" | "paymentDue";
 
@@ -267,4 +287,30 @@ export function buildWhatsAppUrl(order: WhatsAppOrder, type: WhatsAppMessageType
   const mobile = normalizeIndianMobile(order.mobile);
   const message = buildWhatsAppMessage(order, type, shop);
   return `https://wa.me/91${mobile}?text=${encodeURIComponent(message)}`;
+}
+
+/**
+ * Customer-centric WhatsApp messages — deliberately separate from buildWhatsAppUrl/
+ * WhatsAppMessageType above, which are order-centric (id/deliveryDate/garments belong to one
+ * order, not a customer relationship). Reorder reminders and wardrobe summaries are about a
+ * customer's history across many orders, so they don't fit that shape.
+ */
+export function buildReorderReminderUrl(mobile: string, name: string, lastOrderDate: string, shop?: Shop): string {
+  const sn = shop?.name || "Fashion Boutique";
+  const ph = shop?.phone || "";
+  const message =
+    `Dear *${name}* 🙏\n\nIt's been a while since your last order with us on ${fmtDateIN(lastOrderDate)} at *${sn}*.` +
+    `\nWe'd love to stitch for you again — same measurements are on file, so it's quick!` +
+    `\n📞 ${ph}`;
+  return `https://wa.me/91${normalizeIndianMobile(mobile)}?text=${encodeURIComponent(message)}`;
+}
+
+export function buildWardrobeSummaryUrl(mobile: string, name: string, orders: { inDate: string; garments?: { type: string }[] }[], shop?: Shop): string {
+  const sn = shop?.name || "Fashion Boutique";
+  const lines = orders
+    .slice()
+    .sort((a, b) => (b.inDate || "").localeCompare(a.inDate || ""))
+    .map((o) => `• ${fmtDateIN(o.inDate)} — ${(o.garments || []).map((g) => g.type).join(", ") || "—"}`);
+  const message = `Dear *${name}* 🙏\n\nHere's everything you've had stitched with *${sn}*:\n\n${lines.join("\n")}\n\nThank you for trusting us with your wardrobe! 🌸`;
+  return `https://wa.me/91${normalizeIndianMobile(mobile)}?text=${encodeURIComponent(message)}`;
 }

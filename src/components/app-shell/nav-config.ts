@@ -88,6 +88,8 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/deposit-compliance", label: "Deposit Compliance" },
     { href: "/reports/order-profitability", label: "Order Profitability" },
     { href: "/reports/booking-sources", label: "Booking Sources" },
+    { href: "/reports/reorder-candidates", label: "Reorder Candidates" },
+    { href: "/reports/top-referrers", label: "Top Referrers" },
 
     { href: "/reports/employees", label: "Employee Directory", section: "Employees" },
     { href: "/reports/attendance-summary", label: "Attendance Summary" },

@@ -25,6 +25,7 @@ interface CreateOrderInput {
   bookingSource?: string;
   fabricCost?: number;
   otherCost?: number;
+  couponCode?: string;
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {

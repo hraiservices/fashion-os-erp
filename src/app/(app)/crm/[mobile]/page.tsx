@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ArrowLeft, ChevronRight, Mail, MapPin, Cake, Heart, ShoppingBag, FileText, Ticket, Shirt } from "lucide-react";
+import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ArrowLeft, ChevronRight, Mail, MapPin, Cake, Heart, ShoppingBag, FileText, Ticket, Shirt, Scissors } from "lucide-react";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -201,6 +201,12 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
         <div className="mt-4 flex flex-wrap gap-2">
           <Button nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}`} />} className="flex-1 sm:flex-none">
             <Plus className="size-4" /> New order
+          </Button>
+          <Button variant="outline" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}&type=alteration`} />} className="flex-1 sm:flex-none">
+            <Scissors className="size-4" /> New alteration
+          </Button>
+          <Button variant="outline" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="flex-1 sm:flex-none">
+            <Receipt className="size-4" /> New invoice
           </Button>
           <Button variant="outline" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />} className="flex-1 sm:flex-none">
             <FileText className="size-4" /> Statement

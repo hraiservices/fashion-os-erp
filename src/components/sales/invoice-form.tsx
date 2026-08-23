@@ -7,6 +7,7 @@ import { ArrowLeft, CalendarDays, User2, FileText, Package2, ChevronDown, Truck,
 import { useProducts } from "@/hooks/use-products";
 import { useSalesQuotation } from "@/hooks/use-sales-quotations";
 import { useSalesInvoice } from "@/hooks/use-sales-invoices";
+import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useSaveInvoice } from "@/hooks/use-sales-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAppSetting } from "@/hooks/use-app-setting";
@@ -65,12 +66,13 @@ function FieldGroup({ label, required, children, hint }: { label: string; requir
   );
 }
 
-export function InvoiceForm({ prefillQuoteId, prefillCloneId, existing }: { prefillQuoteId?: string; prefillCloneId?: string; existing?: SalesInvoice }) {
+export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, existing }: { prefillQuoteId?: string; prefillCloneId?: string; prefillMobile?: string; existing?: SalesInvoice }) {
   const router = useRouter();
   const { data: user } = useCurrentUser();
   const { data: products } = useProducts();
   const { data: prefillQuote } = useSalesQuotation(prefillQuoteId || "");
   const { data: prefillClone } = useSalesInvoice(prefillCloneId || "");
+  const { data: prefillCustomer } = useCustomerByMobile(prefillMobile || "");
   const { data: defaultTerms } = useAppSetting<string>("invoiceTerms", DEFAULT_INVOICE_TERMS);
   const { data: numbering } = useAppSetting<DocumentNumberingSettings>("documentNumbering", DEFAULT_DOCUMENT_NUMBERING);
   const saveInvoice = useSaveInvoice();
@@ -106,6 +108,11 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, existing }: { pref
     if (!isEdit && defaultTerms && !terms) setTerms(defaultTerms);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultTerms]);
+
+  useEffect(() => {
+    if (!prefillCustomer || prefillQuoteId || prefillCloneId) return;
+    setCustomer(prefillCustomer);
+  }, [prefillCustomer, prefillQuoteId, prefillCloneId]);
 
   useEffect(() => {
     if (!prefillQuote) return;

@@ -191,6 +191,8 @@ export const EMPLOYEES_GROUP: NavGroup = {
     { href: "/employees/payroll", label: "Payroll" },
     { href: "/settings/attendance-payroll", label: "Attendance & Payroll Settings" },
     { href: "/settings/leave-policy", label: "Leave Policy" },
+    { href: "/settings/tailor-rates", label: "Tailor Payable Rates" },
+    { href: "/settings/users", label: "Users & Roles" },
   ],
 };
 
@@ -229,7 +231,6 @@ export const SETTINGS_GROUP: NavGroup = {
   children: [
     { href: "/settings/shop", label: "Shop Profile" },
     { href: "/settings/rates", label: "Rate Card" },
-    { href: "/settings/tailor-rates", label: "Tailor Payable Rates" },
     { href: "/settings/measurements", label: "Measurements" },
     { href: "/settings/account", label: "Account" },
     { href: "/settings/loyalty", label: "Loyalty" },
@@ -238,7 +239,6 @@ export const SETTINGS_GROUP: NavGroup = {
     { href: "/settings/invoice-template", label: "Invoice Template" },
     { href: "/settings/price-lists", label: "Price Lists" },
     { href: "/settings/copilot", label: "AI Copilot" },
-    { href: "/settings/users", label: "Users & Roles" },
     { href: "/settings/font", label: "Appearance" },
     { href: "/settings/navigation", label: "Sidebar Navigation" },
     { href: "/settings/document-numbering", label: "Document Numbering" },
@@ -246,9 +246,18 @@ export const SETTINGS_GROUP: NavGroup = {
   ],
 };
 
-/** The two policy/config leaves living under Employees stay admin-only, same as when they lived under Settings — everyone with manageEmployees can see Attendance/Leave/Payroll data, but only an admin should see the policy config links (the pages themselves also enforce this via SettingsGuard). */
+/** The policy/config leaves living under Employees stay admin-only, same as when they lived
+ *  under Settings — everyone with manageEmployees can see Attendance/Leave/Payroll data, but
+ *  only an admin should see the policy config links and Users & Roles (the pages themselves
+ *  also enforce this via SettingsGuard). */
 export function employeesLeafVisible(href: string, isAdmin: boolean): boolean {
-  if (href === "/settings/attendance-payroll" || href === "/settings/leave-policy") return isAdmin;
+  if (
+    href === "/settings/attendance-payroll" ||
+    href === "/settings/leave-policy" ||
+    href === "/settings/tailor-rates" ||
+    href === "/settings/users"
+  )
+    return isAdmin;
   return true;
 }
 
@@ -264,11 +273,9 @@ export function settingsLeafVisible(href: string, isAdmin: boolean, canManageSho
       "/settings/invoice-template",
       "/settings/price-lists",
       "/settings/copilot",
-      "/settings/users",
       "/settings/font",
       "/settings/navigation",
       "/settings/document-numbering",
-      "/settings/tailor-rates",
     ].includes(href)
   )
     return isAdmin;

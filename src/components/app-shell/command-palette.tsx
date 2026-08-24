@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, resolveReportSection, SETTINGS_GROUP, settingsLeafVisible } from "@/components/app-shell/nav-config";
+import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, resolveReportSection, SETTINGS_GROUP, settingsLeafVisible, EMPLOYEES_GROUP, employeesLeafVisible } from "@/components/app-shell/nav-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useOrders } from "@/hooks/use-orders";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
@@ -33,7 +33,13 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     const settings = SETTINGS_GROUP.children
       .filter((c) => settingsLeafVisible(c.href, isAdmin, !restricted, isSuperAdmin) && (isSuperAdmin || !entitlements || isSettingEnabled(entitlements, c.href)))
       .map((c) => ({ href: c.href, label: `Settings · ${c.label}` }));
-    return { flat, reports, settings };
+    const employees =
+      restricted
+        ? []
+        : EMPLOYEES_GROUP.children
+            .filter((c) => employeesLeafVisible(c.href, isAdmin) && (isSuperAdmin || !entitlements || isSettingEnabled(entitlements, c.href)))
+            .map((c) => ({ href: c.href, label: `Employees · ${c.label}` }));
+    return { flat, reports, settings, employees };
   }, [restricted, isAdmin, isSuperAdmin, entitlements]);
 
   function go(href: string) {
@@ -71,6 +77,16 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         {pages.reports.length > 0 && (
           <CommandGroup heading="Reports">
             {pages.reports.map((p) => (
+              <CommandItem key={p.href} value={p.label} onSelect={() => go(p.href)}>
+                {p.label}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {pages.employees.length > 0 && (
+          <CommandGroup heading="Employees">
+            {pages.employees.map((p) => (
               <CommandItem key={p.href} value={p.label} onSelect={() => go(p.href)}>
                 {p.label}
               </CommandItem>

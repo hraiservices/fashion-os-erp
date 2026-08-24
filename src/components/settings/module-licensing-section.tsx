@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { REPORTS_GROUP, resolveReportSection, SETTINGS_GROUP } from "@/components/app-shell/nav-config";
+import { REPORTS_GROUP, resolveReportSection, SETTINGS_GROUP, EMPLOYEES_GROUP } from "@/components/app-shell/nav-config";
 import { BUILTIN_WIDGETS } from "@/lib/dashboard-widgets";
 import {
   MODULE_CATALOG,
@@ -190,13 +190,13 @@ export function ModuleLicensingSection() {
           <CardTitle className="text-sm">Settings Menu</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-1.5 sm:grid-cols-2">
-          {SETTINGS_GROUP.children
+          {[...SETTINGS_GROUP.children, ...EMPLOYEES_GROUP.children.filter((leaf) => leaf.href.startsWith("/settings/"))]
             .filter((leaf) => !SETTINGS_ALWAYS_ENABLED.includes(leaf.href))
             .map((leaf) => (
               <CheckRow key={leaf.href} label={leaf.label} checked={ent.settings[leaf.href] !== false} onChange={(v) => toggleSetting(leaf.href, v)} />
             ))}
           <p className="text-xs text-muted-foreground sm:col-span-2">
-            Account and Module Licensing always stay reachable and aren&apos;t shown here.
+            Account and Module Licensing always stay reachable and aren&apos;t shown here. Includes settings pages that live under the Employees menu (Attendance &amp; Payroll, Leave Policy, Tailor Payable Rates, Users &amp; Roles).
           </p>
         </CardContent>
       </Card>

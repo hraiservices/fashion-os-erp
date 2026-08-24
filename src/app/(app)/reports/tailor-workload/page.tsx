@@ -2,6 +2,7 @@
 
 import { Users } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
+import { useTailorName } from "@/hooks/use-employees";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +16,7 @@ const CAPACITY_STYLE: Record<string, string> = {
 
 export default function TailorWorkloadPage() {
   const { workload, isLoading } = useReportsData();
+  const tailorName = useTailorName();
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -35,7 +37,7 @@ export default function TailorWorkloadPage() {
           <tbody className="divide-y">
             {workload.map((t) => (
               <tr key={t.tailor} className="hover:bg-muted/30">
-                <Td className="font-medium">{t.tailor}</Td>
+                <Td className="font-medium">{tailorName(t.tailor)}</Td>
                 <Td align="right">{t.active}</Td>
                 <Td align="right">{t.overdue > 0 ? <span className="font-medium text-red-600 dark:text-red-400">{t.overdue}</span> : "0"}</Td>
                 <Td>

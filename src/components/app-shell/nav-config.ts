@@ -95,6 +95,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/attendance-summary", label: "Attendance Summary" },
     { href: "/reports/employee-commission", label: "Employee Commission" },
     { href: "/reports/payroll-summary", label: "Salary Report" },
+    { href: "/reports/tailor-payables", label: "Tailor Payables" },
 
     { href: "/reports/sales", label: "Sales Summary", section: "Sales" },
     { href: "/reports/sales/by-customer", label: "Sales by Customer" },
@@ -227,6 +228,7 @@ export const SETTINGS_GROUP: NavGroup = {
     { href: "/settings/shop", label: "Shop Profile" },
     { href: "/settings/tailors", label: "Tailors" },
     { href: "/settings/rates", label: "Rate Card" },
+    { href: "/settings/tailor-rates", label: "Tailor Payable Rates" },
     { href: "/settings/measurements", label: "Measurements" },
     { href: "/settings/account", label: "Account" },
     { href: "/settings/loyalty", label: "Loyalty" },
@@ -250,7 +252,25 @@ export const SETTINGS_GROUP: NavGroup = {
 export function settingsLeafVisible(href: string, isAdmin: boolean, canManageShop: boolean, isSuperAdmin: boolean): boolean {
   if (href === "/settings/module-licensing") return isSuperAdmin;
   if (["/settings/shop", "/settings/tailors", "/settings/rates", "/settings/measurements"].includes(href)) return canManageShop;
-  if (["/settings/loyalty", "/settings/whatsapp-sales", "/settings/invoice-terms", "/settings/invoice-template", "/settings/price-lists", "/settings/bot", "/settings/copilot", "/settings/users", "/settings/font", "/settings/navigation", "/settings/attendance-payroll", "/settings/leave-policy", "/settings/document-numbering"].includes(href)) return isAdmin;
+  if (
+    [
+      "/settings/loyalty",
+      "/settings/whatsapp-sales",
+      "/settings/invoice-terms",
+      "/settings/invoice-template",
+      "/settings/price-lists",
+      "/settings/bot",
+      "/settings/copilot",
+      "/settings/users",
+      "/settings/font",
+      "/settings/navigation",
+      "/settings/attendance-payroll",
+      "/settings/leave-policy",
+      "/settings/document-numbering",
+      "/settings/tailor-rates",
+    ].includes(href)
+  )
+    return isAdmin;
   return true; // /settings/account — everyone
 }
 

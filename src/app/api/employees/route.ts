@@ -24,6 +24,7 @@ const bodySchema = z.object({
   notes: z.string(),
   salaryType: z.enum(["monthly", "daily", "hourly"]).optional(),
   salaryRate: z.number().min(0).optional(),
+  pieceRateEligible: z.boolean().optional(),
   locationId: z.string().nullable().optional(),
 });
 
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
 
-  const touchesSalary = fd.salaryType !== undefined || fd.salaryRate !== undefined;
+  const touchesSalary = fd.salaryType !== undefined || fd.salaryRate !== undefined || fd.pieceRateEligible !== undefined;
   if (touchesSalary && !user.perms.managePayroll) {
     return NextResponse.json({ error: "No permission to manage payroll" }, { status: 403 });
   }
@@ -57,9 +58,12 @@ export async function POST(request: Request) {
       notes: fd.notes.trim(),
       ...(fd.salaryType ? { salary_type: fd.salaryType } : {}),
       ...(fd.salaryRate !== undefined ? { salary_rate: fd.salaryRate } : {}),
+      ...(fd.pieceRateEligible !== undefined ? { piece_rate_eligible: fd.pieceRateEligible } : {}),
       ...(fd.locationId !== undefined ? { location_id: fd.locationId } : {}),
     })
-    .select("id, name, mobile, role, employment_type, commission_type, commission_rate, active, joined_date, notes, salary_type, salary_rate, location_id, manager_id, created_at, updated_at")
+    .select(
+      "id, name, mobile, role, employment_type, commission_type, commission_rate, active, joined_date, notes, salary_type, salary_rate, piece_rate_eligible, location_id, manager_id, created_at, updated_at"
+    )
     .single();
   if (error || !data) return NextResponse.json({ error: error?.message || "Save failed" }, { status: 500 });
 

@@ -6,8 +6,9 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, Factory, ArrowRight, CheckCircle2, Trash2, Pencil } from "lucide-react";
 import { useWorkOrder } from "@/hooks/use-work-orders";
-import { useAdvanceWoStatus, useDeleteWorkOrder } from "@/hooks/use-work-order-mutations";
+import { useAdvanceWoStatus, useDeleteWorkOrder, useConfirmWoPayable } from "@/hooks/use-work-order-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useTailorName } from "@/hooks/use-employees";
 import { fmtDate, inr } from "@/lib/format";
 import { WO_STATUS_LABELS, nextWoStatus } from "@/lib/manufacturing";
 import { Badge } from "@/components/ui/badge";
@@ -34,10 +35,22 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
   const { data: user } = useCurrentUser();
   const advanceStatus = useAdvanceWoStatus();
   const deleteWo = useDeleteWorkOrder();
+  const confirmPayable = useConfirmWoPayable();
+  const tailorName = useTailorName();
 
   const [completeOpen, setCompleteOpen] = useState(false);
 
   const canManage = !!user?.perms.manageManufacturing;
+
+  async function handleConfirmPayable() {
+    if (!wo) return;
+    try {
+      await confirmPayable.mutateAsync(wo.id);
+      toast.success("Tailor payable confirmed");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to confirm payable");
+    }
+  }
 
   async function handleAdvance() {
     if (!wo) return;
@@ -48,7 +61,7 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
       return;
     }
     try {
-      await advanceStatus.mutateAsync({ id: wo.id, woNumber: wo.woNumber, status: next, userEmail: user?.email });
+      await advanceStatus.mutateAsync({ id: wo.id, woNumber: wo.woNumber, status: next });
       toast.success(`Moved to ${WO_STATUS_LABELS[next]}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to update status");
@@ -58,7 +71,7 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
   async function handleDelete() {
     if (!wo) return;
     try {
-      await deleteWo.mutateAsync({ id: wo.id, woNumber: wo.woNumber, userEmail: user?.email });
+      await deleteWo.mutateAsync({ id: wo.id, woNumber: wo.woNumber });
       toast.success("Work order deleted" + (wo.status === "completed" ? " — stock reverted" : ""));
       router.push("/manufacturing");
     } catch (e) {
@@ -98,7 +111,7 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{wo.woNumber}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {wo.qtyToProduce}x {wo.productName} · {wo.tailor || "Unassigned"}
+            {wo.qtyToProduce}x {wo.productName} · {wo.tailor ? tailorName(wo.tailor) : "Unassigned"}
           </p>
           <p className="text-xs text-muted-foreground">
             Start {fmtDate(wo.startDate)}
@@ -169,6 +182,22 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
                   <span className="tabular-nums">{inr(wo.costPerUnit || 0)}</span>
                 </div>
               </div>
+              {wo.tailor && (wo.laborCost || 0) > 0 && (
+                <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3 text-sm">
+                  <div>
+                    <p className="font-medium">Tailor payable</p>
+                    <p className="text-xs text-muted-foreground">
+                      {tailorName(wo.tailor)} · {inr(wo.laborCost || 0)} ·{" "}
+                      {wo.laborPayableConfirmedAt ? "confirmed" : "awaiting confirmation"}
+                    </p>
+                  </div>
+                  {user?.perms.managePayroll && !wo.laborPayableConfirmedAt && (
+                    <Button size="sm" variant="outline" onClick={handleConfirmPayable} disabled={confirmPayable.isPending}>
+                      {confirmPayable.isPending ? "Confirming…" : "Confirm"}
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

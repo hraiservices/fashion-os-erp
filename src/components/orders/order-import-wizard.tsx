@@ -64,6 +64,10 @@ function validateRows(table: ParsedTable, mapping: ImportMapping): ImportRowResu
       deliveryDate,
       total: Number.isNaN(total) ? 0 : total,
       advance: Number.isNaN(advance) ? 0 : advance,
+      // CSV rows carry a tailor NAME, but orders.tailor now stores an employee id — there's no
+      // resolution step here, so an imported order's tailor field lands as a free-text name,
+      // same as before the id upgrade. Known limitation: imported orders won't show a garment
+      // tailor in the new piece-rate UI until staff reassigns one via the order-form dropdown.
       tailor: get("tailor"),
       notes: get("notes"),
     };

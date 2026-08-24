@@ -7,9 +7,8 @@ import { ArrowLeft, Settings2, CalendarDays, Layers, FileText, Factory } from "l
 import Link from "next/link";
 import { useProducts } from "@/hooks/use-products";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
-import { useActiveTailorNames } from "@/hooks/use-employees";
+import { useActiveTailors } from "@/hooks/use-employees";
 import { useCreateWorkOrder, useUpdateWorkOrder } from "@/hooks/use-work-order-mutations";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { genWoNumber, prefillMaterialsFromBom, type WorkOrderMaterial } from "@/lib/manufacturing";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -46,10 +45,9 @@ function FieldGroup({ label, required, children, hint }: { label: string; requir
 
 export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
   const router = useRouter();
-  const { data: user } = useCurrentUser();
   const { data: products } = useProducts();
   const { data: rawMaterials } = useRawMaterials();
-  const { data: tailors } = useActiveTailorNames();
+  const { data: tailors } = useActiveTailors();
   const createWo = useCreateWorkOrder();
   const updateWo = useUpdateWorkOrder();
   const isEdit = !!existing;
@@ -115,7 +113,6 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
           materials,
           laborCostPerPiece: parseFloat(laborCostPerPiece) || 0,
           notes,
-          userEmail: user?.email,
         });
         toast.success(`Work order ${woNumber} updated`);
         router.push(`/manufacturing/${existing!.id}`);
@@ -131,7 +128,6 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
           materials,
           laborCostPerPiece: parseFloat(laborCostPerPiece) || 0,
           notes,
-          userEmail: user?.email,
         });
         toast.success(`Work order ${woNumber} created`);
         router.push(`/manufacturing/${res.id}`);
@@ -206,7 +202,7 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
                     </SelectTrigger>
                     <SelectContent>
                       {(tailors || []).map((t) => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

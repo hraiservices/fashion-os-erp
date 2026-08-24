@@ -128,6 +128,12 @@ export function PayslipDocument({
               <Text style={styles.rowValue}>{money(payslip.overtimePay)}</Text>
             </View>
           )}
+          {payslip.pieceRatePay > 0 && (
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>Piece-rate pay</Text>
+              <Text style={styles.rowValue}>{money(payslip.pieceRatePay)}</Text>
+            </View>
+          )}
           {advances.map((a) => (
             <View style={styles.row} key={a.id}>
               <Text style={styles.rowLabel}>Advance deducted — {fmtDate(a.date)}{a.note ? ` (${a.note})` : ""}</Text>

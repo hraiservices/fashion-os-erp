@@ -9,8 +9,10 @@ import { useAttendanceForEmployee } from "@/hooks/use-attendance";
 import { useAdvancesForEmployee } from "@/hooks/use-payroll";
 import { useAddAdvance, useDeleteAdvance } from "@/hooks/use-payroll-mutations";
 import { useOrders } from "@/hooks/use-orders";
+import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { computeCommission } from "@/lib/commission";
+import { computeOrderPieceRatePay, computeWorkOrderPieceRatePay } from "@/lib/piece-rate";
 import { SALARY_TYPE_LABELS } from "@/lib/payroll";
 import { inr, fmtDate } from "@/lib/format";
 import { toISODate } from "@/components/ui/date-picker";
@@ -41,6 +43,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   const { data: attendance } = useAttendanceForEmployee(id);
   const { data: advances } = useAdvancesForEmployee(id);
   const { data: orders } = useOrders();
+  const { data: workOrders } = useWorkOrders();
   const { data: user } = useCurrentUser();
   const addAdvance = useAddAdvance();
   const deleteAdvance = useDeleteAdvance();
@@ -51,6 +54,14 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
 
   const commission = employee ? computeCommission(employee, orders || []) : null;
   const outstandingAdvances = (advances || []).filter((a) => !a.payslipId).reduce((s, a) => s + a.amount, 0);
+
+  // All-time confirmed piece-rate earnings — a status figure for this page, not what payroll
+  // actually pays out per period (that's computed fresh, period-scoped, in the payroll run).
+  const confirmedOrders = (orders || []).filter((o) => o.payablesConfirmedAt);
+  const confirmedWorkOrders = (workOrders || []).filter((w) => w.laborPayableConfirmedAt);
+  const pieceRateEarnings = employee?.pieceRateEligible
+    ? computeOrderPieceRatePay(employee.id, confirmedOrders) + computeWorkOrderPieceRatePay(employee.id, confirmedWorkOrders)
+    : 0;
 
   async function handleAddAdvance() {
     const amount = parseFloat(advanceAmount);
@@ -126,7 +137,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         </div>
 
         {canManagePayroll && (
-          <div className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-lg bg-border">
+          <div className={`mt-4 grid gap-px overflow-hidden rounded-lg bg-border ${employee.pieceRateEligible ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
             <div className="bg-card p-3 text-center">
               <p className="text-lg font-semibold tabular-nums">{inr(employee.salaryRate)}</p>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{SALARY_TYPE_LABELS[employee.salaryType]} rate</p>
@@ -139,6 +150,12 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
               <p className="text-lg font-semibold tabular-nums">{commission ? inr(commission.commission) : "—"}</p>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Commission (all-time)</p>
             </div>
+            {employee.pieceRateEligible && (
+              <div className="bg-card p-3 text-center">
+                <p className="text-lg font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{inr(pieceRateEarnings)}</p>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Piece-rate (confirmed, all-time)</p>
+              </div>
+            )}
           </div>
         )}
       </div>

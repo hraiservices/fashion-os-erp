@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, Factory, ChevronRight } from "lucide-react";
 import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useTailorName } from "@/hooks/use-employees";
 import { fmtDate } from "@/lib/format";
 import { WO_STATUS_LABELS, type WoStatus } from "@/lib/manufacturing";
 import { PageHeader } from "@/components/ui/page-header";
@@ -32,6 +33,7 @@ const STATUS_BADGE_VARIANT: Record<WoStatus, "outline" | "secondary"> = {
 export default function ManufacturingPage() {
   const { data: orders, isLoading } = useWorkOrders();
   const { data: user } = useCurrentUser();
+  const tailorName = useTailorName();
   const canManage = !!user?.perms.manageManufacturing;
 
   const [filter, setFilter] = useState<WoStatus | "all">("all");
@@ -96,7 +98,7 @@ export default function ManufacturingPage() {
                   <Badge variant={STATUS_BADGE_VARIANT[o.status]}>{WO_STATUS_LABELS[o.status]}</Badge>
                 </div>
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {o.qtyToProduce}x {o.productName} · {o.tailor || "Unassigned"} · {fmtDate(o.startDate)}
+                  {o.qtyToProduce}x {o.productName} · {o.tailor ? tailorName(o.tailor) : "Unassigned"} · {fmtDate(o.startDate)}
                 </p>
               </div>
               {o.costPerUnit != null && <span className="shrink-0 text-xs text-muted-foreground">₹{o.costPerUnit}/unit</span>}

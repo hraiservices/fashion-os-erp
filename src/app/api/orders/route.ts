@@ -17,6 +17,8 @@ const garmentSchema = z.object({
   amount: z.number().optional(),
   /** Per-garment production checklist (cut/stitched/finished/pressed) — see src/lib/garment-checklist.ts. */
   checklist: z.record(z.string(), z.boolean()).optional(),
+  /** Employee id of whoever will stitch this garment — drives tailor piece-rate pay. */
+  tailor: z.string().optional(),
 });
 
 const bodySchema = z.object({

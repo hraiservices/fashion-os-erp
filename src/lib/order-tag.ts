@@ -21,7 +21,7 @@ function escapeHtml(s: string): string {
  * floor. Same window.open + document.write + @page pattern as printBarcodeLabel
  * (src/lib/barcode.ts) and printThermalReceipt, so it doesn't fight the main app's print CSS.
  */
-export function printOrderTag(order: Order, shop?: Shop) {
+export function printOrderTag(order: Order, shop?: Shop, tailorName?: string) {
   const svg = renderBarcodeSvg(order.id);
   const win = window.open("", "_blank", "width=420,height=560");
   if (!win) return;
@@ -50,7 +50,7 @@ export function printOrderTag(order: Order, shop?: Shop) {
   <div class="name">${escapeHtml(order.name)}</div>
   <div class="row"><div class="label">Garments</div><div class="value">${escapeHtml(garmentLines || "—")}</div></div>
   <div class="row"><div class="label">Delivery</div><div class="value">${escapeHtml(fmtDate(order.deliveryDate))}</div></div>
-  <div class="row"><div class="label">Tailor</div><div class="value">${escapeHtml(order.tailor || "—")}</div></div>
+  <div class="row"><div class="label">Tailor</div><div class="value">${escapeHtml(tailorName || order.tailor || "—")}</div></div>
   ${order.special ? `<div class="special"><div class="label">Special instructions</div>${escapeHtml(order.special)}</div>` : ""}
   <script>window.onload = () => { window.print(); };</script>
 </body>

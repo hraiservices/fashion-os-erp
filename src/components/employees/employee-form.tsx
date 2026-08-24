@@ -41,6 +41,7 @@ const schema = z.object({
   notes: z.string().optional(),
   salaryType: z.enum(["monthly", "daily", "hourly"]),
   salaryRate: z.number().min(0),
+  pieceRateEligible: z.boolean(),
   locationId: z.string(),
 });
 type FormValues = z.infer<typeof schema>;
@@ -101,9 +102,24 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
           notes: existing.notes,
           salaryType: existing.salaryType,
           salaryRate: existing.salaryRate,
+          pieceRateEligible: existing.pieceRateEligible,
           locationId: existing.locationId || NO_LOCATION,
         }
-      : { name: "", mobile: "", role: "", employmentType: "full_time", commissionType: "none", commissionRate: 0, active: true, joinedDate: "", notes: "", salaryType: "monthly", salaryRate: 0, locationId: NO_LOCATION },
+      : {
+          name: "",
+          mobile: "",
+          role: "",
+          employmentType: "full_time",
+          commissionType: "none",
+          commissionRate: 0,
+          active: true,
+          joinedDate: "",
+          notes: "",
+          salaryType: "monthly",
+          salaryRate: 0,
+          pieceRateEligible: false,
+          locationId: NO_LOCATION,
+        },
   });
 
   // The Tailor dropdown on Orders is filtered to role.toLowerCase() === "tailor" exactly
@@ -130,7 +146,9 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
         // same permission) — otherwise a manageEmployees-but-not-managePayroll user's save of
         // an unrelated field (e.g. phone number) would silently zero out the real salary,
         // since the hidden section's form state still holds whatever value it loaded with.
-        ...(user?.perms.managePayroll ? { salaryType: values.salaryType, salaryRate: values.salaryRate || 0 } : {}),
+        ...(user?.perms.managePayroll
+          ? { salaryType: values.salaryType, salaryRate: values.salaryRate || 0, pieceRateEligible: values.pieceRateEligible }
+          : {}),
         locationId: values.locationId === NO_LOCATION ? null : values.locationId,
         userEmail: user?.email,
       });
@@ -310,6 +328,12 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
                   render={({ field }) => <NumberInput min={0} step={0.01} className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
                 />
               </FieldGroup>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <input type="checkbox" id="pieceRateEligible" className="size-4 rounded" {...register("pieceRateEligible")} />
+              <Label htmlFor="pieceRateEligible" className="text-xs font-medium text-foreground/80 cursor-pointer">
+                Piece-rate eligible — also earns per-garment/per-unit pay on top of the salary above, from garments and work orders assigned to them
+              </Label>
             </div>
             <p className="text-[11px] text-muted-foreground">
               Overtime is a shop-wide flat ₹/hour rate, not set per employee — configure it under{" "}

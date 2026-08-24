@@ -65,6 +65,12 @@ export interface Garment {
   lining?: "s" | "h" | "f" | string;
   no?: number;
   amount?: number;
+  /** Employee id of whoever stitches this garment — drives tailor piece-rate pay. */
+  tailor?: string;
+  /** Snapshotted from the tailor rate card the moment this garment's order first reaches
+   *  "ready", then frozen forever — never recalculated, even if the rate card or the order
+   *  changes afterward. Undefined until snapshotted (no tailor assigned, or not ready yet). */
+  payableAmount?: number;
   [key: string]: Json | undefined;
 }
 
@@ -103,6 +109,10 @@ export interface Order {
   reworkFlaggedAt: string | null;
   /** Set once, the first time the order reaches "ready" — powers the ready-but-uncollected aging report. Null for orders that haven't reached ready yet, or that reached it before this column existed. */
   readyAt: string | null;
+  /** Set by a payroll manager to confirm this order's snapshotted tailor payables as real —
+   *  see /api/orders/[id]/confirm-payables. Only confirmed payables count toward payroll. */
+  payablesConfirmedAt: string | null;
+  payablesConfirmedBy: string | null;
   createdAt: string;
 }
 
@@ -144,6 +154,8 @@ export function mapOrderRow(r: OrderRow): Order {
     reworkFlaggedBy: r.rework_flagged_by ?? null,
     reworkFlaggedAt: r.rework_flagged_at ?? null,
     readyAt: r.ready_at ?? null,
+    payablesConfirmedAt: r.payables_confirmed_at ?? null,
+    payablesConfirmedBy: r.payables_confirmed_by ?? null,
     createdAt: r.created_at || "",
   };
 }
@@ -540,6 +552,11 @@ export interface WorkOrder {
   costPerUnit: number | null;
   notes: string;
   completedAt: string | null;
+  /** Set once a payroll manager confirms this WO's laborCost as a real tailor payable — see
+   *  the split-gate note on the /complete and /confirm-payable routes. Null until confirmed,
+   *  even after the WO itself is completed. */
+  laborPayableConfirmedAt: string | null;
+  laborPayableConfirmedBy: string | null;
   createdAt: string;
 }
 
@@ -816,6 +833,8 @@ export function mapWorkOrderRow(r: WorkOrderRow): WorkOrder {
     costPerUnit: r.cost_per_unit,
     notes: r.notes || "",
     completedAt: r.completed_at,
+    laborPayableConfirmedAt: r.labor_payable_confirmed_at ?? null,
+    laborPayableConfirmedBy: r.labor_payable_confirmed_by ?? null,
     createdAt: r.created_at,
   };
 }
@@ -840,6 +859,9 @@ export interface Employee {
   notes: string;
   salaryType: SalaryType;
   salaryRate: number;
+  /** Whether this employee also earns per-garment/per-unit piece-rate pay on top of their
+   *  salary — see src/lib/piece-rate.ts. Salary can be ₹0 for a pure piece-rate tailor. */
+  pieceRateEligible: boolean;
   /** Assigned shop location for geofenced self-check-in — null if not assigned/single-location shop. */
   locationId: string | null;
   /** Whether a PIN has been set for self-service attendance login. The hash itself is never
@@ -868,6 +890,7 @@ export function mapEmployeeRow(r: EmployeeRow, hasPin = false): Employee {
     notes: r.notes || "",
     salaryType: (r.salary_type as SalaryType) || "monthly",
     salaryRate: r.salary_rate || 0,
+    pieceRateEligible: !!r.piece_rate_eligible,
     locationId: r.location_id ?? null,
     hasPin,
     managerId: r.manager_id ?? null,
@@ -1110,6 +1133,7 @@ export interface Payslip {
   halfDays: number;
   leaveDays: number;
   grossPay: number;
+  pieceRatePay: number;
   deductions: number;
   netPay: number;
   hoursWorked: number;
@@ -1130,6 +1154,7 @@ export function mapPayslipRow(r: PayslipRow): Payslip {
     halfDays: r.half_days || 0,
     leaveDays: r.leave_days || 0,
     grossPay: r.gross_pay || 0,
+    pieceRatePay: r.piece_rate_pay || 0,
     deductions: r.deductions || 0,
     netPay: r.net_pay || 0,
     hoursWorked: r.hours_worked || 0,

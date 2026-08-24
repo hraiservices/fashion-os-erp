@@ -37,13 +37,25 @@ interface LeaveBalanceResponse {
   weeklyOffDay: number | null;
 }
 
+interface EarningsResponse {
+  eligible: boolean;
+  weekConfirmed?: number;
+  monthConfirmed?: number;
+  pendingConfirmation?: number;
+  allTimeConfirmed?: number;
+}
+
+function inr(n: number): string {
+  return `₹${Math.round(n).toLocaleString("en-IN")}`;
+}
+
 function fmtDayShort(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
 }
 
 type Step = "login" | "loading" | "ready";
 type Action = "checkin" | "checkout" | null;
-type MainTab = "attendance" | "leave";
+type MainTab = "attendance" | "leave" | "earnings";
 
 function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
@@ -81,6 +93,7 @@ export default function CheckInPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [tab, setTab] = useState<MainTab>("attendance");
+  const [earnings, setEarnings] = useState<EarningsResponse | null>(null);
   const [leaveLoaded, setLeaveLoaded] = useState(false);
   const [leaveData, setLeaveData] = useState<LeaveBalanceResponse | null>(null);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
@@ -103,6 +116,12 @@ export default function CheckInPage() {
     if (res.ok) {
       setMe(data);
       setStep("ready");
+      // Fetched eagerly (not lazily like leave) since the Earnings tab itself is only shown
+      // when eligible=true — we need to know that before deciding what tabs to render.
+      fetch("/api/attendance/earnings")
+        .then((r) => r.json())
+        .then((d) => setEarnings(d))
+        .catch(() => {});
     }
   }
 
@@ -165,6 +184,7 @@ export default function CheckInPage() {
     setMobile("");
     setStep("login");
     setLeaveLoaded(false);
+    setEarnings(null);
     setTab("attendance");
   }
 
@@ -319,6 +339,15 @@ export default function CheckInPage() {
               >
                 Leave
               </button>
+              {earnings?.eligible && (
+                <button
+                  type="button"
+                  onClick={() => setTab("earnings")}
+                  className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-colors ${tab === "earnings" ? "bg-background shadow-sm" : "text-muted-foreground"}`}
+                >
+                  Earnings
+                </button>
+              )}
             </div>
 
             {tab === "attendance" && (
@@ -484,6 +513,31 @@ export default function CheckInPage() {
                       )}
                     </div>
                   </>
+                )}
+              </div>
+            )}
+
+            {tab === "earnings" && earnings?.eligible && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg border p-3 text-center">
+                    <p className="text-lg font-semibold tabular-nums">{inr(earnings.weekConfirmed || 0)}</p>
+                    <p className="text-[11px] text-muted-foreground">This week</p>
+                  </div>
+                  <div className="rounded-lg border p-3 text-center">
+                    <p className="text-lg font-semibold tabular-nums">{inr(earnings.monthConfirmed || 0)}</p>
+                    <p className="text-[11px] text-muted-foreground">This month</p>
+                  </div>
+                </div>
+                <div className="rounded-lg border p-3 text-center">
+                  <p className="text-lg font-semibold tabular-nums">{inr(earnings.allTimeConfirmed || 0)}</p>
+                  <p className="text-[11px] text-muted-foreground">Confirmed, all-time</p>
+                </div>
+                {(earnings.pendingConfirmation || 0) > 0 && (
+                  <div className="rounded-lg bg-amber-50 p-3 text-center dark:bg-amber-950/40">
+                    <p className="text-sm font-semibold tabular-nums text-amber-700 dark:text-amber-400">{inr(earnings.pendingConfirmation || 0)}</p>
+                    <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80">Awaiting manager confirmation — not yet final</p>
+                  </div>
                 )}
               </div>
             )}

@@ -34,6 +34,23 @@ export const DEFAULT_RATES: Record<string, Record<Lining, number>> = {
   "Saree Fall/Piko": { s: 120, h: 120, f: 120 },
 };
 
+/** Tailor payable rate card — same garment-type × lining shape as DEFAULT_RATES (the customer
+ *  price list), but each cell carries two payable amounts: what a tailor is paid for a NEW
+ *  garment of that type/lining vs. an ALTERATION, since alterations pay less. Stored under
+ *  app_settings key "tailorRates". Snapshotted onto each garment (frozen) the moment its order
+ *  first reaches "ready" — see snapshot_tailor_payables() in the DB. */
+export interface TailorRate {
+  new: number;
+  alteration: number;
+}
+export type TailorRateCard = Record<string, Record<Lining, TailorRate>>;
+
+/** Zero by default for every garment type in DEFAULT_RATES — the shop enters real payable
+ *  rates in Settings once this ships; there's no sensible default to guess at. */
+export const DEFAULT_TAILOR_RATES: TailorRateCard = Object.fromEntries(
+  Object.keys(DEFAULT_RATES).map((type) => [type, { s: { new: 0, alteration: 0 }, h: { new: 0, alteration: 0 }, f: { new: 0, alteration: 0 } }])
+);
+
 /** newId(), line ~2211. */
 export function newOrderId(): string {
   const rand =

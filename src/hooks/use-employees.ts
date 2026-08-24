@@ -11,7 +11,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 // employees table, so "just don't display it" isn't enough — it can't be in the payload).
 const EMPLOYEE_COLUMNS_BASE =
   "id, name, mobile, role, employment_type, commission_type, commission_rate, active, joined_date, notes, location_id, manager_id, created_at, updated_at";
-const EMPLOYEE_COLUMNS_WITH_SALARY = `${EMPLOYEE_COLUMNS_BASE}, salary_type, salary_rate`;
+const EMPLOYEE_COLUMNS_WITH_SALARY = `${EMPLOYEE_COLUMNS_BASE}, salary_type, salary_rate, piece_rate_eligible`;
 
 /** salary_type/salary_rate are only ever included in the query when the caller holds
  *  managePayroll — previously every logged-in user's fetch included every employee's salary
@@ -52,9 +52,22 @@ export function useEmployee(id: string) {
   });
 }
 
-/** Active tailors, sourced from Employees — replaces the old app_settings "tailors" list as the Tailor dropdown's source. */
-export function useActiveTailorNames() {
+/** Active tailors, sourced from Employees — replaces the old app_settings "tailors" list as the
+ *  Tailor dropdown's source. Returns full Employee records (id + name) rather than just names —
+ *  every tailor field in the app (order, garment, work order) stores an employee id now, not a
+ *  free-text name, so callers select on `id` and display `name`. */
+export function useActiveTailors() {
   const { data: employees, ...rest } = useEmployees();
-  const tailors = (employees || []).filter((e) => e.active && e.role.toLowerCase() === "tailor").map((e) => e.name);
+  const tailors = (employees || []).filter((e) => e.active && e.role.toLowerCase() === "tailor");
   return { data: tailors, ...rest };
+}
+
+/** Resolves an employee id stored in a tailor field back to a display name. Falls back to the
+ *  raw value unchanged for anything that doesn't match a known employee — covers legacy
+ *  free-text tailor values from before the id upgrade that the backfill migration couldn't
+ *  match, so the UI degrades to showing the old name rather than a blank or a stray id. */
+export function useTailorName(): (id: string) => string {
+  const { data: employees } = useEmployees();
+  const byId = new Map((employees || []).map((e) => [e.id, e.name]));
+  return (id: string) => (id ? byId.get(id) || id : "");
 }

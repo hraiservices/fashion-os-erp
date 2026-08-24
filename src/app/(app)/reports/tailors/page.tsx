@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Printer, Users } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useWorkOrders } from "@/hooks/use-work-orders";
+import { useTailorName } from "@/hooks/use-employees";
 import { getManufacturingTailorStats } from "@/lib/manufacturing";
 import { printReport } from "@/lib/export";
 import { inr } from "@/lib/format";
@@ -16,6 +17,7 @@ export default function TailorPerformancePage() {
   const { tailorStats, isLoading: reportsLoading } = useReportsData();
   const { data: workOrders, isLoading: woLoading } = useWorkOrders();
   const isLoading = reportsLoading || woLoading;
+  const tailorName = useTailorName();
 
   const mfgByTailor = useMemo(() => {
     const stats = getManufacturingTailorStats(workOrders || []);
@@ -37,7 +39,7 @@ export default function TailorPerformancePage() {
               printReport(
                 "Tailor Performance",
                 `<table><thead><tr><th>Tailor</th><th>Active</th><th>Done</th><th>Overdue</th><th>Avg Days</th><th>Revenue</th></tr></thead><tbody>${tailorStats
-                  .map((t) => `<tr><td>${t.tailor}</td><td>${t.active}</td><td>${t.done}</td><td>${t.overdue}</td><td>${t.avg}</td><td>${inr(t.revenue)}</td></tr>`)
+                  .map((t) => `<tr><td>${tailorName(t.tailor)}</td><td>${t.active}</td><td>${t.done}</td><td>${t.overdue}</td><td>${t.avg}</td><td>${inr(t.revenue)}</td></tr>`)
                   .join("")}</tbody></table>`
               )
             }
@@ -69,7 +71,7 @@ export default function TailorPerformancePage() {
               const mfg = mfgByTailor.get(t.tailor);
               return (
                 <tr key={t.tailor} className="hover:bg-muted/30">
-                  <Td className="font-medium">{t.tailor}</Td>
+                  <Td className="font-medium">{tailorName(t.tailor)}</Td>
                   <Td align="right">{t.active}</Td>
                   <Td align="right">{t.done}</Td>
                   <Td align="right">{t.overdue > 0 ? <span className="font-medium text-red-600 dark:text-red-400">{t.overdue}</span> : "0"}</Td>

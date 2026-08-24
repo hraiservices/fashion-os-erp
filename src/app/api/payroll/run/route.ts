@@ -3,8 +3,9 @@ import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { logAction } from "@/lib/logging";
 import { computeGrossPay, countAttendance } from "@/lib/payroll";
-import { mapEmployeeRow, mapAttendanceRow } from "@/lib/types";
+import { mapEmployeeRow, mapAttendanceRow, type Order, type WorkOrder } from "@/lib/types";
 import { DEFAULT_ATTENDANCE_SETTINGS, type AttendanceSettings } from "@/lib/attendance-settings";
+import { computePieceRatePay } from "@/lib/piece-rate";
 
 const bodySchema = z.object({
   periodStart: z.string().min(1),
@@ -98,6 +99,7 @@ export async function POST(request: Request) {
       half_days: number;
       leave_days: number;
       gross_pay: number;
+      piece_rate_pay: number;
       deductions: number;
       net_pay: number;
       hours_worked: number;
@@ -111,10 +113,20 @@ export async function POST(request: Request) {
     // Batch attendance/advances for every employee in this run into 2 queries total instead
     // of 2 per employee — a payroll run over a large roster was previously O(N) round trips.
     const employeeIds = employees.map((e) => e.id);
-    const [{ data: allAttRows }, { data: allAdvanceRows }] = await Promise.all([
+    const hasPieceRateEmployees = employees.some((e) => e.pieceRateEligible);
+    const periodEndOfDay = `${periodEnd}T23:59:59.999`;
+    const [{ data: allAttRows }, { data: allAdvanceRows }, { data: confirmedOrderRows }, { data: confirmedWoRows }] = await Promise.all([
       supabase.from("employee_attendance").select("*").in("employee_id", employeeIds).gte("date", periodStart).lte("date", periodEnd),
       supabase.from("employee_advances").select("*").in("employee_id", employeeIds).is("payslip_id", null).lte("date", periodEnd).order("date", { ascending: true }),
+      hasPieceRateEmployees
+        ? supabase.from("orders").select("garments").not("payables_confirmed_at", "is", null).gte("ready_at", periodStart).lte("ready_at", periodEndOfDay)
+        : Promise.resolve({ data: [] as { garments: unknown }[] }),
+      hasPieceRateEmployees
+        ? supabase.from("work_orders").select("tailor, labor_cost").not("labor_payable_confirmed_at", "is", null).gte("completed_at", periodStart).lte("completed_at", periodEndOfDay)
+        : Promise.resolve({ data: [] as { tailor: string; labor_cost: number | null }[] }),
     ]);
+    const confirmedOrders = (confirmedOrderRows || []) as Pick<Order, "garments">[];
+    const confirmedWorkOrders = (confirmedWoRows || []).map((w) => ({ tailor: w.tailor, laborCost: w.labor_cost })) as Pick<WorkOrder, "tailor" | "laborCost">[];
     type AttRow = NonNullable<typeof allAttRows>[number];
     type AdvanceRow = NonNullable<typeof allAdvanceRows>[number];
     const attByEmployee = new Map<string, AttRow[]>();
@@ -156,10 +168,14 @@ export async function POST(request: Request) {
 
       const advanceRows = advancesByEmployee.get(employee.id) || [];
 
-      // C-3: Only link advances that fit within the gross pay + overtime budget.
+      // Piece-rate pay is additive to salary, not a replacement — a hybrid tailor's own
+      // salaryRate can be ₹0 (pure piece-rate) or nonzero (base + piece-rate on top).
+      const piecePay = employee.pieceRateEligible ? computePieceRatePay(employee.id, confirmedOrders, confirmedWorkOrders) : 0;
+
+      // C-3: Only link advances that fit within the gross pay + overtime + piece-rate budget.
       // Excess advances roll forward to the next payroll run instead of
       // being silently written off.
-      let budgetLeft = grossPay + overtimePay;
+      let budgetLeft = grossPay + overtimePay + piecePay;
       const advancesToLink: string[] = [];
       let actualDeductions = 0;
 
@@ -174,7 +190,7 @@ export async function POST(request: Request) {
         // be picked up in the next run when the employee has earned enough.
       }
 
-      const netPay = Math.max(0, Math.round((grossPay + overtimePay - actualDeductions) * 100) / 100);
+      const netPay = Math.max(0, Math.round((grossPay + overtimePay + piecePay - actualDeductions) * 100) / 100);
 
       const rowKey = employee.id;
       payslipRows.push({
@@ -185,6 +201,7 @@ export async function POST(request: Request) {
         half_days: counts.halfDays,
         leave_days: counts.leaveDays,
         gross_pay: grossPay,
+        piece_rate_pay: piecePay,
         deductions: actualDeductions,
         net_pay: netPay,
         hours_worked: totalHoursWorked,

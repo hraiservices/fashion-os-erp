@@ -10,7 +10,7 @@ interface CreateOrderInput {
   deliveryDate: string;
   inTime?: string;
   deliveryTime?: string;
-  garments: { type: string; lining?: string; no?: number; amount?: number }[];
+  garments: { type: string; lining?: string; no?: number; amount?: number; tailor?: string }[];
   total: number;
   advance: number;
   tailor: string;
@@ -87,6 +87,19 @@ export function useSetOrderRework() {
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["order", vars.orderId] });
+    },
+  });
+}
+
+/** Confirms this order's snapshotted tailor payables so they count toward payroll — see the
+ *  self-dealing note on the confirm-payables route. */
+export function useConfirmOrderPayables() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => postJson<{ ok: true; confirmedAt: string }>(`/api/orders/${orderId}/confirm-payables`, {}),
+    onSuccess: (_data, orderId) => {
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["order", orderId] });
     },
   });
 }

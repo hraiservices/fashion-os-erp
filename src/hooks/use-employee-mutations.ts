@@ -16,6 +16,7 @@ interface SaveEmployeeInput {
   notes: string;
   salaryType?: SalaryType;
   salaryRate?: number;
+  pieceRateEligible?: boolean;
   locationId?: string | null;
   userEmail?: string;
 }

@@ -1,16 +1,9 @@
 import type { Employee, Order } from "@/lib/types";
 
-/**
- * v1 commission attribution: matches an employee's `name` against the free-text
- * `orders.tailor` column (there's no FK — see add_employees_module.sql notes). This is a
- * known limitation, not a bug: linking orders.tailor to employees.id would require a
- * migration touching the heavily-used orders/work_orders tables, which the Employees module
- * deliberately avoids in v1.
- */
+/** orders.tailor stores an employee id (see add_tailor_piece_rate.sql — every tailor field in
+ *  the app was upgraded from a free-text name match to a real id). */
 export function ordersForEmployee(employee: Employee, orders: Order[]): Order[] {
-  const name = employee.name.trim().toLowerCase();
-  if (!name) return [];
-  return orders.filter((o) => o.tailor.trim().toLowerCase() === name);
+  return orders.filter((o) => o.tailor === employee.id);
 }
 
 export function computeCommission(employee: Employee, orders: Order[]): { attributedOrders: number; attributedValue: number; commission: number } {

@@ -2,6 +2,7 @@
 
 import { RotateCcw } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
+import { useTailorName } from "@/hooks/use-employees";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  *  page's "Flag for rework" action), not an automatic quality signal. */
 export default function ReworkRatePage() {
   const { reworkRate, isLoading } = useReportsData();
+  const tailorName = useTailorName();
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -30,7 +32,7 @@ export default function ReworkRatePage() {
           <tbody className="divide-y">
             {reworkRate.map((r) => (
               <tr key={r.tailor} className="hover:bg-muted/30">
-                <Td className="font-medium">{r.tailor}</Td>
+                <Td className="font-medium">{tailorName(r.tailor)}</Td>
                 <Td align="right">{r.totalOrders}</Td>
                 <Td align="right">{r.reworkCount}</Td>
                 <Td align="right" className={r.reworkRate >= 15 ? "font-medium text-destructive" : undefined}>

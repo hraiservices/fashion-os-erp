@@ -66,17 +66,18 @@ const stageLabel = (v: unknown) => (v === "all" ? "All stages" : (STAGE_META[v a
 const priorityLabel = (v: unknown) => PRIORITY_LABEL[v as Priority] ?? String(v ?? "");
 const orderTypeLabel = (v: unknown) => ORDER_TYPE_LABEL[v as OrderTypeFilter] ?? String(v ?? "");
 
-function TailorSelect({ value, onChange, tailors }: { value: string; onChange: (v: string) => void; tailors: string[] }) {
+function TailorSelect({ value, onChange, tailors }: { value: string; onChange: (v: string) => void; tailors: { id: string; name: string }[] }) {
+  const label = (v: unknown) => (v === "all" ? "All tailors" : tailors.find((t) => t.id === v)?.name ?? tailorLabel(v));
   return (
     <Select value={value} onValueChange={(v) => v && onChange(v)}>
       <SelectTrigger className="h-10 w-full">
-        <SelectValue>{tailorLabel}</SelectValue>
+        <SelectValue>{label}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="all">All tailors</SelectItem>
         {tailors.map((t) => (
-          <SelectItem key={t} value={t}>
-            {t}
+          <SelectItem key={t.id} value={t.id}>
+            {t.name}
           </SelectItem>
         ))}
       </SelectContent>
@@ -159,7 +160,7 @@ export function OrderFilters({
 }: {
   value: FilterState;
   onChange: (f: FilterState) => void;
-  tailors: string[];
+  tailors: { id: string; name: string }[];
   resultCount: number;
   mobileOpen: boolean;
   onMobileOpenChange: (open: boolean) => void;

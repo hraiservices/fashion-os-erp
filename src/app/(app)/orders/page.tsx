@@ -9,6 +9,7 @@ import { BulkWhatsAppDialog } from "@/components/orders/bulk-whatsapp-dialog";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { useOrders } from "@/hooks/use-orders";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useActiveTailors } from "@/hooks/use-employees";
 import { useAdvanceStage, useSetStage, useDeleteOrder } from "@/hooks/use-order-mutations";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
@@ -107,7 +108,7 @@ function OrdersContent() {
   const [bulkWhatsAppOpen, setBulkWhatsAppOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  const tailors = useMemo(() => Array.from(new Set((orders || []).map((o) => o.tailor).filter(Boolean))), [orders]);
+  const { data: tailors } = useActiveTailors();
 
   const filtered = useMemo(() => {
     if (!orders) return [];

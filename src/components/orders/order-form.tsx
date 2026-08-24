@@ -14,7 +14,7 @@ import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/custom
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAppSetting } from "@/hooks/use-app-setting";
-import { useActiveTailorNames } from "@/hooks/use-employees";
+import { useActiveTailors } from "@/hooks/use-employees";
 import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
@@ -23,7 +23,7 @@ import { DEFAULT_RATES, LINING_LABELS, BOOKING_SOURCES, REFERRAL_COUPON_DISCOUNT
 import { hydrateMeasurements, compactMeasurements, toMKey, type MeasureLang } from "@/lib/measurements";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { Order, OrderType } from "@/lib/types";
+import type { Order, OrderType, Employee } from "@/lib/types";
 import { MeasurementGrid } from "@/components/measurements/measurement-grid";
 import { MediaCapture } from "@/components/orders/media-capture";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,10 @@ const garmentSchema = z.object({
   lining: z.string().min(1),
   no: z.number().min(1),
   amount: z.number().min(0),
+  tailor: z.string().optional(),
+  // Echoed back unchanged on edit so it isn't lost — the server ignores/re-derives this value
+  // regardless (see preserve_garment_payables), so it's never actually trusted from here.
+  payableAmount: z.number().optional(),
 });
 
 const formSchema = z.object({
@@ -111,7 +115,7 @@ function FieldGroup({ label, required, error, children, hint, className }: { lab
  */
 export function OrderForm({ existingOrder, prefillMobile, initialOrderType }: { existingOrder?: Order; prefillMobile?: string; initialOrderType?: OrderType }) {
   const { data: rates, isLoading: ratesLoading } = useAppSetting<RateCard>("rates", DEFAULT_RATES);
-  const { data: tailors, isLoading: tailorsLoading } = useActiveTailorNames();
+  const { data: tailors, isLoading: tailorsLoading } = useActiveTailors();
   const { data: measureFields, isLoading: fieldsLoading } = useMeasureFields();
 
   if (ratesLoading || tailorsLoading || fieldsLoading) return <Skeleton className="h-96 w-full" />;
@@ -140,7 +144,7 @@ function OrderFormFields({
   prefillMobile?: string;
   initialOrderType?: OrderType;
   rates: RateCard;
-  tailors: string[];
+  tailors: Employee[];
   measureFields: string[];
 }) {
   const router = useRouter();
@@ -152,7 +156,8 @@ function OrderFormFields({
 
   const garmentTypes = Object.keys(rates);
   const defaultGarmentType = garmentTypes[0] || "";
-  const defaultTailor = tailors[0] || "";
+  const defaultTailor = tailors[0]?.id || "";
+  const tailorName = (id: string) => tailors.find((t) => t.id === id)?.name || id;
 
   const [orderType, setOrderType] = useState<OrderType>(existingOrder?.orderType || initialOrderType || "new");
   const isAlteration = orderType === "alteration";
@@ -193,8 +198,15 @@ function OrderFormFields({
           paymentMethod: "Cash",
           garments:
             existingOrder.garments.length > 0
-              ? existingOrder.garments.map((g) => ({ type: g.type, lining: g.lining || "s", no: g.no || 1, amount: g.amount || 0 }))
-              : [{ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0 }],
+              ? existingOrder.garments.map((g) => ({
+                  type: g.type,
+                  lining: g.lining || "s",
+                  no: g.no || 1,
+                  amount: g.amount || 0,
+                  tailor: g.tailor || "",
+                  payableAmount: g.payableAmount,
+                }))
+              : [{ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0, tailor: "" }],
           bookingSource: existingOrder.bookingSource || "",
           fabricCost: existingOrder.fabricCost || 0,
           otherCost: existingOrder.otherCost || 0,
@@ -212,7 +224,7 @@ function OrderFormFields({
           special: "",
           advance: 0,
           paymentMethod: "Cash",
-          garments: [{ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0 }],
+          garments: [{ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0, tailor: defaultTailor }],
           bookingSource: "",
           fabricCost: 0,
           otherCost: 0,
@@ -409,8 +421,8 @@ function OrderFormFields({
                         </SelectTrigger>
                         <SelectContent>
                           {tailors.map((t) => (
-                            <SelectItem key={t} value={t}>
-                              {t}
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -425,7 +437,7 @@ function OrderFormFields({
                 <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-50 p-2.5 text-xs text-amber-800 sm:col-span-2 dark:bg-amber-950/40 dark:text-amber-300">
                   <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
                   <span>
-                    <span className="font-medium">{selectedTailor}</span> has {tailorWorkload.active} active order{tailorWorkload.active === 1 ? "" : "s"} —{" "}
+                    <span className="font-medium">{tailorName(selectedTailor)}</span> has {tailorWorkload.active} active order{tailorWorkload.active === 1 ? "" : "s"} —{" "}
                     <span className="font-medium">{tailorWorkload.capacity}</span> load. Consider another tailor or a later delivery date.
                   </span>
                 </div>
@@ -501,7 +513,7 @@ function OrderFormFields({
               {fields.map((field, index) => (
                 <div key={field.id} className="rounded-lg border p-3">
                   <div className="grid gap-3 sm:grid-cols-12">
-                    <FieldGroup label="Type" className="sm:col-span-4">
+                    <FieldGroup label="Type" className="sm:col-span-3">
                       <Controller
                         control={control}
                         name={`garments.${index}.type`}
@@ -528,7 +540,7 @@ function OrderFormFields({
                         )}
                       />
                     </FieldGroup>
-                    <FieldGroup label="Lining" className="sm:col-span-3">
+                    <FieldGroup label="Lining" className="sm:col-span-2">
                       <Controller
                         control={control}
                         name={`garments.${index}.lining`}
@@ -556,7 +568,27 @@ function OrderFormFields({
                         )}
                       />
                     </FieldGroup>
-                    <FieldGroup label="Qty" className="sm:col-span-2">
+                    <FieldGroup label="Tailor" className="sm:col-span-3" hint={tailors.length === 0 ? "Add tailors in Employees" : undefined}>
+                      <Controller
+                        control={control}
+                        name={`garments.${index}.tailor`}
+                        render={({ field: f }) => (
+                          <Select value={f.value || ""} onValueChange={(v) => f.onChange(v || "")}>
+                            <SelectTrigger className="h-10 w-full">
+                              <SelectValue placeholder="Unassigned" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {tailors.map((t) => (
+                                <SelectItem key={t.id} value={t.id}>
+                                  {t.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </FieldGroup>
+                    <FieldGroup label="Qty" className="sm:col-span-1">
                       <Input type="number" min={1} inputMode="numeric" className="h-10" {...register(`garments.${index}.no`, { valueAsNumber: true })} />
                     </FieldGroup>
                     <FieldGroup label="Rate" className="sm:col-span-2">
@@ -586,7 +618,7 @@ function OrderFormFields({
                 type="button"
                 variant="outline"
                 className="w-full"
-                onClick={() => append({ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0 })}
+                onClick={() => append({ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0, tailor: selectedTailor || "" })}
               >
                 <Plus className="size-4" /> Add garment
               </Button>

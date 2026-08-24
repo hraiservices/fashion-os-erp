@@ -7,7 +7,8 @@ import { toast } from "sonner";
 import { ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon } from "lucide-react";
 import { useOrder } from "@/hooks/use-order";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework } from "@/hooks/use-order-mutations";
+import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useConfirmOrderPayables } from "@/hooks/use-order-mutations";
+import { useTailorName } from "@/hooks/use-employees";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppUrl, type Lining } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
@@ -52,6 +53,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const deleteOrder = useDeleteOrder();
   const updateOrder = useUpdateOrder();
   const setRework = useSetOrderRework();
+  const confirmPayables = useConfirmOrderPayables();
+  const tailorName = useTailorName();
   const { data: measureFields } = useMeasureFields();
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [reworkDialogOpen, setReworkDialogOpen] = useState(false);
@@ -209,7 +212,25 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <span className="hidden lg:inline">Rework</span>
           </Button>
         )}
-        <Button variant="outline" aria-label="Print order tag" onClick={() => printOrderTag(order, shop)}>
+        {user?.perms.managePayroll && order.readyAt && !order.payablesConfirmedAt && order.garments.some((g) => g.payableAmount) && (
+          <Button
+            variant="outline"
+            aria-label="Confirm tailor payables"
+            disabled={confirmPayables.isPending}
+            onClick={async () => {
+              try {
+                await confirmPayables.mutateAsync(id);
+                toast.success("Tailor payables confirmed");
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : "Failed to confirm payables");
+              }
+            }}
+          >
+            <Wallet className="size-4" />
+            <span className="hidden lg:inline">{confirmPayables.isPending ? "Confirming…" : "Confirm tailor payables"}</span>
+          </Button>
+        )}
+        <Button variant="outline" aria-label="Print order tag" onClick={() => printOrderTag(order, shop, tailorName(order.tailor))}>
           <TagIcon className="size-4" />
           <span className="hidden lg:inline">Print tag</span>
         </Button>
@@ -254,6 +275,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   <p className="truncate font-medium">{g.type}</p>
                   <p className="text-xs text-muted-foreground">
                     {LINING_LABELS[g.lining as Lining] ?? g.lining} · qty {g.no || 1}
+                    {g.tailor && ` · ${tailorName(g.tailor)}`}
+                    {g.payableAmount != null && ` · payable ${inr(g.payableAmount)}`}
                   </p>
                 </div>
                 <span className="shrink-0 tabular-nums">{inr((g.amount || 0) * (g.no || 1))}</span>
@@ -271,7 +294,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 border-t px-4 py-3 text-sm sm:grid-cols-3">
           <Detail icon={Clock} label="Order date" value={order.inTime ? `${fmtDate(order.inDate)} ${order.inTime}` : fmtDate(order.inDate)} />
           <Detail icon={Clock} label="Delivery" value={order.deliveryTime ? `${fmtDate(order.deliveryDate)} ${order.deliveryTime}` : fmtDate(order.deliveryDate)} />
-          <Detail icon={User} label="Tailor" value={order.tailor || "—"} />
+          <Detail icon={User} label="Tailor" value={order.tailor ? tailorName(order.tailor) : "—"} />
           {order.bookingSource && <Detail icon={User} label="Booking source" value={order.bookingSource} />}
         </dl>
         {order.special && (

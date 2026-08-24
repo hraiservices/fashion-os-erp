@@ -7,13 +7,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { NumberInput } from "@/components/ui/number-input";
 import { useCompleteWorkOrder } from "@/hooks/use-work-order-mutations";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { computeWoCost, type WorkOrderMaterial } from "@/lib/manufacturing";
 import { inr } from "@/lib/format";
 import type { WorkOrder } from "@/lib/types";
 
 export function CompleteWorkOrderDialog({ open, onOpenChange, wo }: { open: boolean; onOpenChange: (open: boolean) => void; wo: WorkOrder }) {
-  const { data: user } = useCurrentUser();
   const completeWo = useCompleteWorkOrder();
   const [rows, setRows] = useState<WorkOrderMaterial[]>([]);
 
@@ -35,15 +33,7 @@ export function CompleteWorkOrderDialog({ open, onOpenChange, wo }: { open: bool
 
   async function handleComplete() {
     try {
-      await completeWo.mutateAsync({
-        id: wo.id,
-        woNumber: wo.woNumber,
-        productId: wo.productId,
-        qtyToProduce: wo.qtyToProduce,
-        laborCostPerPiece: wo.laborCostPerPiece,
-        materials: rows,
-        userEmail: user?.email,
-      });
+      await completeWo.mutateAsync({ id: wo.id, materials: rows });
       toast.success(`${wo.woNumber} completed — stock updated`);
       handleClose();
     } catch (e) {

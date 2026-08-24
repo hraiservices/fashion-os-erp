@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { logAction } from "@/lib/logging";
+import { getPieceRateAdvanceCap } from "@/lib/piece-rate";
 
 /** Records an advance/loan against an employee. Server-side so managePayroll is enforced —
  *  this used to be a direct browser-to-Supabase insert with no permission check. */
@@ -20,6 +21,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const { date, amount, note } = parsed.data;
+
+  // Piece-rate tailors can only draw an advance against what they've actually earned so far —
+  // salaried employees keep today's uncapped behavior (a manager judgment call), unchanged.
+  const { data: employeeRow } = await supabase.from("employees").select("piece_rate_eligible").eq("id", id).maybeSingle();
+  if (employeeRow?.piece_rate_eligible) {
+    const cap = await getPieceRateAdvanceCap(supabase, id);
+    if (amount > cap) {
+      return NextResponse.json({ error: `This tailor has only ₹${cap} in confirmed, unpaid piece-rate earnings — can't advance more than that.` }, { status: 409 });
+    }
+  }
 
   const { error } = await supabase.from("employee_advances").insert({ employee_id: id, date, amount, note, created_by: user.email });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

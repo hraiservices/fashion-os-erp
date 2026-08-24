@@ -2,6 +2,7 @@
 
 import { Users } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
+import { useTailorName } from "@/hooks/use-employees";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -9,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function StaffEfficiencyPage() {
   const { staffEff, isLoading } = useReportsData();
+  const tailorName = useTailorName();
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -30,7 +32,7 @@ export default function StaffEfficiencyPage() {
           <tbody className="divide-y">
             {staffEff.map((t) => (
               <tr key={t.tailor} className="hover:bg-muted/30">
-                <Td className="font-medium">{t.tailor}</Td>
+                <Td className="font-medium">{tailorName(t.tailor)}</Td>
                 <Td align="right">{t.total}</Td>
                 <Td align="right">{inr(t.revenue)}</Td>
                 <Td align="right">{inr(t.revPerOrder)}</Td>

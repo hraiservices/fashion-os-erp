@@ -39,6 +39,8 @@ export interface Database {
           rework_flagged_by: string | null;
           rework_flagged_at: string | null;
           ready_at: string | null;
+          payables_confirmed_at: string | null;
+          payables_confirmed_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -724,6 +726,8 @@ export interface Database {
           cost_per_unit: number | null;
           notes: string;
           completed_at: string | null;
+          labor_payable_confirmed_at: string | null;
+          labor_payable_confirmed_by: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -750,6 +754,7 @@ export interface Database {
           notes: string;
           salary_type: string;
           salary_rate: number;
+          piece_rate_eligible: boolean;
           pin_hash: string | null;
           location_id: string | null;
           failed_pin_attempts: number;
@@ -829,6 +834,7 @@ export interface Database {
           half_days: number;
           leave_days: number;
           gross_pay: number;
+          piece_rate_pay: number;
           deductions: number;
           net_pay: number;
           hours_worked: number;
@@ -1104,6 +1110,10 @@ export interface Database {
         Returns: undefined;
       };
       set_module_entitlements: {
+        Args: { p_value: Json };
+        Returns: undefined;
+      };
+      set_tailor_rates: {
         Args: { p_value: Json };
         Returns: undefined;
       };

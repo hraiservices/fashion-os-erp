@@ -138,6 +138,7 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
                   <TableHead className="text-right">Half day</TableHead>
                   <TableHead className="text-right">Leave</TableHead>
                   <TableHead className="text-right">Gross</TableHead>
+                  <TableHead className="text-right">Piece-rate</TableHead>
                   <TableHead className="text-right">Overtime</TableHead>
                   <TableHead className="text-right">Deductions</TableHead>
                   <TableHead className="text-right">Net Pay</TableHead>
@@ -154,6 +155,7 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
                     <TableCell className="text-right">{p.halfDays}</TableCell>
                     <TableCell className="text-right">{p.leaveDays}</TableCell>
                     <TableCell className="text-right">{inr(p.grossPay)}</TableCell>
+                    <TableCell className="text-right">{p.pieceRatePay > 0 ? inr(p.pieceRatePay) : "—"}</TableCell>
                     <TableCell className="text-right">{p.overtimeHours > 0 ? `${p.overtimeHours}h · ${inr(p.overtimePay)}` : "—"}</TableCell>
                     <TableCell className="text-right text-red-600 dark:text-red-400">{p.deductions > 0 ? `− ${inr(p.deductions)}` : "—"}</TableCell>
                     <TableCell className="text-right font-semibold">{inr(p.netPay)}</TableCell>
@@ -190,6 +192,7 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
                 <MobileRecordHeader title={employeeName(p.employeeId)} value={inr(p.netPay)} showChevron={false} />
                 <MobileRecordRow label="Present / Absent / Half / Leave" value={`${p.presentDays} / ${p.absentDays} / ${p.halfDays} / ${p.leaveDays}`} />
                 <MobileRecordRow label="Gross" value={inr(p.grossPay)} />
+                {p.pieceRatePay > 0 && <MobileRecordRow label="Piece-rate" value={inr(p.pieceRatePay)} />}
                 {p.overtimeHours > 0 && <MobileRecordRow label="Overtime" value={`${p.overtimeHours}h · ${inr(p.overtimePay)}`} />}
                 <MobileRecordRow label="Deductions" value={p.deductions > 0 ? `− ${inr(p.deductions)}` : "—"} valueClassName={p.deductions > 0 ? "text-red-600 dark:text-red-400" : undefined} />
                 <div className="flex items-center justify-between pt-1">

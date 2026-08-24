@@ -117,9 +117,30 @@ export function mergeRootOrder(saved: string[] | undefined): string[] {
   return [...savedList, ...missing];
 }
 
+/** Leaves whose default group changed in nav-config.ts after shops may already have a saved
+ *  navLayout — without this, a saved layout treats the leaf's presence in its OLD group as
+ *  deliberate placement and never moves it, even though nothing in the UI ever let anyone
+ *  actually choose to put it there (it simply hadn't been relocated yet when they saved). Only
+ *  fires while the leaf is still sitting in its old group's saved array — if an admin has since
+ *  dragged it somewhere else on purpose, that's left alone. */
+const RELOCATED_LEAVES: { href: string; fromGroupId: string; toGroupId: string }[] = [
+  { href: "/settings/attendance-payroll", fromGroupId: "settings", toGroupId: "employees" },
+  { href: "/settings/leave-policy", fromGroupId: "settings", toGroupId: "employees" },
+  { href: "/settings/tailor-rates", fromGroupId: "settings", toGroupId: "employees" },
+  { href: "/settings/users", fromGroupId: "settings", toGroupId: "employees" },
+];
+
 /** Full current group membership: saved arrays are the truth; anything never mentioned anywhere lands in its default group. */
 export function resolveGroupChildren(saved: Record<string, string[]> | undefined): Record<string, string[]> {
-  const savedGroupChildren = saved || {};
+  const savedGroupChildren: Record<string, string[]> = { ...(saved || {}) };
+  for (const { href, fromGroupId, toGroupId } of RELOCATED_LEAVES) {
+    const fromList = savedGroupChildren[fromGroupId];
+    if (fromList?.includes(href)) {
+      savedGroupChildren[fromGroupId] = fromList.filter((h) => h !== href);
+      const toList = savedGroupChildren[toGroupId] || [];
+      if (!toList.includes(href)) savedGroupChildren[toGroupId] = [...toList, href];
+    }
+  }
   const mentioned = new Set(Object.values(savedGroupChildren).flat());
   const result: Record<string, string[]> = {};
   MOVABLE_GROUPS.forEach((g) => {

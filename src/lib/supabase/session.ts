@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/lib/supabase/database.types";
 import { isRestrictedRoute, isRestrictedRole, RESTRICTED_FALLBACK_ROUTE } from "@/lib/permissions";
-import { REPORTS_GROUP, resolveReportSection, SETTINGS_GROUP, EMPLOYEES_GROUP } from "@/components/app-shell/nav-config";
+import { REPORTS_GROUP, resolveReportSection, SETTINGS_GROUP, EMPLOYEES_GROUP, ORDERS_GROUP } from "@/components/app-shell/nav-config";
 import { DEFAULT_ENTITLEMENTS, ROUTE_MODULE_PREFIXES, isModuleEnabled, isReportEnabled, isSettingEnabled, type ModuleEntitlements } from "@/lib/entitlements";
 
 // /checkin is the self-service PIN portal (src/app/checkin/page.tsx) — it has its own
@@ -77,10 +77,14 @@ export async function updateSession(request: NextRequest) {
     const pathname = request.nextUrl.pathname;
     const modulePrefix = Object.keys(ROUTE_MODULE_PREFIXES).find((p) => pathname === p || pathname.startsWith(`${p}/`));
     const reportLeaf = REPORTS_GROUP.children.find((c) => c.href.split("?")[0] === pathname);
-    // Several /settings/* leaves render under the Employees sidebar group now (attendance-payroll,
-    // leave-policy, tailor-rates, users) — still gate-able via module licensing the same as any
-    // other settings page, so both groups are checked here.
-    const settingsLeaf = SETTINGS_GROUP.children.find((c) => c.href === pathname) || EMPLOYEES_GROUP.children.find((c) => c.href === pathname);
+    // Several /settings/* leaves render under other sidebar groups now (attendance-payroll,
+    // leave-policy, tailor-rates, users under Employees; rates, measurements under Stitching
+    // Orders) — still gate-able via module licensing the same as any other settings page, so
+    // every group that can hold a settings leaf is checked here.
+    const settingsLeaf =
+      SETTINGS_GROUP.children.find((c) => c.href === pathname) ||
+      EMPLOYEES_GROUP.children.find((c) => c.href === pathname) ||
+      ORDERS_GROUP.children.find((c) => c.href === pathname);
 
     if (modulePrefix || reportLeaf || settingsLeaf) {
       const { data: settingRow } = await supabase.from("app_settings").select("value").eq("key", "moduleEntitlements").maybeSingle();

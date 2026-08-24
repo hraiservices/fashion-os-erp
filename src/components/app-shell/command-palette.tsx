@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, resolveReportSection, SETTINGS_GROUP, settingsLeafVisible, EMPLOYEES_GROUP, employeesLeafVisible } from "@/components/app-shell/nav-config";
+import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, resolveReportSection, SETTINGS_GROUP, settingsLeafVisible, EMPLOYEES_GROUP, employeesLeafVisible, ORDERS_GROUP, ordersLeafVisible } from "@/components/app-shell/nav-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useOrders } from "@/hooks/use-orders";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
@@ -39,7 +39,13 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         : EMPLOYEES_GROUP.children
             .filter((c) => employeesLeafVisible(c.href, isAdmin) && (isSuperAdmin || !entitlements || isSettingEnabled(entitlements, c.href)))
             .map((c) => ({ href: c.href, label: `Employees · ${c.label}` }));
-    return { flat, reports, settings, employees };
+    // Only the two settings-config leaves (Rate Card, Measurements) — "All Orders"/"Search
+    // Measurement" aren't quick-jump entries here, same as before this group existed, to avoid
+    // duplicating the live order-record results already shown under "Stitching Orders" above.
+    const orderSettings = ORDERS_GROUP.children
+      .filter((c) => c.href.startsWith("/settings/") && ordersLeafVisible(c.href, !restricted) && (isSuperAdmin || !entitlements || isSettingEnabled(entitlements, c.href)))
+      .map((c) => ({ href: c.href, label: `Stitching Orders · ${c.label}` }));
+    return { flat, reports, settings, employees, orderSettings };
   }, [restricted, isAdmin, isSuperAdmin, entitlements]);
 
   function go(href: string) {
@@ -87,6 +93,16 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         {pages.employees.length > 0 && (
           <CommandGroup heading="Employees">
             {pages.employees.map((p) => (
+              <CommandItem key={p.href} value={p.label} onSelect={() => go(p.href)}>
+                {p.label}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {pages.orderSettings.length > 0 && (
+          <CommandGroup heading="Stitching Orders Settings">
+            {pages.orderSettings.map((p) => (
               <CommandItem key={p.href} value={p.label} onSelect={() => go(p.href)}>
                 {p.label}
               </CommandItem>

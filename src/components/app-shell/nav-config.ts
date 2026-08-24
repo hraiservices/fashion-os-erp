@@ -62,8 +62,18 @@ export const ORDERS_GROUP: NavGroup = {
   children: [
     { href: "/orders", label: "All Orders", newHref: "/orders/new" },
     { href: "/orders/measurements", label: "Search Measurement" },
+    { href: "/settings/rates", label: "Rate Card" },
+    { href: "/settings/measurements", label: "Measurements" },
   ],
 };
+
+/** Rate Card / Measurements are shop-config pages, gated the same as when they lived under
+ *  Settings — everyone can see the order list/measurement search, but only a non-restricted
+ *  user should see the config links (the pages themselves also enforce this via SettingsGuard). */
+export function ordersLeafVisible(href: string, canManageShop: boolean): boolean {
+  if (href === "/settings/rates" || href === "/settings/measurements") return canManageShop;
+  return true;
+}
 
 export const REPORTS_GROUP: NavGroup = {
   id: "reports",
@@ -230,8 +240,6 @@ export const SETTINGS_GROUP: NavGroup = {
   icon: Settings,
   children: [
     { href: "/settings/shop", label: "Shop Profile" },
-    { href: "/settings/rates", label: "Rate Card" },
-    { href: "/settings/measurements", label: "Measurements" },
     { href: "/settings/account", label: "Account" },
     { href: "/settings/loyalty", label: "Loyalty" },
     { href: "/settings/whatsapp-sales", label: "WhatsApp Templates" },
@@ -264,7 +272,7 @@ export function employeesLeafVisible(href: string, isAdmin: boolean): boolean {
 /** Per-section Settings gating, mirroring the old app's rules. Module Licensing is platform-owner-only — invisible to every shop's own admin, including "admin" role. */
 export function settingsLeafVisible(href: string, isAdmin: boolean, canManageShop: boolean, isSuperAdmin: boolean): boolean {
   if (href === "/settings/module-licensing") return isSuperAdmin;
-  if (["/settings/shop", "/settings/rates", "/settings/measurements"].includes(href)) return canManageShop;
+  if (href === "/settings/shop") return canManageShop;
   if (
     [
       "/settings/loyalty",

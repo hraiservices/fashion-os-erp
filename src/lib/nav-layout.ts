@@ -128,6 +128,8 @@ const RELOCATED_LEAVES: { href: string; fromGroupId: string; toGroupId: string }
   { href: "/settings/leave-policy", fromGroupId: "settings", toGroupId: "employees" },
   { href: "/settings/tailor-rates", fromGroupId: "settings", toGroupId: "employees" },
   { href: "/settings/users", fromGroupId: "settings", toGroupId: "employees" },
+  { href: "/settings/rates", fromGroupId: "settings", toGroupId: "orders" },
+  { href: "/settings/measurements", fromGroupId: "settings", toGroupId: "orders" },
 ];
 
 /** Full current group membership: saved arrays are the truth; anything never mentioned anywhere lands in its default group. */

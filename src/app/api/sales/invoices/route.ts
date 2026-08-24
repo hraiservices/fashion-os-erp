@@ -12,6 +12,10 @@ const lineItemSchema = z.object({
   productName: z.string(),
   qty: z.number().nonnegative(),
   unitPrice: z.number().nonnegative(),
+  discountType: z.enum(["flat", "percent"]).optional(),
+  discountPercent: z.number().nonnegative().optional(),
+  discountFlat: z.number().nonnegative().optional(),
+  costPrice: z.number().nonnegative().optional(),
   amount: z.number().nonnegative(),
 });
 

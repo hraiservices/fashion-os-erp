@@ -8,10 +8,11 @@ import { useProducts } from "@/hooks/use-products";
 import { useSalesQuotation } from "@/hooks/use-sales-quotations";
 import { useSalesInvoice } from "@/hooks/use-sales-invoices";
 import { useCustomerByMobile } from "@/hooks/use-customer";
+import { useCustomers } from "@/hooks/use-customers";
 import { useSaveInvoice } from "@/hooks/use-sales-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAppSetting } from "@/hooks/use-app-setting";
-import { genInvoiceNumber } from "@/lib/sales";
+import { genInvoiceNumber, computeInvoiceMargin } from "@/lib/sales";
 import { GST_TYPE_LABELS, type GstType } from "@/lib/gst";
 import { computeInvoiceTotals, type DiscountType } from "@/lib/invoice-totals";
 import { PAYMENT_TERMS, PAYMENT_TERM_LABELS, dueDateFromTerm, type PaymentTerm } from "@/lib/payment-terms";
@@ -22,7 +23,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/customer-picker";
+import { CustomerPicker } from "@/components/sales/customer-picker";
+import { SearchSelect } from "@/components/ui/search-select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
 import { usePriceListItemsMap } from "@/hooks/use-price-lists";
@@ -70,6 +72,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
   const router = useRouter();
   const { data: user } = useCurrentUser();
   const { data: products } = useProducts();
+  const { data: customers } = useCustomers();
   const { data: prefillQuote } = useSalesQuotation(prefillQuoteId || "");
   const { data: prefillClone } = useSalesInvoice(prefillCloneId || "");
   const { data: prefillCustomer } = useCustomerByMobile(prefillMobile || "");
@@ -93,7 +96,16 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
   const [dueDate, setDueDate] = useState(existing?.dueDate || "");
   const [lines, setLines] = useState<EditableSalesLine[]>(
     existing
-      ? existing.items.map((item, i) => ({ key: `existing-${i}`, productId: item.productId, qty: String(item.qty), unitPrice: String(item.unitPrice), discountPercent: String(item.discountPercent || 0) }))
+      ? existing.items.map((item, i) => ({
+          key: `existing-${i}`,
+          productId: item.productId,
+          qty: String(item.qty),
+          unitPrice: String(item.unitPrice),
+          discountType: item.discountType || "percent",
+          discountPercent: String(item.discountPercent || 0),
+          discountFlat: String(item.discountFlat || 0),
+          costPrice: String(item.costPrice || 0),
+        }))
       : [blankSalesLine()]
   );
   const [gstType, setGstType] = useState<GstType>(existing?.gstType || "none");
@@ -123,7 +135,10 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
         productId: item.productId,
         qty: String(item.qty),
         unitPrice: String(item.unitPrice),
+        discountType: item.discountType || "percent",
         discountPercent: blankIfZero(item.discountPercent),
+        discountFlat: blankIfZero(item.discountFlat),
+        costPrice: String(item.costPrice || 0),
       }))
     );
     setGstType(prefillQuote.gstType);
@@ -140,7 +155,10 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
         productId: item.productId,
         qty: String(item.qty),
         unitPrice: String(item.unitPrice),
+        discountType: item.discountType || "percent",
         discountPercent: blankIfZero(item.discountPercent),
+        discountFlat: blankIfZero(item.discountFlat),
+        costPrice: String(item.costPrice || 0),
       }))
     );
     setGstType(prefillClone.gstType);
@@ -175,6 +193,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
   const productsById = useMemo(() => new Map((products || []).map((p) => [p.id, { name: p.name }])), [products]);
   const items = salesLinesToItems(lines, productsById);
   const totals = computeInvoiceTotals(items, parseFloat(shippingCharges) || 0, discountType, parseFloat(discountValue) || 0, parseFloat(taxRate) || 0, gstType);
+  const margin = computeInvoiceMargin(items, totals.discountAmount);
 
   async function handleSave(docStatus: InvoiceDocStatus) {
     if (!customer) return toast.error("Select a customer first");
@@ -249,13 +268,27 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
             <SectionHeading icon={User2} label="Customer & Invoice Info" />
 
-            {/* Customer — full width, prominent */}
+            {/* Customer — full width, prominent. Type-and-search inline; "New" opens the
+                modal picker's add-customer form for a customer who doesn't exist yet. */}
             <div className="mb-4">
               <FieldGroup label="Customer" required>
-                <CustomerPickerTrigger
-                  customerName={customer?.name || ""}
-                  onClick={() => setPickerOpen(true)}
-                />
+                <div className="flex gap-2">
+                  <SearchSelect
+                    className="flex-1"
+                    inputClassName="h-10"
+                    placeholder="Type a name or mobile number…"
+                    value={customer?.id || ""}
+                    fallbackLabel={customer?.name}
+                    options={(customers || []).map((c) => ({ value: c.id, label: c.name, sublabel: c.mobile }))}
+                    onSelect={(id) => {
+                      const c = (customers || []).find((c) => c.id === id);
+                      if (c) handleSelectCustomer(c);
+                    }}
+                  />
+                  <Button type="button" variant="outline" className="h-10 shrink-0" onClick={() => setPickerOpen(true)}>
+                    New
+                  </Button>
+                </div>
               </FieldGroup>
             </div>
 
@@ -287,7 +320,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
           {/* Line Items */}
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
             <SectionHeading icon={Package2} label="Items" />
-            <ProductLineItemsEditor lines={lines} onChange={setLines} showDiscount priceOverrides={priceOverrides} />
+            <ProductLineItemsEditor lines={lines} onChange={setLines} showDiscount showMargin={!!user?.perms.viewReports} priceOverrides={priceOverrides} />
           </div>
 
           {/* Tax, Shipping & Discount */}
@@ -353,6 +386,13 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
               <p className="text-xs font-semibold uppercase tracking-wider text-primary-foreground/70">Invoice summary</p>
               <p className="text-2xl font-bold text-primary-foreground tabular-nums">{inr(totals.total)}</p>
             </div>
+
+            {user?.perms.viewReports && items.length > 0 && (
+              <div className="flex items-center justify-between border-b bg-emerald-50 px-5 py-2.5 dark:bg-emerald-950/30">
+                <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Profit margin</span>
+                <span className="text-base font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{inr(margin)}</span>
+              </div>
+            )}
 
             <div className="px-5 py-4 space-y-2 text-sm">
               <div className="flex justify-between text-muted-foreground">

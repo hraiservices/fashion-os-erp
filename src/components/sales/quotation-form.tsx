@@ -66,7 +66,16 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
   const [validUntil, setValidUntil] = useState(existing?.validUntil || "");
   const [lines, setLines] = useState<EditableSalesLine[]>(
     existing
-      ? existing.items.map((item, i) => ({ key: `existing-${i}`, productId: item.productId, qty: String(item.qty), unitPrice: String(item.unitPrice), discountPercent: String(item.discountPercent || 0) }))
+      ? existing.items.map((item, i) => ({
+          key: `existing-${i}`,
+          productId: item.productId,
+          qty: String(item.qty),
+          unitPrice: String(item.unitPrice),
+          discountType: item.discountType || "percent",
+          discountPercent: String(item.discountPercent || 0),
+          discountFlat: String(item.discountFlat || 0),
+          costPrice: String(item.costPrice || 0),
+        }))
       : [blankSalesLine()]
   );
   const [gstType, setGstType] = useState<GstType>(existing?.gstType || "none");

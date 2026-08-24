@@ -14,7 +14,8 @@ import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { useSavedViews } from "@/hooks/use-saved-views";
 import { useRowSelection } from "@/hooks/use-row-selection";
 import { inr, fmtDate } from "@/lib/format";
-import { invoiceDueBadge, avgDaysToGetPaid, DOC_STATUS_LABELS, type DueTone } from "@/lib/sales";
+import { invoiceDueBadge, avgDaysToGetPaid, computeInvoiceMargin, DOC_STATUS_LABELS, type DueTone } from "@/lib/sales";
+import { computeInvoiceTotals } from "@/lib/invoice-totals";
 import { DEFAULT_SALES_WHATSAPP_TEMPLATES, buildSalesWhatsAppUrl, type SalesWhatsAppTemplates } from "@/lib/sales-whatsapp";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { PageHeader } from "@/components/ui/page-header";
@@ -55,12 +56,18 @@ const COLUMNS = [
   { key: "customer", label: "Customer", required: true },
   { key: "quote", label: "Quote#" },
   { key: "amount", label: "Amount" },
+  { key: "margin", label: "Profit Margin" },
   { key: "balance", label: "Balance" },
   { key: "dueDate", label: "Due Date" },
   { key: "invoiceNumber", label: "Invoice#", required: true },
   { key: "doc", label: "Doc status" },
   { key: "status", label: "Payment status" },
 ];
+
+function invoiceMargin(inv: SalesInvoiceWithBalance): number {
+  const { discountAmount } = computeInvoiceTotals(inv.items, inv.shippingCharges, inv.discountType, inv.discountValue, inv.taxRate, inv.gstType);
+  return computeInvoiceMargin(inv.items, discountAmount);
+}
 
 export default function SalesInvoicesPage() {
   const { data: invoices, isLoading } = useSalesInvoices();
@@ -71,6 +78,7 @@ export default function SalesInvoicesPage() {
   const setDocStatus = useSetInvoiceDocStatus();
   const deleteInvoice = useDeleteInvoice();
   const canManage = !!user?.perms.manageSales;
+  const canViewMargin = !!user?.perms.viewReports;
 
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date");
@@ -317,6 +325,7 @@ export default function SalesInvoicesPage() {
                 {table.isVisible("customer") && <TableHead>Customer</TableHead>}
                 {table.isVisible("quote") && <TableHead>Quote#</TableHead>}
                 {table.isVisible("amount") && <TableHead className="text-right">Amount</TableHead>}
+                {table.isVisible("margin") && canViewMargin && <TableHead className="text-right">Profit Margin</TableHead>}
                 {table.isVisible("balance") && (
                   <TableHead className="text-right">
                     <button type="button" onClick={() => toggleSort("balance")} className="inline-flex items-center gap-1 hover:text-foreground">
@@ -350,6 +359,9 @@ export default function SalesInvoicesPage() {
                     )}
                     {table.isVisible("quote") && <TableCell className="text-muted-foreground">{inv.quoteId ? quoteNumberById.get(inv.quoteId) || "—" : "—"}</TableCell>}
                     {table.isVisible("amount") && <TableCell className="text-right tabular-nums">{inr(inv.total)}</TableCell>}
+                    {table.isVisible("margin") && canViewMargin && (
+                      <TableCell className="text-right tabular-nums font-medium text-emerald-600 dark:text-emerald-400">{inr(invoiceMargin(inv))}</TableCell>
+                    )}
                     {table.isVisible("balance") && (
                       <TableCell className="text-right">
                         <BalanceDue amount={inv.balance} paidLabel="" className="block" />
@@ -417,6 +429,9 @@ export default function SalesInvoicesPage() {
                 <MobileRecordRow label="Date" value={fmtDate(inv.invoiceDate)} />
                 <MobileRecordRow label="Quote#" value={inv.quoteId ? quoteNumberById.get(inv.quoteId) || "—" : "—"} />
                 <MobileRecordRow label="Amount" value={inr(inv.total)} />
+                {canViewMargin && (
+                  <MobileRecordRow label="Profit Margin" value={inr(invoiceMargin(inv))} valueClassName="text-emerald-600 dark:text-emerald-400 font-medium" />
+                )}
                 <MobileRecordRow label="Due Date" value={inv.dueDate ? fmtDate(inv.dueDate) : "—"} />
                 <MobileRecordRow label="Doc" value={<Badge variant="outline">{DOC_STATUS_LABELS[inv.docStatus]}</Badge>} />
                 <MobileRecordRow

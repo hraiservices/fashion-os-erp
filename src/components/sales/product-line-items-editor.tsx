@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
 import { BarcodeScannerModal } from "@/components/pos/barcode-scanner-modal";
 import { inr } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { SalesLineItem } from "@/lib/sales";
 import type { Product } from "@/lib/types";
 
@@ -43,7 +44,9 @@ export function blankSalesLine(): EditableSalesLine {
 function lineAmount(qty: number, unitPrice: number, discountType: "flat" | "percent" | undefined, discountPercent: number, discountFlat: number): number {
   const gross = qty * unitPrice;
   if (discountType === "flat") {
-    return Math.round(Math.max(0, gross - discountFlat) * 100) / 100;
+    // Clamp discountFlat itself, not just the result — a negative value here would otherwise
+    // inflate the line total above list price (e.g. typing "-50") until the server rejects it.
+    return Math.round(Math.max(0, gross - Math.max(0, discountFlat)) * 100) / 100;
   }
   const discounted = gross * (1 - Math.min(100, Math.max(0, discountPercent)) / 100);
   return Math.round(discounted * 100) / 100;
@@ -59,6 +62,9 @@ export function salesLinesToItems(lines: EditableSalesLine[], productsById: Map<
       const discountPercent = parseFloat(l.discountPercent) || 0;
       const discountFlat = parseFloat(l.discountFlat || "0") || 0;
       const product = productsById.get(l.productId);
+      // Omit the key (not 0) when unknown — an empty/missing costPrice means "we don't know",
+      // which computeInvoiceMargin needs to tell apart from a genuinely free product.
+      const costPrice = l.costPrice !== undefined && l.costPrice !== "" ? parseFloat(l.costPrice) || 0 : undefined;
       return {
         productId: l.productId,
         productName: product?.name || "Unknown",
@@ -67,7 +73,7 @@ export function salesLinesToItems(lines: EditableSalesLine[], productsById: Map<
         discountType,
         discountPercent,
         discountFlat,
-        costPrice: parseFloat(l.costPrice || "0") || 0,
+        ...(costPrice !== undefined ? { costPrice } : {}),
         amount: lineAmount(qty, unitPrice, discountType, discountPercent, discountFlat),
       };
     });
@@ -174,12 +180,16 @@ export function ProductLineItemsEditor({
     const unitPrice = parseFloat(l.unitPrice) || 0;
     const discountType = l.discountType || "percent";
     const amount = lineAmount(qty, unitPrice, discountType, parseFloat(l.discountPercent) || 0, parseFloat(l.discountFlat || "0") || 0);
-    const margin = amount - qty * (parseFloat(l.costPrice || "0") || 0);
+    // null (not 0) when cost is unknown — a legacy/unselected line — so it never reads as a
+    // misleading 100%-margin instead of "we don't know".
+    const costKnown = l.costPrice !== undefined && l.costPrice !== "";
+    const margin = costKnown ? amount - qty * (parseFloat(l.costPrice!) || 0) : null;
     return { amount, margin };
   }
 
   const total = lines.reduce((s, l) => s + lineTotals(l).amount, 0);
-  const marginTotal = lines.reduce((s, l) => s + lineTotals(l).margin, 0);
+  const marginTotals = lines.map((l) => lineTotals(l).margin);
+  const marginTotal = marginTotals.some((m) => m === null) ? null : (marginTotals as number[]).reduce((s, m) => s + m, 0);
 
   return (
     <div className="space-y-2">
@@ -277,7 +287,9 @@ export function ProductLineItemsEditor({
               <div className="w-24 shrink-0 text-right">
                 <p className="text-sm tabular-nums text-muted-foreground">{inr(amount)}</p>
                 {showMargin && line.productId && (
-                  <p className="text-[11px] tabular-nums text-emerald-600 dark:text-emerald-400">+{inr(margin)}</p>
+                  <p className={cn("text-[11px] tabular-nums", margin === null ? "text-muted-foreground" : "text-emerald-600 dark:text-emerald-400")}>
+                    {margin === null ? "cost unknown" : `+${inr(margin)}`}
+                  </p>
                 )}
               </div>
               <Button type="button" variant="ghost" size="icon-sm" onClick={() => cloneLine(line.key)} aria-label="Clone item" title="Clone this line" disabled={!line.productId}>
@@ -297,7 +309,9 @@ export function ProductLineItemsEditor({
         <div className="text-right">
           <span className="text-sm font-medium">Total: {inr(total)}</span>
           {showMargin && (
-            <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Est. margin: {inr(marginTotal)}</p>
+            <p className={cn("text-xs font-medium", marginTotal === null ? "text-muted-foreground" : "text-emerald-600 dark:text-emerald-400")}>
+              Est. margin: {marginTotal === null ? "cost unknown for some lines" : inr(marginTotal)}
+            </p>
           )}
         </div>
       </div>

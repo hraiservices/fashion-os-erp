@@ -30,14 +30,16 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ ok: true, confirmedAt: row.labor_payable_confirmed_at });
   }
 
-  const now = new Date().toISOString();
-  const { error: updateError } = await supabase
-    .from("work_orders")
-    .update({ labor_payable_confirmed_at: now, labor_payable_confirmed_by: user.email })
-    .eq("id", id);
+  // Routed through the SECURITY DEFINER RPC — the confirmation columns are trigger-guarded
+  // (add_piece_rate_p0_fixes.sql) against direct writes, so this is the only path that works.
+  const { data: updatedRows, error: updateError } = await supabase.rpc("confirm_wo_payable", {
+    p_wo_id: id,
+    p_user_email: user.email,
+  });
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+  const confirmedAt = updatedRows?.[0]?.labor_payable_confirmed_at || new Date().toISOString();
 
   await logAction(supabase, user.email, `✅ Tailor payable confirmed for work order ${row.wo_number}`);
 
-  return NextResponse.json({ ok: true, confirmedAt: now });
+  return NextResponse.json({ ok: true, confirmedAt });
 }

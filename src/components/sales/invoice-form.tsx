@@ -104,7 +104,9 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
           discountType: item.discountType || "percent",
           discountPercent: String(item.discountPercent || 0),
           discountFlat: String(item.discountFlat || 0),
-          costPrice: String(item.costPrice || 0),
+          // Preserve "unknown" as an empty string (not "0") — collapsing it would misrepresent
+        // a legacy line (saved before cost was server-verified) as a genuinely free product.
+        costPrice: item.costPrice !== undefined ? String(item.costPrice) : "",
         }))
       : [blankSalesLine()]
   );
@@ -126,6 +128,19 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
     setCustomer(prefillCustomer);
   }, [prefillCustomer, prefillQuoteId, prefillCloneId]);
 
+  // Editing an existing invoice seeds `customer` from a placeholder with an empty id (built
+  // from just the saved name/mobile) — nothing else ever resolves the real record, so
+  // `priceOverrides` (keyed on the real customer's price list) silently never populates for
+  // the whole edit session, and any new line added prices off the product's default instead of
+  // this customer's assigned rate. Runs once real customer data is loaded; only replaces the
+  // placeholder (id === ""), so it never clobbers a deliberate reselection mid-edit.
+  useEffect(() => {
+    if (!isEdit || !existing || !customers || customer?.id) return;
+    const real = customers.find((c) => c.mobile === existing.customerMobile);
+    if (real) setCustomer(real);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, existing, customers]);
+
   useEffect(() => {
     if (!prefillQuote) return;
     setCustomer(placeholderCustomer(prefillQuote.customerName, prefillQuote.customerMobile));
@@ -138,7 +153,9 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
         discountType: item.discountType || "percent",
         discountPercent: blankIfZero(item.discountPercent),
         discountFlat: blankIfZero(item.discountFlat),
-        costPrice: String(item.costPrice || 0),
+        // Preserve "unknown" as an empty string (not "0") — collapsing it would misrepresent
+        // a legacy line (saved before cost was server-verified) as a genuinely free product.
+        costPrice: item.costPrice !== undefined ? String(item.costPrice) : "",
       }))
     );
     setGstType(prefillQuote.gstType);
@@ -158,7 +175,9 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
         discountType: item.discountType || "percent",
         discountPercent: blankIfZero(item.discountPercent),
         discountFlat: blankIfZero(item.discountFlat),
-        costPrice: String(item.costPrice || 0),
+        // Preserve "unknown" as an empty string (not "0") — collapsing it would misrepresent
+        // a legacy line (saved before cost was server-verified) as a genuinely free product.
+        costPrice: item.costPrice !== undefined ? String(item.costPrice) : "",
       }))
     );
     setGstType(prefillClone.gstType);
@@ -388,9 +407,13 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
             </div>
 
             {user?.perms.viewReports && items.length > 0 && (
-              <div className="flex items-center justify-between border-b bg-emerald-50 px-5 py-2.5 dark:bg-emerald-950/30">
-                <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Profit margin</span>
-                <span className="text-base font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{inr(margin)}</span>
+              <div className={cn("flex items-center justify-between border-b px-5 py-2.5", margin === null ? "bg-muted/40" : "bg-emerald-50 dark:bg-emerald-950/30")}>
+                <span className={cn("text-xs font-semibold uppercase tracking-wide", margin === null ? "text-muted-foreground" : "text-emerald-700 dark:text-emerald-400")}>
+                  Profit margin
+                </span>
+                <span className={cn("text-base font-bold tabular-nums", margin === null ? "text-muted-foreground" : "text-emerald-700 dark:text-emerald-400")}>
+                  {margin === null ? "Cost unknown" : inr(margin)}
+                </span>
               </div>
             )}
 

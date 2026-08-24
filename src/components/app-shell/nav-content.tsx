@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronRight, ChevronDown, Plus, Scissors } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, resolveReportSection, MANUFACTURING_NAV_ITEM, COPILOT_NAV_ITEM, POS_NAV_ITEM, settingsLeafVisible, type NavGroup, type NavLeaf, type NavFlatItem } from "@/components/app-shell/nav-config";
+import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, resolveReportSection, MANUFACTURING_NAV_ITEM, COPILOT_NAV_ITEM, POS_NAV_ITEM, settingsLeafVisible, employeesLeafVisible, type NavGroup, type NavLeaf, type NavFlatItem } from "@/components/app-shell/nav-config";
 import { resolveNavLayout, DEFAULT_NAV_LAYOUT, type NavLayoutSetting } from "@/lib/nav-layout";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
@@ -292,7 +292,9 @@ function NavContentInner({ onNavigate }: { onNavigate?: () => void }) {
             filterLeaf={
               node.group.id === "settings"
                 ? (href) => settingsLeafVisible(href, isAdmin, canManageShop, isSuperAdmin) && (isSuperAdmin || isSettingEnabled(entitlements!, href))
-                : undefined
+                : node.group.id === "employees"
+                  ? (href) => employeesLeafVisible(href, isAdmin) && (isSuperAdmin || isSettingEnabled(entitlements!, href))
+                  : undefined
             }
             onNavigate={onNavigate}
           />

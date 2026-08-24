@@ -65,6 +65,11 @@ export interface Garment {
   lining?: "s" | "h" | "f" | string;
   no?: number;
   amount?: number;
+  /** Stable per-garment id, generated client-side once and carried through every edit —
+   *  what preserve_garment_payables() matches on to keep a frozen payableAmount attached to
+   *  the correct garment even if lines are reordered or one is deleted. Absent on garments
+   *  created before this existed (the SQL falls back to positional matching for those). */
+  lineId?: string;
   /** Employee id of whoever stitches this garment — drives tailor piece-rate pay. */
   tailor?: string;
   /** Snapshotted from the tailor rate card the moment this garment's order first reaches

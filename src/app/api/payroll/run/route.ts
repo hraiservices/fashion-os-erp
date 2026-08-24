@@ -114,19 +114,29 @@ export async function POST(request: Request) {
     // of 2 per employee — a payroll run over a large roster was previously O(N) round trips.
     const employeeIds = employees.map((e) => e.id);
     const hasPieceRateEmployees = employees.some((e) => e.pieceRateEligible);
-    const periodEndOfDay = `${periodEnd}T23:59:59.999`;
+    // IST has no DST and a fixed +5:30 offset — an explicit offset here (not a naive literal)
+    // is what makes this compare correctly against ready_at/completed_at, which are UTC
+    // timestamps. periodEnd's upper bound is inclusive through the end of that IST calendar
+    // day. There's deliberately no lower bound: piece_rate_paid_at IS NULL is what scopes this
+    // to "not yet paid" — a payable confirmed late (after its own period's run already
+    // happened) still surfaces in the next run instead of being lost, and nothing already
+    // marked paid can ever be summed again, however the chosen period overlaps a prior run.
+    const periodEndOfDay = `${periodEnd}T23:59:59.999+05:30`;
     const [{ data: allAttRows }, { data: allAdvanceRows }, { data: confirmedOrderRows }, { data: confirmedWoRows }] = await Promise.all([
       supabase.from("employee_attendance").select("*").in("employee_id", employeeIds).gte("date", periodStart).lte("date", periodEnd),
       supabase.from("employee_advances").select("*").in("employee_id", employeeIds).is("payslip_id", null).lte("date", periodEnd).order("date", { ascending: true }),
       hasPieceRateEmployees
-        ? supabase.from("orders").select("garments").not("payables_confirmed_at", "is", null).gte("ready_at", periodStart).lte("ready_at", periodEndOfDay)
-        : Promise.resolve({ data: [] as { garments: unknown }[] }),
+        ? supabase.from("orders").select("id, garments").not("payables_confirmed_at", "is", null).is("piece_rate_paid_at", null).lte("ready_at", periodEndOfDay)
+        : Promise.resolve({ data: [] as { id: string; garments: unknown }[] }),
       hasPieceRateEmployees
-        ? supabase.from("work_orders").select("tailor, labor_cost").not("labor_payable_confirmed_at", "is", null).gte("completed_at", periodStart).lte("completed_at", periodEndOfDay)
-        : Promise.resolve({ data: [] as { tailor: string; labor_cost: number | null }[] }),
+        ? supabase.from("work_orders").select("id, tailor, labor_cost").not("labor_payable_confirmed_at", "is", null).is("piece_rate_paid_at", null).lte("completed_at", periodEndOfDay)
+        : Promise.resolve({ data: [] as { id: string; tailor: string; labor_cost: number | null }[] }),
     ]);
-    const confirmedOrders = (confirmedOrderRows || []) as Pick<Order, "garments">[];
-    const confirmedWorkOrders = (confirmedWoRows || []).map((w) => ({ tailor: w.tailor, laborCost: w.labor_cost })) as Pick<WorkOrder, "tailor" | "laborCost">[];
+    const confirmedOrders = (confirmedOrderRows || []) as (Pick<Order, "garments"> & { id: string })[];
+    const confirmedWorkOrders = (confirmedWoRows || []).map((w) => ({ id: w.id, tailor: w.tailor, laborCost: w.labor_cost })) as (Pick<
+      WorkOrder,
+      "tailor" | "laborCost"
+    > & { id: string })[];
     type AttRow = NonNullable<typeof allAttRows>[number];
     type AdvanceRow = NonNullable<typeof allAdvanceRows>[number];
     const attByEmployee = new Map<string, AttRow[]>();
@@ -225,6 +235,18 @@ export async function POST(request: Request) {
       if (ids.length > 0) {
         await supabase.from("employee_advances").update({ payslip_id: ps.id }).in("id", ids);
       }
+    }
+
+    // Mark every confirmed order/work-order this run actually summed as paid, so a future run
+    // (even one whose period overlaps this one) can never sum the same payable twice.
+    const paidOrderIds = confirmedOrders.map((o) => o.id);
+    const paidWoIds = confirmedWorkOrders.map((w) => w.id);
+    const nowIso = new Date().toISOString();
+    if (paidOrderIds.length > 0) {
+      await supabase.from("orders").update({ piece_rate_paid_at: nowIso }).in("id", paidOrderIds);
+    }
+    if (paidWoIds.length > 0) {
+      await supabase.from("work_orders").update({ piece_rate_paid_at: nowIso }).in("id", paidWoIds);
     }
   } catch (err) {
     // Clean up the run header so the admin gets a clean slate.

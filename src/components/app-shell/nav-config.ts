@@ -189,6 +189,8 @@ export const EMPLOYEES_GROUP: NavGroup = {
     { href: "/employees/attendance", label: "Attendance" },
     { href: "/employees/leave", label: "Leave" },
     { href: "/employees/payroll", label: "Payroll" },
+    { href: "/settings/attendance-payroll", label: "Attendance & Payroll Settings" },
+    { href: "/settings/leave-policy", label: "Leave Policy" },
   ],
 };
 
@@ -226,7 +228,6 @@ export const SETTINGS_GROUP: NavGroup = {
   icon: Settings,
   children: [
     { href: "/settings/shop", label: "Shop Profile" },
-    { href: "/settings/tailors", label: "Tailors" },
     { href: "/settings/rates", label: "Rate Card" },
     { href: "/settings/tailor-rates", label: "Tailor Payable Rates" },
     { href: "/settings/measurements", label: "Measurements" },
@@ -236,22 +237,25 @@ export const SETTINGS_GROUP: NavGroup = {
     { href: "/settings/invoice-terms", label: "Invoice Terms" },
     { href: "/settings/invoice-template", label: "Invoice Template" },
     { href: "/settings/price-lists", label: "Price Lists" },
-    { href: "/settings/bot", label: "Bot / AI" },
     { href: "/settings/copilot", label: "AI Copilot" },
     { href: "/settings/users", label: "Users & Roles" },
     { href: "/settings/font", label: "Appearance" },
     { href: "/settings/navigation", label: "Sidebar Navigation" },
-    { href: "/settings/attendance-payroll", label: "Attendance & Payroll" },
-    { href: "/settings/leave-policy", label: "Leave Policy" },
     { href: "/settings/document-numbering", label: "Document Numbering" },
     { href: "/settings/module-licensing", label: "Module Licensing" },
   ],
 };
 
+/** The two policy/config leaves living under Employees stay admin-only, same as when they lived under Settings — everyone with manageEmployees can see Attendance/Leave/Payroll data, but only an admin should see the policy config links (the pages themselves also enforce this via SettingsGuard). */
+export function employeesLeafVisible(href: string, isAdmin: boolean): boolean {
+  if (href === "/settings/attendance-payroll" || href === "/settings/leave-policy") return isAdmin;
+  return true;
+}
+
 /** Per-section Settings gating, mirroring the old app's rules. Module Licensing is platform-owner-only — invisible to every shop's own admin, including "admin" role. */
 export function settingsLeafVisible(href: string, isAdmin: boolean, canManageShop: boolean, isSuperAdmin: boolean): boolean {
   if (href === "/settings/module-licensing") return isSuperAdmin;
-  if (["/settings/shop", "/settings/tailors", "/settings/rates", "/settings/measurements"].includes(href)) return canManageShop;
+  if (["/settings/shop", "/settings/rates", "/settings/measurements"].includes(href)) return canManageShop;
   if (
     [
       "/settings/loyalty",
@@ -259,13 +263,10 @@ export function settingsLeafVisible(href: string, isAdmin: boolean, canManageSho
       "/settings/invoice-terms",
       "/settings/invoice-template",
       "/settings/price-lists",
-      "/settings/bot",
       "/settings/copilot",
       "/settings/users",
       "/settings/font",
       "/settings/navigation",
-      "/settings/attendance-payroll",
-      "/settings/leave-policy",
       "/settings/document-numbering",
       "/settings/tailor-rates",
     ].includes(href)

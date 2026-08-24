@@ -207,7 +207,10 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Input value={tailor} onChange={(e) => setTailor(e.target.value)} placeholder="Add tailors in Employees" className="h-10" />
+                  // No free-text fallback — whatever's typed here would be saved as an id and
+                  // could never match any employee, permanently orphaning this WO's tailor
+                  // attribution. Add the employee first instead.
+                  <Input disabled placeholder="Add a tailor under Employees first" className="h-10" />
                 )}
               </FieldGroup>
               <div /> {/* spacer for grid alignment */}

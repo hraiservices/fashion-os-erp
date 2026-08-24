@@ -40,10 +40,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   // 0 rows = another concurrent request already advanced the stage — treat as conflict.
   if (!updatedRow) return NextResponse.json({ error: "Stage was already changed by another request. Please refresh." }, { status: 409 });
 
+  // order.tailor is now an employee id, not a name — dropped from this detail string (was
+  // showing a raw UUID); the order's own detail page already shows the tailor's name.
   await logAction(
     supabase, user.email,
     `${curMeta.emoji} → ${nextMeta.emoji} Stage changed: ${curMeta.label} → ${nextMeta.label} for ${order.name}`,
-    id, `Tailor: ${order.tailor}`
+    id
   );
   await sendAdminNotification(supabase, user.email, {
     orderId: id, customerName: order.name, fromStage: curMeta.label, toStage: nextMeta.label,

@@ -15,11 +15,15 @@ const garmentSchema = z.object({
   amount: z.number().optional(),
   checklist: z.record(z.string(), z.boolean()).optional(),
   tailor: z.string().optional(),
+  // Stable id preserve_garment_payables() matches on to reattach a frozen payableAmount to the
+  // right garment even if lines are reordered/deleted during this edit.
+  lineId: z.string().optional(),
   // Accepted here only so TS/zod don't choke on the order-form echoing back a garment's
   // existing payableAmount — the value itself is never trusted. edit_order's
   // preserve_garment_payables() strips whatever the client sends and re-attaches the row's
-  // own prior value by position, so this field can only ever be set by
-  // snapshot_tailor_payables() inside set_order_stage, never by an edit.
+  // own prior value (matched by lineId, falling back to position for legacy garments), so
+  // this field can only ever really be set by snapshot_tailor_payables() inside
+  // set_order_stage, never by an edit.
   payableAmount: z.number().optional(),
 });
 

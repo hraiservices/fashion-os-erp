@@ -41,6 +41,7 @@ export function SearchSelect({
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState(false);
   const [open, setOpen] = useState(false);
+  const [highlighted, setHighlighted] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const selected = options.find((o) => o.value === value);
@@ -70,16 +71,32 @@ export function SearchSelect({
           setEditing(true);
           setQuery("");
           setOpen(true);
+          setHighlighted(0);
         }}
         onChange={(e) => {
           setQuery(e.target.value);
           setOpen(true);
+          setHighlighted(0);
         }}
         onKeyDown={(e) => {
-          if (e.key === "Escape") setOpen(false);
+          if (e.key === "Escape") {
+            setOpen(false);
+            return;
+          }
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setOpen(true);
+            setHighlighted((h) => Math.min(h + 1, matches.length - 1));
+            return;
+          }
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setHighlighted((h) => Math.max(h - 1, 0));
+            return;
+          }
           if (e.key === "Enter" && matches.length > 0) {
             e.preventDefault();
-            pick(matches[0]);
+            pick(matches[Math.min(highlighted, matches.length - 1)]);
           }
         }}
         onBlur={() =>
@@ -91,7 +108,7 @@ export function SearchSelect({
       />
       {open && matches.length > 0 && (
         <ul className="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-lg border bg-popover shadow-lg">
-          {matches.map((o) => (
+          {matches.map((o, i) => (
             <li key={o.value}>
               <button
                 type="button"
@@ -100,7 +117,8 @@ export function SearchSelect({
                   e.preventDefault();
                   pick(o);
                 }}
-                className="flex w-full flex-col px-3 py-2 text-left text-sm hover:bg-muted"
+                onMouseEnter={() => setHighlighted(i)}
+                className={cn("flex w-full flex-col px-3 py-2 text-left text-sm", i === highlighted ? "bg-muted" : "hover:bg-muted")}
               >
                 <span className="truncate">{o.label}</span>
                 {o.sublabel && <span className="text-xs text-muted-foreground">{o.sublabel}</span>}

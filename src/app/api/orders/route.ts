@@ -19,6 +19,8 @@ const garmentSchema = z.object({
   checklist: z.record(z.string(), z.boolean()).optional(),
   /** Employee id of whoever will stitch this garment — drives tailor piece-rate pay. */
   tailor: z.string().optional(),
+  /** Stable id used to reattach a frozen payableAmount to the right garment across edits. */
+  lineId: z.string().optional(),
 });
 
 const bodySchema = z.object({
@@ -211,7 +213,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: insertError?.message || "Insert failed" }, { status: 500 });
   }
 
-  await logAction(supabase, user.email, `📋 New order created: ${fd.name}`, id, `₹${fd.total} · Tailor: ${fd.tailor}`);
+  // fd.tailor is now an employee id, not a name — dropped from this detail string rather than
+  // resolved (would need an extra query for a cosmetic log line); the order's own detail page
+  // already shows the tailor's name.
+  await logAction(supabase, user.email, `📋 New order created: ${fd.name}`, id, `₹${fd.total}`);
 
   // C3: loyalty side-effects run after the order INSERT has committed. Any failure must
   // NOT propagate as HTTP 500 (client would retry and create a duplicate order). Log and

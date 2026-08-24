@@ -74,7 +74,7 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
           discountType: item.discountType || "percent",
           discountPercent: String(item.discountPercent || 0),
           discountFlat: String(item.discountFlat || 0),
-          costPrice: String(item.costPrice || 0),
+          costPrice: item.costPrice !== undefined ? String(item.costPrice) : "",
         }))
       : [blankSalesLine()]
   );

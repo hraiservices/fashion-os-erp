@@ -64,9 +64,16 @@ const COLUMNS = [
   { key: "status", label: "Payment status" },
 ];
 
-function invoiceMargin(inv: SalesInvoiceWithBalance): number {
+function invoiceMargin(inv: SalesInvoiceWithBalance): number | null {
   const { discountAmount } = computeInvoiceTotals(inv.items, inv.shippingCharges, inv.discountType, inv.discountValue, inv.taxRate, inv.gstType);
   return computeInvoiceMargin(inv.items, discountAmount);
+}
+
+/** null means cost is unknown for at least one line (a legacy invoice saved before margin was
+ *  server-verified) — shown as a muted dash rather than a number that could be mistaken for a
+ *  real ₹0 margin. */
+function marginText(m: number | null): string {
+  return m === null ? "—" : inr(m);
 }
 
 export default function SalesInvoicesPage() {
@@ -360,7 +367,14 @@ export default function SalesInvoicesPage() {
                     {table.isVisible("quote") && <TableCell className="text-muted-foreground">{inv.quoteId ? quoteNumberById.get(inv.quoteId) || "—" : "—"}</TableCell>}
                     {table.isVisible("amount") && <TableCell className="text-right tabular-nums">{inr(inv.total)}</TableCell>}
                     {table.isVisible("margin") && canViewMargin && (
-                      <TableCell className="text-right tabular-nums font-medium text-emerald-600 dark:text-emerald-400">{inr(invoiceMargin(inv))}</TableCell>
+                      <TableCell
+                        className={cn(
+                          "text-right tabular-nums font-medium",
+                          invoiceMargin(inv) === null ? "text-muted-foreground" : "text-emerald-600 dark:text-emerald-400"
+                        )}
+                      >
+                        {marginText(invoiceMargin(inv))}
+                      </TableCell>
                     )}
                     {table.isVisible("balance") && (
                       <TableCell className="text-right">
@@ -430,7 +444,11 @@ export default function SalesInvoicesPage() {
                 <MobileRecordRow label="Quote#" value={inv.quoteId ? quoteNumberById.get(inv.quoteId) || "—" : "—"} />
                 <MobileRecordRow label="Amount" value={inr(inv.total)} />
                 {canViewMargin && (
-                  <MobileRecordRow label="Profit Margin" value={inr(invoiceMargin(inv))} valueClassName="text-emerald-600 dark:text-emerald-400 font-medium" />
+                  <MobileRecordRow
+                    label="Profit Margin"
+                    value={marginText(invoiceMargin(inv))}
+                    valueClassName={invoiceMargin(inv) === null ? "text-muted-foreground" : "text-emerald-600 dark:text-emerald-400 font-medium"}
+                  />
                 )}
                 <MobileRecordRow label="Due Date" value={inv.dueDate ? fmtDate(inv.dueDate) : "—"} />
                 <MobileRecordRow label="Doc" value={<Badge variant="outline">{DOC_STATUS_LABELS[inv.docStatus]}</Badge>} />

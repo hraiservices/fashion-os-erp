@@ -41,6 +41,7 @@ export interface Database {
           ready_at: string | null;
           payables_confirmed_at: string | null;
           payables_confirmed_by: string | null;
+          piece_rate_paid_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -728,6 +729,7 @@ export interface Database {
           completed_at: string | null;
           labor_payable_confirmed_at: string | null;
           labor_payable_confirmed_by: string | null;
+          piece_rate_paid_at: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -1116,6 +1118,14 @@ export interface Database {
       set_tailor_rates: {
         Args: { p_value: Json };
         Returns: undefined;
+      };
+      confirm_order_payables: {
+        Args: { p_order_id: string; p_user_email: string };
+        Returns: Database["public"]["Tables"]["orders"]["Row"][];
+      };
+      confirm_wo_payable: {
+        Args: { p_wo_id: string; p_user_email: string };
+        Returns: Database["public"]["Tables"]["work_orders"]["Row"][];
       };
       set_order_stage: {
         Args: {

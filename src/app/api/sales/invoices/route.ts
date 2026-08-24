@@ -13,8 +13,11 @@ const lineItemSchema = z.object({
   qty: z.number().nonnegative(),
   unitPrice: z.number().nonnegative(),
   discountType: z.enum(["flat", "percent"]).optional(),
-  discountPercent: z.number().nonnegative().optional(),
+  discountPercent: z.number().min(0).max(100).optional(),
   discountFlat: z.number().nonnegative().optional(),
+  // Accepted here only so the shape round-trips — never trusted. costPrice is re-derived
+  // server-side from the actual products table below (see costById), since a client-supplied
+  // value here would make the margin figure (shown as real profit in the UI) forgeable.
   costPrice: z.number().nonnegative().optional(),
   amount: z.number().nonnegative(),
 });
@@ -94,8 +97,24 @@ export async function POST(request: Request) {
     }
   }
 
+  // Re-derive costPrice from the real products table rather than trusting whatever the client
+  // sent — costPrice drives the profit-margin figure shown as real money in the UI, and a
+  // client-computed/-supplied number is forgeable. This is also the actual "snapshot" moment
+  // for margin purposes (frozen at save time using real cost, not whatever value the line held
+  // client-side since it was added, which could be stale or wrong).
+  const productIds = Array.from(new Set(fd.items.map((i) => i.productId).filter((id): id is string => !!id)));
+  const costById = new Map<string, number>();
+  if (productIds.length > 0) {
+    const { data: productRows } = await supabase.from("products").select("id, cost_price").in("id", productIds);
+    for (const p of productRows || []) costById.set(p.id, p.cost_price || 0);
+  }
+  const itemsWithVerifiedCost: SalesLineItem[] = fd.items.map((i) => ({
+    ...i,
+    costPrice: i.productId ? costById.get(i.productId) ?? 0 : 0,
+  })) as SalesLineItem[];
+
   const totals = computeInvoiceTotals(
-    fd.items as SalesLineItem[],
+    itemsWithVerifiedCost,
     fd.shippingCharges,
     fd.discountType as DiscountType,
     fd.discountValue,
@@ -113,7 +132,7 @@ export async function POST(request: Request) {
       quote_id: fd.quoteId ?? null,
       invoice_date: fd.invoiceDate,
       due_date: fd.dueDate ?? null,
-      items: fd.items as never,
+      items: itemsWithVerifiedCost as never,
       subject: fd.subject.trim(),
       shipping_charges: totals.shippingCharges,
       discount_type: fd.discountType,

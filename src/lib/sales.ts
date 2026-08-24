@@ -17,26 +17,35 @@ export interface SalesLineItem {
   discountPercent: number;
   /** Per-line discount, ₹ — used when discountType is "flat". */
   discountFlat?: number;
-  /** Manual cost price snapshotted at the moment this line was added, from Product.costPrice —
-   *  powers profit-margin figures. Frozen so a later cost-price change never rewrites the
-   *  margin on an already-saved invoice. */
+  /** Cost price, re-derived server-side from the live Product.costPrice at save time (see
+   *  src/app/api/sales/invoices/route.ts) — never trusted from the client. Frozen once saved,
+   *  so a later cost-price change never rewrites the margin on an already-saved invoice.
+   *  Absent (not 0) on any line saved before this server-side verification existed — that's
+   *  "we don't know", not "the cost was zero", and must be treated differently (see
+   *  lineItemMargin below) or a legacy invoice would misleadingly show 100% margin. */
   costPrice?: number;
   amount: number;
 }
 
 /** This line's contribution to gross profit — its (already-discounted) amount minus what the
- *  goods actually cost. */
-export function lineItemMargin(item: SalesLineItem): number {
-  return Math.round((item.amount - item.qty * (item.costPrice || 0)) * 100) / 100;
+ *  goods actually cost. Returns null (not 0) when costPrice was never recorded for this line —
+ *  distinct from a genuinely ₹0 cost, so a legacy line doesn't silently read as 100% margin. */
+export function lineItemMargin(item: SalesLineItem): number | null {
+  if (item.costPrice === undefined) return null;
+  return Math.round((item.amount - item.qty * item.costPrice) * 100) / 100;
 }
 
 /** Total profit margin across every line, minus the invoice-level discount (a straight ₹
  *  reduction in revenue that doesn't touch cost, so it comes off margin ₹-for-₹). Reused by
  *  both the invoice form's live estimate and the invoices list's per-row figure — the same
  *  math either way, just fed different `invoiceDiscountAmount` inputs (computeInvoiceTotals's
- *  discountAmount). */
-export function computeInvoiceMargin(items: SalesLineItem[], invoiceDiscountAmount: number): number {
-  const lineMargin = items.reduce((s, i) => s + lineItemMargin(i), 0);
+ *  discountAmount). Returns null if any line's cost is unknown — a partial sum would understate
+ *  cost and overstate margin, which is worse than plainly saying "unknown". */
+export function computeInvoiceMargin(items: SalesLineItem[], invoiceDiscountAmount: number): number | null {
+  if (items.length === 0) return 0;
+  const lineMargins = items.map(lineItemMargin);
+  if (lineMargins.some((m) => m === null)) return null;
+  const lineMargin = (lineMargins as number[]).reduce((s, m) => s + m, 0);
   return Math.round((lineMargin - (invoiceDiscountAmount || 0)) * 100) / 100;
 }
 

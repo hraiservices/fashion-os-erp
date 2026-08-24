@@ -41,10 +41,17 @@ const garmentSchema = z.object({
   no: z.number().min(1),
   amount: z.number().min(0),
   tailor: z.string().optional(),
+  // Generated once (below) and echoed back unchanged on every edit — lets preserve_garment_payables
+  // reattach a frozen payableAmount to the correct garment even if lines are reordered/deleted.
+  lineId: z.string().optional(),
   // Echoed back unchanged on edit so it isn't lost — the server ignores/re-derives this value
   // regardless (see preserve_garment_payables), so it's never actually trusted from here.
   payableAmount: z.number().optional(),
 });
+
+function newLineId(): string {
+  return typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `line-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
 
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -204,9 +211,12 @@ function OrderFormFields({
                   no: g.no || 1,
                   amount: g.amount || 0,
                   tailor: g.tailor || "",
+                  // Backfilled here for any garment that predates lineId — persisted on next
+                  // save, self-healing old orders one edit at a time.
+                  lineId: g.lineId || newLineId(),
                   payableAmount: g.payableAmount,
                 }))
-              : [{ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0, tailor: "" }],
+              : [{ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0, tailor: "", lineId: newLineId() }],
           bookingSource: existingOrder.bookingSource || "",
           fabricCost: existingOrder.fabricCost || 0,
           otherCost: existingOrder.otherCost || 0,
@@ -224,7 +234,7 @@ function OrderFormFields({
           special: "",
           advance: 0,
           paymentMethod: "Cash",
-          garments: [{ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0, tailor: defaultTailor }],
+          garments: [{ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0, tailor: defaultTailor, lineId: newLineId() }],
           bookingSource: "",
           fabricCost: 0,
           otherCost: 0,
@@ -430,7 +440,10 @@ function OrderFormFields({
                     )}
                   />
                 ) : (
-                  <Input {...register("tailor")} placeholder="Add tailors in Employees" className="h-10" />
+                  // No free-text fallback — whatever's typed here would be saved as an id and
+                  // could never match any employee, permanently orphaning the order's tailor
+                  // attribution. Add the employee first instead.
+                  <Input disabled placeholder="Add a tailor under Employees first" className="h-10" />
                 )}
               </FieldGroup>
               {showCapacityWarning && tailorWorkload && (
@@ -618,7 +631,7 @@ function OrderFormFields({
                 type="button"
                 variant="outline"
                 className="w-full"
-                onClick={() => append({ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0, tailor: selectedTailor || "" })}
+                onClick={() => append({ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0, tailor: selectedTailor || "", lineId: newLineId() })}
               >
                 <Plus className="size-4" /> Add garment
               </Button>

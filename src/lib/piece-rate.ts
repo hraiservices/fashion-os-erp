@@ -42,17 +42,22 @@ export function computePieceRatePay(
 
 /**
  * How much more an employee can draw as an advance against piece-rate they've earned but not
- * yet been paid out for. Defined as: everything ever confirmed for them, minus whatever's
- * already landed on a payslip (payslips.piece_rate_pay, summed across every payslip they've
- * had), minus advances already drawn and not yet linked to a payslip. There's no per-garment
- * "paid" marker (unlike employee_advances.payslip_id) — this relies on payroll periods never
- * overlapping, the same assumption the rest of the payroll run already makes for attendance.
+ * yet been paid out for. Defined as: confirmed order/work-order payables not yet paid out by a
+ * payroll run (piece_rate_paid_at IS NULL — the same marker the payroll run itself sets, see
+ * add_piece_rate_p0_fixes.sql), minus advances already drawn and not yet linked to a payslip.
+ * Scoping to piece_rate_paid_at IS NULL (rather than "everything ever confirmed") both keeps
+ * this correct — nothing already paid out counts twice — and keeps the orders fetch bounded to
+ * the genuinely-outstanding backlog instead of the company's entire confirmed-order history.
  */
 export async function getPieceRateAdvanceCap(supabase: SupabaseClient<Database>, employeeId: string): Promise<number> {
-  const [ordersRes, workOrdersRes, payslipsRes, advancesRes] = await Promise.all([
-    supabase.from("orders").select("garments").not("payables_confirmed_at", "is", null),
-    supabase.from("work_orders").select("tailor, labor_cost").eq("tailor", employeeId).not("labor_payable_confirmed_at", "is", null),
-    supabase.from("payslips").select("piece_rate_pay").eq("employee_id", employeeId),
+  const [ordersRes, workOrdersRes, advancesRes] = await Promise.all([
+    supabase.from("orders").select("garments").not("payables_confirmed_at", "is", null).is("piece_rate_paid_at", null),
+    supabase
+      .from("work_orders")
+      .select("labor_cost")
+      .eq("tailor", employeeId)
+      .not("labor_payable_confirmed_at", "is", null)
+      .is("piece_rate_paid_at", null),
     supabase.from("employee_advances").select("amount").eq("employee_id", employeeId).is("payslip_id", null),
   ]);
 
@@ -66,8 +71,7 @@ export async function getPieceRateAdvanceCap(supabase: SupabaseClient<Database>,
   }
 
   const earnedFromWorkOrders = (workOrdersRes.data || []).reduce((s, w) => s + (w.labor_cost || 0), 0);
-  const alreadyPaid = (payslipsRes.data || []).reduce((s, p) => s + (p.piece_rate_pay || 0), 0);
   const alreadyDrawn = (advancesRes.data || []).reduce((s, a) => s + (a.amount || 0), 0);
 
-  return Math.max(0, Math.round((earnedFromOrders + earnedFromWorkOrders - alreadyPaid - alreadyDrawn) * 100) / 100);
+  return Math.max(0, Math.round((earnedFromOrders + earnedFromWorkOrders - alreadyDrawn) * 100) / 100);
 }

@@ -310,7 +310,7 @@ interface ActivityLogRow {
   created_at: string;
 }
 
-const ORDER_PAYMENT_RE = /^💰 Payment ₹([\d.]+)/;
+export const ORDER_PAYMENT_RE = /^💰 Payment ₹([\d.]+)/;
 const STAGE_CHANGE_RE = /Stage changed: (.+?) for (.+)$/;
 
 export function buildOrderActivityLogEntries(rows: ActivityLogRow[]): DayBookEntry[] {

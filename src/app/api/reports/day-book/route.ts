@@ -20,6 +20,7 @@ import {
   buildAdvanceEntries,
   buildOtherActivityLogEntries,
   sortEntries,
+  ORDER_PAYMENT_RE,
   type DayBookEntry,
 } from "@/lib/day-book";
 
@@ -161,7 +162,16 @@ export async function GET(request: Request) {
   // free-text activity_log entries mixed into the timeline, so these numbers can't be thrown
   // off by e.g. the regex-extracted order-payment amounts in buildOrderActivityLogEntries.
   const salesTotal = (invoicesRes.data || []).filter((i) => i.doc_status !== "draft").reduce((s, i) => s + i.total, 0);
-  const paymentsTotal = (paymentsRes.data || []).reduce((s, p) => s + p.amount, 0);
+  // "Payments Received" must cover cash collected across BOTH revenue streams — sales_payments
+  // (retail invoices) AND stitching-order payments (no standalone table; extracted from the same
+  // activity_log rows buildOrderActivityLogEntries turns into "Payment Collected" timeline
+  // entries, via the identical regex, so the KPI card can never diverge from what's actually
+  // shown in the timeline for the day). Previously only summed sales_payments, silently
+  // undercounting every day a stitching payment was collected.
+  const orderPaymentsTotal = (orderActivityRes.data || [])
+    .filter((r) => r.action.startsWith("💰 Payment ₹"))
+    .reduce((s, r) => s + (Number(r.action.match(ORDER_PAYMENT_RE)?.[1]) || 0), 0);
+  const paymentsTotal = (paymentsRes.data || []).reduce((s, p) => s + p.amount, 0) + orderPaymentsTotal;
   const expensesTotal = (expensesRes.data || []).reduce((s, e) => s + e.amount, 0);
   const purchasesTotal = (billsRes.data || []).reduce((s, b) => s + b.total, 0);
   const refundsTotal =

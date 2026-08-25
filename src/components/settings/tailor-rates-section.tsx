@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { DEFAULT_RATES, DEFAULT_TAILOR_RATES, LINING_LABELS, type Lining, type TailorRateCard } from "@/lib/business-rules";
@@ -19,6 +20,15 @@ export function TailorRatesSection() {
   const qc = useQueryClient();
   const { data: customerRates, isLoading: customerLoading } = useAppSetting("rates", DEFAULT_RATES);
   const { data: rates, isLoading } = useAppSetting<TailorRateCard>("tailorRates", DEFAULT_TAILOR_RATES);
+
+  // Local editable copy, seeded once from the server value. Typing only updates this — never
+  // fires a network call — so keystrokes can't be lost or flicker while waiting on (or racing)
+  // a save response. The actual save fires on blur (see commit() below).
+  const [draft, setDraft] = useState<TailorRateCard | null>(null);
+  useEffect(() => {
+    if (rates && !draft) setDraft(rates);
+  }, [rates, draft]);
+
   const save = useMutation({
     mutationFn: async (value: TailorRateCard) => {
       const res = await fetch("/api/settings/tailor-rates", {
@@ -33,17 +43,21 @@ export function TailorRatesSection() {
     onSuccess: (value) => qc.setQueryData(["app-setting", "tailorRates"], value),
   });
 
-  if (isLoading || customerLoading) return <Skeleton className="h-64 w-full" />;
+  if (isLoading || customerLoading || !draft) return <Skeleton className="h-64 w-full" />;
 
   const garmentTypes = Object.keys(customerRates || DEFAULT_RATES);
-  const current = rates || DEFAULT_TAILOR_RATES;
+  const current = draft;
 
   function updateRate(type: string, lining: Lining, column: "new" | "alteration", value: number) {
-    const row = current[type]?.[lining] || { new: 0, alteration: 0 };
-    save.mutate({
-      ...current,
-      [type]: { ...current[type], [lining]: { ...row, [column]: value } },
+    setDraft((d) => {
+      const base = d || DEFAULT_TAILOR_RATES;
+      const row = base[type]?.[lining] || { new: 0, alteration: 0 };
+      return { ...base, [type]: { ...base[type], [lining]: { ...row, [column]: value } } };
     });
+  }
+
+  function commit() {
+    if (draft) save.mutate(draft);
   }
 
   return (
@@ -70,8 +84,8 @@ export function TailorRatesSection() {
               const row = current[type]?.[l] || { new: 0, alteration: 0 };
               return (
                 <div key={l} className="col-span-3 grid grid-cols-2 gap-1">
-                  <NumberInput min={0} placeholder="New" value={row.new} onChange={(v) => updateRate(type, l, "new", v)} />
-                  <NumberInput min={0} placeholder="Alt." value={row.alteration} onChange={(v) => updateRate(type, l, "alteration", v)} />
+                  <NumberInput min={0} placeholder="New" value={row.new} onChange={(v) => updateRate(type, l, "new", v)} onBlur={commit} />
+                  <NumberInput min={0} placeholder="Alt." value={row.alteration} onChange={(v) => updateRate(type, l, "alteration", v)} onBlur={commit} />
                 </div>
               );
             })}

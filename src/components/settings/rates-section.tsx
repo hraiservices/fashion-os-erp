@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { DEFAULT_RATES, type Lining } from "@/lib/business-rules";
@@ -22,16 +22,33 @@ export function RatesSection() {
   const [newH, setNewH] = useState(0);
   const [newF, setNewF] = useState(0);
 
-  const current = rates || DEFAULT_RATES;
+  // Local editable copy, seeded once from the server value — typing only updates this, never
+  // fires a save, so a keystroke can't be lost or flicker while a previous save is still in
+  // flight. The actual save fires on blur (see commit() below), not per keystroke.
+  const [draft, setDraft] = useState<RateCard | null>(null);
+  useEffect(() => {
+    if (rates && !draft) setDraft(rates);
+  }, [rates, draft]);
+
+  const current = draft || DEFAULT_RATES;
 
   function updateRate(type: string, lining: Lining, value: number) {
-    save.mutate({ ...current, [type]: { ...current[type], [lining]: value } });
+    setDraft((d) => {
+      const base = d || DEFAULT_RATES;
+      return { ...base, [type]: { ...base[type], [lining]: value } };
+    });
+  }
+
+  function commit() {
+    if (draft) save.mutate(draft);
   }
 
   async function addGarment() {
     if (!newType.trim()) return;
     try {
-      await save.mutateAsync({ ...current, [newType.trim()]: { s: newS, h: newH, f: newF } });
+      const updated = { ...current, [newType.trim()]: { s: newS, h: newH, f: newF } };
+      await save.mutateAsync(updated);
+      setDraft(updated);
       setNewType("");
       setNewS(0);
       setNewH(0);
@@ -50,9 +67,10 @@ export function RatesSection() {
     const updated = { ...current };
     delete updated[type];
     await save.mutateAsync(updated);
+    setDraft(updated);
   }
 
-  if (isLoading) return <Skeleton className="h-64 w-full" />;
+  if (isLoading || !draft) return <Skeleton className="h-64 w-full" />;
 
   return (
     <Card>
@@ -70,6 +88,7 @@ export function RatesSection() {
                 min={0}
                 value={rate[l]}
                 onChange={(v) => updateRate(type, l, v)}
+                onBlur={commit}
               />
             ))}
             <Button variant="ghost" size="sm" className="col-span-2" onClick={() => removeGarment(type)}><X className="size-4" /></Button>

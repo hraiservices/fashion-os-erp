@@ -51,6 +51,24 @@ export const DEFAULT_TAILOR_RATES: TailorRateCard = Object.fromEntries(
   Object.keys(DEFAULT_RATES).map((type) => [type, { s: { new: 0, alteration: 0 }, h: { new: 0, alteration: 0 }, f: { new: 0, alteration: 0 } }])
 );
 
+/** Shop-configurable list of stitching-expense categories (Settings > Stitching Expense
+ *  Categories), same "plain string array, admin can add/remove" shape as other simple
+ *  app_settings lists in this app. Stored under app_settings key "stitchingExpenseCategories". */
+export const DEFAULT_EXPENSE_CATEGORIES = [
+  "Lining",
+  "Thread",
+  "Lace",
+  "Piping",
+  "Buttons",
+  "Elastic",
+  "Zipper",
+  "Hooks",
+  "Electricity",
+  "Machine Expense",
+  "Packaging",
+  "Other",
+];
+
 /** newId(), line ~2211. */
 export function newOrderId(): string {
   const rand =

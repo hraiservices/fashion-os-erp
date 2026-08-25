@@ -53,6 +53,25 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["orders"]["Row"]>;
         Relationships: [];
       };
+      order_expenses: {
+        Row: {
+          id: string;
+          order_id: string;
+          category: string;
+          qty: number | null;
+          unit: string | null;
+          rate: number | null;
+          amount: number;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["order_expenses"]["Row"]> & {
+          order_id: string;
+          category: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["order_expenses"]["Row"]>;
+        Relationships: [];
+      };
       customers: {
         Row: {
           id: string;

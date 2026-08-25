@@ -7,9 +7,10 @@ import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, User2, Shirt, Wallet, Ruler, Gift, Check, ClipboardList, AlertTriangle, Receipt } from "lucide-react";
-import { useCreateOrder, useUpdateOrder } from "@/hooks/use-order-mutations";
+import { ArrowLeft, Plus, Trash2, User2, Shirt, Wallet, Ruler, Gift, Check, ClipboardList, AlertTriangle, Receipt, TrendingUp, TrendingDown } from "lucide-react";
+import { useCreateOrder, useUpdateOrder, type NewOrderExpenseInput } from "@/hooks/use-order-mutations";
 import { useOrders } from "@/hooks/use-orders";
+import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
 import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/customer-picker";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -19,7 +20,19 @@ import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { getTailorWorkload } from "@/lib/analytics";
-import { DEFAULT_RATES, LINING_LABELS, BOOKING_SOURCES, REFERRAL_COUPON_DISCOUNT, computeRedemption, loyaltyTier, type Lining } from "@/lib/business-rules";
+import {
+  DEFAULT_RATES,
+  DEFAULT_TAILOR_RATES,
+  DEFAULT_EXPENSE_CATEGORIES,
+  LINING_LABELS,
+  BOOKING_SOURCES,
+  REFERRAL_COUPON_DISCOUNT,
+  computeRedemption,
+  loyaltyTier,
+  type Lining,
+  type TailorRateCard,
+} from "@/lib/business-rules";
+import { computeOrderProfit } from "@/lib/order-profit";
 import { hydrateMeasurements, compactMeasurements, toMKey, type MeasureLang } from "@/lib/measurements";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -53,6 +66,14 @@ function newLineId(): string {
   return typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `line-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+const expenseSchema = z.object({
+  category: z.string().min(1, "Select a category"),
+  qty: z.number().min(0).optional(),
+  unit: z.string().optional(),
+  rate: z.number().min(0).optional(),
+  amount: z.number().min(0),
+});
+
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
   mobile: z.string().min(10, "Enter a valid 10-digit mobile number"),
@@ -68,6 +89,7 @@ const formSchema = z.object({
   bookingSource: z.string().optional(),
   fabricCost: z.number().min(0).optional(),
   otherCost: z.number().min(0).optional(),
+  expenses: z.array(expenseSchema).optional(),
 });
 
 const PAYMENT_METHODS = ["Cash", "UPI", "Card", "Bank Transfer"];
@@ -122,10 +144,13 @@ function FieldGroup({ label, required, error, children, hint, className }: { lab
  */
 export function OrderForm({ existingOrder, prefillMobile, initialOrderType }: { existingOrder?: Order; prefillMobile?: string; initialOrderType?: OrderType }) {
   const { data: rates, isLoading: ratesLoading } = useAppSetting<RateCard>("rates", DEFAULT_RATES);
+  const { data: tailorRates, isLoading: tailorRatesLoading } = useAppSetting<TailorRateCard>("tailorRates", DEFAULT_TAILOR_RATES);
+  const { data: expenseCategories, isLoading: categoriesLoading } = useAppSetting<string[]>("stitchingExpenseCategories", DEFAULT_EXPENSE_CATEGORIES);
   const { data: tailors, isLoading: tailorsLoading } = useActiveTailors();
   const { data: measureFields, isLoading: fieldsLoading } = useMeasureFields();
+  const { data: existingExpenses, isLoading: expensesLoading } = useOrderExpensesFor(existingOrder?.id);
 
-  if (ratesLoading || tailorsLoading || fieldsLoading) return <Skeleton className="h-96 w-full" />;
+  if (ratesLoading || tailorRatesLoading || categoriesLoading || tailorsLoading || fieldsLoading || expensesLoading) return <Skeleton className="h-96 w-full" />;
 
   return (
     <OrderFormFields
@@ -133,8 +158,11 @@ export function OrderForm({ existingOrder, prefillMobile, initialOrderType }: { 
       prefillMobile={prefillMobile}
       initialOrderType={initialOrderType}
       rates={rates || DEFAULT_RATES}
+      tailorRates={tailorRates || DEFAULT_TAILOR_RATES}
+      expenseCategories={expenseCategories || DEFAULT_EXPENSE_CATEGORIES}
       tailors={tailors || []}
       measureFields={measureFields || []}
+      existingExpenses={existingExpenses}
     />
   );
 }
@@ -144,15 +172,21 @@ function OrderFormFields({
   prefillMobile,
   initialOrderType,
   rates,
+  tailorRates,
+  expenseCategories,
   tailors,
   measureFields,
+  existingExpenses,
 }: {
   existingOrder?: Order;
   prefillMobile?: string;
   initialOrderType?: OrderType;
   rates: RateCard;
+  tailorRates: TailorRateCard;
+  expenseCategories: string[];
   tailors: Employee[];
   measureFields: string[];
+  existingExpenses: { category: string; qty: number | null; unit: string | null; rate: number | null; amount: number }[];
 }) {
   const router = useRouter();
   const { data: user } = useCurrentUser();
@@ -220,6 +254,7 @@ function OrderFormFields({
           bookingSource: existingOrder.bookingSource || "",
           fabricCost: existingOrder.fabricCost || 0,
           otherCost: existingOrder.otherCost || 0,
+          expenses: existingExpenses.map((e) => ({ category: e.category, qty: e.qty ?? undefined, unit: e.unit ?? undefined, rate: e.rate ?? undefined, amount: e.amount })),
         }
       : {
           name: "",
@@ -238,16 +273,40 @@ function OrderFormFields({
           bookingSource: "",
           fabricCost: 0,
           otherCost: 0,
+          expenses: [],
         },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "garments" });
+  const { fields: expenseFields, append: appendExpense, remove: removeExpense } = useFieldArray({ control, name: "expenses" });
   const garments = watch("garments");
+  const expenses = watch("expenses") || [];
   const advance = watch("advance") || 0;
   const mobile = watch("mobile");
   const name = watch("name");
   const selectedTailor = watch("tailor");
+  const fabricCost = watch("fabricCost") || 0;
+  const otherCost = watch("otherCost") || 0;
   const total = garments.reduce((s, g) => s + (g.amount || 0) * (g.no || 1), 0);
+  const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+
+  // Live profit — the exact same computeOrderProfit() used by Order Details, the Stitching
+  // Orders list, and the Order Profitability report (see src/lib/order-profit.ts), fed with
+  // this form's current in-progress values so it updates as the user types. A new order is
+  // always pre-"ready" (tailorCostIsEstimate always true here); an existing order uses its
+  // real current status so an already-ready order shows its real, frozen tailor cost.
+  const profit = computeOrderProfit(
+    {
+      total,
+      garments: garments as Order["garments"],
+      status: existingOrder?.status || "received",
+      orderType,
+      fabricCost,
+      otherCost,
+    },
+    tailorRates,
+    expenses
+  );
 
   // Advisory-only capacity warning — never blocks save. Reuses the same Low/Normal/High/
   // Overloaded bucketing the Tailor Workload report already uses (src/lib/analytics.ts), just
@@ -427,7 +486,8 @@ function OrderFormFields({
                     render={({ field: f }) => (
                       <Select value={f.value} onValueChange={(v) => v && f.onChange(v)}>
                         <SelectTrigger className="h-10 w-full">
-                          <SelectValue placeholder="Assign a tailor" />
+                          {/* Base UI renders the raw stored value (a UUID) unless given a formatter — same fix as Lining above. */}
+                          <SelectValue>{(v: string) => tailors.find((t) => t.id === v)?.name || "Assign a tailor"}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {tailors.map((t) => (
@@ -588,7 +648,8 @@ function OrderFormFields({
                         render={({ field: f }) => (
                           <Select value={f.value || ""} onValueChange={(v) => f.onChange(v || "")}>
                             <SelectTrigger className="h-10 w-full">
-                              <SelectValue placeholder="Unassigned" />
+                              {/* Same Base-UI raw-value fallback issue as the order-level Tailor field above. */}
+                              <SelectValue>{(v: string) => tailors.find((t) => t.id === v)?.name || "Unassigned"}</SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {tailors.map((t) => (
@@ -680,6 +741,162 @@ function OrderFormFields({
                     )}
                   />
                 </FieldGroup>
+              </div>
+
+              <div className="mt-5 border-t pt-4">
+                <SectionHeading icon={Wallet} label="Stitching expenses" />
+                <div className="space-y-3">
+                  {expenseFields.map((field, index) => (
+                    <div key={field.id} className="rounded-lg border p-3">
+                      <div className="grid gap-3 sm:grid-cols-12">
+                        <FieldGroup label="Category" className="sm:col-span-3">
+                          <Controller
+                            control={control}
+                            name={`expenses.${index}.category`}
+                            render={({ field: f }) => (
+                              <Select value={f.value} onValueChange={(v) => v && f.onChange(v)}>
+                                <SelectTrigger className="h-10 w-full">
+                                  <SelectValue placeholder="Select" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {expenseCategories.map((c) => (
+                                    <SelectItem key={c} value={c}>
+                                      {c}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                        </FieldGroup>
+                        <FieldGroup label="Qty" className="sm:col-span-2" hint="Optional">
+                          <Controller
+                            control={control}
+                            name={`expenses.${index}.qty`}
+                            render={({ field: f }) => (
+                              <Input
+                                type="number"
+                                min={0}
+                                step="any"
+                                inputMode="decimal"
+                                className="h-10"
+                                value={f.value ?? ""}
+                                onChange={(e) => {
+                                  const qty = e.target.value === "" ? undefined : Number(e.target.value);
+                                  f.onChange(qty);
+                                  const rate = expenses[index]?.rate;
+                                  if (qty != null && rate != null) setValue(`expenses.${index}.amount`, Math.round(qty * rate * 100) / 100);
+                                }}
+                                onBlur={f.onBlur}
+                              />
+                            )}
+                          />
+                        </FieldGroup>
+                        <FieldGroup label="Unit" className="sm:col-span-2" hint="e.g. Meter">
+                          <Input placeholder="—" className="h-10" {...register(`expenses.${index}.unit`)} />
+                        </FieldGroup>
+                        <FieldGroup label="Rate" className="sm:col-span-2" hint="Optional">
+                          <Controller
+                            control={control}
+                            name={`expenses.${index}.rate`}
+                            render={({ field: f }) => (
+                              <Input
+                                type="number"
+                                min={0}
+                                step="any"
+                                inputMode="decimal"
+                                className="h-10"
+                                value={f.value ?? ""}
+                                onChange={(e) => {
+                                  const rate = e.target.value === "" ? undefined : Number(e.target.value);
+                                  f.onChange(rate);
+                                  const qty = expenses[index]?.qty;
+                                  if (qty != null && rate != null) setValue(`expenses.${index}.amount`, Math.round(qty * rate * 100) / 100);
+                                }}
+                                onBlur={f.onBlur}
+                              />
+                            )}
+                          />
+                        </FieldGroup>
+                        <FieldGroup label="Amount" className="sm:col-span-2">
+                          <Controller
+                            control={control}
+                            name={`expenses.${index}.amount`}
+                            render={({ field: f }) => (
+                              <Input
+                                type="number"
+                                min={0}
+                                step="any"
+                                inputMode="decimal"
+                                className="h-10"
+                                value={f.value ? String(f.value) : ""}
+                                onChange={(e) => f.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
+                                onBlur={f.onBlur}
+                              />
+                            )}
+                          />
+                        </FieldGroup>
+                        <div className="flex items-end sm:col-span-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="size-9 sm:size-8"
+                            aria-label={`Remove expense ${index + 1}`}
+                            onClick={() => removeExpense(index)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => appendExpense({ category: expenseCategories[0] || "", amount: 0 })}
+                  >
+                    <Plus className="size-4" /> Add expense
+                  </Button>
+
+                  {expenseFields.length > 0 && (
+                    <p className="text-right text-sm">
+                      <span className="text-muted-foreground">Total stitching expenses </span>
+                      <span className="font-semibold tabular-nums">{inr(totalExpenses)}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-1.5 border-t pt-4 text-sm">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Order value</span>
+                  <span className="tabular-nums">{inr(profit.revenue)}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Tailor cost{profit.tailorCostIsEstimate ? " (estimated)" : ""}</span>
+                  <span className="tabular-nums">−{inr(profit.tailorCost)}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Stitching expenses</span>
+                  <span className="tabular-nums">−{inr(profit.stitchingExpenses)}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Fabric + other cost</span>
+                  <span className="tabular-nums">−{inr(profit.fabricCost + profit.otherCost)}</span>
+                </div>
+                <div className="flex items-center justify-between border-t pt-2 text-base font-semibold">
+                  <span className="flex items-center gap-1.5">
+                    {profit.profit >= 0 ? <TrendingUp className="size-4 text-emerald-600 dark:text-emerald-400" /> : <TrendingDown className="size-4 text-red-600 dark:text-red-400" />}
+                    {profit.tailorCostIsEstimate ? "Estimated profit margin" : "Profit margin"}
+                  </span>
+                  <span className={cn("tabular-nums", profit.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
+                    {inr(profit.profit)}
+                    {profit.marginPct != null && <span className="ml-1 text-xs font-normal text-muted-foreground">({profit.marginPct}%)</span>}
+                  </span>
+                </div>
               </div>
             </div>
           )}

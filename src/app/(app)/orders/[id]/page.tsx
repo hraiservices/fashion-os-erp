@@ -4,13 +4,16 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt } from "lucide-react";
 import { useOrder } from "@/hooks/use-order";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useConfirmOrderPayables } from "@/hooks/use-order-mutations";
 import { useTailorName } from "@/hooks/use-employees";
 import { useShopSettings } from "@/hooks/use-shop-settings";
-import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppUrl, type Lining } from "@/lib/business-rules";
+import { useAppSetting } from "@/hooks/use-app-setting";
+import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
+import { computeOrderProfit } from "@/lib/order-profit";
+import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppUrl, DEFAULT_TAILOR_RATES, type Lining, type TailorRateCard } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
 import { inr, fmtDate } from "@/lib/format";
@@ -56,6 +59,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const confirmPayables = useConfirmOrderPayables();
   const tailorName = useTailorName();
   const { data: measureFields } = useMeasureFields();
+  const { data: tailorRates } = useAppSetting<TailorRateCard>("tailorRates", DEFAULT_TAILOR_RATES);
+  const { data: orderExpenses } = useOrderExpensesFor(id);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [reworkDialogOpen, setReworkDialogOpen] = useState(false);
 
@@ -82,6 +87,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const paidPct = order.total > 0 ? Math.round((order.advance / order.total) * 100) : 0;
 
   const orderBalance = order.balance;
+  const profit = computeOrderProfit(order, tailorRates || DEFAULT_TAILOR_RATES, orderExpenses || []);
   async function advance() {
     if (next === "payment" && orderBalance > 0) {
       toast.error(`Clear balance of ${inr(orderBalance)} before marking as paid`);
@@ -304,6 +310,45 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         )}
       </section>
+
+      {/* Profitability — internal only, same viewReports gate as the order form's Costs section */}
+      {user?.perms.viewReports && (
+        <section className="rounded-xl border bg-card">
+          <div className="border-b px-4 py-3">
+            <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+              <Receipt className="size-4 text-muted-foreground" /> Profitability
+            </h2>
+          </div>
+          <div className="space-y-1.5 px-4 py-3 text-sm">
+            <div className="flex justify-between text-muted-foreground">
+              <span>Order value</span>
+              <span className="tabular-nums">{inr(profit.revenue)}</span>
+            </div>
+            <div className="flex justify-between text-muted-foreground">
+              <span>Tailor cost{profit.tailorCostIsEstimate ? " (estimated)" : ""}</span>
+              <span className="tabular-nums">−{inr(profit.tailorCost)}</span>
+            </div>
+            <div className="flex justify-between text-muted-foreground">
+              <span>Stitching expenses</span>
+              <span className="tabular-nums">−{inr(profit.stitchingExpenses)}</span>
+            </div>
+            <div className="flex justify-between text-muted-foreground">
+              <span>Fabric + other cost</span>
+              <span className="tabular-nums">−{inr(profit.fabricCost + profit.otherCost)}</span>
+            </div>
+            <div className="flex items-center justify-between border-t pt-2 text-base font-semibold">
+              <span className="flex items-center gap-1.5">
+                {profit.profit >= 0 ? <TrendingUp className="size-4 text-emerald-600 dark:text-emerald-400" /> : <TrendingDown className="size-4 text-red-600 dark:text-red-400" />}
+                {profit.tailorCostIsEstimate ? "Estimated profit margin" : "Profit margin"}
+              </span>
+              <span className={cn("tabular-nums", profit.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
+                {inr(profit.profit)}
+                {profit.marginPct != null && <span className="ml-1 text-xs font-normal text-muted-foreground">({profit.marginPct}%)</span>}
+              </span>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Measurements */}
       {hasMeasurements(order.measurements) && (

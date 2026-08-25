@@ -53,6 +53,19 @@ const patchSchema = z.object({
    * stored advance no longer matches and edit_order aborts rather than overwriting it.
    */
   expectedAdvance: z.number().optional(),
+  /** Whole-array replace, same convention as garments — omit the field to leave expenses
+   *  untouched, send an array (possibly empty) to replace them entirely. */
+  expenses: z
+    .array(
+      z.object({
+        category: z.string().min(1),
+        qty: z.number().min(0).optional(),
+        unit: z.string().optional(),
+        rate: z.number().min(0).optional(),
+        amount: z.number().min(0),
+      })
+    )
+    .optional(),
 });
 
 /**
@@ -71,6 +84,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const parsed = patchSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const patch = parsed.data;
+
+  // Cost/profitability data is internal-only, gated to the same viewReports permission as the
+  // order form's Costs section — a caller without it can't smuggle cost changes through editOrder.
+  if (!user.perms.viewReports) {
+    patch.fabricCost = undefined;
+    patch.otherCost = undefined;
+    patch.expenses = undefined;
+  }
 
   const financialSubmitted = patch.total !== undefined || patch.advance !== undefined;
   let historyLine: string | null = null;
@@ -133,6 +154,32 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   await logAction(supabase, user.email, `✏️ Order edited: ${updatedRow.name}`, id);
+
+  // Whole-array replace: delete then re-insert, mirroring how garments themselves are already
+  // fully replaced on edit (COALESCE(p_garments, garments) inside edit_order). Skipped entirely
+  // when the field wasn't sent, so an edit that doesn't touch the Costs section never touches
+  // existing expense rows.
+  if (patch.expenses !== undefined) {
+    const { error: deleteExpensesError } = await supabase.from("order_expenses").delete().eq("order_id", id);
+    if (deleteExpensesError) {
+      await logAction(supabase, user.email, `⚠️ Stitching expenses not updated for order ${id}`, id, deleteExpensesError.message);
+    } else if (patch.expenses.length > 0) {
+      const { error: insertExpensesError } = await supabase.from("order_expenses").insert(
+        patch.expenses.map((e) => ({
+          order_id: id,
+          category: e.category,
+          qty: e.qty ?? null,
+          unit: e.unit ?? null,
+          rate: e.rate ?? null,
+          amount: e.amount,
+          created_by: user.email,
+        }))
+      );
+      if (insertExpensesError) {
+        await logAction(supabase, user.email, `⚠️ Stitching expenses not updated for order ${id}`, id, insertExpensesError.message);
+      }
+    }
+  }
 
   // Sync measurements back to the customer's CRM profile, mirroring the create-order sync
   // below (and the legacy app's _handleSave, which ran this same upsert for both new AND

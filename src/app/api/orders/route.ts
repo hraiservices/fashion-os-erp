@@ -48,6 +48,18 @@ const bodySchema = z.object({
   otherCost: z.number().min(0).optional().default(0),
   /** Referral coupon code to redeem against this order's balance at creation. */
   couponCode: z.string().optional(),
+  expenses: z
+    .array(
+      z.object({
+        category: z.string().min(1),
+        qty: z.number().min(0).optional(),
+        unit: z.string().optional(),
+        rate: z.number().min(0).optional(),
+        amount: z.number().min(0),
+      })
+    )
+    .optional()
+    .default([]),
 });
 
 /**
@@ -64,6 +76,15 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
+
+  // Cost/profitability data is internal-only, gated to the same viewReports permission as the
+  // order form's Costs section and the Order Profitability report — a caller without it can't
+  // smuggle cost figures in even though the rest of the order payload is otherwise accepted.
+  if (!user.perms.viewReports) {
+    fd.fabricCost = 0;
+    fd.otherCost = 0;
+    fd.expenses = [];
+  }
 
   // Sequential numbering (Settings > Document Numbering) — falls back to the random SOR-xxxxx
   // id when disabled. Either way this becomes the order's real primary key, so it's resolved
@@ -211,6 +232,27 @@ export async function POST(request: Request) {
       await supabase.rpc("release_referral_coupon", { p_code: redeemedCouponCode });
     }
     return NextResponse.json({ error: insertError?.message || "Insert failed" }, { status: 500 });
+  }
+
+  // Stitching expenses attach to the order id that was just assigned above — can't be inserted
+  // atomically with the order itself (separate table), but a failure here doesn't fail the
+  // whole request since the order already exists; logged instead, same pattern as the
+  // customer-sync step below.
+  if (fd.expenses.length > 0) {
+    const { error: expensesError } = await supabase.from("order_expenses").insert(
+      fd.expenses.map((e) => ({
+        order_id: id,
+        category: e.category,
+        qty: e.qty ?? null,
+        unit: e.unit ?? null,
+        rate: e.rate ?? null,
+        amount: e.amount,
+        created_by: user.email,
+      }))
+    );
+    if (expensesError) {
+      await logAction(supabase, user.email, `⚠️ Stitching expenses not saved for order ${id}`, id, expensesError.message);
+    }
   }
 
   // fd.tailor is now an employee id, not a name — dropped from this detail string rather than

@@ -12,6 +12,9 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useActiveTailors } from "@/hooks/use-employees";
 import { useAdvanceStage, useSetStage, useDeleteOrder } from "@/hooks/use-order-mutations";
 import { useShopSettings } from "@/hooks/use-shop-settings";
+import { useAppSetting } from "@/hooks/use-app-setting";
+import { useOrderExpensesByOrderId } from "@/hooks/use-order-expenses";
+import { computeOrderProfit, type OrderProfitBreakdown } from "@/lib/order-profit";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { useSavedViews } from "@/hooks/use-saved-views";
 import { useRowSelection } from "@/hooks/use-row-selection";
@@ -38,7 +41,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Suspense } from "react";
-import { daysLeft, getNextStage, STAGE_META, type Stage } from "@/lib/business-rules";
+import { daysLeft, getNextStage, STAGE_META, DEFAULT_TAILOR_RATES, type Stage, type TailorRateCard } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +66,7 @@ const ORDER_COLUMNS = [
   { key: "delivery", label: "Delivery" },
   { key: "total", label: "Total" },
   { key: "balance", label: "Balance" },
+  { key: "profit", label: "Profit" },
 ];
 
 export default function OrdersPage() {
@@ -101,6 +105,20 @@ function OrdersContent() {
   const advanceStage = useAdvanceStage();
   const setStage = useSetStage();
   const deleteOrder = useDeleteOrder();
+  const { data: tailorRates } = useAppSetting<TailorRateCard>("tailorRates", DEFAULT_TAILOR_RATES);
+  const { data: expensesByOrderId } = useOrderExpensesByOrderId();
+
+  // Same computeOrderProfit() the New Order form, Order Details, and Order Profitability
+  // report all use — one Profit column that can never disagree with those. Only computed
+  // (and only ever shown) for users who can see cost data at all.
+  const profitByOrderId = useMemo(() => {
+    if (!user?.perms.viewReports || !orders) return undefined;
+    const map = new Map<string, OrderProfitBreakdown>();
+    for (const o of orders) {
+      map.set(o.id, computeOrderProfit(o, tailorRates || DEFAULT_TAILOR_RATES, expensesByOrderId.get(o.id) || []));
+    }
+    return map;
+  }, [orders, user?.perms.viewReports, tailorRates, expensesByOrderId]);
 
   const columnTable = useColumnVisibility("orders", ORDER_COLUMNS);
   const savedViews = useSavedViews<OrdersViewFilters>("orders");
@@ -359,6 +377,7 @@ function OrdersContent() {
           onRecordPayment={user?.perms.managePayments ? setPaymentOrder : undefined}
           columnTable={columnTable}
           selection={user?.perms.deleteOrder || user?.perms.managePayments ? selection : undefined}
+          profitByOrderId={profitByOrderId}
         />
       )}
 

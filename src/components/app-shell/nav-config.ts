@@ -64,14 +64,16 @@ export const ORDERS_GROUP: NavGroup = {
     { href: "/orders/measurements", label: "Search Measurement" },
     { href: "/settings/rates", label: "Rate Card" },
     { href: "/settings/measurements", label: "Measurements" },
+    { href: "/settings/expense-categories", label: "Stitching Expense Categories" },
   ],
 };
 
-/** Rate Card / Measurements are shop-config pages, gated the same as when they lived under
- *  Settings — everyone can see the order list/measurement search, but only a non-restricted
- *  user should see the config links (the pages themselves also enforce this via SettingsGuard). */
+/** Rate Card / Measurements / Expense Categories are shop-config pages, gated the same as when
+ *  they lived under Settings — everyone can see the order list/measurement search, but only a
+ *  non-restricted user should see the config links (the pages themselves also enforce this via
+ *  SettingsGuard). */
 export function ordersLeafVisible(href: string, canManageShop: boolean): boolean {
-  if (href === "/settings/rates" || href === "/settings/measurements") return canManageShop;
+  if (href === "/settings/rates" || href === "/settings/measurements" || href === "/settings/expense-categories") return canManageShop;
   return true;
 }
 

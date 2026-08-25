@@ -15,6 +15,7 @@ import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import type { useRowSelection } from "@/hooks/use-row-selection";
 import type { Order } from "@/lib/types";
 import type { Shop } from "@/lib/settings";
+import type { OrderProfitBreakdown } from "@/lib/order-profit";
 
 interface RowProps {
   order: Order;
@@ -28,6 +29,8 @@ interface RowProps {
 interface TableRowProps extends RowProps {
   isVisible?: (key: string) => boolean;
   selection?: ReturnType<typeof useRowSelection>;
+  /** Only present when the viewer has viewReports — see orders/page.tsx. */
+  profit?: OrderProfitBreakdown;
 }
 
 function AdvanceButton({ order, onAdvance, advancing, compact }: RowProps & { compact?: boolean }) {
@@ -129,7 +132,7 @@ export function OrderCardRow(props: RowProps) {
 
 /** Desktop table row. */
 export function OrderTableRow(props: TableRowProps) {
-  const { order, canChangeStage, shop, onRecordPayment, selection } = props;
+  const { order, canChangeStage, shop, onRecordPayment, selection, profit } = props;
   const style = STAGE_STYLE[order.status];
   const isVisible = props.isVisible || (() => true);
 
@@ -183,6 +186,12 @@ export function OrderTableRow(props: TableRowProps) {
       {isVisible("balance") && (
         <td className="px-3 py-3 text-right tabular-nums">
           <BalanceDue amount={order.balance} paidLabel="Paid" />
+        </td>
+      )}
+      {isVisible("profit") && profit && (
+        <td className="px-3 py-3 text-right tabular-nums">
+          <span className={cn("font-medium", profit.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>{inr(profit.profit)}</span>
+          {profit.tailorCostIsEstimate && <span className="ml-1 text-[10px] font-normal text-muted-foreground">Est.</span>}
         </td>
       )}
       <td className="px-3 py-3">

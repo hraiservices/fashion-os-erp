@@ -9,9 +9,10 @@ import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-sh
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** Profit = customer price − manually-entered fabric/other cost (order form's "Costs" section,
- *  itself gated to the same viewReports permission). Only as accurate as whoever fills those
- *  fields in — see src/lib/analytics.ts getOrderProfitability. */
+/** Profit = customer price − tailor cost − stitching expenses − fabric/other cost (order
+ *  form's "Costs" section, gated to the same viewReports permission). Tailor cost is the real,
+ *  frozen payable once an order reaches "ready", otherwise an estimate from the tailor rate
+ *  card (marked "Est."). See src/lib/order-profit.ts / src/lib/analytics.ts getOrderProfitability. */
 export default function OrderProfitabilityPage() {
   const { data: user } = useCurrentUser();
   const { orderProfitability, isLoading } = useReportsData();
@@ -36,7 +37,7 @@ export default function OrderProfitabilityPage() {
       description={
         withCosts.length > 0
           ? `${withCosts.length} order(s) with cost data · Total profit ${inr(totalProfit)}`
-          : "No orders have cost data yet — fill in Fabric/Other cost on the order form to populate this report."
+          : "No orders have cost data yet — assign a tailor with a configured rate, or fill in Fabric/Other cost on the order form, to populate this report."
       }
     >
       {withCosts.length === 0 ? (
@@ -65,8 +66,9 @@ export default function OrderProfitabilityPage() {
                 <Td className="truncate">{o.name}</Td>
                 <Td align="right">{inr(o.total)}</Td>
                 <Td align="right">{inr(o.cost)}</Td>
-                <Td align="right" className={o.profit < 0 ? "font-medium text-destructive" : "font-medium"}>
+                <Td align="right" className={o.profit < 0 ? "font-medium text-destructive" : "font-medium text-emerald-600 dark:text-emerald-400"}>
                   {inr(o.profit)}
+                  {o.tailorCostIsEstimate && <span className="ml-1 text-[10px] font-normal text-muted-foreground">Est.</span>}
                 </Td>
                 <Td align="right">{o.marginPct}%</Td>
               </tr>

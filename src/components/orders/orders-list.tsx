@@ -7,6 +7,7 @@ import type { useColumnVisibility } from "@/hooks/use-column-visibility";
 import type { useRowSelection } from "@/hooks/use-row-selection";
 import type { Order } from "@/lib/types";
 import type { Shop } from "@/lib/settings";
+import type { OrderProfitBreakdown } from "@/lib/order-profit";
 
 interface Props {
   orders: Order[];
@@ -18,9 +19,11 @@ interface Props {
   columnTable?: ReturnType<typeof useColumnVisibility>;
   /** Omit to hide row checkboxes and the bulk-actions bar entirely. */
   selection?: ReturnType<typeof useRowSelection>;
+  /** Only present when the viewer has viewReports — see orders/page.tsx. */
+  profitByOrderId?: Map<string, OrderProfitBreakdown>;
 }
 
-export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, shop, onRecordPayment, columnTable, selection }: Props) {
+export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, shop, onRecordPayment, columnTable, selection, profitByOrderId }: Props) {
   if (orders.length === 0) {
     return <EmptyState icon={Inbox} title="No orders found" description="Try clearing your filters or search." />;
   }
@@ -62,6 +65,7 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
                 {isVisible("delivery") && <th className="px-3 py-2.5 font-medium">Delivery</th>}
                 {isVisible("total") && <th className="px-3 py-2.5 text-right font-medium">Total</th>}
                 {isVisible("balance") && <th className="px-3 py-2.5 text-right font-medium">Balance</th>}
+                {profitByOrderId && isVisible("profit") && <th className="px-3 py-2.5 text-right font-medium">Profit</th>}
                 <th className="px-3 py-2.5" />
               </tr>
             </thead>
@@ -77,6 +81,7 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
                   onRecordPayment={onRecordPayment}
                   isVisible={isVisible}
                   selection={selection}
+                  profit={profitByOrderId?.get(o.id)}
                 />
               ))}
             </tbody>

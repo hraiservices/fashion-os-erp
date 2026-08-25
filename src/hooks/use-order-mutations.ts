@@ -3,6 +3,16 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Order } from "@/lib/types";
 
+/** A stitching-expense line item as submitted from the order form — server assigns id/created_by/
+ *  created_at. See order_expenses table. */
+export interface NewOrderExpenseInput {
+  category: string;
+  qty?: number;
+  unit?: string;
+  rate?: number;
+  amount: number;
+}
+
 interface CreateOrderInput {
   name: string;
   mobile: string;
@@ -26,6 +36,7 @@ interface CreateOrderInput {
   fabricCost?: number;
   otherCost?: number;
   couponCode?: string;
+  expenses?: NewOrderExpenseInput[];
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -50,6 +61,7 @@ export function useCreateOrder() {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["customers"] });
       qc.invalidateQueries({ queryKey: ["customer-by-mobile"] });
+      qc.invalidateQueries({ queryKey: ["order-expenses"] });
     },
   });
 }
@@ -138,7 +150,7 @@ export function useRecordPayment() {
  * the server resolves the authenticated user from the session cookie.
  */
 /** Patch payload — order fields plus the optimistic-concurrency baseline for `advance`. */
-type OrderEditPatch = Partial<Order> & { expectedAdvance?: number };
+type OrderEditPatch = Partial<Order> & { expectedAdvance?: number; expenses?: NewOrderExpenseInput[] };
 
 export function useUpdateOrder() {
   const qc = useQueryClient();
@@ -148,6 +160,7 @@ export function useUpdateOrder() {
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["order", vars.id] });
+      qc.invalidateQueries({ queryKey: ["order-expenses"] });
     },
   });
 }

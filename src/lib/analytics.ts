@@ -1,7 +1,8 @@
 // Ported from Stitching_Manager_Pro_v16.html ~lines 2373-2524 (Analytics helpers).
-import { daysLeft, loyaltyDiscountOf, couponDiscountOf, loyaltyTier, DEFAULT_LOYALTY_CONFIG, type LoyaltyConfig } from "@/lib/business-rules";
+import { daysLeft, loyaltyDiscountOf, couponDiscountOf, loyaltyTier, DEFAULT_LOYALTY_CONFIG, type LoyaltyConfig, type TailorRateCard } from "@/lib/business-rules";
 import { isOrderOutstanding } from "@/lib/balances";
-import type { Order, Customer, ReferralCoupon } from "@/lib/types";
+import { computeOrderProfit } from "@/lib/order-profit";
+import type { Order, Customer, ReferralCoupon, OrderExpense } from "@/lib/types";
 
 function fmtMon(yyyyMm: string): string {
   const [y, m] = yyyyMm.split("-").map(Number);
@@ -425,10 +426,14 @@ export interface OrderProfitabilityRow extends Order {
   cost: number;
   profit: number;
   marginPct: number;
+  tailorCostIsEstimate: boolean;
 }
 
-/** Profit = customer price − manually-entered fabric/other cost. Only as accurate as whoever
- *  fills in those cost fields on the order form — see order-form.tsx's Costs section. */
+/** Profit = customer price − tailor cost (real once the order reaches ready, estimated from
+ *  the tailor rate card before that) − stitching expenses − manually-entered fabric/other
+ *  cost. Same computeOrderProfit() used by the New Order form, Order Details, and the
+ *  Stitching Orders list — see src/lib/order-profit.ts. Only as accurate as whoever fills in
+ *  fabric/other cost and the tailor rate card. */
 export interface ReorderCandidateRow {
   name: string;
   mobile: string;
@@ -487,13 +492,16 @@ export function getTopReferrers(coupons: ReferralCoupon[]): TopReferrerRow[] {
     .sort((a, b) => b.redeemed - a.redeemed);
 }
 
-export function getOrderProfitability(orders: Order[]): OrderProfitabilityRow[] {
+export function getOrderProfitability(
+  orders: Order[],
+  rates: TailorRateCard,
+  expensesByOrderId: Map<string, Pick<OrderExpense, "amount">[]>
+): OrderProfitabilityRow[] {
   return orders
     .map((o) => {
-      const cost = (o.fabricCost || 0) + (o.otherCost || 0);
-      const profit = (o.total || 0) - cost;
-      const marginPct = o.total ? Math.round((profit / o.total) * 100) : 0;
-      return { ...o, cost, profit, marginPct };
+      const breakdown = computeOrderProfit(o, rates, expensesByOrderId.get(o.id) || []);
+      const cost = breakdown.tailorCost + breakdown.stitchingExpenses + breakdown.fabricCost + breakdown.otherCost;
+      return { ...o, cost, profit: breakdown.profit, marginPct: breakdown.marginPct ?? 0, tailorCostIsEstimate: breakdown.tailorCostIsEstimate };
     })
     .sort((a, b) => b.profit - a.profit);
 }

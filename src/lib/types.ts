@@ -2,6 +2,7 @@ import type { Database, Json } from "@/lib/supabase/database.types";
 import { deriveBalance, type Stage } from "@/lib/business-rules";
 
 export type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
+export type OrderExpenseRow = Database["public"]["Tables"]["order_expenses"]["Row"];
 export type ExpenseRow = Database["public"]["Tables"]["expenses"]["Row"];
 
 export interface Expense {
@@ -161,6 +162,35 @@ export function mapOrderRow(r: OrderRow): Order {
     readyAt: r.ready_at ?? null,
     payablesConfirmedAt: r.payables_confirmed_at ?? null,
     payablesConfirmedBy: r.payables_confirmed_by ?? null,
+    createdAt: r.created_at || "",
+  };
+}
+
+/** A stitching-order line-item cost (lining, thread, buttons, electricity, ...) — see
+ *  supabase/migrations/add_order_expenses.sql. `amount` is always authoritative; qty/unit/rate
+ *  are only present for expenses entered as qty*rate rather than a flat figure. */
+export interface OrderExpense {
+  id: string;
+  orderId: string;
+  category: string;
+  qty: number | null;
+  unit: string | null;
+  rate: number | null;
+  amount: number;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+export function mapOrderExpenseRow(r: OrderExpenseRow): OrderExpense {
+  return {
+    id: r.id,
+    orderId: r.order_id,
+    category: r.category || "",
+    qty: r.qty,
+    unit: r.unit,
+    rate: r.rate,
+    amount: r.amount || 0,
+    createdBy: r.created_by,
     createdAt: r.created_at || "",
   };
 }

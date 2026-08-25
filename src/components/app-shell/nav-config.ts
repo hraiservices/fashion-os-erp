@@ -194,6 +194,10 @@ export const COPILOT_NAV_ITEM: NavFlatItem = { href: "/copilot", label: "AI Copi
 /** Gated on user.perms.usePOS in nav-content.tsx. */
 export const POS_NAV_ITEM: NavFlatItem = { href: "/pos", label: "POS", icon: ScanBarcode };
 
+/** Also lives under Reports (nested), but surfaced here too as a top-level shortcut since it's
+ *  cross-module and used often. Gated on user.perms.viewReports in nav-content.tsx. */
+export const PAYMENTS_RECEIVED_NAV_ITEM: NavFlatItem = { href: "/reports/payments-received", label: "Payments Received", icon: Wallet };
+
 export const EMPLOYEES_GROUP: NavGroup = {
   id: "employees",
   label: "Employees",

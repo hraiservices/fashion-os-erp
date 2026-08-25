@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronRight, ChevronDown, Plus, Scissors } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, resolveReportSection, MANUFACTURING_NAV_ITEM, COPILOT_NAV_ITEM, POS_NAV_ITEM, settingsLeafVisible, employeesLeafVisible, ordersLeafVisible, type NavGroup, type NavLeaf, type NavFlatItem } from "@/components/app-shell/nav-config";
+import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, resolveReportSection, MANUFACTURING_NAV_ITEM, COPILOT_NAV_ITEM, POS_NAV_ITEM, PAYMENTS_RECEIVED_NAV_ITEM, settingsLeafVisible, employeesLeafVisible, ordersLeafVisible, type NavGroup, type NavLeaf, type NavFlatItem } from "@/components/app-shell/nav-config";
 import { resolveNavLayout, DEFAULT_NAV_LAYOUT, type NavLayoutSetting } from "@/lib/nav-layout";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
@@ -220,7 +220,7 @@ export function NavContent(props: { onNavigate?: () => void }) {
   );
 }
 
-const ALL_FLAT_ITEMS: NavFlatItem[] = [...PRIMARY_NAV, ...SECONDARY_NAV, MANUFACTURING_NAV_ITEM, COPILOT_NAV_ITEM, POS_NAV_ITEM];
+const ALL_FLAT_ITEMS: NavFlatItem[] = [...PRIMARY_NAV, ...SECONDARY_NAV, MANUFACTURING_NAV_ITEM, COPILOT_NAV_ITEM, POS_NAV_ITEM, PAYMENTS_RECEIVED_NAV_ITEM];
 
 function NavContentInner({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -253,6 +253,8 @@ function NavContentInner({ onNavigate }: { onNavigate?: () => void }) {
       if (node.item.href === MANUFACTURING_NAV_ITEM.href) return !!user?.perms.manageManufacturing;
       if (node.item.href === COPILOT_NAV_ITEM.href) return !!user?.perms.useChatbot && isModuleEnabled(entitlements!, "copilot");
       if (node.item.href === POS_NAV_ITEM.href) return !!user?.perms.usePOS && isModuleEnabled(entitlements!, "pos");
+      if (node.item.href === PAYMENTS_RECEIVED_NAV_ITEM.href)
+        return !restricted && isModuleEnabled(entitlements!, "reports") && isReportEnabled(entitlements!, PAYMENTS_RECEIVED_NAV_ITEM.href, resolveReportSection(PAYMENTS_RECEIVED_NAV_ITEM.href));
       if (SECONDARY_NAV.some((i) => i.href === node.item.href)) return !restricted;
       return !(restricted && node.item.restricted);
     }

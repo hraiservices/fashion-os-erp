@@ -295,11 +295,10 @@ export function buildOrderCreatedEntries(rows: OrderRow[], creatorByOrderId: Map
 
 /** activity_log is the only source with a real timestamp for order edits, deletes, and stage
  *  changes — orders.history entries carry no queryable timestamp column, only a formatted
- *  string. Order-payment amounts are extracted from the exact `logAction` template the payment
- *  route writes (`💰 Payment ₹X via Y...`, src/app/api/orders/[id]/payment/route.ts) — there is
- *  no separate structured order-payments table in this schema (a known, documented limitation,
- *  not something invented here), so this is a best-effort text extraction against a template
- *  this codebase controls, not a guess. */
+ *  string. Order payments are NOT sourced from here — they have their own real table,
+ *  order_payments (see buildOrderPaymentEntries below); a payment row is skipped here entirely
+ *  (same reason "📋 New order" rows are skipped) so a deleted payment doesn't keep showing up
+ *  forever via this text log after its real row is gone. */
 interface ActivityLogRow {
   id: number;
   user_email: string | null;
@@ -310,25 +309,41 @@ interface ActivityLogRow {
   created_at: string;
 }
 
-export const ORDER_PAYMENT_RE = /^💰 Payment ₹([\d.]+)/;
-// Matches ORDER_PAYMENT_METHODS (src/lib/business-rules.ts) — "Bank Transfer" has a space, so
-// this can't just split on whitespace; anchoring on the known method list is exact and simple.
-export const ORDER_PAYMENT_METHOD_RE = /^💰 Payment ₹[\d.]+ via (Cash|UPI|Card|Bank Transfer)/;
 const STAGE_CHANGE_RE = /Stage changed: (.+?) for (.+)$/;
 
-/** Extracts {amount, method} pairs from activity_log rows for stitching-order payments — the
- *  same rows buildOrderActivityLogEntries turns into "Payment Collected" timeline entries, so a
- *  report built from this can never disagree with what Day Book shows for the same date range.
- *  A row created before the "via {method}" text was added to the action template (or a payment
- *  method the regex doesn't recognize) yields method "Other" rather than being dropped, so old
- *  data still counts toward the total even though its method can't be attributed. */
-export function extractOrderPayments(rows: Pick<ActivityLogRow, "action">[]): { amount: number; method: string }[] {
-  return rows
-    .filter((r) => r.action.startsWith("💰 Payment ₹"))
-    .map((r) => ({
-      amount: Number(r.action.match(ORDER_PAYMENT_RE)?.[1]) || 0,
-      method: r.action.match(ORDER_PAYMENT_METHOD_RE)?.[1] || "Other",
-    }));
+interface OrderPaymentTableRow {
+  id: string;
+  order_id: string;
+  amount: number;
+  pt_discount: number;
+  method: string;
+  note: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+/** Real order_payments rows, not text extraction — the single source of truth for both the
+ *  timeline entries here and any report's totals, so the two can never disagree. */
+export function buildOrderPaymentEntries(rows: OrderPaymentTableRow[], orderByIdMap: Map<string, { name: string; mobile: string }>): DayBookEntry[] {
+  return rows.map((r) => {
+    const order = orderByIdMap.get(r.order_id);
+    return {
+      id: `pay-${r.id}`,
+      time: r.created_at,
+      module: "stitching",
+      activity: "Payment Collected",
+      description: `₹${r.amount} via ${r.method}${r.pt_discount > 0 ? ` + ₹${r.pt_discount} pts` : ""}${r.note ? ` — ${r.note}` : ""}`,
+      reference: r.order_id,
+      referenceHref: `/orders/${r.order_id}`,
+      // Cash only — pt_discount isn't real money collected, so it's excluded from the amount
+      // that feeds "Payments Received" totals/bank-reconciliation figures (shown in the
+      // description text instead), same convention the old text-extraction path used.
+      amount: r.amount,
+      customer: order?.name,
+      user: displayNameFromEmail(r.created_by),
+      userEmail: r.created_by || undefined,
+    };
+  });
 }
 
 export function buildOrderActivityLogEntries(rows: ActivityLogRow[]): DayBookEntry[] {
@@ -338,8 +353,10 @@ export function buildOrderActivityLogEntries(rows: ActivityLogRow[]): DayBookEnt
     const user = r.user_name || displayNameFromEmail(r.user_email);
     const base = { id: `al-${r.id}`, time: r.created_at, reference: r.order_id, referenceHref: `/orders/${r.order_id}`, user, userEmail: r.user_email || undefined };
     if (r.action.startsWith("💰 Payment ₹")) {
-      const m = r.action.match(ORDER_PAYMENT_RE);
-      out.push({ ...base, module: "stitching", activity: "Payment Collected", description: r.action, amount: m ? Number(m[1]) : undefined });
+      // Covered by buildOrderPaymentEntries (real order_payments table) — skip to avoid a
+      // duplicate/stale row (this text line still exists here even after the payment itself
+      // is deleted, since logAction rows are never removed).
+      continue;
     } else if (r.action.includes("Stage changed")) {
       const m = r.action.match(STAGE_CHANGE_RE);
       out.push({ ...base, module: "stitching", activity: "Stage Changed", description: m ? `${m[1]} — ${m[2]}` : r.action });

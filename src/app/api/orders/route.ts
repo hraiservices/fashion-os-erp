@@ -234,6 +234,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: insertError?.message || "Insert failed" }, { status: 500 });
   }
 
+  // An order can start with a nonzero advance paid at booking, entirely separate from the
+  // dedicated payment route (record_order_payment) — without this, every order created with an
+  // upfront advance would have that money sitting in orders.advance with no ledger row behind
+  // it, the exact gap order_payments exists to close. Same non-atomic-child-insert reasoning as
+  // stitching expenses below: a failure here doesn't fail the whole request (the order and its
+  // real advance/balance already exist), just gets logged.
+  if (advance > 0) {
+    const { error: paymentError } = await supabase.from("order_payments").insert({
+      order_id: id,
+      amount: cashAdvance,
+      pt_discount: ptDiscount + couponDiscount,
+      pts_redeemed: ptsToRedeem,
+      method: fd.paymentMethod || "Cash",
+      note: "Initial advance at booking",
+      created_by: user.email,
+    });
+    if (paymentError) {
+      await logAction(supabase, user.email, `⚠️ Initial advance payment record not saved for order ${id}`, id, paymentError.message);
+    }
+  }
+
   // Stitching expenses attach to the order id that was just assigned above — can't be inserted
   // atomically with the order itself (separate table), but a failure here doesn't fail the
   // whole request since the order already exists; logged instead, same pattern as the

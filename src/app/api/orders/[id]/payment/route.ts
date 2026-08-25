@@ -101,6 +101,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     p_pt_discount: ptDiscount,
     p_history_line: historyLine,
     p_expected_advance: expectedAdvance ?? null,
+    p_method: payMethod,
+    p_note: safeNote,
+    p_created_by: user.email,
+    p_pts_redeemed: ptsToRedeem,
   });
   const updatedRow = updatedRows?.[0];
   if (updateError || !updatedRow) {

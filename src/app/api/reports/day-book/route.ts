@@ -11,6 +11,7 @@ import {
   buildVendorCreditEntries,
   buildOrderCreatedEntries,
   buildOrderActivityLogEntries,
+  buildOrderPaymentEntries,
   buildCustomerCreatedEntries,
   buildCustomerActivityLogEntries,
   buildAttendanceEntries,
@@ -20,7 +21,6 @@ import {
   buildAdvanceEntries,
   buildOtherActivityLogEntries,
   sortEntries,
-  extractOrderPayments,
   type DayBookEntry,
 } from "@/lib/day-book";
 
@@ -57,6 +57,7 @@ export async function GET(request: Request) {
     vendorCreditsRes,
     ordersRes,
     orderActivityRes,
+    orderPaymentsRes,
     customersRes,
     unlinkedActivityRes,
     attendanceRes,
@@ -74,6 +75,7 @@ export async function GET(request: Request) {
     supabase.from("vendor_credits").select("id, credit_number, vendor_id, bill_id, total, reason, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
     supabase.from("orders").select("id, name, mobile, total, advance, status, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
     supabase.from("activity_log").select("id, user_email, user_name, action, order_id, details, created_at").not("order_id", "is", null).gte("created_at", startUtc).lt("created_at", endUtc),
+    supabase.from("order_payments").select("id, order_id, amount, pt_discount, method, note, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
     supabase.from("customers").select("id, name, mobile, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
     // Every activity_log row not tied to an order (already covered by orderActivityRes above) —
     // split into customer-update vs. everything-else in JS below, rather than duplicating the
@@ -88,7 +90,7 @@ export async function GET(request: Request) {
 
   const firstError = [
     invoicesRes, paymentsRes, creditNotesRes, expensesRes, billsRes, vendorPaymentsRes, vendorCreditsRes,
-    ordersRes, orderActivityRes, customersRes, unlinkedActivityRes, attendanceRes,
+    ordersRes, orderActivityRes, orderPaymentsRes, customersRes, unlinkedActivityRes, attendanceRes,
     leaveAppliedRes, leaveDecidedRes, employeesRes, vendorsRes,
   ].find((r) => r.error);
   if (firstError?.error) return NextResponse.json({ error: firstError.error.message }, { status: 500 });
@@ -130,6 +132,14 @@ export async function GET(request: Request) {
   const { data: billLookupRows } = billIds.size ? await supabase.from("purchase_bills").select("id, bill_number").in("id", Array.from(billIds)) : { data: [] };
   const billNumberById = new Map((billLookupRows || []).map((b) => [b.id, b.bill_number]));
 
+  // Orders referenced by a payment made today but created a different day — same cross-day
+  // reference-lookup reasoning as invoiceByIdMap/billNumberById above.
+  const paidOrderIds = new Set<string>((orderPaymentsRes.data || []).map((p) => p.order_id));
+  const { data: paidOrderLookupRows } = paidOrderIds.size
+    ? await supabase.from("orders").select("id, name, mobile").in("id", Array.from(paidOrderIds))
+    : { data: [] };
+  const orderByIdMap = new Map((paidOrderLookupRows || []).map((o) => [o.id, { name: o.name, mobile: o.mobile }]));
+
   // Order creators are resolved from the same-day activity_log rows already fetched above
   // (the "📋 New order created" line lands within seconds of orders.created_at) — orders has no
   // created_by column of its own.
@@ -148,6 +158,7 @@ export async function GET(request: Request) {
     ...buildVendorCreditEntries(vendorCreditsRes.data || [], vendorNameById),
     ...buildOrderCreatedEntries(ordersRes.data || [], creatorByOrderId),
     ...buildOrderActivityLogEntries(orderActivityRes.data || []),
+    ...buildOrderPaymentEntries(orderPaymentsRes.data || [], orderByIdMap),
     ...buildCustomerCreatedEntries(customersRes.data || []),
     ...buildCustomerActivityLogEntries(unlinkedActivityRes.data || []),
     ...buildAttendanceEntries(attendanceRes.data || [], employeeNameById, startUtc),
@@ -162,13 +173,10 @@ export async function GET(request: Request) {
   // free-text activity_log entries mixed into the timeline, so these numbers can't be thrown
   // off by e.g. the regex-extracted order-payment amounts in buildOrderActivityLogEntries.
   const salesTotal = (invoicesRes.data || []).filter((i) => i.doc_status !== "draft").reduce((s, i) => s + i.total, 0);
-  // "Payments Received" must cover cash collected across BOTH revenue streams — sales_payments
-  // (retail invoices) AND stitching-order payments (no standalone table; extracted from the same
-  // activity_log rows buildOrderActivityLogEntries turns into "Payment Collected" timeline
-  // entries, via the identical regex, so the KPI card can never diverge from what's actually
-  // shown in the timeline for the day). Previously only summed sales_payments, silently
-  // undercounting every day a stitching payment was collected.
-  const orderPaymentsTotal = extractOrderPayments(orderActivityRes.data || []).reduce((s, p) => s + p.amount, 0);
+  // "Payments Received" covers cash collected across BOTH revenue streams — sales_payments
+  // (retail invoices) and order_payments (stitching orders), summed straight from real columns
+  // on both sides now, so this can never diverge from what the timeline above shows for the day.
+  const orderPaymentsTotal = (orderPaymentsRes.data || []).reduce((s, p) => s + p.amount, 0);
   const paymentsTotal = (paymentsRes.data || []).reduce((s, p) => s + p.amount, 0) + orderPaymentsTotal;
   const expensesTotal = (expensesRes.data || []).reduce((s, e) => s + e.amount, 0);
   const purchasesTotal = (billsRes.data || []).reduce((s, b) => s + b.total, 0);

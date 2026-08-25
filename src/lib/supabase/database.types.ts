@@ -651,6 +651,25 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["sales_payments"]["Row"]>;
         Relationships: [];
       };
+      order_payments: {
+        Row: {
+          id: string;
+          order_id: string;
+          amount: number;
+          pt_discount: number;
+          pts_redeemed: number;
+          method: string;
+          note: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["order_payments"]["Row"]> & {
+          order_id: string;
+          amount: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["order_payments"]["Row"]>;
+        Relationships: [];
+      };
       pos_sessions: {
         Row: {
           id: string;
@@ -1119,7 +1138,15 @@ export interface Database {
           p_pt_discount: number;
           p_history_line: string;
           p_expected_advance?: number | null;
+          p_method?: string;
+          p_note?: string;
+          p_created_by?: string | null;
+          p_pts_redeemed?: number;
         };
+        Returns: Database["public"]["Tables"]["orders"]["Row"][];
+      };
+      delete_order_payment: {
+        Args: { p_payment_id: string; p_history_line: string };
         Returns: Database["public"]["Tables"]["orders"]["Row"][];
       };
       replace_inventory_ledger: {

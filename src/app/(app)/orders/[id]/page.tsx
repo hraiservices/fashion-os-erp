@@ -7,7 +7,8 @@ import { toast } from "sonner";
 import { ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt } from "lucide-react";
 import { useOrder } from "@/hooks/use-order";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useConfirmOrderPayables } from "@/hooks/use-order-mutations";
+import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useConfirmOrderPayables, useDeleteOrderPayment } from "@/hooks/use-order-mutations";
+import { useOrderPayments } from "@/hooks/use-order-payments";
 import { useTailorName } from "@/hooks/use-employees";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useAppSetting } from "@/hooks/use-app-setting";
@@ -61,8 +62,23 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const { data: measureFields } = useMeasureFields();
   const { data: tailorRates } = useAppSetting<TailorRateCard>("tailorRates", DEFAULT_TAILOR_RATES);
   const { data: orderExpenses } = useOrderExpensesFor(id);
+  const { data: orderPayments } = useOrderPayments(id);
+  const deletePayment = useDeleteOrderPayment();
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [reworkDialogOpen, setReworkDialogOpen] = useState(false);
+  const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
+
+  async function doDeletePayment() {
+    if (!deletePaymentId) return;
+    try {
+      await deletePayment.mutateAsync({ orderId: id, paymentId: deletePaymentId });
+      toast.success("Payment deleted");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete payment");
+    } finally {
+      setDeletePaymentId(null);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -311,6 +327,48 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         )}
       </section>
 
+      {/* Payments — itemized ledger; deleting a row reverses the order's advance/balance
+          (and any redeemed loyalty points) via delete_order_payment(). */}
+      {user?.perms.managePayments && (
+        <section className="rounded-xl border bg-card">
+          <div className="border-b px-4 py-3">
+            <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+              <Wallet className="size-4 text-muted-foreground" /> Payments
+            </h2>
+          </div>
+          {!orderPayments || orderPayments.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-muted-foreground">No payments recorded yet.</p>
+          ) : (
+            <ul className="divide-y">
+              {orderPayments.map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-medium">
+                      {inr(p.amount)}
+                      {p.ptDiscount > 0 && <span className="text-muted-foreground"> + {inr(p.ptDiscount)} pts</span>}
+                      <span className="ml-1.5 text-xs font-normal text-muted-foreground">via {p.method}</span>
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {fmtDate(p.createdAt)}
+                      {p.note ? ` — ${p.note}` : ""}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Delete payment"
+                    className="shrink-0 text-muted-foreground hover:text-red-600"
+                    onClick={() => setDeletePaymentId(p.id)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
       {/* Profitability — internal only, same viewReports gate as the order form's Costs section */}
       {user?.perms.viewReports && (
         <section className="rounded-xl border bg-card">
@@ -385,6 +443,21 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
       <PaymentModal order={order} open={paymentOpen} onOpenChange={setPaymentOpen} />
       <ReworkDialog orderId={id} open={reworkDialogOpen} onOpenChange={setReworkDialogOpen} />
+
+      <AlertDialog open={!!deletePaymentId} onOpenChange={(v) => !v && setDeletePaymentId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This cannot be undone. The order&apos;s advance/balance will be recalculated, and any loyalty points redeemed as part of it will be refunded to the customer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={doDeletePayment}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

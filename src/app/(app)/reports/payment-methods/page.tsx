@@ -4,8 +4,7 @@ import { useMemo } from "react";
 import { Wallet, ArrowDownCircle, ArrowUpCircle, Scale } from "lucide-react";
 import { useAllSalesPayments } from "@/hooks/use-sales-payments";
 import { useAllVendorPayments } from "@/hooks/use-vendor-payments";
-import { useOrderPaymentActivity } from "@/hooks/use-activity-log";
-import { extractOrderPayments } from "@/lib/day-book";
+import { useAllOrderPayments } from "@/hooks/use-order-payments";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
@@ -68,15 +67,13 @@ function MethodTable({ rows, total, emptyLabel }: { rows: MethodRow[]; total: nu
 export default function PaymentMethodsReportPage() {
   const { data: salesPayments, isLoading: l1 } = useAllSalesPayments();
   const { data: vendorPayments, isLoading: l2 } = useAllVendorPayments();
-  const { data: orderPaymentRows, isLoading: l3 } = useOrderPaymentActivity();
+  const { data: orderPayments, isLoading: l3 } = useAllOrderPayments();
   const isLoading = l1 || l2 || l3;
 
-  // Both revenue streams — sales_payments (product sales) has a real `method` column; stitching
-  // orders have no standalone payments table, so their method is extracted from the same
-  // activity_log text Day Book already parses (see extractOrderPayments). Combined so this
-  // report actually reflects every rupee to reconcile against a bank deposit, not just retail.
-  const orderPayments = useMemo(() => extractOrderPayments(orderPaymentRows || []), [orderPaymentRows]);
-  const receivedByMethod = useMemo(() => byMethod([...(salesPayments || []), ...orderPayments]), [salesPayments, orderPayments]);
+  // Both revenue streams — sales_payments (product sales) and order_payments (stitching orders)
+  // both have a real `method` column now, so this report reflects every rupee to reconcile
+  // against a bank deposit, not just retail.
+  const receivedByMethod = useMemo(() => byMethod([...(salesPayments || []), ...(orderPayments || [])]), [salesPayments, orderPayments]);
   const madeByMethod = useMemo(() => byMethod(vendorPayments || []), [vendorPayments]);
   const totalReceived = useMemo(() => receivedByMethod.reduce((s, r) => s + r.amount, 0), [receivedByMethod]);
   const totalMade = useMemo(() => madeByMethod.reduce((s, r) => s + r.amount, 0), [madeByMethod]);

@@ -602,6 +602,7 @@ import type { SalesLineItem, QuoteStatus } from "@/lib/sales";
 export type SalesQuotationRow = Database["public"]["Tables"]["sales_quotations"]["Row"];
 export type SalesInvoiceRow = Database["public"]["Tables"]["sales_invoices"]["Row"];
 export type SalesPaymentRow = Database["public"]["Tables"]["sales_payments"]["Row"];
+export type OrderPaymentRow = Database["public"]["Tables"]["order_payments"]["Row"];
 export type SalesCreditNoteRow = Database["public"]["Tables"]["sales_credit_notes"]["Row"];
 
 export interface SalesQuotation {
@@ -787,6 +788,32 @@ export function mapSalesPaymentRow(r: SalesPaymentRow): SalesPayment {
     date: r.date,
     note: r.note || "",
     posSessionId: r.pos_session_id,
+    createdAt: r.created_at,
+  };
+}
+
+export interface OrderPayment {
+  id: string;
+  orderId: string;
+  amount: number;
+  ptDiscount: number;
+  ptsRedeemed: number;
+  method: string;
+  note: string;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+export function mapOrderPaymentRow(r: OrderPaymentRow): OrderPayment {
+  return {
+    id: r.id,
+    orderId: r.order_id,
+    amount: r.amount,
+    ptDiscount: r.pt_discount || 0,
+    ptsRedeemed: r.pts_redeemed || 0,
+    method: r.method || "Cash",
+    note: r.note || "",
+    createdBy: r.created_by,
     createdAt: r.created_at,
   };
 }

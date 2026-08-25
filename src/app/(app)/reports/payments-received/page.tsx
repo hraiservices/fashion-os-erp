@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Wallet, Receipt, Scissors, Search } from "lucide-react";
 import { useAllSalesPayments } from "@/hooks/use-sales-payments";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
-import { useOrderPaymentActivity } from "@/hooks/use-activity-log";
+import { useAllOrderPayments } from "@/hooks/use-order-payments";
 import { useOrders } from "@/hooks/use-orders";
 import { buildInvoicePaymentRows, buildOrderPaymentRows, sortPaymentRows, type PaymentReceivedRow, type PaymentSource } from "@/lib/payments-received";
 import { inr, fmtDate } from "@/lib/format";
@@ -31,7 +31,7 @@ const SOURCE_BADGE: Record<PaymentSource, { label: string; icon: typeof Receipt;
 export default function PaymentsReceivedReportPage() {
   const { data: salesPayments, isLoading: l1 } = useAllSalesPayments();
   const { data: invoices, isLoading: l2 } = useSalesInvoices();
-  const { data: orderPaymentRows, isLoading: l3 } = useOrderPaymentActivity();
+  const { data: orderPayments, isLoading: l3 } = useAllOrderPayments();
   const { data: orders, isLoading: l4 } = useOrders();
   const isLoading = l1 || l2 || l3 || l4;
 
@@ -42,9 +42,9 @@ export default function PaymentsReceivedReportPage() {
     const invoiceByIdMap = new Map((invoices || []).map((i) => [i.id, { invoiceNumber: i.invoiceNumber, customerName: i.customerName }]));
     const orderByIdMap = new Map((orders || []).map((o) => [o.id, { name: o.name, mobile: o.mobile }]));
     const invoiceRows = buildInvoicePaymentRows(salesPayments || [], invoiceByIdMap);
-    const orderRows = buildOrderPaymentRows(orderPaymentRows || [], orderByIdMap);
+    const orderRows = buildOrderPaymentRows(orderPayments || [], orderByIdMap);
     return sortPaymentRows([...invoiceRows, ...orderRows], "desc");
-  }, [salesPayments, invoices, orderPaymentRows, orders]);
+  }, [salesPayments, invoices, orderPayments, orders]);
 
   const filtered = useMemo(() => {
     let list = source === "all" ? rows : rows.filter((r) => r.source === source);

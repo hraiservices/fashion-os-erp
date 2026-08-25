@@ -1,6 +1,4 @@
-import { ORDER_PAYMENT_RE, ORDER_PAYMENT_METHOD_RE } from "@/lib/day-book";
-import type { SalesPayment } from "@/lib/types";
-import type { OrderPaymentActivityRow } from "@/hooks/use-activity-log";
+import type { SalesPayment, OrderPayment } from "@/lib/types";
 
 export type PaymentSource = "invoice" | "stitching";
 
@@ -36,26 +34,24 @@ export function buildInvoicePaymentRows(
   });
 }
 
-/** No standalone stitching-order payments table exists (see day-book.ts) — amount and method
- *  are extracted from the same activity_log action text Day Book and Payment Methods already
- *  parse, so this list can never disagree with those. `orderByIdMap` resolves the customer,
- *  since activity_log itself only carries order_id, not a name/mobile. */
+/** `orderByIdMap` resolves the customer, since order_payments itself only carries order_id, not
+ *  a name/mobile. */
 export function buildOrderPaymentRows(
-  rows: OrderPaymentActivityRow[],
+  rows: OrderPayment[],
   orderByIdMap: Map<string, { name: string; mobile: string }>
 ): PaymentReceivedRow[] {
   return rows.map((r) => {
-    const order = orderByIdMap.get(r.order_id);
+    const order = orderByIdMap.get(r.orderId);
     return {
       id: `ord-${r.id}`,
-      date: r.created_at,
+      date: r.createdAt,
       source: "stitching",
       customerName: order?.name || "",
       customerMobile: order?.mobile || "",
-      method: r.action.match(ORDER_PAYMENT_METHOD_RE)?.[1] || "Other",
-      amount: Number(r.action.match(ORDER_PAYMENT_RE)?.[1]) || 0,
-      reference: r.order_id,
-      referenceHref: `/orders/${r.order_id}`,
+      method: r.method || "Other",
+      amount: r.amount,
+      reference: r.orderId,
+      referenceHref: `/orders/${r.orderId}`,
     };
   });
 }

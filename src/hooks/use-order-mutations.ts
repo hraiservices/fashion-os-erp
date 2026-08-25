@@ -53,6 +53,13 @@ async function patchJson<T>(url: string, body: unknown): Promise<T> {
   return data;
 }
 
+async function deleteJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { method: "DELETE" });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
 export function useCreateOrder() {
   const qc = useQueryClient();
   return useMutation({
@@ -134,6 +141,24 @@ export function useRecordPayment() {
       qc.invalidateQueries({ queryKey: ["order", vars.orderId] });
       // Loyalty points may have been redeemed or earned — invalidate customer cache so
       // the next payment modal shows the correct available points.
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["customer-by-mobile"] });
+    },
+  });
+}
+
+/** Deletes one order_payments row and reverses its effect on the order's advance/balance
+ *  (and any redeemed loyalty points) — see delete_order_payment() and the DELETE route. */
+export function useDeleteOrderPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, paymentId }: { orderId: string; paymentId: string }) =>
+      deleteJson<{ order: Order }>(`/api/orders/${orderId}/payments/${paymentId}`),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["order", vars.orderId] });
+      qc.invalidateQueries({ queryKey: ["order-payments", vars.orderId] });
+      qc.invalidateQueries({ queryKey: ["order-payments", "all"] });
       qc.invalidateQueries({ queryKey: ["customers"] });
       qc.invalidateQueries({ queryKey: ["customer-by-mobile"] });
     },

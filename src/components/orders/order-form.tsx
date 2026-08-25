@@ -11,7 +11,9 @@ import { ArrowLeft, Plus, Trash2, User2, Shirt, Wallet, Ruler, Gift, Check, Clip
 import { useCreateOrder, useUpdateOrder, type NewOrderExpenseInput } from "@/hooks/use-order-mutations";
 import { useOrders } from "@/hooks/use-orders";
 import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
-import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/customer-picker";
+import { CustomerPicker } from "@/components/sales/customer-picker";
+import { SearchSelect } from "@/components/ui/search-select";
+import { useCustomers } from "@/hooks/use-customers";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAppSetting } from "@/hooks/use-app-setting";
@@ -36,7 +38,7 @@ import { computeOrderProfit } from "@/lib/order-profit";
 import { hydrateMeasurements, compactMeasurements, toMKey, type MeasureLang } from "@/lib/measurements";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { Order, OrderType, Employee } from "@/lib/types";
+import type { Order, OrderType, Employee, Customer } from "@/lib/types";
 import { MeasurementGrid } from "@/components/measurements/measurement-grid";
 import { MediaCapture } from "@/components/orders/media-capture";
 import { Button } from "@/components/ui/button";
@@ -191,6 +193,7 @@ function OrderFormFields({
   const router = useRouter();
   const { data: user } = useCurrentUser();
   const { data: loyaltyCfg } = useLoyaltyConfig();
+  const { data: customers } = useCustomers();
   const createOrder = useCreateOrder();
   const updateOrder = useUpdateOrder();
   const isEdit = !!existingOrder;
@@ -348,6 +351,14 @@ function OrderFormFields({
     if (rate != null) setValue(`garments.${index}.amount`, rate);
   }
 
+  function selectCustomer(c: Customer) {
+    setValue("mobile", c.mobile, { shouldValidate: true });
+    setValue("name", c.name, { shouldValidate: true });
+    // The mobile/measurements/loyalty auto-prefill effect below watches `mobile` and fires the
+    // moment it's a full 10 digits — picking a customer here just feeds that same effect
+    // instead of duplicating its prefill logic.
+  }
+
   useEffect(() => {
     if (existingOrder) return;
     applyRate(0, defaultGarmentType, "s");
@@ -448,10 +459,25 @@ function OrderFormFields({
 
             <div className="mb-4">
               <FieldGroup label="Customer" required>
-                <CustomerPickerTrigger
-                  customerName={name || ""}
-                  onClick={() => setPickerOpen(true)}
-                />
+                <div className="flex gap-2">
+                  <SearchSelect
+                    className="flex-1"
+                    inputClassName="h-10"
+                    placeholder="Type a name or mobile number…"
+                    value={mobile ? customers?.find((c) => c.mobile === mobile)?.id || "" : ""}
+                    fallbackLabel={name || undefined}
+                    options={(customers || []).map((c) => ({ value: c.id, label: c.name, sublabel: c.mobile }))}
+                    onSelect={(id) => {
+                      const c = (customers || []).find((c) => c.id === id);
+                      if (c) selectCustomer(c);
+                    }}
+                  />
+                  {!isEdit && (
+                    <Button type="button" variant="outline" className="h-10 shrink-0" onClick={() => setPickerOpen(true)}>
+                      New
+                    </Button>
+                  )}
+                </div>
               </FieldGroup>
             </div>
 
@@ -1008,19 +1034,7 @@ function OrderFormFields({
         </div>
       </form>
 
-      {!isEdit && (
-        <CustomerPicker
-          open={pickerOpen}
-          onOpenChange={setPickerOpen}
-          onSelect={(c) => {
-            setValue("mobile", c.mobile, { shouldValidate: true });
-            setValue("name", c.name, { shouldValidate: true });
-            // The mobile/measurements/loyalty auto-prefill effect above watches `mobile` and
-            // fires the moment it's a full 10 digits — picking a customer here just feeds that
-            // same effect instead of duplicating its prefill logic.
-          }}
-        />
-      )}
+      {!isEdit && <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={selectCustomer} />}
     </div>
   );
 }

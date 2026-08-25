@@ -62,7 +62,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const { data: measureFields } = useMeasureFields();
   const { data: tailorRates } = useAppSetting<TailorRateCard>("tailorRates", DEFAULT_TAILOR_RATES);
   const { data: orderExpenses } = useOrderExpensesFor(id);
-  const { data: orderPayments } = useOrderPayments(id);
+  const { data: orderPayments, isError: paymentsError } = useOrderPayments(id);
   const deletePayment = useDeleteOrderPayment();
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [reworkDialogOpen, setReworkDialogOpen] = useState(false);
@@ -336,8 +336,25 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <Wallet className="size-4 text-muted-foreground" /> Payments
             </h2>
           </div>
-          {!orderPayments || orderPayments.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-muted-foreground">No payments recorded yet.</p>
+          {paymentsError ? (
+            // Never collapse a failed query into "no payments" — that made a real problem
+            // (missing table / denied read) look like an empty, healthy order.
+            <p className="px-4 py-6 text-center text-sm text-red-600 dark:text-red-400">
+              Couldn&apos;t load payments for this order. The amount shown as paid above may not match what&apos;s recorded — please refresh, and report this if it persists.
+            </p>
+          ) : !orderPayments || orderPayments.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+              No payments recorded yet.
+              {order.advance > 0 && (
+                <>
+                  <br />
+                  <span className="text-amber-600 dark:text-amber-400">
+                    This order shows {inr(order.advance)} already paid, but has no payment records — it was likely collected before payment tracking was added. Re-record it here to
+                    make it deletable and visible in payment reports.
+                  </span>
+                </>
+              )}
+            </p>
           ) : (
             <ul className="divide-y">
               {orderPayments.map((p) => (

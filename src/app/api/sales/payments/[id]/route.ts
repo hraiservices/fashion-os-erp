@@ -6,7 +6,11 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const { id } = await params;
   const { supabase, user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  if (!user.perms.manageSales) return NextResponse.json({ error: "No permission to delete sales payments" }, { status: 403 });
+  // managePayments, not manageSales: the /sales/payments page gates its own delete button on
+  // managePayments, so the two disagreed — a user with managePayments but not manageSales saw
+  // the button and got a 403, while the sales role could delete via the API despite the UI
+  // hiding it. managePayments also matches the stitching-order payment delete route.
+  if (!user.perms.managePayments) return NextResponse.json({ error: "No permission to delete payments" }, { status: 403 });
 
   const { data: payment } = await supabase
     .from("sales_payments")

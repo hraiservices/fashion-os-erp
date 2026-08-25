@@ -6,12 +6,18 @@
 import type { Order } from "@/lib/types";
 import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 
-/** A stitching order still owes money only if it hasn't reached the terminal "payment" stage. */
+/** A stitching order owes money whenever its balance is above zero — the stage is irrelevant.
+ *  This previously also required `status !== "payment"`, which meant an order sitting in the
+ *  terminal "payment" stage while still carrying a balance reported ₹0 owed. That silently hid
+ *  real receivables (the customer genuinely still owes it) and broke the
+ *  billed = collected + outstanding identity, so the same customer showed a balance on their
+ *  order page and ₹0 on Customer Balances. The stage being wrong is a data problem to fix on
+ *  the order; it must not make the money disappear from reports. */
 export function isOrderOutstanding(order: Pick<Order, "status" | "balance">): boolean {
-  return order.status !== "payment" && (order.balance || 0) > 0;
+  return (order.balance || 0) > 0;
 }
 
-/** 0 if the order is fully settled (or in its terminal stage), otherwise the balance owed. */
+/** 0 if the order is fully settled, otherwise the balance owed. */
 export function getOrderOutstanding(order: Pick<Order, "status" | "balance">): number {
   return isOrderOutstanding(order) ? order.balance || 0 : 0;
 }

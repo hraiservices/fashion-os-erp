@@ -253,7 +253,12 @@ function OrderFormFields({
                   lineId: g.lineId || newLineId(),
                   payableAmount: g.payableAmount,
                 }))
-              : [{ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0, tailor: "", lineId: newLineId() }],
+              : // Legacy order with no garment lines at all. The seeded line MUST carry the
+                // order's stored total, not a rate-card default — the form derives `total`
+                // from these lines, so a default-priced line silently rewrites (usually
+                // collapses) the order value, and the server then rejects the whole edit with
+                // "Advance cannot exceed total", making such orders permanently uneditable.
+                [{ type: defaultGarmentType, lining: "s", no: 1, amount: existingOrder.total || 0, tailor: "", lineId: newLineId() }],
           bookingSource: existingOrder.bookingSource || "",
           fabricCost: existingOrder.fabricCost || 0,
           otherCost: existingOrder.otherCost || 0,
@@ -405,6 +410,7 @@ function OrderFormFields({
         });
         toast.success(res.ptDiscount > 0 ? `Order ${res.order.id} created · ${inr(res.ptDiscount)} points discount applied` : `Order ${res.order.id} created`);
         if (res.limitWarning) toast.warning(res.limitWarning);
+        if (res.paymentLedgerWarning) toast.warning(res.paymentLedgerWarning, { duration: 12_000 });
         router.push(`/orders/${res.order.id}`);
       }
     } catch (e) {

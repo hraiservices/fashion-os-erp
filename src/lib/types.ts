@@ -1,5 +1,5 @@
 import type { Database, Json } from "@/lib/supabase/database.types";
-import { deriveBalance, type Stage } from "@/lib/business-rules";
+import { deriveBalance, STAGES, type Stage } from "@/lib/business-rules";
 
 export type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
 export type OrderExpenseRow = Database["public"]["Tables"]["order_expenses"]["Row"];
@@ -119,13 +119,29 @@ export interface Order {
    *  see /api/orders/[id]/confirm-payables. Only confirmed payables count toward payroll. */
   payablesConfirmedAt: string | null;
   payablesConfirmedBy: string | null;
+  /** Stamped by a payroll run once this order's payables have actually been paid out on a
+   *  payslip. Anything still null is genuinely owed — this is what separates "earned" from
+   *  "still owed" on the Tailor Payables report. */
+  pieceRatePaidAt: string | null;
+  /** The status exactly as stored in the DB, before the legacy "trial" -> "ready" folding
+   *  below. Stage-change routes MUST send this (not `status`) as their optimistic-lock
+   *  expectation, or a legacy 'trial' row can never transition again — the lock compares
+   *  against the real column value. */
+  rawStatus: string;
   createdAt: string;
 }
 
 export type OrderType = "new" | "alteration";
 
+/** Media columns are the ONLY ones a caller may legitimately omit — the orders LIST query
+ *  excludes them on purpose (inline base64, see ORDER_LIST_COLUMNS) and mapOrderRow defaults
+ *  them to []. Every other column is required, so omitting one is a compile error rather than
+ *  a silent null. */
+type OrderRowForMapping = Omit<OrderRow, "images" | "audios" | "videos"> &
+  Partial<Pick<OrderRow, "images" | "audios" | "videos">>;
+
 /** mapRow(), Stitching_Manager_Pro_v16.html ~line 2265. Balance is always derived. */
-export function mapOrderRow(r: OrderRow): Order {
+export function mapOrderRow(r: OrderRowForMapping): Order {
   const total = r.total || 0;
   const advance = r.advance || 0;
   return {
@@ -141,8 +157,12 @@ export function mapOrderRow(r: OrderRow): Order {
     advance,
     balance: deriveBalance(total, advance),
     tailor: r.tailor || "",
-    // Legacy "trial" stage folded into "ready" — trial was removed from the workflow.
-    status: (r.status === "trial" ? "ready" : r.status || "received") as Stage,
+    // Legacy "trial" stage folded into "ready" — trial was removed from the workflow. Anything
+    // else unrecognised falls back to "received" rather than being blind-cast: an unknown value
+    // reaching STAGE_META[...] / STAGE_STYLE[...] is an undefined lookup that throws and white-
+    // screens the orders list, kanban board and stage routes. `rawStatus` above still carries
+    // the true stored value for the optimistic-lock comparison.
+    status: (r.status === "trial" ? "ready" : STAGES.includes((r.status || "") as Stage) ? r.status : "received") as Stage,
     special: r.special || "",
     history: (Array.isArray(r.history) ? r.history : []) as unknown as string[],
     measurements: (r.measurements || {}) as Record<string, Json>,
@@ -162,6 +182,8 @@ export function mapOrderRow(r: OrderRow): Order {
     readyAt: r.ready_at ?? null,
     payablesConfirmedAt: r.payables_confirmed_at ?? null,
     payablesConfirmedBy: r.payables_confirmed_by ?? null,
+    pieceRatePaidAt: r.piece_rate_paid_at ?? null,
+    rawStatus: r.status || "received",
     createdAt: r.created_at || "",
   };
 }
@@ -592,6 +614,9 @@ export interface WorkOrder {
    *  even after the WO itself is completed. */
   laborPayableConfirmedAt: string | null;
   laborPayableConfirmedBy: string | null;
+  /** Stamped by a payroll run once this WO's labour payable has actually been paid out on a
+   *  payslip — same "earned vs still owed" distinction as Order.pieceRatePaidAt. */
+  pieceRatePaidAt: string | null;
   createdAt: string;
 }
 
@@ -896,6 +921,7 @@ export function mapWorkOrderRow(r: WorkOrderRow): WorkOrder {
     notes: r.notes || "",
     completedAt: r.completed_at,
     laborPayableConfirmedAt: r.labor_payable_confirmed_at ?? null,
+    pieceRatePaidAt: r.piece_rate_paid_at ?? null,
     laborPayableConfirmedBy: r.labor_payable_confirmed_by ?? null,
     createdAt: r.created_at,
   };

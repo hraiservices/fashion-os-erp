@@ -102,8 +102,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const curAdvance = cur?.advance ?? 0;
     const newTotal   = patch.total   ?? curTotal;
     const newAdvance = patch.advance ?? curAdvance;
-    if (newAdvance > newTotal) {
-      return NextResponse.json({ error: `Advance (₹${newAdvance}) cannot exceed total (₹${newTotal})` }, { status: 400 });
+    // Block only when this edit actually CREATES or WORSENS an overpayment. An order that
+    // already had advance > total (legacy/overpaid data — PRE_LIVE_VERIFY.sql has a query for
+    // exactly these) must stay editable: rejecting it outright made such orders permanently
+    // uneditable, since every save resubmits the same pre-existing numbers untouched.
+    const alreadyOverpaid = curAdvance > curTotal;
+    const worsening = newAdvance > curAdvance || newTotal < curTotal;
+    if (newAdvance > newTotal && (!alreadyOverpaid || worsening)) {
+      return NextResponse.json(
+        {
+          error: alreadyOverpaid
+            ? `This order is already overpaid (₹${curAdvance} collected against a ₹${curTotal} total). You can edit it, but not increase the advance or reduce the total further.`
+            : `Advance (₹${newAdvance}) cannot exceed total (₹${newTotal})`,
+        },
+        { status: 400 }
+      );
     }
     // Only append a history line when the numbers actually moved. The edit form submits
     // total/advance on every save, so writing unconditionally would spam the audit trail

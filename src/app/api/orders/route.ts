@@ -234,6 +234,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: insertError?.message || "Insert failed" }, { status: 500 });
   }
 
+  let paymentLedgerWarning: string | undefined;
   // An order can start with a nonzero advance paid at booking, entirely separate from the
   // dedicated payment route (record_order_payment) — without this, every order created with an
   // upfront advance would have that money sitting in orders.advance with no ledger row behind
@@ -252,6 +253,11 @@ export async function POST(request: Request) {
     });
     if (paymentError) {
       await logAction(supabase, user.email, `⚠️ Initial advance payment record not saved for order ${id}`, id, paymentError.message);
+      // Must be surfaced, not just logged. The order and its advance already exist, so failing
+      // the request would be wrong — but staying silent leaves money recorded in orders.advance
+      // with no ledger row: invisible in the Payments section, undeletable, and blocking the
+      // order from ever being deleted. The user has to know to re-record it.
+      paymentLedgerWarning = `Order saved, but the ₹${cashAdvance} advance could not be recorded in the payments ledger. Open the order and add the payment again, or it won't appear in payment reports.`;
     }
   }
 
@@ -357,5 +363,5 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ order: mapOrderRow(insertedRow), ptDiscount, ptsToRedeem, limitWarning });
+  return NextResponse.json({ order: mapOrderRow(insertedRow), ptDiscount, ptsToRedeem, limitWarning, paymentLedgerWarning });
 }

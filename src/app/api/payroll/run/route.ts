@@ -237,10 +237,16 @@ export async function POST(request: Request) {
       }
     }
 
-    // Mark every confirmed order/work-order this run actually summed as paid, so a future run
-    // (even one whose period overlaps this one) can never sum the same payable twice.
-    const paidOrderIds = confirmedOrders.map((o) => o.id);
-    const paidWoIds = confirmedWorkOrders.map((w) => w.id);
+    // Mark as paid ONLY the orders/work-orders whose payables actually landed on a payslip in
+    // this run — i.e. whose tailor is a piece-rate employee included here. Previously this
+    // stamped every confirmed row shop-wide, so running payroll for a subset of staff silently
+    // marked absent tailors' earnings as paid; because every future run filters on
+    // piece_rate_paid_at IS NULL, that money became unrecoverable and unpayable.
+    const paidEmployeeIds = new Set(employees.filter((e) => e.pieceRateEligible).map((e) => e.id));
+    const paidOrderIds = confirmedOrders
+      .filter((o) => (o.garments || []).some((g) => g.tailor && paidEmployeeIds.has(g.tailor) && (g.payableAmount || 0) > 0))
+      .map((o) => o.id);
+    const paidWoIds = confirmedWorkOrders.filter((w) => w.tailor && paidEmployeeIds.has(w.tailor)).map((w) => w.id);
     const nowIso = new Date().toISOString();
     if (paidOrderIds.length > 0) {
       await supabase.from("orders").update({ piece_rate_paid_at: nowIso }).in("id", paidOrderIds);

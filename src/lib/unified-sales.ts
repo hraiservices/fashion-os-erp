@@ -4,6 +4,7 @@
 import type { Order } from "@/lib/types";
 import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import { getOrderOutstanding, getInvoiceOutstanding } from "@/lib/balances";
+import { loyaltyDiscountOf, couponDiscountOf } from "@/lib/business-rules";
 
 export type SaleType = "stitching" | "retail";
 export type SaleTypeFilter = "all" | SaleType;
@@ -30,7 +31,11 @@ export function buildUnifiedSales(orders: Order[], invoices: SalesInvoiceWithBal
     customerName: o.name,
     reference: o.id,
     billed: o.total || 0,
-    paid: Math.max(0, (o.total || 0) - (o.balance || 0)),
+    // Cash actually collected — loyalty/coupon discounts reduce the balance without any money
+    // changing hands, so a plain total-minus-balance counts them as if they were paid. Same
+    // exclusion applied in analytics.ts getMonthly and use-dashboard-stats.ts; without it this
+    // report disagreed with both (and with the real order_payments ledger) on every discounted order.
+    paid: Math.max(0, (o.total || 0) - (o.balance || 0) - loyaltyDiscountOf(o) - couponDiscountOf(o)),
     balance: getOrderOutstanding(o),
     href: `/orders/${o.id}`,
   }));

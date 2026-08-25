@@ -63,7 +63,8 @@ async function deleteJson<T>(url: string): Promise<T> {
 export function useCreateOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateOrderInput) => postJson<{ order: Order; ptDiscount: number; limitWarning?: string }>("/api/orders", input),
+    mutationFn: (input: CreateOrderInput) =>
+      postJson<{ order: Order; ptDiscount: number; limitWarning?: string; paymentLedgerWarning?: string }>("/api/orders", input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["customers"] });

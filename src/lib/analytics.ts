@@ -1,6 +1,7 @@
 // Ported from Stitching_Manager_Pro_v16.html ~lines 2373-2524 (Analytics helpers).
 import { daysLeft, loyaltyDiscountOf, couponDiscountOf, loyaltyTier, DEFAULT_LOYALTY_CONFIG, type LoyaltyConfig, type TailorRateCard } from "@/lib/business-rules";
 import { isOrderOutstanding } from "@/lib/balances";
+import { istDateString } from "@/lib/ist-date";
 import { computeOrderProfit } from "@/lib/order-profit";
 import type { Order, Customer, ReferralCoupon, OrderExpense } from "@/lib/types";
 
@@ -15,7 +16,10 @@ function getLast6Months(): string[] {
     const d = new Date();
     d.setDate(1);
     d.setMonth(d.getMonth() - i);
-    months.push(d.toISOString().substring(0, 7));
+    // istDateString, NOT toISOString: setDate(1) keeps the current time-of-day, so between
+    // 00:00 and 05:30 IST toISOString() rolls back to the last day of the PREVIOUS month and
+    // every bucket key silently shifts a month (the current month vanishes from the report).
+    months.push(istDateString(d).substring(0, 7));
   }
   return months;
 }
@@ -211,7 +215,10 @@ export function getSeasonalTrends(orders: Order[]): SeasonalStat[] {
     const d = new Date();
     d.setDate(1);
     d.setMonth(d.getMonth() - i);
-    months.push(d.toISOString().substring(0, 7));
+    // istDateString, NOT toISOString: setDate(1) keeps the current time-of-day, so between
+    // 00:00 and 05:30 IST toISOString() rolls back to the last day of the PREVIOUS month and
+    // every bucket key silently shifts a month (the current month vanishes from the report).
+    months.push(istDateString(d).substring(0, 7));
   }
   return months.map((m, idx) => {
     const mo = orders.filter((o) => (o.inDate || "").startsWith(m));

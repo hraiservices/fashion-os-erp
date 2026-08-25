@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Printer, CalendarCheck } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
+import { istDateString } from "@/lib/ist-date";
 import { useAttendanceInRange } from "@/hooks/use-attendance";
 import { countAttendance } from "@/lib/payroll";
 import { printReport } from "@/lib/export";
@@ -13,7 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function currentMonth() {
-  return new Date().toISOString().slice(0, 7);
+  // istDateString, not toISOString: before 05:30 IST on the 1st, UTC is still the previous
+  // month, so this report would open on the wrong month and drive payroll off it.
+  return istDateString().slice(0, 7);
 }
 
 function monthRange(ym: string): { from: string; to: string } {

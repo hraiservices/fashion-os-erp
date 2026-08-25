@@ -33,7 +33,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     p_order_id:        id,
     p_new_status:      next,
     p_history_line:    historyLine,
-    p_expected_status: order.status,
+    // rawStatus, not status: mapOrderRow folds legacy 'trial' into 'ready', but the DB row still
+    // holds 'trial' — sending the folded value made the lock never match, so those orders
+    // could never change stage again (409 "already changed", forever).
+    p_expected_status: order.rawStatus,
   });
   const updatedRow = updatedRows?.[0];
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });

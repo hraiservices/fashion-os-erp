@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Receipt, FileWarning } from "lucide-react";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
+import { istDateString } from "@/lib/ist-date";
 import { GST_TYPE_LABELS, type GstType } from "@/lib/gst";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
@@ -25,9 +26,15 @@ interface RateGroup {
 
 export default function GstSummaryReportPage() {
   const { data: invoices, isLoading } = useSalesInvoices();
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [month, setMonth] = useState(() => istDateString().slice(0, 7));
 
-  const monthInvoices = useMemo(() => (invoices || []).filter((i) => i.invoiceDate.startsWith(month)), [invoices, month]);
+  // Drafts are not issued documents and carry no tax liability; credit notes reverse tax on a
+  // sale that was refunded. Including drafts and ignoring credits overstated output tax on the
+  // report used to file GSTR-1. Matches getCombinedMonthly's treatment (src/lib/combined-reports.ts).
+  const monthInvoices = useMemo(
+    () => (invoices || []).filter((i) => i.invoiceDate.startsWith(month) && i.docStatus !== "draft"),
+    [invoices, month]
+  );
 
   const groups = useMemo(() => {
     const map = new Map<string, RateGroup>();

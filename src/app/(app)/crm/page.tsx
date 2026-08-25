@@ -25,9 +25,11 @@ import { PaymentModal } from "@/components/orders/payment-modal";
 import { BalanceDue } from "@/components/ui/money-text";
 import { inr, fmtDateShort } from "@/lib/format";
 import { loyaltyTier } from "@/lib/business-rules";
-import { sumOrdersOutstanding } from "@/lib/balances";
+import { sumOrdersOutstanding, sumInvoicesOutstanding } from "@/lib/balances";
+import { RefChips } from "@/components/crm/ref-chips";
 import { cn } from "@/lib/utils";
 import type { Order } from "@/lib/types";
+import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 
 const ALL_TAGS = "__all__";
 const ALL_SEGMENTS = "__all_segments__";
@@ -80,23 +82,30 @@ function CrmContent() {
     return Array.from(set).sort();
   }, [profiles]);
 
-  // Derived customer segments (Phase 7) — computed fresh from live retail sales data, not
-  // stored. Keyed by mobile since that's the join key sales_invoices uses.
+  // Sales invoices grouped by customer mobile (same join key as segments below) — feeds both
+  // the segment computation and each customer's Product Sales Due, so cards/list/table always
+  // show the same combined (stitching + sales) balance the customer profile page shows.
+  const invoicesByMobile = useMemo(() => {
+    const map = new Map<string, SalesInvoiceWithBalance[]>();
+    if (!allInvoices) return map;
+    for (const inv of allInvoices) {
+      const list = map.get(inv.customerMobile);
+      if (list) list.push(inv);
+      else map.set(inv.customerMobile, [inv]);
+    }
+    return map;
+  }, [allInvoices]);
+
+  // Derived customer segments (Phase 7) — computed fresh from live retail sales data, not stored.
   const segmentsByMobile = useMemo(() => {
     const map = new Map<string, CustomerSegment[]>();
     if (!allInvoices || !allProducts) return map;
     const productsById = new Map(allProducts.map((p) => [p.id, p]));
-    const invoicesByMobile = new Map<string, typeof allInvoices>();
-    for (const inv of allInvoices) {
-      const list = invoicesByMobile.get(inv.customerMobile);
-      if (list) list.push(inv);
-      else invoicesByMobile.set(inv.customerMobile, [inv]);
-    }
     for (const c of profiles) {
       map.set(c.mobile, computeSegments(invoicesByMobile.get(c.mobile) || [], productsById));
     }
     return map;
-  }, [profiles, allInvoices, allProducts]);
+  }, [profiles, allInvoices, allProducts, invoicesByMobile]);
 
   const segmentOptions = useMemo(() => {
     const byKey = new Map<string, string>();
@@ -114,7 +123,7 @@ function CrmContent() {
       return c.orders.reduce((max, o) => Math.max(max, new Date(o.inDate).getTime() || 0), 0);
     }
     function outstanding(c: (typeof profiles)[number]) {
-      return sumOrdersOutstanding(c.orders);
+      return sumOrdersOutstanding(c.orders) + sumInvoicesOutstanding(invoicesByMobile.get(c.mobile) || []);
     }
 
     const sorted = [...list].sort((a, b) => {
@@ -140,7 +149,7 @@ function CrmContent() {
       return sortAsc ? diff : -diff;
     });
     return sorted;
-  }, [profiles, search, tagFilter, segmentFilter, segmentsByMobile, sortKey, sortAsc]);
+  }, [profiles, search, tagFilter, segmentFilter, segmentsByMobile, invoicesByMobile, sortKey, sortAsc]);
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
@@ -253,11 +262,12 @@ function CrmContent() {
                       Customer <ArrowUpDown className="size-3" />
                     </button>
                   </TableHead>
-                  <TableHead className="text-center">
+                  <TableHead>
                     <button type="button" onClick={() => toggleSort("orders")} className="inline-flex items-center gap-1 hover:text-foreground">
-                      Stitch Orders <ArrowUpDown className="size-3" />
+                      Orders <ArrowUpDown className="size-3" />
                     </button>
                   </TableHead>
+                  <TableHead>Invoices</TableHead>
                   <TableHead className="text-right">
                     <button type="button" onClick={() => toggleSort("spent")} className="inline-flex items-center gap-1 hover:text-foreground">
                       Spent <ArrowUpDown className="size-3" />
@@ -284,6 +294,7 @@ function CrmContent() {
                     cust={c}
                     loyaltyCfg={loyaltyCfg}
                     shop={shop}
+                    invoices={invoicesByMobile.get(c.mobile) || []}
                     onRecordPayment={user?.perms.managePayments ? (order: Order) => setPaymentOrder(order) : undefined}
                   />
                 ))}
@@ -294,7 +305,7 @@ function CrmContent() {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {filtered.map((c) => (
-            <CustomerCard key={c.mobile} cust={c} loyaltyCfg={loyaltyCfg} />
+            <CustomerCard key={c.mobile} cust={c} loyaltyCfg={loyaltyCfg} invoices={invoicesByMobile.get(c.mobile) || []} />
           ))}
         </div>
       )}
@@ -303,16 +314,35 @@ function CrmContent() {
         <MobileRecordList>
           {filtered.map((c) => {
             const tier = loyaltyCfg?.enabled ? loyaltyTier(c.totalEarned, loyaltyCfg) : null;
-            const outstanding = sumOrdersOutstanding(c.orders);
+            const invoices = invoicesByMobile.get(c.mobile) || [];
+            const stitchDue = sumOrdersOutstanding(c.orders);
+            const salesDue = sumInvoicesOutstanding(invoices);
+            const outstanding = stitchDue + salesDue;
             const latestOrder = [...c.orders].sort((a, b) => new Date(b.inDate).getTime() - new Date(a.inDate).getTime())[0];
+            const orderChips = [...c.orders]
+              .sort((a, b) => new Date(b.inDate).getTime() - new Date(a.inDate).getTime())
+              .map((o) => ({ key: o.id, label: o.id, href: `/orders/${o.id}` }));
+            const invoiceChips = [...invoices]
+              .sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime())
+              .map((i) => ({ key: i.id, label: i.invoiceNumber, href: `/sales/invoices/${i.id}` }));
+            // onClick (not href) so RefChips' own <Link> pills don't end up nested inside this
+            // card's own anchor — an invalid <a> inside <a>.
             return (
-              <MobileRecordCard key={c.mobile} href={`/crm/${c.mobile}`}>
+              <MobileRecordCard key={c.mobile} onClick={() => router.push(`/crm/${c.mobile}`)}>
                 <MobileRecordHeader
                   title={c.name}
                   subtitle={c.mobile}
-                  value={outstanding > 0 ? <BalanceDue amount={outstanding} suffix=" due" paidLabel="" /> : "—"}
+                  value={outstanding > 0 ? inr(outstanding) : "—"}
+                  valueClassName={outstanding > 0 ? "text-red-600 dark:text-red-400" : undefined}
                 />
-                <MobileRecordRow label="Stitch Orders" value={c.orders.length} />
+                {outstanding > 0 && (
+                  <>
+                    <MobileRecordRow label="Stitch Due" value={inr(stitchDue)} />
+                    <MobileRecordRow label="Sales Due" value={inr(salesDue)} />
+                  </>
+                )}
+                <MobileRecordRow label="Orders" value={<RefChips items={orderChips} moreHref={`/crm/${c.mobile}`} max={2} />} />
+                {invoiceChips.length > 0 && <MobileRecordRow label="Invoices" value={<RefChips items={invoiceChips} moreHref={`/crm/${c.mobile}`} max={2} />} />}
                 <MobileRecordRow label="Spent" value={inr(c.spent)} />
                 <MobileRecordRow label="Last order" value={fmtDateShort(latestOrder?.inDate || "")} />
                 <MobileRecordRow

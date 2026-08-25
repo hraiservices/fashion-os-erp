@@ -7,15 +7,16 @@ import { loyaltyTier, normalizeIndianMobile, type LoyaltyConfig } from "@/lib/bu
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDeleteCustomerAndOrders } from "@/hooks/use-customer-mutations";
 import { inr, fmtDateShort } from "@/lib/format";
-import { sumOrdersOutstanding, isOrderOutstanding } from "@/lib/balances";
+import { sumOrdersOutstanding, sumInvoicesOutstanding, isOrderOutstanding } from "@/lib/balances";
 import type { CustomerProfile } from "@/lib/crm";
 import type { Order } from "@/lib/types";
 import type { Shop } from "@/lib/settings";
-import { BalanceDue } from "@/components/ui/money-text";
+import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import { Button } from "@/components/ui/button";
 import { TableRow, TableCell } from "@/components/ui/table";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { EditCustomerModal } from "@/components/crm/edit-customer-modal";
+import { RefChips } from "@/components/crm/ref-chips";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -33,11 +34,13 @@ export function CustomerListRow({
   cust,
   loyaltyCfg,
   shop,
+  invoices = [],
   onRecordPayment,
 }: {
   cust: CustomerProfile;
   loyaltyCfg?: LoyaltyConfig;
   shop?: Shop;
+  invoices?: SalesInvoiceWithBalance[];
   onRecordPayment?: (order: Order) => void;
 }) {
   const { data: user } = useCurrentUser();
@@ -47,7 +50,9 @@ export function CustomerListRow({
 
   const latestOrder = [...cust.orders].sort((a, b) => new Date(b.inDate).getTime() - new Date(a.inDate).getTime())[0];
   const tier = loyaltyCfg?.enabled ? loyaltyTier(cust.totalEarned, loyaltyCfg) : null;
-  const outstanding = sumOrdersOutstanding(cust.orders);
+  const stitchDue = sumOrdersOutstanding(cust.orders);
+  const salesDue = sumInvoicesOutstanding(invoices);
+  const outstanding = stitchDue + salesDue;
   const payableOrder = [...cust.orders]
     .filter(isOrderOutstanding)
     .sort((a, b) => new Date(b.inDate).getTime() - new Date(a.inDate).getTime())[0];
@@ -55,6 +60,12 @@ export function CustomerListRow({
     `Dear *${cust.name}* 🙏\n\n₹${outstanding} is due on your account at *${shop?.name || "our shop"}*.\nPlease clear at your earliest convenience.\n📞 ${shop?.phone || ""}`
   )}`;
   const initial = cust.name?.[0]?.toUpperCase() || "?";
+  const orderChips = [...cust.orders]
+    .sort((a, b) => new Date(b.inDate).getTime() - new Date(a.inDate).getTime())
+    .map((o) => ({ key: o.id, label: o.id, href: `/orders/${o.id}` }));
+  const invoiceChips = [...invoices]
+    .sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime())
+    .map((i) => ({ key: i.id, label: i.invoiceNumber, href: `/sales/invoices/${i.id}` }));
 
   async function doDelete() {
     try {
@@ -76,7 +87,12 @@ export function CustomerListRow({
           </div>
         </div>
       </TableCell>
-      <TableCell className="text-center tabular-nums">{cust.orders.length}</TableCell>
+      <TableCell>
+        <RefChips items={orderChips} moreHref={`/crm/${cust.mobile}`} />
+      </TableCell>
+      <TableCell>
+        <RefChips items={invoiceChips} moreHref={`/crm/${cust.mobile}`} />
+      </TableCell>
       <TableCell className="text-right tabular-nums">{inr(cust.spent)}</TableCell>
       <TableCell className="text-muted-foreground">{fmtDateShort(latestOrder?.inDate || "")}</TableCell>
       <TableCell>
@@ -89,7 +105,19 @@ export function CustomerListRow({
         )}
       </TableCell>
       <TableCell className="text-right">
-        {outstanding > 0 ? <BalanceDue amount={outstanding} suffix=" due" paidLabel="" className="text-sm" /> : <span className="text-muted-foreground">—</span>}
+        {outstanding > 0 ? (
+          <div className="space-y-0.5 text-xs leading-tight">
+            <p className="text-muted-foreground">
+              Stitch <span className="tabular-nums text-foreground">{inr(stitchDue)}</span>
+            </p>
+            <p className="text-muted-foreground">
+              Sales <span className="tabular-nums text-foreground">{inr(salesDue)}</span>
+            </p>
+            <p className="font-semibold text-red-600 tabular-nums dark:text-red-400">{inr(outstanding)}</p>
+          </div>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
       </TableCell>
       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-end gap-1.5">

@@ -8,13 +8,13 @@ import { loyaltyTier, type LoyaltyConfig } from "@/lib/business-rules";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDeleteCustomerAndOrders } from "@/hooks/use-customer-mutations";
 import { inr, fmtDateShort } from "@/lib/format";
-import { sumOrdersOutstanding } from "@/lib/balances";
+import { sumOrdersOutstanding, sumInvoicesOutstanding } from "@/lib/balances";
 import type { CustomerProfile } from "@/lib/crm";
+import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import { StageBadge } from "@/components/orders/stage-badge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { tagBadgeClass } from "@/components/ui/tag-picker";
-import { BalanceDue } from "@/components/ui/money-text";
 import { EditCustomerModal } from "@/components/crm/edit-customer-modal";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-export function CustomerCard({ cust, loyaltyCfg }: { cust: CustomerProfile; loyaltyCfg?: LoyaltyConfig }) {
+export function CustomerCard({ cust, loyaltyCfg, invoices = [] }: { cust: CustomerProfile; loyaltyCfg?: LoyaltyConfig; invoices?: SalesInvoiceWithBalance[] }) {
   const { data: user } = useCurrentUser();
   const deleteCustomer = useDeleteCustomerAndOrders();
   const [editOpen, setEditOpen] = useState(false);
@@ -38,7 +38,9 @@ export function CustomerCard({ cust, loyaltyCfg }: { cust: CustomerProfile; loya
   const hasMeasurements = cust.measurements && Object.keys(cust.measurements).length > 0;
   const tier = loyaltyCfg?.enabled ? loyaltyTier(cust.totalEarned, loyaltyCfg) : null;
   const initial = cust.name?.[0]?.toUpperCase() || "?";
-  const outstanding = sumOrdersOutstanding(cust.orders);
+  const stitchDue = sumOrdersOutstanding(cust.orders);
+  const salesDue = sumInvoicesOutstanding(invoices);
+  const outstanding = stitchDue + salesDue;
 
   async function doDelete() {
     try {
@@ -114,8 +116,15 @@ export function CustomerCard({ cust, loyaltyCfg }: { cust: CustomerProfile; loya
             {tag}
           </Badge>
         ))}
-        {outstanding > 0 && <BalanceDue amount={outstanding} suffix=" due" paidLabel="" className="ml-auto text-[11px]" />}
       </div>
+
+      {outstanding > 0 && (
+        <div className="grid grid-cols-3 gap-px border-t bg-border/60 text-center">
+          <Stat label="Stitch Due" value={inr(stitchDue)} />
+          <Stat label="Sales Due" value={inr(salesDue)} />
+          <Stat label="Total Due" value={inr(outstanding)} valueClassName="text-red-600 dark:text-red-400" />
+        </div>
+      )}
 
       <EditCustomerModal cust={cust} open={editOpen} onOpenChange={setEditOpen} />
 
@@ -140,10 +149,10 @@ export function CustomerCard({ cust, loyaltyCfg }: { cust: CustomerProfile; loya
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, valueClassName }: { label: string; value: string; valueClassName?: string }) {
   return (
     <div className="bg-card px-1 py-2">
-      <p className="truncate text-[13px] font-semibold tabular-nums">{value}</p>
+      <p className={`truncate text-[13px] font-semibold tabular-nums ${valueClassName ?? ""}`}>{value}</p>
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
     </div>
   );

@@ -85,6 +85,7 @@ export const REPORTS_GROUP: NavGroup = {
   children: [
     { href: "/reports/day-book", label: "Day Book", section: "Summary" },
     { href: "/reports/combined-pl", label: "Combined P&L" },
+    { href: "/reports/payments-received", label: "Payments Received" },
 
     { href: "/reports/monthly", label: "Stitching Monthly P&L", section: "Stitching Orders" },
     { href: "/reports/payment-collection", label: "Payment Collection" },

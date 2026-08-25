@@ -81,7 +81,8 @@ export const REPORTS_GROUP: NavGroup = {
   icon: BarChart3,
   indexHref: "/reports",
   children: [
-    { href: "/reports/combined-pl", label: "Combined P&L", section: "Summary" },
+    { href: "/reports/day-book", label: "Day Book", section: "Summary" },
+    { href: "/reports/combined-pl", label: "Combined P&L" },
 
     { href: "/reports/monthly", label: "Monthly P&L", section: "Stitching Orders" },
     { href: "/reports/payment-collection", label: "Payment Collection" },

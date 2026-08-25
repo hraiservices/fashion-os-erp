@@ -10,3 +10,15 @@ export function istDateString(d: Date = new Date()): string {
   const day = String(ist.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
+
+/** UTC instant boundaries [start, end) of one IST calendar day — for filtering a `timestamptz`
+ *  column (`created_at`, `paid_at`, ...) to "everything that happened on this shop-local date."
+ *  A plain `created_at >= '2026-08-24' AND < '2026-08-25'` would use the DB session's own
+ *  timezone (UTC on Vercel/Supabase), which is exactly the bug istDateString() above exists to
+ *  avoid — this is the same fix applied to a range instead of a single "today" string. */
+export function istDayBoundsUtc(dateStr: string): { startUtc: string; endUtc: string } {
+  const startUtc = new Date(`${dateStr}T00:00:00+05:30`).toISOString();
+  const endUtc = new Date(`${dateStr}T00:00:00+05:30`);
+  endUtc.setUTCDate(endUtc.getUTCDate() + 1);
+  return { startUtc, endUtc: endUtc.toISOString() };
+}

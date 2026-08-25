@@ -20,6 +20,12 @@ export type Lining = "s" | "h" | "f";
 /** LINING, line ~1817. */
 export const LINING_LABELS: Record<Lining, string> = { s: "Simple", h: "Half Lining", f: "Full Lining" };
 
+/** Shared with the stitching-order payment route (validation) and Day Book/Payment Methods
+ *  reports (regex extraction of the method from activity_log's action text, since order
+ *  payments have no standalone payments table/column to store it in — see ORDER_PAYMENT_RE). */
+export const ORDER_PAYMENT_METHODS = ["Cash", "UPI", "Card", "Bank Transfer"] as const;
+export type OrderPaymentMethod = (typeof ORDER_PAYMENT_METHODS)[number];
+
 /** DEF_RATES, line ~1765 — default per-garment rate card by lining tier. */
 export const DEFAULT_RATES: Record<string, Record<Lining, number>> = {
   "Pant Suit": { s: 700, h: 1000, f: 1400 },

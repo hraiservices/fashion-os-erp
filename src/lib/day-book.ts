@@ -311,7 +311,25 @@ interface ActivityLogRow {
 }
 
 export const ORDER_PAYMENT_RE = /^💰 Payment ₹([\d.]+)/;
+// Matches ORDER_PAYMENT_METHODS (src/lib/business-rules.ts) — "Bank Transfer" has a space, so
+// this can't just split on whitespace; anchoring on the known method list is exact and simple.
+export const ORDER_PAYMENT_METHOD_RE = /^💰 Payment ₹[\d.]+ via (Cash|UPI|Card|Bank Transfer)/;
 const STAGE_CHANGE_RE = /Stage changed: (.+?) for (.+)$/;
+
+/** Extracts {amount, method} pairs from activity_log rows for stitching-order payments — the
+ *  same rows buildOrderActivityLogEntries turns into "Payment Collected" timeline entries, so a
+ *  report built from this can never disagree with what Day Book shows for the same date range.
+ *  A row created before the "via {method}" text was added to the action template (or a payment
+ *  method the regex doesn't recognize) yields method "Other" rather than being dropped, so old
+ *  data still counts toward the total even though its method can't be attributed. */
+export function extractOrderPayments(rows: Pick<ActivityLogRow, "action">[]): { amount: number; method: string }[] {
+  return rows
+    .filter((r) => r.action.startsWith("💰 Payment ₹"))
+    .map((r) => ({
+      amount: Number(r.action.match(ORDER_PAYMENT_RE)?.[1]) || 0,
+      method: r.action.match(ORDER_PAYMENT_METHOD_RE)?.[1] || "Other",
+    }));
+}
 
 export function buildOrderActivityLogEntries(rows: ActivityLogRow[]): DayBookEntry[] {
   const out: DayBookEntry[] = [];

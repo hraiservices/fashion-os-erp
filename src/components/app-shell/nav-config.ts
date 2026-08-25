@@ -86,7 +86,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/day-book", label: "Day Book", section: "Summary" },
     { href: "/reports/combined-pl", label: "Combined P&L" },
 
-    { href: "/reports/monthly", label: "Monthly P&L", section: "Stitching Orders" },
+    { href: "/reports/monthly", label: "Stitching Monthly P&L", section: "Stitching Orders" },
     { href: "/reports/payment-collection", label: "Payment Collection" },
     { href: "/reports/custom-garment-rev", label: "Custom Garment Rev" },
     { href: "/reports/garments", label: "Garment Analysis" },

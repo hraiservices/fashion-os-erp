@@ -22,8 +22,8 @@ export function RevenueFlowWidget() {
   return (
     <Link href="/reports/monthly" className="block rounded-xl border bg-card p-5 transition-colors hover:bg-muted/20">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Revenue Flow</h2>
-        <span className="text-xs text-muted-foreground">Last 6 months</span>
+        <h2 className="text-sm font-semibold">Stitching Revenue Flow</h2>
+        <span className="text-xs text-muted-foreground">Stitching orders only · last 6 months</span>
       </div>
       <div className="mb-3 flex flex-wrap items-center gap-4">
         <LegendDot color="#0ea5e9" label={`Billed  ${inrCompact(stats.monthly.reduce((s, m) => s + m.billed, 0))}`} />

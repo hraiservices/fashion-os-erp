@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { Wallet, ArrowDownCircle, ArrowUpCircle, Scale } from "lucide-react";
 import { useAllSalesPayments } from "@/hooks/use-sales-payments";
 import { useAllVendorPayments } from "@/hooks/use-vendor-payments";
+import { useOrderPaymentActivity } from "@/hooks/use-activity-log";
+import { extractOrderPayments } from "@/lib/day-book";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
@@ -66,9 +68,15 @@ function MethodTable({ rows, total, emptyLabel }: { rows: MethodRow[]; total: nu
 export default function PaymentMethodsReportPage() {
   const { data: salesPayments, isLoading: l1 } = useAllSalesPayments();
   const { data: vendorPayments, isLoading: l2 } = useAllVendorPayments();
-  const isLoading = l1 || l2;
+  const { data: orderPaymentRows, isLoading: l3 } = useOrderPaymentActivity();
+  const isLoading = l1 || l2 || l3;
 
-  const receivedByMethod = useMemo(() => byMethod(salesPayments || []), [salesPayments]);
+  // Both revenue streams — sales_payments (product sales) has a real `method` column; stitching
+  // orders have no standalone payments table, so their method is extracted from the same
+  // activity_log text Day Book already parses (see extractOrderPayments). Combined so this
+  // report actually reflects every rupee to reconcile against a bank deposit, not just retail.
+  const orderPayments = useMemo(() => extractOrderPayments(orderPaymentRows || []), [orderPaymentRows]);
+  const receivedByMethod = useMemo(() => byMethod([...(salesPayments || []), ...orderPayments]), [salesPayments, orderPayments]);
   const madeByMethod = useMemo(() => byMethod(vendorPayments || []), [vendorPayments]);
   const totalReceived = useMemo(() => receivedByMethod.reduce((s, r) => s + r.amount, 0), [receivedByMethod]);
   const totalMade = useMemo(() => madeByMethod.reduce((s, r) => s + r.amount, 0), [madeByMethod]);
@@ -76,7 +84,7 @@ export default function PaymentMethodsReportPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
-    <ReportShell title="Payment Methods" description="Cash, UPI, bank transfer and card totals — useful for daily reconciliation against your bank deposits">
+    <ReportShell title="Payment Methods" description="Cash, UPI, bank transfer and card totals across stitching orders and product sales — useful for daily reconciliation against your bank deposits">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Payments Received" value={inr(totalReceived)} icon={ArrowDownCircle} />
         <StatCard label="Payments Made" value={inr(totalMade)} icon={ArrowUpCircle} />

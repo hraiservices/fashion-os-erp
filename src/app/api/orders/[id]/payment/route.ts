@@ -2,13 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { mapOrderRow } from "@/lib/types";
-import { computeRedemption, computeEarnPoints, loyaltyDiscountOf, couponDiscountOf, fmtNow, customerIdFromMobile } from "@/lib/business-rules";
+import { computeRedemption, computeEarnPoints, loyaltyDiscountOf, couponDiscountOf, fmtNow, customerIdFromMobile, ORDER_PAYMENT_METHODS as PAYMENT_METHODS } from "@/lib/business-rules";
 // customerIdFromMobile retained for loyalty lookup below
 import { logAction } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
-
-const PAYMENT_METHODS = ["Cash", "UPI", "Card", "Bank Transfer"] as const;
 
 const bodySchema = z.object({
   amount: z.number().min(0),
@@ -131,7 +129,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   await logAction(
     supabase,
     user.email,
-    `💰 Payment ₹${cashPaid}${ptDiscount > 0 ? ` + ₹${ptDiscount} pts` : ""} collected for ${id}`,
+    `💰 Payment ₹${cashPaid} via ${payMethod}${ptDiscount > 0 ? ` + ₹${ptDiscount} pts` : ""} collected for ${id}`,
     id,
     `Balance: ₹${newBalance}`
   );

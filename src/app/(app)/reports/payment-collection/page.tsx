@@ -11,7 +11,7 @@ export default function PaymentCollectionPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   return (
-    <ReportShell title="Payment Collection" description="How much of what you billed actually came in, month by month">
+    <ReportShell title="Stitching Payment Collection" description="Stitching orders only — how much of what you billed actually came in, month by month. For both revenue streams combined, see Combined P&L.">
       <ReportTable>
         <thead className="border-b bg-muted/40">
           <tr>

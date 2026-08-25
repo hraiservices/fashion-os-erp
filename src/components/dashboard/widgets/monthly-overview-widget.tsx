@@ -22,7 +22,7 @@ export function MonthlyOverviewWidget() {
   return (
     <Link href="/reports/monthly" className="block rounded-xl border bg-card p-5 transition-colors hover:bg-muted/20">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Monthly Overview</h2>
+        <h2 className="text-sm font-semibold">Stitching Monthly Overview</h2>
         <span className="text-xs text-muted-foreground">View report</span>
       </div>
       <div className="mb-3 flex items-center gap-4">

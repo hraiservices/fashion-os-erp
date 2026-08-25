@@ -20,7 +20,7 @@ import {
   buildAdvanceEntries,
   buildOtherActivityLogEntries,
   sortEntries,
-  ORDER_PAYMENT_RE,
+  extractOrderPayments,
   type DayBookEntry,
 } from "@/lib/day-book";
 
@@ -168,9 +168,7 @@ export async function GET(request: Request) {
   // entries, via the identical regex, so the KPI card can never diverge from what's actually
   // shown in the timeline for the day). Previously only summed sales_payments, silently
   // undercounting every day a stitching payment was collected.
-  const orderPaymentsTotal = (orderActivityRes.data || [])
-    .filter((r) => r.action.startsWith("💰 Payment ₹"))
-    .reduce((s, r) => s + (Number(r.action.match(ORDER_PAYMENT_RE)?.[1]) || 0), 0);
+  const orderPaymentsTotal = extractOrderPayments(orderActivityRes.data || []).reduce((s, p) => s + p.amount, 0);
   const paymentsTotal = (paymentsRes.data || []).reduce((s, p) => s + p.amount, 0) + orderPaymentsTotal;
   const expensesTotal = (expensesRes.data || []).reduce((s, e) => s + e.amount, 0);
   const purchasesTotal = (billsRes.data || []).reduce((s, b) => s + b.total, 0);

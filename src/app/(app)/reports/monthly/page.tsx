@@ -13,7 +13,7 @@ export default function MonthlyPnlPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-80 w-full" /></div>;
 
   return (
-    <ReportShell title="Monthly P&L" description="Billed vs collected over the last 6 months">
+    <ReportShell title="Stitching Monthly P&L" description="Stitching orders only — billed vs collected over the last 6 months. For both revenue streams combined, see Combined P&L.">
       <ReportCard className="p-4">
         <div className="h-64 sm:h-72">
           <ResponsiveContainer width="100%" height="100%">

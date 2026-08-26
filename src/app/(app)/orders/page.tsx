@@ -176,17 +176,27 @@ function OrdersContent() {
     setBulkBusy(true);
     setBulkDeleteOpen(false);
     let failed = 0;
+    // The actual reason a delete was refused (has money against it, is linked, etc.) used to
+    // be thrown away here — the toast only ever showed a bare count, leaving the user to guess
+    // why. Keep the first real failure message so a single-item delete (the common case) tells
+    // you exactly what to fix instead of a dead-end "1 failed".
+    let firstError: string | null = null;
     for (const o of selectedOrders) {
       try {
         await deleteOrder.mutateAsync({ id: o.id, name: o.name, userEmail: user?.email });
-      } catch {
+      } catch (e) {
         failed++;
+        if (!firstError) firstError = e instanceof Error ? e.message : null;
       }
     }
     setBulkBusy(false);
     selection.clear();
-    if (failed) toast.error(`${selectedOrders.length - failed} deleted, ${failed} failed`);
-    else toast.success(`${selectedOrders.length} order(s) deleted`);
+    if (failed) {
+      const suffix = firstError ? `: ${firstError}` : "";
+      toast.error(`${selectedOrders.length - failed} deleted, ${failed} failed${failed === 1 ? suffix : ` (first error${suffix})`}`);
+    } else {
+      toast.success(`${selectedOrders.length} order(s) deleted`);
+    }
   }
 
   const bulkExportRows = selectedOrders.map((o) => ({

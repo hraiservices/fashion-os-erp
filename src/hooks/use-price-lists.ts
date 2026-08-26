@@ -39,20 +39,26 @@ export function usePriceListItemsMap(priceListId: string | null | undefined) {
   return map;
 }
 
+async function apiPost<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+async function apiDelete<T>(url: string): Promise<T> {
+  const res = await fetch(url, { method: "DELETE" });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+/** Previously ran entirely client-side with no permission check — see the API route's comment. */
 export function useSavePriceList() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name, notes, userEmail }: { id?: string; name: string; notes: string; userEmail?: string }) => {
-      const supabase = createClient();
-      if (id) {
-        const { error } = await supabase.from("price_lists").update({ name, notes }).eq("id", id);
-        if (error) throw error;
-        return id;
-      }
-      const { data, error } = await supabase.from("price_lists").insert({ name, notes, created_by: userEmail || null }).select("id").single();
-      if (error) throw error;
-      return data.id;
-    },
+    mutationFn: async ({ id, name, notes }: { id?: string; name: string; notes: string; userEmail?: string }) =>
+      (await apiPost<{ id: string }>("/api/price-lists", { id, name, notes })).id,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["price-lists"] }),
   });
 }
@@ -60,11 +66,7 @@ export function useSavePriceList() {
 export function useDeletePriceList() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("price_lists").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => apiDelete<{ ok: true }>(`/api/price-lists/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["price-lists"] }),
   });
 }
@@ -72,13 +74,8 @@ export function useDeletePriceList() {
 export function useSavePriceListItem() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ priceListId, productId, price }: { priceListId: string; productId: string; price: number }) => {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("price_list_items")
-        .upsert({ price_list_id: priceListId, product_id: productId, price }, { onConflict: "price_list_id,product_id" });
-      if (error) throw error;
-    },
+    mutationFn: ({ priceListId, productId, price }: { priceListId: string; productId: string; price: number }) =>
+      apiPost<{ ok: true }>("/api/price-lists/items", { priceListId, productId, price }),
     onSuccess: (_data, vars) => qc.invalidateQueries({ queryKey: ["price-list-items", vars.priceListId] }),
   });
 }
@@ -87,9 +84,7 @@ export function useDeletePriceListItem() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, priceListId }: { id: string; priceListId: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("price_list_items").delete().eq("id", id);
-      if (error) throw error;
+      await apiDelete<{ ok: true }>(`/api/price-lists/items/${id}`);
       return priceListId;
     },
     onSuccess: (priceListId) => qc.invalidateQueries({ queryKey: ["price-list-items", priceListId] }),

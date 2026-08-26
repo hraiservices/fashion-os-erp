@@ -19,17 +19,22 @@ export function useUnits() {
   });
 }
 
-/** Lets a user add a new unit inline, live, from any form — no separate settings screen. */
+/** Lets a user add a new unit inline, live, from any form — no separate settings screen.
+ *  Previously ran entirely client-side with no permission check. */
 export function useAddUnit() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (name: string) => {
-      const supabase = createClient();
       const trimmed = name.trim();
       if (!trimmed) throw new Error("Unit name is required");
-      const { data, error } = await supabase.from("units_of_measure").insert({ name: trimmed }).select().single();
-      if (error) throw error;
-      return mapUnitRow(data);
+      const res = await fetch("/api/inventory/units", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Request failed");
+      return mapUnitRow(data.unit);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["units"] }),
   });

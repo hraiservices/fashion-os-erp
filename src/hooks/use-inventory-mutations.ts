@@ -1,9 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
-import { logAction } from "@/lib/logging";
-import { genBarcode, type ItemType } from "@/lib/inventory";
+import type { ItemType } from "@/lib/inventory";
 
 /** Fire-and-forget: tells the server to run the Phase 3 matching engine and push a notification
  *  if there are strong customer matches for this restock. Never awaited by callers and never
@@ -23,6 +21,32 @@ function invalidateInventory(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["inventory-ledger"] });
 }
 
+interface RowWithId {
+  id: string;
+  name: string;
+}
+
+async function apiPost<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+async function apiPatch<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+async function apiDelete<T>(url: string): Promise<T> {
+  const res = await fetch(url, { method: "DELETE" });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
 interface SaveRawMaterialInput {
   id?: string;
   name: string;
@@ -39,40 +63,7 @@ interface SaveRawMaterialInput {
 export function useSaveRawMaterial() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: SaveRawMaterialInput) => {
-      const supabase = createClient();
-      const isNew = !input.id;
-
-      const { data, error } = await supabase
-        .from("raw_materials")
-        .upsert({
-          id: input.id,
-          name: input.name.trim(),
-          unit_id: input.unitId,
-          cost_per_unit: input.costPerUnit,
-          category: input.category.trim(),
-          low_stock_alert: input.lowStockAlert,
-          notes: input.notes.trim(),
-        })
-        .select()
-        .single();
-      if (error) throw error;
-
-      if (isNew && input.openingStock && input.openingStock > 0) {
-        const { error: ledgerError } = await supabase.from("inventory_ledger").insert({
-          item_type: "raw_material" as ItemType,
-          item_id: data.id,
-          movement: input.openingStock,
-          ref_type: "opening",
-          note: "Opening stock",
-          created_by: input.userEmail || null,
-        });
-        if (ledgerError) throw ledgerError;
-      }
-
-      await logAction(supabase, input.userEmail, isNew ? `Raw material added: ${input.name}` : `Raw material updated: ${input.name}`);
-      return data;
-    },
+    mutationFn: async (input: SaveRawMaterialInput) => (await apiPost<{ rawMaterial: RowWithId }>("/api/inventory/raw-materials", input)).rawMaterial,
     onSuccess: () => invalidateInventory(qc),
   });
 }
@@ -80,12 +71,7 @@ export function useSaveRawMaterial() {
 export function useDeleteRawMaterial() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name, userEmail }: { id: string; name: string; userEmail?: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("raw_materials").delete().eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `Raw material deleted: ${name}`);
-    },
+    mutationFn: ({ id }: { id: string; name: string; userEmail?: string }) => apiDelete<{ ok: true }>(`/api/inventory/raw-materials/${id}`),
     onSuccess: () => invalidateInventory(qc),
   });
 }
@@ -122,57 +108,9 @@ export function useSaveProduct() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: SaveProductInput) => {
-      const supabase = createClient();
-      const isNew = !input.id;
-
-      const { data, error } = await supabase
-        .from("products")
-        .upsert({
-          id: input.id,
-          name: input.name.trim(),
-          sku: input.sku.trim(),
-          category: input.category.trim(),
-          selling_price: input.sellingPrice,
-          cost_price: input.costPrice,
-          tax_rate: input.taxRate,
-          low_stock_alert: input.lowStockAlert,
-          notes: input.notes.trim(),
-          barcode: input.barcode?.trim() || genBarcode(),
-          size: input.size || null,
-          color: input.color || null,
-          fabric: input.fabric || null,
-          pattern: input.pattern || null,
-          occasion: input.occasion || null,
-          brand: input.brand?.trim() || null,
-          image_data_url: input.imageDataUrl ?? null,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-
-      // Replace BOM lines wholesale — same pattern as cost_sheet_items.
-      await supabase.from("bill_of_materials").delete().eq("product_id", data.id);
-      const bomRows = input.bom.filter((b) => b.rawMaterialId && b.qtyRequired > 0).map((b) => ({ product_id: data.id, raw_material_id: b.rawMaterialId, qty_required: b.qtyRequired }));
-      if (bomRows.length) {
-        const { error: bomError } = await supabase.from("bill_of_materials").insert(bomRows);
-        if (bomError) throw bomError;
-      }
-
-      if (isNew && input.openingStock && input.openingStock > 0) {
-        const { error: ledgerError } = await supabase.from("inventory_ledger").insert({
-          item_type: "product" as ItemType,
-          item_id: data.id,
-          movement: input.openingStock,
-          ref_type: "opening",
-          note: "Opening stock",
-          created_by: input.userEmail || null,
-        });
-        if (ledgerError) throw ledgerError;
-        notifyStockMatch(data.id, input.openingStock);
-      }
-
-      await logAction(supabase, input.userEmail, isNew ? `Product added: ${input.name}` : `Product updated: ${input.name}`);
-      return data;
+      const product = (await apiPost<{ product: RowWithId }>("/api/inventory/products", input)).product;
+      if (!input.id && input.openingStock && input.openingStock > 0) notifyStockMatch(product.id, input.openingStock);
+      return product;
     },
     onSuccess: () => invalidateInventory(qc),
   });
@@ -182,12 +120,8 @@ export function useSaveProduct() {
 export function useQuickUpdateProduct() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, sellingPrice, userEmail, name }: { id: string; sellingPrice: number; userEmail?: string; name: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("products").update({ selling_price: sellingPrice }).eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `Product price updated: ${name} → ${sellingPrice}`);
-    },
+    mutationFn: ({ id, sellingPrice, name }: { id: string; sellingPrice: number; userEmail?: string; name: string }) =>
+      apiPatch<{ ok: true }>(`/api/inventory/products/${id}`, { sellingPrice, name }),
     onSuccess: () => invalidateInventory(qc),
   });
 }
@@ -195,12 +129,7 @@ export function useQuickUpdateProduct() {
 export function useDeleteProduct() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name, userEmail }: { id: string; name: string; userEmail?: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("products").delete().eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `Product deleted: ${name}`);
-    },
+    mutationFn: ({ id }: { id: string; name: string; userEmail?: string }) => apiDelete<{ ok: true }>(`/api/inventory/products/${id}`),
     onSuccess: () => invalidateInventory(qc),
   });
 }
@@ -208,12 +137,7 @@ export function useDeleteProduct() {
 export function useBulkDeleteProducts() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ ids, userEmail }: { ids: string[]; userEmail?: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("products").delete().in("id", ids);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `${ids.length} product(s) deleted`);
-    },
+    mutationFn: ({ ids }: { ids: string[]; userEmail?: string }) => apiPost<{ deleted: number; skipped: number }>("/api/inventory/products/bulk-delete", { ids }),
     onSuccess: () => invalidateInventory(qc),
   });
 }
@@ -242,33 +166,7 @@ interface StockTransferInput {
 export function useTransferStock() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: StockTransferInput) => {
-      const supabase = createClient();
-      if (!input.qty || input.qty <= 0) throw new Error("Enter a quantity greater than zero");
-      if (input.fromWarehouseId === input.toWarehouseId) throw new Error("Source and destination warehouses must differ");
-      const { error } = await supabase.from("inventory_ledger").insert([
-        {
-          item_type: input.itemType,
-          item_id: input.itemId,
-          movement: -input.qty,
-          ref_type: "transfer_out",
-          note: input.note.trim(),
-          warehouse_id: input.fromWarehouseId,
-          created_by: input.userEmail || null,
-        },
-        {
-          item_type: input.itemType,
-          item_id: input.itemId,
-          movement: input.qty,
-          ref_type: "transfer_in",
-          note: input.note.trim(),
-          warehouse_id: input.toWarehouseId,
-          created_by: input.userEmail || null,
-        },
-      ]);
-      if (error) throw error;
-      await logAction(supabase, input.userEmail, `Stock transfer: ${input.itemName} (${input.qty})`, null, input.note);
-    },
+    mutationFn: (input: StockTransferInput) => apiPost<{ ok: true }>("/api/inventory/stock-transfer", input),
     onSuccess: () => invalidateInventory(qc),
   });
 }
@@ -278,18 +176,7 @@ export function useRecordStockAdjustment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: StockAdjustmentInput) => {
-      const supabase = createClient();
-      if (!input.movement) throw new Error("Enter a non-zero quantity");
-      const { error } = await supabase.from("inventory_ledger").insert({
-        item_type: input.itemType,
-        item_id: input.itemId,
-        movement: input.movement,
-        ref_type: "adjustment",
-        note: input.note.trim(),
-        created_by: input.userEmail || null,
-      });
-      if (error) throw error;
-      await logAction(supabase, input.userEmail, `Stock adjustment: ${input.itemName} (${input.movement > 0 ? "+" : ""}${input.movement})`, null, input.note);
+      await apiPost<{ ok: true }>("/api/inventory/stock-adjustment", input);
       if (input.itemType === "product") notifyStockMatch(input.itemId, input.movement);
     },
     onSuccess: () => invalidateInventory(qc),

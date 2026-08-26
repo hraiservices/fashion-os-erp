@@ -1,8 +1,6 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
-import { logAction } from "@/lib/logging";
 
 interface SaveWarehouseInput {
   id?: string;
@@ -13,30 +11,24 @@ interface SaveWarehouseInput {
   userEmail?: string;
 }
 
+async function apiPost<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+async function apiDelete<T>(url: string): Promise<T> {
+  const res = await fetch(url, { method: "DELETE" });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
 export function useSaveWarehouse() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: SaveWarehouseInput) => {
-      const supabase = createClient();
-      const isNew = !input.id;
-      if (input.isDefault) {
-        await supabase.from("warehouses").update({ is_default: false }).neq("id", input.id || "");
-      }
-      const { data, error } = await supabase
-        .from("warehouses")
-        .upsert({
-          id: input.id,
-          name: input.name.trim(),
-          address: input.address.trim(),
-          is_default: input.isDefault,
-          active: input.active,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      await logAction(supabase, input.userEmail, isNew ? `Warehouse added: ${input.name}` : `Warehouse updated: ${input.name}`);
-      return data;
-    },
+    mutationFn: async (input: SaveWarehouseInput) => (await apiPost<{ warehouse: { id: string } }>("/api/inventory/warehouses", input)).warehouse,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["warehouses"] });
       qc.invalidateQueries({ queryKey: ["warehouse"] });
@@ -47,12 +39,7 @@ export function useSaveWarehouse() {
 export function useDeleteWarehouse() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name, userEmail }: { id: string; name: string; userEmail?: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("warehouses").delete().eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `Warehouse deleted: ${name}`);
-    },
+    mutationFn: ({ id }: { id: string; name: string; userEmail?: string }) => apiDelete<{ ok: true }>(`/api/inventory/warehouses/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["warehouses"] });
     },

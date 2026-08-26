@@ -1,10 +1,8 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
-import { logAction } from "@/lib/logging";
-import { computeLineItemsTotal, purchaseItemType, purchaseItemId, type PurchaseLineItem, type PoStatus } from "@/lib/purchases";
-import { computeGst, type GstType } from "@/lib/gst";
+import type { PurchaseLineItem, PoStatus } from "@/lib/purchases";
+import type { GstType } from "@/lib/gst";
 
 function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["vendors"] });
@@ -18,6 +16,10 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["raw-materials"] });
   qc.invalidateQueries({ queryKey: ["products"] });
   qc.invalidateQueries({ queryKey: ["inventory-ledger"] });
+}
+
+interface RowWithId {
+  id: string;
 }
 
 async function apiPost<T>(url: string, body: unknown): Promise<T> {
@@ -51,27 +53,7 @@ interface SaveVendorInput {
 export function useSaveVendor() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: SaveVendorInput) => {
-      const supabase = createClient();
-      const isNew = !input.id;
-      const { data, error } = await supabase
-        .from("vendors")
-        .upsert({
-          id: input.id,
-          name: input.name.trim(),
-          mobile: input.mobile.trim(),
-          email: input.email.trim(),
-          gstin: input.gstin.trim(),
-          state: input.state.trim(),
-          address: input.address.trim(),
-          notes: input.notes.trim(),
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      await logAction(supabase, input.userEmail, isNew ? `Vendor added: ${input.name}` : `Vendor updated: ${input.name}`);
-      return data;
-    },
+    mutationFn: async (input: SaveVendorInput) => (await apiPost<{ vendor: RowWithId }>("/api/purchases/vendors", input)).vendor,
     onSuccess: () => invalidateAll(qc),
   });
 }
@@ -79,12 +61,7 @@ export function useSaveVendor() {
 export function useDeleteVendor() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name, userEmail }: { id: string; name: string; userEmail?: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("vendors").delete().eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `Vendor deleted: ${name}`);
-    },
+    mutationFn: ({ id }: { id: string; name: string; userEmail?: string }) => apiDelete<{ ok: true }>(`/api/purchases/vendors/${id}`),
     onSuccess: () => invalidateAll(qc),
   });
 }
@@ -105,29 +82,7 @@ interface SavePurchaseOrderInput {
 export function useSavePurchaseOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: SavePurchaseOrderInput) => {
-      const supabase = createClient();
-      const isNew = !input.id;
-      const total = computeLineItemsTotal(input.items);
-      const { data, error } = await supabase
-        .from("purchase_orders")
-        .upsert({
-          id: input.id,
-          po_number: input.poNumber,
-          vendor_id: input.vendorId,
-          date: input.date,
-          status: input.status,
-          items: input.items as never,
-          total,
-          notes: input.notes.trim(),
-          created_by: input.userEmail || null,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      await logAction(supabase, input.userEmail, isNew ? `Purchase order created: ${input.poNumber}` : `Purchase order updated: ${input.poNumber}`);
-      return data;
-    },
+    mutationFn: async (input: SavePurchaseOrderInput) => (await apiPost<{ purchaseOrder: RowWithId }>("/api/purchases/orders", input)).purchaseOrder,
     onSuccess: () => invalidateAll(qc),
   });
 }
@@ -135,12 +90,7 @@ export function useSavePurchaseOrder() {
 export function useCancelPurchaseOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, poNumber, userEmail }: { id: string; poNumber: string; userEmail?: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("purchase_orders").update({ status: "cancelled" }).eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `Purchase order cancelled: ${poNumber}`);
-    },
+    mutationFn: ({ id }: { id: string; poNumber: string; userEmail?: string }) => apiPost<{ ok: true }>(`/api/purchases/orders/${id}/cancel`, {}),
     onSuccess: () => invalidateAll(qc),
   });
 }
@@ -164,55 +114,7 @@ interface SaveBillInput {
 export function useSaveBill() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: SaveBillInput) => {
-      const supabase = createClient();
-      const isNew = !input.id;
-      const taxableAmount = computeLineItemsTotal(input.items);
-      const gst = computeGst(taxableAmount, input.taxRate, input.gstType);
-
-      const { data, error } = await supabase
-        .from("purchase_bills")
-        .upsert({
-          id: input.id,
-          bill_number: input.billNumber,
-          vendor_id: input.vendorId,
-          po_id: input.poId || null,
-          bill_date: input.billDate,
-          due_date: input.dueDate || null,
-          items: input.items as never,
-          taxable_amount: gst.taxableAmount,
-          gst_type: input.gstType,
-          tax_rate: input.taxRate,
-          cgst: gst.cgst,
-          sgst: gst.sgst,
-          igst: gst.igst,
-          total: gst.total,
-          notes: input.notes.trim(),
-          created_by: input.userEmail || null,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-
-      const ledgerRows = input.items
-        .filter((i) => purchaseItemId(i) && i.qty > 0)
-        .map((i) => ({
-          item_type: purchaseItemType(i),
-          item_id: purchaseItemId(i),
-          movement: i.qty,
-          note: `Bill ${input.billNumber}`,
-          created_by: input.userEmail || null,
-        }));
-      const { error: ledgerError } = await supabase.rpc("replace_inventory_ledger", {
-        p_ref_type: "purchase",
-        p_ref_id: data.id,
-        p_rows: ledgerRows,
-      });
-      if (ledgerError) throw ledgerError;
-
-      await logAction(supabase, input.userEmail, isNew ? `Bill received: ${input.billNumber}` : `Bill updated: ${input.billNumber}`, null, `₹${gst.total}`);
-      return data;
-    },
+    mutationFn: async (input: SaveBillInput) => (await apiPost<{ bill: RowWithId }>("/api/purchases/bills", input)).bill,
     onSuccess: () => invalidateAll(qc),
   });
 }
@@ -299,47 +201,7 @@ interface RaiseCreditInput {
 export function useRaiseVendorCredit() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: RaiseCreditInput) => {
-      const supabase = createClient();
-      const total = computeLineItemsTotal(input.items);
-      if (total <= 0) throw new Error("Add at least one returned item");
-
-      const { data, error } = await supabase
-        .from("vendor_credits")
-        .insert({
-          credit_number: input.creditNumber,
-          vendor_id: input.vendorId,
-          bill_id: input.billId,
-          date: input.date,
-          items: input.items as never,
-          total,
-          reason: input.reason.trim(),
-          notes: input.notes.trim(),
-          created_by: input.userEmail || null,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-
-      const ledgerRows = input.items
-        .filter((i) => purchaseItemId(i) && i.qty > 0)
-        .map((i) => ({
-          item_type: purchaseItemType(i),
-          item_id: purchaseItemId(i),
-          movement: -i.qty,
-          ref_type: "purchase_return" as const,
-          ref_id: data.id,
-          note: `Return against bill ${input.billNumber}`,
-          created_by: input.userEmail || null,
-        }));
-      if (ledgerRows.length) {
-        const { error: ledgerError } = await supabase.from("inventory_ledger").insert(ledgerRows);
-        if (ledgerError) throw ledgerError;
-      }
-
-      await logAction(supabase, input.userEmail, `Vendor credit raised: ${input.creditNumber} (₹${total}) against bill ${input.billNumber}`);
-      return data;
-    },
+    mutationFn: (input: RaiseCreditInput) => apiPost<{ credit: unknown }>("/api/purchases/credits", input),
     onSuccess: () => invalidateAll(qc),
   });
 }

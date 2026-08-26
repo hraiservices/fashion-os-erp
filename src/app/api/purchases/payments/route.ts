@@ -19,6 +19,10 @@ const bodySchema = z.object({
  * H-1: Previously ran client-side with no permission check and no overpayment
  * guard — any authenticated user could record payments exceeding the bill total,
  * creating phantom negative-balance (phantom credit) on the vendor account.
+ *
+ * The overpayment check was itself a read-then-insert race (two near-simultaneous payments
+ * could both read the same balance and both pass) — now goes through record_vendor_payment(),
+ * which row-locks the bill for the duration, mirroring record_order_payment's own pattern.
  */
 export async function POST(request: Request) {
   const { supabase, user } = await getServerUser();
@@ -29,45 +33,19 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
 
-  // H-1: Overpayment guard — fetch the bill total and outstanding balance.
-  const { data: bill } = await supabase
-    .from("purchase_bills")
-    .select("total")
-    .eq("id", fd.billId)
-    .single();
-  if (!bill) return NextResponse.json({ error: "Bill not found" }, { status: 404 });
-
-  const { data: existingPayments } = await supabase
-    .from("vendor_payments")
-    .select("amount")
-    .eq("bill_id", fd.billId);
-
-  const { data: vendorCredits } = await supabase
-    .from("vendor_credits")
-    .select("total")
-    .eq("bill_id", fd.billId);
-
-  const paidSoFar = (existingPayments || []).reduce((s, p) => s + (p.amount || 0), 0);
-  const creditedSoFar = (vendorCredits || []).reduce((s, c) => s + (c.total || 0), 0);
-  const balance = bill.total - paidSoFar - creditedSoFar;
-
-  if (fd.amount > balance + 0.01) {
-    return NextResponse.json(
-      { error: `Payment of ₹${fd.amount} exceeds the outstanding balance of ₹${balance.toFixed(2)}` },
-      { status: 422 }
-    );
-  }
-
-  const { error } = await supabase.from("vendor_payments").insert({
-    bill_id: fd.billId,
-    vendor_id: fd.vendorId,
-    amount: fd.amount,
-    method: fd.method,
-    date: fd.date,
-    note: fd.note.trim(),
-    created_by: user.email,
+  const { error } = await supabase.rpc("record_vendor_payment", {
+    p_bill_id: fd.billId,
+    p_vendor_id: fd.vendorId,
+    p_amount: fd.amount,
+    p_method: fd.method,
+    p_date: fd.date,
+    p_note: fd.note.trim(),
+    p_created_by: user.email,
   });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const status = error.message.includes("not found") ? 404 : error.message.includes("exceeds") ? 422 : 500;
+    return NextResponse.json({ error: error.message }, { status });
+  }
 
   await logAction(supabase, user.email, `Payment to vendor: ₹${fd.amount} for bill ${fd.billNumber}`);
   return NextResponse.json({ ok: true });

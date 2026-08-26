@@ -1155,6 +1155,18 @@ export interface Database {
         Args: { p_order_id: string; p_method?: string; p_note?: string; p_created_by?: string | null };
         Returns: string;
       };
+      record_vendor_payment: {
+        Args: {
+          p_bill_id: string;
+          p_vendor_id: string;
+          p_amount: number;
+          p_method: string;
+          p_date: string;
+          p_note: string;
+          p_created_by: string | null;
+        };
+        Returns: string;
+      };
       replace_inventory_ledger: {
         Args: {
           p_ref_type: string;

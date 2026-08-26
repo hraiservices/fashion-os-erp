@@ -2,7 +2,6 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { logAction } from "@/lib/logging";
 import { mapShopLocationRow } from "@/lib/types";
 
 async function fetchShopLocations() {
@@ -37,29 +36,25 @@ interface SaveShopLocationInput {
   userEmail?: string;
 }
 
+async function apiPost<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+async function apiDelete<T>(url: string): Promise<T> {
+  const res = await fetch(url, { method: "DELETE" });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+/** Previously ran entirely client-side with no permission check — see the API route's comment. */
 export function useSaveShopLocation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: SaveShopLocationInput) => {
-      const supabase = createClient();
-      const isNew = !input.id;
-      const { data, error } = await supabase
-        .from("shop_locations")
-        .upsert({
-          id: input.id,
-          name: input.name.trim(),
-          address: input.address.trim(),
-          latitude: input.latitude,
-          longitude: input.longitude,
-          geofence_radius_m: input.geofenceRadiusM,
-          active: input.active,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      await logAction(supabase, input.userEmail, isNew ? `Shop location added: ${input.name}` : `Shop location updated: ${input.name}`);
-      return data;
-    },
+    mutationFn: async (input: SaveShopLocationInput) => (await apiPost<{ location: { id: string } }>("/api/employees/shop-locations", input)).location,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["shop-locations"] }),
   });
 }
@@ -67,12 +62,7 @@ export function useSaveShopLocation() {
 export function useDeleteShopLocation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name, userEmail }: { id: string; name: string; userEmail?: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("shop_locations").delete().eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `Shop location deleted: ${name}`);
-    },
+    mutationFn: ({ id }: { id: string; name: string; userEmail?: string }) => apiDelete<{ ok: true }>(`/api/employees/shop-locations/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["shop-locations"] }),
   });
 }

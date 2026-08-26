@@ -42,8 +42,27 @@ export async function POST(request: Request) {
   const today = istDateString();
   const nowIso = new Date().toISOString();
 
+  // An overnight shift (checked in before midnight IST, not yet checked out) lives on
+  // YESTERDAY's row — checking `date = today` alone missed it, letting a second check-in
+  // create a brand-new row for today while yesterday's stayed open forever (check_in_at set,
+  // check_out_at null, hours never recorded). Block a new check-in until that shift is closed.
+  const { data: openShift } = await supabase
+    .from("employee_attendance")
+    .select("id, date")
+    .eq("employee_id", employeeId)
+    .not("check_in_at", "is", null)
+    .is("check_out_at", null)
+    .order("date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (openShift) {
+    return NextResponse.json(
+      { error: openShift.date === today ? "You've already checked in today" : "You still have an open shift from your last check-in — check out first." },
+      { status: 409 }
+    );
+  }
+
   const { data: existing } = await supabase.from("employee_attendance").select("id, check_in_at").eq("employee_id", employeeId).eq("date", today).maybeSingle();
-  if (existing?.check_in_at) return NextResponse.json({ error: "You've already checked in today" }, { status: 409 });
 
   const { error } = await supabase.from("employee_attendance").upsert(
     {

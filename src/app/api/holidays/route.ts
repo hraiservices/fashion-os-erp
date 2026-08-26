@@ -5,7 +5,8 @@ import { mapHolidayRow } from "@/lib/types";
 import { logAction } from "@/lib/logging";
 
 export async function GET(request: Request) {
-  const { supabase } = await getServerUser();
+  const { supabase, user } = await getServerUser();
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   const year = new URL(request.url).searchParams.get("year");
 
   let query = supabase.from("holidays").select("*").order("date");

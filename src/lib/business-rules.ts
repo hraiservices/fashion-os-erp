@@ -2,6 +2,8 @@
 // These are correctness-critical — the numbers/thresholds here must match the old app exactly
 // (see plan doc: loyalty math, due-date badges, balance derivation, WhatsApp templates).
 
+import { istDateString } from "@/lib/ist-date";
+
 /** How a customer found the shop — free-choice list, not enforced server-side (a blank/custom
  *  value is fine, this just drives the order-form dropdown and the booking-source report). */
 export const BOOKING_SOURCES = ["Walk-in", "Referral", "Repeat Customer", "Instagram", "Other"] as const;
@@ -160,13 +162,18 @@ export function loyaltyTier(totalEarned: number, cfg: LoyaltyConfig = DEFAULT_LO
 }
 
 /** Derives calendar days between today and a delivery date (yyyy-mm-dd), floor of the difference. */
+/** Both sides are converted the same UTC-anchored way (no local-timezone interpretation of
+ *  either "today" or the target date), so the result is a pure day-count that can't drift by
+ *  one depending on what timezone the browser/server happens to be in — the previous version
+ *  parsed the delivery date as UTC midnight then normalized it via a LOCAL setHours(0,0,0,0),
+ *  which silently shifted the target back a day for anyone (or any server) west of UTC. */
 export function daysLeft(deliveryDate: string): number {
   if (!deliveryDate) return 0;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const target = new Date(deliveryDate);
-  target.setHours(0, 0, 0, 0);
-  return Math.floor((target.getTime() - today.getTime()) / 86400000);
+  const toUtcDays = (dateStr: string) => {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    return Date.UTC(y, m - 1, d) / 86_400_000;
+  };
+  return toUtcDays(deliveryDate) - toUtcDays(istDateString());
 }
 
 export interface DueBadge {

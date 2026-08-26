@@ -73,8 +73,19 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageManufacturing) return NextResponse.json({ error: "No permission to manage manufacturing" }, { status: 403 });
 
-  const { data: row } = await supabase.from("work_orders").select("wo_number, status").eq("id", id).maybeSingle();
+  const { data: row } = await supabase.from("work_orders").select("wo_number, status, labor_payable_confirmed_at, piece_rate_paid_at").eq("id", id).maybeSingle();
   if (!row) return NextResponse.json({ error: "Work order not found" }, { status: 404 });
+
+  // Confirming the labor payable freezes it for payroll to pick up; deleting the work order
+  // after that had no guard at all, silently destroying the only record that the payable was
+  // confirmed/paid — a real gap once a payroll run has already paid the tailor for it. Mirrors
+  // the identical guard added to orders/[id]/route.ts.
+  if (row.piece_rate_paid_at) {
+    return NextResponse.json({ error: "This work order's labor payable has already been paid out in a payroll run and cannot be deleted." }, { status: 409 });
+  }
+  if (row.labor_payable_confirmed_at) {
+    return NextResponse.json({ error: "This work order's labor payable has been confirmed for payroll and cannot be deleted." }, { status: 409 });
+  }
 
   await supabase.from("inventory_ledger").delete().eq("ref_id", id).in("ref_type", ["work_order_consume", "work_order_produce"]);
   const { error } = await supabase.from("work_orders").delete().eq("id", id);

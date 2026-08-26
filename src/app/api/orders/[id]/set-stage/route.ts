@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { mapOrderRow } from "@/lib/types";
-import { STAGES, STAGE_META, fmtNow, deliveryBonusPoints, computeEarnPoints, loyaltyDiscountOf, couponDiscountOf, type Stage } from "@/lib/business-rules";
+import { STAGES, STAGE_META, fmtNow, deliveryBonusPoints, computeEarnPoints, loyaltyDiscountOf, couponDiscountOf, getNextStage, type Stage } from "@/lib/business-rules";
 import { logAction, sendAdminNotification } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
@@ -28,6 +28,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // M1: once an order is financially closed it cannot be re-opened via drag.
   if (order.status === "payment") {
     return NextResponse.json({ error: "Cannot reopen a closed financial record." }, { status: 409 });
+  }
+
+  // This mirrors a check that only ever existed client-side (handleSetStage in
+  // orders/page.tsx) — a direct POST here with an arbitrary target skipped every
+  // intermediate stage (and, since tailors hold changeStage, could be done by a tailor
+  // account), including "ready", the exact transition snapshot_tailor_payables fires on —
+  // skipping it silently voided piece-rate pay tracking for that order.
+  if (getNextStage(order.status) !== target) {
+    return NextResponse.json({ error: "Change stage step by step — you can only move to the next stage." }, { status: 400 });
   }
 
   // H8: moving to 'payment' is a financial close — requires managePayments, not just changeStage.

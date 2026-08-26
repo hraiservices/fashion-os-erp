@@ -239,10 +239,27 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   // Fetch enough columns for guards + loyalty refund; avoid mapOrderRow on a partial row (M2).
   const { data: row, error: fetchError } = await supabase
     .from("orders")
-    .select("id, name, status, mobile, history, advance")
+    .select("id, name, status, mobile, history, advance, payables_confirmed_at, piece_rate_paid_at")
     .eq("id", id)
     .maybeSingle();
   if (fetchError || !row) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+
+  // Confirming payables freezes them for payroll to pick up; deleting the order after that
+  // (with no equivalent guard to the advance>0 check below) would silently destroy the only
+  // record that the payable was confirmed/paid — a real gap once a payroll run has already
+  // paid the tailor for it. Mirrors the identical guard added to work-orders/[id]/route.ts.
+  if (row.piece_rate_paid_at) {
+    return NextResponse.json(
+      { error: "This order's tailor payable has already been paid out in a payroll run and cannot be deleted." },
+      { status: 409 }
+    );
+  }
+  if (row.payables_confirmed_at) {
+    return NextResponse.json(
+      { error: "This order's tailor payable has been confirmed for payroll and cannot be deleted." },
+      { status: 409 }
+    );
+  }
 
   // A blanket "delivered"/"payment" stage block used to sit here, pointing at an "Archive"
   // feature that was never actually built — a genuine dead end, since deleting the order's

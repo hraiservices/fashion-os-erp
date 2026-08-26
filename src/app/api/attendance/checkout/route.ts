@@ -41,9 +41,21 @@ export async function POST(request: Request) {
   }
 
   const today = istDateString();
-  const { data: existing } = await supabase.from("employee_attendance").select("id, check_in_at, check_out_at").eq("employee_id", employeeId).eq("date", today).maybeSingle();
-  if (!existing?.check_in_at) return NextResponse.json({ error: "You haven't checked in today" }, { status: 409 });
-  if (existing.check_out_at) return NextResponse.json({ error: "You've already checked out today" }, { status: 409 });
+  // An overnight shift (checked in before midnight IST) lives on YESTERDAY's row — filtering
+  // strictly by `date = today` found nothing for anyone checking out after midnight, so they
+  // got "you haven't checked in today" instead of being checked out, permanently orphaning
+  // that shift (check_in_at set, check_out_at/hours_worked never recorded). Find the most
+  // recent OPEN shift (any date, checked in, not yet checked out) instead.
+  const { data: existing } = await supabase
+    .from("employee_attendance")
+    .select("id, check_in_at, check_out_at")
+    .eq("employee_id", employeeId)
+    .not("check_in_at", "is", null)
+    .is("check_out_at", null)
+    .order("date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!existing?.check_in_at) return NextResponse.json({ error: "You haven't checked in" }, { status: 409 });
 
   const nowIso = new Date().toISOString();
   const rawHours = (new Date(nowIso).getTime() - new Date(existing.check_in_at).getTime()) / 3_600_000;

@@ -10,7 +10,8 @@ import { logAction } from "@/lib/logging";
  *  leave types itself via a service-role client (see /api/attendance/leave-balance). Mutations
  *  below are admin/manager-only. */
 export async function GET() {
-  const { supabase } = await getServerUser();
+  const { supabase, user } = await getServerUser();
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   const { data, error } = await supabase.from("leave_types").select("*").order("name");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ leaveTypes: (data || []).map(mapLeaveTypeRow) });

@@ -17,16 +17,13 @@ export interface AdminNotification {
   created_at: string;
 }
 
+/** Server-filtered by role — see the API route's comment for why this can't be a direct
+ *  client-side Supabase read like most of this app's other queries. */
 async function fetchNotifications(): Promise<AdminNotification[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("admin_notifications")
-    .select("id, type, order_id, employee_id, customer_name, from_stage, to_stage, user_name, message, created_at")
-    .eq("read", false)
-    .order("created_at", { ascending: false })
-    .limit(40);
-  if (error) throw error;
-  return data || [];
+  const res = await fetch("/api/notifications");
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to load notifications");
+  return data.notifications || [];
 }
 
 /** Per-item dismiss — additive on top of the existing bulk "Clear all", doesn't touch that behavior. */

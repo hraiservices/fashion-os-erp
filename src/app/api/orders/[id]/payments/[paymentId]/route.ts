@@ -24,7 +24,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     .maybeSingle();
   if (!payment || payment.order_id !== id) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
 
-  const { data: orderRow } = await supabase.from("orders").select("mobile, history").eq("id", id).maybeSingle();
+  const { data: orderRow } = await supabase.from("orders").select("mobile, name, history, balance").eq("id", id).maybeSingle();
+  const wasFullyPaid = orderRow?.balance === 0;
 
   const historyLine = `↩️ Payment reversed: ₹${payment.amount}${payment.pt_discount > 0 ? ` + ₹${payment.pt_discount} pts` : ""} — ${fmtNow()} by ${user.email}`;
 
@@ -43,6 +44,25 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       p_order_id: id,
       p_note: "Payment deleted — redemption reversed",
     });
+  }
+
+  // If this deletion un-completes an order that was fully paid, claw back the points it earned
+  // (payment/route.ts and set-stage/route.ts both award "earn" points the moment balance hits
+  // 0) — this was missing entirely: deleting the payment correctly reversed advance/balance,
+  // but the earned points stayed on the customer's balance forever, redeemable on an unrelated
+  // future order. Reverses under type "manual" (not "earn") so a later legitimate re-payoff of
+  // this same order can still earn fresh points — award_loyalty_points' idempotency guard only
+  // blocks a second POSITIVE award for the same (type, orderId), keyed on the "earn" type.
+  const nowUnpaid = (updatedRows[0].balance ?? 0) > 0;
+  if (wasFullyPaid && nowUnpaid && orderRow?.mobile) {
+    const custId = `CUST-${orderRow.mobile}`;
+    const { data: custRow } = await supabase.from("customers").select("name, loyalty_history").eq("id", custId).maybeSingle();
+    const history = (custRow?.loyalty_history as Array<{ type: string; orderId: string | null; pts: number; note?: string }> | null) || [];
+    const earnEntry = history.find((h) => h.type === "earn" && h.orderId === id);
+    const alreadyReversed = history.some((h) => h.type === "manual" && h.orderId === id && (h.note || "").includes("Full payment reversed"));
+    if (earnEntry && earnEntry.pts > 0 && !alreadyReversed) {
+      await awardLoyaltyPoints(supabase, orderRow.mobile, custRow?.name || orderRow.name, -earnEntry.pts, "manual", id, "Full payment reversed — earned points clawed back");
+    }
   }
 
   // A referral coupon's rupee value is folded into whichever payment's pt_discount was applied

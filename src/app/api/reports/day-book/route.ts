@@ -65,6 +65,7 @@ export async function GET(request: Request) {
     leaveDecidedRes,
     employeesRes,
     vendorsRes,
+    completedWorkOrdersRes,
   ] = await Promise.all([
     supabase.from("sales_invoices").select("id, invoice_number, customer_name, customer_mobile, total, doc_status, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
     supabase.from("sales_payments").select("id, invoice_id, customer_mobile, amount, method, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
@@ -73,7 +74,7 @@ export async function GET(request: Request) {
     supabase.from("purchase_bills").select("id, bill_number, vendor_id, total, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
     supabase.from("vendor_payments").select("id, bill_id, vendor_id, amount, method, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
     supabase.from("vendor_credits").select("id, credit_number, vendor_id, bill_id, total, reason, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
-    supabase.from("orders").select("id, name, mobile, total, advance, status, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
+    supabase.from("orders").select("id, name, mobile, total, advance, status, created_at, garments, fabric_cost, other_cost").gte("created_at", startUtc).lt("created_at", endUtc),
     supabase.from("activity_log").select("id, user_email, user_name, action, order_id, details, created_at").not("order_id", "is", null).gte("created_at", startUtc).lt("created_at", endUtc),
     supabase.from("order_payments").select("id, order_id, amount, pt_discount, method, note, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
     supabase.from("customers").select("id, name, mobile, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
@@ -86,12 +87,15 @@ export async function GET(request: Request) {
     supabase.from("leave_requests").select("id, employee_id, from_date, to_date, days, status, requested_by, requested_at, decided_by, decided_at").gte("decided_at", startUtc).lt("decided_at", endUtc),
     supabase.from("employees").select("id, name"),
     supabase.from("vendors").select("id, name"),
+    // Mirrors getCombinedMonthly's laborCost — completed work orders' labor cost, bucketed by
+    // completedAt, the same date basis Combined P&L uses for this category.
+    supabase.from("work_orders").select("id, labor_cost").eq("status", "completed").gte("completed_at", startUtc).lt("completed_at", endUtc),
   ]);
 
   const firstError = [
     invoicesRes, paymentsRes, creditNotesRes, expensesRes, billsRes, vendorPaymentsRes, vendorCreditsRes,
     ordersRes, orderActivityRes, orderPaymentsRes, customersRes, unlinkedActivityRes, attendanceRes,
-    leaveAppliedRes, leaveDecidedRes, employeesRes, vendorsRes,
+    leaveAppliedRes, leaveDecidedRes, employeesRes, vendorsRes, completedWorkOrdersRes,
   ].find((r) => r.error);
   if (firstError?.error) return NextResponse.json({ error: firstError.error.message }, { status: 500 });
 
@@ -103,9 +107,10 @@ export async function GET(request: Request) {
   let payslipEntries: DayBookEntry[] = [];
   let advanceEntries: DayBookEntry[] = [];
   let payrollTotal = 0;
+  let payrollCostForProfit = 0;
   if (canSeePayroll) {
     const [payslipsRes, advancesRes] = await Promise.all([
-      supabase.from("payslips").select("id, employee_id, net_pay, status, paid_at").eq("status", "paid").gte("paid_at", startUtc).lt("paid_at", endUtc),
+      supabase.from("payslips").select("id, employee_id, net_pay, piece_rate_pay, status, paid_at").eq("status", "paid").gte("paid_at", startUtc).lt("paid_at", endUtc),
       supabase.from("employee_advances").select("id, employee_id, amount, note, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
     ]);
     if (payslipsRes.error) return NextResponse.json({ error: payslipsRes.error.message }, { status: 500 });
@@ -113,6 +118,10 @@ export async function GET(request: Request) {
     payslipEntries = buildPayslipPaidEntries(payslipsRes.data || [], employeeNameById);
     advanceEntries = buildAdvanceEntries(advancesRes.data || [], employeeNameById);
     payrollTotal = payslipEntries.reduce((s, e) => s + (e.amount || 0), 0);
+    // Salary only, mirroring getCombinedMonthly — pieceRatePay is excluded because that exact
+    // money is already counted in stitchingCost below (the garment's frozen payableAmount).
+    // Counting a payslip's full net_pay here would double-charge every tailor's piece-rate.
+    payrollCostForProfit = (payslipsRes.data || []).reduce((s, p) => s + Math.max(0, (p.net_pay || 0) - (p.piece_rate_pay || 0)), 0);
   }
 
   // Invoice/bill lookup for payments and credit notes that reference a document created on a
@@ -146,6 +155,16 @@ export async function GET(request: Request) {
   const creatorByOrderId = new Map<string, string | null>();
   for (const r of orderActivityRes.data || []) {
     if (r.order_id && r.action.startsWith("📋 New order")) creatorByOrderId.set(r.order_id, r.user_email);
+  }
+
+  // Per-order stitching expense line items for today's orders, for the stitchingCost total below.
+  const todayOrderIds = (ordersRes.data || []).map((o) => o.id);
+  const { data: orderExpenseRows } = todayOrderIds.length
+    ? await supabase.from("order_expenses").select("order_id, amount").in("order_id", todayOrderIds)
+    : { data: [] };
+  const orderExpenseByOrderId = new Map<string, number>();
+  for (const e of orderExpenseRows || []) {
+    orderExpenseByOrderId.set(e.order_id, (orderExpenseByOrderId.get(e.order_id) || 0) + (e.amount || 0));
   }
 
   const entries: DayBookEntry[] = [
@@ -183,10 +202,22 @@ export async function GET(request: Request) {
   const refundsTotal =
     (creditNotesRes.data || []).reduce((s, c) => s + c.total, 0) + (vendorCreditsRes.data || []).reduce((s, c) => s + c.total, 0);
   const stitchingRevenue = (ordersRes.data || []).reduce((s, o) => s + o.total, 0);
-  // Mirrors getCombinedMonthly's formula (src/lib/combined-reports.ts) — same revenue/cost
-  // shape, just filtered to one day instead of one month, so Day Book profit never diverges
-  // from what Combined P&L would show for the same date.
-  const profit = stitchingRevenue + salesTotal - purchasesTotal - expensesTotal;
+
+  // Was previously omitted entirely — profit counted the full order/invoice value as margin
+  // with none of the direct cost of fulfilling it subtracted, overstating profit by the whole
+  // cost of goods/labor. Mirrors getCombinedMonthly's formula (src/lib/combined-reports.ts)
+  // term-for-term (stitchingCost = tailor payables + fabric/other cost + order expenses,
+  // laborCost = completed work orders, payrollCost = salary net of piece-rate already counted
+  // in stitchingCost) so Day Book profit for a date agrees with Combined P&L for that month.
+  const stitchingCost = (ordersRes.data || []).reduce((s, o) => {
+    const garments = (o.garments as unknown as { payableAmount?: number }[]) || [];
+    const tailorCost = garments.reduce((g, garment) => g + (garment.payableAmount || 0), 0);
+    return s + tailorCost + (o.fabric_cost || 0) + (o.other_cost || 0) + (orderExpenseByOrderId.get(o.id) || 0);
+  }, 0);
+  const laborCost = (completedWorkOrdersRes.data || []).reduce((s, w) => s + (w.labor_cost || 0), 0);
+  const salesCreditsTotal = (creditNotesRes.data || []).reduce((s, c) => s + c.total, 0);
+
+  const profit = stitchingRevenue + salesTotal - salesCreditsTotal - purchasesTotal - expensesTotal - stitchingCost - laborCost - payrollCostForProfit;
 
   const totals = {
     sales: salesTotal,

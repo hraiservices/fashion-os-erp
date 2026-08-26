@@ -12,11 +12,15 @@ import {
   loyaltyDiscountOf,
   DEFAULT_LOYALTY_CONFIG,
 } from "@/lib/business-rules";
+import { istDateString } from "@/lib/ist-date";
 
+// IST calendar date `days` from now, computed the same UTC-anchored way daysLeft() itself uses
+// — the previous version (`new Date(); setDate(); toISOString().slice()`) mixed a
+// local-timezone day-add with a UTC read-back, so it silently landed on the wrong calendar day
+// whenever the test runner's local timezone wasn't UTC-aligned with where the offset crossed
+// midnight, making this test fail depending solely on the machine's timezone.
 function isoDateOffset(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return istDateString(new Date(Date.now() + days * 86_400_000));
 }
 
 describe("deriveBalance", () => {

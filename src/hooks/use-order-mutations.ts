@@ -219,6 +219,12 @@ export function useDeleteOrder() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
+      // The DELETE route refunds loyalty points and reverses referral-bonus points on the
+      // customer's row when the deleted order had a redemption or coupon — every sibling
+      // payment mutation (useRecordPayment, useDeleteOrderPayment) already invalidates these
+      // for the identical reason; this one never did.
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["customer-by-mobile"] });
     },
   });
 }

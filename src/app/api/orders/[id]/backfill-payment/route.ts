@@ -13,8 +13,13 @@ import { logAction } from "@/lib/logging";
  * Deliberately does NOT touch orders.advance/balance — that figure is already correct and
  * already accounted for; this only backfills the missing ledger entry so it becomes visible
  * and deletable, exactly like the one-time migration (backfill_order_payments.sql) already did
- * for every other pre-existing order. Refuses if a payment row already exists, so this can't be
- * used to double-count a real payment.
+ * for every other pre-existing order.
+ *
+ * Routed through the backfill_order_payment() RPC (fix_payment_ledger_p0_bugs.sql), which
+ * row-locks the order before checking/inserting — a plain check-then-insert here (two separate
+ * round trips) let a double-click or two open tabs both read "no existing payments" and both
+ * insert, permanently duplicating the ledger row for the same advance with no way to reconcile
+ * it back down.
  */
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,24 +27,15 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.managePayments) return NextResponse.json({ error: "No permission to manage payments" }, { status: 403 });
 
-  const { data: order } = await supabase.from("orders").select("id, advance").eq("id", id).maybeSingle();
-  if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  if ((order.advance || 0) <= 0) return NextResponse.json({ error: "This order has no advance to backfill" }, { status: 400 });
-
-  const { count } = await supabase.from("order_payments").select("id", { count: "exact", head: true }).eq("order_id", id);
-  if ((count || 0) > 0) return NextResponse.json({ error: "This order already has payment records" }, { status: 409 });
-
-  const { error } = await supabase.from("order_payments").insert({
-    order_id: id,
-    amount: order.advance,
-    pt_discount: 0,
-    pts_redeemed: 0,
-    method: "Other",
-    note: "Backfilled — recorded before the payment ledger existed",
-    created_by: user.email,
+  const { data: paymentId, error } = await supabase.rpc("backfill_order_payment", {
+    p_order_id: id,
+    p_created_by: user.email,
   });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const status = error.message.includes("not found") ? 404 : error.message.includes("already has payment records") ? 409 : 400;
+    return NextResponse.json({ error: error.message }, { status });
+  }
 
-  await logAction(supabase, user.email, `Payment ledger backfilled for order ${id}`, id, `₹${order.advance}`);
+  await logAction(supabase, user.email, `Payment ledger backfilled for order ${id}`, id, `payment ${paymentId}`);
   return NextResponse.json({ ok: true });
 }

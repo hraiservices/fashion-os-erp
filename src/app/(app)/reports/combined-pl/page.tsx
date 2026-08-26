@@ -90,6 +90,11 @@ export default function CombinedPlPage() {
           ))}
         </tbody>
       </ReportTable>
+      <p className="text-xs text-muted-foreground">
+        Stitching Cost is booked by each order's intake date, but Salaries is booked by when a payslip was actually paid — a garment taken in one month whose tailor is paid via a
+        later payroll run shows its cost in the earlier month and the matching salary reduction in the later one. Totals across the full period are still correct either way; a single
+        month's Net Profit can shift a little depending on payroll timing.
+      </p>
     </ReportShell>
   );
 }

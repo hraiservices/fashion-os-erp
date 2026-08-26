@@ -1151,6 +1151,10 @@ export interface Database {
         Args: { p_payment_id: string; p_history_line: string };
         Returns: Database["public"]["Tables"]["orders"]["Row"][];
       };
+      backfill_order_payment: {
+        Args: { p_order_id: string; p_method?: string; p_note?: string; p_created_by?: string | null };
+        Returns: string;
+      };
       replace_inventory_ledger: {
         Args: {
           p_ref_type: string;

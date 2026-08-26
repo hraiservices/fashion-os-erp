@@ -23,6 +23,11 @@ interface TailorPayableRow {
   pending: number;
   unpaid: number;
   allTimeEarned: number;
+  /** A deactivated employee is excluded from every future payroll run (it only ever fetches
+   *  active employees), so any "unpaid" money for them can never be settled through the normal
+   *  payroll flow — it needs manual settlement instead. Flagged distinctly so it doesn't look
+   *  like ordinary pending money that'll clear on the next run. */
+  isActive: boolean;
 }
 
 /** A garment carrying a payable whose `tailor` resolves to no employee — money that is owed to
@@ -98,6 +103,7 @@ export default function TailorPayablesPage() {
           pending: Math.round((pendingOrders + pendingWo) * 100) / 100,
           unpaid: computeOrderPieceRatePay(t.id, unpaidOrders) + computeWorkOrderPieceRatePay(t.id, unpaidWo),
           allTimeEarned: computeOrderPieceRatePay(t.id, confirmedOrders) + computeWorkOrderPieceRatePay(t.id, confirmedWo),
+          isActive: t.active,
         };
       })
       .sort((a, b) => b.unpaid - a.unpaid);
@@ -139,7 +145,17 @@ export default function TailorPayablesPage() {
           <tbody className="divide-y">
             {rows.map((r) => (
               <tr key={r.id} className="hover:bg-muted/30">
-                <Td className="font-medium">{r.name}</Td>
+                <Td className="font-medium">
+                  {r.name}
+                  {!r.isActive && r.unpaid > 0 && (
+                    <span
+                      className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-red-500/10 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:text-red-400"
+                      title="This employee is inactive — payroll only ever runs for active employees, so this money can never be paid out through a normal run. Reactivate them or settle it manually."
+                    >
+                      <AlertTriangle className="size-2.5" /> Inactive — needs manual settlement
+                    </span>
+                  )}
+                </Td>
                 <Td align="right">{inr(r.weekEarned)}</Td>
                 <Td align="right">{inr(r.monthEarned)}</Td>
                 <Td align="right" className={r.pending > 0 ? "font-medium text-amber-600 dark:text-amber-400" : undefined}>

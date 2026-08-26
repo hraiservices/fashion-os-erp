@@ -286,6 +286,13 @@ function OrderFormFields({
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "garments" });
+  // True whenever this order loaded with zero real garment lines — the one seeded above
+  // (existingOrder.total as its amount) looks identical to a real line otherwise, so a user who
+  // adds genuine garment details alongside it without noticing/deleting it would silently
+  // double the order's total. Fixed at load time, not re-derived from live field state, so the
+  // caution stays visible for the whole edit session rather than disappearing the instant they
+  // touch anything.
+  const isSeededPlaceholderOrder = isEdit && existingOrder!.garments.length === 0;
   const { fields: expenseFields, append: appendExpense, remove: removeExpense } = useFieldArray({ control, name: "expenses" });
   const garments = watch("garments");
   const expenses = watch("expenses") || [];
@@ -614,6 +621,13 @@ function OrderFormFields({
           {/* Garments */}
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
             <SectionHeading icon={Shirt} label="Garments" />
+            {isSeededPlaceholderOrder && (
+              <p className="mb-3 rounded-lg border border-amber-500/30 bg-amber-50 p-2.5 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                ⚠️ This order had no garment line details saved, so the line below stands in for its total (₹{(existingOrder!.total || 0).toLocaleString("en-IN")}) so nothing changes by
+                accident. If you&apos;re adding the real garment(s), either edit this line to match them or delete it first — leaving it in place alongside new lines will double-count
+                the order&apos;s value.
+              </p>
+            )}
             <div className="space-y-3">
               {fields.map((field, index) => (
                 <div key={field.id} className="rounded-lg border p-3">

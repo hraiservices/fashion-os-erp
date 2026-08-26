@@ -244,13 +244,14 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     .maybeSingle();
   if (fetchError || !row) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-  // Refuse to delete financially closed or delivered orders — they are accounting records.
-  if (row.status === "payment" || row.status === "delivered") {
-    return NextResponse.json(
-      { error: `Cannot delete a ${row.status === "payment" ? "paid" : "delivered"} order. Archive it instead.` },
-      { status: 409 }
-    );
-  }
+  // A blanket "delivered"/"payment" stage block used to sit here, pointing at an "Archive"
+  // feature that was never actually built — a genuine dead end, since deleting the order's
+  // payment(s) below (which the message DID offer as an option) still leaves the order at
+  // "delivered" stage (delete_order_payment only reverts payment -> delivered, not further),
+  // meaning a fully-paid-then-refunded order could never actually be deleted at all. The real
+  // safeguard for "this is an accounting record" is the money check right below — a delivered/
+  // paid order becomes deletable once its payment rows are gone (order detail page ->
+  // Payments), same as any other order; stage alone no longer blocks it.
 
   // Refuse to delete an order that already has money collected against it. Each payment is a
   // real row in order_payments now — deleting them there (order detail page → Payments) reverses

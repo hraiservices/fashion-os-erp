@@ -166,6 +166,19 @@ export function useDeleteOrderPayment() {
   });
 }
 
+/** Creates the missing order_payments row for an order whose advance predates the payment
+ *  ledger — see the route for why this doesn't touch advance/balance itself. */
+export function useBackfillOrderPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => postJson<{ ok: true }>(`/api/orders/${orderId}/backfill-payment`, {}),
+    onSuccess: (_data, orderId) => {
+      qc.invalidateQueries({ queryKey: ["order-payments", orderId] });
+      qc.invalidateQueries({ queryKey: ["order-payments", "all"] });
+    },
+  });
+}
+
 /**
  * Order edit — delegates to PATCH /api/orders/[id] (server route) so:
  *   • editOrder permission is enforced server-side (C4 — was bypassed before)

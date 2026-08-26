@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt } from "lucide-react";
 import { useOrder } from "@/hooks/use-order";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useConfirmOrderPayables, useDeleteOrderPayment } from "@/hooks/use-order-mutations";
+import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useConfirmOrderPayables, useDeleteOrderPayment, useBackfillOrderPayment } from "@/hooks/use-order-mutations";
 import { useOrderPayments } from "@/hooks/use-order-payments";
 import { useTailorName } from "@/hooks/use-employees";
 import { useShopSettings } from "@/hooks/use-shop-settings";
@@ -64,6 +64,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const { data: orderExpenses } = useOrderExpensesFor(id);
   const { data: orderPayments, isError: paymentsError } = useOrderPayments(id);
   const deletePayment = useDeleteOrderPayment();
+  const backfillPayment = useBackfillOrderPayment();
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [reworkDialogOpen, setReworkDialogOpen] = useState(false);
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
@@ -77,6 +78,15 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       toast.error(e instanceof Error ? e.message : "Failed to delete payment");
     } finally {
       setDeletePaymentId(null);
+    }
+  }
+
+  async function doBackfillPayment() {
+    try {
+      await backfillPayment.mutateAsync(id);
+      toast.success("Payment record created — you can now delete it from here if needed");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to create payment record");
     }
   }
 
@@ -343,18 +353,21 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               Couldn&apos;t load payments for this order. The amount shown as paid above may not match what&apos;s recorded — please refresh, and report this if it persists.
             </p>
           ) : !orderPayments || orderPayments.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-              No payments recorded yet.
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+              <p>No payments recorded yet.</p>
               {order.advance > 0 && (
-                <>
-                  <br />
-                  <span className="text-amber-600 dark:text-amber-400">
-                    This order shows {inr(order.advance)} already paid, but has no payment records — it was likely collected before payment tracking was added. Re-record it here to
-                    make it deletable and visible in payment reports.
-                  </span>
-                </>
+                <div className="mt-2 space-y-2">
+                  <p className="text-amber-600 dark:text-amber-400">
+                    This order shows {inr(order.advance)} already paid, but has no payment record behind it — it was likely collected before payment tracking was added. Create the
+                    missing record below (this won&apos;t change the balance, which is already correct) so it becomes visible in payment reports and deletable if you need to remove
+                    this order.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={doBackfillPayment} disabled={backfillPayment.isPending}>
+                    {backfillPayment.isPending ? "Creating…" : `Create payment record for ${inr(order.advance)}`}
+                  </Button>
+                </div>
               )}
-            </p>
+            </div>
           ) : (
             <ul className="divide-y">
               {orderPayments.map((p) => (

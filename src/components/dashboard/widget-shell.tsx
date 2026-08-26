@@ -1,9 +1,14 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GripHorizontal, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// Height resize snaps to this increment (px) so two widgets resized to similar heights
+// actually land on the SAME height, instead of off by a few px — the main cause of the
+// "misaligned" look when cards sit side by side in the same grid row.
+const HEIGHT_SNAP_PX = 20;
 
 const COL_SPAN_CLASS: Record<1 | 2 | 3 | 4, string> = {
   1: "sm:col-span-1",
@@ -47,6 +52,13 @@ export function WidgetShell({
 }) {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
+  // State, not a ref: the container's `draggable` attribute below must actually re-render when
+  // this changes. Previously the whole card was `draggable` unconditionally, and only
+  // `handleDragStart` checked whether the grip was pressed — meaning any mousedown-and-move
+  // anywhere on the card (a chart, a link, plain content) could start the browser's native drag
+  // gesture and only get cancelled after the fact, causing exactly the flaky/unintentional-drag
+  // feel reported. Now the card is only draggable while the grip is actually held down.
+  const [gripActive, setGripActive] = useState(false);
   const gripPressed = useRef(false);
   const resizeDragged = useRef(false); // true if mouse moved during resize — suppresses the post-drag click
   const resizeState = useRef<{
@@ -61,6 +73,7 @@ export function WidgetShell({
   }
   function handleDragEnd() {
     gripPressed.current = false;
+    setGripActive(false);
     onDragEnd?.();
   }
 
@@ -81,12 +94,30 @@ export function WidgetShell({
       const el = containerRef.current;
       if (!s || !el) return;
       const grid = el.closest("[data-dashboard-grid]") as HTMLElement | null;
-      const gridW = grid ? grid.clientWidth : el.offsetWidth * 4;
-      const colW = (gridW - 16 * 3) / 4;
+      // Read the grid's REAL current column count and gap instead of assuming 4 columns /
+      // 16px gap — the hardcoded assumption only held at the desktop breakpoint; below `sm`
+      // the grid is actually 1 column, and any future gap/breakpoint change would silently
+      // throw this off again. gridTemplateColumns is a space-separated track list, so its
+      // length IS the live column count.
+      let numCols = 4;
+      let gapPx = 16;
+      if (grid) {
+        const cs = getComputedStyle(grid);
+        const tracks = cs.gridTemplateColumns.split(" ").filter(Boolean);
+        if (tracks.length > 0) numCols = tracks.length;
+        const parsedGap = parseFloat(cs.columnGap || cs.gap || "16");
+        if (!Number.isNaN(parsedGap)) gapPx = parsedGap;
+      }
+      const gridW = grid ? grid.clientWidth : el.offsetWidth * numCols;
+      const colW = (gridW - gapPx * (numCols - 1)) / numCols;
       const newW = s.startW + (ev.clientX - s.startX);
-      const newH = Math.max(80, s.startH + (ev.clientY - s.startY));
-      s.lastCols = Math.max(1, Math.min(4, Math.round(newW / colW))) as 1 | 2 | 3 | 4;
-      s.lastH = Math.round(newH);
+      const rawH = Math.max(80, s.startH + (ev.clientY - s.startY));
+      // Height snaps to a fixed row unit so resized cards land on shared height increments
+      // instead of arbitrary pixels — this is what makes neighbouring cards' bottom edges
+      // line up instead of leaving a ragged gap.
+      const newH = Math.round(rawH / HEIGHT_SNAP_PX) * HEIGHT_SNAP_PX;
+      s.lastCols = Math.max(1, Math.min(numCols, Math.round(newW / colW))) as 1 | 2 | 3 | 4;
+      s.lastH = newH;
       onResizeProgress?.(s.lastCols, s.lastH);
     }
 
@@ -108,13 +139,18 @@ export function WidgetShell({
     <div
       ref={containerRef}
       className={cn(
-        "group relative col-span-1",
+        // self-start: a CSS grid row stretches every cell to match its tallest sibling by
+        // default, so a widget with no custom height (or a shorter one) silently grows to fill
+        // the row anyway, leaving empty space below its actual content — the other half of the
+        // "misaligned" complaint, and one that isn't specific to resizing at all. self-start
+        // makes every widget's box exactly as tall as its own content/heightPx, never stretched.
+        "group relative col-span-1 self-start",
         COL_SPAN_CLASS[colSpan],
         editing && "rounded-xl outline-dashed outline-2 outline-transparent transition-all hover:outline-primary/40",
         dragging && "opacity-40",
         dropTarget && "outline-primary/60"
       )}
-      draggable
+      draggable={gripActive}
       onDragStart={handleDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
@@ -131,8 +167,8 @@ export function WidgetShell({
           type="button"
           aria-label="Drag to reorder"
           className="cursor-grab text-muted-foreground/60 hover:text-muted-foreground active:cursor-grabbing"
-          onMouseDown={() => { gripPressed.current = true; }}
-          onMouseUp={() => { gripPressed.current = false; }}
+          onMouseDown={() => { gripPressed.current = true; setGripActive(true); }}
+          onMouseUp={() => { gripPressed.current = false; setGripActive(false); }}
         >
           <GripHorizontal className="size-3.5" />
         </button>

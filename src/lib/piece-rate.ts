@@ -51,7 +51,17 @@ export function computePieceRatePay(
  */
 export async function getPieceRateAdvanceCap(supabase: SupabaseClient<Database>, employeeId: string): Promise<number> {
   const [ordersRes, workOrdersRes, advancesRes] = await Promise.all([
-    supabase.from("orders").select("garments").not("payables_confirmed_at", "is", null).is("piece_rate_paid_at", null),
+    // Scoped server-side to garments actually assigned to this employee via a JSONB
+    // containment filter — previously fetched every confirmed-unpaid order company-wide
+    // (full garments payload, no employee filter at all) and did the per-employee match in JS.
+    // Harmless at today's order volume but pure waste that scales with total company order
+    // count instead of this one employee's, on every single advance request.
+    supabase
+      .from("orders")
+      .select("garments")
+      .not("payables_confirmed_at", "is", null)
+      .is("piece_rate_paid_at", null)
+      .contains("garments", [{ tailor: employeeId }]),
     supabase
       .from("work_orders")
       .select("labor_cost")

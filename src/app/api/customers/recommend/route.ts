@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { DEFAULT_RECOMMENDATION_TEMPLATE, renderRecommendationMessage, buildRecommendationWaUrl } from "@/lib/recommendation-whatsapp";
 import { isCloudApiConfigured, sendWhatsAppTemplateMessage, type WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
 import { normalizeIndianMobile } from "@/lib/business-rules";
@@ -36,12 +37,19 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
 
-  const [{ data: cooldownSetting }, { data: templateSetting }, { data: cloudApiSetting }, { data: productRow }] = await Promise.all([
+  // whatsappCloudApiConfig holds a live Meta API access token and its SELECT is blocked for the
+  // `authenticated` role (lockdown_whatsapp_cloud_api_config.sql) — read it via the service-role
+  // client, which bypasses RLS, rather than the session client every other read here uses.
+  const serviceClient = createServiceClient();
+  const [{ data: cooldownSetting }, { data: templateSetting }, cloudApiResult, { data: productRow }] = await Promise.all([
     supabase.from("app_settings").select("value").eq("key", "recommendationCooldownDays").maybeSingle(),
     supabase.from("app_settings").select("value").eq("key", "recommendationWhatsAppTemplate").maybeSingle(),
-    supabase.from("app_settings").select("value").eq("key", "whatsappCloudApiConfig").maybeSingle(),
+    serviceClient
+      ? serviceClient.from("app_settings").select("value").eq("key", "whatsappCloudApiConfig").maybeSingle()
+      : Promise.resolve({ data: null }),
     supabase.from("products").select("image_data_url").eq("id", fd.productId).maybeSingle(),
   ]);
+  const cloudApiSetting = cloudApiResult?.data;
   const cooldownDays = typeof cooldownSetting?.value === "number" ? cooldownSetting.value : DEFAULT_COOLDOWN_DAYS;
   const template = typeof templateSetting?.value === "string" ? templateSetting.value : DEFAULT_RECOMMENDATION_TEMPLATE;
 

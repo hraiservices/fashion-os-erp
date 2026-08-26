@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useWhatsAppCloudApiConfig } from "@/hooks/use-whatsapp-cloud-api";
 import { DEFAULT_RECOMMENDATION_TEMPLATE, RECOMMENDATION_TEMPLATE_VARIABLES } from "@/lib/recommendation-whatsapp";
 import type { WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +22,7 @@ const BLANK_CLOUD_API: WhatsAppCloudApiConfig = { phoneNumberId: "", accessToken
 export function RecommendationWhatsAppSection() {
   const { data: template, isLoading: templateLoading, save: saveTemplate } = useAppSetting<string>("recommendationWhatsAppTemplate", DEFAULT_RECOMMENDATION_TEMPLATE);
   const { data: cooldown, isLoading: cooldownLoading, save: saveCooldown } = useAppSetting<number>("recommendationCooldownDays", DEFAULT_COOLDOWN_DAYS);
-  const { data: cloudApi, isLoading: cloudApiLoading, save: saveCloudApi } = useAppSetting<WhatsAppCloudApiConfig>("whatsappCloudApiConfig", BLANK_CLOUD_API);
+  const { data: cloudApi, isLoading: cloudApiLoading, save: saveCloudApi } = useWhatsAppCloudApiConfig(BLANK_CLOUD_API);
 
   const [draftTemplate, setDraftTemplate] = useState(DEFAULT_RECOMMENDATION_TEMPLATE);
   const [draftCooldown, setDraftCooldown] = useState(DEFAULT_COOLDOWN_DAYS);

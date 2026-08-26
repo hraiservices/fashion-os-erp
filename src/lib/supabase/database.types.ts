@@ -232,6 +232,7 @@ export interface Database {
           id: number;
           type: string;
           order_id: string | null;
+          employee_id: string | null;
           customer_name: string | null;
           from_stage: string | null;
           to_stage: string | null;

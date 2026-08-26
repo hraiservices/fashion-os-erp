@@ -5,6 +5,7 @@ import { getAttendanceEmployeeId } from "@/lib/attendance-session-server";
 import { mapLeaveRequestRow, mapLeaveTypeRow, mapHolidayRow } from "@/lib/types";
 import { countLeaveDays } from "@/lib/leave";
 import { DEFAULT_ATTENDANCE_SETTINGS, type AttendanceSettings } from "@/lib/attendance-settings";
+import { notifyLeaveRequested } from "@/lib/logging";
 
 /** The logged-in employee's own leave requests, plus the active leave types (for the Apply
  *  form's dropdown) — bundled in one call since self-service has no other way to read
@@ -79,6 +80,9 @@ export async function POST(request: Request) {
     .select("*")
     .single();
   if (error || !data) return NextResponse.json({ error: error?.message || "Insert failed" }, { status: 500 });
+
+  const { data: employee } = await supabase.from("employees").select("name").eq("id", employeeId).maybeSingle();
+  await notifyLeaveRequested(supabase, { employeeId, employeeName: employee?.name || "An employee", fromDate: fd.fromDate, toDate: fd.toDate, days });
 
   return NextResponse.json({ request: mapLeaveRequestRow(data) });
 }

@@ -5,6 +5,7 @@ import { getAttendanceEmployeeId } from "@/lib/attendance-session-server";
 import { checkGeofence } from "@/lib/geofence";
 import { DEFAULT_ATTENDANCE_SETTINGS, MAX_SHIFT_HOURS, type AttendanceSettings } from "@/lib/attendance-settings";
 import { istDateString } from "@/lib/ist-date";
+import { notifyAttendance } from "@/lib/logging";
 
 const bodySchema = z.object({
   lat: z.number(),
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid check-out data" }, { status: 400 });
   const { lat, lng, accuracy, photo } = parsed.data;
 
-  const { data: employee } = await supabase.from("employees").select("id, location_id, active").eq("id", employeeId).maybeSingle();
+  const { data: employee } = await supabase.from("employees").select("id, name, location_id, active").eq("id", employeeId).maybeSingle();
   if (!employee || !employee.active) return NextResponse.json({ error: "Employee not found or inactive" }, { status: 404 });
   if (!employee.location_id) return NextResponse.json({ error: "No shop location is assigned to you — ask your manager to set this up." }, { status: 400 });
 
@@ -67,6 +68,8 @@ export async function POST(request: Request) {
     })
     .eq("id", existing.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await notifyAttendance(supabase, { employeeId, employeeName: employee.name, action: "check-out", hoursWorked });
 
   return NextResponse.json({ ok: true, checkedOutAt: nowIso, hoursWorked, overtimeHours });
 }

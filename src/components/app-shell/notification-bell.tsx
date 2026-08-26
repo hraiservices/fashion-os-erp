@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, Trash2, X, CheckCircle2, AlertTriangle, RefreshCw, Sparkles } from "lucide-react";
+import { Bell, Trash2, X, CheckCircle2, AlertTriangle, RefreshCw, Sparkles, CalendarClock, Clock } from "lucide-react";
 import { useOrders } from "@/hooks/use-orders";
 import { useNotifications, useDismissNotification, markNotificationsSeen, getLastSeenAt, getTimeAgo } from "@/hooks/use-notifications";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -35,8 +35,11 @@ export function NotificationBell() {
 
   // Briefing content isn't sensitive, just not relevant to tailor/sales roles — hidden client-side
   // since admin_notifications has no per-role targeting at the row level.
-  const stageNotifs = (notifs || []).filter((n) => n.type !== "ai_briefing");
+  const stageNotifs = (notifs || []).filter((n) => n.type === "stage_change");
   const briefingNotifs = isAdminOrManager ? (notifs || []).filter((n) => n.type === "ai_briefing") : [];
+  // Employee-facing events (leave requests, self-service check-in/out) — HR-adjacent, so only
+  // shown to admin/manager, same visibility rule as the briefing.
+  const employeeNotifs = isAdminOrManager ? (notifs || []).filter((n) => n.type === "leave_request" || n.type === "attendance") : [];
 
   const urgentOrders = useMemo(() => {
     if (!orders) return [];
@@ -45,7 +48,7 @@ export function NotificationBell() {
 
   const unreadCount = useMemo(() => {
     const lastSeen = getLastSeenAt();
-    const visible = [...stageNotifs, ...briefingNotifs];
+    const visible = [...stageNotifs, ...briefingNotifs, ...employeeNotifs];
     const newNotifs = visible.filter((n) => new Date(n.created_at).getTime() > lastSeen).length;
     // Only count urgent orders created after the bell was last opened — orders that have been
     // sitting in the list (and been seen) shouldn't re-trigger the badge on every render.
@@ -64,6 +67,12 @@ export function NotificationBell() {
     router.push(`/orders/${orderId}`);
   }
 
+  function goToEmployee(employeeId: string | null) {
+    if (!employeeId) return;
+    handleOpenChange(false);
+    router.push(`/employees/${employeeId}`);
+  }
+
   async function clearAll() {
     const supabase = createClient();
     // Soft-delete (mark read) rather than hard DELETE — avoids RLS issues and is consistent
@@ -72,7 +81,7 @@ export function NotificationBell() {
     qc.invalidateQueries({ queryKey: ["notifications"] });
   }
 
-  const hasItems = urgentOrders.length > 0 || stageNotifs.length > 0 || briefingNotifs.length > 0;
+  const hasItems = urgentOrders.length > 0 || stageNotifs.length > 0 || briefingNotifs.length > 0 || employeeNotifs.length > 0;
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -169,6 +178,28 @@ export function NotificationBell() {
                       <p className="text-[11px] text-muted-foreground">
                         {n.user_name || "user"} · {getTimeAgo(n.created_at)}
                       </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {employeeNotifs.length > 0 && (
+            <div>
+              <div className="bg-muted/50 px-4 py-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Employees</div>
+              {employeeNotifs.map((n) => {
+                const Icon = n.type === "leave_request" ? CalendarClock : Clock;
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => goToEmployee(n.employee_id)}
+                    className="flex w-full items-start gap-2.5 border-b px-4 py-2.5 text-left last:border-0 hover:bg-muted/40"
+                  >
+                    <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm">{n.message}</p>
+                      <p className="text-[11px] text-muted-foreground">{getTimeAgo(n.created_at)}</p>
                     </div>
                   </button>
                 );

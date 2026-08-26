@@ -8,6 +8,7 @@ export interface AdminNotification {
   id: number;
   type: string;
   order_id: string | null;
+  employee_id: string | null;
   customer_name: string | null;
   from_stage: string | null;
   to_stage: string | null;
@@ -20,7 +21,7 @@ async function fetchNotifications(): Promise<AdminNotification[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("admin_notifications")
-    .select("id, type, order_id, customer_name, from_stage, to_stage, user_name, message, created_at")
+    .select("id, type, order_id, employee_id, customer_name, from_stage, to_stage, user_name, message, created_at")
     .eq("read", false)
     .order("created_at", { ascending: false })
     .limit(40);

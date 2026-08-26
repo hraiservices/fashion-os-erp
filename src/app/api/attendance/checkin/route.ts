@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { getAttendanceEmployeeId } from "@/lib/attendance-session-server";
 import { checkGeofence } from "@/lib/geofence";
 import { istDateString } from "@/lib/ist-date";
+import { notifyAttendance } from "@/lib/logging";
 
 const bodySchema = z.object({
   lat: z.number(),
@@ -62,6 +63,8 @@ export async function POST(request: Request) {
     { onConflict: "employee_id,date" }
   );
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await notifyAttendance(supabase, { employeeId, employeeName: employee.name, action: "check-in" });
 
   return NextResponse.json({ ok: true, checkedInAt: nowIso });
 }

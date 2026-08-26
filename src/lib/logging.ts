@@ -40,3 +40,39 @@ export async function sendAdminNotification(
     read: false,
   });
 }
+
+/** Notifies admins/managers when an employee submits a leave request via self-service — the
+ *  one place a manager can't otherwise learn about it without opening the Leave page. Not sent
+ *  for admin-recorded leave (src/app/api/leave-requests/route.ts) since the admin who typed it
+ *  in obviously already knows. */
+export async function notifyLeaveRequested(
+  supabase: SupabaseClient<Database>,
+  params: { employeeId: string; employeeName: string; fromDate: string; toDate: string; days: number }
+): Promise<void> {
+  const message = `${params.employeeName} applied for ${params.days} day${params.days === 1 ? "" : "s"} leave (${params.fromDate} to ${params.toDate})`;
+  await supabase.from("admin_notifications").insert({
+    type: "leave_request",
+    employee_id: params.employeeId,
+    user_name: params.employeeName,
+    message,
+    read: false,
+  });
+}
+
+/** Notifies admins/managers every time an employee self-service checks in or out. */
+export async function notifyAttendance(
+  supabase: SupabaseClient<Database>,
+  params: { employeeId: string; employeeName: string; action: "check-in" | "check-out"; hoursWorked?: number }
+): Promise<void> {
+  const message =
+    params.action === "check-in"
+      ? `${params.employeeName} checked in`
+      : `${params.employeeName} checked out${params.hoursWorked != null ? ` — ${params.hoursWorked}h worked` : ""}`;
+  await supabase.from("admin_notifications").insert({
+    type: "attendance",
+    employee_id: params.employeeId,
+    user_name: params.employeeName,
+    message,
+    read: false,
+  });
+}

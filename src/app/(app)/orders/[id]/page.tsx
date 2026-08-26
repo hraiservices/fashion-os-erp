@@ -339,7 +339,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* Payments — itemized ledger; deleting a row reverses the order's advance/balance
           (and any redeemed loyalty points) via delete_order_payment(). */}
-      {user?.perms.managePayments && (
+      {/* Visible to anyone who can delete orders, not just managePayments holders — the
+          delete-order guard's own error message points here, so a deleteOrder-only account
+          must be able to at least SEE what's blocking it, even if the per-row delete button
+          below stays limited to managePayments (matching the API route's own gate). Previously
+          gated on managePayments alone, which meant a deleteOrder-only account hit a dead end:
+          told to come here, but this section didn't exist for them at all. */}
+      {(user?.perms.managePayments || user?.perms.deleteOrder) && (
         <section className="rounded-xl border bg-card">
           <div className="border-b px-4 py-3">
             <h2 className="flex items-center gap-1.5 text-sm font-semibold">
@@ -362,9 +368,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                     missing record below (this won&apos;t change the balance, which is already correct) so it becomes visible in payment reports and deletable if you need to remove
                     this order.
                   </p>
-                  <Button variant="outline" size="sm" onClick={doBackfillPayment} disabled={backfillPayment.isPending}>
-                    {backfillPayment.isPending ? "Creating…" : `Create payment record for ${inr(order.advance)}`}
-                  </Button>
+                  {user?.perms.managePayments ? (
+                    <Button variant="outline" size="sm" onClick={doBackfillPayment} disabled={backfillPayment.isPending}>
+                      {backfillPayment.isPending ? "Creating…" : `Create payment record for ${inr(order.advance)}`}
+                    </Button>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Ask someone with payment permissions to create the missing record.</p>
+                  )}
                 </div>
               )}
             </div>
@@ -383,15 +393,17 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                       {p.note ? ` — ${p.note}` : ""}
                     </p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Delete payment"
-                    className="shrink-0 text-muted-foreground hover:text-red-600"
-                    onClick={() => setDeletePaymentId(p.id)}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
+                  {user?.perms.managePayments && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Delete payment"
+                      className="shrink-0 text-muted-foreground hover:text-red-600"
+                      onClick={() => setDeletePaymentId(p.id)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>

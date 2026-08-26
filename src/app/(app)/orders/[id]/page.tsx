@@ -68,6 +68,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [reworkDialogOpen, setReworkDialogOpen] = useState(false);
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
+  // The orders list page confirms every stage change before firing it (see handleAdvance there)
+  // — this page's own "Move to" button skipped that dialog entirely and changed the stage
+  // immediately on click, which is exactly the "confirmation pop-up doesn't show, stage just
+  // changes" bug reported from here specifically.
+  const [confirmAdvanceOpen, setConfirmAdvanceOpen] = useState(false);
 
   async function doDeletePayment() {
     if (!deletePaymentId) return;
@@ -114,11 +119,16 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   const orderBalance = order.balance;
   const profit = computeOrderProfit(order, tailorRates || DEFAULT_TAILOR_RATES, orderExpenses || []);
-  async function advance() {
+  function requestAdvance() {
     if (next === "payment" && orderBalance > 0) {
       toast.error(`Clear balance of ${inr(orderBalance)} before marking as paid`);
       return;
     }
+    setConfirmAdvanceOpen(true);
+  }
+
+  async function advance() {
+    setConfirmAdvanceOpen(false);
     try {
       const res = await advanceStage.mutateAsync(id);
       const s = res.order.status;
@@ -215,31 +225,35 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      {/* Actions — sticky on mobile so the primary action is always thumb-reachable */}
-      <div className="fixed inset-x-0 bottom-16 z-30 flex gap-2 border-t bg-background/95 p-3 backdrop-blur print:hidden lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+      {/* Actions — sticky on mobile so the primary action is always thumb-reachable. Horizontally
+          scrollable with no wrap: this row can hold up to 8 buttons (stage/payment/WhatsApp/edit/
+          rework/payables/tag/print/delete) and wrapping them would break the sticky mobile bar's
+          fixed height, so overflow-x-auto lets extra buttons scroll into view instead of spilling
+          past the card's edge. */}
+      <div className="fixed inset-x-0 bottom-16 z-30 flex gap-2 overflow-x-auto border-t bg-background/95 p-3 backdrop-blur print:hidden lg:static lg:z-auto lg:flex-wrap lg:overflow-visible lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
         {user?.perms.changeStage && next && (
-          <Button className={cn("flex-1 lg:flex-none", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={advance}>
+          <Button className={cn("shrink-0 flex-1 lg:flex-none", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
             <ArrowRight className="size-4" /> Move to {STAGE_META[next].label}
           </Button>
         )}
         {user?.perms.managePayments && order.balance > 0 && (
-          <Button variant="outline" className="flex-1 lg:flex-none" onClick={() => setPaymentOpen(true)}>
+          <Button variant="outline" className="shrink-0 flex-1 lg:flex-none" onClick={() => setPaymentOpen(true)}>
             <Wallet className="size-4" /> Collect payment
           </Button>
         )}
         {order.balance > 0 ? (
-          <WhatsAppButton href={paymentReminderUrl} label="Payment Reminder" labelClassName="hidden lg:inline" />
+          <WhatsAppButton href={paymentReminderUrl} label="Payment Reminder" labelClassName="hidden lg:inline" className="shrink-0" />
         ) : (
-          <WhatsAppButton href={waUrl} label="WhatsApp" labelClassName="hidden lg:inline" />
+          <WhatsAppButton href={waUrl} label="WhatsApp" labelClassName="hidden lg:inline" className="shrink-0" />
         )}
         {user?.perms.editOrder && (
-          <Button variant="outline" nativeButton={false} render={<Link href={`/orders/${id}/edit`} />} aria-label="Edit order">
+          <Button variant="outline" className="shrink-0" nativeButton={false} render={<Link href={`/orders/${id}/edit`} />} aria-label="Edit order">
             <Pencil className="size-4" />
             <span className="hidden lg:inline">Edit</span>
           </Button>
         )}
         {user?.perms.changeStage && !order.reworkFlag && (
-          <Button variant="outline" aria-label="Flag for rework" onClick={() => setReworkDialogOpen(true)}>
+          <Button variant="outline" className="shrink-0" aria-label="Flag for rework" onClick={() => setReworkDialogOpen(true)}>
             <RotateCcw className="size-4" />
             <span className="hidden lg:inline">Rework</span>
           </Button>
@@ -247,6 +261,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         {user?.perms.managePayroll && order.readyAt && !order.payablesConfirmedAt && order.garments.some((g) => g.payableAmount) && (
           <Button
             variant="outline"
+            className="shrink-0"
             aria-label="Confirm tailor payables"
             disabled={confirmPayables.isPending}
             onClick={async () => {
@@ -262,16 +277,16 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <span className="hidden lg:inline">{confirmPayables.isPending ? "Confirming…" : "Confirm tailor payables"}</span>
           </Button>
         )}
-        <Button variant="outline" aria-label="Print order tag" onClick={() => printOrderTag(order, shop, tailorName(order.tailor))}>
+        <Button variant="outline" className="shrink-0" aria-label="Print order tag" onClick={() => printOrderTag(order, shop, tailorName(order.tailor))}>
           <TagIcon className="size-4" />
           <span className="hidden lg:inline">Print tag</span>
         </Button>
-        <PrintButton labelClassName="hidden lg:inline" />
+        <PrintButton labelClassName="hidden lg:inline" className="shrink-0" />
         {user?.perms.deleteOrder && (
           <AlertDialog>
             <AlertDialogTrigger
               render={
-                <Button variant="destructive" aria-label="Delete order">
+                <Button variant="destructive" className="shrink-0" aria-label="Delete order">
                   <Trash2 className="size-4" />
                 </Button>
               }
@@ -293,6 +308,25 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </AlertDialog>
         )}
       </div>
+
+      <AlertDialog open={confirmAdvanceOpen} onOpenChange={setConfirmAdvanceOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Move to {next ? STAGE_META[next].label : ""}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Move <strong className="text-foreground">{orderName}</strong> ({order.id}) from{" "}
+              <strong className="text-foreground">{STAGE_META[order.status].label}</strong> to{" "}
+              <strong className="text-foreground">{next ? STAGE_META[next].label : ""}</strong>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={advanceStage.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={advance} disabled={advanceStage.isPending}>
+              {advanceStage.isPending ? "Moving…" : "Move"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Garments */}
       <section className="rounded-xl border bg-card">

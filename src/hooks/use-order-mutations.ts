@@ -140,6 +140,11 @@ export function useRecordPayment() {
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["order", vars.orderId] });
+      // Was missing — the order detail page's Payments section reads this exact key, so a
+      // newly-collected payment never appeared there until a full page reload re-fetched
+      // everything from scratch.
+      qc.invalidateQueries({ queryKey: ["order-payments", vars.orderId] });
+      qc.invalidateQueries({ queryKey: ["order-payments", "all"] });
       // Loyalty points may have been redeemed or earned — invalidate customer cache so
       // the next payment modal shows the correct available points.
       qc.invalidateQueries({ queryKey: ["customers"] });

@@ -317,9 +317,14 @@ export function buildWhatsAppMessage(order: WhatsAppOrder, type: WhatsAppMessage
   return messages[type] || messages.received;
 }
 
-/** Strips leading +91/91 prefix so it isn't double-applied — mirrors lines ~2258-2260. */
+/** Strips everything but digits, then a leading 91 country code, so a number typed/exported as
+ *  "+91 98765-43210" or "091 9876543210" normalizes to the same plain 10-digit string as
+ *  "9876543210". Without stripping spaces/dashes first, a wa.me link built from a mobile
+ *  containing them silently breaks, and — the reason this matters for bulk import — customers,
+ *  orders and invoices all key off this exact string, so two different formattings of the same
+ *  real number become two different (wrong) customer records instead of matching one. */
 export function normalizeIndianMobile(mobile: string): string {
-  let raw = String(mobile || "").trim().replace(/^\+/, "");
+  let raw = String(mobile || "").replace(/\D/g, "");
   if (raw.startsWith("91") && raw.length > 10) raw = raw.slice(2);
   return raw;
 }

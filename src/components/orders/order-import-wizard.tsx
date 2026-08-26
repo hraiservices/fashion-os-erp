@@ -6,8 +6,11 @@ import { useRouter } from "next/navigation";
 import { Upload, CheckCircle2, XCircle, Save } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useEmployees } from "@/hooks/use-employees";
 import { useCreateOrder } from "@/hooks/use-order-mutations";
 import { parseDelimitedText, type ParsedTable } from "@/lib/csv-parse";
+import type { Employee } from "@/lib/types";
+import { normalizeIndianMobile } from "@/lib/business-rules";
 import {
   IMPORT_FIELD_KEYS,
   IMPORT_FIELD_LABELS,
@@ -28,7 +31,21 @@ import { Badge } from "@/components/ui/badge";
 
 const UNMAPPED = "__unmapped__";
 
-function validateRows(table: ParsedTable, mapping: ImportMapping): ImportRowResult[] {
+/** Resolves a CSV tailor name to an employee id when it uniquely matches exactly one active
+ *  employee by name (case/whitespace-insensitive) — same "exact, unique match only" rule the
+ *  earlier orders.tailor backfill migration used, so an imported order's garment can actually
+ *  carry a real tailor id (and so show up correctly in piece-rate/payables reports) instead of
+ *  always landing as unresolved free text. Ambiguous or no-match names are left as-is; the
+ *  wizard flags them so staff can reassign via the order form's tailor dropdown. */
+function resolveTailor(rawName: string, employees: Employee[]): { tailor: string; unresolved: boolean } {
+  const q = rawName.trim().toLowerCase();
+  if (!q) return { tailor: "", unresolved: false };
+  const matches = employees.filter((e) => e.active && e.name.trim().toLowerCase() === q);
+  if (matches.length === 1) return { tailor: matches[0].id, unresolved: false };
+  return { tailor: rawName, unresolved: true };
+}
+
+function validateRows(table: ParsedTable, mapping: ImportMapping, employees: Employee[]): ImportRowResult[] {
   const colIndex = (field: ImportFieldKey) => {
     const header = mapping[field];
     return header ? table.headers.indexOf(header) : -1;
@@ -38,7 +55,10 @@ function validateRows(table: ParsedTable, mapping: ImportMapping): ImportRowResu
   return table.rows.map((row, rowIndex) => {
     const get = (f: ImportFieldKey) => (idx[f] >= 0 ? (row[idx[f]] || "").trim() : "");
 
-    const customerMobile = get("customerMobile");
+    // Zoho-style exports often carry "+91 98765-43210" formatting — normalize before use so
+    // this matches the exact mobile string customers/orders elsewhere in the app are keyed by,
+    // rather than silently creating a second, differently-formatted customer record.
+    const customerMobile = normalizeIndianMobile(get("customerMobile"));
     const customerName = get("customerName");
     const garmentType = get("garmentType");
     const totalRaw = get("total");
@@ -46,6 +66,7 @@ function validateRows(table: ParsedTable, mapping: ImportMapping): ImportRowResu
     const advanceRaw = get("advance");
     const advance = advanceRaw ? parseFloat(advanceRaw) : 0;
     const deliveryDate = get("deliveryDate");
+    const tailorResolved = resolveTailor(get("tailor"), employees);
 
     let error: string | undefined;
     if (!customerMobile) error = "Missing customer mobile";
@@ -64,11 +85,8 @@ function validateRows(table: ParsedTable, mapping: ImportMapping): ImportRowResu
       deliveryDate,
       total: Number.isNaN(total) ? 0 : total,
       advance: Number.isNaN(advance) ? 0 : advance,
-      // CSV rows carry a tailor NAME, but orders.tailor now stores an employee id — there's no
-      // resolution step here, so an imported order's tailor field lands as a free-text name,
-      // same as before the id upgrade. Known limitation: imported orders won't show a garment
-      // tailor in the new piece-rate UI until staff reassigns one via the order-form dropdown.
-      tailor: get("tailor"),
+      tailor: tailorResolved.tailor,
+      tailorUnresolved: tailorResolved.unresolved,
       notes: get("notes"),
     };
   });
@@ -78,6 +96,7 @@ export function OrderImportWizard() {
   const router = useRouter();
   const { data: user } = useCurrentUser();
   const { data: presetsSetting, save: savePresets } = useAppSetting<ImportMappingPresetsSetting>("orderImportPresets", DEFAULT_IMPORT_MAPPING_PRESETS);
+  const { data: employees } = useEmployees();
   const createOrder = useCreateOrder();
 
   const [table, setTable] = useState<ParsedTable | null>(null);
@@ -131,7 +150,7 @@ export function OrderImportWizard() {
       toast.error(`Map required fields: ${missingRequired.map((f) => IMPORT_FIELD_LABELS[f]).join(", ")}`);
       return;
     }
-    setResults(validateRows(table, mapping));
+    setResults(validateRows(table, mapping, employees || []));
   }
 
   async function runImport() {
@@ -141,15 +160,16 @@ export function OrderImportWizard() {
     setImporting(true);
     setImportedCount(0);
     let failed = 0;
+    let paymentWarnings = 0;
 
     for (const row of validRows) {
       try {
-        await createOrder.mutateAsync({
+        const res = await createOrder.mutateAsync({
           name: row.customerName,
           mobile: row.customerMobile,
           inDate: new Date().toISOString().slice(0, 10),
           deliveryDate: row.deliveryDate,
-          garments: [{ type: row.garmentType, amount: row.total }],
+          garments: [{ type: row.garmentType, amount: row.total, tailor: row.tailorUnresolved ? undefined : row.tailor || undefined }],
           total: row.total,
           advance: row.advance,
           tailor: row.tailor,
@@ -157,6 +177,9 @@ export function OrderImportWizard() {
           measurements: {},
           orderType: "new",
         });
+        // Surfaced per-import rather than per-row toast (would be noisy for a big file) — an
+        // advance that failed to reach the payments ledger previously vanished silently here.
+        if (res.paymentLedgerWarning) paymentWarnings++;
         setImportedCount((c) => c + 1);
       } catch {
         failed++;
@@ -166,11 +189,18 @@ export function OrderImportWizard() {
     setImporting(false);
     if (failed) toast.error(`Imported ${validRows.length - failed} orders, ${failed} failed`);
     else toast.success(`Imported ${validRows.length} orders`);
+    if (paymentWarnings > 0) {
+      toast.warning(
+        `${paymentWarnings} order(s) have an advance that couldn't be recorded in the payments ledger — open each and re-record the payment so it's deletable and shows in payment reports.`,
+        { duration: 15_000 }
+      );
+    }
     if (validRows.length - failed > 0) router.push("/orders");
   }
 
   const validCount = results?.filter((r) => r.ok).length || 0;
   const invalidCount = results ? results.length - validCount : 0;
+  const unresolvedTailorCount = results?.filter((r) => r.ok && r.tailorUnresolved && r.tailor).length || 0;
 
   return (
     <div className="space-y-5">
@@ -257,6 +287,9 @@ export function OrderImportWizard() {
                 <p className="text-sm font-medium">
                   <span className="text-emerald-600 dark:text-emerald-400">{validCount} valid</span>
                   {invalidCount > 0 && <span className="text-destructive"> · {invalidCount} invalid</span>}
+                  {unresolvedTailorCount > 0 && (
+                    <span className="text-amber-600 dark:text-amber-400"> · {unresolvedTailorCount} with an unrecognized tailor name</span>
+                  )}
                 </p>
                 <Button onClick={runImport} disabled={validCount === 0 || importing || !user?.perms.addOrder}>
                   {importing ? `Importing… (${importedCount}/${validCount})` : `Import ${validCount} orders`}
@@ -284,9 +317,15 @@ export function OrderImportWizard() {
                         <TableCell className="text-right tabular-nums">{r.advance}</TableCell>
                         <TableCell>
                           {r.ok ? (
-                            <Badge variant="secondary" className="gap-1">
-                              <CheckCircle2 className="size-3" /> OK
-                            </Badge>
+                            r.tailorUnresolved && r.tailor ? (
+                              <Badge variant="outline" className="gap-1 text-amber-600 dark:text-amber-400" title={`"${r.tailor}" didn't uniquely match an employee — reassign after import`}>
+                                <CheckCircle2 className="size-3" /> OK, tailor unresolved
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="gap-1">
+                                <CheckCircle2 className="size-3" /> OK
+                              </Badge>
+                            )
                           ) : (
                             <Badge variant="destructive" className="gap-1">
                               <XCircle className="size-3" /> {r.error}

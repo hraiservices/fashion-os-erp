@@ -22,6 +22,7 @@ import {
   type ImportRowResult,
 } from "@/lib/customer-import";
 import type { Customer } from "@/lib/types";
+import { normalizeIndianMobile } from "@/lib/business-rules";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -37,13 +38,16 @@ function validateRows(table: ParsedTable, mapping: ImportMapping, existingCustom
   };
   const idx = Object.fromEntries(IMPORT_FIELD_KEYS.map((f) => [f, colIndex(f)])) as Record<ImportFieldKey, number>;
 
-  const existingMobiles = new Set(existingCustomers.map((c) => c.mobile));
+  // Normalized on both sides — a Zoho export's "+91 98765-43210" must match this app's stored
+  // "9876543210" for dedup/customer-linking to actually work instead of silently creating a
+  // second customer record for the same real person.
+  const existingMobiles = new Set(existingCustomers.map((c) => normalizeIndianMobile(c.mobile)));
   const seenMobiles = new Set<string>();
 
   return table.rows.map((row, rowIndex) => {
     const get = (f: ImportFieldKey) => (idx[f] >= 0 ? (row[idx[f]] || "").trim() : "");
 
-    const mobile = get("mobile");
+    const mobile = normalizeIndianMobile(get("mobile"));
     const name = get("name");
 
     let error: string | undefined;

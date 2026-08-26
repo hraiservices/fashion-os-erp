@@ -62,6 +62,13 @@ export interface ImportRowResult {
   deliveryDate: string;
   total: number;
   advance: number;
+  /** Resolved employee id if the CSV's tailor name matched exactly one active employee,
+   *  otherwise the raw text is kept (see order-import-wizard.tsx's resolveTailor()) so it still
+   *  round-trips into orders.tailor as free text for manual reassignment later, same as before
+   *  this resolution step existed. */
   tailor: string;
+  /** True when `tailor` above is the raw, unresolved CSV text (no unique employee match) —
+   *  shown as a warning badge (not a hard error) so the row still imports. */
+  tailorUnresolved: boolean;
   notes: string;
 }

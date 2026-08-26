@@ -40,6 +40,12 @@ const bodySchema = z.object({
   docStatus: z.enum(["draft", "sent"]).default("draft"),
   terms: z.string().default(""),
   notes: z.string().default(""),
+  // For backdated/historical invoices (e.g. bulk import from another system) whose stock
+  // movement already happened in real life long before this invoice existed in the app —
+  // recording it again here would double-decrement whatever's actually on the shelf today.
+  // Only honored on CREATE (see isEdit check below); an edit to an existing invoice always
+  // reconciles the ledger normally, same as before.
+  skipInventoryEffect: z.boolean().default(false),
 });
 
 /**
@@ -154,22 +160,24 @@ export async function POST(request: Request) {
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const ledgerRows = fd.items
-    .filter((i) => i.productId && i.qty > 0)
-    .map((i) => ({
-      item_type: "product" as const,
-      item_id: i.productId!,
-      movement: -i.qty,
-      note: `Invoice ${invoiceNumber}`,
-      created_by: user.email,
-    }));
+  if (!(!isEdit && fd.skipInventoryEffect)) {
+    const ledgerRows = fd.items
+      .filter((i) => i.productId && i.qty > 0)
+      .map((i) => ({
+        item_type: "product" as const,
+        item_id: i.productId!,
+        movement: -i.qty,
+        note: `Invoice ${invoiceNumber}`,
+        created_by: user.email,
+      }));
 
-  const { error: ledgerError } = await supabase.rpc("replace_inventory_ledger", {
-    p_ref_type: "sale",
-    p_ref_id: data.id,
-    p_rows: ledgerRows,
-  });
-  if (ledgerError) return NextResponse.json({ error: ledgerError.message }, { status: 500 });
+    const { error: ledgerError } = await supabase.rpc("replace_inventory_ledger", {
+      p_ref_type: "sale",
+      p_ref_id: data.id,
+      p_rows: ledgerRows,
+    });
+    if (ledgerError) return NextResponse.json({ error: ledgerError.message }, { status: 500 });
+  }
 
   await logAction(supabase, user.email, isEdit ? `Invoice updated: ${invoiceNumber}` : `Invoice created: ${invoiceNumber}`, null, `₹${totals.total}`);
   return NextResponse.json({ ok: true, data });

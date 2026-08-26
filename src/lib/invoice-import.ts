@@ -1,4 +1,5 @@
 export const IMPORT_FIELD_KEYS = [
+  "invoiceNumber",
   "customerMobile",
   "customerName",
   "invoiceDate",
@@ -6,12 +7,16 @@ export const IMPORT_FIELD_KEYS = [
   "qty",
   "unitPrice",
   "discountPercent",
+  "paidAmount",
+  "paymentMethod",
+  "paymentDate",
   "notes",
 ] as const;
 
 export type ImportFieldKey = (typeof IMPORT_FIELD_KEYS)[number];
 
 export const IMPORT_FIELD_LABELS: Record<ImportFieldKey, string> = {
+  invoiceNumber: "Invoice number (groups multi-line invoices)",
   customerMobile: "Customer mobile",
   customerName: "Customer name",
   invoiceDate: "Invoice date",
@@ -19,6 +24,9 @@ export const IMPORT_FIELD_LABELS: Record<ImportFieldKey, string> = {
   qty: "Quantity",
   unitPrice: "Unit price",
   discountPercent: "Discount %",
+  paidAmount: "Amount already paid",
+  paymentMethod: "Payment method",
+  paymentDate: "Payment date",
   notes: "Notes",
 };
 
@@ -29,6 +37,7 @@ export type ImportMapping = Record<ImportFieldKey, string | null>;
 
 export function blankImportMapping(): ImportMapping {
   return {
+    invoiceNumber: null,
     customerMobile: null,
     customerName: null,
     invoiceDate: null,
@@ -36,6 +45,9 @@ export function blankImportMapping(): ImportMapping {
     qty: null,
     unitPrice: null,
     discountPercent: null,
+    paidAmount: null,
+    paymentMethod: null,
+    paymentDate: null,
     notes: null,
   };
 }
@@ -56,6 +68,10 @@ export interface ImportRowResult {
   rowIndex: number;
   ok: boolean;
   error?: string;
+  /** Raw value from the mapped column, "" if unmapped — rows sharing a non-empty value are
+   *  grouped into one invoice with multiple line items. Rows with "" each become their own
+   *  invoice (preserves the old one-row-per-invoice behavior when this column isn't mapped). */
+  invoiceNumber: string;
   customerMobile: string;
   customerName: string;
   invoiceDate: string;
@@ -64,5 +80,9 @@ export interface ImportRowResult {
   qty: number;
   unitPrice: number;
   discountPercent: number;
+  /** Only meaningful on the first row of a group — see groupRows() in the wizard. */
+  paidAmount: number;
+  paymentMethod: string;
+  paymentDate: string;
   notes: string;
 }

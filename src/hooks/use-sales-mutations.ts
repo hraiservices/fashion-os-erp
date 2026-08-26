@@ -124,6 +124,8 @@ interface SaveInvoiceInput {
   terms: string;
   notes: string;
   userEmail?: string;
+  /** Backdated/historical invoices only — skip decrementing current stock. See the route. */
+  skipInventoryEffect?: boolean;
 }
 
 /**

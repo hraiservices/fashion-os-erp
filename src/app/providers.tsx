@@ -15,7 +15,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
         defaultOptions: {
           queries: {
             staleTime: 30_000,
-            refetchOnWindowFocus: false,
+            // This app is money-critical: reports and pages read live balances that other
+            // screens (or another device/tab) can change seconds earlier — deleting a payment,
+            // recording one, editing an order. Relying on every single mutation to remember to
+            // invalidate every report's query key is exactly the fragile pattern that kept
+            // producing "stale until I hard-refresh" bugs (Day Book showing a deleted payment's
+            // total, the order Payments list not updating, etc.) — one missed invalidation
+            // anywhere and a screen silently lies about money. Instead, always revalidate
+            // in the background whenever a screen is (re)mounted or the tab regains focus;
+            // staleTime above still avoids duplicate refetches within a single active view.
+            refetchOnMount: "always",
+            refetchOnWindowFocus: true,
           },
         },
       })

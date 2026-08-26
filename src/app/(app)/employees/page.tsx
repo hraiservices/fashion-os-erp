@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, UserCog, Pencil, Trash2, ChevronRight, CalendarCheck } from "lucide-react";
+import { Plus, Search, UserCog, Pencil, Trash2, ChevronRight, CalendarCheck, Link2 } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
+import { useUserRoles } from "@/hooks/use-user-roles";
 import { useDeleteEmployee } from "@/hooks/use-employee-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { PageHeader } from "@/components/ui/page-header";
@@ -31,10 +32,13 @@ function EmployeesPageContent() {
   const router = useRouter();
   const { data: employees, isLoading } = useEmployees();
   const { data: user } = useCurrentUser();
+  const canSeeLinkedUsers = !!user?.perms.manageUsers;
+  const { data: userRoles } = useUserRoles(canSeeLinkedUsers);
   const deleteEmployee = useDeleteEmployee();
   const [search, setSearch] = useState("");
 
   const canManage = !!user?.perms.manageEmployees;
+  const linkedEmailByEmployeeId = new Map((userRoles || []).filter((r) => r.linked_employee_id).map((r) => [r.linked_employee_id as string, r.email]));
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -109,6 +113,11 @@ function EmployeesPageContent() {
               {!e.active && (
                 <Badge variant="outline" className="shrink-0 text-muted-foreground">
                   Inactive
+                </Badge>
+              )}
+              {canSeeLinkedUsers && linkedEmailByEmployeeId.has(e.id) && (
+                <Badge variant="outline" className="shrink-0 gap-1 text-emerald-600 dark:text-emerald-400" title={`Login: ${linkedEmailByEmployeeId.get(e.id)}`}>
+                  <Link2 className="size-3" /> Linked
                 </Badge>
               )}
               {canManage && (

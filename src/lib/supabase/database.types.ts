@@ -218,6 +218,7 @@ export interface Database {
           role: string;
           phone: string | null;
           custom_permissions: Json;
+          linked_employee_id: string | null;
           created_at: string;
           updated_at: string;
         };

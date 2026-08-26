@@ -2,13 +2,15 @@
 
 import { Fragment, useState } from "react";
 import { toast } from "sonner";
-import { useUserRoles, useSetUserRole, useRenameUserEmail, useSetUserPhone, type UserRoleRow } from "@/hooks/use-user-roles";
+import { useUserRoles, useSetUserRole, useRenameUserEmail, useSetUserPhone, useLinkEmployeeToUser, type UserRoleRow } from "@/hooks/use-user-roles";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
+import { useEmployees } from "@/hooks/use-employees";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { X, Check, ChevronDown, ChevronRight, Info } from "lucide-react";
+import { X, Check, ChevronDown, ChevronRight, Info, Link2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchSelect } from "@/components/ui/search-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -96,9 +98,13 @@ function RoleReferenceCard() {
 export function UsersSection() {
   const { data: rows, isLoading } = useUserRoles();
   const { data: entitlements } = useModuleEntitlements();
+  const { data: employees } = useEmployees();
   const setRole = useSetUserRole();
   const renameEmail = useRenameUserEmail();
   const setPhone = useSetUserPhone();
+  const linkEmployee = useLinkEmployeeToUser();
+
+  const employeesById = new Map((employees || []).map((e) => [e.id, e]));
 
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState("tailor");
@@ -180,6 +186,15 @@ export function UsersSection() {
       toast.success(cleaned ? "Phone number saved" : "Phone number removed");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save phone");
+    }
+  }
+
+  async function linkToEmployee(row: UserRoleRow, employeeId: string | null) {
+    try {
+      await linkEmployee.mutateAsync({ email: row.email, employeeId });
+      toast.success(employeeId ? "Linked to employee" : "Unlinked from employee");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update link");
     }
   }
 
@@ -296,10 +311,34 @@ export function UsersSection() {
                       Customized
                     </Badge>
                   )}
+                  {row.linked_employee_id && employeesById.get(row.linked_employee_id) && (
+                    <Badge variant="outline" className="gap-1 text-emerald-600 dark:text-emerald-400">
+                      <Link2 className="size-3" /> {employeesById.get(row.linked_employee_id)!.name}
+                    </Badge>
+                  )}
                 </div>
 
                 {isExpanded && (
                   <div className="space-y-3 border-t bg-muted/20 p-3">
+                    <div>
+                      <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Linked employee</p>
+                      <SearchSelect
+                        className="max-w-xs"
+                        inputClassName="h-9"
+                        placeholder="Type a name or mobile number…"
+                        value={row.linked_employee_id || ""}
+                        fallbackLabel={row.linked_employee_id ? employeesById.get(row.linked_employee_id)?.name : undefined}
+                        options={(employees || [])
+                          .filter((e) => e.id === row.linked_employee_id || !(rows || []).some((r) => r.linked_employee_id === e.id))
+                          .map((e) => ({ value: e.id, label: e.name, sublabel: e.mobile }))}
+                        onSelect={(id) => linkToEmployee(row, id || null)}
+                      />
+                      {row.linked_employee_id && (
+                        <button type="button" onClick={() => linkToEmployee(row, null)} className="mt-1 text-xs text-muted-foreground hover:text-destructive">
+                          Unlink
+                        </button>
+                      )}
+                    </div>
                     {PERMISSION_GROUPS.map((group) => (
                       <div key={group.label}>
                         <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{group.label}</p>

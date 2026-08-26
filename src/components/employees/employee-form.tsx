@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { EmployeePinManager } from "@/components/employees/employee-pin-manager";
+import { LinkedUserAccountManager } from "@/components/employees/linked-user-account-manager";
 import type { Employee, CommissionType, SalaryType } from "@/lib/types";
 import { SALARY_TYPE_LABELS } from "@/lib/payroll";
 
@@ -295,6 +296,7 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
             ) : (
               <p className="text-[11px] text-muted-foreground">Save this employee first, then come back to set their self check-in PIN.</p>
             )}
+            {isEdit && user?.perms.manageUsers && <LinkedUserAccountManager employeeId={existing!.id} />}
           </div>
         </div>
 

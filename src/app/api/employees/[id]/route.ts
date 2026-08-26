@@ -13,6 +13,14 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const { data: employee } = await supabase.from("employees").select("id, name").eq("id", id).maybeSingle();
   if (!employee) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
 
+  const { data: linkedUser } = await supabase.from("user_roles").select("email").eq("linked_employee_id", id).maybeSingle();
+  if (linkedUser) {
+    return NextResponse.json(
+      { error: `This employee is linked to the login for ${linkedUser.email}. Unlink it from Users & Roles first.` },
+      { status: 409 }
+    );
+  }
+
   const { error } = await supabase.from("employees").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

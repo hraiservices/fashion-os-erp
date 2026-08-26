@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { generateInvoiceFromProfile } from "@/lib/generate-recurring-invoice";
 import { recurringProfileIsDue } from "@/lib/recurring-invoices";
+import { istDateString } from "@/lib/ist-date";
 import { mapRecurringInvoiceProfileRow } from "@/lib/types";
 
 /**
@@ -28,7 +29,7 @@ export async function GET(req: Request) {
   const { data: rows, error } = await supabase.from("recurring_invoice_profiles").select("*").eq("active", true);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = istDateString();
   const dueProfiles = (rows || []).map(mapRecurringInvoiceProfileRow).filter((p) => recurringProfileIsDue(p, today));
 
   const results: { profileId: string; invoiceNumber?: string; error?: string }[] = [];

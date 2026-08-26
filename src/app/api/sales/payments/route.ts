@@ -25,7 +25,11 @@ const bodySchema = z.object({
 export async function POST(request: Request) {
   const { supabase, user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  if (!user.perms.manageSales) return NextResponse.json({ error: "No permission to record sales payments" }, { status: 403 });
+  // managePayments, not manageSales — matches the invoice detail page's own gate on its
+  // "Record payment" button and the DELETE route below it, which already made this switch.
+  // Was manageSales, so a user granted managePayments but not manageSales saw the button,
+  // filled the form, and got a 403 on submit.
+  if (!user.perms.managePayments) return NextResponse.json({ error: "No permission to record sales payments" }, { status: 403 });
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });

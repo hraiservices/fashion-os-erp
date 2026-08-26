@@ -129,7 +129,7 @@ export default function RecurringInvoicesPage() {
                     {canManage && (
                       <TableCell>
                         <div className="flex justify-end gap-1">
-                          <Button variant="outline" size="sm" onClick={() => handleGenerateNow(p)} disabled={generateNow.isPending || ended}>
+                          <Button variant="outline" size="sm" onClick={() => handleGenerateNow(p)} disabled={generateNow.isPending || ended || !due} title={!ended && !due ? "Not due yet" : undefined}>
                             Generate now
                           </Button>
                           <Button variant="ghost" size="icon-sm" onClick={() => handleToggleActive(p.id, p.active)} disabled={ended} aria-label={p.active ? "Pause" : "Resume"}>
@@ -174,7 +174,7 @@ export default function RecurringInvoicesPage() {
                 />
                 {canManage && (
                   <div className="flex justify-end gap-1 pt-1">
-                    <Button variant="outline" size="sm" onClick={() => handleGenerateNow(p)} disabled={generateNow.isPending || ended}>
+                    <Button variant="outline" size="sm" onClick={() => handleGenerateNow(p)} disabled={generateNow.isPending || ended || !due} title={!ended && !due ? "Not due yet" : undefined}>
                       Generate now
                     </Button>
                     <Button variant="ghost" size="icon-sm" onClick={() => handleToggleActive(p.id, p.active)} disabled={ended} aria-label={p.active ? "Pause" : "Resume"}>

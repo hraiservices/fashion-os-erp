@@ -46,14 +46,14 @@ export async function POST(request: Request) {
   // H-2: Guard — total credits issued must not exceed the original invoice amount.
   const { data: invoice } = await supabase
     .from("sales_invoices")
-    .select("total")
+    .select("total, items")
     .eq("id", fd.invoiceId)
     .single();
   if (!invoice) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
 
   const { data: existingCredits } = await supabase
     .from("sales_credit_notes")
-    .select("total")
+    .select("total, items")
     .eq("invoice_id", fd.invoiceId);
 
   const creditedSoFar = (existingCredits || []).reduce((s, c) => s + (c.total || 0), 0);
@@ -64,6 +64,35 @@ export async function POST(request: Request) {
       { error: `Credit note of ₹${total} exceeds the creditable balance of ₹${maxAllowed.toFixed(2)} (invoice ₹${invoice.total} minus ₹${creditedSoFar} already credited)` },
       { status: 422 }
     );
+  }
+
+  // Was previously validated only by aggregate ₹ total, never against what the invoice
+  // actually contained — a credit note could reference a product/quantity never sold on this
+  // invoice at all, inserting a phantom restock into inventory_ledger. Cap each returned
+  // line's quantity at (that product's invoiced quantity − already-credited quantity).
+  const invoicedQty = new Map<string, number>();
+  for (const i of (invoice.items as unknown as SalesLineItem[]) || []) {
+    if (!i.productId) continue;
+    invoicedQty.set(i.productId, (invoicedQty.get(i.productId) || 0) + (i.qty || 0));
+  }
+  const alreadyCreditedQty = new Map<string, number>();
+  for (const c of existingCredits || []) {
+    for (const i of (c.items as unknown as SalesLineItem[]) || []) {
+      if (!i.productId) continue;
+      alreadyCreditedQty.set(i.productId, (alreadyCreditedQty.get(i.productId) || 0) + (i.qty || 0));
+    }
+  }
+  for (const i of fd.items) {
+    if (!i.productId) continue;
+    const invoiced = invoicedQty.get(i.productId) || 0;
+    const creditedForItem = alreadyCreditedQty.get(i.productId) || 0;
+    const remaining = invoiced - creditedForItem;
+    if (i.qty > remaining + 0.001) {
+      return NextResponse.json(
+        { error: `Cannot return ${i.qty} of "${i.productName}" — only ${Math.max(0, remaining)} of that item on this invoice remain un-returned.` },
+        { status: 422 }
+      );
+    }
   }
 
   const { data: creditNote, error } = await supabase

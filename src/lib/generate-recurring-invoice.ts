@@ -2,7 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { computeInvoiceTotals } from "@/lib/invoice-totals";
 import { genInvoiceNumber } from "@/lib/sales";
-import { advanceRecurringDate, recurringProfileHasEnded } from "@/lib/recurring-invoices";
+import { advanceRecurringDate, recurringProfileHasEnded, recurringProfileIsDue } from "@/lib/recurring-invoices";
+import { istDateString } from "@/lib/ist-date";
 import type { RecurringInvoiceProfile } from "@/lib/types";
 
 /**
@@ -10,15 +11,26 @@ import type { RecurringInvoiceProfile } from "@/lib/types";
  * shared by the manual "Generate now" button (browser client, logged-in user) and the
  * cron API route (service-role client, no user session). Same math, same stock-ledger
  * write as a normal manually-created invoice (lib/invoice-totals.ts + inventory_ledger).
+ *
+ * The due/active check lives here, not just at the cron route's own pre-filter, because the
+ * manual "Generate now" button called this directly with no such check at all — its own
+ * button was only ever disabled while a request was in flight or the profile had fully ended,
+ * never while merely "not due yet" or paused. That let a not-yet-due (or paused) profile be
+ * fired a second time for the same billing period, double-generating an invoice (and
+ * double-decrementing stock) for it.
  */
 export async function generateInvoiceFromProfile(
   supabase: SupabaseClient<Database>,
   profile: RecurringInvoiceProfile,
   userEmail?: string | null
 ): Promise<{ invoiceId: string; invoiceNumber: string }> {
+  if (!recurringProfileIsDue(profile)) {
+    throw new Error(profile.active ? "This profile isn't due to generate an invoice yet." : "This profile is paused and can't generate invoices.");
+  }
+
   const totals = computeInvoiceTotals(profile.items, profile.shippingCharges, profile.discountType, profile.discountValue, profile.taxRate, profile.gstType);
   const invoiceNumber = genInvoiceNumber();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = istDateString();
 
   const { data, error } = await supabase
     .from("sales_invoices")

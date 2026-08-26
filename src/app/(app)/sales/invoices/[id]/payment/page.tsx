@@ -83,6 +83,14 @@ export default function RecordSalesPaymentPage({ params }: { params: Promise<{ i
     );
   }
 
+  if (!user?.perms.managePayments) {
+    return (
+      <div className="mx-auto max-w-6xl p-4 sm:p-6">
+        <EmptyState icon={Wallet} title="Not available" description="Only users with payment permissions can record a payment." />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
       <div className="flex items-center gap-2">

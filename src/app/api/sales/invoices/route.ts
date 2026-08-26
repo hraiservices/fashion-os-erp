@@ -67,17 +67,40 @@ export async function POST(request: Request) {
 
   const isEdit = !!fd.id;
 
-  // H-3: Block financial edits on invoices that have payments.
+  // H-3: Block financial edits on invoices that have payments OR credit notes. Credit notes
+  // were missing here — an invoice with a credit note but zero payments could still be edited,
+  // and replace_inventory_ledger's delete-then-reinsert would silently revert the original
+  // sale's stock decrement while the credit note's separate restock still stood, netting a
+  // stock gain that never actually happened (and letting the edited total drop below what's
+  // already been credited).
   if (isEdit) {
-    const { data: payments } = await supabase
-      .from("sales_payments")
-      .select("id")
-      .eq("invoice_id", fd.id!)
-      .limit(1);
+    const [{ data: payments }, { data: credits }] = await Promise.all([
+      supabase.from("sales_payments").select("id").eq("invoice_id", fd.id!).limit(1),
+      supabase.from("sales_credit_notes").select("id").eq("invoice_id", fd.id!).limit(1),
+    ]);
 
     if (payments && payments.length > 0) {
       return NextResponse.json(
         { error: "This invoice has payments recorded against it. Financial details cannot be changed — void and reissue if a correction is needed." },
+        { status: 409 }
+      );
+    }
+    if (credits && credits.length > 0) {
+      return NextResponse.json(
+        { error: "This invoice has credit notes recorded against it. Financial details cannot be changed — void and reissue if a correction is needed." },
+        { status: 409 }
+      );
+    }
+  }
+
+  // Converting a quotation to an invoice had no idempotency guard — clicking "Convert to
+  // invoice" twice (double-click, or retrying after navigating away before the redirect)
+  // created two separate invoices from the same quote, each independently decrementing stock.
+  if (!isEdit && fd.quoteId) {
+    const { data: existingForQuote } = await supabase.from("sales_invoices").select("id, invoice_number").eq("quote_id", fd.quoteId).limit(1).maybeSingle();
+    if (existingForQuote) {
+      return NextResponse.json(
+        { error: `This quotation was already converted to invoice ${existingForQuote.invoice_number}.` },
         { status: 409 }
       );
     }
@@ -177,6 +200,10 @@ export async function POST(request: Request) {
       p_rows: ledgerRows,
     });
     if (ledgerError) return NextResponse.json({ error: ledgerError.message }, { status: 500 });
+  }
+
+  if (!isEdit && fd.quoteId) {
+    await supabase.from("sales_quotations").update({ status: "accepted" }).eq("id", fd.quoteId);
   }
 
   await logAction(supabase, user.email, isEdit ? `Invoice updated: ${invoiceNumber}` : `Invoice created: ${invoiceNumber}`, null, `₹${totals.total}`);

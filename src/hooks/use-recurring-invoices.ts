@@ -2,8 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { logAction } from "@/lib/logging";
-import { generateInvoiceFromProfile } from "@/lib/generate-recurring-invoice";
 import { mapRecurringInvoiceProfileRow, type RecurringInvoiceProfile, type RecurringFrequency, type RecurringEndType } from "@/lib/types";
 import type { SalesLineItem } from "@/lib/sales";
 import type { GstType } from "@/lib/gst";
@@ -15,6 +13,20 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["sales-invoices"] });
   qc.invalidateQueries({ queryKey: ["products"] });
   qc.invalidateQueries({ queryKey: ["inventory-ledger"] });
+}
+
+async function apiPost<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+async function apiDelete<T>(url: string): Promise<T> {
+  const res = await fetch(url, { method: "DELETE" });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
 }
 
 export function useRecurringInvoiceProfiles() {
@@ -65,41 +77,11 @@ interface SaveRecurringProfileInput {
   userEmail?: string;
 }
 
+/** Previously ran entirely client-side with no permission check — see the API route's comment. */
 export function useSaveRecurringInvoiceProfile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: SaveRecurringProfileInput) => {
-      const supabase = createClient();
-      const isNew = !input.id;
-      const { data, error } = await supabase
-        .from("recurring_invoice_profiles")
-        .upsert({
-          id: input.id,
-          name: input.name,
-          customer_mobile: input.customerMobile,
-          customer_name: input.customerName,
-          items: input.items as never,
-          subject: input.subject,
-          shipping_charges: input.shippingCharges,
-          discount_type: input.discountType,
-          discount_value: input.discountValue,
-          gst_type: input.gstType,
-          tax_rate: input.taxRate,
-          terms: input.terms,
-          notes: input.notes,
-          frequency: input.frequency,
-          next_run_date: input.nextRunDate,
-          end_type: input.endType,
-          end_date: input.endDate,
-          end_after_count: input.endAfterCount,
-          created_by: input.userEmail || null,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      await logAction(supabase, input.userEmail, isNew ? `Recurring invoice profile created: ${input.name}` : `Recurring invoice profile updated: ${input.name}`);
-      return data;
-    },
+    mutationFn: async (input: SaveRecurringProfileInput) => (await apiPost<{ profile: unknown }>("/api/sales/recurring-invoices", input)).profile,
     onSuccess: () => invalidateAll(qc),
   });
 }
@@ -107,12 +89,7 @@ export function useSaveRecurringInvoiceProfile() {
 export function useDeleteRecurringInvoiceProfile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name, userEmail }: { id: string; name: string; userEmail?: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("recurring_invoice_profiles").delete().eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `Recurring invoice profile deleted: ${name}`);
-    },
+    mutationFn: ({ id }: { id: string; name: string; userEmail?: string }) => apiDelete<{ ok: true }>(`/api/sales/recurring-invoices/${id}`),
     onSuccess: () => invalidateAll(qc),
   });
 }
@@ -120,25 +97,18 @@ export function useDeleteRecurringInvoiceProfile() {
 export function useSetRecurringInvoiceProfileActive() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("recurring_invoice_profiles").update({ active }).eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: ({ id, active }: { id: string; active: boolean }) => apiPost<{ ok: true }>(`/api/sales/recurring-invoices/${id}/active`, { active }),
     onSuccess: () => invalidateAll(qc),
   });
 }
 
-/** Manual "Generate now" trigger — the logged-in user's own session/RLS, no service role needed. */
+/** Manual "Generate now" trigger — server re-fetches the current profile row itself rather
+ *  than trusting whatever the browser already had in memory; see the route's comment. */
 export function useGenerateRecurringInvoiceNow() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ profile, userEmail }: { profile: RecurringInvoiceProfile; userEmail?: string }) => {
-      const supabase = createClient();
-      const result = await generateInvoiceFromProfile(supabase, profile, userEmail);
-      await logAction(supabase, userEmail, `Recurring invoice generated: ${result.invoiceNumber} (from profile ${profile.name})`);
-      return result;
-    },
+    mutationFn: ({ profile }: { profile: RecurringInvoiceProfile; userEmail?: string }) =>
+      apiPost<{ invoiceId: string; invoiceNumber: string }>(`/api/sales/recurring-invoices/${profile.id}/generate-now`, {}),
     onSuccess: () => invalidateAll(qc),
   });
 }

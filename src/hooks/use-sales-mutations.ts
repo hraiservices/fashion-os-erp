@@ -50,42 +50,11 @@ interface SaveQuotationInput {
   userEmail?: string;
 }
 
+/** Previously ran entirely client-side with no permission check — see the API route's comment. */
 export function useSaveQuotation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: SaveQuotationInput) => {
-      const supabase = createClient();
-      const isNew = !input.id;
-      const taxableAmount = computeLineItemsTotal(input.items);
-      const gst = computeGst(taxableAmount, input.taxRate, input.gstType);
-
-      const { data, error } = await supabase
-        .from("sales_quotations")
-        .upsert({
-          id: input.id,
-          quote_number: input.quoteNumber,
-          customer_mobile: input.customerMobile,
-          customer_name: input.customerName,
-          date: input.date,
-          valid_until: input.validUntil || null,
-          status: input.status,
-          items: input.items as never,
-          taxable_amount: gst.taxableAmount,
-          gst_type: input.gstType,
-          tax_rate: input.taxRate,
-          cgst: gst.cgst,
-          sgst: gst.sgst,
-          igst: gst.igst,
-          total: gst.total,
-          notes: input.notes.trim(),
-          created_by: input.userEmail || null,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      await logAction(supabase, input.userEmail, isNew ? `Quotation created: ${input.quoteNumber}` : `Quotation updated: ${input.quoteNumber}`, null, `₹${gst.total}`);
-      return data;
-    },
+    mutationFn: async (input: SaveQuotationInput) => (await apiPost<{ quotation: { id: string } }>("/api/sales/quotations", input)).quotation,
     onSuccess: () => invalidateAll(qc),
   });
 }
@@ -93,12 +62,8 @@ export function useSaveQuotation() {
 export function useSetQuotationStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, quoteNumber, status, userEmail }: { id: string; quoteNumber: string; status: QuoteStatus; userEmail?: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("sales_quotations").update({ status }).eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `Quotation ${quoteNumber} marked ${status}`);
-    },
+    mutationFn: ({ id, status }: { id: string; quoteNumber: string; status: QuoteStatus; userEmail?: string }) =>
+      apiPost<{ ok: true }>(`/api/sales/quotations/${id}/status`, { status }),
     onSuccess: () => invalidateAll(qc),
   });
 }
@@ -151,15 +116,12 @@ export function useSaveInvoice() {
 }
 
 /** Toggles the lightweight Draft/Sent label — purely a "have I sent this yet" marker, no stock impact. */
+/** Previously ran entirely client-side with no permission check — see the API route's comment. */
 export function useSetInvoiceDocStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, invoiceNumber, docStatus, userEmail }: { id: string; invoiceNumber: string; docStatus: InvoiceDocStatus; userEmail?: string }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("sales_invoices").update({ doc_status: docStatus }).eq("id", id);
-      if (error) throw error;
-      await logAction(supabase, userEmail, `Invoice ${invoiceNumber} marked ${docStatus}`);
-    },
+    mutationFn: ({ id, docStatus }: { id: string; invoiceNumber: string; docStatus: InvoiceDocStatus; userEmail?: string }) =>
+      apiPost<{ ok: true }>(`/api/sales/invoices/${id}/doc-status`, { docStatus }),
     onSuccess: () => invalidateAll(qc),
   });
 }

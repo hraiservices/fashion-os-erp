@@ -35,6 +35,8 @@ function getSecret(): string {
 /** Callers that can react gracefully (e.g. return a clean 503) should check this first,
  *  rather than let signAttendanceToken/verifyAttendanceToken throw. */
 export function isAttendanceConfigured(): boolean {
+  // Trivial touch to force a fresh Vercel build that re-reads ATTENDANCE_SESSION_SECRET,
+  // ruling out any ambiguity from a prior "Redeploy" not fully rebuilding.
   return !!process.env.ATTENDANCE_SESSION_SECRET;
 }
 

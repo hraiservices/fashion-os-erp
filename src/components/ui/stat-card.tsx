@@ -12,13 +12,6 @@ const TONE: Record<StatTone, { icon: string; value: string }> = {
   success: { icon: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300", value: "text-emerald-700 dark:text-emerald-400" },
 };
 
-const PROGRESS_BAR: Record<StatTone, string> = {
-  default: "from-sky-400 to-sky-500",
-  warning: "from-amber-400 to-amber-500",
-  danger: "from-red-400 to-red-500",
-  success: "from-emerald-400 to-emerald-500",
-};
-
 export function StatCard({
   label,
   value,
@@ -51,15 +44,18 @@ export function StatCard({
       <p className={cn("mt-2 text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl", t.value)}>{value}</p>
       {hint && <p className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</p>}
       {progress && (
-        <div className="mt-3">
-          <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className={cn("h-full rounded-full bg-gradient-to-r transition-[width] duration-500", PROGRESS_BAR[tone])}
-              style={{ width: `${pct}%` }}
-            />
+        <div className="mt-4">
+          <div className="mb-2 h-2 overflow-hidden rounded-full bg-muted">
+            <div className="flex h-full">
+              <div className="h-full rounded-l-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+              <div className="h-full flex-1 rounded-r-full bg-red-500" />
+            </div>
           </div>
-          <p className="mt-1.5 flex items-baseline justify-between text-[11px] text-muted-foreground">
-            <span>{progress.caption}</span>
+          <p className="flex items-baseline justify-between text-xs">
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <span className="inline-block size-2.5 rounded-full bg-emerald-500" />
+              {progress.caption}
+            </span>
             <span className="font-medium tabular-nums text-foreground">{Math.round(pct)}%</span>
           </p>
         </div>

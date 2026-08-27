@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Scissors, UserPlus, TrendingUp, CreditCard, Users, ClipboardList, BarChart2, Receipt, Settings2, Check, Wallet } from "lucide-react";
+import { Scissors, UserPlus, ClipboardList, Receipt, Settings2, Check, Wallet } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useDashboardLayout } from "@/hooks/use-dashboard-layout";
@@ -99,20 +99,6 @@ export default function DashboardPage() {
         }
       />
 
-      {/* Quick actions — fixed navigation chrome, not a customizable widget */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {user?.perms.addOrder && <QuickAction href="/orders/new" icon={Plus} label="New order" />}
-        {!user?.restricted && user?.perms.manageCustomers && <QuickAction href="/crm/new" icon={UserPlus} label="New customer" />}
-        <QuickAction href="/orders" icon={ClipboardList} label="All orders" />
-        <QuickAction href="/orders?view=board" icon={Scissors} label="Work board" />
-        {!user?.restricted && <QuickAction href="/crm" icon={Users} label="Customers" />}
-        {!user?.restricted && <QuickAction href="/reports/monthly" icon={BarChart2} label="Reports" />}
-        {!user?.restricted && <QuickAction href="/expenses" icon={Receipt} label="Expenses" />}
-        {!user?.restricted && <QuickAction href="/activity-log" icon={TrendingUp} label="Activity" />}
-        {user?.perms.manageSales && <QuickAction href="/sales/invoices/new" icon={Receipt} label="New invoice" />}
-        {user?.perms.manageManufacturing && <QuickAction href="/manufacturing/new" icon={CreditCard} label="New work order" />}
-      </div>
-
       {!initializedRef.current && (layoutLoading || entitlementsLoading) ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -125,17 +111,5 @@ export default function DashboardPage() {
 
       <CustomizePanel open={panelOpen} onOpenChange={setPanelOpen} widgets={widgets} onChange={handleChange} />
     </div>
-  );
-}
-
-function QuickAction({ href, icon: Icon, label }: { href: string; icon: typeof Plus; label: string }) {
-  return (
-    <Link
-      href={href}
-      className="flex min-h-16 flex-col items-center justify-center gap-1.5 rounded-xl border bg-card p-3 text-center text-xs font-medium transition-colors hover:bg-muted/50 active:scale-[0.98]"
-    >
-      <Icon className="size-5 text-muted-foreground" />
-      {label}
-    </Link>
   );
 }

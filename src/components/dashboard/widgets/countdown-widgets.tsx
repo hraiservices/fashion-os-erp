@@ -6,25 +6,10 @@ import { AlarmClock, Wallet } from "lucide-react";
 import { useOrders } from "@/hooks/use-orders";
 import { isOrderOutstanding } from "@/lib/balances";
 import { inr } from "@/lib/format";
+import { deliveryTarget } from "@/lib/delivery-countdown";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Order } from "@/lib/types";
-
-/** Resolves the delivery deadline to an exact millisecond target. When the order has a
- * delivery_time ("HH:mm"), that's the real promised moment. Legacy/blank-time orders fall
- * back to end-of-day, same as before this field existed. */
-function deliveryTarget(dateStr: string, timeStr?: string): number {
-  const d = new Date(dateStr);
-  if (timeStr) {
-    const [h, m] = timeStr.split(":").map(Number);
-    if (!Number.isNaN(h) && !Number.isNaN(m)) {
-      d.setHours(h, m, 0, 0);
-      return d.getTime();
-    }
-  }
-  d.setHours(23, 59, 59, 999);
-  return d.getTime();
-}
 
 /** One row per distinct customer (by mobile) — keeps the "next 10" list from being crowded
  * out by a single repeat customer with several orders. Each customer's most urgent (soonest

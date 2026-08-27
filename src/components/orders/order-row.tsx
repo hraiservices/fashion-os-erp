@@ -7,6 +7,7 @@ import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
 import { inr, fmtDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { deliveryTarget, formatCountdownDHM, useCountdownNow } from "@/lib/delivery-countdown";
 import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
 import { AlterationBadge, ReworkBadge } from "@/components/orders/order-card";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,21 @@ interface TableRowProps extends RowProps {
   selection?: ReturnType<typeof useRowSelection>;
   /** Only present when the viewer has viewReports — see orders/page.tsx. */
   profit?: OrderProfitBreakdown;
+}
+
+/** Live days:hours:minutes-remaining readout for orders still awaiting delivery — mirrors the
+ * dashboard's "Delivery Countdown" widget, minus the seconds tick, since a list row doesn't need
+ * per-second precision. Orders already delivered/paid have nothing left to count down to. */
+function DeliveryCountdown({ order }: { order: Order }) {
+  const now = useCountdownNow();
+  if (!order.deliveryDate || order.status === "delivered" || order.status === "payment") return null;
+  const { text, overdue } = formatCountdownDHM(deliveryTarget(order.deliveryDate, order.deliveryTime) - now);
+  return (
+    <p className="font-mono text-[11px] font-medium tabular-nums text-red-600 dark:text-red-400">
+      {overdue && "−"}
+      {text}
+    </p>
+  );
 }
 
 function AdvanceButton({ order, onAdvance, advancing, compact }: RowProps & { compact?: boolean }) {
@@ -115,6 +131,8 @@ export function OrderCardRow(props: RowProps) {
           <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums">{inr(order.total)}</span>
         </div>
 
+        <DeliveryCountdown order={order} />
+
         {order.tailor && (
           <p className="mt-1.5 truncate text-xs text-muted-foreground">
             Tailor: <span className="font-medium text-foreground">{tailorName?.(order.tailor) || order.tailor}</span>
@@ -193,6 +211,7 @@ export function OrderTableRow(props: TableRowProps) {
             <span className="text-sm">{fmtDateShort(order.deliveryDate)}</span>
             <DueBadge order={order} />
           </div>
+          <DeliveryCountdown order={order} />
         </td>
       )}
       {isVisible("total") && <td className="px-3 py-3 text-right tabular-nums">{inr(order.total)}</td>}

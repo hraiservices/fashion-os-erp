@@ -74,20 +74,20 @@ export default function DashboardPage() {
         actions={
           <>
             {user?.perms.addOrder && (
-              <Button variant="outline" nativeButton={false} render={<Link href="/orders/new" />} className="hidden sm:inline-flex">
+              <Button nativeButton={false} render={<Link href="/orders/new" />} className="hidden sm:inline-flex">
                 <ClipboardList className="size-4" /> New Order
               </Button>
             )}
             {user?.perms.manageSales && (
-              <Button variant="outline" nativeButton={false} render={<Link href="/sales/invoices/new" />} className="hidden sm:inline-flex">
+              <Button nativeButton={false} render={<Link href="/sales/invoices/new" />} className="hidden sm:inline-flex">
                 <Receipt className="size-4" /> New Invoice
               </Button>
             )}
-            <Button variant="outline" nativeButton={false} render={<Link href="/expenses/new" />} className="hidden sm:inline-flex">
+            <Button nativeButton={false} render={<Link href="/expenses/new" />} className="hidden sm:inline-flex">
               <Wallet className="size-4" /> New Expense
             </Button>
             {(user?.perms.manageCustomers || user?.role === "admin" || user?.role === "manager") && (
-              <Button variant="outline" nativeButton={false} render={<Link href="/crm/new" />} className="hidden sm:inline-flex">
+              <Button nativeButton={false} render={<Link href="/crm/new" />} className="hidden sm:inline-flex">
                 <UserPlus className="size-4" /> New Customer
               </Button>
             )}

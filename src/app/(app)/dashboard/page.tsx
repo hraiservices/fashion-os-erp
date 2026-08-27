@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Scissors, UserPlus, TrendingUp, CreditCard, Users, ClipboardList, BarChart2, Receipt, Settings2, Check } from "lucide-react";
+import { Plus, Scissors, UserPlus, TrendingUp, CreditCard, Users, ClipboardList, BarChart2, Receipt, Settings2, Check, Wallet } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useDashboardLayout } from "@/hooks/use-dashboard-layout";
@@ -74,8 +74,21 @@ export default function DashboardPage() {
         actions={
           <>
             {user?.perms.addOrder && (
-              <Button nativeButton={false} render={<Link href="/orders/new" />} className="hidden sm:inline-flex">
-                <Plus className="size-4" /> New order
+              <Button variant="outline" nativeButton={false} render={<Link href="/orders/new" />} className="hidden sm:inline-flex">
+                <ClipboardList className="size-4" /> New Order
+              </Button>
+            )}
+            {user?.perms.manageSales && (
+              <Button variant="outline" nativeButton={false} render={<Link href="/sales/invoices/new" />} className="hidden sm:inline-flex">
+                <Receipt className="size-4" /> New Invoice
+              </Button>
+            )}
+            <Button variant="outline" nativeButton={false} render={<Link href="/expenses/new" />} className="hidden sm:inline-flex">
+              <Wallet className="size-4" /> New Expense
+            </Button>
+            {(user?.perms.manageCustomers || user?.role === "admin" || user?.role === "manager") && (
+              <Button variant="outline" nativeButton={false} render={<Link href="/crm/new" />} className="hidden sm:inline-flex">
+                <UserPlus className="size-4" /> New Customer
               </Button>
             )}
             <Button variant={panelOpen ? "default" : "outline"} onClick={() => setPanelOpen(true)}>

@@ -31,6 +31,8 @@ interface TableRowProps extends RowProps {
   selection?: ReturnType<typeof useRowSelection>;
   /** Only present when the viewer has viewReports — see orders/page.tsx. */
   profit?: OrderProfitBreakdown;
+  /** Resolves order.tailor (an employee id) to a display name — see orders/page.tsx. */
+  tailorName?: (id: string) => string;
 }
 
 function AdvanceButton({ order, onAdvance, advancing, compact }: RowProps & { compact?: boolean }) {
@@ -132,7 +134,7 @@ export function OrderCardRow(props: RowProps) {
 
 /** Desktop table row. */
 export function OrderTableRow(props: TableRowProps) {
-  const { order, canChangeStage, shop, onRecordPayment, selection, profit } = props;
+  const { order, canChangeStage, shop, onRecordPayment, selection, profit, tailorName } = props;
   const style = STAGE_STYLE[order.status];
   const isVisible = props.isVisible || (() => true);
 
@@ -172,6 +174,11 @@ export function OrderTableRow(props: TableRowProps) {
             {order.orderType === "alteration" && <AlterationBadge />}
             {order.reworkFlag && <ReworkBadge />}
           </div>
+        </td>
+      )}
+      {isVisible("tailor") && (
+        <td className="px-3 py-3">
+          <span className="text-sm">{order.tailor ? tailorName?.(order.tailor) || order.tailor : "—"}</span>
         </td>
       )}
       {isVisible("delivery") && (

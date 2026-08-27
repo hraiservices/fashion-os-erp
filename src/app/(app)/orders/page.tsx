@@ -9,7 +9,7 @@ import { BulkWhatsAppDialog } from "@/components/orders/bulk-whatsapp-dialog";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { useOrders } from "@/hooks/use-orders";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useActiveTailors } from "@/hooks/use-employees";
+import { useActiveTailors, useTailorName } from "@/hooks/use-employees";
 import { useAdvanceStage, useSetStage, useDeleteOrder } from "@/hooks/use-order-mutations";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useAppSetting } from "@/hooks/use-app-setting";
@@ -63,6 +63,7 @@ const ORDER_COLUMNS = [
   { key: "order", label: "Order#", required: true },
   { key: "customer", label: "Customer", required: true },
   { key: "stage", label: "Stage" },
+  { key: "tailor", label: "Tailor" },
   { key: "delivery", label: "Delivery" },
   { key: "total", label: "Total" },
   { key: "balance", label: "Balance" },
@@ -121,6 +122,7 @@ function OrdersContent() {
   }, [orders, user?.perms.viewReports, tailorRates, expensesByOrderId]);
 
   const columnTable = useColumnVisibility("orders", ORDER_COLUMNS);
+  const tailorName = useTailorName();
   const savedViews = useSavedViews<OrdersViewFilters>("orders");
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkWhatsAppOpen, setBulkWhatsAppOpen] = useState(false);
@@ -388,6 +390,7 @@ function OrdersContent() {
           columnTable={columnTable}
           selection={user?.perms.deleteOrder || user?.perms.managePayments ? selection : undefined}
           profitByOrderId={profitByOrderId}
+          tailorName={tailorName}
         />
       )}
 

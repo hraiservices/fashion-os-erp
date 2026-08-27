@@ -21,9 +21,11 @@ interface Props {
   selection?: ReturnType<typeof useRowSelection>;
   /** Only present when the viewer has viewReports — see orders/page.tsx. */
   profitByOrderId?: Map<string, OrderProfitBreakdown>;
+  /** Resolves order.tailor (an employee id) to a display name — see orders/page.tsx. */
+  tailorName?: (id: string) => string;
 }
 
-export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, shop, onRecordPayment, columnTable, selection, profitByOrderId }: Props) {
+export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, shop, onRecordPayment, columnTable, selection, profitByOrderId, tailorName }: Props) {
   if (orders.length === 0) {
     return <EmptyState icon={Inbox} title="No orders found" description="Try clearing your filters or search." />;
   }
@@ -62,6 +64,7 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
                 {isVisible("order") && <th className="px-3 py-2.5 font-medium">Order</th>}
                 {isVisible("customer") && <th className="px-3 py-2.5 font-medium">Customer</th>}
                 {isVisible("stage") && <th className="px-3 py-2.5 font-medium">Stage</th>}
+                {isVisible("tailor") && <th className="px-3 py-2.5 font-medium">Tailor</th>}
                 {isVisible("delivery") && <th className="px-3 py-2.5 font-medium">Delivery</th>}
                 {isVisible("total") && <th className="px-3 py-2.5 text-right font-medium">Total</th>}
                 {isVisible("balance") && <th className="px-3 py-2.5 text-right font-medium">Balance</th>}
@@ -82,6 +85,7 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
                   isVisible={isVisible}
                   selection={selection}
                   profit={profitByOrderId?.get(o.id)}
+                  tailorName={tailorName}
                 />
               ))}
             </tbody>

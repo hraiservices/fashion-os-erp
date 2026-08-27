@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, Plus } from "lucide-react";
+import { Menu, Plus, ClipboardList, Receipt, Wallet, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MOBILE_TABS } from "@/components/app-shell/nav-config";
 import { NavContent, NavBrand } from "@/components/app-shell/nav-content";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetHeader } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -50,9 +50,17 @@ export function MobileNavTrigger() {
 export function MobileTabBar() {
   const pathname = usePathname();
   const { data: user } = useCurrentUser();
+  const [createOpen, setCreateOpen] = useState(false);
   const restricted = !!user?.restricted;
   const tabs = MOBILE_TABS.filter((t) => !(restricted && t.restricted));
   const canAdd = user?.perms.addOrder;
+
+  const createOptions = [
+    { href: "/orders/new", label: "New Order", icon: ClipboardList, show: user?.perms.addOrder },
+    { href: "/sales/invoices/new", label: "New Invoice", icon: Receipt, show: user?.perms.manageSales },
+    { href: "/expenses/new", label: "New Expense", icon: Wallet, show: true },
+    { href: "/crm/new", label: "New Customer", icon: UserPlus, show: user?.perms.manageCustomers || user?.role === "admin" || user?.role === "manager" },
+  ].filter((o) => o.show);
 
   // Split tabs around the centre FAB so it sits in the middle of the bar.
   const mid = Math.ceil(tabs.length / 2);
@@ -84,15 +92,37 @@ export function MobileTabBar() {
     >
       {left.map(TabLink)}
       {canAdd && (
-        <Link
-          href="/orders/new"
-          aria-label="New order"
+        <button
+          type="button"
+          aria-label="Create new…"
+          onClick={() => setCreateOpen(true)}
           className="relative -top-3 mx-1 flex size-12 shrink-0 items-center justify-center self-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-transform active:scale-95"
         >
           <Plus className="size-6" />
-        </Link>
+        </button>
       )}
       {right.map(TabLink)}
+
+      <Sheet open={createOpen} onOpenChange={setCreateOpen}>
+        <SheetContent side="bottom" className="rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle>Create new</SheetTitle>
+          </SheetHeader>
+          <div className="grid grid-cols-2 gap-3 px-4 pb-4">
+            {createOptions.map(({ href, label, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setCreateOpen(false)}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border bg-card p-4 text-sm font-medium transition-colors active:bg-muted/50"
+              >
+                <Icon className="size-6 text-primary" />
+                {label}
+              </Link>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
     </nav>
   );
 }

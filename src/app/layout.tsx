@@ -56,8 +56,15 @@ export default function RootLayout({
       {/* suppressHydrationWarning: browser extensions (Grammarly, etc.) inject attributes like
           data-gr-ext-installed onto <body> before React hydrates, which otherwise trips a
           hydration-mismatch warning that has nothing to do with our own code. */}
-      <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        <Providers>{children}</Providers>
+      {/* body is pinned to the viewport (fixed + overflow-hidden) instead of scrolling itself —
+          mobile Safari's rubber-band bounce on the document/body can't be fully suppressed by CSS
+          (overscroll-behavior only stops scroll-chaining there, not the bounce itself), so the
+          real scrolling happens one level down on #scroll-root, which contains its bounce inside
+          its own bg-background box instead of revealing whatever sits behind the document. */}
+      <body className="fixed inset-0 overflow-hidden bg-background" suppressHydrationWarning>
+        <div id="scroll-root" className="flex h-full w-full flex-col overflow-y-auto overscroll-contain bg-background [-webkit-overflow-scrolling:touch]">
+          <Providers>{children}</Providers>
+        </div>
       </body>
     </html>
   );

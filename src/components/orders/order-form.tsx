@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
@@ -329,6 +329,28 @@ function OrderFormFields({
   const { data: allOrders } = useOrders();
   const tailorWorkload = allOrders && selectedTailor ? getTailorWorkload(allOrders).find((w) => w.tailor === selectedTailor) : undefined;
   const showCapacityWarning = !!tailorWorkload && (tailorWorkload.capacity === "High" || tailorWorkload.capacity === "Overloaded") && (!existingOrder || existingOrder.tailor !== selectedTailor);
+
+  // Each garment also carries its OWN tailor field (drives per-garment piece-rate pay and the
+  // Daily Tailor Worksheet report) — it's seeded from this order-level "Tailor" dropdown only
+  // once, at form-mount time, and previously never followed it again. Changing the order-level
+  // tailor afterward silently left every garment still pointing at whichever tailor happened to
+  // be first in the list at creation time, with no visible sign anything was wrong — the order
+  // itself correctly showed the newly-picked tailor, but every report reading garment.tailor
+  // (worksheet, piece-rate pay, tailor payables) kept crediting the stale one instead. Now any
+  // garment whose tailor still matches the PREVIOUS order-level value (i.e. hasn't been
+  // individually overridden by the per-garment "Tailor" dropdown) follows the order-level change;
+  // a garment already reassigned to a different tailor on purpose is left alone.
+  const prevSelectedTailorRef = useRef(selectedTailor);
+  useEffect(() => {
+    const prev = prevSelectedTailorRef.current;
+    if (selectedTailor !== prev) {
+      garments.forEach((g, i) => {
+        if (!g.tailor || g.tailor === prev) setValue(`garments.${i}.tailor`, selectedTailor, { shouldDirty: true });
+      });
+      prevSelectedTailorRef.current = selectedTailor;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTailor]);
 
   // Look up an existing customer once the mobile number is complete, so we can offer to
   // reuse their saved measurements and redeem their loyalty points (old app: fillCust()).

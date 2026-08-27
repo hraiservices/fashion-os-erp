@@ -244,60 +244,93 @@ export function ProductLineItemsEditor({
           const { amount, margin } = lineTotals(line);
           const discountType = line.discountType || "percent";
           return (
-            <div key={line.key} className="flex items-center gap-2">
-              <SearchSelect
-                className="flex-1"
-                inputClassName="h-10"
-                placeholder="Type to search item…"
-                value={line.productId}
-                options={productOptions}
-                onSelect={(v) => {
-                  const product = (products || []).find((p) => p.id === v);
-                  const price = priceOverrides?.get(v) ?? product?.sellingPrice ?? "";
-                  updateLine(line.key, { productId: v, unitPrice: line.unitPrice || String(price), costPrice: String(product?.costPrice || 0) });
-                }}
-              />
-              <Input type="number" min={0} step="1" placeholder="Qty" className="w-20 h-10" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
-              <Input type="number" min={0} step="0.01" placeholder="Price" className="w-28 h-10" value={line.unitPrice} onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })} />
-              {showDiscount && (
-                <div className="flex h-10 shrink-0 items-stretch overflow-hidden rounded-md border">
-                  <button
-                    type="button"
-                    onClick={() => updateLine(line.key, { discountType: discountType === "percent" ? "flat" : "percent" })}
-                    className="flex w-8 shrink-0 items-center justify-center border-r bg-muted text-xs font-medium text-muted-foreground hover:text-foreground"
-                    title={discountType === "percent" ? "Switch to flat ₹ discount" : "Switch to % discount"}
-                    aria-label="Toggle discount type"
-                  >
-                    {discountType === "percent" ? "%" : "₹"}
-                  </button>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={discountType === "percent" ? 100 : undefined}
-                    step="0.01"
-                    placeholder="Disc."
-                    className="w-16 h-10 rounded-none border-0"
-                    value={discountType === "percent" ? line.discountPercent : line.discountFlat || ""}
-                    onChange={(e) =>
-                      updateLine(line.key, discountType === "percent" ? { discountPercent: e.target.value } : { discountFlat: e.target.value })
-                    }
-                  />
+            <div
+              key={line.key}
+              className="space-y-2 rounded-lg border bg-card p-3 sm:flex sm:items-center sm:gap-2 sm:space-y-0 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0"
+            >
+              {/* Product + mobile-only clone/remove */}
+              <div className="flex items-start gap-2 sm:contents">
+                <SearchSelect
+                  className="flex-1"
+                  inputClassName="h-10"
+                  placeholder="Type to search item…"
+                  value={line.productId}
+                  options={productOptions}
+                  onSelect={(v) => {
+                    const product = (products || []).find((p) => p.id === v);
+                    const price = priceOverrides?.get(v) ?? product?.sellingPrice ?? "";
+                    updateLine(line.key, { productId: v, unitPrice: line.unitPrice || String(price), costPrice: String(product?.costPrice || 0) });
+                  }}
+                />
+                <div className="flex shrink-0 gap-1 sm:hidden">
+                  <Button type="button" variant="ghost" size="icon-sm" onClick={() => cloneLine(line.key)} aria-label="Clone item" title="Clone this line" disabled={!line.productId}>
+                    <Copy className="size-3.5" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon-sm" onClick={() => removeLine(line.key)} aria-label="Remove item">
+                    <X className="size-3.5" />
+                  </Button>
                 </div>
-              )}
-              <div className="w-24 shrink-0 text-right">
-                <p className="text-sm tabular-nums text-muted-foreground">{inr(amount)}</p>
-                {showMargin && line.productId && (
-                  <p className={cn("text-[11px] tabular-nums", margin === null ? "text-muted-foreground" : "text-emerald-600 dark:text-emerald-400")}>
-                    {margin === null ? "cost unknown" : `+${inr(margin)}`}
-                  </p>
+              </div>
+
+              {/* Qty / Price / Discount — labeled grid on mobile, inline row on desktop */}
+              <div className={cn("grid gap-2 sm:contents", showDiscount ? "grid-cols-3" : "grid-cols-2")}>
+                <div className="sm:w-20">
+                  <label className="mb-1 block text-[10px] font-medium text-muted-foreground sm:hidden">Qty</label>
+                  <Input type="number" min={0} step="1" placeholder="Qty" className="h-10 w-full sm:w-20" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
+                </div>
+                <div className="sm:w-28">
+                  <label className="mb-1 block text-[10px] font-medium text-muted-foreground sm:hidden">Price</label>
+                  <Input type="number" min={0} step="0.01" placeholder="Price" className="h-10 w-full sm:w-28" value={line.unitPrice} onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })} />
+                </div>
+                {showDiscount && (
+                  <div className="sm:w-auto sm:shrink-0">
+                    <label className="mb-1 block text-[10px] font-medium text-muted-foreground sm:hidden">Discount</label>
+                    <div className="flex h-10 items-stretch overflow-hidden rounded-md border">
+                      <button
+                        type="button"
+                        onClick={() => updateLine(line.key, { discountType: discountType === "percent" ? "flat" : "percent" })}
+                        className="flex w-8 shrink-0 items-center justify-center border-r bg-muted text-xs font-medium text-muted-foreground hover:text-foreground"
+                        title={discountType === "percent" ? "Switch to flat ₹ discount" : "Switch to % discount"}
+                        aria-label="Toggle discount type"
+                      >
+                        {discountType === "percent" ? "%" : "₹"}
+                      </button>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={discountType === "percent" ? 100 : undefined}
+                        step="0.01"
+                        placeholder="Disc."
+                        className="h-10 w-full rounded-none border-0 sm:w-16"
+                        value={discountType === "percent" ? line.discountPercent : line.discountFlat || ""}
+                        onChange={(e) =>
+                          updateLine(line.key, discountType === "percent" ? { discountPercent: e.target.value } : { discountFlat: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
                 )}
               </div>
-              <Button type="button" variant="ghost" size="icon-sm" onClick={() => cloneLine(line.key)} aria-label="Clone item" title="Clone this line" disabled={!line.productId}>
-                <Copy className="size-3.5" />
-              </Button>
-              <Button type="button" variant="ghost" size="icon-sm" onClick={() => removeLine(line.key)} aria-label="Remove item">
-                <X className="size-3.5" />
-              </Button>
+
+              {/* Amount + desktop-only clone/remove */}
+              <div className="flex items-center justify-between border-t pt-2 sm:contents sm:border-0 sm:pt-0">
+                <div className="sm:w-24 sm:shrink-0 sm:text-right">
+                  <p className="text-sm tabular-nums text-muted-foreground">{inr(amount)}</p>
+                  {showMargin && line.productId && (
+                    <p className={cn("text-[11px] tabular-nums", margin === null ? "text-muted-foreground" : "text-emerald-600 dark:text-emerald-400")}>
+                      {margin === null ? "cost unknown" : `+${inr(margin)}`}
+                    </p>
+                  )}
+                </div>
+                <div className="hidden items-center gap-1 sm:flex">
+                  <Button type="button" variant="ghost" size="icon-sm" onClick={() => cloneLine(line.key)} aria-label="Clone item" title="Clone this line" disabled={!line.productId}>
+                    <Copy className="size-3.5" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon-sm" onClick={() => removeLine(line.key)} aria-label="Remove item">
+                    <X className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
             </div>
           );
         })

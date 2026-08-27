@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { FormActionBar } from "@/components/ui/form-action-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { LineItemsEditor, linesToItems, blankLine, lineFromItem, type EditableLine } from "@/components/purchases/line-items-editor";
@@ -87,13 +88,6 @@ export function PurchaseOrderForm({ existing }: { existing?: PurchaseOrder }) {
             <h1 className="text-base font-semibold">{isEdit ? "Edit Purchase Order" : "New Purchase Order"}</h1>
             <p className="text-[11px] text-muted-foreground font-mono">{poNumber}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => router.back()} disabled={savePo.isPending}>Cancel</Button>
-            <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={handleSave} disabled={savePo.isPending}>
-              <ClipboardList className="size-3.5" />
-              {savePo.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(total)}` : `Create PO · ${inr(total)}`}
-            </Button>
-          </div>
         </div>
       </div>
 
@@ -159,6 +153,14 @@ export function PurchaseOrderForm({ existing }: { existing?: PurchaseOrder }) {
           </div>
         </div>
       </div>
+
+      <FormActionBar>
+        <Button variant="outline" size="sm" onClick={() => router.back()} disabled={savePo.isPending}>Cancel</Button>
+        <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={handleSave} disabled={savePo.isPending}>
+          <ClipboardList className="size-3.5" />
+          {savePo.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(total)}` : `Create PO · ${inr(total)}`}
+        </Button>
+      </FormActionBar>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useSaveVendor } from "@/hooks/use-purchase-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Button } from "@/components/ui/button";
+import { FormActionBar } from "@/components/ui/form-action-bar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -100,13 +101,6 @@ export function VendorForm({ existing }: { existing?: Vendor }) {
             <h1 className="text-base font-semibold">{isEdit ? "Edit Vendor" : "New Vendor"}</h1>
             {isEdit && <p className="text-[11px] font-mono text-muted-foreground">{existing!.name}</p>}
           </div>
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
-            <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
-              <Save className="size-3.5" />
-              {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : "Add Vendor"}
-            </Button>
-          </div>
         </div>
       </div>
 
@@ -155,6 +149,14 @@ export function VendorForm({ existing }: { existing?: Vendor }) {
           </FieldGroup>
         </div>
       </div>
+
+      <FormActionBar>
+        <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
+        <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
+          <Save className="size-3.5" />
+          {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : "Add Vendor"}
+        </Button>
+      </FormActionBar>
     </form>
   );
 }

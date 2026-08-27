@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { FormActionBar } from "@/components/ui/form-action-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { LineItemsEditor, linesToItems, blankLine, lineFromItem, type EditableLine } from "@/components/purchases/line-items-editor";
@@ -126,13 +127,6 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
           <div className="flex-1">
             <h1 className="text-base font-semibold">{isEdit ? "Edit Bill" : "New Bill"}</h1>
             <p className="text-[11px] text-muted-foreground font-mono">{billNumber}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveBill.isPending}>Cancel</Button>
-            <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={handleSave} disabled={saveBill.isPending}>
-              <ShoppingCart className="size-3.5" />
-              {saveBill.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(gstPreview.total)}` : `Record Bill · ${inr(gstPreview.total)}`}
-            </Button>
           </div>
         </div>
       </div>
@@ -261,6 +255,14 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
           </div>
         </div>
       </div>
+
+      <FormActionBar>
+        <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveBill.isPending}>Cancel</Button>
+        <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={handleSave} disabled={saveBill.isPending}>
+          <ShoppingCart className="size-3.5" />
+          {saveBill.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(gstPreview.total)}` : `Record Bill · ${inr(gstPreview.total)}`}
+        </Button>
+      </FormActionBar>
     </div>
   );
 }

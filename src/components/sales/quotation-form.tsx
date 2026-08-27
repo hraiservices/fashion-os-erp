@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { FormActionBar } from "@/components/ui/form-action-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/customer-picker";
@@ -126,13 +127,6 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
             <h1 className="text-base font-semibold">{isEdit ? "Edit Quotation" : "New Quotation"}</h1>
             <p className="text-[11px] text-muted-foreground font-mono">{quoteNumber}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveQuotation.isPending}>Cancel</Button>
-            <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={handleSave} disabled={saveQuotation.isPending}>
-              <FileCheck className="size-3.5" />
-              {saveQuotation.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(gstPreview.total)}` : `Create Quotation · ${inr(gstPreview.total)}`}
-            </Button>
-          </div>
         </div>
       </div>
 
@@ -234,6 +228,14 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
           </div>
         </div>
       </div>
+
+      <FormActionBar>
+        <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveQuotation.isPending}>Cancel</Button>
+        <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={handleSave} disabled={saveQuotation.isPending}>
+          <FileCheck className="size-3.5" />
+          {saveQuotation.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(gstPreview.total)}` : `Create Quotation · ${inr(gstPreview.total)}`}
+        </Button>
+      </FormActionBar>
 
       <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={setCustomer} />
     </div>

@@ -2,11 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, ChevronRight, LayoutGrid, BarChart3, Scissors, ShoppingCart, Users, Package, Truck, Factory, Wallet, type LucideIcon } from "lucide-react";
+import { ChevronRight, LayoutGrid, BarChart3, Scissors, ShoppingCart, Users, Package, Truck, Factory, Wallet, type LucideIcon } from "lucide-react";
 import { REPORTS_GROUP, resolveReportSection } from "@/components/app-shell/nav-config";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { isReportEnabled } from "@/lib/entitlements";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 const SECTION_ICON: Record<string, LucideIcon> = {
@@ -57,12 +56,10 @@ export default function ReportsIndexPage() {
   }, [allReports]);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return allReports.filter((r) => (!activeCategory || r.category === activeCategory) && (!q || r.label.toLowerCase().includes(q)));
-  }, [allReports, activeCategory, search]);
+    return allReports.filter((r) => !activeCategory || r.category === activeCategory);
+  }, [allReports, activeCategory]);
 
   return (
     <div className="flex h-full flex-col lg:flex-row">
@@ -109,10 +106,6 @@ export default function ReportsIndexPage() {
           <h2 className="text-base font-semibold">
             {activeCategory || "All Reports"} <span className="ml-1 text-sm font-normal text-muted-foreground">{filtered.length}</span>
           </h2>
-          <div className="relative w-full max-w-xs">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search reports…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
-          </div>
         </div>
 
         <div className="overflow-hidden rounded-xl border">
@@ -145,7 +138,7 @@ export default function ReportsIndexPage() {
               </tbody>
             </table>
           </div>
-          {filtered.length === 0 && <div className="p-8 text-center text-sm text-muted-foreground">No reports match &quot;{search}&quot;.</div>}
+          {filtered.length === 0 && <div className="p-8 text-center text-sm text-muted-foreground">No reports in this category.</div>}
         </div>
       </div>
     </div>

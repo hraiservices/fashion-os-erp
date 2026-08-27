@@ -42,6 +42,7 @@ import type { Order, OrderType, Employee, Customer } from "@/lib/types";
 import { MeasurementGrid } from "@/components/measurements/measurement-grid";
 import { MediaCapture } from "@/components/orders/media-capture";
 import { Button } from "@/components/ui/button";
+import { FormActionBar } from "@/components/ui/form-action-bar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -459,15 +460,6 @@ function OrderFormFields({
           <div className="flex-1">
             <h1 className="text-base font-semibold">{isEdit ? "Edit Order" : isAlteration ? "New Alteration" : "New Order"}</h1>
             {isEdit && <p className="text-[11px] text-muted-foreground font-mono">{existingOrder.id}</p>}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>
-              Cancel
-            </Button>
-            <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
-              <ClipboardList className="size-3.5" />
-              {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : `Create Order · ${inr(total)}`}
-            </Button>
           </div>
         </div>
       </div>
@@ -1075,6 +1067,16 @@ function OrderFormFields({
           </div>
         </div>
       </form>
+
+      <FormActionBar>
+        <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+          <ClipboardList className="size-3.5" />
+          {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : `Create Order · ${inr(total)}`}
+        </Button>
+      </FormActionBar>
 
       {!isEdit && <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={selectCustomer} />}
     </div>

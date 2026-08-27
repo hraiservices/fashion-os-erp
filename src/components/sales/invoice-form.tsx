@@ -27,6 +27,7 @@ import { CustomerPicker } from "@/components/sales/customer-picker";
 import { SearchSelect } from "@/components/ui/search-select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
+import { FormActionBar } from "@/components/ui/form-action-bar";
 import { usePriceListItemsMap } from "@/hooks/use-price-lists";
 import { DEFAULT_DOCUMENT_NUMBERING, type DocumentNumberingSettings } from "@/lib/document-numbering";
 import type { Customer, SalesInvoice, InvoiceDocStatus } from "@/lib/types";
@@ -261,20 +262,6 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
           <div className="flex-1">
             <h1 className="text-base font-semibold">{isEdit ? "Edit Invoice" : "New Invoice"}</h1>
             <p className="text-[11px] text-muted-foreground font-mono">{customNumberingOn ? "Assigned automatically on save" : invoiceNumber}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveInvoice.isPending}>
-              Cancel
-            </Button>
-            {!isEdit && (
-              <Button variant="outline" size="sm" onClick={() => handleSave("draft")} disabled={saveInvoice.isPending}>
-                {saveInvoice.isPending ? "Saving…" : "Save Draft"}
-              </Button>
-            )}
-            <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={() => handleSave(isEdit ? existing!.docStatus : "sent")} disabled={saveInvoice.isPending}>
-              <Receipt className="size-3.5" />
-              {saveInvoice.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(totals.total)}` : `Save & Send · ${inr(totals.total)}`}
-            </Button>
           </div>
         </div>
       </div>
@@ -515,6 +502,21 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
           </div>
         </div>
       </div>
+
+      <FormActionBar>
+        <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveInvoice.isPending}>
+          Cancel
+        </Button>
+        {!isEdit && (
+          <Button variant="outline" size="sm" onClick={() => handleSave("draft")} disabled={saveInvoice.isPending}>
+            {saveInvoice.isPending ? "Saving…" : "Save Draft"}
+          </Button>
+        )}
+        <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={() => handleSave(isEdit ? existing!.docStatus : "sent")} disabled={saveInvoice.isPending}>
+          <Receipt className="size-3.5" />
+          {saveInvoice.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(totals.total)}` : `Save & Send · ${inr(totals.total)}`}
+        </Button>
+      </FormActionBar>
 
       <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={handleSelectCustomer} />
     </div>

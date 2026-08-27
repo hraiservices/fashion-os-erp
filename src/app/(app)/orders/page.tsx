@@ -321,13 +321,15 @@ function OrdersContent() {
               aria-label="Search orders"
             />
           </div>
-          <SavedViewsMenu
-            views={savedViews.views}
-            onApply={applyView}
-            onSave={savedViews.save}
-            onRemove={savedViews.remove}
-            currentFilters={{ search, filters }}
-          />
+          <div className="hidden md:block">
+            <SavedViewsMenu
+              views={savedViews.views}
+              onApply={applyView}
+              onSave={savedViews.save}
+              onRemove={savedViews.remove}
+              currentFilters={{ search, filters }}
+            />
+          </div>
           {view === "list" && <ColumnCustomizerMenu table={columnTable} />}
         </div>
 
@@ -338,6 +340,11 @@ function OrdersContent() {
           resultCount={filtered.length}
           mobileOpen={filterSheetOpen}
           onMobileOpenChange={setFilterSheetOpen}
+          views={savedViews.views}
+          onApplyView={applyView}
+          onSaveView={savedViews.save}
+          onRemoveView={savedViews.remove}
+          currentViewFilters={{ search, filters }}
         />
       </div>
 

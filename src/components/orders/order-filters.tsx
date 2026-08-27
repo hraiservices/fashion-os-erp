@@ -1,12 +1,14 @@
 "use client";
 
-import { SlidersHorizontal, ArrowDownUp, X } from "lucide-react";
+import { useState } from "react";
+import { SlidersHorizontal, ArrowDownUp, X, Bookmark, Trash2, Save } from "lucide-react";
 import { STAGES, STAGE_META, type Stage } from "@/lib/business-rules";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import type { SavedView } from "@/hooks/use-saved-views";
 
 export type DatePreset = "all" | "month" | "custom";
 export type Priority = "all" | "overdue" | "soon" | "normal";
@@ -149,14 +151,63 @@ function DatePresetButtons({ value, onChange }: { value: DatePreset; onChange: (
   );
 }
 
+/** "Views" list + save-as-new-view row, shown inside the mobile Filters sheet. */
+function SavedViewsSection<F>({ views, onApply, onSave, onRemove, currentFilters }: { views: SavedView<F>[]; onApply: (f: F) => void; onSave: (name: string, f: F) => void; onRemove: (id: string) => void; currentFilters: F }) {
+  const [name, setName] = useState("");
+  function handleSave() {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    onSave(trimmed, currentFilters);
+    setName("");
+  }
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs">Saved views</Label>
+      {views.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No saved views yet — set your filters, then save one below.</p>
+      ) : (
+        <div className="space-y-1">
+          {views.map((v) => (
+            <div key={v.id} className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2">
+              <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm" onClick={() => onApply(v.filters)}>
+                <Bookmark className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate">{v.name}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onRemove(v.id)}
+                aria-label={`Delete view ${v.name}`}
+                className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex items-center gap-1.5">
+        <Input placeholder="Save current filters as…" className="h-9 flex-1 text-xs" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSave()} />
+        <Button type="button" variant="outline" size="sm" onClick={handleSave} disabled={!name.trim()} aria-label="Save view">
+          <Save className="size-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 /** Desktop: inline filter bar. Mobile: a single "Filters" button opening a bottom sheet. */
-export function OrderFilters({
+export function OrderFilters<F>({
   value,
   onChange,
   tailors,
   resultCount,
   mobileOpen,
   onMobileOpenChange,
+  views,
+  onApplyView,
+  onSaveView,
+  onRemoveView,
+  currentViewFilters,
 }: {
   value: FilterState;
   onChange: (f: FilterState) => void;
@@ -164,6 +215,12 @@ export function OrderFilters({
   resultCount: number;
   mobileOpen: boolean;
   onMobileOpenChange: (open: boolean) => void;
+  /** Saved-views data — shown as a "Views" section inside the mobile Filters sheet. */
+  views: SavedView<F>[];
+  onApplyView: (f: F) => void;
+  onSaveView: (name: string, f: F) => void;
+  onRemoveView: (id: string) => void;
+  currentViewFilters: F;
 }) {
   const count = activeFilterCount(value);
   const set = (patch: Partial<FilterState>) => onChange({ ...value, ...patch });
@@ -235,7 +292,17 @@ export function OrderFilters({
             <SheetTitle>Filter orders</SheetTitle>
           </SheetHeader>
           <div className="space-y-4 px-4">
-            <div className="space-y-1.5">
+            <SavedViewsSection
+              views={views}
+              onApply={(f) => {
+                onApplyView(f);
+                onMobileOpenChange(false);
+              }}
+              onSave={onSaveView}
+              onRemove={onRemoveView}
+              currentFilters={currentViewFilters}
+            />
+            <div className="space-y-1.5 border-t pt-4">
               <Label className="text-xs">Tailor</Label>
               <TailorSelect value={value.tailor} onChange={(v) => set({ tailor: v })} tailors={tailors} />
             </div>

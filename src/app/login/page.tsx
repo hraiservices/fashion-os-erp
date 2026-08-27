@@ -57,10 +57,14 @@ export default function LoginPage() {
   const { data: shop } = useShopSettings();
 
   const [mode, setMode] = useState<Mode>("login");
-  const [method, setMethod] = useState<Method>("email");
+  // Mobile+PIN is the default view (per the owner's request) — a mobile-provisioned dashboard
+  // login is admin-only (see /api/user-roles/provision-phone), so this method never has a
+  // signup/forgot flow of its own; switching to it always forces mode back to "login".
+  const [method, setMethod] = useState<Method>("mobile");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [pass, setPass] = useState("");
+  const [pin, setPin] = useState("");
   const [newPass, setNewPass] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
@@ -89,84 +93,36 @@ export default function LoginPage() {
       return;
     }
 
+    // Mobile+PIN never reaches "forgot" (see the method-switch handler below, which always
+    // forces mode back to "login") — a mobile-provisioned account's PIN can only be reset by an
+    // admin, and some accounts have no real email at all to send a reset link to.
     if (mode === "forgot") {
-      let targetEmail = email.toLowerCase().trim();
-      if (method === "mobile") {
-        const ph = normalizePhone(phone);
-        if (ph.length !== 10) return setErr("Enter a valid 10-digit mobile number.");
-        setLoading(true);
-        const { data: rows, error: lookupError } = await supabase.from("user_roles").select("email").eq("phone", ph);
-        if (lookupError || !rows || rows.length === 0) {
-          setLoading(false);
-          return setErr("Mobile number not registered. Ask admin to add your number.");
-        }
-        targetEmail = rows[0].email;
-      } else if (!targetEmail || !isValidEmail(targetEmail)) {
-        return setErr("Enter a valid email address.");
-      }
+      const targetEmail = email.toLowerCase().trim();
+      if (!targetEmail || !isValidEmail(targetEmail)) return setErr("Enter a valid email address.");
       setLoading(true);
       const { error } = await supabase.auth.resetPasswordForEmail(targetEmail, {
         redirectTo: window.location.origin + window.location.pathname,
       });
       setLoading(false);
       if (error) return setErr(error.message || "Failed to send reset email.");
-      setOk(method === "mobile" ? "Password reset email sent to your registered email address. Check your inbox." : "Password reset email sent! Check your inbox.");
+      setOk("Password reset email sent! Check your inbox.");
       return;
     }
 
-    if (method === "mobile" && mode === "login") {
+    if (method === "mobile") {
       const ph = normalizePhone(phone);
       if (ph.length !== 10) return setErr("Enter a valid 10-digit mobile number.");
-      if (!pass) return setErr("Password is required.");
+      if (!/^\d{4,6}$/.test(pin)) return setErr("Enter your 4-6 digit PIN.");
       setLoading(true);
-      const { data: rows, error: lookupError } = await supabase
-        .from("user_roles")
-        .select("email")
-        .eq("phone", ph);
-      if (lookupError || !rows || rows.length === 0) {
-        setLoading(false);
-        return setErr("Mobile number not registered. Ask admin to add your number.");
-      }
-      const foundEmail = rows[0].email;
-      const { data, error } = await supabase.auth.signInWithPassword({ email: foundEmail, password: pass });
-      if (error || !data.session) {
-        setLoading(false);
-        return setErr(mapAuthError(error?.message));
-      }
-      await ensureUserRole(supabase, foundEmail);
-      setLoading(false);
-      router.push("/dashboard");
-      return;
-    }
-
-    if (method === "mobile" && mode === "signup") {
-      if (!email) return setErr("Email is required to create account.");
-      if (!isValidEmail(email)) return setErr("Enter a valid email address.");
-      const ph2 = normalizePhone(phone);
-      if (ph2.length !== 10) return setErr("Enter a valid 10-digit mobile number.");
-      if (!pass) return setErr("Password is required.");
-      if (pass.length < 6) return setErr("Password must be at least 6 characters.");
-      setLoading(true);
-      const cleanEmail = email.toLowerCase().trim();
-      const { data: signUpData, error } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password: pass,
-        options: { emailRedirectTo: window.location.origin + window.location.pathname },
+      const res = await fetch("/api/auth/phone-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobile: ph, pin }),
       });
-      if (error) {
-        setLoading(false);
-        return setErr(error.message || "Sign up failed.");
-      }
-      if (signUpData.session) {
-        await ensureUserRole(supabase, cleanEmail, ph2);
-      } else {
-        // Not confirmed yet — best-effort bootstrap with the anon key, matching old app behavior;
-        // RLS may reject this until the user confirms and signs in, which is fine (non-fatal).
-        await ensureUserRole(supabase, cleanEmail, ph2).catch(() => {});
-      }
+      const data = await res.json();
       setLoading(false);
-      setOk("Account created! Check your email to confirm, then sign in.");
-      setMode("login");
+      if (!res.ok) return setErr(data.error || "Sign in failed.");
+      router.push("/dashboard");
       return;
     }
 
@@ -199,7 +155,7 @@ export default function LoginPage() {
     }
   }
 
-  const isMobileFlow = (mode === "login" || mode === "signup") && method === "mobile";
+  const isMobileFlow = mode === "login" && method === "mobile";
   const isEmailFlow = (mode === "login" || mode === "signup") && method === "email";
 
   return (
@@ -246,7 +202,28 @@ export default function LoginPage() {
           }}
           className="space-y-4 rounded-3xl border border-black/5 bg-white/70 p-6 shadow-2xl shadow-zinc-900/10 backdrop-blur-xl sm:p-7"
         >
-          {(mode === "login" || mode === "signup") && (
+          {mode !== "reset" && (
+            <Tabs
+              value={method}
+              onValueChange={(v) => {
+                setMethod(v as Method);
+                // Mobile+PIN is sign-in only — no signup/forgot flow of its own (see the
+                // owner's request: mobile accounts are admin-provisioned, not self-signed-up).
+                if (v === "mobile") setMode("login");
+              }}
+            >
+              <TabsList className="w-full">
+                <TabsTrigger value="mobile" className="flex-1">
+                  Mobile
+                </TabsTrigger>
+                <TabsTrigger value="email" className="flex-1">
+                  Email
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+
+          {method === "email" && (mode === "login" || mode === "signup") && (
             <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
               <TabsList className="w-full">
                 <TabsTrigger value="login" className="flex-1">
@@ -259,28 +236,15 @@ export default function LoginPage() {
             </Tabs>
           )}
 
-          {mode !== "reset" && (
-            <Tabs value={method} onValueChange={(v) => setMethod(v as Method)}>
-              <TabsList className="w-full">
-                <TabsTrigger value="email" className="flex-1">
-                  Email
-                </TabsTrigger>
-                <TabsTrigger value="mobile" className="flex-1">
-                  Mobile
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          )}
-
           {mode === "reset" && (
             <IconField icon={Lock} label="New password" type="password" autoComplete="new-password" autoFocus value={newPass} onChange={(e) => setNewPass(e.target.value)} />
           )}
 
-          {mode === "forgot" && method === "email" && (
+          {mode === "forgot" && (
             <IconField icon={Mail} label="Email" type="email" autoComplete="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" />
           )}
 
-          {mode === "forgot" && method === "mobile" && (
+          {isMobileFlow && (
             <>
               <IconField
                 icon={Phone}
@@ -293,30 +257,17 @@ export default function LoginPage() {
                 placeholder="10-digit number"
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
               />
-              <p className="text-xs text-muted-foreground">We&apos;ll send a reset link to the email address linked to this number.</p>
-            </>
-          )}
-
-          {isMobileFlow && (
-            <>
-              {mode === "signup" && (
-                <>
-                  <IconField icon={Mail} label="Email" type="email" autoComplete="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" />
-                  <p className="-mt-2 text-xs text-muted-foreground">Used to confirm your account and for password resets.</p>
-                </>
-              )}
               <IconField
-                icon={Phone}
-                label="Mobile number"
-                type="tel"
-                autoComplete="tel"
-                autoFocus={mode === "login"}
-                value={phone}
-                maxLength={10}
-                placeholder="10-digit number"
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                icon={Lock}
+                label="PIN"
+                type="password"
+                inputMode="numeric"
+                autoComplete="current-password"
+                value={pin}
+                maxLength={6}
+                placeholder="4-6 digit PIN"
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
               />
-              <IconField icon={Lock} label="Password" type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} value={pass} onChange={(e) => setPass(e.target.value)} />
             </>
           )}
 
@@ -352,10 +303,13 @@ export default function LoginPage() {
             {loading ? "Please wait…" : mode === "reset" ? "Update password" : mode === "forgot" ? "Send reset email" : mode === "signup" ? "Create account" : "Sign in"}
           </Button>
 
-          {mode === "login" && (
+          {mode === "login" && method === "email" && (
             <button type="button" className="w-full text-center text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" onClick={() => setMode("forgot")}>
               Forgot password?
             </button>
+          )}
+          {mode === "login" && method === "mobile" && (
+            <p className="w-full text-center text-sm text-muted-foreground">Forgotten your PIN? Ask your admin to reset it.</p>
           )}
           {(mode === "forgot" || mode === "reset") && (
             <button type="button" className="w-full text-center text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" onClick={() => setMode("login")}>

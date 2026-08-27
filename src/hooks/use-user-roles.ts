@@ -12,9 +12,16 @@ export interface UserRoleRow {
   linked_employee_id: string | null;
 }
 
+// Explicit column list — deliberately excludes pin_hash/failed_pin_attempts/pin_locked_until.
+// Same reasoning as EMPLOYEE_COLUMNS_BASE in use-employees.ts: RLS lets any authenticated staff
+// member read this table, so a bcrypt hash of a 4-6 digit PIN must never be in the payload at
+// all, not just hidden from the rendered UI. "Is a PIN set?" is fetched on-demand per row
+// instead (useUserHasPin), mirroring the employee PIN manager's own GET route.
+const USER_ROLE_COLUMNS = "email, role, phone, custom_permissions, linked_employee_id";
+
 async function fetchUserRoles(): Promise<UserRoleRow[]> {
   const supabase = createClient();
-  const { data, error } = await supabase.from("user_roles").select("*").order("email");
+  const { data, error } = await supabase.from("user_roles").select(USER_ROLE_COLUMNS).order("email");
   if (error) throw error;
   return (data || []).map((r) => ({
     email: r.email,
@@ -94,5 +101,41 @@ export function useLinkEmployeeToUser() {
       qc.invalidateQueries({ queryKey: ["user-roles"] });
       qc.invalidateQueries({ queryKey: ["employees"] });
     },
+  });
+}
+
+/** Creates a brand-new phone+PIN dashboard login with no real email — see the API route's
+ *  comment for why this needs its own route rather than reusing useSetUserRole(). */
+export function useProvisionPhoneUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ mobile, pin, role, custom }: { mobile: string; pin: string; role: string; custom?: Partial<Permissions> }) =>
+      postJson<{ ok: true; email: string }>("/api/user-roles/provision-phone", { mobile, pin, role, custom: custom || {} }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["user-roles"] }),
+  });
+}
+
+/** Whether an (unlinked) user's dashboard-login PIN is currently set — fetched on demand per
+ *  row (e.g. only while that row is expanded), never as part of the main list. */
+export function useUserHasPin(email: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["user-has-pin", email],
+    queryFn: async (): Promise<boolean> => {
+      const res = await fetch(`/api/user-roles/pin?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load PIN status");
+      return data.hasPin;
+    },
+    enabled: enabled && !!email,
+  });
+}
+
+/** Set/change/clear a dashboard login's own PIN — only valid for a row not linked to an
+ *  employee (see the API route's comment). */
+export function useSetUserPin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ email, pin }: { email: string; pin: string | null }) => postJson<{ ok: true }>("/api/user-roles/pin", { email, pin }),
+    onSuccess: (_data, vars) => qc.invalidateQueries({ queryKey: ["user-has-pin", vars.email] }),
   });
 }

@@ -2,17 +2,28 @@
 
 import { Fragment, useState } from "react";
 import { toast } from "sonner";
-import { useUserRoles, useSetUserRole, useRenameUserEmail, useSetUserPhone, useLinkEmployeeToUser, type UserRoleRow } from "@/hooks/use-user-roles";
+import {
+  useUserRoles,
+  useSetUserRole,
+  useRenameUserEmail,
+  useSetUserPhone,
+  useLinkEmployeeToUser,
+  useProvisionPhoneUser,
+  useSetUserPin,
+  useUserHasPin,
+  type UserRoleRow,
+} from "@/hooks/use-user-roles";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { useEmployees } from "@/hooks/use-employees";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { X, Check, ChevronDown, ChevronRight, Info, Link2 } from "lucide-react";
+import { X, Check, ChevronDown, ChevronRight, Info, Link2, KeyRound } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { ROLE_DEFAULTS, PERMISSION_LABELS, type Permissions, type Role } from "@/lib/permissions";
 
@@ -94,6 +105,68 @@ function RoleReferenceCard() {
   );
 }
 
+/** Dashboard-login PIN control for one user, shown inside the expanded panel. Its own
+ *  component (not inlined in the row .map()) because it needs useUserHasPin — a hook can't be
+ *  called conditionally inside a list callback, only inside a real per-item component. Only
+ *  ever mounted while that row is expanded, so the "is a PIN set?" fetch only ever happens for
+ *  a row someone's actually looking at. */
+function PinSection({
+  row,
+  employeeName,
+  editing,
+  pinVal,
+  onEditValChange,
+  onStartEdit,
+  onCancelEdit,
+  onSave,
+  saving,
+}: {
+  row: UserRoleRow;
+  employeeName: string | undefined;
+  editing: boolean;
+  pinVal: string;
+  onEditValChange: (v: string) => void;
+  onStartEdit: () => void;
+  onCancelEdit: () => void;
+  onSave: () => void;
+  saving: boolean;
+}) {
+  const { data: hasPin, isLoading } = useUserHasPin(row.email, !row.linked_employee_id);
+
+  return (
+    <div>
+      <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Dashboard PIN login</p>
+      {row.linked_employee_id ? (
+        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <KeyRound className="size-3.5" /> Uses {employeeName || "the linked employee"}&apos;s attendance PIN — change it from that employee&apos;s record.
+        </p>
+      ) : editing ? (
+        <div className="flex max-w-xs gap-1">
+          <Input
+            inputMode="numeric"
+            maxLength={6}
+            value={pinVal}
+            onChange={(e) => onEditValChange(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            className="h-8"
+            placeholder="4-6 digits"
+          />
+          <Button size="sm" onClick={onSave} disabled={saving}>
+            <Check className="size-4" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onCancelEdit}>
+            <X className="size-4" />
+          </Button>
+        </div>
+      ) : (
+        <button type="button" onClick={onStartEdit} className="flex items-center gap-1.5 text-left text-sm text-muted-foreground hover:underline">
+          <KeyRound className="size-3.5" />
+          {isLoading ? "Checking…" : hasPin ? "PIN set — change" : "+ set PIN"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** UsersSection(), Stitching_Manager_Pro_v16.html ~line 13397. Admin only. */
 export function UsersSection() {
   const { data: rows, isLoading } = useUserRoles();
@@ -103,15 +176,22 @@ export function UsersSection() {
   const renameEmail = useRenameUserEmail();
   const setPhone = useSetUserPhone();
   const linkEmployee = useLinkEmployeeToUser();
+  const provisionPhone = useProvisionPhoneUser();
+  const setPin = useSetUserPin();
 
   const employeesById = new Map((employees || []).map((e) => [e.id, e]));
 
+  const [createMethod, setCreateMethod] = useState<"email" | "phone">("email");
   const [newEmail, setNewEmail] = useState("");
+  const [newMobile, setNewMobile] = useState("");
+  const [newPin, setNewPin] = useState("");
   const [newRole, setNewRole] = useState("tailor");
   const [editingPhone, setEditingPhone] = useState<string | null>(null);
   const [phoneVal, setPhoneVal] = useState("");
   const [editingEmail, setEditingEmail] = useState<string | null>(null);
   const [emailVal, setEmailVal] = useState("");
+  const [editingPin, setEditingPin] = useState<string | null>(null);
+  const [pinVal, setPinVal] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
 
   async function assignRole() {
@@ -129,6 +209,31 @@ export function UsersSection() {
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
+    }
+  }
+
+  async function assignPhoneRole() {
+    const mobile = newMobile.replace(/\D/g, "").slice(-10);
+    if (mobile.length !== 10) return toast.error("Enter a valid 10-digit mobile number");
+    if (!/^\d{4,6}$/.test(newPin)) return toast.error("PIN must be 4-6 digits");
+    try {
+      await provisionPhone.mutateAsync({ mobile, pin: newPin, role: newRole });
+      setNewMobile("");
+      setNewPin("");
+      toast.success("Phone login created — share the mobile number and PIN with them");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error");
+    }
+  }
+
+  async function savePin(row: UserRoleRow) {
+    if (pinVal.trim() !== "" && !/^\d{4,6}$/.test(pinVal)) return toast.error("PIN must be 4-6 digits");
+    try {
+      await setPin.mutateAsync({ email: row.email, pin: pinVal.trim() || null });
+      setEditingPin(null);
+      toast.success(pinVal.trim() ? "PIN saved" : "PIN removed");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save PIN");
     }
   }
 
@@ -208,23 +313,73 @@ export function UsersSection() {
         <CardHeader>
           <CardTitle className="text-sm">Assign role to user</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          <Input className="min-w-40 flex-[2]" type="email" placeholder="user@email.com" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
-          <Select value={newRole} onValueChange={(v) => v && setNewRole(v)}>
-            <SelectTrigger className="flex-1">
-              <SelectValue>{roleLabel}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {ROLE_OPTIONS.map(([v, l]) => (
-                <SelectItem key={v} value={v}>
-                  {l}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button onClick={assignRole} disabled={setRole.isPending}>
-            Assign
-          </Button>
+        <CardContent className="space-y-3">
+          <Tabs value={createMethod} onValueChange={(v) => v && setCreateMethod(v as "email" | "phone")}>
+            <TabsList>
+              <TabsTrigger value="email">Email</TabsTrigger>
+              <TabsTrigger value="phone">Phone + PIN</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {createMethod === "email" ? (
+            <div className="flex flex-wrap gap-2">
+              <Input className="min-w-40 flex-[2]" type="email" placeholder="user@email.com" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+              <Select value={newRole} onValueChange={(v) => v && setNewRole(v)}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue>{roleLabel}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLE_OPTIONS.map(([v, l]) => (
+                    <SelectItem key={v} value={v}>
+                      {l}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button onClick={assignRole} disabled={setRole.isPending}>
+                Assign
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  className="min-w-32 flex-1"
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="10-digit mobile number"
+                  value={newMobile}
+                  onChange={(e) => setNewMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                />
+                <Input
+                  className="min-w-28 flex-1"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="4-6 digit PIN"
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                />
+                <Select value={newRole} onValueChange={(v) => v && setNewRole(v)}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue>{roleLabel}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLE_OPTIONS.map(([v, l]) => (
+                      <SelectItem key={v} value={v}>
+                        {l}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button onClick={assignPhoneRole} disabled={provisionPhone.isPending}>
+                  Create
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Creates a login with no email at all — this person signs into the dashboard with just this mobile number and PIN. Share both with them directly.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -339,6 +494,20 @@ export function UsersSection() {
                         </button>
                       )}
                     </div>
+                    <PinSection
+                      row={row}
+                      employeeName={row.linked_employee_id ? employeesById.get(row.linked_employee_id)?.name : undefined}
+                      editing={editingPin === row.email}
+                      pinVal={pinVal}
+                      onEditValChange={setPinVal}
+                      onStartEdit={() => {
+                        setEditingPin(row.email);
+                        setPinVal("");
+                      }}
+                      onCancelEdit={() => setEditingPin(null)}
+                      onSave={() => savePin(row)}
+                      saving={setPin.isPending}
+                    />
                     {PERMISSION_GROUPS.map((group) => (
                       <div key={group.label}>
                         <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{group.label}</p>

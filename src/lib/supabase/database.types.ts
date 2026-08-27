@@ -219,6 +219,9 @@ export interface Database {
           phone: string | null;
           custom_permissions: Json;
           linked_employee_id: string | null;
+          pin_hash: string | null;
+          failed_pin_attempts: number;
+          pin_locked_until: string | null;
           created_at: string;
           updated_at: string;
         };

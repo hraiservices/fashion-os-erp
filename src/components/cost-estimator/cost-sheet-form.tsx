@@ -16,6 +16,7 @@ import { useSaveCostSheet } from "@/hooks/use-cost-sheet-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import type { CostSheetWithItems } from "@/hooks/use-cost-sheet";
 import { Button } from "@/components/ui/button";
+import { FormActionBar } from "@/components/ui/form-action-bar";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
@@ -261,7 +262,7 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end gap-2">
+      <FormActionBar>
         <Button variant="outline" onClick={print}>
           Print
         </Button>
@@ -271,7 +272,7 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
         <Button disabled={saveCostSheet.isPending} onClick={() => save("final")}>
           Save final
         </Button>
-      </div>
+      </FormActionBar>
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Package2, Tag, ListTree, Plus, X, Save, Shirt, ImagePlus, PackagePlus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { FormActionBar } from "@/components/ui/form-action-bar";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
@@ -175,18 +176,11 @@ export function ProductForm({ existing }: { existing?: Product }) {
             <h1 className="text-base font-semibold">{isEdit ? "Edit Product" : "New Product"}</h1>
             {isEdit && <p className="text-[11px] font-mono text-muted-foreground">{existing!.sku}</p>}
           </div>
-          <div className="flex items-center gap-2">
-            {isEdit && (
-              <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setStockDialogOpen(true)}>
-                <PackagePlus className="size-3.5" /> <span className="hidden sm:inline">Adjust Stock</span>
-              </Button>
-            )}
-            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
-            <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
-              <Save className="size-3.5" />
-              {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : "Add Product"}
+          {isEdit && (
+            <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setStockDialogOpen(true)}>
+              <PackagePlus className="size-3.5" /> <span className="hidden sm:inline">Adjust Stock</span>
             </Button>
-          </div>
+          )}
         </div>
       </div>
 
@@ -420,6 +414,14 @@ export function ProductForm({ existing }: { existing?: Product }) {
         {isEdit && <ProductCustomerMatches product={existing} />}
       </div>
       {isEdit && <ProductStockAdjustmentDialog product={existing} open={stockDialogOpen} onOpenChange={setStockDialogOpen} />}
+
+      <FormActionBar>
+        <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
+        <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
+          <Save className="size-3.5" />
+          {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : "Add Product"}
+        </Button>
+      </FormActionBar>
     </form>
   );
 }

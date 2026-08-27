@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ArrowLeft, User, MapPin, Ruler, Save } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { FormActionBar } from "@/components/ui/form-action-bar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -115,13 +116,6 @@ export function CustomerForm() {
           <div className="flex-1">
             <h1 className="text-base font-semibold">New Customer</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
-            <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
-              <Save className="size-3.5" />
-              {isSubmitting ? "Saving…" : "Add Customer"}
-            </Button>
-          </div>
         </div>
       </div>
 
@@ -210,6 +204,14 @@ export function CustomerForm() {
           </div>
         )}
       </div>
+
+      <FormActionBar>
+        <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
+        <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
+          <Save className="size-3.5" />
+          {isSubmitting ? "Saving…" : "Add Customer"}
+        </Button>
+      </FormActionBar>
     </form>
   );
 }

@@ -10,6 +10,7 @@ import { ArrowLeft, Receipt, User2, FileText, Save } from "lucide-react";
 import Link from "next/link";
 import { useCreateExpense, useUpdateExpense } from "@/hooks/use-expenses";
 import { Button } from "@/components/ui/button";
+import { FormActionBar } from "@/components/ui/form-action-bar";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
@@ -111,13 +112,6 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
           <div className="flex-1">
             <h1 className="text-base font-semibold">{isEdit ? "Edit Expense" : "New Expense"}</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
-            <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
-              <Save className="size-3.5" />
-              {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : "Record Expense"}
-            </Button>
-          </div>
         </div>
       </div>
 
@@ -187,6 +181,14 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
       </div>
 
       <CustomerPicker open={customerPickerOpen} onOpenChange={setCustomerPickerOpen} onSelect={handleSelectCustomer} />
+
+      <FormActionBar>
+        <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
+        <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
+          <Save className="size-3.5" />
+          {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : "Record Expense"}
+        </Button>
+      </FormActionBar>
     </form>
   );
 }

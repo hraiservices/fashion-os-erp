@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Layers, BarChart2, FileText, Save } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { FormActionBar } from "@/components/ui/form-action-bar";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
@@ -103,13 +104,6 @@ export function RawMaterialForm({ existing }: { existing?: RawMaterial }) {
             <h1 className="text-base font-semibold">{isEdit ? "Edit Raw Material" : "New Raw Material"}</h1>
             {isEdit && <p className="text-[11px] font-mono text-muted-foreground">{existing!.name}</p>}
           </div>
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
-            <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
-              <Save className="size-3.5" />
-              {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : "Add Material"}
-            </Button>
-          </div>
         </div>
       </div>
 
@@ -158,6 +152,14 @@ export function RawMaterialForm({ existing }: { existing?: RawMaterial }) {
           </FieldGroup>
         </div>
       </div>
+
+      <FormActionBar>
+        <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
+        <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
+          <Save className="size-3.5" />
+          {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : "Add Material"}
+        </Button>
+      </FormActionBar>
     </form>
   );
 }

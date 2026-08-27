@@ -17,23 +17,57 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function StitchingDuesWidget() {
   const { stats, isLoading } = useDashboardStats();
   if (isLoading || !stats) return <Skeleton className="h-24 w-full" />;
-  return <StatCard label="Stitching Dues" value={inr(stats.totalPending)} icon={Scissors} tone={stats.totalPending > 0 ? "warning" : "default"} href="/reports/aging" />;
+  const billed = stats.totalRev;
+  const collectedPct = billed > 0 ? ((billed - stats.totalPending) / billed) * 100 : 0;
+  return (
+    <StatCard
+      label="Stitching Dues"
+      value={inr(stats.totalPending)}
+      icon={Scissors}
+      tone={stats.totalPending > 0 ? "warning" : "default"}
+      href="/reports/aging"
+      progress={billed > 0 ? { percent: collectedPct, caption: `Collected of ${inr(billed)} billed` } : undefined}
+    />
+  );
 }
 
 export function SalesDuesWidget() {
   const { data: invoices, isLoading } = useSalesInvoices();
   if (isLoading) return <Skeleton className="h-24 w-full" />;
+  const billed = (invoices || []).reduce((s, i) => s + i.total, 0);
   const salesDues = (invoices || []).reduce((s, i) => s + i.balance, 0);
-  return <StatCard label="Product Sales Dues" value={inr(salesDues)} icon={ShoppingBag} tone={salesDues > 0 ? "warning" : "default"} href="/sales/invoices" />;
+  const collectedPct = billed > 0 ? ((billed - salesDues) / billed) * 100 : 0;
+  return (
+    <StatCard
+      label="Product Sales Dues"
+      value={inr(salesDues)}
+      icon={ShoppingBag}
+      tone={salesDues > 0 ? "warning" : "default"}
+      href="/sales/invoices"
+      progress={billed > 0 ? { percent: collectedPct, caption: `Collected of ${inr(billed)} billed` } : undefined}
+    />
+  );
 }
 
 export function TotalReceivableWidget() {
   const { stats, isLoading: l1 } = useDashboardStats();
   const { data: invoices, isLoading: l2 } = useSalesInvoices();
   if (l1 || l2 || !stats) return <Skeleton className="h-24 w-full" />;
+  const salesBilled = (invoices || []).reduce((s, i) => s + i.total, 0);
   const salesDues = (invoices || []).reduce((s, i) => s + i.balance, 0);
+  const billed = stats.totalRev + salesBilled;
   const total = stats.totalPending + salesDues;
-  return <StatCard label="Total Receivable" value={inr(total)} icon={Banknote} tone={total > 0 ? "warning" : "default"} href="/reports/customer-balances" />;
+  const collectedPct = billed > 0 ? ((billed - total) / billed) * 100 : 0;
+  return (
+    <StatCard
+      label="Total Receivable"
+      value={inr(total)}
+      icon={Banknote}
+      tone={total > 0 ? "warning" : "default"}
+      href="/reports/customer-balances"
+      progress={billed > 0 ? { percent: collectedPct, caption: `Collected of ${inr(billed)} billed` } : undefined}
+    />
+  );
 }
 
 export function InventoryValueWidget() {
@@ -55,8 +89,19 @@ export function LowStockItemsWidget() {
 export function PurchasesPayableWidget() {
   const { data: bills, isLoading } = usePurchaseBills();
   if (isLoading) return <Skeleton className="h-24 w-full" />;
+  const billed = (bills || []).reduce((s, b) => s + b.total, 0);
   const payable = (bills || []).reduce((s, b) => s + b.balance, 0);
-  return <StatCard label="Purchases Payable" value={inr(payable)} icon={Truck} tone={payable > 0 ? "warning" : "default"} href="/reports/purchases" />;
+  const paidPct = billed > 0 ? ((billed - payable) / billed) * 100 : 0;
+  return (
+    <StatCard
+      label="Purchases Payable"
+      value={inr(payable)}
+      icon={Truck}
+      tone={payable > 0 ? "warning" : "default"}
+      href="/reports/purchases"
+      progress={billed > 0 ? { percent: paidPct, caption: `Paid of ${inr(billed)} billed` } : undefined}
+    />
+  );
 }
 
 export function ManufacturingActiveWidget() {

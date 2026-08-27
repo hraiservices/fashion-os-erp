@@ -5,11 +5,6 @@ import { useRouter } from "next/navigation";
 import { GripHorizontal, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Height resize snaps to this increment (px) so two widgets resized to similar heights
-// actually land on the SAME height, instead of off by a few px — the main cause of the
-// "misaligned" look when cards sit side by side in the same grid row.
-const HEIGHT_SNAP_PX = 20;
-
 const COL_SPAN_CLASS: Record<1 | 2 | 3 | 4, string> = {
   1: "sm:col-span-1",
   2: "sm:col-span-2",
@@ -19,7 +14,6 @@ const COL_SPAN_CLASS: Record<1 | 2 | 3 | 4, string> = {
 
 export function WidgetShell({
   colSpan,
-  heightPx,
   href,
   editing,
   dragging,
@@ -35,7 +29,6 @@ export function WidgetShell({
   children,
 }: {
   colSpan: 1 | 2 | 3 | 4;
-  heightPx?: number;
   href?: string;
   editing: boolean;
   dragging?: boolean;
@@ -45,8 +38,8 @@ export function WidgetShell({
   onDrop?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
   onHide?: () => void;
-  onResizeProgress?: (colSpan: 1 | 2 | 3 | 4, heightPx: number) => void;
-  onResizeEnd?: (colSpan: 1 | 2 | 3 | 4, heightPx: number) => void;
+  onResizeProgress?: (colSpan: 1 | 2 | 3 | 4) => void;
+  onResizeEnd?: (colSpan: 1 | 2 | 3 | 4) => void;
   onResetSize?: () => void;
   children: React.ReactNode;
 }) {
@@ -62,9 +55,9 @@ export function WidgetShell({
   const gripPressed = useRef(false);
   const resizeDragged = useRef(false); // true if mouse moved during resize — suppresses the post-drag click
   const resizeState = useRef<{
-    startX: number; startY: number;
-    startW: number; startH: number;
-    lastCols: 1 | 2 | 3 | 4; lastH: number;
+    startX: number;
+    startW: number;
+    lastCols: 1 | 2 | 3 | 4;
   } | null>(null);
 
   function handleDragStart(e: React.DragEvent) {
@@ -77,16 +70,16 @@ export function WidgetShell({
     onDragEnd?.();
   }
 
+  // Width-only resize — every widget's height now stretches to match its row (see the
+  // container's default grid stretch below), so the old height-drag was dropped: letting
+  // widgets pick their own pixel height is exactly what produced ragged, mismatched-height
+  // cards sitting side by side in the same row.
   function handleResizeMouseDown(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
     const el = containerRef.current;
     if (!el) return;
-    resizeState.current = {
-      startX: e.clientX, startY: e.clientY,
-      startW: el.offsetWidth, startH: el.offsetHeight,
-      lastCols: colSpan, lastH: heightPx ?? el.offsetHeight,
-    };
+    resizeState.current = { startX: e.clientX, startW: el.offsetWidth, lastCols: colSpan };
 
     function onMouseMove(ev: MouseEvent) {
       resizeDragged.current = true;
@@ -111,20 +104,14 @@ export function WidgetShell({
       const gridW = grid ? grid.clientWidth : el.offsetWidth * numCols;
       const colW = (gridW - gapPx * (numCols - 1)) / numCols;
       const newW = s.startW + (ev.clientX - s.startX);
-      const rawH = Math.max(80, s.startH + (ev.clientY - s.startY));
-      // Height snaps to a fixed row unit so resized cards land on shared height increments
-      // instead of arbitrary pixels — this is what makes neighbouring cards' bottom edges
-      // line up instead of leaving a ragged gap.
-      const newH = Math.round(rawH / HEIGHT_SNAP_PX) * HEIGHT_SNAP_PX;
       s.lastCols = Math.max(1, Math.min(numCols, Math.round(newW / colW))) as 1 | 2 | 3 | 4;
-      s.lastH = newH;
-      onResizeProgress?.(s.lastCols, s.lastH);
+      onResizeProgress?.(s.lastCols);
     }
 
     function onMouseUp() {
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
-      if (resizeState.current) onResizeEnd?.(resizeState.current.lastCols, resizeState.current.lastH);
+      if (resizeState.current) onResizeEnd?.(resizeState.current.lastCols);
       resizeState.current = null;
       // The browser fires a click on the container after mouseup — clear the flag
       // in the next microtask so the onClick handler can read it first.
@@ -139,12 +126,11 @@ export function WidgetShell({
     <div
       ref={containerRef}
       className={cn(
-        // self-start: a CSS grid row stretches every cell to match its tallest sibling by
-        // default, so a widget with no custom height (or a shorter one) silently grows to fill
-        // the row anyway, leaving empty space below its actual content — the other half of the
-        // "misaligned" complaint, and one that isn't specific to resizing at all. self-start
-        // makes every widget's box exactly as tall as its own content/heightPx, never stretched.
-        "group relative col-span-1 self-start",
+        // No self-start here: a CSS grid row stretches every cell to match its tallest sibling
+        // by default, and that's exactly what we want — every widget in the same row ends up
+        // the same height, instead of each card sizing to its own content and leaving a ragged
+        // mix of heights across the row (the "scattered card" complaint).
+        "group relative col-span-1",
         COL_SPAN_CLASS[colSpan],
         editing && "rounded-xl outline-dashed outline-2 outline-transparent transition-all hover:outline-primary/40",
         dragging && "opacity-40",
@@ -173,8 +159,8 @@ export function WidgetShell({
           <GripHorizontal className="size-3.5" />
         </button>
         <div className="flex items-center gap-1">
-          {/* Double-click resize zone to reset height/width to default */}
-          {(heightPx || colSpan) && onResetSize && (
+          {/* Reset width to default */}
+          {colSpan && onResetSize && (
             <button
               type="button"
               onClick={onResetSize}
@@ -198,25 +184,19 @@ export function WidgetShell({
         </div>
       </div>
 
-      {/* Widget content */}
-      <div
-        className={cn(dragging && "pointer-events-none select-none")}
-        style={heightPx ? { height: heightPx, overflow: "auto" } : undefined}
-      >
+      {/* Widget content — h-full plus [&>*]:h-full stretches the widget's own root element
+          (each one is a plain <section>/<div>, not otherwise height-aware) to fill the row. */}
+      <div className={cn("h-full [&>*]:h-full", dragging && "pointer-events-none select-none")}>
         {children}
       </div>
 
-      {/* Resize zone — bottom-right corner, larger hit area, 3-dot indicator on hover */}
+      {/* Resize zone — right edge, width only (see handleResizeMouseDown) */}
       <div
-        className="absolute bottom-0 right-0 z-20 flex h-8 w-8 cursor-se-resize items-end justify-end p-1.5 opacity-0 transition-opacity group-hover:opacity-100"
+        className="absolute inset-y-0 right-0 z-20 flex w-3 cursor-ew-resize items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
         onMouseDown={handleResizeMouseDown}
-        title="Drag to resize"
+        title="Drag to resize width"
       >
-        <svg width="8" height="8" viewBox="0 0 8 8" className="text-muted-foreground/40">
-          <circle cx="6" cy="6" r="1" fill="currentColor" />
-          <circle cx="6" cy="2" r="1" fill="currentColor" />
-          <circle cx="2" cy="6" r="1" fill="currentColor" />
-        </svg>
+        <div className="h-8 w-1 rounded-full bg-muted-foreground/30" />
       </div>
     </div>
   );

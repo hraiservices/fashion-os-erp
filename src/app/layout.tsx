@@ -25,7 +25,9 @@ export const metadata: Metadata = {
   description: "Tailoring shop management — orders, CRM, billing, reports.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/icon.svg",
+    // Dynamic — serves the shop's own uploaded logo (Settings → Shop) once one is set,
+    // falling back to the default scissors icon otherwise. See that route's comment.
+    icon: "/api/branding/icon",
     apple: "/icon-192.png",
   },
   appleWebApp: {

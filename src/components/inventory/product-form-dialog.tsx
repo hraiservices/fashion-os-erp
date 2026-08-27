@@ -53,13 +53,16 @@ export function ProductFormDialog({
   onOpenChange,
   product,
   onSaved,
+  defaultName,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Omit to create a new product. */
   product?: Product;
-  /** Fires after a successful save with the saved row's id/name/cost — lets a picker (e.g. in a Purchase Bill) auto-select what was just created. */
-  onSaved?: (product: { id: string; name: string; costPrice?: number }) => void;
+  /** Fires after a successful save with the saved row's id/name/cost/price — lets a picker (e.g. in a Purchase Bill or an invoice's item search) auto-select what was just created. */
+  onSaved?: (product: { id: string; name: string; costPrice?: number; sellingPrice?: number }) => void;
+  /** Prefills the Name field when creating — e.g. whatever the user had already typed into a search box. */
+  defaultName?: string;
 }) {
   const { data: user } = useCurrentUser();
   const { data: rawMaterials } = useRawMaterials();
@@ -95,10 +98,10 @@ export function ProductFormDialog({
       });
       setBomRows(product.bom.map((b) => ({ key: b.id, rawMaterialId: b.rawMaterialId, qtyRequired: String(b.qtyRequired) })));
     } else {
-      reset({ name: "", sku: "", category: "", sellingPrice: 0, costPrice: 0, taxRate: 5, lowStockAlert: 0, notes: "", openingStock: 0 });
+      reset({ name: defaultName || "", sku: "", category: "", sellingPrice: 0, costPrice: 0, taxRate: 5, lowStockAlert: 0, notes: "", openingStock: 0 });
       setBomRows([]);
     }
-  }, [open, product, reset]);
+  }, [open, product, reset, defaultName]);
 
   function handleClose() {
     onOpenChange(false);
@@ -134,7 +137,7 @@ export function ProductFormDialog({
         userEmail: user?.email,
       });
       toast.success(isEdit ? "Product updated" : "Product added");
-      onSaved?.({ id: saved.id, name: saved.name, costPrice: values.costPrice });
+      onSaved?.({ id: saved.id, name: saved.name, costPrice: values.costPrice, sellingPrice: values.sellingPrice });
       handleClose();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save product");

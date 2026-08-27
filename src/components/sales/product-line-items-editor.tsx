@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
 import { BarcodeScannerModal } from "@/components/pos/barcode-scanner-modal";
+import { ProductFormDialog } from "@/components/inventory/product-form-dialog";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { SalesLineItem } from "@/lib/sales";
@@ -102,6 +103,10 @@ export function ProductLineItemsEditor({
   const [scannerOpen, setScannerOpen] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const scanRef = useRef<HTMLInputElement>(null);
+  // Which line's "add new product" dialog is open, and what the user had already typed into
+  // that line's search box — prefilled as the new product's name.
+  const [addProductLineKey, setAddProductLineKey] = useState<string | null>(null);
+  const [addProductQuery, setAddProductQuery] = useState("");
 
   function addLine() {
     onChange([...lines, blankSalesLine()]);
@@ -261,6 +266,11 @@ export function ProductLineItemsEditor({
                     const price = priceOverrides?.get(v) ?? product?.sellingPrice ?? "";
                     updateLine(line.key, { productId: v, unitPrice: line.unitPrice || String(price), costPrice: String(product?.costPrice || 0) });
                   }}
+                  onCreateNew={(query) => {
+                    setAddProductQuery(query);
+                    setAddProductLineKey(line.key);
+                  }}
+                  createLabel="Add new product"
                 />
                 <div className="flex shrink-0 gap-1 sm:hidden">
                   <Button type="button" variant="ghost" size="icon-sm" onClick={() => cloneLine(line.key)} aria-label="Clone item" title="Clone this line" disabled={!line.productId}>
@@ -350,6 +360,19 @@ export function ProductLineItemsEditor({
       </div>
 
       <BarcodeScannerModal open={scannerOpen} onOpenChange={setScannerOpen} onDetected={scanAdd} />
+
+      <ProductFormDialog
+        open={!!addProductLineKey}
+        onOpenChange={(v) => { if (!v) setAddProductLineKey(null); }}
+        defaultName={addProductQuery}
+        onSaved={(p) => {
+          if (addProductLineKey) {
+            const price = priceOverrides?.get(p.id) ?? p.sellingPrice ?? "";
+            updateLine(addProductLineKey, { productId: p.id, unitPrice: String(price), costPrice: String(p.costPrice || 0) });
+          }
+          setAddProductLineKey(null);
+        }}
+      />
     </div>
   );
 }

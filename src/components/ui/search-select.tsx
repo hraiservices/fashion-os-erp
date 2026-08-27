@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,8 @@ export function SearchSelect({
   inputClassName,
   maxResults = 50,
   fallbackLabel,
+  onCreateNew,
+  createLabel = "Add new item",
 }: {
   /** Currently selected option's value — used to show its label when the field isn't being edited. */
   value: string;
@@ -37,6 +40,10 @@ export function SearchSelect({
   /** Shown when `value` is set but doesn't match any option — e.g. editing a record whose
    *  selection predates/bypasses the options list (a prefilled name with no real id yet). */
   fallbackLabel?: string;
+  /** When set, shows a persistent "+ Add new…" row in the dropdown (with the typed query, if
+   *  any) so the user can create a missing item without leaving the form. */
+  onCreateNew?: (query: string) => void;
+  createLabel?: string;
 }) {
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState(false);
@@ -106,7 +113,7 @@ export function SearchSelect({
           }, 150)
         }
       />
-      {open && matches.length > 0 && (
+      {open && (matches.length > 0 || (query.trim() && matches.length === 0) || onCreateNew) && (
         <ul className="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-lg border bg-popover shadow-lg">
           {matches.map((o, i) => (
             <li key={o.value}>
@@ -125,10 +132,26 @@ export function SearchSelect({
               </button>
             </li>
           ))}
+          {query.trim() && matches.length === 0 && <li className="px-3 py-2 text-sm text-muted-foreground">No matches</li>}
+          {onCreateNew && (
+            <li className={matches.length > 0 || (query.trim() && matches.length === 0) ? "border-t" : undefined}>
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onCreateNew(query.trim());
+                  setQuery("");
+                  setEditing(false);
+                  setOpen(false);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-primary hover:bg-muted"
+              >
+                <Plus className="size-3.5" />
+                {query.trim() ? `${createLabel} "${query.trim()}"` : createLabel}
+              </button>
+            </li>
+          )}
         </ul>
-      )}
-      {open && query.trim() && matches.length === 0 && (
-        <div className="absolute inset-x-0 top-full z-30 mt-1 rounded-lg border bg-popover px-3 py-2 text-sm text-muted-foreground shadow-lg">No matches</div>
       )}
     </div>
   );

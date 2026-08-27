@@ -24,6 +24,8 @@ interface RowProps {
   advancing?: boolean;
   shop?: Shop;
   onRecordPayment?: (order: Order) => void;
+  /** Resolves order.tailor (an employee id) to a display name — see orders/page.tsx. */
+  tailorName?: (id: string) => string;
 }
 
 interface TableRowProps extends RowProps {
@@ -31,8 +33,6 @@ interface TableRowProps extends RowProps {
   selection?: ReturnType<typeof useRowSelection>;
   /** Only present when the viewer has viewReports — see orders/page.tsx. */
   profit?: OrderProfitBreakdown;
-  /** Resolves order.tailor (an employee id) to a display name — see orders/page.tsx. */
-  tailorName?: (id: string) => string;
 }
 
 function AdvanceButton({ order, onAdvance, advancing, compact }: RowProps & { compact?: boolean }) {
@@ -90,7 +90,7 @@ function RecordPaymentButton({ order, onRecordPayment, compact }: { order: Order
  * every order becomes a tap-friendly card with its actions inline.
  */
 export function OrderCardRow(props: RowProps) {
-  const { order, canChangeStage, shop, onRecordPayment } = props;
+  const { order, canChangeStage, shop, onRecordPayment, tailorName } = props;
   const style = STAGE_STYLE[order.status];
 
   return (
@@ -114,6 +114,12 @@ export function OrderCardRow(props: RowProps) {
           <DueBadge order={order} />
           <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums">{inr(order.total)}</span>
         </div>
+
+        {order.tailor && (
+          <p className="mt-1.5 truncate text-xs text-muted-foreground">
+            Tailor: <span className="font-medium text-foreground">{tailorName?.(order.tailor) || order.tailor}</span>
+          </p>
+        )}
 
         <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
           <span className="truncate">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</span>

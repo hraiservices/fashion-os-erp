@@ -37,7 +37,16 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
       {/* Mobile cards */}
       <div className="md:hidden space-y-2.5">
         {orders.map((o) => (
-          <OrderCardRow key={o.id} order={o} canChangeStage={canChangeStage} onAdvance={onAdvance} advancing={advancingId === o.id} shop={shop} onRecordPayment={onRecordPayment} />
+          <OrderCardRow
+            key={o.id}
+            order={o}
+            canChangeStage={canChangeStage}
+            onAdvance={onAdvance}
+            advancing={advancingId === o.id}
+            shop={shop}
+            onRecordPayment={onRecordPayment}
+            tailorName={tailorName}
+          />
         ))}
       </div>
 

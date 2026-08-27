@@ -7,6 +7,21 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export interface Database {
   public: {
     Tables: {
+      tailor_worksheet_snapshots: {
+        Row: {
+          id: string;
+          snapshot_date: string;
+          tailor_id: string;
+          pending_keys: Json;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["tailor_worksheet_snapshots"]["Row"]> & {
+          snapshot_date: string;
+          tailor_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["tailor_worksheet_snapshots"]["Row"]>;
+        Relationships: [];
+      };
       orders: {
         Row: {
           id: string;

@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -124,8 +125,7 @@ export default function SalesPaymentsPage() {
               <TableRow>
                 {canManage && (
                   <TableHead className="w-8">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={selection.allSelected}
                       ref={(el) => {
                         if (el) el.indeterminate = selection.someSelected;
@@ -151,7 +151,7 @@ export default function SalesPaymentsPage() {
                   <TableRow key={p.id}>
                     {canManage && (
                       <TableCell>
-                        <input type="checkbox" checked={selection.selected.has(p.id)} onChange={() => selection.toggle(p.id)} aria-label={`Select payment of ${inr(p.amount)}`} />
+                        <Checkbox checked={selection.selected.has(p.id)} onChange={() => selection.toggle(p.id)} aria-label={`Select payment of ${inr(p.amount)}`} />
                       </TableCell>
                     )}
                     <TableCell className="text-muted-foreground">{fmtDate(p.date)}</TableCell>

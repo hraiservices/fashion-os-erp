@@ -167,7 +167,7 @@ export function InvoiceTemplateSection() {
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Accent color</label>
             <div className="flex items-center gap-2">
-              <input type="color" value={active.colorTheme} onChange={(e) => updateActive({ colorTheme: e.target.value })} className="h-9 w-12 rounded border" />
+              <input type="color" value={active.colorTheme} onChange={(e) => updateActive({ colorTheme: e.target.value })} className="h-11 w-14 rounded border sm:h-9 sm:w-12" />
               <Input value={active.colorTheme} onChange={(e) => updateActive({ colorTheme: e.target.value })} />
             </div>
           </div>

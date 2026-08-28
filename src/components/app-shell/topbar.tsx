@@ -49,7 +49,7 @@ export function Topbar() {
           <DropdownMenuTrigger
             render={
               <button type="button" aria-label="Account menu" className="rounded-full p-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
-                <Avatar className="size-9 sm:size-8">
+                <Avatar className="size-11 sm:size-8">
                   <AvatarFallback className="text-xs">{initial}</AvatarFallback>
                 </Avatar>
               </button>

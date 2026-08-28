@@ -3,6 +3,7 @@
 import { Inbox } from "lucide-react";
 import { OrderCardRow, OrderTableRow } from "@/components/orders/order-row";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { useColumnVisibility } from "@/hooks/use-column-visibility";
 import type { useRowSelection } from "@/hooks/use-row-selection";
 import type { Order } from "@/lib/types";
@@ -59,8 +60,7 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
                 <th className="w-1 p-0" />
                 {selection && (
                   <th className="w-8 px-3 py-2.5">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={selection.allSelected}
                       ref={(el) => {
                         if (el) el.indeterminate = selection.someSelected;

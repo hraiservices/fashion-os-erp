@@ -26,7 +26,7 @@ export function MobileNavTrigger() {
 
   return (
     <>
-      <Button variant="ghost" size="icon-sm" aria-label="Open menu" className="size-9 lg:hidden" onClick={() => setOpen(true)}>
+      <Button variant="ghost" size="icon-sm" aria-label="Open menu" className="size-11 sm:size-9 lg:hidden" onClick={() => setOpen(true)}>
         <Menu className="size-5" />
       </Button>
       <Sheet open={open} onOpenChange={setOpen}>

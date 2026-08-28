@@ -462,6 +462,16 @@ function OrderFormFields({
             <h1 className="text-base font-semibold">{isEdit ? "Edit Order" : isAlteration ? "New Alteration" : "New Order"}</h1>
             {isEdit && <p className="text-[11px] text-muted-foreground font-mono">{existingOrder.id}</p>}
           </div>
+          {/* Duplicate of the bottom FormActionBar — mobile only, so Create/Save is reachable
+             without scrolling all the way down on a long order form. */}
+          <div className="flex items-center gap-2 sm:hidden">
+            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button size="sm" className="gap-1.5 bg-primary text-primary-foreground" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+              {isSubmitting ? "Saving…" : isEdit ? "Save" : "Create"}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -1069,11 +1079,23 @@ function OrderFormFields({
         </div>
       </form>
 
-      <FormActionBar>
-        <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>
+      <FormActionBar className="justify-start sm:justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="h-12 px-6 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          onClick={() => router.back()}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
-        <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+        <Button
+          size="lg"
+          className="h-12 flex-1 gap-1.5 bg-primary px-6 text-base text-primary-foreground sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          onClick={handleSubmit(onSubmit)}
+          disabled={isSubmitting}
+        >
           <ClipboardList className="size-3.5" />
           {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : `Create Order · ${inr(total)}`}
         </Button>

@@ -16,6 +16,7 @@ import { inr } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -149,7 +150,7 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Next run date</Label>
-              <Input type="date" value={nextRunDate} onChange={(e) => setNextRunDate(e.target.value)} />
+              <DatePicker value={nextRunDate} onChange={setNextRunDate} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Ends</Label>
@@ -171,7 +172,7 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
           {endType === "on_date" && (
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">End date</Label>
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <DatePicker value={endDate} onChange={setEndDate} />
             </div>
           )}
           {endType === "after_count" && (

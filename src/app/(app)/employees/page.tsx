@@ -122,13 +122,13 @@ function EmployeesPageContent() {
               )}
               {canManage && (
                 <div className="flex shrink-0 items-center gap-1">
-                  <Button variant="ghost" size="icon-sm" onClick={(ev) => openEdit(e, ev)} aria-label={`Edit ${e.name}`}>
+                  <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={(ev) => openEdit(e, ev)} aria-label={`Edit ${e.name}`}>
                     <Pencil className="size-3.5" />
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger
                       render={
-                        <Button variant="ghost" size="icon-sm" aria-label={`Delete ${e.name}`} onClick={(ev) => ev.preventDefault()}>
+                        <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" aria-label={`Delete ${e.name}`} onClick={(ev) => ev.preventDefault()}>
                           <Trash2 className="size-3.5" />
                         </Button>
                       }

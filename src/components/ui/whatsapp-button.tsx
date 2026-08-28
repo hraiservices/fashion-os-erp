@@ -27,7 +27,7 @@ export function WhatsAppIconButton({ href, label = "Send WhatsApp message", clas
     <Button
       variant="outline"
       size="icon-sm"
-      className={cn("shrink-0", className)}
+      className={cn("size-11 shrink-0 sm:size-7", className)}
       aria-label={label}
       title={label}
       nativeButton={false}

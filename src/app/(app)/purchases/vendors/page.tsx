@@ -120,13 +120,13 @@ function VendorsPageContent() {
                 {payable > 0 && <BalanceDue amount={payable} suffix=" due" paidLabel="" className="shrink-0 text-sm" />}
                 {canManage && (
                   <div className="flex shrink-0 items-center gap-1">
-                    <Button variant="ghost" size="icon-sm" onClick={(e) => openEdit(v, e)} aria-label={`Edit ${v.name}`}>
+                    <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={(e) => openEdit(v, e)} aria-label={`Edit ${v.name}`}>
                       <Pencil className="size-3.5" />
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger
                         render={
-                          <Button variant="ghost" size="icon-sm" aria-label={`Delete ${v.name}`} onClick={(e) => e.preventDefault()}>
+                          <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" aria-label={`Delete ${v.name}`} onClick={(e) => e.preventDefault()}>
                             <Trash2 className="size-3.5" />
                           </Button>
                         }

@@ -379,16 +379,16 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
                       <p className="text-xs text-muted-foreground">{inr(line.unitPrice)} each</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
-                      <Button variant="outline" size="icon-sm" onClick={() => updateQty(line.productId, line.qty - 1)} aria-label="Decrease quantity">
+                      <Button variant="outline" size="icon-sm" className="size-11 sm:size-7" onClick={() => updateQty(line.productId, line.qty - 1)} aria-label="Decrease quantity">
                         <Minus className="size-3" />
                       </Button>
                       <span className="w-6 text-center text-sm tabular-nums">{line.qty}</span>
-                      <Button variant="outline" size="icon-sm" onClick={() => updateQty(line.productId, line.qty + 1)} aria-label="Increase quantity">
+                      <Button variant="outline" size="icon-sm" className="size-11 sm:size-7" onClick={() => updateQty(line.productId, line.qty + 1)} aria-label="Increase quantity">
                         <Plus className="size-3" />
                       </Button>
                     </div>
                     <span className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums">{inr(line.qty * line.unitPrice)}</span>
-                    <Button variant="ghost" size="icon-sm" onClick={() => removeLine(line.productId)} aria-label={`Remove ${line.productName}`}>
+                    <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => removeLine(line.productId)} aria-label={`Remove ${line.productName}`}>
                       <Trash2 className="size-3.5" />
                     </Button>
                   </div>
@@ -421,7 +421,7 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
                 </select>
                 <Input type="number" min={0} step="0.01" className="w-28" placeholder="Amount" value={t.amount} onChange={(e) => updateTender(i, { amount: e.target.value })} />
                 {tenders.length > 1 && (
-                  <Button variant="ghost" size="icon-sm" onClick={() => removeTender(i)} aria-label="Remove tender line">
+                  <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => removeTender(i)} aria-label="Remove tender line">
                     <X className="size-3.5" />
                   </Button>
                 )}

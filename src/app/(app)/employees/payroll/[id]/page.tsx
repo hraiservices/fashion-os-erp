@@ -172,6 +172,7 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
                       <Button
                         variant="ghost"
                         size="icon-sm"
+                        className="size-11 sm:size-7"
                         aria-label={`Download payslip for ${employeeName(p.employeeId)}`}
                         title="Download payslip"
                         nativeButton={false}

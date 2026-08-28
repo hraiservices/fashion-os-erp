@@ -6,6 +6,7 @@ import { STAGES, STAGE_META, type Stage } from "@/lib/business-rules";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import type { SavedView } from "@/hooks/use-saved-views";
@@ -265,9 +266,9 @@ export function OrderFilters<F>({
         </div>
         {value.datePreset === "custom" && (
           <div className="flex items-center gap-2">
-            <Input type="date" className="h-10 w-36" value={value.customFrom} onChange={(e) => set({ customFrom: e.target.value })} />
+            <DatePicker className="w-36" value={value.customFrom} onChange={(v) => set({ customFrom: v })} />
             <span className="text-xs text-muted-foreground">to</span>
-            <Input type="date" className="h-10 w-36" value={value.customTo} onChange={(e) => set({ customTo: e.target.value })} />
+            <DatePicker className="w-36" value={value.customTo} onChange={(v) => set({ customTo: v })} />
           </div>
         )}
 
@@ -323,9 +324,9 @@ export function OrderFilters<F>({
               <DatePresetButtons value={value.datePreset} onChange={(v) => set({ datePreset: v })} />
               {value.datePreset === "custom" && (
                 <div className="mt-2 flex items-center gap-2">
-                  <Input type="date" className="h-10" value={value.customFrom} onChange={(e) => set({ customFrom: e.target.value })} />
+                  <DatePicker value={value.customFrom} onChange={(v) => set({ customFrom: v })} />
                   <span className="text-xs text-muted-foreground">to</span>
-                  <Input type="date" className="h-10" value={value.customTo} onChange={(e) => set({ customTo: e.target.value })} />
+                  <DatePicker value={value.customTo} onChange={(v) => set({ customTo: v })} />
                 </div>
               )}
             </div>

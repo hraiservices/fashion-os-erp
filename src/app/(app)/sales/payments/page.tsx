@@ -173,7 +173,7 @@ export default function SalesPaymentsPage() {
                     <TableCell className="max-w-48 truncate text-muted-foreground">{p.note || "—"}</TableCell>
                     {canManage && (
                       <TableCell>
-                        <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-destructive" onClick={() => setConfirmOne(p.id)} aria-label="Delete payment">
+                        <Button variant="ghost" size="icon-sm" className="size-11 text-muted-foreground hover:text-destructive sm:size-7" onClick={() => setConfirmOne(p.id)} aria-label="Delete payment">
                           <Trash2 className="size-3.5" />
                         </Button>
                       </TableCell>

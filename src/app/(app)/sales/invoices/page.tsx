@@ -403,7 +403,7 @@ export default function SalesInvoicesPage() {
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           {inv.balance > 0 && (
-                            <Button variant="outline" size="icon-sm" aria-label="Record payment" title="Record payment" nativeButton={false} render={<Link href={`/sales/invoices/${inv.id}/payment`} />}>
+                            <Button variant="outline" size="icon-sm" className="size-11 sm:size-7" aria-label="Record payment" title="Record payment" nativeButton={false} render={<Link href={`/sales/invoices/${inv.id}/payment`} />}>
                               <Wallet className="size-3.5" />
                             </Button>
                           )}

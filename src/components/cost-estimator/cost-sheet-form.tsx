@@ -21,6 +21,7 @@ import { FormActionBar } from "@/components/ui/form-action-bar";
 import { ArrowLeft, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -191,7 +192,7 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
           </div>
           <div className="space-y-2">
             <Label>Date</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <DatePicker value={date} onChange={setDate} />
           </div>
           <div className="space-y-2">
             <Label>Customer name (optional)</Label>

@@ -186,7 +186,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                     </p>
                   </div>
                   {!a.payslipId && (
-                    <Button variant="ghost" size="icon-sm" onClick={() => handleDeleteAdvance(a.id)} aria-label="Remove advance">
+                    <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => handleDeleteAdvance(a.id)} aria-label="Remove advance">
                       <Trash2 className="size-3.5" />
                     </Button>
                   )}

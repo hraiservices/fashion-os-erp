@@ -32,11 +32,5 @@ export default function EditCostSheetPage({ params }: { params: Promise<{ id: st
       </div>
     );
 
-  return (
-    <div className="mx-auto max-w-3xl space-y-4 p-6">
-      <BackLink />
-      <h1 className="text-xl font-semibold">Edit {sheet.cost_sheet_no}</h1>
-      <CostSheetForm existing={sheet} />
-    </div>
-  );
+  return <CostSheetForm existing={sheet} />;
 }

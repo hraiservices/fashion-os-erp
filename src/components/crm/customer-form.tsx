@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TagPicker } from "@/components/ui/tag-picker";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { useSaveCustomer } from "@/hooks/use-customer-mutations";
 import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -68,6 +69,8 @@ export function CustomerForm() {
 
   const [measurements, setMeasurements] = useState<Record<string, string>>(() => blankMeasurements(measureFields || []));
   const [tags, setTags] = useState<string[]>([]);
+  const [addressOpen, setAddressOpen] = useState(false);
+  const [measureOpen, setMeasureOpen] = useState(false);
 
   const {
     register,
@@ -115,6 +118,17 @@ export function CustomerForm() {
           </Link>
           <div className="flex-1">
             <h1 className="text-base font-semibold">New Customer</h1>
+          </div>
+          {/* Duplicate of the bottom FormActionBar — mobile only, so Add Customer is
+             reachable without scrolling all the way down. */}
+          <div className="flex items-center gap-2 sm:hidden">
+            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
+              <Save className="size-3.5" />
+              {isSubmitting ? "Saving…" : "Add"}
+            </Button>
           </div>
         </div>
       </div>
@@ -167,47 +181,87 @@ export function CustomerForm() {
 
         {/* Address & notes */}
         <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-          <SectionHeading icon={MapPin} label="Address & notes" />
-          <div className="space-y-4">
-            <FieldGroup label="Address">
-              <Textarea placeholder="House no., street, city, pincode…" rows={2} className="resize-none" {...register("address")} />
-            </FieldGroup>
-            <FieldGroup label="Notes" hint="Fit preferences, fabric choices, anything special.">
-              <Textarea placeholder="Customer preferences, special instructions…" rows={2} className="resize-none" {...register("notes")} />
-            </FieldGroup>
-          </div>
+          <Accordion value={addressOpen ? ["address"] : []} onValueChange={(v) => setAddressOpen(v.includes("address"))}>
+            <AccordionItem value="address" className="border-b-0">
+              <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                    <MapPin className="size-3.5 text-primary" />
+                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Address & notes</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4">
+                  <FieldGroup label="Address">
+                    <Textarea placeholder="House no., street, city, pincode…" rows={2} className="resize-none" {...register("address")} />
+                  </FieldGroup>
+                  <FieldGroup label="Notes" hint="Fit preferences, fabric choices, anything special.">
+                    <Textarea placeholder="Customer preferences, special instructions…" rows={2} className="resize-none" {...register("notes")} />
+                  </FieldGroup>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
 
         {/* Measurements */}
         {fields.length > 0 && (
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-            <SectionHeading icon={Ruler} label="Measurements" />
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-              {fields.map((label) => {
-                const key = toMKey(label);
-                return (
-                  <div key={key} className="space-y-1.5">
-                    <label className="block text-[11px] font-medium text-muted-foreground">{label}</label>
-                    <Input
-                      type="number"
-                      min={0}
-                      step={0.5}
-                      placeholder="—"
-                      className="h-9 text-sm"
-                      value={measurements[key] ?? ""}
-                      onChange={(e) => setMeasurements((m) => ({ ...m, [key]: e.target.value }))}
-                    />
+            <Accordion value={measureOpen ? ["measurements"] : []} onValueChange={(v) => setMeasureOpen(v.includes("measurements"))}>
+              <AccordionItem value="measurements" className="border-b-0">
+                <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                  <span className="flex items-center gap-2">
+                    <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                      <Ruler className="size-3.5 text-primary" />
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Measurements</span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+                    {fields.map((label) => {
+                      const key = toMKey(label);
+                      return (
+                        <div key={key} className="space-y-1.5">
+                          <label className="block text-[11px] font-medium text-muted-foreground">{label}</label>
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.5}
+                            placeholder="—"
+                            className="h-9 text-sm"
+                            value={measurements[key] ?? ""}
+                            onChange={(e) => setMeasurements((m) => ({ ...m, [key]: e.target.value }))}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
         )}
       </div>
 
-      <FormActionBar>
-        <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
-        <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
+      <FormActionBar className="justify-start sm:justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="h-12 px-6 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          onClick={() => router.back()}
+          disabled={isSubmitting}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          size="lg"
+          className="h-12 flex-1 gap-1.5 px-6 text-base sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          disabled={isSubmitting}
+        >
           <Save className="size-3.5" />
           {isSubmitting ? "Saving…" : "Add Customer"}
         </Button>

@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePicker } from "@/components/ui/date-picker";
 import { CategoryPicker } from "@/components/expenses/category-picker";
 import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/customer-picker";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import type { Customer, Expense } from "@/lib/types";
 
 const schema = z.object({
@@ -63,6 +64,8 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
   const today = new Date().toISOString().split("T")[0];
 
   const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
+  const [customerLinkOpen, setCustomerLinkOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
   const [customer, setCustomer] = useState<{ name: string; mobile: string } | null>(
     existing?.customerName ? { name: existing.customerName, mobile: existing.customerMobile || "" } : null
   );
@@ -111,6 +114,17 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
           <div className="flex-1">
             <h1 className="text-base font-semibold">{isEdit ? "Edit Expense" : "New Expense"}</h1>
           </div>
+          {/* Duplicate of the bottom FormActionBar — mobile only, so Record/Save is reachable
+             without scrolling all the way down. */}
+          <div className="flex items-center gap-2 sm:hidden">
+            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
+              <Save className="size-3.5" />
+              {isSubmitting ? "Saving…" : isEdit ? "Save" : "Record"}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -155,35 +169,75 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
 
         {/* Customer link */}
         <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-          <SectionHeading icon={User2} label="Customer link" />
-          <FieldGroup label="Customer" hint="Optional — link this expense to a customer (e.g. a reimbursable or billable cost).">
-            <div className="flex items-center gap-2">
-              <div className="flex-1">
-                <CustomerPickerTrigger customerName={customer?.name || ""} onClick={() => setCustomerPickerOpen(true)} />
-              </div>
-              {customer && (
-                <button type="button" onClick={() => setCustomer(null)} className="text-xs text-muted-foreground hover:text-foreground whitespace-nowrap">
-                  Clear
-                </button>
-              )}
-            </div>
-          </FieldGroup>
+          <Accordion value={customerLinkOpen ? ["customer"] : []} onValueChange={(v) => setCustomerLinkOpen(v.includes("customer"))}>
+            <AccordionItem value="customer" className="border-b-0">
+              <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                    <User2 className="size-3.5 text-primary" />
+                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Customer link</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <FieldGroup label="Customer" hint="Optional — link this expense to a customer (e.g. a reimbursable or billable cost).">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <CustomerPickerTrigger customerName={customer?.name || ""} onClick={() => setCustomerPickerOpen(true)} />
+                    </div>
+                    {customer && (
+                      <button type="button" onClick={() => setCustomer(null)} className="text-xs text-muted-foreground hover:text-foreground whitespace-nowrap">
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </FieldGroup>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
 
         {/* Notes */}
         <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-          <SectionHeading icon={FileText} label="Notes" />
-          <FieldGroup label="Description / details">
-            <Textarea rows={3} placeholder="What was this expense for? Any additional details…" className="resize-none" {...register("description")} />
-          </FieldGroup>
+          <Accordion value={notesOpen ? ["notes"] : []} onValueChange={(v) => setNotesOpen(v.includes("notes"))}>
+            <AccordionItem value="notes" className="border-b-0">
+              <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                    <FileText className="size-3.5 text-primary" />
+                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <FieldGroup label="Description / details">
+                  <Textarea rows={3} placeholder="What was this expense for? Any additional details…" className="resize-none" {...register("description")} />
+                </FieldGroup>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       </div>
 
       <CustomerPicker open={customerPickerOpen} onOpenChange={setCustomerPickerOpen} onSelect={handleSelectCustomer} />
 
-      <FormActionBar>
-        <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
-        <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
+      <FormActionBar className="justify-start sm:justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="h-12 px-6 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          onClick={() => router.back()}
+          disabled={isSubmitting}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          size="lg"
+          className="h-12 flex-1 gap-1.5 px-6 text-base sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          disabled={isSubmitting}
+        >
           <Save className="size-3.5" />
           {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : "Record Expense"}
         </Button>

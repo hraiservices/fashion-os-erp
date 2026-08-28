@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CustomerPicker } from "@/components/sales/customer-picker";
 import { SearchSelect } from "@/components/ui/search-select";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
 import { FormActionBar } from "@/components/ui/form-action-bar";
 import { usePriceListItemsMap } from "@/hooks/use-price-lists";
@@ -375,9 +376,15 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
               <FieldGroup label="Customer notes" hint="Internal — not printed on the invoice">
                 <Textarea rows={2} placeholder="Order ref, special instructions…" value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none" />
               </FieldGroup>
-              <FieldGroup label="Terms & Conditions" hint="Printed on the invoice. Edit the shop-wide default in Settings → Invoice Terms.">
-                <Textarea rows={3} placeholder="Payment terms, return policy…" value={terms} onChange={(e) => setTerms(e.target.value)} className="resize-none" />
-              </FieldGroup>
+              <Accordion className="rounded-lg border px-3">
+                <AccordionItem value="terms" className="border-b-0">
+                  <AccordionTrigger className="text-xs font-medium text-foreground/80">Terms &amp; Conditions</AccordionTrigger>
+                  <AccordionContent className="space-y-1.5">
+                    <Textarea rows={3} placeholder="Payment terms, return policy…" value={terms} onChange={(e) => setTerms(e.target.value)} className="resize-none" />
+                    <p className="text-[11px] text-muted-foreground">Printed on the invoice. Edit the shop-wide default in Settings → Invoice Terms.</p>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </div>
           </div>
         </div>

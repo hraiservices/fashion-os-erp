@@ -10,13 +10,12 @@ import { useRunPayroll } from "@/hooks/use-payroll-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { fmtDate } from "@/lib/format";
-import { toISODate } from "@/components/ui/date-picker";
+import { DatePicker, toISODate } from "@/components/ui/date-picker";
 
 function todayISO() {
   return toISODate(new Date());
@@ -105,11 +104,11 @@ export default function PayrollRunsPage() {
           <div className="space-y-3">
             <div className="space-y-1.5">
               <label className="text-xs font-medium">Period start</label>
-              <Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
+              <DatePicker value={periodStart} onChange={setPeriodStart} />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium">Period end</label>
-              <Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
+              <DatePicker value={periodEnd} onChange={setPeriodEnd} />
             </div>
             <p className="text-xs text-muted-foreground">Generates a draft payslip for every active employee based on their attendance in this period.</p>
           </div>

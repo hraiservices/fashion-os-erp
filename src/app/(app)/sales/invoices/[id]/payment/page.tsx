@@ -11,6 +11,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr, fmtDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -122,7 +123,7 @@ export default function RecordSalesPaymentPage({ params }: { params: Promise<{ i
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Payment Date</Label>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                <DatePicker value={date} onChange={setDate} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Payment Mode</Label>

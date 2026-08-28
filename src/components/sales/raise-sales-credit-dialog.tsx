@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { useProducts } from "@/hooks/use-products";
 import { useRaiseSalesCreditNote } from "@/hooks/use-sales-mutations";
@@ -81,7 +82,7 @@ export function RaiseSalesCreditDialog({
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Return date</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <DatePicker value={date} onChange={setDate} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Reason *</Label>

@@ -273,17 +273,17 @@ function ProductsPageContent() {
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           {p.barcode && (
-                            <Button variant="ghost" size="icon-sm" onClick={() => printBarcodeLabel(p)} aria-label={`Print barcode label for ${p.name}`} title="Print barcode label">
+                            <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => printBarcodeLabel(p)} aria-label={`Print barcode label for ${p.name}`} title="Print barcode label">
                               <Printer className="size-3.5" />
                             </Button>
                           )}
-                          <Button variant="ghost" size="icon-sm" onClick={() => openEdit(p)} aria-label={`Edit ${p.name}`}>
+                          <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => openEdit(p)} aria-label={`Edit ${p.name}`}>
                             <Pencil className="size-3.5" />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger
                               render={
-                                <Button variant="ghost" size="icon-sm" aria-label={`Delete ${p.name}`}>
+                                <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" aria-label={`Delete ${p.name}`}>
                                   <Trash2 className="size-3.5" />
                                 </Button>
                               }

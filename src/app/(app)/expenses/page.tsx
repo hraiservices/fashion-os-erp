@@ -206,13 +206,13 @@ function ExpensesPageContent() {
                 <MobileRecordRow label="Method" value={e.payMethod} />
                 {canAdd && (
                   <div className="flex items-center justify-end gap-1 pt-1">
-                    <Button variant="ghost" size="icon-sm" className="size-8 text-muted-foreground" nativeButton={false} render={<Link href={`/expenses/${e.id}/edit`} />} aria-label="Edit expense">
+                    <Button variant="ghost" size="icon-sm" className="size-11 text-muted-foreground" nativeButton={false} render={<Link href={`/expenses/${e.id}/edit`} />} aria-label="Edit expense">
                       <Pencil className="size-3.5" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      className="size-8 text-muted-foreground hover:text-destructive"
+                      className="size-11 text-muted-foreground hover:text-destructive"
                       onClick={() => handleDelete(e.id)}
                       disabled={deleteExpense.isPending}
                       aria-label="Delete expense"

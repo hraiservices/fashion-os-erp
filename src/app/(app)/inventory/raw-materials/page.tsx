@@ -128,13 +128,13 @@ function RawMaterialsPageContent() {
                     {canManage && (
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon-sm" onClick={() => openEdit(m)} aria-label={`Edit ${m.name}`}>
+                          <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => openEdit(m)} aria-label={`Edit ${m.name}`}>
                             <Pencil className="size-3.5" />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger
                               render={
-                                <Button variant="ghost" size="icon-sm" aria-label={`Delete ${m.name}`}>
+                                <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" aria-label={`Delete ${m.name}`}>
                                   <Trash2 className="size-3.5" />
                                 </Button>
                               }

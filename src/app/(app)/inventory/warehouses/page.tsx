@@ -138,13 +138,13 @@ export default function WarehousesPage() {
               )}
               {canManage && (
                 <div className="flex shrink-0 items-center gap-1">
-                  <Button variant="ghost" size="icon-sm" onClick={() => openEdit(w)} aria-label={`Edit ${w.name}`}>
+                  <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => openEdit(w)} aria-label={`Edit ${w.name}`}>
                     <Pencil className="size-3.5" />
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger
                       render={
-                        <Button variant="ghost" size="icon-sm" aria-label={`Delete ${w.name}`}>
+                        <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" aria-label={`Delete ${w.name}`}>
                           <Trash2 className="size-3.5" />
                         </Button>
                       }

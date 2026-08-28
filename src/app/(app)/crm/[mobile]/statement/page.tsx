@@ -10,7 +10,7 @@ import { buildCustomerTransactions } from "@/lib/customer-ledger";
 import { inr, fmtDate } from "@/lib/format";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -116,11 +116,11 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">From</Label>
-          <Input type="date" className="h-8 w-36" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <DatePicker className="w-36" value={from} onChange={setFrom} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">To</Label>
-          <Input type="date" className="h-8 w-36" value={to} onChange={(e) => setTo(e.target.value)} />
+          <DatePicker className="w-36" value={to} onChange={setTo} />
         </div>
         {(from || to) && (
           <Button variant="ghost" size="sm" onClick={() => { setFrom(""); setTo(""); }}>

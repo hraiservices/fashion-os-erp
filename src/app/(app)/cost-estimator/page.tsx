@@ -59,7 +59,7 @@ export default function CostEstimatorPage() {
       <AlertDialog>
         <AlertDialogTrigger
           render={
-            <Button variant="ghost" size="icon-sm" aria-label={`Delete ${sheetNo}`}>
+            <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" aria-label={`Delete ${sheetNo}`}>
               <Trash2 className="size-4" />
             </Button>
           }

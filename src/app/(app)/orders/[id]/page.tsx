@@ -432,7 +432,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                       variant="ghost"
                       size="icon-sm"
                       aria-label="Delete payment"
-                      className="shrink-0 text-muted-foreground hover:text-red-600"
+                      className="size-11 shrink-0 text-muted-foreground hover:text-red-600 sm:size-7"
                       onClick={() => setDeletePaymentId(p.id)}
                     >
                       <Trash2 className="size-4" />

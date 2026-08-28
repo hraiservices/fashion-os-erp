@@ -91,7 +91,7 @@ export function TailorWorksheetDocument({
             </>
           )}
 
-          <Text style={styles.sectionTitle}>Today's work ({section.newToday.length})</Text>
+          <Text style={styles.sectionTitle}>Today&apos;s work ({section.newToday.length})</Text>
           {section.newToday.length > 0 ? (
             <View style={styles.todayBox}>
               {section.newToday.map((g, i) => (

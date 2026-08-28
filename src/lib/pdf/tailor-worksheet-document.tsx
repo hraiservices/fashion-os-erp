@@ -12,7 +12,8 @@ const styles = StyleSheet.create({
   tailorName: { fontSize: 22, fontFamily: "Helvetica-Bold", textAlign: "right" },
   dateLine: { fontSize: 11, color: "#6b7280", textAlign: "right", marginTop: 2 },
   sectionTitle: { fontSize: 14, fontFamily: "Helvetica-Bold", marginTop: 14, marginBottom: 8 },
-  pendingBox: { backgroundColor: "#FEF3E2", border: "1 solid #F0B45E", borderRadius: 6, padding: 12, marginBottom: 6 },
+  overdueBox: { backgroundColor: "#FEF3E2", border: "1 solid #F0B45E", borderRadius: 6, padding: 12, marginBottom: 6 },
+  pendingBox: { backgroundColor: "#F3F4F6", borderRadius: 6, padding: 12, marginBottom: 6 },
   todayBox: { backgroundColor: "#F3F4F6", borderRadius: 6, padding: 12 },
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingVertical: 8, borderTop: "1 solid rgba(0,0,0,0.08)" },
   rowFirst: { borderTop: "none" },
@@ -68,11 +69,22 @@ export function TailorWorksheetDocument({
             </View>
           </View>
 
-          {section.carriedOver.length > 0 && (
+          {section.overdue.length > 0 && (
             <>
-              <Text style={styles.sectionTitle}>⚠ Pending from before ({section.carriedOver.length})</Text>
+              <Text style={styles.sectionTitle}>⚠ Overdue ({section.overdue.length})</Text>
+              <View style={styles.overdueBox}>
+                {section.overdue.map((g, i) => (
+                  <GarmentRow key={g.key} g={g} first={i === 0} />
+                ))}
+              </View>
+            </>
+          )}
+
+          {section.pendingFromBefore.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>Pending from before ({section.pendingFromBefore.length})</Text>
               <View style={styles.pendingBox}>
-                {section.carriedOver.map((g, i) => (
+                {section.pendingFromBefore.map((g, i) => (
                   <GarmentRow key={g.key} g={g} first={i === 0} />
                 ))}
               </View>

@@ -63,13 +63,24 @@ export default function TailorWorksheetPage() {
                 <h2 className="text-sm font-semibold">{s.tailorName}</h2>
               </div>
 
-              {s.carriedOver.length > 0 && (
+              {s.overdue.length > 0 && (
                 <div className="border-b border-amber-500/30 bg-amber-50 dark:bg-amber-950/30">
                   <p className="flex items-center gap-1.5 px-3 pt-2.5 text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
-                    <AlertTriangle className="size-3.5" /> Pending from before ({s.carriedOver.length})
+                    <AlertTriangle className="size-3.5" /> Overdue ({s.overdue.length})
                   </p>
                   <div className="px-3 pb-1">
-                    {s.carriedOver.map((g) => (
+                    {s.overdue.map((g) => (
+                      <GarmentLine key={g.key} g={g} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {s.pendingFromBefore.length > 0 && (
+                <div className="border-b">
+                  <p className="px-3 pt-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Pending from before ({s.pendingFromBefore.length})</p>
+                  <div className="px-3 pb-1">
+                    {s.pendingFromBefore.map((g) => (
                       <GarmentLine key={g.key} g={g} />
                     ))}
                   </div>

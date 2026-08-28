@@ -22,7 +22,11 @@ export interface WorksheetGarment {
 export interface TailorWorksheetSection {
   tailorId: string;
   tailorName: string;
-  carriedOver: WorksheetGarment[];
+  /** Delivery date has already passed — the only bucket that gets urgent/warning styling. */
+  overdue: WorksheetGarment[];
+  /** Already known-pending as of an earlier worksheet run, but not yet actually overdue —
+   *  shown calmly, since "known about for a while" isn't the same as "late". */
+  pendingFromBefore: WorksheetGarment[];
   newToday: WorksheetGarment[];
 }
 
@@ -107,8 +111,13 @@ export async function buildTailorWorksheet(supabase: SupabaseClient<Database>): 
       .maybeSingle();
 
     const priorKeys = new Set((lastSnapshot?.pending_keys as string[] | null) || []);
-    const carriedOver = pending.filter((g) => priorKeys.has(g.key));
-    const newToday = pending.filter((g) => !priorKeys.has(g.key));
+    // Overdue is judged purely by delivery date, independent of carried-over/new — a garment
+    // due days from now shouldn't read as urgent just because it's been pending a while, and
+    // one due today/passed should read as urgent even if it's brand new on today's list.
+    const overdue = pending.filter((g) => g.deliveryDate && g.deliveryDate < today);
+    const notOverdue = pending.filter((g) => !(g.deliveryDate && g.deliveryDate < today));
+    const pendingFromBefore = notOverdue.filter((g) => priorKeys.has(g.key));
+    const newToday = notOverdue.filter((g) => !priorKeys.has(g.key));
 
     await supabase.from("tailor_worksheet_snapshots").upsert(
       { snapshot_date: today, tailor_id: tailorId, pending_keys: pending.map((g) => g.key) },
@@ -118,12 +127,16 @@ export async function buildTailorWorksheet(supabase: SupabaseClient<Database>): 
     sections.push({
       tailorId,
       tailorName: employeeNameById.get(tailorId) || "Unknown",
-      carriedOver,
+      overdue,
+      pendingFromBefore,
       newToday,
     });
   }
 
   // Most-work-first so the busiest/most-behind tailor's sheet is easy to find at the top.
-  sections.sort((a, b) => b.carriedOver.length + b.newToday.length - (a.carriedOver.length + a.newToday.length));
+  sections.sort(
+    (a, b) =>
+      b.overdue.length + b.pendingFromBefore.length + b.newToday.length - (a.overdue.length + a.pendingFromBefore.length + a.newToday.length)
+  );
   return sections;
 }

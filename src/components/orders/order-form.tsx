@@ -52,6 +52,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
 import { DatePicker } from "@/components/ui/date-picker";
 import { TimePicker } from "@/components/ui/time-picker";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
 const garmentSchema = z.object({
   type: z.string().min(1, "Select a garment"),
@@ -220,6 +221,7 @@ function OrderFormFields({
   const [couponCode, setCouponCode] = useState("");
   const [prefilled, setPrefilled] = useState(false);
   const [measureOpen, setMeasureOpen] = useState(!isAlteration);
+  const [costsOpen, setCostsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const {
@@ -617,29 +619,30 @@ function OrderFormFields({
 
           {measureFields.length > 0 && (
             <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-              <SectionHeading
-                icon={Ruler}
-                label="Measurements"
-                action={
-                  isAlteration ? (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setMeasureOpen((v) => !v)}>
-                      {measureOpen ? "Hide" : "Add measurements"}
-                    </Button>
-                  ) : undefined
-                }
-              />
-              <p className="-mt-2 mb-4 text-xs text-muted-foreground">
-                {prefilled ? "Loaded from this customer's saved profile — edit as needed." : "Saved to the customer for next time."}
-              </p>
-              {(!isAlteration || measureOpen) && (
-                <MeasurementGrid
-                  fields={measureFields}
-                  values={measurements}
-                  onChange={(key, value) => setMeasurements((m) => ({ ...m, [key]: value }))}
-                  lang={measureLang}
-                  onLangChange={setMeasureLang}
-                />
-              )}
+              <Accordion value={measureOpen ? ["measurements"] : []} onValueChange={(v) => setMeasureOpen(v.includes("measurements"))}>
+                <AccordionItem value="measurements" className="border-b-0">
+                  <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                    <span className="flex items-center gap-2">
+                      <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                        <Ruler className="size-3.5 text-primary" />
+                      </span>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Measurements</span>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <p className="-mt-2 mb-4 text-xs text-muted-foreground">
+                      {prefilled ? "Loaded from this customer's saved profile — edit as needed." : "Saved to the customer for next time."}
+                    </p>
+                    <MeasurementGrid
+                      fields={measureFields}
+                      values={measurements}
+                      onChange={(key, value) => setMeasurements((m) => ({ ...m, [key]: value }))}
+                      lang={measureLang}
+                      onLangChange={setMeasureLang}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </div>
           )}
 
@@ -773,7 +776,17 @@ function OrderFormFields({
 
           {user?.perms.viewReports && (
             <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-              <SectionHeading icon={Receipt} label="Costs (internal — not shown to customer)" />
+              <Accordion value={costsOpen ? ["costs"] : []} onValueChange={(v) => setCostsOpen(v.includes("costs"))}>
+                <AccordionItem value="costs" className="border-b-0">
+                  <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                    <span className="flex items-center gap-2">
+                      <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                        <Receipt className="size-3.5 text-primary" />
+                      </span>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Costs (internal — not shown to customer)</span>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
               <p className="-mt-2 mb-4 text-xs text-muted-foreground">Powers the order-profitability report. Leave blank if unknown.</p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FieldGroup label="Fabric cost">
@@ -969,6 +982,9 @@ function OrderFormFields({
                   </span>
                 </div>
               </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </div>
           )}
 

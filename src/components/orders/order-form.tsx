@@ -51,6 +51,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
 import { DatePicker } from "@/components/ui/date-picker";
+import { TimePicker } from "@/components/ui/time-picker";
 
 const garmentSchema = z.object({
   type: z.string().min(1, "Select a garment"),
@@ -520,7 +521,7 @@ function OrderFormFields({
                   <Controller control={control} name="inDate" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} />} />
                 </FieldGroup>
                 <FieldGroup label="Order time" hint="When the order was received">
-                  <Input type="time" {...register("inTime")} className="h-10" />
+                  <Controller control={control} name="inTime" render={({ field }) => <TimePicker value={field.value} onChange={field.onChange} />} />
                 </FieldGroup>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:col-span-2">
@@ -528,7 +529,7 @@ function OrderFormFields({
                   <Controller control={control} name="deliveryDate" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} placeholder="Pick delivery date" />} />
                 </FieldGroup>
                 <FieldGroup label="Delivery time" hint="Countdown uses this if set">
-                  <Input type="time" {...register("deliveryTime")} className="h-10" />
+                  <Controller control={control} name="deliveryTime" render={({ field }) => <TimePicker value={field.value} onChange={field.onChange} />} />
                 </FieldGroup>
               </div>
               <FieldGroup label="Tailor" className="sm:col-span-2">

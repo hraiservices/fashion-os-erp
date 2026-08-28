@@ -141,6 +141,10 @@ function AlertDialogDescription({
   )
 }
 
+// Bigger tap target on mobile only — these are the actual Cancel/Confirm buttons inside
+// every confirmation dialog app-wide, so this one override covers all of them.
+const RESPONSIVE_SIZE_CLASS = "h-11 px-4 text-base sm:h-8 sm:px-2.5 sm:text-sm"
+
 function AlertDialogAction({
   className,
   ...props
@@ -148,7 +152,7 @@ function AlertDialogAction({
   return (
     <Button
       data-slot="alert-dialog-action"
-      className={cn(className)}
+      className={cn(RESPONSIVE_SIZE_CLASS, className)}
       {...props}
     />
   )
@@ -164,7 +168,7 @@ function AlertDialogCancel({
   return (
     <AlertDialogPrimitive.Close
       data-slot="alert-dialog-cancel"
-      className={cn(className)}
+      className={cn(RESPONSIVE_SIZE_CLASS, className)}
       render={<Button variant={variant} size={size} />}
       {...props}
     />

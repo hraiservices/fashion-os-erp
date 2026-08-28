@@ -134,7 +134,7 @@ export function KanbanBoard({
 
       {/* Mobile: one stage at a time, picked via tab pills — no sideways-scrolling board. */}
       <div className="sm:hidden">
-        <div className="scrollbar-hide -mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 pb-1">
+        <div className="scrollbar-hide -mx-4 mb-3 flex touch-pan-x gap-1.5 overflow-x-auto px-4 pb-1">
           {STAGES.map((stage) => {
             const meta = STAGE_META[stage];
             const count = orders.filter((o) => o.status === stage).length;

@@ -32,13 +32,23 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    // "black-translucent" lets the app draw its own colored bar under the system status-bar
+    // icons (via the safe-area-inset padding on the topbar/tab-bar) instead of iOS rendering
+    // an opaque system bar on top of the app — this is what makes an installed PWA's status
+    // bar look like part of the app rather than browser chrome sitting above it.
+    statusBarStyle: "black-translucent",
     title: APP_NAME,
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#6D28D9",
+  // Lets the app draw under the notch/home-indicator area so env(safe-area-inset-*) resolves
+  // to real values instead of 0 — required for the bottom tab bar and sheets to pad around them.
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 export default function RootLayout({

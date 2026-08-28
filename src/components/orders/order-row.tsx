@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { hapticTap } from "@/lib/haptics";
 import type { useRowSelection } from "@/hooks/use-row-selection";
 import type { Order } from "@/lib/types";
 import type { Shop } from "@/lib/settings";
@@ -64,6 +65,7 @@ function AdvanceButton({ order, onAdvance, advancing, compact }: RowProps & { co
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
+        hapticTap();
         onAdvance?.(order.id);
       }}
     >

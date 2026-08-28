@@ -456,6 +456,10 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* Kill the default gray/blue flash Android/iOS draw on every tap — without this every
+       button and link looks like a tapped mobile-web link instead of a native control, since
+       we already give interactive elements their own deliberate :active state (see button.tsx). */
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply bg-background text-foreground;
@@ -464,6 +468,18 @@
   html {
     @apply bg-background font-sans;
     overscroll-behavior-y: none;
+  }
+  /* Long-pressing a button/link/icon shouldn't pop the browser's text-selection callout —
+     native apps never let you "select" a control's label. Real text content isn't touched
+     since inputs/textareas and anything explicitly opted in keep the default. */
+  button,
+  a,
+  svg,
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"] {
+    -webkit-user-select: none;
+    user-select: none;
   }
 }
 

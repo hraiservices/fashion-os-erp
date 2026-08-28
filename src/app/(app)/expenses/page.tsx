@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -134,8 +135,7 @@ function ExpensesPageContent() {
                 <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
                   {canAdd && (
                     <th className="w-8 px-4 py-2.5">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={selection.allSelected}
                         ref={(el) => {
                           if (el) el.indeterminate = selection.someSelected;
@@ -158,7 +158,7 @@ function ExpensesPageContent() {
                   <tr key={e.id} className="transition-colors hover:bg-muted/30">
                     {canAdd && (
                       <td className="px-4 py-3">
-                        <input type="checkbox" checked={selection.selected.has(e.id)} onChange={() => selection.toggle(e.id)} aria-label={`Select expense on ${fmtDateShort(e.date)}`} />
+                        <Checkbox checked={selection.selected.has(e.id)} onChange={() => selection.toggle(e.id)} aria-label={`Select expense on ${fmtDateShort(e.date)}`} />
                       </td>
                     )}
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">{fmtDateShort(e.date)}</td>

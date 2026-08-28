@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { BalanceDue } from "@/components/ui/money-text";
+import { Checkbox } from "@/components/ui/checkbox";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
 import { SavedViewsMenu } from "@/components/ui/saved-views-menu";
@@ -317,8 +318,7 @@ export default function SalesInvoicesPage() {
               <TableRow>
                 {canManage && (
                   <TableHead className="w-8">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={selection.allSelected}
                       ref={(el) => {
                         if (el) el.indeterminate = selection.someSelected;
@@ -354,7 +354,7 @@ export default function SalesInvoicesPage() {
                   <TableRow key={inv.id} className="cursor-pointer" onClick={() => (window.location.href = `/sales/invoices/${inv.id}`)}>
                     {canManage && (
                       <TableCell onClick={(e) => e.stopPropagation()}>
-                        <input type="checkbox" checked={selection.selected.has(inv.id)} onChange={() => selection.toggle(inv.id)} aria-label={`Select invoice ${inv.invoiceNumber}`} />
+                        <Checkbox checked={selection.selected.has(inv.id)} onChange={() => selection.toggle(inv.id)} aria-label={`Select invoice ${inv.invoiceNumber}`} />
                       </TableCell>
                     )}
                     {table.isVisible("date") && <TableCell className="text-muted-foreground">{fmtDate(inv.invoiceDate)}</TableCell>}

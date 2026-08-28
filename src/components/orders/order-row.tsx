@@ -13,6 +13,7 @@ import { AlterationBadge, ReworkBadge } from "@/components/orders/order-card";
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { useRowSelection } from "@/hooks/use-row-selection";
 import type { Order } from "@/lib/types";
 import type { Shop } from "@/lib/settings";
@@ -169,8 +170,7 @@ export function OrderTableRow(props: TableRowProps) {
       </td>
       {selection && (
         <td className="px-3 py-3">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={selection.selected.has(order.id)}
             onChange={() => selection.toggle(order.id)}
             aria-label={`Select order ${order.id}`}

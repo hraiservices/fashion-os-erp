@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, RotateCcw, Sparkles, Check } from "lucide-react";
+import { Plus, Trash2, RotateCcw, Sparkles, Check, ChevronUp, ChevronDown } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { BUILTIN_WIDGET_BY_KEY, defaultLayout, genCustomWidgetId, type WidgetInstance } from "@/lib/dashboard-widgets";
@@ -31,6 +31,18 @@ export function CustomizePanel({
     onChange(widgets.filter((w) => w.id !== id));
   }
 
+  // Up/down reorder — the grid's own drag handle is mouse/hover-only (native HTML5 drag
+  // events, opacity-0 until :hover), so it's invisible and non-functional on a touch device.
+  // These buttons are the only way to reorder widgets on mobile.
+  function move(id: string, direction: -1 | 1) {
+    const idx = sorted.findIndex((w) => w.id === id);
+    const swapIdx = idx + direction;
+    if (idx === -1 || swapIdx < 0 || swapIdx >= sorted.length) return;
+    const reordered = [...sorted];
+    [reordered[idx], reordered[swapIdx]] = [reordered[swapIdx], reordered[idx]];
+    onChange(reordered.map((w, i) => ({ ...w, order: i })));
+  }
+
   function addCustomCard(config: CustomCardConfig) {
     const id = genCustomWidgetId();
     onChange([...widgets, { id, kind: "custom", customConfig: config, visible: true, order: widgets.length }]);
@@ -56,8 +68,10 @@ export function CustomizePanel({
           </SheetHeader>
 
           <div className="space-y-1 px-4 py-2">
-            <p className="mb-2 text-xs text-muted-foreground">Show or hide cards. Drag cards directly on the dashboard to reorder them.</p>
-            {sorted.map((w) => (
+            <p className="mb-2 text-xs text-muted-foreground">
+              Show or hide cards. Drag cards directly on the dashboard to reorder them, or use the arrows here — the only way to reorder on a phone/touch screen.
+            </p>
+            {sorted.map((w, i) => (
               <div key={w.id} className="flex items-center gap-2 rounded-lg border p-2.5 text-sm">
                 <button
                   type="button"
@@ -76,6 +90,26 @@ export function CustomizePanel({
                     </Button>
                   </>
                 )}
+                <div className="flex shrink-0 flex-col">
+                  <button
+                    type="button"
+                    onClick={() => move(w.id, -1)}
+                    disabled={i === 0}
+                    aria-label={`Move ${widgetLabel(w)} up`}
+                    className="flex h-4 items-center justify-center text-muted-foreground disabled:opacity-30"
+                  >
+                    <ChevronUp className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => move(w.id, 1)}
+                    disabled={i === sorted.length - 1}
+                    aria-label={`Move ${widgetLabel(w)} down`}
+                    className="flex h-4 items-center justify-center text-muted-foreground disabled:opacity-30"
+                  >
+                    <ChevronDown className="size-3.5" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

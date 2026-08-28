@@ -126,14 +126,14 @@ export default function QuotationDetailPage({ params }: { params: Promise<{ id: 
             <div className="rounded-xl border bg-card p-4 sm:p-5">
               <p className="mb-2 px-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Actions</p>
               <div className="space-y-1.5">
-                <Button className="w-full justify-start" nativeButton={false} render={<Link href={`/sales/invoices/new?quoteId=${quote.id}`} />}>
+                <Button className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" nativeButton={false} render={<Link href={`/sales/invoices/new?quoteId=${quote.id}`} />}>
                   <Receipt className="size-4" /> Convert to invoice
                 </Button>
-                <Button variant="outline" className="w-full justify-start" nativeButton={false} render={<Link href={`/sales/quotations/${quote.id}/edit`} />}>
+                <Button variant="outline" className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" nativeButton={false} render={<Link href={`/sales/quotations/${quote.id}/edit`} />}>
                   <Pencil className="size-4" /> Edit
                 </Button>
                 <AlertDialog>
-                  <AlertDialogTrigger render={<Button variant="outline" className="w-full justify-start"><Ban className="size-4" /> Cancel</Button>} />
+                  <AlertDialogTrigger render={<Button variant="outline" className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]"><Ban className="size-4" /> Cancel</Button>} />
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>Cancel {quote.quoteNumber}?</AlertDialogTitle>

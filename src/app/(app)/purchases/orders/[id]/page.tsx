@@ -129,14 +129,14 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
             <div className="rounded-xl border bg-card p-4 sm:p-5">
               <p className="mb-2 px-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Actions</p>
               <div className="space-y-1.5">
-                <Button className="w-full justify-start" nativeButton={false} render={<Link href={`/purchases/bills/new?poId=${po.id}`} />}>
+                <Button className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" nativeButton={false} render={<Link href={`/purchases/bills/new?poId=${po.id}`} />}>
                   <Receipt className="size-4" /> Create bill from this PO
                 </Button>
-                <Button variant="outline" className="w-full justify-start" nativeButton={false} render={<Link href={`/purchases/orders/${po.id}/edit`} />}>
+                <Button variant="outline" className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" nativeButton={false} render={<Link href={`/purchases/orders/${po.id}/edit`} />}>
                   <Pencil className="size-4" /> Edit
                 </Button>
                 <AlertDialog>
-                  <AlertDialogTrigger render={<Button variant="outline" className="w-full justify-start"><Ban className="size-4" /> Cancel PO</Button>} />
+                  <AlertDialogTrigger render={<Button variant="outline" className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]"><Ban className="size-4" /> Cancel PO</Button>} />
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>Cancel {po.poNumber}?</AlertDialogTitle>

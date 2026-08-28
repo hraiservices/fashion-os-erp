@@ -125,7 +125,7 @@ export function ColorThemeSection() {
           </div>
         </div>
 
-        <Button onClick={onSave} disabled={saving}>
+        <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={onSave} disabled={saving}>
           Save & apply
         </Button>
       </CardContent>

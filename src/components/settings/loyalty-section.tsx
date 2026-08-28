@@ -73,7 +73,7 @@ export function LoyaltySection() {
           </CardContent>
         )}
         <CardContent className="pt-0">
-          <Button onClick={onSave} disabled={save.isPending}>
+          <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={onSave} disabled={save.isPending}>
             Save settings
           </Button>
         </CardContent>
@@ -103,7 +103,7 @@ export function LoyaltySection() {
             </div>
           </CardContent>
           <CardContent className="pt-0">
-            <Button onClick={onSave} disabled={save.isPending}>
+            <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={onSave} disabled={save.isPending}>
               Save tiers
             </Button>
           </CardContent>

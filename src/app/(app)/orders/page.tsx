@@ -353,16 +353,16 @@ function OrdersContent() {
           <div className="ml-auto flex flex-wrap gap-2">
             <ExportMenu rows={bulkExportRows} filename="orders_export" disabled={bulkBusy} />
             {user?.perms.managePayments && (
-              <Button variant="outline" size="sm" onClick={() => setBulkWhatsAppOpen(true)} disabled={bulkBusy}>
+              <Button variant="outline" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={() => setBulkWhatsAppOpen(true)} disabled={bulkBusy}>
                 <MessageCircle className="size-3.5" /> Send reminders
               </Button>
             )}
             {user?.perms.deleteOrder && (
-              <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
+              <Button variant="destructive" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
                 <Trash2 className="size-3.5" /> Delete
               </Button>
             )}
-            <Button variant="ghost" size="sm" onClick={selection.clear} disabled={bulkBusy}>
+            <Button variant="ghost" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={selection.clear} disabled={bulkBusy}>
               Clear
             </Button>
           </div>

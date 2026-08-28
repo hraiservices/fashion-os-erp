@@ -97,7 +97,7 @@ export function ShopSection() {
           <Label>Google review link (shown after delivery, optional)</Label>
           <Input value={shop.reviewUrl} onChange={(e) => setShop({ ...shop, reviewUrl: e.target.value })} placeholder="https://g.page/r/..." />
         </div>
-        <Button disabled={save.isPending} onClick={onSave}>
+        <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" disabled={save.isPending} onClick={onSave}>
           Save changes
         </Button>
       </CardContent>

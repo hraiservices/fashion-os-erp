@@ -60,7 +60,7 @@ export function WhatsAppSalesSection() {
           </div>
         ))}
 
-        <Button disabled={save.isPending} onClick={onSave}>
+        <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" disabled={save.isPending} onClick={onSave}>
           {save.isPending ? "Saving…" : "Save templates"}
         </Button>
       </CardContent>

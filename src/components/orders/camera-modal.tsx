@@ -109,22 +109,27 @@ export function CameraModal({
         <div className="flex gap-2">
           {preview ? (
             <>
-              <Button variant="outline" className="flex-1" onClick={() => setPreview(null)}>
+              <Button variant="outline" className="h-12 flex-1 text-base sm:h-8 sm:text-sm" onClick={() => setPreview(null)}>
                 <RotateCcw className="size-4" /> Retake
               </Button>
-              <Button className="flex-1" onClick={usePhoto}>
+              <Button className="h-12 flex-1 text-base sm:h-8 sm:text-sm" onClick={usePhoto}>
                 <Check className="size-4" /> Use photo
               </Button>
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <Button variant="outline" className="h-12 text-base sm:h-8 sm:text-sm" onClick={() => onOpenChange(false)}>
                 <X className="size-4" /> Cancel
               </Button>
-              <Button variant="outline" aria-label="Switch camera" onClick={() => setFacing((f) => (f === "environment" ? "user" : "environment"))}>
+              <Button
+                variant="outline"
+                aria-label="Switch camera"
+                className="size-12 sm:size-8"
+                onClick={() => setFacing((f) => (f === "environment" ? "user" : "environment"))}
+              >
                 <SwitchCamera className="size-4" />
               </Button>
-              <Button className="flex-1" disabled={!!error} onClick={snap}>
+              <Button className="h-12 flex-1 text-base sm:h-8 sm:text-sm" disabled={!!error} onClick={snap}>
                 <Camera className="size-4" /> Capture
               </Button>
             </>

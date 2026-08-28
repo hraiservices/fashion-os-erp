@@ -128,8 +128,8 @@ export function CompleteWorkOrderDialog({ open, onOpenChange, wo }: { open: bool
         </div>
 
         <DialogFooter className="mx-0 mb-0 border-t px-5 py-3 shrink-0">
-          <Button variant="outline" onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleComplete} disabled={completeWo.isPending}>
+          <Button variant="outline" className="h-11 px-4 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={handleClose}>Cancel</Button>
+          <Button className="h-11 px-4 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={handleComplete} disabled={completeWo.isPending}>
             {completeWo.isPending ? "Completing…" : `Complete · produce ${wo.qtyToProduce} units`}
           </Button>
         </DialogFooter>

@@ -37,7 +37,7 @@ export function InvoiceTermsSection() {
       </CardHeader>
       <CardContent className="space-y-4">
         <Textarea rows={6} value={terms} onChange={(e) => setTerms(e.target.value)} placeholder="Payment terms, return policy, jurisdiction…" />
-        <Button disabled={save.isPending} onClick={onSave}>
+        <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" disabled={save.isPending} onClick={onSave}>
           {save.isPending ? "Saving…" : "Save changes"}
         </Button>
       </CardContent>

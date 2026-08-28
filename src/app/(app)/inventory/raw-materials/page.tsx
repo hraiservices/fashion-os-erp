@@ -75,7 +75,7 @@ function RawMaterialsPageContent() {
 
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search name or category…" className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search raw materials" />
+        <Input type="search" enterKeyHint="search" placeholder="Search name or category…" className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search raw materials" />
       </div>
 
       {isLoading ? (

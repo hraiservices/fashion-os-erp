@@ -217,7 +217,7 @@ export default function DayBookPage() {
           <ReportCard className="flex flex-wrap items-center gap-2 p-3 print:hidden">
             <div className="relative min-w-[180px] flex-1">
               <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Search reference, name, description…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 pl-8" />
+              <Input type="search" enterKeyHint="search" placeholder="Search reference, name, description…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 pl-8" />
             </div>
             <Select value={moduleFilter} onValueChange={(v) => v && setModuleFilter(v as DayBookModule | "all")}>
               <SelectTrigger className="h-9 w-40">

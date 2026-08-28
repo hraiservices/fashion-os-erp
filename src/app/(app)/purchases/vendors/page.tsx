@@ -85,7 +85,7 @@ function VendorsPageContent() {
 
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search name, mobile or GSTIN…" className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search vendors" />
+        <Input type="search" enterKeyHint="search" placeholder="Search name, mobile or GSTIN…" className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search vendors" />
       </div>
 
       {isLoading ? (

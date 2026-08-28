@@ -193,6 +193,8 @@ function CrmContent() {
         <div className="relative max-w-md flex-1 min-w-48">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            type="search"
+            enterKeyHint="search"
             placeholder="Search by name or mobile…"
             className="h-10 pl-9"
             value={search}

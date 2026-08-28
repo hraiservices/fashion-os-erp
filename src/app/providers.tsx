@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { FontLoader } from "@/components/app-shell/font-loader";
 import { ColorThemeLoader } from "@/components/app-shell/color-theme-loader";
 import { ThemeColorSync } from "@/components/app-shell/theme-color-sync";
+import { KeyboardAvoidance } from "@/components/app-shell/keyboard-avoidance";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -39,6 +40,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <FontLoader />
           <ColorThemeLoader />
           <ThemeColorSync />
+          <KeyboardAvoidance />
           {children}
           <Toaster richColors position="top-center" />
         </TooltipProvider>

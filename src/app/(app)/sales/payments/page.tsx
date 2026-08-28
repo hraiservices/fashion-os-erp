@@ -93,7 +93,7 @@ export default function SalesPaymentsPage() {
 
       <div className="relative sm:max-w-xs">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search invoice#, customer, mobile…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Input type="search" enterKeyHint="search" placeholder="Search invoice#, customer, mobile…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
       {canManage && selection.count > 0 && (

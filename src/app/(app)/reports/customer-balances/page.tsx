@@ -52,7 +52,7 @@ export default function CustomerBalancesPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative sm:max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search name or mobile…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input type="search" enterKeyHint="search" placeholder="Search name or mobile…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="flex flex-wrap gap-1.5">
           {FILTERS.map((f) => (

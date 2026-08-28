@@ -45,7 +45,7 @@ export default function ExpenseDetailsPage() {
 
       <div className="relative max-w-xs">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search category or description…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Input type="search" enterKeyHint="search" placeholder="Search category or description…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
       {rows.length === 0 ? (

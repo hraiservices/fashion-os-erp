@@ -21,7 +21,7 @@ import { ExportMenu } from "@/components/ui/export-menu";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, SkeletonListItem } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
@@ -260,7 +260,7 @@ export default function SalesInvoicesPage() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative sm:max-w-xs flex-1 min-w-40">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search invoice#, customer, mobile…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input type="search" enterKeyHint="search" placeholder="Search invoice#, customer, mobile…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <SavedViewsMenu
           views={savedViews.views}
@@ -293,7 +293,7 @@ export default function SalesInvoicesPage() {
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
+            <SkeletonListItem key={i} />
           ))}
         </div>
       ) : !invoices || invoices.length === 0 ? (

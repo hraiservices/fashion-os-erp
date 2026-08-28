@@ -126,7 +126,19 @@ function ExpensesPageContent() {
             ))}
           </div>
         ) : !expenses?.length ? (
-          <EmptyState icon={Wallet} title="No expenses yet" description="Add your first expense to start tracking costs." className="border-0" />
+          <EmptyState
+            icon={Wallet}
+            title="No expenses yet"
+            description="Add your first expense to start tracking costs."
+            className="border-0"
+            action={
+              canAdd && (
+                <Button nativeButton={false} render={<Link href="/expenses/new" />}>
+                  <Plus className="size-4" /> Add Expense
+                </Button>
+              )
+            }
+          />
         ) : (
           <>
           <div className="hidden overflow-x-auto sm:block">

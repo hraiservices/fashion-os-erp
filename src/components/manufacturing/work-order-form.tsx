@@ -11,6 +11,7 @@ import { useActiveTailors } from "@/hooks/use-employees";
 import { useCreateWorkOrder, useUpdateWorkOrder } from "@/hooks/use-work-order-mutations";
 import { genWoNumber, prefillMaterialsFromBom, type WorkOrderMaterial } from "@/lib/manufacturing";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
@@ -64,6 +65,8 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
   const [laborCostPerPiece, setLaborCostPerPiece] = useState(String(existing?.laborCostPerPiece ?? 0));
   const [notes, setNotes] = useState(existing?.notes || "");
   const [materials, setMaterials] = useState<WorkOrderMaterial[]>(existing?.materials || []);
+  const [materialsOpen, setMaterialsOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
 
   const skipNextRecompute = useRef(!!existing);
 
@@ -151,6 +154,16 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
             <h1 className="text-base font-semibold">{isEdit ? "Edit Work Order" : "New Work Order"}</h1>
             <p className="text-[11px] text-muted-foreground font-mono">{woNumber}</p>
           </div>
+          {/* Duplicate of the bottom FormActionBar — mobile only, so Create/Save is reachable
+             without scrolling all the way down. */}
+          <div className="flex items-center gap-2 sm:hidden">
+            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isPending}>
+              Cancel
+            </Button>
+            <Button type="button" size="sm" className="gap-1.5 bg-primary text-primary-foreground" onClick={handleSave} disabled={isPending}>
+              {isPending ? "Saving…" : isEdit ? "Save" : "Create"}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -220,51 +233,77 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
           {/* Materials */}
           {product && (
             <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-              <SectionHeading icon={Layers} label="Materials required" />
-              {materials.length === 0 ? (
-                <p className="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">
-                  This product has no Bill of Materials set. Add one from Inventory → Products, or continue without material tracking.
-                </p>
-              ) : (
-                <div className="overflow-hidden rounded-lg border">
-                  <table className="w-full text-sm">
-                    <thead className="border-b bg-muted/40">
-                      <tr>
-                        <th className="p-2 text-left font-medium">Material</th>
-                        <th className="p-2 text-right font-medium">Planned qty</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {materials.map((m) => (
-                        <tr key={m.rawMaterialId}>
-                          <td className="p-2">{m.rawMaterialName}</td>
-                          <td className="p-2 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <NumberInput
-                                min={0}
-                                step="0.001"
-                                className="w-24 h-10 text-right"
-                                value={m.qtyPlanned}
-                                onChange={(v) => updateMaterialQty(m.rawMaterialId, v)}
-                              />
-                              <span className="text-xs text-muted-foreground">{m.unitName}</span>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              <Accordion value={materialsOpen ? ["materials"] : []} onValueChange={(v) => setMaterialsOpen(v.includes("materials"))}>
+                <AccordionItem value="materials" className="border-b-0">
+                  <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                    <span className="flex items-center gap-2">
+                      <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                        <Layers className="size-3.5 text-primary" />
+                      </span>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Materials required</span>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    {materials.length === 0 ? (
+                      <p className="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">
+                        This product has no Bill of Materials set. Add one from Inventory → Products, or continue without material tracking.
+                      </p>
+                    ) : (
+                      <div className="overflow-hidden rounded-lg border">
+                        <table className="w-full text-sm">
+                          <thead className="border-b bg-muted/40">
+                            <tr>
+                              <th className="p-2 text-left font-medium">Material</th>
+                              <th className="p-2 text-right font-medium">Planned qty</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {materials.map((m) => (
+                              <tr key={m.rawMaterialId}>
+                                <td className="p-2">{m.rawMaterialName}</td>
+                                <td className="p-2 text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <NumberInput
+                                      min={0}
+                                      step="0.001"
+                                      className="w-24 h-10 text-right"
+                                      value={m.qtyPlanned}
+                                      onChange={(v) => updateMaterialQty(m.rawMaterialId, v)}
+                                    />
+                                    <span className="text-xs text-muted-foreground">{m.unitName}</span>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </div>
           )}
 
           {/* Notes */}
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-            <SectionHeading icon={FileText} label="Notes" />
-            <FieldGroup label="Production notes">
-              <Textarea rows={3} placeholder="Special instructions, quality standards, rush notes…" value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none" />
-            </FieldGroup>
+            <Accordion value={notesOpen ? ["notes"] : []} onValueChange={(v) => setNotesOpen(v.includes("notes"))}>
+              <AccordionItem value="notes" className="border-b-0">
+                <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                  <span className="flex items-center gap-2">
+                    <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                      <FileText className="size-3.5 text-primary" />
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes</span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <FieldGroup label="Production notes">
+                    <Textarea rows={3} placeholder="Special instructions, quality standards, rush notes…" value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none" />
+                  </FieldGroup>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
         </div>
 
@@ -299,9 +338,22 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
         </div>
       </div>
 
-      <FormActionBar>
-        <Button variant="outline" size="sm" onClick={() => router.back()} disabled={isPending}>Cancel</Button>
-        <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={handleSave} disabled={isPending}>
+      <FormActionBar className="justify-start sm:justify-end">
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-12 px-6 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          onClick={() => router.back()}
+          disabled={isPending}
+        >
+          Cancel
+        </Button>
+        <Button
+          size="lg"
+          className="h-12 flex-1 gap-1.5 bg-primary px-6 text-base text-primary-foreground sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          onClick={handleSave}
+          disabled={isPending}
+        >
           <Factory className="size-3.5" />
           {isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(estTotalCost)}` : `Create WO · ${inr(estTotalCost)}`}
         </Button>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,6 +15,7 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { UnitPicker } from "@/components/inventory/unit-picker";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { useSaveRawMaterial } from "@/hooks/use-inventory-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import type { RawMaterial } from "@/lib/types";
@@ -58,6 +60,7 @@ export function RawMaterialForm({ existing }: { existing?: RawMaterial }) {
   const { data: user } = useCurrentUser();
   const saveMaterial = useSaveRawMaterial();
   const isEdit = !!existing;
+  const [notesOpen, setNotesOpen] = useState(false);
 
   const {
     register,
@@ -104,6 +107,17 @@ export function RawMaterialForm({ existing }: { existing?: RawMaterial }) {
             <h1 className="text-base font-semibold">{isEdit ? "Edit Raw Material" : "New Raw Material"}</h1>
             {isEdit && <p className="text-[11px] font-mono text-muted-foreground">{existing!.name}</p>}
           </div>
+          {/* Duplicate of the bottom FormActionBar — mobile only, so Add/Save is reachable
+             without scrolling all the way down. */}
+          <div className="flex items-center gap-2 sm:hidden">
+            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
+              <Save className="size-3.5" />
+              {isSubmitting ? "Saving…" : isEdit ? "Save" : "Add"}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -146,16 +160,43 @@ export function RawMaterialForm({ existing }: { existing?: RawMaterial }) {
 
         {/* Notes */}
         <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-          <SectionHeading icon={FileText} label="Notes" />
-          <FieldGroup label="Internal notes">
-            <Textarea placeholder="Supplier info, quality notes, storage instructions…" rows={3} className="resize-none" {...register("notes")} />
-          </FieldGroup>
+          <Accordion value={notesOpen ? ["notes"] : []} onValueChange={(v) => setNotesOpen(v.includes("notes"))}>
+            <AccordionItem value="notes" className="border-b-0">
+              <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                    <FileText className="size-3.5 text-primary" />
+                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <FieldGroup label="Internal notes">
+                  <Textarea placeholder="Supplier info, quality notes, storage instructions…" rows={3} className="resize-none" {...register("notes")} />
+                </FieldGroup>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       </div>
 
-      <FormActionBar>
-        <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
-        <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
+      <FormActionBar className="justify-start sm:justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="h-12 px-6 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          onClick={() => router.back()}
+          disabled={isSubmitting}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          size="lg"
+          className="h-12 flex-1 gap-1.5 px-6 text-base sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          disabled={isSubmitting}
+        >
           <Save className="size-3.5" />
           {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : "Add Material"}
         </Button>

@@ -55,11 +55,11 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
   }, [allTransactions, typeFilter, from, to]);
 
   const rows = useMemo(() => {
-    let running = 0;
-    return filtered.map((t) => {
-      running += t.billed - t.paid;
-      return { ...t, running };
-    });
+    return filtered.reduce<(typeof filtered[number] & { running: number })[]>((acc, t) => {
+      const prevRunning = acc.length ? acc[acc.length - 1].running : 0;
+      acc.push({ ...t, running: prevRunning + t.billed - t.paid });
+      return acc;
+    }, []);
   }, [filtered]);
 
   const summary = useMemo(() => {

@@ -65,7 +65,7 @@ self.addEventListener("push", function (e) {
   var data = { title: "Fashion Flow", body: "You have a new notification.", url: "/dashboard" };
   try {
     if (e.data) data = Object.assign(data, e.data.json());
-  } catch (err) {
+  } catch {
     /* non-JSON payload — keep the defaults */
   }
   e.waitUntil(

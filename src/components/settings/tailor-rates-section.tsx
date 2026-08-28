@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_RATES, DEFAULT_TAILOR_RATES, LINING_LABELS, type Lining, type TailorRateCard } from "@/lib/business-rules";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NumberInput } from "@/components/ui/number-input";
@@ -25,9 +26,9 @@ export function TailorRatesSection() {
   // fires a network call — so keystrokes can't be lost or flicker while waiting on (or racing)
   // a save response. The actual save fires on blur (see commit() below).
   const [draft, setDraft] = useState<TailorRateCard | null>(null);
-  useEffect(() => {
-    if (rates && !draft) setDraft(rates);
-  }, [rates, draft]);
+  useSyncFromSource(rates, (r) => {
+    if (r && !draft) setDraft(r);
+  });
 
   const save = useMutation({
     mutationFn: async (value: TailorRateCard) => {

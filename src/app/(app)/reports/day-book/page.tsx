@@ -63,7 +63,7 @@ export default function DayBookPage() {
   const canView = !!user?.perms.viewReports;
   const { data, isLoading, isError, error } = useDayBook(date);
 
-  const entries = data?.entries || [];
+  const entries = useMemo(() => data?.entries || [], [data]);
 
   const distinctUsers = useMemo(() => {
     const set = new Set(entries.map((e) => e.user).filter((u) => u && u !== "—"));

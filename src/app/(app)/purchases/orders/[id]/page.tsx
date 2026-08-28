@@ -140,7 +140,7 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>Cancel {po.poNumber}?</AlertDialogTitle>
-                      <AlertDialogDescription>This marks the purchase order as cancelled. It has no effect on stock since POs don't move inventory.</AlertDialogDescription>
+                      <AlertDialogDescription>This marks the purchase order as cancelled. It has no effect on stock since POs don&apos;t move inventory.</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Keep it</AlertDialogCancel>

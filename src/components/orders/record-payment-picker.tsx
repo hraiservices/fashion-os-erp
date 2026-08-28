@@ -76,7 +76,7 @@ export function RecordPaymentPicker({ open, onOpenChange, orders, onSelect }: Pr
             <div className="flex flex-col items-center gap-2 py-10 text-center px-4">
               <CreditCard className="size-8 text-muted-foreground/30" />
               {query ? (
-                <p className="text-sm text-muted-foreground">No results for "{query}"</p>
+                <p className="text-sm text-muted-foreground">No results for &quot;{query}&quot;</p>
               ) : (
                 <>
                   <p className="text-sm font-medium text-muted-foreground">All payments collected</p>

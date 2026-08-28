@@ -35,11 +35,14 @@ export function NotificationBell() {
 
   // Briefing content isn't sensitive, just not relevant to tailor/sales roles — hidden client-side
   // since admin_notifications has no per-role targeting at the row level.
-  const stageNotifs = (notifs || []).filter((n) => n.type === "stage_change");
-  const briefingNotifs = isAdminOrManager ? (notifs || []).filter((n) => n.type === "ai_briefing") : [];
+  const stageNotifs = useMemo(() => (notifs || []).filter((n) => n.type === "stage_change"), [notifs]);
+  const briefingNotifs = useMemo(() => (isAdminOrManager ? (notifs || []).filter((n) => n.type === "ai_briefing") : []), [notifs, isAdminOrManager]);
   // Employee-facing events (leave requests, self-service check-in/out) — HR-adjacent, so only
   // shown to admin/manager, same visibility rule as the briefing.
-  const employeeNotifs = isAdminOrManager ? (notifs || []).filter((n) => n.type === "leave_request" || n.type === "attendance") : [];
+  const employeeNotifs = useMemo(
+    () => (isAdminOrManager ? (notifs || []).filter((n) => n.type === "leave_request" || n.type === "attendance") : []),
+    [notifs, isAdminOrManager]
+  );
 
   const urgentOrders = useMemo(() => {
     if (!orders) return [];
@@ -54,7 +57,7 @@ export function NotificationBell() {
     // sitting in the list (and been seen) shouldn't re-trigger the badge on every render.
     const newUrgent = urgentOrders.filter((o) => new Date(o.createdAt).getTime() > lastSeen).length;
     return newNotifs + newUrgent;
-  }, [stageNotifs, briefingNotifs, urgentOrders]);
+  }, [stageNotifs, briefingNotifs, employeeNotifs, urgentOrders]);
 
   function handleOpenChange(next: boolean) {
     setOpen(next);

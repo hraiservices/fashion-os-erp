@@ -1,17 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+function noopSubscribe() {
+  return () => {};
+}
+function getMountedSnapshot() {
+  return true;
+}
+function getServerSnapshot() {
+  return false;
+}
+
 /** Manual light/dark override — the app already ships full dark: styling, this just makes it reachable. */
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
   // Avoid rendering theme-dependent UI before hydration to prevent a mismatch flash.
-  useEffect(() => setMounted(true), []);
+  const mounted = useSyncExternalStore(noopSubscribe, getMountedSnapshot, getServerSnapshot);
 
   if (!mounted) return <Button variant="ghost" size="icon-sm" className="size-9 sm:size-8" aria-label="Toggle theme" disabled />;
 

@@ -208,7 +208,7 @@ export function ProductForm({ existing }: { existing?: Product }) {
         <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
           <SectionHeading icon={Shirt} label="Style & attributes" />
           <p className="-mt-2 mb-4 text-xs text-muted-foreground">
-            Helps the app suggest this product to the right customers based on what they've bought before.
+            Helps the app suggest this product to the right customers based on what they&apos;ve bought before.
           </p>
 
           <div className="mb-4 flex items-center gap-3">

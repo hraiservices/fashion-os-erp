@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -86,7 +86,6 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
     register,
     handleSubmit,
     control,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema) as never,
@@ -128,7 +127,7 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
   // (useActiveTailorNames) — role is free text so any other wording (Sales Person, Cutter,
   // Manager, ...) never appears there. This mirrors that check so the form doesn't imply
   // every active employee shows up as a tailor.
-  const roleValue = watch("role");
+  const roleValue = useWatch({ control, name: "role" });
   const willShowAsTailor = (roleValue || "").trim().toLowerCase() === "tailor";
 
   async function onSubmit(values: FormValues) {

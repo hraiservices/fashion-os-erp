@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, Settings2, CalendarDays, Layers, FileText, Factory } from "lucide-react";
@@ -10,6 +10,7 @@ import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useActiveTailors } from "@/hooks/use-employees";
 import { useCreateWorkOrder, useUpdateWorkOrder } from "@/hooks/use-work-order-mutations";
 import { genWoNumber, prefillMaterialsFromBom, type WorkOrderMaterial } from "@/lib/manufacturing";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
@@ -71,7 +72,7 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
 
   const costByMaterialId = useMemo(() => new Map((rawMaterials || []).map((m) => [m.id, m.costPerUnit])), [rawMaterials]);
 
-  useEffect(() => {
+  useSyncFromSource(`${productId}:${qtyToProduce}`, () => {
     if (skipNextRecompute.current) {
       skipNextRecompute.current = false;
       return;
@@ -82,8 +83,7 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
     }
     const qty = parseFloat(qtyToProduce) || 0;
     setMaterials(prefillMaterialsFromBom(product.bom, qty, costByMaterialId));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId, qtyToProduce]);
+  });
 
   function updateMaterialQty(rawMaterialId: string, qtyPlanned: number) {
     setMaterials((rows) => rows.map((r) => (r.rawMaterialId === rawMaterialId ? { ...r, qtyPlanned } : r)));

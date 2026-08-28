@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { mapOrderRow, type Order, type OrderRow } from "@/lib/types";
+import { mapOrderRow, type Order } from "@/lib/types";
 
 // Excludes images/audios/videos — those are stored as inline base64 (up to 900KB/2MB/4MB
 // each, see src/lib/media.ts) and this query runs on EVERY page load (the notification bell

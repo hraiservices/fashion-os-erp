@@ -41,7 +41,7 @@ export function LinkedUserAccountManager({ employeeId }: { employeeId: string })
   return (
     <div className="space-y-2">
       <Label className="text-xs font-medium text-foreground/80">Linked user account</Label>
-      <p className="text-[11px] text-muted-foreground">If this employee also logs into the dashboard, link their account so both records show they're the same person.</p>
+      <p className="text-[11px] text-muted-foreground">If this employee also logs into the dashboard, link their account so both records show they&apos;re the same person.</p>
       <SearchSelect
         value={currentRow?.email || ""}
         fallbackLabel={currentRow?.email}

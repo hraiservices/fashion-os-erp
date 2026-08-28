@@ -137,7 +137,7 @@ export default function QuotationDetailPage({ params }: { params: Promise<{ id: 
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>Cancel {quote.quoteNumber}?</AlertDialogTitle>
-                      <AlertDialogDescription>This marks the quotation as cancelled. It has no stock impact since quotations don't move inventory.</AlertDialogDescription>
+                      <AlertDialogDescription>This marks the quotation as cancelled. It has no stock impact since quotations don&apos;t move inventory.</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Keep it</AlertDialogCancel>

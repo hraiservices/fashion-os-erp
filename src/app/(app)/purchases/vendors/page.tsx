@@ -9,7 +9,6 @@ import { useVendors } from "@/hooks/use-vendors";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useDeleteVendor } from "@/hooks/use-purchase-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { inr } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

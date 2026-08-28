@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Check } from "lucide-react";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_DASHBOARD_HEADER_CONFIG, type DashboardHeaderConfig } from "@/lib/dashboard-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,9 +23,9 @@ export function DashboardHeaderSection() {
   const { data, isLoading, save } = useAppSetting<DashboardHeaderConfig>("dashboardHeader", DEFAULT_DASHBOARD_HEADER_CONFIG);
   const [cfg, setCfg] = useState<DashboardHeaderConfig>(DEFAULT_DASHBOARD_HEADER_CONFIG);
 
-  useEffect(() => {
-    if (data) setCfg(data);
-  }, [data]);
+  useSyncFromSource(data, (d) => {
+    if (d) setCfg(d);
+  });
 
   function toggle(key: keyof DashboardHeaderConfig) {
     setCfg((c) => ({ ...c, [key]: !c[key] }));

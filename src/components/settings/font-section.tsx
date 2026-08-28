@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_FONT_CONFIG, GOOGLE_FONTS, FONT_WEIGHTS, FONT_SIZES, googleFontUrl, type FontConfig } from "@/lib/fonts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -15,9 +16,9 @@ export function FontSection() {
   const { data, isLoading, save } = useAppSetting<FontConfig>("font", DEFAULT_FONT_CONFIG);
   const [cfg, setCfg] = useState<FontConfig>(DEFAULT_FONT_CONFIG);
 
-  useEffect(() => {
-    if (data) setCfg(data);
-  }, [data]);
+  useSyncFromSource(data, (d) => {
+    if (d) setCfg(d);
+  });
 
   // Load the font being previewed (may differ from the saved one) so the sample below
   // renders correctly before hitting Save.
@@ -44,7 +45,6 @@ export function FontSection() {
         <CardTitle className="text-sm">Font</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* eslint-disable-next-line @next/next/no-css-tags */}
         <link rel="stylesheet" href={previewLink} />
 
         <div className="grid gap-4 sm:grid-cols-3">

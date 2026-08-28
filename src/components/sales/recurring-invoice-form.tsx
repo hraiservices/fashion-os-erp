@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/customer-picker";
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
 import type { Customer, RecurringInvoiceProfile, RecurringFrequency, RecurringEndType } from "@/lib/types";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
 const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
 const discountTypeLabel = (v: unknown) => (v === "percent" ? "Percent (%)" : "Flat (₹)");
@@ -228,10 +229,14 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Terms & Conditions</Label>
-            <Textarea rows={3} value={terms} onChange={(e) => setTerms(e.target.value)} />
-          </div>
+          <Accordion className="rounded-lg border px-3">
+            <AccordionItem value="terms" className="border-b-0">
+              <AccordionTrigger className="text-xs font-medium">Terms &amp; Conditions</AccordionTrigger>
+              <AccordionContent>
+                <Textarea rows={3} value={terms} onChange={(e) => setTerms(e.target.value)} />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Notes</Label>

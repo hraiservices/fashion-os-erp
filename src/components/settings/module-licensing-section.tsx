@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { REPORTS_GROUP, resolveReportSection, SETTINGS_GROUP, EMPLOYEES_GROUP, ORDERS_GROUP } from "@/components/app-shell/nav-config";
 import { BUILTIN_WIDGETS } from "@/lib/dashboard-widgets";
@@ -16,6 +16,7 @@ import {
   type ModuleId,
 } from "@/lib/entitlements";
 import { useModuleEntitlements, useSaveModuleEntitlements } from "@/hooks/use-module-entitlements";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,9 +44,9 @@ export function ModuleLicensingSection() {
   const save = useSaveModuleEntitlements();
   const [ent, setEnt] = useState<ModuleEntitlements>(DEFAULT_ENTITLEMENTS);
 
-  useEffect(() => {
-    if (data) setEnt(data);
-  }, [data]);
+  useSyncFromSource(data, (d) => {
+    if (d) setEnt(d);
+  });
 
   function toggleModule(id: ModuleId, v: boolean) {
     setEnt((e) => ({ ...e, modules: { ...e.modules, [id]: v } }));

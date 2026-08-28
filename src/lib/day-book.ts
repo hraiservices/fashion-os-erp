@@ -1,5 +1,5 @@
 import { Receipt, Banknote, Wallet, Truck, Scissors, Users, Clock, UserCog, Activity, type LucideIcon } from "lucide-react";
-import { deriveBalance, STAGE_META, type Stage } from "@/lib/business-rules";
+import { STAGE_META, type Stage } from "@/lib/business-rules";
 
 /**
  * Day Book: a single-date, cross-module activity feed. Every entry is built either straight

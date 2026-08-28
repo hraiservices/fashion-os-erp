@@ -19,7 +19,6 @@ import { useShopSettings } from "@/hooks/use-shop-settings";
 import { inr, fmtDate } from "@/lib/format";
 import { sumOrdersOutstanding } from "@/lib/balances";
 import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
-import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

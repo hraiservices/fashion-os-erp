@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useWhatsAppCloudApiConfig } from "@/hooks/use-whatsapp-cloud-api";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_RECOMMENDATION_TEMPLATE, RECOMMENDATION_TEMPLATE_VARIABLES } from "@/lib/recommendation-whatsapp";
 import type { WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,15 +29,15 @@ export function RecommendationWhatsAppSection() {
   const [draftCooldown, setDraftCooldown] = useState(DEFAULT_COOLDOWN_DAYS);
   const [draftCloudApi, setDraftCloudApi] = useState<WhatsAppCloudApiConfig>(BLANK_CLOUD_API);
 
-  useEffect(() => {
-    if (template) setDraftTemplate(template);
-  }, [template]);
-  useEffect(() => {
-    if (cooldown != null) setDraftCooldown(cooldown);
-  }, [cooldown]);
-  useEffect(() => {
-    if (cloudApi) setDraftCloudApi(cloudApi);
-  }, [cloudApi]);
+  useSyncFromSource(template, (t) => {
+    if (t) setDraftTemplate(t);
+  });
+  useSyncFromSource(cooldown, (c) => {
+    if (c != null) setDraftCooldown(c);
+  });
+  useSyncFromSource(cloudApi, (c) => {
+    if (c) setDraftCloudApi(c);
+  });
 
   async function onSave() {
     try {
@@ -56,7 +57,7 @@ export function RecommendationWhatsAppSection() {
       </CardHeader>
       <CardContent className="space-y-5">
         <p className="text-xs text-muted-foreground">
-          Used when sending a "customers who might want this" message from a product's edit page or a customer's profile.
+          Used when sending a &quot;customers who might want this&quot; message from a product&apos;s edit page or a customer&apos;s profile.
         </p>
 
         <div className="flex flex-wrap gap-1.5">
@@ -72,7 +73,7 @@ export function RecommendationWhatsAppSection() {
 
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">Cooldown (days)</Label>
-          <p className="text-[11px] text-muted-foreground">Don't let the same product be re-suggested to the same customer within this many days.</p>
+          <p className="text-[11px] text-muted-foreground">Don&apos;t let the same product be re-suggested to the same customer within this many days.</p>
           <NumberInput min={0} className="h-9 w-32" value={draftCooldown} onChange={setDraftCooldown} />
         </div>
 
@@ -80,7 +81,7 @@ export function RecommendationWhatsAppSection() {
           <div>
             <p className="text-xs font-medium">WhatsApp Business Cloud API (optional)</p>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Leave blank to use the free "open WhatsApp with message pre-filled" flow above. Filling this in sends
+              Leave blank to use the free &quot;open WhatsApp with message pre-filled&quot; flow above. Filling this in sends
               automatically instead — but requires your own Meta Business Account, a phone number registered with
               WhatsApp Business, and a message template approved by Meta with exactly 3 body parameters, in order:
               customer name, product name, price. Get these from Meta Business Manager → WhatsApp Manager.

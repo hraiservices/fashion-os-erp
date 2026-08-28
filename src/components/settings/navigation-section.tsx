@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { ArrowUp, ArrowDown, Eye, EyeOff, ChevronDown, RotateCcw } from "lucide-react";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import {
   DEFAULT_NAV_LAYOUT,
   MOVABLE_GROUPS,
@@ -91,9 +92,9 @@ export function NavigationSection() {
   const [openGroup, setOpenGroup] = useState<string | null>(MOVABLE_GROUPS[0]?.id ?? null);
   const [dirty, setDirty] = useState(false);
 
-  useEffect(() => {
-    if (!isLoading && !draft) setDraft(draftFrom(data));
-  }, [isLoading, data, draft]);
+  useSyncFromSource(isLoading, (loading) => {
+    if (!loading && !draft) setDraft(draftFrom(data));
+  });
 
   if (isLoading || !draft) return <Skeleton className="h-96 w-full" />;
 

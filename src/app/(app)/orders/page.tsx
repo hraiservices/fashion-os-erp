@@ -43,7 +43,6 @@ import {
 import { Suspense } from "react";
 import { daysLeft, getNextStage, STAGE_META, DEFAULT_TAILOR_RATES, type Stage, type TailorRateCard } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 interface PendingStageChange {
   type: "advance" | "set";

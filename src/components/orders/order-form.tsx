@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Trash2, User2, Shirt, Wallet, Ruler, Gift, Check, ClipboardList, AlertTriangle, Receipt, TrendingUp, TrendingDown } from "lucide-react";
-import { useCreateOrder, useUpdateOrder, type NewOrderExpenseInput } from "@/hooks/use-order-mutations";
+import { useCreateOrder, useUpdateOrder } from "@/hooks/use-order-mutations";
 import { useOrders } from "@/hooks/use-orders";
 import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
 import { CustomerPicker } from "@/components/sales/customer-picker";
@@ -21,6 +21,7 @@ import { useActiveTailors } from "@/hooks/use-employees";
 import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { getTailorWorkload } from "@/lib/analytics";
 import {
   DEFAULT_RATES,
@@ -35,7 +36,7 @@ import {
   type TailorRateCard,
 } from "@/lib/business-rules";
 import { computeOrderProfit } from "@/lib/order-profit";
-import { hydrateMeasurements, compactMeasurements, toMKey, type MeasureLang } from "@/lib/measurements";
+import { hydrateMeasurements, compactMeasurements, type MeasureLang } from "@/lib/measurements";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Order, OrderType, Employee, Customer } from "@/lib/types";
@@ -224,7 +225,6 @@ function OrderFormFields({
     register,
     control,
     handleSubmit,
-    watch,
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
@@ -295,14 +295,14 @@ function OrderFormFields({
   // touch anything.
   const isSeededPlaceholderOrder = isEdit && existingOrder!.garments.length === 0;
   const { fields: expenseFields, append: appendExpense, remove: removeExpense } = useFieldArray({ control, name: "expenses" });
-  const garments = watch("garments");
-  const expenses = watch("expenses") || [];
-  const advance = watch("advance") || 0;
-  const mobile = watch("mobile");
-  const name = watch("name");
-  const selectedTailor = watch("tailor");
-  const fabricCost = watch("fabricCost") || 0;
-  const otherCost = watch("otherCost") || 0;
+  const garments = useWatch({ control, name: "garments" });
+  const expenses = useWatch({ control, name: "expenses" }) || [];
+  const advance = useWatch({ control, name: "advance" }) || 0;
+  const mobile = useWatch({ control, name: "mobile" });
+  const name = useWatch({ control, name: "name" });
+  const selectedTailor = useWatch({ control, name: "tailor" });
+  const fabricCost = useWatch({ control, name: "fabricCost" }) || 0;
+  const otherCost = useWatch({ control, name: "otherCost" }) || 0;
   const total = garments.reduce((s, g) => s + (g.amount || 0) * (g.no || 1), 0);
   const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
 
@@ -358,19 +358,19 @@ function OrderFormFields({
   const lookupMobile = !existingOrder && mobile?.length === 10 ? mobile : "";
   const { data: foundCustomer } = useCustomerByMobile(lookupMobile);
 
-  useEffect(() => {
-    if (!foundCustomer || existingOrder || prefilled) return;
-    setValue("name", foundCustomer.name, { shouldValidate: true });
-    const saved = hydrateMeasurements(measureFields, foundCustomer.measurements);
+  useSyncFromSource(existingOrder || prefilled ? null : foundCustomer, (customer) => {
+    if (!customer) return;
+    setValue("name", customer.name, { shouldValidate: true });
+    const saved = hydrateMeasurements(measureFields, customer.measurements);
     setMeasurements(saved);
     setPrefilled(true);
-    toast.success(`Loaded ${foundCustomer.name}'s details`);
-  }, [foundCustomer, existingOrder, prefilled, measureFields, setValue]);
+    toast.success(`Loaded ${customer.name}'s details`);
+  });
 
   // Reset the prefill latch if the number is edited, so a different customer re-triggers it.
-  useEffect(() => {
-    if (mobile?.length !== 10) setPrefilled(false);
-  }, [mobile]);
+  useSyncFromSource(mobile, (m) => {
+    if (m?.length !== 10) setPrefilled(false);
+  });
 
   const balanceBeforePoints = Math.max(0, total - advance);
   const availablePoints = loyaltyCfg?.enabled ? foundCustomer?.loyaltyPoints || 0 : 0;

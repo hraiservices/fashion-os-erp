@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Hash, FileText, Shirt } from "lucide-react";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_DOCUMENT_NUMBERING, previewDocNumber, type DocumentNumberingSettings, type DocNumberFormat } from "@/lib/document-numbering";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -98,9 +99,9 @@ export function DocumentNumberingSection() {
   const { data, isLoading, save } = useAppSetting<DocumentNumberingSettings>("documentNumbering", DEFAULT_DOCUMENT_NUMBERING);
   const [draft, setDraft] = useState<DocumentNumberingSettings>(DEFAULT_DOCUMENT_NUMBERING);
 
-  useEffect(() => {
-    if (data) setDraft(data);
-  }, [data]);
+  useSyncFromSource(data, (d) => {
+    if (d) setDraft(d);
+  });
 
   async function handleSave() {
     try {

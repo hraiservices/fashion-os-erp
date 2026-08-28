@@ -98,7 +98,7 @@ function RoleReferenceCard() {
           </tbody>
         </table>
         <p className="mt-3 text-xs text-muted-foreground">
-          These are starting points. Expand any user below to override individual permissions — e.g. a tailor who should only change order stage, or a manager who shouldn't delete orders.
+          These are starting points. Expand any user below to override individual permissions — e.g. a tailor who should only change order stage, or a manager who shouldn&apos;t delete orders.
         </p>
       </CardContent>
     </Card>
@@ -538,7 +538,7 @@ export function UsersSection() {
                     ))}
                     {hasOverrides && (
                       <Button size="sm" variant="ghost" onClick={() => resetToRoleDefaults(row)} className="text-xs text-muted-foreground">
-                        Reset to "{roleLabel(row.role)}" defaults
+                        Reset to &quot;{roleLabel(row.role)}&quot; defaults
                       </Button>
                     )}
                   </div>

@@ -220,7 +220,7 @@ function OrderFormFields({
   const [usePoints, setUsePoints] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [prefilled, setPrefilled] = useState(false);
-  const [measureOpen, setMeasureOpen] = useState(!isAlteration);
+  const [measureOpen, setMeasureOpen] = useState(false);
   const [costsOpen, setCostsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
 

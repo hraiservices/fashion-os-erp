@@ -243,10 +243,10 @@ export function NavigationSection() {
       </Card>
 
       <div className="flex gap-2">
-        <Button onClick={onSave} disabled={save.isPending || !dirty}>
+        <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={onSave} disabled={save.isPending || !dirty}>
           {save.isPending ? "Saving…" : "Save & apply for everyone"}
         </Button>
-        <Button variant="outline" onClick={onReset}>
+        <Button variant="outline" className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={onReset}>
           <RotateCcw className="size-4" /> Reset to default
         </Button>
       </div>

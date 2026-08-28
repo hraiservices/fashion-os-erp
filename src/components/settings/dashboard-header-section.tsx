@@ -68,7 +68,7 @@ export function DashboardHeaderSection() {
             </button>
           ))}
         </div>
-        <Button onClick={onSave} disabled={save.isPending}>
+        <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={onSave} disabled={save.isPending}>
           Save & apply
         </Button>
       </CardContent>

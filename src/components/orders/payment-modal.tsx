@@ -129,10 +129,10 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" className="h-11 px-4 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={save} disabled={recordPayment.isPending || (!amount && !ptDiscount)}>
+          <Button className="h-11 px-4 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={save} disabled={recordPayment.isPending || (!amount && !ptDiscount)}>
             {recordPayment.isPending ? "Saving…" : "Record payment"}
           </Button>
         </DialogFooter>

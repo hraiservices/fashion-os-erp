@@ -103,10 +103,10 @@ export function FontSection() {
         </div>
 
         <div className="flex gap-2">
-          <Button onClick={onSave} disabled={save.isPending}>
+          <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={onSave} disabled={save.isPending}>
             Save & apply
           </Button>
-          <Button variant="outline" onClick={onReset}>
+          <Button variant="outline" className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={onReset}>
             Reset to default
           </Button>
         </div>

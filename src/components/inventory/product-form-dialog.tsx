@@ -259,8 +259,8 @@ export function ProductFormDialog({
           </div>
 
           <DialogFooter className="mx-0 mb-0 border-t px-5 py-3 shrink-0">
-            <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="button" variant="outline" className="h-11 px-4 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={handleClose}>Cancel</Button>
+            <Button type="submit" className="h-11 px-4 text-base sm:h-8 sm:px-2.5 sm:text-sm" disabled={isSubmitting}>
               {isSubmitting ? "Saving…" : isEdit ? "Save changes" : "Add product"}
             </Button>
           </DialogFooter>

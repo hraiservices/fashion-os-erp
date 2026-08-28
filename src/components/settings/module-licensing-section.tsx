@@ -207,7 +207,7 @@ export function ModuleLicensingSection() {
       </Card>
 
       <div className="flex justify-end">
-        <Button disabled={save.isPending} onClick={onSave}>
+        <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" disabled={save.isPending} onClick={onSave}>
           {save.isPending ? "Saving…" : "Save changes"}
         </Button>
       </div>

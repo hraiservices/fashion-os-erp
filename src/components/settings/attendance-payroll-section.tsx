@@ -90,8 +90,8 @@ function LocationForm({ draft, onChange, onCancel, onSave, saving }: { draft: Lo
         </div>
       </div>
       <div className="flex justify-end gap-1.5">
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
-        <Button type="button" size="sm" onClick={onSave} disabled={saving}>Save location</Button>
+        <Button type="button" variant="ghost" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={onCancel}>Cancel</Button>
+        <Button type="button" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={onSave} disabled={saving}>Save location</Button>
       </div>
     </div>
   );
@@ -247,7 +247,7 @@ export function AttendancePayrollSection() {
                   </Select>
                 </div>
               </div>
-              <Button size="sm" onClick={handleSaveSettings} disabled={saveSettings.isPending}>
+              <Button size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={handleSaveSettings} disabled={saveSettings.isPending}>
                 {saveSettings.isPending ? "Saving…" : "Save"}
               </Button>
             </>

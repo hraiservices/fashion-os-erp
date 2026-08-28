@@ -107,7 +107,7 @@ export function RecommendationWhatsAppSection() {
           </div>
         </div>
 
-        <Button disabled={saveTemplate.isPending || saveCooldown.isPending || saveCloudApi.isPending} onClick={onSave}>
+        <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" disabled={saveTemplate.isPending || saveCooldown.isPending || saveCloudApi.isPending} onClick={onSave}>
           {saveTemplate.isPending || saveCooldown.isPending || saveCloudApi.isPending ? "Saving…" : "Save"}
         </Button>
       </CardContent>

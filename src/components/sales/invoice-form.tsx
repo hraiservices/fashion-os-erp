@@ -262,6 +262,22 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
             <h1 className="text-base font-semibold">{isEdit ? "Edit Invoice" : "New Invoice"}</h1>
             <p className="text-[11px] text-muted-foreground font-mono">{customNumberingOn ? "Assigned automatically on save" : invoiceNumber}</p>
           </div>
+          {/* Duplicate of the bottom FormActionBar — mobile only, so Save/Send is reachable
+             without scrolling all the way down on a long invoice. */}
+          <div className="flex items-center gap-2 sm:hidden">
+            <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveInvoice.isPending}>
+              Cancel
+            </Button>
+            {!isEdit && (
+              <Button variant="outline" size="sm" onClick={() => handleSave("draft")} disabled={saveInvoice.isPending}>
+                Draft
+              </Button>
+            )}
+            <Button size="sm" className="gap-1.5 bg-primary text-primary-foreground" onClick={() => handleSave(isEdit ? existing!.docStatus : "sent")} disabled={saveInvoice.isPending}>
+              <Receipt className="size-3.5" />
+              {saveInvoice.isPending ? "Saving…" : isEdit ? "Save" : "Send"}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -508,16 +524,33 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
         </div>
       </div>
 
-      <FormActionBar>
-        <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveInvoice.isPending}>
+      <FormActionBar className="flex-wrap justify-start sm:flex-nowrap sm:justify-end">
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-12 px-5 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          onClick={() => router.back()}
+          disabled={saveInvoice.isPending}
+        >
           Cancel
         </Button>
         {!isEdit && (
-          <Button variant="outline" size="sm" onClick={() => handleSave("draft")} disabled={saveInvoice.isPending}>
+          <Button
+            variant="outline"
+            size="lg"
+            className="h-12 px-5 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+            onClick={() => handleSave("draft")}
+            disabled={saveInvoice.isPending}
+          >
             {saveInvoice.isPending ? "Saving…" : "Save Draft"}
           </Button>
         )}
-        <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={() => handleSave(isEdit ? existing!.docStatus : "sent")} disabled={saveInvoice.isPending}>
+        <Button
+          size="lg"
+          className="h-12 flex-1 gap-1.5 bg-primary px-5 text-base text-primary-foreground sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          onClick={() => handleSave(isEdit ? existing!.docStatus : "sent")}
+          disabled={saveInvoice.isPending}
+        >
           <Receipt className="size-3.5" />
           {saveInvoice.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(totals.total)}` : `Save & Send · ${inr(totals.total)}`}
         </Button>

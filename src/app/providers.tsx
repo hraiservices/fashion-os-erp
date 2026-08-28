@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { FontLoader } from "@/components/app-shell/font-loader";
 import { ColorThemeLoader } from "@/components/app-shell/color-theme-loader";
+import { ThemeColorSync } from "@/components/app-shell/theme-color-sync";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -37,6 +38,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <TooltipProvider>
           <FontLoader />
           <ColorThemeLoader />
+          <ThemeColorSync />
           {children}
           <Toaster richColors position="top-center" />
         </TooltipProvider>

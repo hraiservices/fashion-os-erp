@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_INVOICE_TERMS } from "@/lib/invoice-settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,9 +15,9 @@ export function InvoiceTermsSection() {
   const { data, isLoading, save } = useAppSetting<string>("invoiceTerms", DEFAULT_INVOICE_TERMS);
   const [terms, setTerms] = useState(DEFAULT_INVOICE_TERMS);
 
-  useEffect(() => {
-    if (data != null) setTerms(data);
-  }, [data]);
+  useSyncFromSource(data, (d) => {
+    if (d != null) setTerms(d);
+  });
 
   async function onSave() {
     try {

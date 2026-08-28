@@ -39,9 +39,11 @@ export function CameraModal({
   useEffect(() => {
     if (!open) {
       stopStream();
-      setPreview(null);
-      setError(null);
-      return;
+      const t = setTimeout(() => {
+        setPreview(null);
+        setError(null);
+      }, 0);
+      return () => clearTimeout(t);
     }
     let cancelled = false;
 

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_LOYALTY_CONFIG, type LoyaltyConfig } from "@/lib/business-rules";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -15,9 +16,9 @@ export function LoyaltySection() {
   const { data, isLoading, save } = useAppSetting<LoyaltyConfig>("loyalty", DEFAULT_LOYALTY_CONFIG);
   const [lc, setLc] = useState<LoyaltyConfig>(DEFAULT_LOYALTY_CONFIG);
 
-  useEffect(() => {
-    if (data) setLc(data);
-  }, [data]);
+  useSyncFromSource(data, (d) => {
+    if (d) setLc(d);
+  });
 
   async function onSave() {
     try {

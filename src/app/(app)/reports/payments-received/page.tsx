@@ -7,7 +7,7 @@ import { useAllSalesPayments } from "@/hooks/use-sales-payments";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useAllOrderPayments } from "@/hooks/use-order-payments";
 import { useOrders } from "@/hooks/use-orders";
-import { buildInvoicePaymentRows, buildOrderPaymentRows, sortPaymentRows, type PaymentReceivedRow, type PaymentSource } from "@/lib/payments-received";
+import { buildInvoicePaymentRows, buildOrderPaymentRows, sortPaymentRows, type PaymentSource } from "@/lib/payments-received";
 import { inr, fmtDate } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";

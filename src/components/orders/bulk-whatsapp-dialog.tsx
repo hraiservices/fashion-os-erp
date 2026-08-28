@@ -22,7 +22,7 @@ export function BulkWhatsAppDialog({ orders, shop, open, onOpenChange }: { order
         <DialogHeader>
           <DialogTitle>Send reminders ({orders.length})</DialogTitle>
         </DialogHeader>
-        <p className="text-xs text-muted-foreground">Each order gets its own message, tailored to whether it's still owed money or just ready for pickup. Click each to send.</p>
+        <p className="text-xs text-muted-foreground">Each order gets its own message, tailored to whether it&apos;s still owed money or just ready for pickup. Click each to send.</p>
         <div className="max-h-80 space-y-2 overflow-y-auto">
           {orders.map((o) => {
             const type = o.balance > 0 ? "paymentDue" : resolveWaType(o);

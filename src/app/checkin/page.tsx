@@ -145,13 +145,17 @@ export default function CheckInPage() {
   }
 
   useEffect(() => {
+    // loadMe is async — the setState calls inside it happen after the fetch resolves, not
+    // synchronously in this effect body (the linter's static analysis can't see past the await).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadMe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (step === "ready" && tab === "leave" && !leaveLoaded) loadLeave();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (step === "ready" && tab === "leave" && !leaveLoaded) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      loadLeave();
+    }
   }, [step, tab, leaveLoaded]);
 
   async function handleLogin(e: React.FormEvent) {

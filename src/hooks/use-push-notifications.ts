@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/hooks/use-current-user";
 
@@ -14,21 +14,29 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
 
 export type PushSupportState = "unsupported" | "denied" | "default" | "granted";
 
+function noopSubscribe() {
+  return () => {};
+}
+
+function getSnapshot(): PushSupportState {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) return "unsupported";
+  return Notification.permission as PushSupportState;
+}
+
+function getServerSnapshot(): PushSupportState | null {
+  return null;
+}
+
 /** Web Push opt-in for the current device — one row in push_subscriptions per device/user. See supabase/migrations/add_push_subscriptions.sql and src/lib/push.ts (server send side). */
 export function usePushNotifications() {
   const { data: user } = useCurrentUser();
-  // null = not yet determined (SSR / hydration); avoids the flash where the component briefly
-  // returns null on first client render before useEffect fires.
-  const [state, setState] = useState<PushSupportState | null>(null);
+  // null on the server and on the first client render (before hydration) — avoids the flash
+  // where the component briefly renders with a value that won't match the server-rendered HTML.
+  const detected = useSyncExternalStore(noopSubscribe, getSnapshot, getServerSnapshot);
+  // Overrides `detected` once the user has explicitly requested permission this session.
+  const [override, setOverride] = useState<PushSupportState | null>(null);
+  const state = override ?? detected;
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-      setState("unsupported");
-      return;
-    }
-    setState(Notification.permission as PushSupportState);
-  }, []);
 
   const subscribe = useCallback(async () => {
     const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -36,7 +44,7 @@ export function usePushNotifications() {
     setBusy(true);
     try {
       const permission = await Notification.requestPermission();
-      setState(permission as PushSupportState);
+      setOverride(permission as PushSupportState);
       if (permission !== "granted") return;
 
       const registration = await navigator.serviceWorker.ready;

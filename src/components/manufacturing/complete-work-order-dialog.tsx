@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { NumberInput } from "@/components/ui/number-input";
 import { useCompleteWorkOrder } from "@/hooks/use-work-order-mutations";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { computeWoCost, type WorkOrderMaterial } from "@/lib/manufacturing";
 import { inr } from "@/lib/format";
 import type { WorkOrder } from "@/lib/types";
@@ -15,11 +16,11 @@ export function CompleteWorkOrderDialog({ open, onOpenChange, wo }: { open: bool
   const completeWo = useCompleteWorkOrder();
   const [rows, setRows] = useState<WorkOrderMaterial[]>([]);
 
-  useEffect(() => {
+  useSyncFromSource(open ? wo.materials : null, () => {
     if (open) {
       setRows(wo.materials.map((m) => ({ ...m, qtyUsed: m.qtyUsed ?? m.qtyPlanned, qtyWasted: m.qtyWasted ?? 0 })));
     }
-  }, [open, wo.materials]);
+  });
 
   function updateRow(rawMaterialId: string, patch: Partial<WorkOrderMaterial>) {
     setRows((rs) => rs.map((r) => (r.rawMaterialId === rawMaterialId ? { ...r, ...patch } : r)));

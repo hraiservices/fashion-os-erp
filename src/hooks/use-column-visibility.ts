@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export interface ColumnDef {
   key: string;
@@ -9,22 +9,21 @@ export interface ColumnDef {
   required?: boolean;
 }
 
+function loadHidden(storageKey: string): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(`table-columns:${storageKey}`);
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
 /** Show/hide table columns, persisted per browser (localStorage) — key it per list page. */
 export function useColumnVisibility(storageKey: string, columns: ColumnDef[]) {
   const allKeys = columns.map((c) => c.key);
-  const [hidden, setHidden] = useState<Set<string>>(new Set());
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(`table-columns:${storageKey}`);
-      if (raw) setHidden(new Set(JSON.parse(raw) as string[]));
-    } catch {
-      // ignore malformed storage
-    }
-    setLoaded(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey]);
+  const [hidden, setHidden] = useState<Set<string>>(() => loadHidden(storageKey));
+  const loaded = true;
 
   function persist(next: Set<string>) {
     setHidden(next);

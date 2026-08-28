@@ -88,7 +88,7 @@ export default function TailorWorksheetPage() {
               )}
 
               <div className={cn("px-3", s.newToday.length > 0 && "pb-1")}>
-                <p className="px-0 pt-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Today's work ({s.newToday.length})</p>
+                <p className="px-0 pt-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Today&apos;s work ({s.newToday.length})</p>
                 {s.newToday.length === 0 ? (
                   <p className="px-0 py-3 text-sm text-muted-foreground">No new work today.</p>
                 ) : (

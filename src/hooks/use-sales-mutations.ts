@@ -1,11 +1,9 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
-import { logAction } from "@/lib/logging";
-import { computeLineItemsTotal, type SalesLineItem, type QuoteStatus } from "@/lib/sales";
-import { computeGst, type GstType } from "@/lib/gst";
-import { computeInvoiceTotals, type DiscountType } from "@/lib/invoice-totals";
+import type { SalesLineItem, QuoteStatus } from "@/lib/sales";
+import type { GstType } from "@/lib/gst";
+import type { DiscountType } from "@/lib/invoice-totals";
 import type { InvoiceDocStatus } from "@/lib/types";
 
 function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
@@ -185,7 +183,7 @@ export function useDeleteSalesPayment() {
 export function useBulkDeleteSalesPayments() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ ids, userEmail }: { ids: string[]; userEmail?: string }) => {
+    mutationFn: async ({ ids }: { ids: string[]; userEmail?: string }) => {
       await Promise.all(ids.map((id) => apiDelete(`/api/sales/payments/${id}`)));
     },
     onSuccess: () => invalidateAll(qc),

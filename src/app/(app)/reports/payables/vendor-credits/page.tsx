@@ -21,7 +21,7 @@ export default function VendorCreditDetailsPage() {
 
   const vendorNameById = useMemo(() => new Map((vendors || []).map((v) => [v.id, v.name])), [vendors]);
   const billById = useMemo(() => new Map((bills || []).map((b) => [b.id, b])), [bills]);
-  const rows = credits || [];
+  const rows = useMemo(() => credits || [], [credits]);
   const total = useMemo(() => rows.reduce((s, c) => s + c.total, 0), [rows]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;

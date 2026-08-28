@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Plus, Trash2, MapPin, Crosshair, Clock } from "lucide-react";
 import { useShopLocations, useSaveShopLocation, useDeleteShopLocation } from "@/hooks/use-shop-locations";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { DEFAULT_ATTENDANCE_SETTINGS, type AttendanceSettings } from "@/lib/attendance-settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -107,9 +108,9 @@ export function AttendancePayrollSection() {
 
   const [editing, setEditing] = useState<LocationDraft | null>(null);
 
-  useEffect(() => {
-    if (attendanceSettings) setDraftSettings(attendanceSettings);
-  }, [attendanceSettings]);
+  useSyncFromSource(attendanceSettings, (s) => {
+    if (s) setDraftSettings(s);
+  });
 
   async function handleSaveLocation() {
     if (!editing) return;

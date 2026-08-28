@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Check } from "lucide-react";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { COLOR_THEMES, DEFAULT_COLOR_THEME, SIDEBAR_STYLES, DEFAULT_SIDEBAR_STYLE } from "@/lib/color-themes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,13 +27,13 @@ export function ColorThemeSection() {
   const [sidebarSelected, setSidebarSelected] = useState(DEFAULT_SIDEBAR_STYLE);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (colorData) setSelected(colorData);
-  }, [colorData]);
+  useSyncFromSource(colorData, (d) => {
+    if (d) setSelected(d);
+  });
 
-  useEffect(() => {
-    if (sidebarData) setSidebarSelected(sidebarData);
-  }, [sidebarData]);
+  useSyncFromSource(sidebarData, (d) => {
+    if (d) setSidebarSelected(d);
+  });
 
   function preview(id: string) {
     setSelected(id);

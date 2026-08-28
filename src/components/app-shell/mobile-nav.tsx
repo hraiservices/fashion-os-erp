@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Plus, ClipboardList, Receipt, Wallet, UserPlus } from "lucide-react";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { MOBILE_TABS } from "@/components/app-shell/nav-config";
 import { NavContent, NavBrand } from "@/components/app-shell/nav-content";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { Sheet, SheetContent, SheetTitle, SheetHeader } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
@@ -21,9 +22,7 @@ export function MobileNavTrigger() {
   const pathname = usePathname();
 
   // Close the drawer whenever navigation happens, so it never lingers over the new page.
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+  useSyncFromSource(pathname, () => setOpen(false));
 
   return (
     <>

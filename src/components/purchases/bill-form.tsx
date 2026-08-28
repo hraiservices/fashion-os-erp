@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, Building2, Package2, Tag, FileText, ShoppingCart } from "lucide-react";
@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useVendors } from "@/hooks/use-vendors";
 import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
 import { useSaveBill } from "@/hooks/use-purchase-mutations";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { genBillNumber } from "@/lib/purchases";
 import { computeGst, GST_TYPE_LABELS, type GstType } from "@/lib/gst";
@@ -69,11 +70,11 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
   const [taxRate, setTaxRate] = useState(String(existing?.taxRate ?? 5));
   const [notes, setNotes] = useState(existing?.notes || "");
 
-  useEffect(() => {
-    if (!prefillPo) return;
-    setVendorId(prefillPo.vendorId);
-    setLines(prefillPo.items.map((item, i) => lineFromItem(item, `po-${i}`)));
-  }, [prefillPo]);
+  useSyncFromSource(prefillPo, (po) => {
+    if (!po) return;
+    setVendorId(po.vendorId);
+    setLines(po.items.map((item, i) => lineFromItem(item, `po-${i}`)));
+  });
 
   function handleTermChange(term: PaymentTerm) {
     setPaymentTerm(term);

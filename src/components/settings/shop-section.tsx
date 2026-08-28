@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { fileToDataUrl } from "@/lib/image-utils";
 import { DEFAULT_SHOP_CONFIG, type ShopConfig } from "@/hooks/use-shop-settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,9 +17,9 @@ export function ShopSection() {
   const { data, isLoading, save } = useAppSetting<ShopConfig>("shop", DEFAULT_SHOP_CONFIG);
   const [shop, setShop] = useState<ShopConfig>(DEFAULT_SHOP_CONFIG);
 
-  useEffect(() => {
-    if (data) setShop(data);
-  }, [data]);
+  useSyncFromSource(data, (d) => {
+    if (d) setShop(d);
+  });
 
   async function onSave() {
     try {

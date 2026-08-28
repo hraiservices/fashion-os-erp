@@ -11,7 +11,6 @@ import Link from "next/link";
 import { useCreateExpense, useUpdateExpense } from "@/hooks/use-expenses";
 import { Button } from "@/components/ui/button";
 import { FormActionBar } from "@/components/ui/form-action-bar";
-import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";

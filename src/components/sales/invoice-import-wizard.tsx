@@ -264,7 +264,7 @@ export function InvoiceImportWizard() {
         <div className="rounded-xl border border-dashed p-8 text-center">
           <Upload className="mx-auto mb-3 size-8 text-muted-foreground" />
           <p className="mb-3 text-sm text-muted-foreground">
-            Upload a CSV or TSV file — one row per invoice line item. Map &quot;Invoice number&quot; if your export repeats it across a multi-line invoice's rows, so they're grouped
+            Upload a CSV or TSV file — one row per invoice line item. Map &quot;Invoice number&quot; if your export repeats it across a multi-line invoice&apos;s rows, so they&apos;re grouped
             into one invoice instead of several.
           </p>
           <Button nativeButton={false} render={<label className="cursor-pointer" />}>

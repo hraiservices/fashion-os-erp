@@ -22,7 +22,7 @@ export function BarcodeScannerModal({ open, onOpenChange, onDetected }: { open: 
     if (!open) return;
     let cancelled = false;
     const reader = new BrowserMultiFormatReader();
-    setError(null);
+    const clearErr = setTimeout(() => setError(null), 0);
 
     reader
       .decodeFromConstraints({ video: { facingMode } }, videoRef.current!, (result, err, controls) => {
@@ -41,6 +41,7 @@ export function BarcodeScannerModal({ open, onOpenChange, onDetected }: { open: 
 
     return () => {
       cancelled = true;
+      clearTimeout(clearErr);
       controlsRef.current?.stop();
       controlsRef.current = null;
     };

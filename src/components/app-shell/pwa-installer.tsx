@@ -41,8 +41,8 @@ export function PwaInstaller() {
     }
     if (isStandalone()) return; // already installed — nothing to offer
     if (isIOSSafari()) {
-      setShowIOSHint(true);
-      return;
+      const t = setTimeout(() => setShowIOSHint(true), 0);
+      return () => clearTimeout(t);
     }
     function handler(e: Event) {
       e.preventDefault();

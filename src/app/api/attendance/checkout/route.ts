@@ -4,7 +4,6 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { getAttendanceEmployeeId } from "@/lib/attendance-session-server";
 import { checkGeofence } from "@/lib/geofence";
 import { DEFAULT_ATTENDANCE_SETTINGS, MAX_SHIFT_HOURS, type AttendanceSettings } from "@/lib/attendance-settings";
-import { istDateString } from "@/lib/ist-date";
 import { notifyAttendance } from "@/lib/logging";
 
 const bodySchema = z.object({
@@ -40,7 +39,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const today = istDateString();
   // An overnight shift (checked in before midnight IST) lives on YESTERDAY's row — filtering
   // strictly by `date = today` found nothing for anyone checking out after midnight, so they
   // got "you haven't checked in today" instead of being checked out, permanently orphaning

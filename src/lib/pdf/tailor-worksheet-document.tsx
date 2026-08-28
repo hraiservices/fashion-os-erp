@@ -60,6 +60,7 @@ export function TailorWorksheetDocument({
         <Page key={section.tailorId} size="A4" style={styles.page}>
           <View style={styles.headerRow}>
             <View>
+              {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf/renderer's Image, not an HTML img */}
               {logoDataUrl && <Image src={logoDataUrl} style={styles.logo} />}
               <Text style={styles.shopName}>{shopName || "Shop"}</Text>
             </View>

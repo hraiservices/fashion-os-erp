@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Plus, Trash2, Star } from "lucide-react";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { fileToDataUrl } from "@/lib/image-utils";
 import {
   blankInvoiceTemplate,
@@ -88,13 +89,12 @@ export function InvoiceTemplateSection() {
   const [setting, setSetting] = useState<InvoiceTemplatesSetting>(DEFAULT_INVOICE_TEMPLATES_SETTING);
   const [activeId, setActiveId] = useState<string>(DEFAULT_INVOICE_TEMPLATES_SETTING.defaultId);
 
-  useEffect(() => {
-    if (data) {
-      setSetting({ ...data, templates: data.templates.map(hydrateInvoiceTemplate) });
-      if (!data.templates.some((t) => t.id === activeId)) setActiveId(data.defaultId);
+  useSyncFromSource(data, (d) => {
+    if (d) {
+      setSetting({ ...d, templates: d.templates.map(hydrateInvoiceTemplate) });
+      if (!d.templates.some((t) => t.id === activeId)) setActiveId(d.defaultId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  });
 
   const active = setting.templates.find((t) => t.id === activeId) || setting.templates[0];
 
@@ -230,7 +230,7 @@ export function InvoiceTemplateSection() {
               <NumberInput min={8} max={40} value={active.shopNameFontSize} onChange={(v) => updateActive({ shopNameFontSize: v || 16 })} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">"INVOICE" title size</label>
+              <label className="text-xs font-medium text-muted-foreground">&quot;INVOICE&quot; title size</label>
               <NumberInput min={8} max={40} value={active.invoiceTitleFontSize} onChange={(v) => updateActive({ invoiceTitleFontSize: v || 18 })} />
             </div>
             <div className="space-y-1.5">

@@ -22,7 +22,6 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow
 import { CustomerCard } from "@/components/crm/customer-card";
 import { CustomerListRow } from "@/components/crm/customer-list-row";
 import { PaymentModal } from "@/components/orders/payment-modal";
-import { BalanceDue } from "@/components/ui/money-text";
 import { inr, fmtDateShort } from "@/lib/format";
 import { loyaltyTier } from "@/lib/business-rules";
 import { sumOrdersOutstanding, sumInvoicesOutstanding } from "@/lib/balances";

@@ -28,7 +28,8 @@ export function OnboardingChecklist() {
 
   const [dismissed, setDismissed] = useState(true);
   useEffect(() => {
-    setDismissed(localStorage.getItem(DISMISS_KEY) === "1");
+    const t = setTimeout(() => setDismissed(localStorage.getItem(DISMISS_KEY) === "1"), 0);
+    return () => clearTimeout(t);
   }, []);
 
   const loaded = shop !== undefined && products !== undefined && orders !== undefined && invoices !== undefined;

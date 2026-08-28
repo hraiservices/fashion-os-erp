@@ -12,7 +12,6 @@ import { sumOrdersOutstanding, sumInvoicesOutstanding } from "@/lib/balances";
 import type { CustomerProfile } from "@/lib/crm";
 import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import { StageBadge } from "@/components/orders/stage-badge";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { tagBadgeClass } from "@/components/ui/tag-picker";
 import { EditCustomerModal } from "@/components/crm/edit-customer-modal";

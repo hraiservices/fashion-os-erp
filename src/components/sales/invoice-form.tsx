@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, CalendarDays, User2, FileText, Package2, ChevronDown, Truck, Tag, Receipt } from "lucide-react";
+import { ArrowLeft, User2, FileText, Package2, Tag, Receipt } from "lucide-react";
 import { useProducts } from "@/hooks/use-products";
 import { useSalesQuotation } from "@/hooks/use-sales-quotations";
 import { useSalesInvoice } from "@/hooks/use-sales-invoices";
@@ -29,6 +29,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
 import { FormActionBar } from "@/components/ui/form-action-bar";
 import { usePriceListItemsMap } from "@/hooks/use-price-lists";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_DOCUMENT_NUMBERING, type DocumentNumberingSettings } from "@/lib/document-numbering";
 import type { Customer, SalesInvoice, InvoiceDocStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -119,15 +120,14 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
   const [terms, setTerms] = useState(existing?.terms ?? "");
   const [notes, setNotes] = useState(existing?.notes || "");
 
-  useEffect(() => {
-    if (!isEdit && defaultTerms && !terms) setTerms(defaultTerms);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultTerms]);
+  useSyncFromSource(defaultTerms, (dt) => {
+    if (!isEdit && dt && !terms) setTerms(dt);
+  });
 
-  useEffect(() => {
-    if (!prefillCustomer || prefillQuoteId || prefillCloneId) return;
-    setCustomer(prefillCustomer);
-  }, [prefillCustomer, prefillQuoteId, prefillCloneId]);
+  useSyncFromSource(prefillQuoteId || prefillCloneId ? null : prefillCustomer, (pc) => {
+    if (!pc) return;
+    setCustomer(pc);
+  });
 
   // Editing an existing invoice seeds `customer` from a placeholder with an empty id (built
   // from just the saved name/mobile) — nothing else ever resolves the real record, so
@@ -135,18 +135,17 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
   // the whole edit session, and any new line added prices off the product's default instead of
   // this customer's assigned rate. Runs once real customer data is loaded; only replaces the
   // placeholder (id === ""), so it never clobbers a deliberate reselection mid-edit.
-  useEffect(() => {
-    if (!isEdit || !existing || !customers || customer?.id) return;
-    const real = customers.find((c) => c.mobile === existing.customerMobile);
+  useSyncFromSource(isEdit && existing ? customers : null, (custs) => {
+    if (!isEdit || !existing || !custs || customer?.id) return;
+    const real = custs.find((c) => c.mobile === existing.customerMobile);
     if (real) setCustomer(real);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEdit, existing, customers]);
+  });
 
-  useEffect(() => {
-    if (!prefillQuote) return;
-    setCustomer(placeholderCustomer(prefillQuote.customerName, prefillQuote.customerMobile));
+  useSyncFromSource(prefillQuote, (quote) => {
+    if (!quote) return;
+    setCustomer(placeholderCustomer(quote.customerName, quote.customerMobile));
     setLines(
-      prefillQuote.items.map((item) => ({
+      quote.items.map((item) => ({
         key: `quo-${item.productId}-${Math.random().toString(36).slice(2, 7)}`,
         productId: item.productId,
         qty: String(item.qty),
@@ -159,16 +158,16 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
         costPrice: item.costPrice !== undefined ? String(item.costPrice) : "",
       }))
     );
-    setGstType(prefillQuote.gstType);
-    setTaxRate(String(prefillQuote.taxRate));
-  }, [prefillQuote]);
+    setGstType(quote.gstType);
+    setTaxRate(String(quote.taxRate));
+  });
 
-  useEffect(() => {
-    if (!prefillClone) return;
-    setCustomer(placeholderCustomer(prefillClone.customerName, prefillClone.customerMobile));
-    setSubject(prefillClone.subject);
+  useSyncFromSource(prefillClone, (clone) => {
+    if (!clone) return;
+    setCustomer(placeholderCustomer(clone.customerName, clone.customerMobile));
+    setSubject(clone.subject);
     setLines(
-      prefillClone.items.map((item, i) => ({
+      clone.items.map((item, i) => ({
         key: `clone-${i}-${Math.random().toString(36).slice(2, 7)}`,
         productId: item.productId,
         qty: String(item.qty),
@@ -181,15 +180,14 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
         costPrice: item.costPrice !== undefined ? String(item.costPrice) : "",
       }))
     );
-    setGstType(prefillClone.gstType);
-    setTaxRate(String(prefillClone.taxRate));
-    setShippingCharges(blankIfZero(prefillClone.shippingCharges));
-    setDiscountType(prefillClone.discountType);
-    setDiscountValue(blankIfZero(prefillClone.discountValue));
-    setTerms(prefillClone.terms);
-    setNotes(prefillClone.notes);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefillClone]);
+    setGstType(clone.gstType);
+    setTaxRate(String(clone.taxRate));
+    setShippingCharges(blankIfZero(clone.shippingCharges));
+    setDiscountType(clone.discountType);
+    setDiscountValue(blankIfZero(clone.discountValue));
+    setTerms(clone.terms);
+    setNotes(clone.notes);
+  });
 
   function handleSelectCustomer(c: Customer) {
     setCustomer(c);

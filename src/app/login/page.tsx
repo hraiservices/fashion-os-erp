@@ -71,9 +71,9 @@ export default function LoginPage() {
   const [ok, setOk] = useState("");
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.location.hash.includes("type=recovery")) {
-      setMode("reset");
-    }
+    if (typeof window === "undefined" || !window.location.hash.includes("type=recovery")) return;
+    const t = setTimeout(() => setMode("reset"), 0);
+    return () => clearTimeout(t);
   }, []);
 
   async function go() {

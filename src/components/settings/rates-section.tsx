@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_RATES, type Lining } from "@/lib/business-rules";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,9 +27,9 @@ export function RatesSection() {
   // fires a save, so a keystroke can't be lost or flicker while a previous save is still in
   // flight. The actual save fires on blur (see commit() below), not per keystroke.
   const [draft, setDraft] = useState<RateCard | null>(null);
-  useEffect(() => {
-    if (rates && !draft) setDraft(rates);
-  }, [rates, draft]);
+  useSyncFromSource(rates, (r) => {
+    if (r && !draft) setDraft(r);
+  });
 
   const current = draft || DEFAULT_RATES;
 

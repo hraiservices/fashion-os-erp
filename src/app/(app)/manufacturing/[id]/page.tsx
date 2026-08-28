@@ -215,16 +215,16 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
               <p className="mb-2 px-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Actions</p>
               {wo.status !== "completed" ? (
                 <div className="space-y-1.5">
-                  <Button className="w-full justify-start" onClick={handleAdvance} disabled={advanceStatus.isPending}>
+                  <Button className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" onClick={handleAdvance} disabled={advanceStatus.isPending}>
                     {next === "completed" ? <CheckCircle2 className="size-4" /> : <ArrowRight className="size-4" />}
                     {next === "completed" ? "Complete work order" : `Move to ${next ? WO_STATUS_LABELS[next] : ""}`}
                   </Button>
-                  <Button variant="outline" className="w-full justify-start" nativeButton={false} render={<Link href={`/manufacturing/${wo.id}/edit`} />}>
+                  <Button variant="outline" className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" nativeButton={false} render={<Link href={`/manufacturing/${wo.id}/edit`} />}>
                     <Pencil className="size-4" /> Edit
                   </Button>
                   <div className="border-t pt-1.5">
                     <AlertDialog>
-                      <AlertDialogTrigger render={<Button variant="destructive" className="w-full justify-start"><Trash2 className="size-4" /> Delete</Button>} />
+                      <AlertDialogTrigger render={<Button variant="destructive" className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]"><Trash2 className="size-4" /> Delete</Button>} />
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Delete {wo.woNumber}?</AlertDialogTitle>
@@ -240,7 +240,7 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
                 </div>
               ) : (
                 <AlertDialog>
-                  <AlertDialogTrigger render={<Button variant="destructive" className="w-full justify-start"><Trash2 className="size-4" /> Delete (reverts stock)</Button>} />
+                  <AlertDialogTrigger render={<Button variant="destructive" className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]"><Trash2 className="size-4" /> Delete (reverts stock)</Button>} />
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete {wo.woNumber}?</AlertDialogTitle>

@@ -352,7 +352,7 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
             </div>
 
             {canManagePayments && invoice.balance > 0 && (
-              <Button className="mt-4 w-full print:hidden" nativeButton={false} render={<Link href={`/sales/invoices/${invoice.id}/payment`} />}>
+              <Button className="mt-4 w-full h-12 text-base sm:h-7 sm:text-[0.8rem] print:hidden" nativeButton={false} render={<Link href={`/sales/invoices/${invoice.id}/payment`} />}>
                 <Wallet className="size-4" /> Record payment
               </Button>
             )}
@@ -360,19 +360,19 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
             <div className="mt-4 space-y-1.5 print:hidden">
               <p className="px-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Share &amp; notify</p>
               <WhatsAppButton
-                className="w-full justify-start"
+                className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]"
                 href={waHref(invoice.balance > 0 ? "paymentReminder" : "invoiceSent")}
                 label={invoice.balance > 0 ? "Payment Reminder" : "Send Invoice"}
               />
-              {(payments?.length || 0) > 0 && <WhatsAppButton className="w-full justify-start" href={waHref("paymentReceived")} label="Send Receipt" />}
-              <WhatsAppButton className="w-full justify-start" href={waHref("sendPdfLink")} label="Send PDF on WhatsApp" />
-              <Button variant="outline" className="w-full justify-start" onClick={handleCopyShareLink}>
+              {(payments?.length || 0) > 0 && <WhatsAppButton className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" href={waHref("paymentReceived")} label="Send Receipt" />}
+              <WhatsAppButton className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" href={waHref("sendPdfLink")} label="Send PDF on WhatsApp" />
+              <Button variant="outline" className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" onClick={handleCopyShareLink}>
                 <Link2 className="size-4" /> Copy share link
               </Button>
-              <PrintButton className="w-full justify-start" />
+              <PrintButton className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" />
               <Button
                 variant="outline"
-                className="w-full justify-start"
+                className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]"
                 onClick={() =>
                   printThermalReceipt({
                     shopName: shop?.name || "",
@@ -394,7 +394,7 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
               </Button>
               <Button
                 variant="outline"
-                className="w-full justify-start"
+                className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]"
                 nativeButton={false}
                 render={<a href={`/api/sales/invoices/${invoice.id}/pdf`} target="_blank" rel="noopener noreferrer" />}
               >
@@ -405,7 +405,7 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
                   variant="outline"
                   onClick={handleMarkSent}
                   disabled={setDocStatus.isPending}
-                  className="w-full justify-start border-green-600/30 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800 dark:border-green-500/30 dark:bg-green-950/40 dark:text-green-400 dark:hover:bg-green-950/60"
+                  className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem] border-green-600/30 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800 dark:border-green-500/30 dark:bg-green-950/40 dark:text-green-400 dark:hover:bg-green-950/60"
                 >
                   <Send className="size-4" /> Mark as sent
                 </Button>
@@ -415,13 +415,13 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
             {canManageSales && (
               <div className="mt-4 space-y-1.5 border-t pt-4 print:hidden">
                 <p className="px-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Manage</p>
-                <Button variant="outline" className="w-full justify-start" nativeButton={false} render={<Link href={`/sales/invoices/${invoice.id}/edit`} />}>
+                <Button variant="outline" className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" nativeButton={false} render={<Link href={`/sales/invoices/${invoice.id}/edit`} />}>
                   <Pencil className="size-4" /> Edit
                 </Button>
-                <Button variant="outline" className="w-full justify-start" nativeButton={false} render={<Link href={`/sales/invoices/new?cloneId=${invoice.id}`} />}>
+                <Button variant="outline" className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" nativeButton={false} render={<Link href={`/sales/invoices/new?cloneId=${invoice.id}`} />}>
                   <Copy className="size-4" /> Clone
                 </Button>
-                <Button variant="outline" className="w-full justify-start" onClick={() => setCreditOpen(true)}>
+                <Button variant="outline" className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" onClick={() => setCreditOpen(true)}>
                   <Undo2 className="size-4" /> Raise credit note
                 </Button>
               </div>
@@ -430,7 +430,7 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
             {canManageSales && (
               <div className="mt-4 border-t pt-4 print:hidden">
                 <AlertDialog>
-                  <AlertDialogTrigger render={<Button variant="destructive" className="w-full justify-start"><Trash2 className="size-4" /> Delete invoice</Button>} />
+                  <AlertDialogTrigger render={<Button variant="destructive" className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]"><Trash2 className="size-4" /> Delete invoice</Button>} />
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete {invoice.invoiceNumber}?</AlertDialogTitle>

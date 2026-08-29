@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Check } from "lucide-react";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
-import { COLOR_THEMES, DEFAULT_COLOR_THEME, SIDEBAR_STYLES, DEFAULT_SIDEBAR_STYLE } from "@/lib/color-themes";
+import { COLOR_THEMES, DEFAULT_COLOR_THEME, SIDEBAR_STYLES, DEFAULT_SIDEBAR_STYLE, CORNER_STYLES, DEFAULT_CORNER_STYLE } from "@/lib/color-themes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,8 +23,10 @@ const SIDEBAR_PREVIEW: Record<string, { bg: string; fg: string }> = {
 export function ColorThemeSection() {
   const { data: colorData, isLoading: colorLoading, save: saveColor } = useAppSetting<string>("colorTheme", DEFAULT_COLOR_THEME);
   const { data: sidebarData, isLoading: sidebarLoading, save: saveSidebar } = useAppSetting<string>("sidebarStyle", DEFAULT_SIDEBAR_STYLE);
+  const { data: cornerData, isLoading: cornerLoading, save: saveCorner } = useAppSetting<string>("cornerStyle", DEFAULT_CORNER_STYLE);
   const [selected, setSelected] = useState(DEFAULT_COLOR_THEME);
   const [sidebarSelected, setSidebarSelected] = useState(DEFAULT_SIDEBAR_STYLE);
+  const [cornerSelected, setCornerSelected] = useState(DEFAULT_CORNER_STYLE);
   const [saving, setSaving] = useState(false);
 
   useSyncFromSource(colorData, (d) => {
@@ -33,6 +35,10 @@ export function ColorThemeSection() {
 
   useSyncFromSource(sidebarData, (d) => {
     if (d) setSidebarSelected(d);
+  });
+
+  useSyncFromSource(cornerData, (d) => {
+    if (d) setCornerSelected(d);
   });
 
   function preview(id: string) {
@@ -50,10 +56,16 @@ export function ColorThemeSection() {
     root.classList.add(`sidebar-${id}`);
   }
 
+  function previewCorner(id: string) {
+    setCornerSelected(id);
+    const radius = CORNER_STYLES.find((c) => c.id === id)?.radius;
+    if (radius) document.documentElement.style.setProperty("--radius", radius);
+  }
+
   async function onSave() {
     setSaving(true);
     try {
-      await Promise.all([saveColor.mutateAsync(selected), saveSidebar.mutateAsync(sidebarSelected)]);
+      await Promise.all([saveColor.mutateAsync(selected), saveSidebar.mutateAsync(sidebarSelected), saveCorner.mutateAsync(cornerSelected)]);
       toast.success("Appearance saved and applied for everyone");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save appearance");
@@ -62,7 +74,7 @@ export function ColorThemeSection() {
     }
   }
 
-  if (colorLoading || sidebarLoading) return <Skeleton className="h-64 w-full" />;
+  if (colorLoading || sidebarLoading || cornerLoading) return <Skeleton className="h-64 w-full" />;
 
   return (
     <Card>
@@ -113,6 +125,27 @@ export function ColorThemeSection() {
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-3 text-xs font-medium text-muted-foreground">Corner style</div>
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+            {CORNER_STYLES.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => previewCorner(c.id)}
+                className={cn(
+                  "flex flex-col items-center gap-1.5 rounded-lg border p-2.5 transition-colors",
+                  cornerSelected === c.id ? "border-primary bg-primary/5" : "hover:bg-muted"
+                )}
+                aria-pressed={cornerSelected === c.id}
+              >
+                <span className="flex h-8 w-14 items-center justify-center border-2 border-foreground/40 bg-transparent" style={{ borderRadius: c.radius }} />
+                <span className="text-xs font-medium">{c.name}</span>
+              </button>
+            ))}
           </div>
         </div>
 

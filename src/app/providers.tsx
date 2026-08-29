@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { FontLoader } from "@/components/app-shell/font-loader";
 import { ColorThemeLoader } from "@/components/app-shell/color-theme-loader";
+import { DefaultThemeLoader } from "@/components/app-shell/default-theme-loader";
 import { ThemeColorSync } from "@/components/app-shell/theme-color-sync";
 import { KeyboardAvoidance } from "@/components/app-shell/keyboard-avoidance";
 
@@ -39,6 +40,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <TooltipProvider>
           <FontLoader />
           <ColorThemeLoader />
+          <DefaultThemeLoader />
           <ThemeColorSync />
           <KeyboardAvoidance />
           {children}

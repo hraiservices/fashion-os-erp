@@ -7,6 +7,7 @@ import { SecuritySection } from "@/components/settings/security-section";
 import { PushNotificationsSection } from "@/components/settings/push-notifications-section";
 import { DataExportSection } from "@/components/settings/data-export-section";
 import { ColorThemeSection } from "@/components/settings/color-theme-section";
+import { ThemeModeSection } from "@/components/settings/theme-mode-section";
 import { FontSection } from "@/components/settings/font-section";
 import { DashboardHeaderSection } from "@/components/settings/dashboard-header-section";
 import { DocumentNumberingSection } from "@/components/settings/document-numbering-section";
@@ -53,6 +54,7 @@ export default function Page() {
           <>
             <SectionLabel>Appearance</SectionLabel>
             <ColorThemeSection />
+            <ThemeModeSection />
             <FontSection />
             <DashboardHeaderSection />
 

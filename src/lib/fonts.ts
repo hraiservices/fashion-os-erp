@@ -43,6 +43,9 @@ export const GOOGLE_FONTS = [
   "Space Grotesk",
 ] as const;
 
+/** Sentinel Select value for "type a Google Font name manually" — never saved as the family itself. */
+export const CUSTOM_FONT_VALUE = "__custom__";
+
 export const FONT_WEIGHTS = [300, 400, 500, 600, 700] as const;
 
 export const FONT_SIZES = [14, 15, 16, 17, 18] as const;

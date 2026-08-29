@@ -7,6 +7,7 @@ import { useWhatsAppCloudApiConfig } from "@/hooks/use-whatsapp-cloud-api";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_RECOMMENDATION_TEMPLATE, RECOMMENDATION_TEMPLATE_VARIABLES } from "@/lib/recommendation-whatsapp";
 import type { WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
+import { WhatsAppTemplateField } from "@/components/settings/whatsapp-template-field";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -106,11 +107,25 @@ export function RecommendationWhatsAppSection() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Approved Template Name</Label>
-              <Input value={draftCloudApi.templateName} onChange={(e) => setDraftCloudApi({ ...draftCloudApi, templateName: e.target.value })} placeholder="e.g. product_recommendation" />
+              <WhatsAppTemplateField
+                value={draftCloudApi.templateName}
+                onChange={(v) => setDraftCloudApi({ ...draftCloudApi, templateName: v })}
+                expectedParamCount={3}
+                templatesEnabled={!!draftCloudApi.wabaId && !!draftCloudApi.accessToken}
+                placeholder="e.g. product_recommendation"
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Template Language Code</Label>
               <Input value={draftCloudApi.languageCode} onChange={(e) => setDraftCloudApi({ ...draftCloudApi, languageCode: e.target.value })} placeholder="e.g. en_US" />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs font-medium">WhatsApp Business Account ID (optional)</Label>
+              <Input value={draftCloudApi.wabaId || ""} onChange={(e) => setDraftCloudApi({ ...draftCloudApi, wabaId: e.target.value })} placeholder="e.g. 123456789012345" />
+              <p className="text-[11px] text-muted-foreground">
+                Lets every template field on this page show a dropdown of your actual approved templates instead of a plain text box. Find it in Meta
+                Business Manager → WhatsApp Manager → API Setup.
+              </p>
             </div>
           </div>
         </div>

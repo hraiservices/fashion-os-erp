@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 
-export type WhatsAppMessageType = "concierge_reply" | "ready_nudge" | "daily_briefing" | "payment_reminder" | "recommendation" | "sales_template";
+export type WhatsAppMessageType = "concierge_reply" | "ready_nudge" | "daily_briefing" | "payment_reminder" | "recommendation" | "sales_template" | "broadcast";
 export type WhatsAppMessageStatus = "sent" | "delivered" | "read" | "failed";
 
 /** Records one WhatsApp send attempt — called right after every sendWhatsApp* call, success or

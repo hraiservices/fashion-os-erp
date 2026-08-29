@@ -47,6 +47,13 @@ export interface WhatsAppCloudApiConfig {
    *  payment-reminders). Must have exactly 2 {{n}} body parameters in order: customer name,
    *  amount due. */
   paymentReminderTemplateName?: string;
+  /** Approved template for a broadcast to a customer segment (src/app/api/whatsapp/broadcast).
+   *  Must have exactly 2 {{n}} body parameters in order: customer name, message text. */
+  broadcastTemplateName?: string;
+  /** WhatsApp Business Account ID — only needed to list approved templates from Meta's Graph
+   *  API (GET .../message_templates is scoped to the WABA, not the phone number). Find it in
+   *  Meta Business Manager → WhatsApp Manager → API Setup. */
+  wabaId?: string;
 }
 
 export function isCloudApiConfigured(config: Partial<WhatsAppCloudApiConfig> | null | undefined): config is WhatsAppCloudApiConfig {
@@ -158,6 +165,48 @@ export async function sendWhatsAppTemplateText(
     throw new Error(body.error?.message || `WhatsApp Cloud API error (${res.status})`);
   }
   return extractMessageId(res);
+}
+
+export interface WhatsAppTemplateSummary {
+  name: string;
+  language: string;
+  /** Meta's own approval state — 'APPROVED' | 'PENDING' | 'REJECTED' | ... */
+  status: string;
+  /** Count of {{1}}, {{2}}, ... placeholders in the BODY component — what a send call needs to
+   *  match exactly, or Meta rejects it. 0 for a template with no variable text at all. */
+  paramCount: number;
+}
+
+interface WhatsAppTemplateListResponse {
+  data?: { name?: string; language?: string; status?: string; components?: { type?: string; text?: string }[] }[];
+}
+
+/**
+ * Lists this WABA's message templates — lets the settings UI offer a dropdown of the shop's
+ * ACTUAL approved templates (with their real parameter counts) instead of asking someone to
+ * type an exact template name from memory into 5 different settings fields. Requires wabaId,
+ * separate from the phoneNumberId every send uses.
+ */
+export async function fetchWhatsAppTemplates(config: Pick<WhatsAppCloudApiConfig, "wabaId" | "accessToken">): Promise<WhatsAppTemplateSummary[]> {
+  if (!config.wabaId || !config.accessToken) throw new Error("WhatsApp Business Account ID and Access Token are required to list templates");
+
+  const res = await fetch(
+    `https://graph.facebook.com/v21.0/${config.wabaId}/message_templates?fields=name,language,status,components&limit=200`,
+    { headers: { Authorization: `Bearer ${config.accessToken}` } }
+  );
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as WhatsAppApiError;
+    throw new Error(body.error?.message || `WhatsApp Cloud API error (${res.status})`);
+  }
+  const body = (await res.json()) as WhatsAppTemplateListResponse;
+
+  return (body.data || [])
+    .filter((t): t is Required<Pick<typeof t, "name" | "language" | "status">> & typeof t => !!t.name && !!t.language && !!t.status)
+    .map((t) => {
+      const bodyComponent = t.components?.find((c) => c.type === "BODY");
+      const placeholders = bodyComponent?.text?.match(/\{\{\d+\}\}/g) || [];
+      return { name: t.name, language: t.language, status: t.status, paramCount: new Set(placeholders).size };
+    });
 }
 
 /**

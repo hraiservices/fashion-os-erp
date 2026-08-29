@@ -16,6 +16,7 @@ const TYPE_LABELS: Record<string, string> = {
   payment_reminder: "Payment reminder",
   recommendation: "Recommendation",
   sales_template: "Sales template",
+  broadcast: "Broadcast",
 };
 
 const STATUS_CLASSES: Record<string, string> = {

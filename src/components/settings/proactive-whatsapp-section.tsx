@@ -7,6 +7,7 @@ import { useAppSetting } from "@/hooks/use-app-setting";
 import { useWhatsAppCloudApiConfig } from "@/hooks/use-whatsapp-cloud-api";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
 import type { WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
+import { WhatsAppTemplateField } from "@/components/settings/whatsapp-template-field";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ export function ProactiveWhatsAppSection() {
   const [templateName, setTemplateName] = useState("");
   const [readyTemplateName, setReadyTemplateName] = useState("");
   const [paymentReminderTemplateName, setPaymentReminderTemplateName] = useState("");
+  const [broadcastTemplateName, setBroadcastTemplateName] = useState("");
   const [newMobile, setNewMobile] = useState("");
   const [draftMinDays, setDraftMinDays] = useState(DEFAULT_MIN_DAYS_OVERDUE);
   const [draftCooldown, setDraftCooldown] = useState(DEFAULT_COOLDOWN_DAYS);
@@ -50,8 +52,10 @@ export function ProactiveWhatsAppSection() {
       setTemplateName(c.briefingTemplateName || "");
       setReadyTemplateName(c.readyTemplateName || "");
       setPaymentReminderTemplateName(c.paymentReminderTemplateName || "");
+      setBroadcastTemplateName(c.broadcastTemplateName || "");
     }
   });
+  const templatesEnabled = !!cloudApi?.wabaId && !!cloudApi?.accessToken;
   useSyncFromSource(minDaysOverdue, (d) => {
     if (d != null) setDraftMinDays(d);
   });
@@ -113,6 +117,15 @@ export function ProactiveWhatsAppSection() {
     }
   }
 
+  async function saveBroadcastTemplateName() {
+    try {
+      await saveCloudApi.mutateAsync({ ...(cloudApi || BLANK_CLOUD_API), broadcastTemplateName });
+      toast.success("Template name saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save");
+    }
+  }
+
   if (recipientsLoading || cloudApiLoading || minDaysLoading || reminderCooldownLoading) return <Skeleton className="h-64 w-full" />;
 
   return (
@@ -131,7 +144,9 @@ export function ProactiveWhatsAppSection() {
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">Approved briefing template name</Label>
           <div className="flex gap-2">
-            <Input value={templateName} onChange={(e) => setTemplateName(e.target.value)} placeholder="e.g. daily_briefing" />
+            <div className="flex-1">
+              <WhatsAppTemplateField value={templateName} onChange={setTemplateName} expectedParamCount={1} templatesEnabled={templatesEnabled} placeholder="e.g. daily_briefing" />
+            </div>
             <Button variant="outline" onClick={saveTemplateName} disabled={saveCloudApi.isPending}>
               Save
             </Button>
@@ -190,7 +205,15 @@ export function ProactiveWhatsAppSection() {
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">Approved template name</Label>
           <div className="flex gap-2">
-            <Input value={readyTemplateName} onChange={(e) => setReadyTemplateName(e.target.value)} placeholder="e.g. order_ready_for_pickup" />
+            <div className="flex-1">
+              <WhatsAppTemplateField
+                value={readyTemplateName}
+                onChange={setReadyTemplateName}
+                expectedParamCount={3}
+                templatesEnabled={templatesEnabled}
+                placeholder="e.g. order_ready_for_pickup"
+              />
+            </div>
             <Button variant="outline" onClick={saveReadyTemplateName} disabled={saveCloudApi.isPending}>
               Save
             </Button>
@@ -212,7 +235,13 @@ export function ProactiveWhatsAppSection() {
         </p>
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">Approved template name</Label>
-          <Input value={paymentReminderTemplateName} onChange={(e) => setPaymentReminderTemplateName(e.target.value)} placeholder="e.g. payment_reminder" />
+          <WhatsAppTemplateField
+            value={paymentReminderTemplateName}
+            onChange={setPaymentReminderTemplateName}
+            expectedParamCount={2}
+            templatesEnabled={templatesEnabled}
+            placeholder="e.g. payment_reminder"
+          />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
@@ -227,6 +256,35 @@ export function ProactiveWhatsAppSection() {
         <Button variant="outline" onClick={savePaymentReminderSettings} disabled={saveCloudApi.isPending || saveMinDays.isPending || saveReminderCooldown.isPending}>
           Save
         </Button>
+      </CardContent>
+    </Card>
+
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Broadcast messages</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">
+          Lets you message every customer with a chosen tag at once from CRM → Broadcast — checks &quot;Don&apos;t WhatsApp this customer&quot; for
+          each one. Needs a separate Meta-approved template with exactly 2 body parameters, in order: customer name, message text.
+        </p>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">Approved template name</Label>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <WhatsAppTemplateField
+                value={broadcastTemplateName}
+                onChange={setBroadcastTemplateName}
+                expectedParamCount={2}
+                templatesEnabled={templatesEnabled}
+                placeholder="e.g. broadcast_message"
+              />
+            </div>
+            <Button variant="outline" onClick={saveBroadcastTemplateName} disabled={saveCloudApi.isPending}>
+              Save
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
     </>

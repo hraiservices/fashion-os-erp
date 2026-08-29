@@ -229,8 +229,12 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           scrollable with no wrap: this row can hold up to 8 buttons (stage/payment/WhatsApp/edit/
           rework/payables/tag/print/delete) and wrapping them would break the sticky mobile bar's
           fixed height, so overflow-x-auto lets extra buttons scroll into view instead of spilling
-          past the card's edge. */}
-      <div className="fixed inset-x-0 bottom-16 z-30 flex gap-2 overflow-x-auto border-t bg-background/95 p-3 backdrop-blur print:hidden lg:static lg:z-auto lg:flex-wrap lg:overflow-visible lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+          past the card's edge. Stops short of the right edge on mobile (right-16 instead of
+          inset-x-0's implicit right-0) so its own scrollable viewport never renders under the
+          fixed WhatsApp-support/AI-Copilot bubbles that float over that same corner — with the
+          full-width version, no scroll position could ever bring the last button fully clear of
+          them, since they sit in fixed screen coordinates rather than scrolling with the bar. */}
+      <div className="fixed inset-y-auto right-16 bottom-16 left-0 z-30 flex gap-2 overflow-x-auto border-t bg-background/95 p-3 backdrop-blur print:hidden lg:static lg:right-auto lg:left-auto lg:z-auto lg:flex-wrap lg:overflow-visible lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
         {user?.perms.changeStage && next && (
           <Button className={cn("shrink-0 flex-1 h-12 text-base sm:h-8 sm:text-sm lg:flex-none", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
             <ArrowRight className="size-4" /> Move to {STAGE_META[next].label}
@@ -307,10 +311,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             </AlertDialogContent>
           </AlertDialog>
         )}
-        {/* Trailing spacer so the last button (Delete) can scroll fully clear of the fixed
-            WhatsApp-support/AI-Copilot bubbles, which float over this same bottom-right corner
-            on mobile — without it, the rightmost button always ends up hidden under them. */}
-        <div className="w-14 shrink-0 lg:hidden" aria-hidden />
       </div>
 
       <AlertDialog open={confirmAdvanceOpen} onOpenChange={setConfirmAdvanceOpen}>

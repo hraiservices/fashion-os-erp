@@ -22,7 +22,7 @@ import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
-import { getTailorWorkload, estimateDeliveryDate, estimateReworkRisk } from "@/lib/analytics";
+import { getTailorWorkload, estimateDeliveryDate, estimateReworkRisk, rankTailorsForOrder } from "@/lib/analytics";
 import {
   DEFAULT_RATES,
   DEFAULT_TAILOR_RATES,
@@ -385,6 +385,17 @@ function OrderFormFields({
     allOrders && selectedTailor && garments.length > 0 ? estimateReworkRisk(allOrders, selectedTailor, garments.map((g) => g.type)) : null;
   const showReworkRisk = !!reworkRisk && (reworkRisk.level === "medium" || reworkRisk.level === "high");
 
+  // "Best tailor" recommendation — same combine-existing-signals idea as the rework-risk flag,
+  // just ranking every tailor instead of scoring the one already picked. Only worth surfacing
+  // before a tailor is chosen (or a brand-new order still on the auto-picked default) — once
+  // someone has deliberately picked a tailor themselves, second-guessing that on every garment
+  // edit would be noise, not help.
+  const recommendedTailor =
+    allOrders && tailors.length > 1 && garments.length > 0 && (!isEdit || !existingOrder?.tailor)
+      ? rankTailorsForOrder(allOrders, tailors.map((t) => t.id), garments.map((g) => g.type))[0]
+      : undefined;
+  const showTailorRecommendation = !!recommendedTailor && recommendedTailor.tailorId !== selectedTailor;
+
   // Each garment also carries its OWN tailor field (drives per-garment piece-rate pay and the
   // Daily Tailor Worksheet report) — it's seeded from this order-level "Tailor" dropdown only
   // once, at form-mount time, and previously never followed it again. Changing the order-level
@@ -640,6 +651,20 @@ function OrderFormFields({
                   // could never match any employee, permanently orphaning the order's tailor
                   // attribution. Add the employee first instead.
                   <Input disabled placeholder="Add a tailor under Employees first" className="h-10" />
+                )}
+                {showTailorRecommendation && recommendedTailor && (
+                  <button
+                    type="button"
+                    onClick={() => setValue("tailor", recommendedTailor.tailorId, { shouldDirty: true })}
+                    className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <Sparkles className="size-3 shrink-0 text-primary" />
+                    Recommended: <span className="font-medium text-foreground">{tailorName(recommendedTailor.tailorId)}</span>
+                    <span className="text-muted-foreground">
+                      ({recommendedTailor.capacity.toLowerCase()} load
+                      {recommendedTailor.riskRate !== null ? `, ${recommendedTailor.riskRate}% risk` : ""})
+                    </span>
+                  </button>
                 )}
               </FieldGroup>
               {showCapacityWarning && tailorWorkload && (

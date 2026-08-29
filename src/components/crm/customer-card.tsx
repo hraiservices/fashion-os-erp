@@ -11,7 +11,6 @@ import { inr, fmtDateShort } from "@/lib/format";
 import { sumOrdersOutstanding, sumInvoicesOutstanding } from "@/lib/balances";
 import type { CustomerProfile } from "@/lib/crm";
 import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
-import { StageBadge } from "@/components/orders/stage-badge";
 import { Badge } from "@/components/ui/badge";
 import { tagBadgeClass } from "@/components/ui/tag-picker";
 import { EditCustomerModal } from "@/components/crm/edit-customer-modal";
@@ -55,7 +54,7 @@ export function CustomerCard({ cust, loyaltyCfg, invoices = [] }: { cust: Custom
       <Link href={`/crm/${cust.mobile}`} className="flex items-start gap-3 p-4 pb-3 transition-colors active:bg-muted/40">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">{initial}</span>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium leading-tight">{cust.name}</p>
+          <p className="truncate font-bold leading-tight text-primary">{cust.name}</p>
           <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
             <Phone className="size-3 shrink-0" />
             {cust.mobile}
@@ -92,14 +91,12 @@ export function CustomerCard({ cust, loyaltyCfg, invoices = [] }: { cust: Custom
         )}
       </Link>
 
-      <Link href={`/crm/${cust.mobile}`} className="grid grid-cols-3 gap-px border-y bg-border/60 text-center">
-        <Stat label="Stitch Orders" value={String(cust.orders.length)} />
-        <Stat label="Spent" value={inr(cust.spent)} />
+      <Link href={`/crm/${cust.mobile}`} className="grid grid-cols-2 gap-px border-y bg-border/60 text-center">
+        <Stat label="LTV" value={inr(cust.spent)} />
         <Stat label="Last" value={fmtDateShort(latestOrder?.inDate || "")} />
       </Link>
 
       <div className="flex flex-wrap items-center gap-1.5 p-3">
-        {latestOrder && <StageBadge stage={latestOrder.status} size="sm" />}
         {tier && (
           <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ background: tier.bg, color: tier.color }}>
             {tier.label} · {cust.loyaltyPoints} pts

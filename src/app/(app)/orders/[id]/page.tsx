@@ -243,20 +243,20 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </Button>
         )}
         {order.balance > 0 ? (
-          <WhatsAppButton href={paymentReminderUrl} label="Payment Reminder" labelClassName="hidden lg:inline" className="shrink-0 h-12 sm:h-8" />
+          <WhatsAppButton href={paymentReminderUrl} label="Payment Reminder" className="shrink-0 h-12 sm:h-8" />
         ) : (
-          <WhatsAppButton href={waUrl} label="WhatsApp" labelClassName="hidden lg:inline" className="shrink-0 h-12 sm:h-8" />
+          <WhatsAppButton href={waUrl} label="WhatsApp" className="shrink-0 h-12 sm:h-8" />
         )}
         {user?.perms.editOrder && (
           <Button variant="outline" className="shrink-0 h-12 sm:h-8" nativeButton={false} render={<Link href={`/orders/${id}/edit`} />} aria-label="Edit order">
             <Pencil className="size-4" />
-            <span className="hidden lg:inline">Edit</span>
+            <span>Edit</span>
           </Button>
         )}
         {user?.perms.changeStage && !order.reworkFlag && (
           <Button variant="outline" className="shrink-0 h-12 sm:h-8" aria-label="Flag for rework" onClick={() => setReworkDialogOpen(true)}>
             <RotateCcw className="size-4" />
-            <span className="hidden lg:inline">Rework</span>
+            <span>Rework</span>
           </Button>
         )}
         {user?.perms.managePayroll && order.readyAt && !order.payablesConfirmedAt && order.garments.some((g) => g.payableAmount) && (
@@ -275,20 +275,22 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             }}
           >
             <Wallet className="size-4" />
+            <span className="lg:hidden">{confirmPayables.isPending ? "Confirming…" : "Confirm payables"}</span>
             <span className="hidden lg:inline">{confirmPayables.isPending ? "Confirming…" : "Confirm tailor payables"}</span>
           </Button>
         )}
         <Button variant="outline" className="shrink-0 h-12 sm:h-8" aria-label="Print order tag" onClick={() => printOrderTag(order, shop, tailorName(order.tailor))}>
           <TagIcon className="size-4" />
-          <span className="hidden lg:inline">Print tag</span>
+          <span>Print tag</span>
         </Button>
-        <PrintButton labelClassName="hidden lg:inline" className="shrink-0 h-12 sm:h-8" />
+        <PrintButton className="shrink-0 h-12 sm:h-8" />
         {user?.perms.deleteOrder && (
           <AlertDialog>
             <AlertDialogTrigger
               render={
                 <Button variant="destructive" className="shrink-0 h-12 sm:h-8" aria-label="Delete order">
                   <Trash2 className="size-4" />
+                  <span>Delete</span>
                 </Button>
               }
             />

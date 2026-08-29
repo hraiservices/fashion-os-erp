@@ -98,7 +98,7 @@ export function InvoiceDocument({
           <View>
             {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf/renderer's Image, not an HTML img */}
             {t.showLogo && t.logoDataUrl && <Image src={t.logoDataUrl} style={[styles.logo, { width: t.logoWidth, height: t.logoWidth }]} />}
-            <Text style={[styles.shopName, { fontSize: t.shopNameFontSize, fontFamily: t.boldShopName ? bold : t.font }]}>{shopName || "Your Shop"}</Text>
+            <Text style={[styles.shopName, { fontSize: t.shopNameFontSize, fontFamily: t.boldShopName ? bold : t.font }]}>{shopName || "Your Company"}</Text>
             {shopAddress && <Text style={styles.muted}>{shopAddress}</Text>}
             {shopPhone && <Text style={styles.muted}>{shopPhone}</Text>}
             {shopGstin && <Text style={styles.muted}>GSTIN: {shopGstin}</Text>}
@@ -261,7 +261,7 @@ export function InvoiceDocument({
         )}
 
         <View style={styles.footer} fixed>
-          <Text>{shopName || "Your Shop"} · Generated from Fashion Flow</Text>
+          <Text>{shopName || "Your Company"} · Generated from Fashion Flow</Text>
           {t.showPageNumbers && <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />}
         </View>
       </Page>

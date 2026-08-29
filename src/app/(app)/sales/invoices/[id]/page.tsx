@@ -141,7 +141,7 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
         <div className="flex items-start gap-3">
           {showLogo && (
             // eslint-disable-next-line @next/next/no-img-element -- data URL, not an optimizable remote image
-            <img src={template.logoDataUrl!} alt="Shop logo" className="h-12 w-12 shrink-0 rounded object-contain" />
+            <img src={template.logoDataUrl!} alt="Company logo" className="h-12 w-12 shrink-0 rounded object-contain" />
           )}
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{invoice.invoiceNumber}</h1>

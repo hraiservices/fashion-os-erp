@@ -24,7 +24,7 @@ export const MODULE_CATALOG: ModuleMeta[] = [
   { id: "employees", label: "Employees", description: "Staff directory, attendance, commission, payroll & salaries" },
   { id: "expenses", label: "Expenses", description: "Expense tracking and categories" },
   { id: "pos", label: "POS", description: "Point-of-sale checkout screen" },
-  { id: "copilot", label: "AI Copilot", description: "AI chat assistant over the shop's data" },
+  { id: "copilot", label: "AI Copilot", description: "AI chat assistant over the company's data" },
   { id: "reports", label: "Reports", description: "The Reports center — individual reports are toggled separately below" },
 ];
 

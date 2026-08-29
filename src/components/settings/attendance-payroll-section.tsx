@@ -159,7 +159,7 @@ export function AttendancePayrollSection() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-sm">
-            <MapPin className="size-4" /> Shop locations
+            <MapPin className="size-4" /> Company locations
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">

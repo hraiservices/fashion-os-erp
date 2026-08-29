@@ -183,7 +183,7 @@ export function CopilotBubble() {
               <Sparkles className="size-5 text-primary" />
             </span>
             <div>
-              <p className="text-sm font-semibold">Shop ke baare mein kuch bhi poocho</p>
+              <p className="text-sm font-semibold">Company ke baare mein kuch bhi poocho</p>
               <p className="mt-0.5 text-xs text-muted-foreground">Revenue, orders, overdue — sab kuch</p>
             </div>
             <div className="flex flex-wrap justify-center gap-1.5">

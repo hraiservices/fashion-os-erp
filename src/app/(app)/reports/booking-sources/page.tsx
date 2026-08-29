@@ -18,7 +18,7 @@ export default function BookingSourcesPage() {
   const totalOrders = bookingSourceBreakdown.reduce((s, r) => s + r.count, 0);
 
   return (
-    <ReportShell title="Booking Sources" description={`${totalOrders} order(s), by how the customer found the shop`}>
+    <ReportShell title="Booking Sources" description={`${totalOrders} order(s), by how the customer found the company`}>
       {bookingSourceBreakdown.length === 0 ? (
         <EmptyState icon={Megaphone} title="No orders yet" />
       ) : (

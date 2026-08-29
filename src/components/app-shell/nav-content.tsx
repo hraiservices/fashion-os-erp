@@ -314,7 +314,7 @@ export function NavBrand() {
     <div className="flex items-center gap-2.5 px-5 py-4">
       {shop?.logoDataUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={shop.logoDataUrl} alt={shop.name || "Shop logo"} className="size-10 shrink-0 rounded-lg border bg-white object-contain sm:size-8" />
+        <img src={shop.logoDataUrl} alt={shop.name || "Company logo"} className="size-10 shrink-0 rounded-lg border bg-white object-contain sm:size-8" />
       ) : (
         <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground sm:size-8">
           <Scissors className="size-[22px] sm:size-4" />

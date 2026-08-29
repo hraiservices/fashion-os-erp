@@ -36,11 +36,11 @@ export default function Page() {
   }
 
   return (
-    <SettingsPage title="Personalize" description="Shop profile, your account, appearance, and document numbering — all in one place">
+    <SettingsPage title="Personalize" description="Company profile, your account, appearance, and document numbering — all in one place">
       <div className="space-y-4">
         {canManageShop && (
           <>
-            <SectionLabel>Shop Profile</SectionLabel>
+            <SectionLabel>Company Profile</SectionLabel>
             <ShopSection />
           </>
         )}

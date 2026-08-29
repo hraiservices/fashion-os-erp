@@ -294,7 +294,7 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
         <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
           <SectionHeading icon={MapPin} label="Attendance" />
           <div className="space-y-4">
-            <FieldGroup label="Shop location" hint="Required for self check-in — geofencing checks against this location.">
+            <FieldGroup label="Company location" hint="Required for self check-in — geofencing checks against this location.">
               <Controller
                 control={control}
                 name="locationId"

@@ -6,7 +6,7 @@ import { AttendancePayrollSection } from "@/components/settings/attendance-payro
 
 export default function Page() {
   return (
-    <SettingsPage title="Attendance & Payroll" description="Shop locations, geofencing, and overtime rules for self-service check-in">
+    <SettingsPage title="Attendance & Payroll" description="Company locations, geofencing, and overtime rules for self-service check-in">
       <SettingsGuard allow={({ isAdmin }) => isAdmin}>
         <AttendancePayrollSection />
       </SettingsGuard>

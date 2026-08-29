@@ -301,6 +301,91 @@ export function getTailorWorkload(orders: Order[]): WorkloadStat[] {
     .sort((a, b) => b.active - a.active);
 }
 
+/** Extra scheduling buffer (days) added on top of the base turnaround estimate when a tailor's
+ *  queue is already deep — a Low-capacity tailor can start right away, an Overloaded one
+ *  realistically needs over a week longer before they even get to a new order. */
+const CAPACITY_BUFFER_DAYS: Record<Capacity, number> = { Low: 0, Normal: 1, High: 3, Overloaded: 6 };
+
+/** A tailor needs at least this many completed orders before their own average turnaround is
+ *  trusted over the shop-wide per-garment-type figures — otherwise one unusually fast/slow past
+ *  order would skew every future estimate for a tailor who's still new or rarely used. */
+const MIN_COMPLETED_FOR_TAILOR_AVG = 3;
+
+/** Used only when there's neither enough of this tailor's own history nor any shop-wide
+ *  history for the garment type(s) being ordered (e.g. the very first order ever, or a brand
+ *  new garment type) — a generic, conservative placeholder rather than refusing to suggest
+ *  anything at all. */
+const DEFAULT_TURNAROUND_DAYS = 5;
+
+export interface DeliveryEstimate {
+  /** ISO yyyy-mm-dd suggested delivery date. */
+  date: string;
+  /** Total estimated turnaround days folded into that date (base + queue buffer + extra garments). */
+  days: number;
+  /** What the base turnaround figure (before queue buffer/garment-count adjustments) came from —
+   *  shown in the UI so the suggestion doesn't read as an opaque black box. */
+  basis: "tailor" | "garment-type" | "default";
+}
+
+/** Shop-wide average turnaround (delivery_date − in_date) per garment type, from completed
+ *  orders only — the same "promised days," not actual finish time, caveat as getTailorStats.avg. */
+function getGarmentTurnaroundDays(orders: Order[]): Record<string, number> {
+  const byType: Record<string, { sum: number; count: number }> = {};
+  for (const o of orders) {
+    if (o.status !== "delivered" && o.status !== "payment") continue;
+    if (!o.inDate || !o.deliveryDate) continue;
+    const days = Math.ceil((new Date(o.deliveryDate).getTime() - new Date(o.inDate).getTime()) / 86400000);
+    if (days <= 0) continue;
+    for (const g of o.garments) {
+      if (!g.type) continue;
+      const bucket = (byType[g.type] ??= { sum: 0, count: 0 });
+      bucket.sum += days;
+      bucket.count += 1;
+    }
+  }
+  return Object.fromEntries(Object.entries(byType).map(([type, { sum, count }]) => [type, Math.round(sum / count)]));
+}
+
+/**
+ * Suggests a realistic delivery date for a NEW order — purely a suggestion the order form shows
+ * as a tappable chip, never auto-applied over what someone picks. Prefers the selected tailor's
+ * own historical turnaround (once they have enough completed orders to trust it), falls back to
+ * the shop-wide average for the garment type(s) in this order, then a flat default. Adds a
+ * queue-depth buffer from the tailor's current active-order capacity, plus one day per garment
+ * beyond the first (a 5-garment order realistically takes longer than a 1-garment one).
+ */
+export function estimateDeliveryDate(orders: Order[], tailorId: string, garmentTypes: string[], fromDateIso: string): DeliveryEstimate {
+  const tailorStats = getTailorStats(orders).find((t) => t.tailor === tailorId);
+  const workload = getTailorWorkload(orders).find((w) => w.tailor === tailorId);
+
+  let baseDays: number;
+  let basis: DeliveryEstimate["basis"];
+  if (tailorStats && tailorStats.done >= MIN_COMPLETED_FOR_TAILOR_AVG && tailorStats.avg > 0) {
+    baseDays = tailorStats.avg;
+    basis = "tailor";
+  } else {
+    const perType = getGarmentTurnaroundDays(orders);
+    const relevant = garmentTypes.map((t) => perType[t]).filter((d): d is number => !!d);
+    if (relevant.length) {
+      baseDays = Math.round(relevant.reduce((s, d) => s + d, 0) / relevant.length);
+      basis = "garment-type";
+    } else {
+      baseDays = DEFAULT_TURNAROUND_DAYS;
+      basis = "default";
+    }
+  }
+
+  const buffer = workload ? CAPACITY_BUFFER_DAYS[workload.capacity] : 0;
+  const extraGarmentDays = Math.max(0, garmentTypes.length - 1);
+  const days = Math.max(1, baseDays + buffer + extraGarmentDays);
+
+  const from = new Date(`${fromDateIso}T00:00:00`);
+  from.setDate(from.getDate() + days);
+  const date = from.toISOString().slice(0, 10);
+
+  return { date, days, basis };
+}
+
 export interface GarmentRevRow {
   label: string;
   count: number;

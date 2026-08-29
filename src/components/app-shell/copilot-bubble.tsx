@@ -2,12 +2,12 @@
 
 import { useRef, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
-import { Sparkles, Send, X, Copy, Check, Mic, MicOff } from "lucide-react";
+import { Sparkles, Send, X, Copy, Check, Mic, MicOff, RotateCcw, Eraser } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { isModuleEnabled, DEFAULT_ENTITLEMENTS } from "@/lib/entitlements";
-import { useChatbotHistory, useAskChatbot } from "@/hooks/use-chatbot";
+import { useChatbotHistory, useAskChatbot, useClearChatbotHistory } from "@/hooks/use-chatbot";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { hapticTap } from "@/lib/haptics";
 import { Button } from "@/components/ui/button";
@@ -87,15 +87,18 @@ export function CopilotBubble() {
   const { data: entitlements } = useModuleEntitlements();
   const { data: history } = useChatbotHistory();
   const ask = useAskChatbot();
+  const clearHistory = useClearChatbotHistory();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const micSupported = useMicSupport();
 
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
+  const [lastFailedQuestion, setLastFailedQuestion] = useState<string | null>(null);
   const [listening, setListening] = useState(false);
   const [lastRefs, setLastRefs] = useState<{ id: string; label: string }[]>([]);
   const [lastRefTable, setLastRefTable] = useState<"orders" | "invoices" | null>(null);
+  const [lastFollowups, setLastFollowups] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -122,13 +125,26 @@ export function CopilotBubble() {
     if (!q || ask.isPending) return;
     setQuestion("");
     setLocalError(null);
+    setLastFailedQuestion(null);
     try {
       const res = await ask.mutateAsync(q);
       setLastRefs(res.refs);
       setLastRefTable(res.refTable);
+      setLastFollowups(res.followups);
     } catch (e) {
       setLocalError(e instanceof Error ? e.message : "Something went wrong");
+      setLastFailedQuestion(q);
     }
+  }
+
+  function clearChat() {
+    hapticTap();
+    clearHistory.mutate();
+    setLastRefs([]);
+    setLastRefTable(null);
+    setLastFollowups([]);
+    setLocalError(null);
+    setLastFailedQuestion(null);
   }
 
   function toggleListening() {
@@ -215,6 +231,20 @@ export function CopilotBubble() {
                       ))}
                     </div>
                   )}
+                  {isLast && lastFollowups.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5 pl-7">
+                      {lastFollowups.map((f) => (
+                        <button
+                          key={f}
+                          type="button"
+                          onClick={() => send(f)}
+                          className="rounded-full border border-dashed bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -234,7 +264,20 @@ export function CopilotBubble() {
           </div>
         )}
 
-        {localError && <p className="text-center text-xs text-destructive">{localError}</p>}
+        {localError && (
+          <div className="text-center">
+            <p className="text-xs text-destructive">{localError}</p>
+            {lastFailedQuestion && (
+              <button
+                type="button"
+                onClick={() => send(lastFailedQuestion)}
+                className="mt-1.5 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <RotateCcw className="size-3" /> Retry
+              </button>
+            )}
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
@@ -291,6 +334,18 @@ export function CopilotBubble() {
               <Sparkles className="size-3.5 text-primary-foreground" />
             </span>
             <span className="flex-1 text-sm font-semibold text-primary-foreground">AI Copilot</span>
+            {!!history?.length && (
+              <button
+                type="button"
+                onClick={clearChat}
+                disabled={clearHistory.isPending}
+                className="rounded p-0.5 text-primary-foreground/70 transition-colors hover:text-primary-foreground"
+                aria-label="Start a new chat"
+                title="Start a new chat"
+              >
+                <Eraser className="size-4" />
+              </button>
+            )}
             <button type="button" onClick={() => setOpen(false)} className="rounded p-0.5 text-primary-foreground/70 transition-colors hover:text-primary-foreground" aria-label="Close">
               <X className="size-4" />
             </button>
@@ -309,6 +364,18 @@ export function CopilotBubble() {
                 <Sparkles className="size-4 text-primary-foreground" />
               </span>
               <span className="flex-1 text-base font-semibold text-primary-foreground">AI Copilot</span>
+              {!!history?.length && (
+                <button
+                  type="button"
+                  onClick={clearChat}
+                  disabled={clearHistory.isPending}
+                  className="rounded p-1 text-primary-foreground/70 transition-colors hover:text-primary-foreground"
+                  aria-label="Start a new chat"
+                  title="Start a new chat"
+                >
+                  <Eraser className="size-5" />
+                </button>
+              )}
             </div>
             {body}
           </SheetContent>

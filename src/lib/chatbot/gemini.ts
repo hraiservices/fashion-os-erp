@@ -25,8 +25,8 @@ const MODEL = "gemini-flash-latest";
  * the audit that preceded this chatbot's design.
  */
 const SCHEMA_CONTEXT = `
-You can query exactly two PostgreSQL views. Do not reference any other table or view — you have
-no access to them and the query will fail.
+You can query exactly these five PostgreSQL views. Do not reference any other table or view —
+you have no access to them and the query will fail.
 
 TABLE v_chatbot_orders (custom tailoring orders):
   id text, customer_name text, customer_mobile text, in_date date, delivery_date date,
@@ -50,10 +50,34 @@ TABLE v_chatbot_invoices (product sales invoices, separate from tailoring orders
     never describe a 'partial' invoice as paid.
   - balance already accounts for payments and credit notes — it is authoritative.
 
+TABLE v_chatbot_expenses (shop expenses — rent, salaries, supplies, etc.):
+  id uuid, date date, category text, description text, amount numeric, pay_method text,
+  customer_name text (nullable), customer_mobile text (nullable), created_at timestamptz
+
+  - customer_name/customer_mobile are only set for expenses linked to a specific customer
+    (rare) — most rows have them null.
+
+TABLE v_chatbot_payments (money actually received — both stitching-order and product-sale
+payments combined into one ledger, separate from an order/invoice's running balance):
+  id uuid, source text, reference_id text, customer_name text, customer_mobile text,
+  amount numeric, method text, date date, created_at timestamptz
+
+  - source is 'order' (stitching order payment) or 'invoice' (product sale payment).
+  - Use this view (not v_chatbot_orders.advance or v_chatbot_invoices.paid_total) for
+    "how much did I collect today/this week/this month" style questions — those columns are
+    running totals, not individual payment events, so they can't answer "on what day."
+
+TABLE v_chatbot_inventory (products and raw materials, with current stock level):
+  id text, item_type text, name text, sku text (nullable, raw materials have none),
+  category text, stock_qty integer, low_stock_alert integer, is_low_stock boolean
+
+  - item_type is 'product' (finished goods for sale) or 'raw_material' (fabric etc. used in
+    stitching).
+  - is_low_stock is already computed (stock_qty <= low_stock_alert) — use it directly.
+
 Business context: this is an Indian tailoring shop. Money is in Indian Rupees (₹). "Revenue"
-or "business" spans both tables — tailoring orders (v_chatbot_orders.total) AND product sales
-(v_chatbot_invoices.total) — combine both unless the question is clearly about only one.
-Today's date is {{TODAY}}.
+or "business" spans both v_chatbot_orders.total and v_chatbot_invoices.total — combine both
+unless the question is clearly about only one. Today's date is {{TODAY}}.
 `;
 
 const SQL_SYSTEM_PROMPT = `You are a PostgreSQL query generator for a tailoring-shop ERP chatbot.
@@ -64,10 +88,10 @@ both), write exactly one read-only SELECT statement that answers it.
 Rules:
 - SELECT only. Never write INSERT, UPDATE, DELETE, or any DDL.
 - Exactly one statement — no semicolons except an optional single trailing one.
-- Only reference v_chatbot_orders and v_chatbot_invoices.
+- Only reference the five views listed above.
 - Prefer aggregates (COUNT, SUM, AVG) with clear column aliases when the question asks "how
   many" or "how much".
-- If the question truly cannot be answered from these two views, return a query that selects
+- If the question truly cannot be answered from these views, return a query that selects
   nothing meaningful is not allowed — instead set "sql" to an empty string.
 Respond with JSON only: {"sql": "<the query>"}.`;
 
@@ -82,7 +106,11 @@ Rules:
 - If the rows array is empty, say so clearly and suggest what they might try instead.
 - For lists of 5 or fewer items, name them. For longer lists give the count and top examples.
 - Keep it short and conversational — 1-3 sentences or a tight bullet list. No markdown tables, no code blocks.
-- If the answer implies something actionable (overdue balance, pending delivery), say so.`;
+- If the answer implies something actionable (overdue balance, pending delivery), say so.
+- Also suggest 2-3 short, natural follow-up questions the owner would plausibly ask next, in
+  the same language/mix as the question. Keep each under 8 words. Skip a follow-up that's
+  basically a restatement of what was just answered.
+Respond with JSON only: {"answer": "<the answer>", "followups": ["<short question>", ...]}.`;
 
 function buildGlossaryBlock(glossary: GlossaryEntry[]): string {
   if (!glossary.length) return "";
@@ -152,15 +180,21 @@ export async function generateBriefing(summary: unknown): Promise<string> {
   return response.text?.trim() || "Couldn't generate today's briefing — try again shortly.";
 }
 
+export interface GeneratedAnswer {
+  answer: string;
+  followups: string[];
+}
+
 export async function generateAnswer(
   question: string,
   rows: unknown[],
   history: { question: string; answer: string }[] = [],
-): Promise<string> {
+): Promise<GeneratedAnswer> {
   const ai = getClient();
   const historyBlock = history.length
     ? `\n\nPrior conversation:\n${history.map((h) => `Q: ${h.question}\nA: ${h.answer}`).join("\n\n")}`
     : "";
+  const fallback = { answer: "I couldn't turn that into an answer — try rephrasing the question.", followups: [] };
   const response = await ai.models.generateContent({
     model: MODEL,
     contents: [
@@ -171,8 +205,25 @@ export async function generateAnswer(
     ],
     config: {
       systemInstruction: ANSWER_SYSTEM_PROMPT,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          answer: { type: Type.STRING },
+          followups: { type: Type.ARRAY, items: { type: Type.STRING } },
+        },
+        required: ["answer", "followups"],
+      },
       temperature: 0.3,
     },
   });
-  return response.text?.trim() || "I couldn't turn that into an answer — try rephrasing the question.";
+  const text = response.text;
+  if (!text) return fallback;
+  try {
+    const parsed = JSON.parse(text) as { answer?: string; followups?: string[] };
+    if (!parsed.answer) return fallback;
+    return { answer: parsed.answer, followups: (parsed.followups || []).slice(0, 3) };
+  } catch {
+    return fallback;
+  }
 }

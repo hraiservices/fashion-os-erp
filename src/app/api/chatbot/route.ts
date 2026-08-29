@@ -49,6 +49,7 @@ export async function POST(request: Request) {
 
   let sql: string | null = null;
   let answer: string;
+  let followups: string[] = [];
   let errorMessage: string | null = null;
   let refs: { id: string; label: string }[] = [];
   let refTable: RefTable | null = null;
@@ -70,7 +71,9 @@ export async function POST(request: Request) {
       answer = NO_DATA_ANSWER;
     } else {
       const rows = await runChatbotQuery(sql);
-      answer = await generateAnswer(question, rows, history);
+      const generated = await generateAnswer(question, rows, history);
+      answer = generated.answer;
+      followups = generated.followups;
       refTable = detectRefTable(sql);
       refs = buildRefs(rows, refTable);
     }
@@ -90,7 +93,7 @@ export async function POST(request: Request) {
     error: errorMessage,
   });
 
-  return NextResponse.json({ answer, sql, refs, refTable });
+  return NextResponse.json({ answer, sql, refs, refTable, followups });
 }
 
 export async function GET() {
@@ -107,4 +110,16 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ messages: data || [] });
+}
+
+/** Clears this user's own conversation — lets them start fresh instead of every new topic
+ *  dragging in unrelated "recent conversation" context from a much older question. */
+export async function DELETE() {
+  const { supabase, user } = await getServerUser();
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  if (!user.perms.useChatbot) return NextResponse.json({ error: "No permission to use the AI Copilot" }, { status: 403 });
+
+  const { error } = await supabase.from("chatbot_messages").delete().eq("user_email", user.email);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ cleared: true });
 }

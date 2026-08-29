@@ -1,6 +1,6 @@
 import { Pool } from "pg";
 
-const ALLOWED_RELATIONS = ["v_chatbot_orders", "v_chatbot_invoices"];
+const ALLOWED_RELATIONS = ["v_chatbot_orders", "v_chatbot_invoices", "v_chatbot_expenses", "v_chatbot_payments", "v_chatbot_inventory"];
 const MAX_ROWS = 200;
 
 let pool: Pool | null = null;

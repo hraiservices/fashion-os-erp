@@ -40,7 +40,23 @@ export function useAskChatbot() {
         sql: string | null;
         refs: { id: string; label: string }[];
         refTable: "orders" | "invoices" | null;
+        followups: string[];
       };
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["chatbot-history"] }),
+  });
+}
+
+/** Starts a fresh conversation — clears this user's own history so an unrelated new question
+ *  doesn't drag in stale "recent conversation" context from a much earlier topic. */
+export function useClearChatbotHistory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/chatbot", { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to clear conversation");
+      return data as { cleared: true };
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["chatbot-history"] }),
   });

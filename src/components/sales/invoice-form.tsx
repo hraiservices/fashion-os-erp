@@ -483,25 +483,6 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
                 Editing adjusts the stock movement this invoice made. Changes to items will recompute finished-goods inventory.
               </p>
             )}
-
-            <div className="border-t px-5 py-4 space-y-2">
-              {isEdit ? (
-                <Button className="w-full h-10 gap-2" onClick={() => handleSave(existing!.docStatus)} disabled={saveInvoice.isPending}>
-                  <Receipt className="size-4" />
-                  {saveInvoice.isPending ? "Saving…" : `Save Changes · ${inr(totals.total)}`}
-                </Button>
-              ) : (
-                <>
-                  <Button className="w-full h-10 gap-2" onClick={() => handleSave("sent")} disabled={saveInvoice.isPending}>
-                    <Receipt className="size-4" />
-                    {saveInvoice.isPending ? "Saving…" : `Save & Send · ${inr(totals.total)}`}
-                  </Button>
-                  <Button variant="outline" className="w-full h-10" onClick={() => handleSave("draft")} disabled={saveInvoice.isPending}>
-                    {saveInvoice.isPending ? "Saving…" : "Save as Draft"}
-                  </Button>
-                </>
-              )}
-            </div>
           </div>
 
           {/* Quick checklist */}

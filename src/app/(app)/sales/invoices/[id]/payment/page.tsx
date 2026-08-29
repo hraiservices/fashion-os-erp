@@ -119,7 +119,7 @@ export default function RecordSalesPaymentPage({ params }: { params: Promise<{ i
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Amount Received (₹) — balance due {inr(invoice.balance)}</Label>
-                <Input type="number" min={0} step="0.01" value={amountValue} onChange={(e) => setAmount(e.target.value)} />
+                <Input type="number" inputMode="decimal" min={0} step="0.01" value={amountValue} onChange={(e) => setAmount(e.target.value)} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Payment Date</Label>

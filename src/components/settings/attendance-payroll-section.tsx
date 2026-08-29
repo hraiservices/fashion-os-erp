@@ -81,7 +81,7 @@ function LocationForm({ draft, onChange, onCancel, onSave, saving }: { draft: Lo
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">Geofence radius (meters)</Label>
-          <Input type="number" min={10} className="h-9" value={draft.geofenceRadiusM} onChange={(e) => onChange({ ...draft, geofenceRadiusM: e.target.value })} />
+          <Input type="number" inputMode="numeric" min={10} className="h-9" value={draft.geofenceRadiusM} onChange={(e) => onChange({ ...draft, geofenceRadiusM: e.target.value })} />
         </div>
         <div className="flex items-end">
           <Button type="button" variant="outline" size="sm" className="h-9 gap-1.5" onClick={useCurrentPosition} disabled={locating}>

@@ -395,6 +395,7 @@ export function ProductForm({ existing }: { existing?: Product }) {
                   </Select>
                   <Input
                     type="number"
+                    inputMode="decimal"
                     min={0}
                     step="0.001"
                     placeholder="Qty"

@@ -8,6 +8,7 @@ import { Plus, Search, LayoutList, KanbanSquare, ArrowRight, Trash2, Upload, Mes
 import { BulkWhatsAppDialog } from "@/components/orders/bulk-whatsapp-dialog";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { useOrders } from "@/hooks/use-orders";
+import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useActiveTailors, useTailorName } from "@/hooks/use-employees";
 import { useAdvanceStage, useSetStage, useDeleteOrder } from "@/hooks/use-order-mutations";
@@ -99,7 +100,8 @@ function OrdersContent() {
     router.replace(`/orders${params.toString() ? `?${params.toString()}` : ""}`);
   }
 
-  const { data: orders, isLoading } = useOrders();
+  const { data: orders, isLoading: ordersLoading } = useOrders();
+  const isLoading = useDelayedLoading(ordersLoading);
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
   const advanceStage = useAdvanceStage();

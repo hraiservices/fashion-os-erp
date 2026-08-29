@@ -361,10 +361,10 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
                 </Select>
               </FieldGroup>
               <FieldGroup label="Tax rate (%)">
-                <Input type="number" min={0} max={100} step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} disabled={gstType === "none"} className="h-10" />
+                <Input type="number" inputMode="decimal" min={0} max={100} step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} disabled={gstType === "none"} className="h-10" />
               </FieldGroup>
               <FieldGroup label="Shipping charges (₹)">
-                <Input type="number" min={0} step="0.01" placeholder="0" value={shippingCharges} onChange={(e) => setShippingCharges(e.target.value)} className="h-10" />
+                <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="0" value={shippingCharges} onChange={(e) => setShippingCharges(e.target.value)} className="h-10" />
               </FieldGroup>
               <div className="grid grid-cols-2 gap-3">
                 <FieldGroup label="Discount type">
@@ -379,7 +379,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
                   </Select>
                 </FieldGroup>
                 <FieldGroup label="Discount value">
-                  <Input type="number" min={0} step="0.01" placeholder="0" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} className="h-10" />
+                  <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="0" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} className="h-10" />
                 </FieldGroup>
               </div>
             </div>

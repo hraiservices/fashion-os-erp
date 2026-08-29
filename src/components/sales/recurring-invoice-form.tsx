@@ -178,7 +178,7 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
           {endType === "after_count" && (
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Number of invoices to generate</Label>
-              <Input type="number" min={1} value={endAfterCount} onChange={(e) => setEndAfterCount(e.target.value)} />
+              <Input type="number" inputMode="numeric" min={1} value={endAfterCount} onChange={(e) => setEndAfterCount(e.target.value)} />
             </div>
           )}
 
@@ -203,14 +203,14 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Tax rate (%)</Label>
-              <Input type="number" min={0} max={100} step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} disabled={gstType === "none"} />
+              <Input type="number" inputMode="decimal" min={0} max={100} step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} disabled={gstType === "none"} />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Shipping charges (₹)</Label>
-              <Input type="number" min={0} step="0.01" value={shippingCharges} onChange={(e) => setShippingCharges(e.target.value)} />
+              <Input type="number" inputMode="decimal" min={0} step="0.01" value={shippingCharges} onChange={(e) => setShippingCharges(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Discount type</Label>
@@ -226,7 +226,7 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Discount value</Label>
-              <Input type="number" min={0} step="0.01" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} />
+              <Input type="number" inputMode="decimal" min={0} step="0.01" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} />
             </div>
           </div>
 

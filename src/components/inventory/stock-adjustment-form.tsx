@@ -96,7 +96,7 @@ export function StockAdjustmentForm() {
 
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">Quantity change (use negative to reduce stock)</Label>
-          <Input type="number" step="0.001" placeholder="e.g. 5 or -2.5" value={movement} onChange={(e) => setMovement(e.target.value)} />
+          <Input type="number" inputMode="decimal" step="0.001" placeholder="e.g. 5 or -2.5" value={movement} onChange={(e) => setMovement(e.target.value)} />
         </div>
 
         <div className="space-y-1.5">

@@ -241,6 +241,7 @@ export function ProductFormDialog({
                       </Select>
                       <Input
                         type="number"
+                        inputMode="decimal"
                         min={0}
                         step="0.001"
                         placeholder="Qty"

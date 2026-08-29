@@ -136,11 +136,11 @@ export function ModuleLicensingSection() {
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Max orders per month</Label>
-            <Input type="number" min={0} placeholder="Unlimited" value={ent.limits?.maxOrdersPerMonth ?? ""} onChange={(e) => setLimit("maxOrdersPerMonth", e.target.value)} />
+            <Input type="number" inputMode="numeric" min={0} placeholder="Unlimited" value={ent.limits?.maxOrdersPerMonth ?? ""} onChange={(e) => setLimit("maxOrdersPerMonth", e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Max staff accounts</Label>
-            <Input type="number" min={0} placeholder="Unlimited" value={ent.limits?.maxStaffAccounts ?? ""} onChange={(e) => setLimit("maxStaffAccounts", e.target.value)} />
+            <Input type="number" inputMode="numeric" min={0} placeholder="Unlimited" value={ent.limits?.maxStaffAccounts ?? ""} onChange={(e) => setLimit("maxStaffAccounts", e.target.value)} />
           </div>
           <p className="text-xs text-muted-foreground sm:col-span-2">Soft caps only — never blocks a customer from working, just shows a warning once exceeded.</p>
         </CardContent>

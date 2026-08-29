@@ -229,7 +229,10 @@ export default function LoginPage() {
                 <TabsTrigger value="login" className="flex-1">
                   Sign in
                 </TabsTrigger>
-                <TabsTrigger value="signup" className="flex-1">
+                <TabsTrigger
+                  value="signup"
+                  className="flex-1 text-emerald-600 data-active:bg-emerald-50 data-active:text-emerald-700 dark:text-emerald-400 dark:data-active:bg-emerald-950/40 dark:data-active:text-emerald-400"
+                >
                   Sign up
                 </TabsTrigger>
               </TabsList>

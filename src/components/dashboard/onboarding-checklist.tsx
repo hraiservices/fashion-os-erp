@@ -36,7 +36,7 @@ export function OnboardingChecklist() {
   if (!loaded || dismissed) return null;
 
   const items: ChecklistItem[] = [
-    { label: "Add your shop logo", done: !!shop?.logoDataUrl, href: "/settings/shop" },
+    { label: "Add your shop logo", done: !!shop?.logoDataUrl, href: "/settings/personalize" },
     { label: "Add your first product", done: (products?.length || 0) > 0, href: "/inventory/products?new=1" },
     { label: "Add a customer", done: profiles.length > 0, href: "/crm/new" },
     { label: "Create your first order", done: (orders?.length || 0) > 0, href: "/orders/new" },

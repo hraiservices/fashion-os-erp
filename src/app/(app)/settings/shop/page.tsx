@@ -1,15 +1,14 @@
 "use client";
 
-import { SettingsGuard } from "@/components/settings/settings-guard";
-import { SettingsPage } from "@/components/settings/settings-page";
-import { ShopSection } from "@/components/settings/shop-section";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
 
+/** Shop Profile now lives on the merged Personalize page — this route stays live only for old bookmarks/links. */
 export default function Page() {
-  return (
-    <SettingsPage title="Shop Profile" description="Your shop name and contact number, used on receipts and WhatsApp messages">
-      <SettingsGuard allow={({ canManageShop }) => canManageShop}>
-        <ShopSection />
-      </SettingsGuard>
-    </SettingsPage>
-  );
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/settings/personalize");
+  }, [router]);
+  return <div className="p-6"><Skeleton className="h-64 w-full" /></div>;
 }

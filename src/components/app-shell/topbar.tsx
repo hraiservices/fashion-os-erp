@@ -63,7 +63,7 @@ export function Topbar() {
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push("/settings/account")}>
+            <DropdownMenuItem onClick={() => router.push("/settings/personalize")}>
               <User className="size-4" /> Account
             </DropdownMenuItem>
             <DropdownMenuItem onClick={signOut}>

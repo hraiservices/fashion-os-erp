@@ -15,7 +15,7 @@ export function SettingsGuard({ allow, children }: { allow: (opts: { isAdmin: bo
   const allowed = !isLoading && allow({ isAdmin, canManageShop, isSuperAdmin });
 
   useEffect(() => {
-    if (!isLoading && !allowed) router.replace("/settings/account");
+    if (!isLoading && !allowed) router.replace("/settings/personalize");
   }, [isLoading, allowed, router]);
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;

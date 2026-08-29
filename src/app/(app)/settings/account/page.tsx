@@ -1,18 +1,14 @@
 "use client";
 
-import { SettingsPage } from "@/components/settings/settings-page";
-import { SecuritySection } from "@/components/settings/security-section";
-import { DataExportSection } from "@/components/settings/data-export-section";
-import { PushNotificationsSection } from "@/components/settings/push-notifications-section";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
 
+/** Account now lives on the merged Personalize page — this route stays live only for old bookmarks/links. */
 export default function Page() {
-  return (
-    <SettingsPage title="Account" description="Your sign-in and password">
-      <div className="space-y-4">
-        <SecuritySection />
-        <PushNotificationsSection />
-        <DataExportSection />
-      </div>
-    </SettingsPage>
-  );
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/settings/personalize");
+  }, [router]);
+  return <div className="p-6"><Skeleton className="h-64 w-full" /></div>;
 }

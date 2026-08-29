@@ -307,6 +307,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             </AlertDialogContent>
           </AlertDialog>
         )}
+        {/* Trailing spacer so the last button (Delete) can scroll fully clear of the fixed
+            WhatsApp-support/AI-Copilot bubbles, which float over this same bottom-right corner
+            on mobile — without it, the rightmost button always ends up hidden under them. */}
+        <div className="w-14 shrink-0 lg:hidden" aria-hidden />
       </div>
 
       <AlertDialog open={confirmAdvanceOpen} onOpenChange={setConfirmAdvanceOpen}>

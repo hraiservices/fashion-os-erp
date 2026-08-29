@@ -225,89 +225,109 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      {/* Actions — a plain wrapping row in normal document flow, not a fixed/sticky bar. A fixed
-          bottom bar fought for the same screen corner as the app-wide WhatsApp-support/AI-Copilot
-          bubbles (no amount of horizontal clearance fully avoided it) and forced a horizontally
-          scrollable row to fit its buttons, which is worse than just wrapping them — this can
-          hold up to 8 buttons (stage/payment/WhatsApp/edit/rework/payables/tag/print/delete) and
-          they simply flow onto more than one line on a narrow screen instead. */}
-      <div className="flex flex-wrap gap-2 print:hidden">
-        {user?.perms.changeStage && next && (
-          <Button className={cn("h-12 text-base sm:h-8 sm:text-sm", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
-            <ArrowRight className="size-4" /> Move to {STAGE_META[next].label}
-          </Button>
-        )}
-        {user?.perms.managePayments && order.balance > 0 && (
-          <Button variant="outline" className="h-12 text-base sm:h-8 sm:text-sm" onClick={() => setPaymentOpen(true)}>
-            <Wallet className="size-4" /> Collect payment
-          </Button>
-        )}
-        {order.balance > 0 ? (
-          <WhatsAppButton href={paymentReminderUrl} label="Payment Reminder" labelClassName="hidden lg:inline" className="shrink-0 h-12 sm:h-8" />
-        ) : (
-          <WhatsAppButton href={waUrl} label="WhatsApp" labelClassName="hidden lg:inline" className="shrink-0 h-12 sm:h-8" />
-        )}
-        {user?.perms.editOrder && (
-          <Button variant="outline" className="shrink-0 h-12 sm:h-8" nativeButton={false} render={<Link href={`/orders/${id}/edit`} />} aria-label="Edit order">
-            <Pencil className="size-4" />
-            <span className="hidden lg:inline">Edit</span>
-          </Button>
-        )}
-        {user?.perms.changeStage && !order.reworkFlag && (
-          <Button variant="outline" className="shrink-0 h-12 sm:h-8" aria-label="Flag for rework" onClick={() => setReworkDialogOpen(true)}>
-            <RotateCcw className="size-4" />
-            <span className="hidden lg:inline">Rework</span>
-          </Button>
-        )}
-        {user?.perms.managePayroll && order.readyAt && !order.payablesConfirmedAt && order.garments.some((g) => g.payableAmount) && (
-          <Button
-            variant="outline"
-            className="shrink-0 h-12 sm:h-8"
-            aria-label="Confirm tailor payables"
-            disabled={confirmPayables.isPending}
-            onClick={async () => {
-              try {
-                await confirmPayables.mutateAsync(id);
-                toast.success("Tailor payables confirmed");
-              } catch (e) {
-                toast.error(e instanceof Error ? e.message : "Failed to confirm payables");
+      {/* Actions — a plain wrapping/grid layout in normal document flow, not a fixed/sticky bar.
+          A fixed bottom bar fought for the same screen corner as the app-wide WhatsApp-support/
+          AI-Copilot bubbles (no amount of horizontal clearance fully avoided it) and forced a
+          horizontally scrollable row to fit its buttons, which is worse than just wrapping them.
+          The two primary actions (stage/payment) stay a prominent, naturally-sized row; the rest
+          (up to 6: WhatsApp/edit/rework/payables/tag/print/delete) go in a 3-column grid on
+          mobile so they fill the row evenly instead of wrapping into ragged, differently-sized
+          groups — back to plain inline flex-wrap on desktop, where there's room to lay out
+          naturally. */}
+      <div className="space-y-2 print:hidden">
+        <div className="flex flex-wrap gap-2">
+          {user?.perms.changeStage && next && (
+            <Button className={cn("h-12 flex-1 text-base sm:h-8 sm:flex-none sm:text-sm", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
+              <ArrowRight className="size-4" /> Move to {STAGE_META[next].label}
+            </Button>
+          )}
+          {user?.perms.managePayments && order.balance > 0 && (
+            <Button variant="outline" className="h-12 flex-1 text-base sm:h-8 sm:flex-none sm:text-sm" onClick={() => setPaymentOpen(true)}>
+              <Wallet className="size-4" /> Collect payment
+            </Button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+          {order.balance > 0 ? (
+            <WhatsAppButton
+              href={paymentReminderUrl}
+              label={
+                <>
+                  <span className="sm:hidden">Remind</span>
+                  <span className="hidden sm:inline">Payment Reminder</span>
+                </>
               }
-            }}
-          >
-            <Wallet className="size-4" />
-            <span className="hidden lg:inline">{confirmPayables.isPending ? "Confirming…" : "Confirm tailor payables"}</span>
-          </Button>
-        )}
-        <Button variant="outline" className="shrink-0 h-12 sm:h-8" aria-label="Print order tag" onClick={() => printOrderTag(order, shop, tailorName(order.tailor))}>
-          <TagIcon className="size-4" />
-          <span className="hidden lg:inline">Print tag</span>
-        </Button>
-        <PrintButton labelClassName="hidden lg:inline" className="shrink-0 h-12 sm:h-8" />
-        {user?.perms.deleteOrder && (
-          <AlertDialog>
-            <AlertDialogTrigger
-              render={
-                <Button variant="destructive" className="shrink-0 h-12 sm:h-8" aria-label="Delete order">
-                  <Trash2 className="size-4" />
-                </Button>
-              }
+              className="h-12 w-full justify-center sm:h-8 sm:w-auto sm:justify-start"
             />
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete this order?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {order.id} for {order.name} will be permanently removed. This cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={deleteOrder.isPending}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={doDelete} disabled={deleteOrder.isPending}>
-                  {deleteOrder.isPending ? "Deleting…" : "Delete"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
+          ) : (
+            <WhatsAppButton href={waUrl} label="WhatsApp" className="h-12 w-full justify-center sm:h-8 sm:w-auto sm:justify-start" />
+          )}
+          {user?.perms.editOrder && (
+            <Button variant="outline" className="h-12 w-full sm:h-8 sm:w-auto" nativeButton={false} render={<Link href={`/orders/${id}/edit`} />} aria-label="Edit order">
+              <Pencil className="size-4" />
+              <span>Edit</span>
+            </Button>
+          )}
+          {user?.perms.changeStage && !order.reworkFlag && (
+            <Button variant="outline" className="h-12 w-full sm:h-8 sm:w-auto" aria-label="Flag for rework" onClick={() => setReworkDialogOpen(true)}>
+              <RotateCcw className="size-4" />
+              <span>Rework</span>
+            </Button>
+          )}
+          {user?.perms.managePayroll && order.readyAt && !order.payablesConfirmedAt && order.garments.some((g) => g.payableAmount) && (
+            <Button
+              variant="outline"
+              className="h-12 w-full sm:h-8 sm:w-auto"
+              aria-label="Confirm tailor payables"
+              disabled={confirmPayables.isPending}
+              onClick={async () => {
+                try {
+                  await confirmPayables.mutateAsync(id);
+                  toast.success("Tailor payables confirmed");
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Failed to confirm payables");
+                }
+              }}
+            >
+              <Wallet className="size-4" />
+              <span className="sm:hidden">{confirmPayables.isPending ? "…" : "Confirm"}</span>
+              <span className="hidden sm:inline lg:hidden">{confirmPayables.isPending ? "Confirming…" : "Confirm payables"}</span>
+              <span className="hidden lg:inline">{confirmPayables.isPending ? "Confirming…" : "Confirm tailor payables"}</span>
+            </Button>
+          )}
+          <Button variant="outline" className="h-12 w-full sm:h-8 sm:w-auto" aria-label="Print order tag" onClick={() => printOrderTag(order, shop, tailorName(order.tailor))}>
+            <TagIcon className="size-4" />
+            <span>Print tag</span>
+          </Button>
+          <PrintButton className="h-12 w-full justify-center sm:h-8 sm:w-auto sm:justify-start" />
+          {user?.perms.deleteOrder && (
+            <AlertDialog>
+              <AlertDialogTrigger
+                render={
+                  <Button variant="destructive" className="h-12 w-full sm:h-8 sm:w-auto" aria-label="Delete order">
+                    <Trash2 className="size-4" />
+                    <span>Delete</span>
+                  </Button>
+                }
+              />
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this order?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {order.id} for {order.name} will be permanently removed. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={deleteOrder.isPending}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={doDelete} disabled={deleteOrder.isPending}>
+                    {deleteOrder.isPending ? "Deleting…" : "Delete"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
       </div>
 
       <AlertDialog open={confirmAdvanceOpen} onOpenChange={setConfirmAdvanceOpen}>

@@ -210,8 +210,30 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           <Button variant="outline" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />} className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]">
             <FileText className="size-4" /> Statement
           </Button>
-          {combinedDue > 0 && <WhatsAppButton href={reminderUrl} label="Payment Reminder" className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]" />}
-          {custOrders.length > 0 && <WhatsAppButton href={wardrobeUrl} label="Send wardrobe summary" className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]" />}
+          {combinedDue > 0 && (
+            <WhatsAppButton
+              href={reminderUrl}
+              label={
+                <>
+                  <span className="sm:hidden">Remind</span>
+                  <span className="hidden sm:inline">Payment Reminder</span>
+                </>
+              }
+              className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]"
+            />
+          )}
+          {custOrders.length > 0 && (
+            <WhatsAppButton
+              href={wardrobeUrl}
+              label={
+                <>
+                  <span className="sm:hidden">Wardrobe</span>
+                  <span className="hidden sm:inline">Send wardrobe summary</span>
+                </>
+              }
+              className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]"
+            />
+          )}
           {user?.perms.manageCustomers && (
             <Button variant="outline" onClick={handleGiveCoupon} disabled={issueCoupon.isPending} className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]">
               <Ticket className="size-4" /> Give referral coupon

@@ -1,10 +1,11 @@
+import type { ReactNode } from "react";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface WhatsAppButtonProps {
   href: string;
-  label?: string;
+  label?: ReactNode;
   variant?: "default" | "outline" | "secondary" | "ghost";
   size?: "default" | "sm" | "xs" | "lg";
   className?: string;

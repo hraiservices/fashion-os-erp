@@ -34,6 +34,11 @@ export interface WhatsAppCloudApiConfig {
    *  kept separate from having credentials configured, so a shop already using the Cloud API for
    *  recommendation sends isn't opted into replying to inbound messages without asking. */
   conciergeEnabled?: boolean;
+  /** Separate approved template for the daily briefing push (src/app/api/ai/daily-briefing) —
+   *  a proactive, shop-initiated message needs its own template just like the recommendation
+   *  send does; the briefing text doesn't fit that template's 3-parameter shape. Must have
+   *  exactly one {{1}} body parameter, which receives the (possibly truncated) briefing text. */
+  briefingTemplateName?: string;
 }
 
 export function isCloudApiConfigured(config: Partial<WhatsAppCloudApiConfig> | null | undefined): config is WhatsAppCloudApiConfig {
@@ -82,6 +87,44 @@ export async function sendWhatsAppTemplateMessage({ config, toMobile, customerNa
         name: config.templateName,
         language: { code: config.languageCode },
         components,
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as WhatsAppApiError;
+    throw new Error(body.error?.message || `WhatsApp Cloud API error (${res.status})`);
+  }
+}
+
+/** Meta template body parameters are capped at 1024 characters each — truncate rather than let
+ *  the send fail outright for a long briefing. */
+const TEMPLATE_BODY_PARAM_MAX = 1000;
+
+/**
+ * Sends a single-{{1}}-parameter template message — a more general sibling of
+ * sendWhatsAppTemplateMessage (which is hardcoded to the 3-parameter recommendation template).
+ * Used by the daily-briefing push, and reusable for any future proactive (shop-initiated,
+ * outside the 24-hour customer-service window) single-text-parameter template.
+ */
+export async function sendWhatsAppTemplateText(
+  config: Pick<WhatsAppCloudApiConfig, "phoneNumberId" | "accessToken">,
+  toMobile: string,
+  templateName: string,
+  languageCode: string,
+  bodyText: string
+): Promise<void> {
+  const res = await fetch(`https://graph.facebook.com/v21.0/${config.phoneNumberId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.accessToken}` },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: toMobile,
+      type: "template",
+      template: {
+        name: templateName,
+        language: { code: languageCode },
+        components: [{ type: "body", parameters: [{ type: "text", text: bodyText.slice(0, TEMPLATE_BODY_PARAM_MAX) }] }],
       },
     }),
   });

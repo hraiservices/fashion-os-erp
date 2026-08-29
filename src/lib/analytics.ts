@@ -538,6 +538,51 @@ export function estimateReworkRisk(orders: Order[], tailorId: string, garmentTyp
   return { level, riskRate, sampleSize: pool.length, basis };
 }
 
+export interface TailorRanking {
+  tailorId: string;
+  capacity: Capacity;
+  activeCount: number;
+  /** null when there isn't enough history to compute a risk rate yet (see estimateReworkRisk). */
+  riskRate: number | null;
+  /** null for a tailor with no completed orders yet. */
+  avgDays: number | null;
+}
+
+/** Lower is better — same order the capacity badges already use elsewhere in the app. */
+const CAPACITY_RANK: Record<Capacity, number> = { Low: 0, Normal: 1, High: 2, Overloaded: 3 };
+
+/**
+ * Ranks a shop's tailors for a NEW order with these garment type(s), best-first — folding
+ * together three signals that already exist separately (current queue depth, this
+ * tailor+garment-type combo's rework/overdue risk, historical turnaround) so the order form can
+ * surface one recommendation instead of the owner mentally combining three numbers themselves.
+ * A tailor with no order history yet ranks as available (Low capacity, unknown risk treated as
+ * neutral) rather than being excluded — everyone starts somewhere.
+ */
+export function rankTailorsForOrder(orders: Order[], tailorIds: string[], garmentTypes: string[]): TailorRanking[] {
+  const workloadById = new Map(getTailorWorkload(orders).map((w) => [w.tailor, w]));
+
+  return tailorIds
+    .map((tailorId) => {
+      const workload = workloadById.get(tailorId);
+      const risk = estimateReworkRisk(orders, tailorId, garmentTypes);
+      return {
+        tailorId,
+        capacity: workload?.capacity ?? "Low",
+        activeCount: workload?.active ?? 0,
+        riskRate: risk?.riskRate ?? null,
+        avgDays: workload && workload.done > 0 ? workload.avg : null,
+      };
+    })
+    .sort((a, b) => {
+      const capDiff = CAPACITY_RANK[a.capacity] - CAPACITY_RANK[b.capacity];
+      if (capDiff !== 0) return capDiff;
+      const riskDiff = (a.riskRate ?? 0) - (b.riskRate ?? 0);
+      if (riskDiff !== 0) return riskDiff;
+      return (a.avgDays ?? 0) - (b.avgDays ?? 0);
+    });
+}
+
 /** No deposit at all, or a deposit under 20% of the order total — a fixed threshold for v1,
  *  not yet a configurable setting. Only orders still open (not delivered/paid) are relevant;
  *  a fully paid order's deposit history no longer matters operationally. */

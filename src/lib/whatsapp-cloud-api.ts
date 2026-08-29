@@ -23,6 +23,17 @@ export interface WhatsAppCloudApiConfig {
   accessToken: string;
   templateName: string;
   languageCode: string;
+  /** Meta App Secret — verifies the X-Hub-Signature-256 header on inbound webhook posts so a
+   *  forged request can't be used to fish for order data or spoof a reply. Only needed for the
+   *  order-status concierge below, not for outbound template sends. */
+  appSecret?: string;
+  /** Arbitrary string you also enter in Meta's webhook setup — proves the GET verification
+   *  handshake is really Meta calling, not a guess. */
+  verifyToken?: string;
+  /** Master on/off switch for the inbound order-status concierge (src/app/api/webhooks/whatsapp) —
+   *  kept separate from having credentials configured, so a shop already using the Cloud API for
+   *  recommendation sends isn't opted into replying to inbound messages without asking. */
+  conciergeEnabled?: boolean;
 }
 
 export function isCloudApiConfigured(config: Partial<WhatsAppCloudApiConfig> | null | undefined): config is WhatsAppCloudApiConfig {
@@ -72,6 +83,31 @@ export async function sendWhatsAppTemplateMessage({ config, toMobile, customerNa
         language: { code: config.languageCode },
         components,
       },
+    }),
+  });
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as WhatsAppApiError;
+    throw new Error(body.error?.message || `WhatsApp Cloud API error (${res.status})`);
+  }
+}
+
+/**
+ * Sends a freeform text reply — only allowed by Meta within the 24-hour customer-service
+ * window after the customer's own last inbound message (unlike sendWhatsAppTemplateMessage,
+ * this never needs a pre-approved template). Used by the order-status concierge webhook
+ * (src/app/api/webhooks/whatsapp/route.ts) to reply to a customer who just texted in — never
+ * for an outbound message the shop initiates, which still needs a template.
+ */
+export async function sendWhatsAppTextMessage(config: Pick<WhatsAppCloudApiConfig, "phoneNumberId" | "accessToken">, toMobile: string, text: string): Promise<void> {
+  const res = await fetch(`https://graph.facebook.com/v21.0/${config.phoneNumberId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.accessToken}` },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: toMobile,
+      type: "text",
+      text: { body: text },
     }),
   });
 

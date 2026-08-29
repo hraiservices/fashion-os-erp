@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { GlossaryEntry } from "@/lib/chatbot/glossary";
+import { toMKey } from "@/lib/measurements";
 
 let client: GoogleGenAI | null = null;
 
@@ -178,6 +179,91 @@ export async function generateBriefing(summary: unknown): Promise<string> {
     },
   });
   return response.text?.trim() || "Couldn't generate today's briefing — try again shortly.";
+}
+
+const CONCIERGE_SYSTEM_PROMPT = `You are a WhatsApp assistant for an Indian tailoring shop, replying directly to ONE
+customer about their OWN stitching orders only. You will be given their message and a JSON list
+of their own recent orders (already filtered to just them by their WhatsApp number — never
+imply or mention anything about any other customer).
+
+Rules:
+- Reply in the same language/mix as their message (Hinglish -> Hinglish, English -> English).
+- Be short and direct — 1-3 sentences, plain WhatsApp-style text, no markdown, no code blocks.
+- Use ₹ for money, state the real numbers from the data given.
+- If the order list is empty, say you couldn't find any order under this number and suggest
+  they contact the shop directly — don't guess.
+- Never invent a status, date, or amount that isn't in the data you were given.
+- You cannot take any action (can't change a date, cancel, or record a payment) — if asked to
+  do one of those, say to contact the shop directly instead.
+Respond with plain text only — no JSON, no quotes around the whole message.`;
+
+/**
+ * Generates the concierge's reply to an inbound WhatsApp message — used only by the
+ * order-status webhook (src/app/api/webhooks/whatsapp/route.ts), never by the in-app Copilot.
+ * Deliberately much narrower than generateAnswer(): the caller has already fetched exactly
+ * this one customer's own orders via a plain `WHERE mobile = ?` query (never an LLM-generated
+ * one), so there's no SQL-generation step and no way for the reply to reach another customer's
+ * data — Gemini's only job here is phrasing, on data it never chose itself.
+ */
+export async function generateConciergeReply(question: string, orders: unknown[]): Promise<string> {
+  const ai = getClient();
+  const response = await ai.models.generateContent({
+    model: MODEL,
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: `Customer's message: ${question}\n\nTheir recent orders (JSON, may be empty): ${JSON.stringify(orders).slice(0, 4000)}` }],
+      },
+    ],
+    config: { systemInstruction: CONCIERGE_SYSTEM_PROMPT, temperature: 0.2 },
+  });
+  return response.text?.trim() || "Sorry, I couldn't look that up right now — please contact the shop directly.";
+}
+
+const MEASUREMENT_EXTRACTION_PROMPT = `You are reading a photo of a handwritten or printed tailoring measurement chart for an
+Indian tailoring shop. Extract numeric values for exactly these fields:
+{{FIELDS}}
+
+Rules:
+- Match values to fields using whatever labels/handwriting appear on the chart — they may be
+  abbreviated, in Hindi, or listed in a different order than above.
+- Only include a field if you can read a clear number for it. Never guess, estimate, or carry
+  a value over from a similar-looking field — leave it out entirely instead.
+- Return each value as the number only (e.g. "38", "38.5"), no units or extra text.
+Respond with JSON only: {"values": {"<field label exactly as given above>": "<number>", ...}}`;
+
+/**
+ * Reads a photo of a paper measurement chart and returns a { measurement-key: value } map
+ * ready to merge into the order form's measurement grid — the shop still reviews/edits every
+ * value before saving, this only replaces re-typing what's already on the paper. Uses the same
+ * Gemini client as the rest of this module, just with an image input instead of text-only.
+ */
+export async function extractMeasurementsFromImage(imageDataUrl: string, fieldLabels: string[]): Promise<Record<string, string>> {
+  const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(imageDataUrl);
+  if (!match) throw new Error("Invalid image");
+  const [, mimeType, base64] = match;
+
+  const ai = getClient();
+  const prompt = MEASUREMENT_EXTRACTION_PROMPT.replace("{{FIELDS}}", fieldLabels.map((f) => `- ${f}`).join("\n"));
+  const response = await ai.models.generateContent({
+    model: MODEL,
+    contents: [{ role: "user", parts: [{ inlineData: { mimeType, data: base64 } }, { text: prompt }] }],
+    config: { responseMimeType: "application/json", temperature: 0 },
+  });
+
+  const text = response.text;
+  if (!text) return {};
+  try {
+    const parsed = JSON.parse(text) as { values?: Record<string, string> };
+    const out: Record<string, string> = {};
+    for (const [label, value] of Object.entries(parsed.values || {})) {
+      const trimmed = String(value ?? "").trim();
+      if (trimmed) out[toMKey(label)] = trimmed;
+    }
+    return out;
+  } catch {
+    return {};
+  }
 }
 
 export interface GeneratedAnswer {

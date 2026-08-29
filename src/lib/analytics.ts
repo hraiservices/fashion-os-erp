@@ -485,6 +485,59 @@ export function getReworkRate(orders: Order[]): ReworkRateRow[] {
     .sort((a, b) => b.reworkRate - a.reworkRate);
 }
 
+export type RiskLevel = "low" | "medium" | "high";
+
+export interface ReworkRiskEstimate {
+  level: RiskLevel;
+  /** % of the matching historical orders that were either flagged rework or ran overdue. */
+  riskRate: number;
+  sampleSize: number;
+  /** "combo" = this exact tailor + garment-type pairing has enough history; "tailor" = fell
+   *  back to this tailor's overall record because the specific pairing is too thin to trust. */
+  basis: "combo" | "tailor";
+}
+
+/** A tailor needs at least this many matching past orders before a risk rate means anything —
+ *  below this, one bad order would swing the rate wildly and just be noise. */
+const MIN_SAMPLE_FOR_RISK = 3;
+
+/** An order counts as overdue for this purpose the same way the rest of the app defines it
+ *  (see getTailorStats' `over` and the chatbot's is_overdue view): still open past its promised
+ *  delivery date. There's no separate "actually delivered late" timestamp to look at, so a
+ *  currently-overdue order is the closest available proxy for "this combo tends to run late." */
+function isOrderOverdue(o: Order): boolean {
+  if (!o.deliveryDate) return false;
+  const isOpen = o.status !== "delivered" && o.status !== "payment";
+  return isOpen && daysLeft(o.deliveryDate) < 0;
+}
+
+/**
+ * Flags a NEW order as likely-to-need-rework or likely-to-run-late before cutting starts,
+ * based on how often this tailor's past orders for these garment type(s) were flagged rework
+ * (order.reworkFlag, set manually via set_order_rework) or ran overdue. Prefers the exact
+ * tailor + garment-type combination when there's enough history, falling back to the tailor's
+ * overall record otherwise. Returns null when there isn't enough history either way — silence,
+ * not a false "low risk," is the honest answer for a brand-new tailor or garment type.
+ */
+export function estimateReworkRisk(orders: Order[], tailorId: string, garmentTypes: string[]): ReworkRiskEstimate | null {
+  if (!tailorId || garmentTypes.length === 0) return null;
+  const types = new Set(garmentTypes);
+
+  let pool = orders.filter((o) => o.tailor === tailorId && o.garments.some((g) => types.has(g.type)));
+  let basis: ReworkRiskEstimate["basis"] = "combo";
+  if (pool.length < MIN_SAMPLE_FOR_RISK) {
+    pool = orders.filter((o) => o.tailor === tailorId);
+    basis = "tailor";
+  }
+  if (pool.length < MIN_SAMPLE_FOR_RISK) return null;
+
+  const flagged = pool.filter((o) => o.reworkFlag || isOrderOverdue(o)).length;
+  const riskRate = Math.round((flagged / pool.length) * 100);
+  const level: RiskLevel = riskRate >= 30 ? "high" : riskRate >= 15 ? "medium" : "low";
+
+  return { level, riskRate, sampleSize: pool.length, basis };
+}
+
 /** No deposit at all, or a deposit under 20% of the order total — a fixed threshold for v1,
  *  not yet a configurable setting. Only orders still open (not delivered/paid) are relevant;
  *  a fully paid order's deposit history no longer matters operationally. */

@@ -8,6 +8,9 @@ const configSchema = z.object({
   accessToken: z.string().default(""),
   templateName: z.string().default(""),
   languageCode: z.string().default(""),
+  appSecret: z.string().default(""),
+  verifyToken: z.string().default(""),
+  conciergeEnabled: z.boolean().default(false),
 });
 
 /**

@@ -166,7 +166,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 pb-36 sm:p-6 sm:pb-36 lg:pb-6">
+    <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
       <Link href="/orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" /> Orders
       </Link>
@@ -225,26 +225,20 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      {/* Actions — sticky on mobile so the primary action is always thumb-reachable. Horizontally
-          scrollable with no wrap: this row can hold up to 8 buttons (stage/payment/WhatsApp/edit/
-          rework/payables/tag/print/delete) and wrapping them would break the sticky mobile bar's
-          fixed height, so overflow-x-auto lets extra buttons scroll into view instead of spilling
-          past the card's edge. Stops well short of the right edge on mobile (right-24 instead of
-          inset-x-0's implicit right-0) so its own scrollable viewport never renders under the
-          fixed WhatsApp-support/AI-Copilot bubbles that float over that same corner — with the
-          full-width version, no scroll position could ever bring the last button fully clear of
-          them, since they sit in fixed screen coordinates rather than scrolling with the bar.
-          The bubbles themselves are a size-12 (48px) column inset right-3 (12px), i.e. they
-          reach 60px in from the edge before any shadow bleed — right-24 (96px) leaves a real
-          margin rather than the few px a same-width gap would. */}
-      <div className="fixed inset-y-auto right-24 bottom-16 left-0 z-30 flex gap-2 overflow-x-auto border-t bg-background/95 p-3 backdrop-blur print:hidden lg:static lg:right-auto lg:left-auto lg:z-auto lg:flex-wrap lg:overflow-visible lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+      {/* Actions — a plain wrapping row in normal document flow, not a fixed/sticky bar. A fixed
+          bottom bar fought for the same screen corner as the app-wide WhatsApp-support/AI-Copilot
+          bubbles (no amount of horizontal clearance fully avoided it) and forced a horizontally
+          scrollable row to fit its buttons, which is worse than just wrapping them — this can
+          hold up to 8 buttons (stage/payment/WhatsApp/edit/rework/payables/tag/print/delete) and
+          they simply flow onto more than one line on a narrow screen instead. */}
+      <div className="flex flex-wrap gap-2 print:hidden">
         {user?.perms.changeStage && next && (
-          <Button className={cn("shrink-0 flex-1 h-12 text-base sm:h-8 sm:text-sm lg:flex-none", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
+          <Button className={cn("h-12 text-base sm:h-8 sm:text-sm", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
             <ArrowRight className="size-4" /> Move to {STAGE_META[next].label}
           </Button>
         )}
         {user?.perms.managePayments && order.balance > 0 && (
-          <Button variant="outline" className="shrink-0 flex-1 h-12 text-base sm:h-8 sm:text-sm lg:flex-none" onClick={() => setPaymentOpen(true)}>
+          <Button variant="outline" className="h-12 text-base sm:h-8 sm:text-sm" onClick={() => setPaymentOpen(true)}>
             <Wallet className="size-4" /> Collect payment
           </Button>
         )}

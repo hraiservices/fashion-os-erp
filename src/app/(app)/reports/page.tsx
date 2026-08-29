@@ -92,11 +92,13 @@ export default function ReportsIndexPage() {
       <div className="flex-1 space-y-4 p-4 lg:hidden">
         <h1 className="px-1 text-lg font-semibold tracking-tight">Reports</h1>
 
-        {favoriteCount > 0 && (
-          <div className="overflow-hidden rounded-xl border bg-card">
-            <div className="flex items-center gap-1.5 border-b bg-muted/40 px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              <Star className="size-3.5" /> Favourites
-            </div>
+        {/* Always shown first, even empty — Favourites is the whole point of a "pin what I use
+            most" feature, so it shouldn't disappear until you've actually pinned something. */}
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="flex items-center gap-1.5 border-b bg-muted/40 px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <Star className="size-3.5" /> Favourites
+          </div>
+          {favoriteCount > 0 ? (
             <div className="divide-y">
               {allReports
                 .filter((r) => favorites.has(r.href))
@@ -118,8 +120,10 @@ export default function ReportsIndexPage() {
                   </div>
                 ))}
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="px-4 py-4 text-sm text-muted-foreground">Tap the star next to any report below to pin it here.</p>
+          )}
+        </div>
 
         {categories.map((c) => (
           <div key={c.label} className="overflow-hidden rounded-xl border bg-card">

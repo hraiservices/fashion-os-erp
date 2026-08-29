@@ -13,6 +13,7 @@ const configSchema = z.object({
   conciergeEnabled: z.boolean().default(false),
   briefingTemplateName: z.string().default(""),
   readyTemplateName: z.string().default(""),
+  paymentReminderTemplateName: z.string().default(""),
 });
 
 /**

@@ -31,7 +31,7 @@ const frequencyLabel = (v: unknown) => RECURRING_FREQUENCY_LABELS[v as Recurring
 const endTypeLabel = (v: unknown) => RECURRING_END_TYPE_LABELS[v as RecurringEndType] ?? "";
 
 function placeholderCustomer(name: string, mobile: string): Customer {
-  return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms: "due_on_receipt", priceListId: null, tags: [], gstin: "" };
+  return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms: "due_on_receipt", priceListId: null, tags: [], gstin: "", whatsappOptOut: false };
 }
 
 /** Renders blank (with the input's own "0" placeholder) instead of a literal typed "0" for fields where zero and "not entered" should look the same. */

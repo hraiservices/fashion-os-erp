@@ -4,6 +4,7 @@ import { buildBriefingSummary } from "@/lib/ai-briefing";
 import { generateBriefing } from "@/lib/chatbot/gemini";
 import { sendPushToAll } from "@/lib/push";
 import { sendWhatsAppTemplateText, type WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
+import { logWhatsAppSend } from "@/lib/whatsapp-log";
 
 /**
  * Cron entry point — hit daily by vercel.json's schedule, mirroring the recurring-invoices
@@ -64,9 +65,12 @@ export async function GET(req: Request) {
   if (cloudApi?.phoneNumberId && cloudApi?.accessToken && cloudApi?.briefingTemplateName && recipients.length > 0) {
     await Promise.all(
       recipients.map((mobile) =>
-        sendWhatsAppTemplateText(cloudApi, mobile, cloudApi.briefingTemplateName!, cloudApi.languageCode || "en_US", [message]).catch((e) =>
-          console.error(`Daily briefing WhatsApp send failed for ${mobile}:`, e)
-        )
+        sendWhatsAppTemplateText(cloudApi, mobile, cloudApi.briefingTemplateName!, cloudApi.languageCode || "en_US", [message])
+          .then((waMessageId) => logWhatsAppSend(supabase, { messageType: "daily_briefing", toMobile: mobile, waMessageId, status: "sent" }))
+          .catch((e) => {
+            console.error(`Daily briefing WhatsApp send failed for ${mobile}:`, e);
+            return logWhatsAppSend(supabase, { messageType: "daily_briefing", toMobile: mobile, status: "failed", error: e instanceof Error ? e.message : String(e) });
+          })
       )
     );
   }

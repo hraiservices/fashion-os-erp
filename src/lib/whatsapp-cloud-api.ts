@@ -43,6 +43,10 @@ export interface WhatsAppCloudApiConfig {
    *  — sent automatically the moment an order reaches "ready." Must have exactly 3 {{n}} body
    *  parameters in order: customer name, order id, balance due. */
   readyTemplateName?: string;
+  /** Approved template for the automated payment-reminder cron (src/app/api/whatsapp/
+   *  payment-reminders). Must have exactly 2 {{n}} body parameters in order: customer name,
+   *  amount due. */
+  paymentReminderTemplateName?: string;
 }
 
 export function isCloudApiConfigured(config: Partial<WhatsAppCloudApiConfig> | null | undefined): config is WhatsAppCloudApiConfig {
@@ -64,8 +68,21 @@ interface WhatsAppApiError {
   error?: { message?: string; type?: string; code?: number };
 }
 
-/** Throws on failure — callers should catch and fall back to the wa.me flow. */
-export async function sendWhatsAppTemplateMessage({ config, toMobile, customerName, productName, price, imageUrl }: SendTemplateInput): Promise<void> {
+interface WhatsAppApiSuccess {
+  messages?: { id?: string }[];
+}
+
+/** Meta's wamid for the just-sent message, or null if the response didn't have the shape
+ *  expected — logged as a send with no trackable id rather than treated as a failure, since
+ *  the send itself already succeeded (res.ok) by the time this is called. */
+async function extractMessageId(res: Response): Promise<string | null> {
+  const body = (await res.json().catch(() => ({}))) as WhatsAppApiSuccess;
+  return body.messages?.[0]?.id ?? null;
+}
+
+/** Throws on failure — callers should catch and fall back to the wa.me flow. Resolves to
+ *  Meta's message id (wamid) on success, for the caller to log against whatsapp_message_log. */
+export async function sendWhatsAppTemplateMessage({ config, toMobile, customerName, productName, price, imageUrl }: SendTemplateInput): Promise<string | null> {
   const components: unknown[] = [
     {
       type: "body",
@@ -99,6 +116,7 @@ export async function sendWhatsAppTemplateMessage({ config, toMobile, customerNa
     const body = (await res.json().catch(() => ({}))) as WhatsAppApiError;
     throw new Error(body.error?.message || `WhatsApp Cloud API error (${res.status})`);
   }
+  return extractMessageId(res);
 }
 
 /** Meta template body parameters are capped at 1024 characters each — truncate rather than let
@@ -119,7 +137,7 @@ export async function sendWhatsAppTemplateText(
   templateName: string,
   languageCode: string,
   bodyParams: string[]
-): Promise<void> {
+): Promise<string | null> {
   const res = await fetch(`https://graph.facebook.com/v21.0/${config.phoneNumberId}/messages`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.accessToken}` },
@@ -139,6 +157,7 @@ export async function sendWhatsAppTemplateText(
     const body = (await res.json().catch(() => ({}))) as WhatsAppApiError;
     throw new Error(body.error?.message || `WhatsApp Cloud API error (${res.status})`);
   }
+  return extractMessageId(res);
 }
 
 /**
@@ -148,7 +167,7 @@ export async function sendWhatsAppTemplateText(
  * (src/app/api/webhooks/whatsapp/route.ts) to reply to a customer who just texted in — never
  * for an outbound message the shop initiates, which still needs a template.
  */
-export async function sendWhatsAppTextMessage(config: Pick<WhatsAppCloudApiConfig, "phoneNumberId" | "accessToken">, toMobile: string, text: string): Promise<void> {
+export async function sendWhatsAppTextMessage(config: Pick<WhatsAppCloudApiConfig, "phoneNumberId" | "accessToken">, toMobile: string, text: string): Promise<string | null> {
   const res = await fetch(`https://graph.facebook.com/v21.0/${config.phoneNumberId}/messages`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.accessToken}` },
@@ -164,4 +183,5 @@ export async function sendWhatsAppTextMessage(config: Pick<WhatsAppCloudApiConfi
     const body = (await res.json().catch(() => ({}))) as WhatsAppApiError;
     throw new Error(body.error?.message || `WhatsApp Cloud API error (${res.status})`);
   }
+  return extractMessageId(res);
 }

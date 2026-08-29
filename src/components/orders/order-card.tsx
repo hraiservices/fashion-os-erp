@@ -105,14 +105,17 @@ export function OrderCard({
         {canChangeStage && next && (
           <Button
             size="sm"
-            className={cn("h-8 flex-1 px-2 text-[11px]", STAGE_STYLE[next].solid)}
+            className={cn("h-8 min-w-0 flex-1 px-2 text-[11px]", STAGE_STYLE[next].solid)}
             disabled={advancing}
             onClick={(e) => {
               e.preventDefault();
               onAdvance?.(order.id);
             }}
           >
-            {advancing ? "…" : `Move to ${STAGE_META[next].label}`}
+            {/* min-w-0 + truncate: this button shares a fixed-width row with two icon buttons
+                (record payment, WhatsApp) on a kanban card — a long stage name (e.g. "Move to
+                Delivered") could otherwise force the row wider than the card. */}
+            <span className="truncate">{advancing ? "…" : `Move to ${STAGE_META[next].label}`}</span>
           </Button>
         )}
         {onRecordPayment && order.balance > 0 && (

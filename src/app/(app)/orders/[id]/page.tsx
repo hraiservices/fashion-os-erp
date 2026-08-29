@@ -291,7 +291,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               }}
             >
               <Wallet className="size-4" />
-              <span className="lg:hidden">{confirmPayables.isPending ? "Confirming…" : "Confirm payables"}</span>
+              <span className="sm:hidden">{confirmPayables.isPending ? "…" : "Confirm"}</span>
+              <span className="hidden sm:inline lg:hidden">{confirmPayables.isPending ? "Confirming…" : "Confirm payables"}</span>
               <span className="hidden lg:inline">{confirmPayables.isPending ? "Confirming…" : "Confirm tailor payables"}</span>
             </Button>
           )}

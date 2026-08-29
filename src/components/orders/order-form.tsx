@@ -23,6 +23,7 @@ import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { getTailorWorkload, estimateDeliveryDate, estimateReworkRisk, rankTailorsForOrder } from "@/lib/analytics";
+import { DEFAULT_FABRIC_USAGE, estimateFabricRequirement } from "@/lib/fabric-usage";
 import {
   DEFAULT_RATES,
   DEFAULT_TAILOR_RATES,
@@ -42,6 +43,7 @@ import { cn } from "@/lib/utils";
 import type { Order, OrderType, Employee, Customer } from "@/lib/types";
 import { MeasurementGrid } from "@/components/measurements/measurement-grid";
 import { useExtractMeasurements } from "@/hooks/use-measurement-extraction";
+import { useTranscribeVoiceNote } from "@/hooks/use-transcribe-voice-note";
 import { fileToDataUrl } from "@/lib/image-utils";
 import { MediaCapture } from "@/components/orders/media-capture";
 import { Button } from "@/components/ui/button";
@@ -242,6 +244,26 @@ function OrderFormFields({
   const [images, setImages] = useState<string[]>(existingOrder?.images || []);
   const [audios, setAudios] = useState<string[]>(existingOrder?.audios || []);
   const [videos, setVideos] = useState<string[]>(existingOrder?.videos || []);
+  const transcribeVoiceNote = useTranscribeVoiceNote();
+  const [transcribingIndex, setTranscribingIndex] = useState<number | null>(null);
+
+  async function handleTranscribe(audioDataUrl: string, index: number) {
+    setTranscribingIndex(index);
+    try {
+      const text = await transcribeVoiceNote.mutateAsync(audioDataUrl);
+      if (text === "(could not transcribe)") {
+        toast.error("Couldn't make out that recording — try re-recording somewhere quieter.");
+        return;
+      }
+      const current = getValues("special");
+      setValue("special", current ? `${current}\n🎤 ${text}` : text, { shouldDirty: true });
+      toast.success("Added to Special Instructions — review before saving.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't transcribe that recording");
+    } finally {
+      setTranscribingIndex(null);
+    }
+  }
   const [usePoints, setUsePoints] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [prefilled, setPrefilled] = useState(false);
@@ -254,6 +276,7 @@ function OrderFormFields({
     control,
     handleSubmit,
     setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -395,6 +418,12 @@ function OrderFormFields({
       ? rankTailorsForOrder(allOrders, tailors.map((t) => t.id), garments.map((g) => g.type))[0]
       : undefined;
   const showTailorRecommendation = !!recommendedTailor && recommendedTailor.tailorId !== selectedTailor;
+
+  // Fabric requirement estimate — a configurable reference table (Settings → Rate Card), not
+  // learned from past orders like the estimators above: stitching orders never record a
+  // meters-consumed figure to learn from, only a ₹ fabricCost. See lib/fabric-usage.ts.
+  const { data: fabricUsage } = useAppSetting<Record<string, number>>("fabricUsage", DEFAULT_FABRIC_USAGE);
+  const fabricEstimate = estimateFabricRequirement(garments, fabricUsage || DEFAULT_FABRIC_USAGE);
 
   // Each garment also carries its OWN tailor field (drives per-garment piece-rate pay and the
   // Daily Tailor Worksheet report) — it's seeded from this order-level "Tailor" dropdown only
@@ -774,7 +803,19 @@ function OrderFormFields({
 
           {/* Garments */}
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-            <SectionHeading icon={Shirt} label="Garments" />
+            <SectionHeading
+              icon={Shirt}
+              label="Garments"
+              action={
+                fabricEstimate && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Sparkles className="size-3 shrink-0 text-primary" />
+                    Est. fabric: <span className="font-medium text-foreground">~{fabricEstimate.meters}m</span>
+                    {fabricEstimate.missingTypes.length > 0 && " (partial)"}
+                  </span>
+                )
+              }
+            />
             {isSeededPlaceholderOrder && (
               <p className="mb-3 rounded-lg border border-amber-500/30 bg-amber-50 p-2.5 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
                 ⚠️ This order had no garment line details saved, so the line below stands in for its total (₹{(existingOrder!.total || 0).toLocaleString("en-IN")}) so nothing changes by
@@ -1114,7 +1155,16 @@ function OrderFormFields({
             </div>
           )}
 
-          <MediaCapture images={images} audios={audios} videos={videos} onImagesChange={setImages} onAudiosChange={setAudios} onVideosChange={setVideos} />
+          <MediaCapture
+            images={images}
+            audios={audios}
+            videos={videos}
+            onImagesChange={setImages}
+            onAudiosChange={setAudios}
+            onVideosChange={setVideos}
+            onTranscribe={handleTranscribe}
+            transcribingIndex={transcribingIndex}
+          />
         </div>
 
         {/* ── Payment summary sidebar ───────────────────────────────────── */}

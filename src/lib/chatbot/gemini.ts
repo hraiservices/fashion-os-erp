@@ -266,6 +266,31 @@ export async function extractMeasurementsFromImage(imageDataUrl: string, fieldLa
   }
 }
 
+const VOICE_NOTE_TRANSCRIPTION_PROMPT = `Transcribe this voice note from an Indian tailoring shop. It may be in English, Hindi, or a
+mix (Hinglish) — transcribe it in whatever language/script it's actually spoken in (Hindi in
+Devanagari, Hinglish in Roman script), don't translate it. Output ONLY the transcription itself
+— no preamble, no "Here is the transcription," no quotes around it. If the audio is silent or
+unintelligible, output exactly: (could not transcribe)`;
+
+/**
+ * Transcribes a tailor's voice note (recorded on the order form, see MediaCapture) into text
+ * for the Special Instructions field — so nobody has to replay it to know what was said.
+ * Doesn't try to summarize or act on the content, only transcribe it verbatim.
+ */
+export async function transcribeVoiceNote(audioDataUrl: string): Promise<string> {
+  const match = /^data:(audio\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(audioDataUrl);
+  if (!match) throw new Error("Invalid audio");
+  const [, mimeType, base64] = match;
+
+  const ai = getClient();
+  const response = await ai.models.generateContent({
+    model: MODEL,
+    contents: [{ role: "user", parts: [{ inlineData: { mimeType, data: base64 } }, { text: VOICE_NOTE_TRANSCRIPTION_PROMPT }] }],
+    config: { temperature: 0 },
+  });
+  return response.text?.trim() || "(could not transcribe)";
+}
+
 export interface GeneratedAnswer {
   answer: string;
   followups: string[];

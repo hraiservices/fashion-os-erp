@@ -15,23 +15,29 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const BLANK_CLOUD_API: WhatsAppCloudApiConfig = { phoneNumberId: "", accessToken: "", templateName: "", languageCode: "en_US" };
 
-/** Pushes the daily AI briefing (already generated every morning by the /api/ai/daily-briefing
- *  cron, shown in-app via the notification bell) out to a list of staff WhatsApp numbers too.
- *  Needs its own approved Meta template — a proactive, shop-initiated message can't use
- *  freeform text like the order-status concierge's replies can. */
-export function DailyBriefingWhatsAppSection() {
+/** Config for the two proactive (shop-initiated) WhatsApp sends: the daily AI briefing (already
+ *  generated every morning by the /api/ai/daily-briefing cron, shown in-app via the
+ *  notification bell) pushed to a list of staff numbers, and a "ready for pickup" nudge sent
+ *  automatically to a customer when their order reaches Ready (src/app/api/orders/[id]/
+ *  advance-stage). Both need their own approved Meta template each — a shop-initiated message
+ *  can't use freeform text the way the order-status concierge's replies can. */
+export function ProactiveWhatsAppSection() {
   const { data: recipients, isLoading: recipientsLoading, save: saveRecipients } = useAppSetting<string[]>("dailyBriefingRecipients", []);
   const { data: cloudApi, isLoading: cloudApiLoading, save: saveCloudApi } = useWhatsAppCloudApiConfig(BLANK_CLOUD_API);
 
   const [list, setList] = useState<string[]>([]);
   const [templateName, setTemplateName] = useState("");
+  const [readyTemplateName, setReadyTemplateName] = useState("");
   const [newMobile, setNewMobile] = useState("");
 
   useSyncFromSource(recipients, (r) => {
     if (r) setList(r);
   });
   useSyncFromSource(cloudApi, (c) => {
-    if (c) setTemplateName(c.briefingTemplateName || "");
+    if (c) {
+      setTemplateName(c.briefingTemplateName || "");
+      setReadyTemplateName(c.readyTemplateName || "");
+    }
   });
 
   async function commitRecipients(next: string[], message: string) {
@@ -66,9 +72,19 @@ export function DailyBriefingWhatsAppSection() {
     }
   }
 
+  async function saveReadyTemplateName() {
+    try {
+      await saveCloudApi.mutateAsync({ ...(cloudApi || BLANK_CLOUD_API), readyTemplateName });
+      toast.success("Template name saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save");
+    }
+  }
+
   if (recipientsLoading || cloudApiLoading) return <Skeleton className="h-64 w-full" />;
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle className="text-sm">Daily briefing on WhatsApp</CardTitle>
@@ -129,5 +145,27 @@ export function DailyBriefingWhatsAppSection() {
         </div>
       </CardContent>
     </Card>
+
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">&quot;Ready for pickup&quot; WhatsApp nudge</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">
+          Sends the customer a WhatsApp message the moment their order reaches Ready — no recipient list needed, it goes to that order&apos;s own
+          customer. Needs a separate Meta-approved template with exactly 3 body parameters, in order: customer name, order id, balance due.
+        </p>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">Approved template name</Label>
+          <div className="flex gap-2">
+            <Input value={readyTemplateName} onChange={(e) => setReadyTemplateName(e.target.value)} placeholder="e.g. order_ready_for_pickup" />
+            <Button variant="outline" onClick={saveReadyTemplateName} disabled={saveCloudApi.isPending}>
+              Save
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+    </>
   );
 }

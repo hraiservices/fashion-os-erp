@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Paperclip, Camera, Upload, Mic, Video, Square, Trash2, Loader2 } from "lucide-react";
+import { Paperclip, Camera, Upload, Mic, Video, Square, Trash2, Loader2, Captions } from "lucide-react";
 import {
   blobToDataUrl,
   compressImage,
@@ -33,6 +33,8 @@ export function MediaCapture({
   onImagesChange,
   onAudiosChange,
   onVideosChange,
+  onTranscribe,
+  transcribingIndex,
 }: {
   images: string[];
   audios: string[];
@@ -40,6 +42,11 @@ export function MediaCapture({
   onImagesChange: (v: string[]) => void;
   onAudiosChange: (v: string[]) => void;
   onVideosChange: (v: string[]) => void;
+  /** Optional — when provided, each voice note gets a "Transcribe" button that calls back with
+   *  its data URL and index. The caller owns the actual Gemini call and where the text goes. */
+  onTranscribe?: (audioDataUrl: string, index: number) => void;
+  /** Index of the voice note currently being transcribed, to show a spinner on just that one. */
+  transcribingIndex?: number | null;
 }) {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -227,6 +234,20 @@ export function MediaCapture({
             {audios.map((src, i) => (
               <div key={i} className="flex items-center gap-2">
                 <audio controls src={src} className="h-9 min-w-0 flex-1" />
+                {onTranscribe && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-9 shrink-0"
+                    aria-label={`Transcribe voice note ${i + 1}`}
+                    title="Transcribe into notes"
+                    disabled={transcribingIndex != null}
+                    onClick={() => onTranscribe(src, i)}
+                  >
+                    {transcribingIndex === i ? <Loader2 className="size-4 animate-spin" /> : <Captions className="size-4" />}
+                  </Button>
+                )}
                 <Button type="button" variant="ghost" size="icon-sm" className="size-9 shrink-0" aria-label={`Remove voice note ${i + 1}`} onClick={() => onAudiosChange(audios.filter((_, j) => j !== i))}>
                   <Trash2 className="size-4" />
                 </Button>

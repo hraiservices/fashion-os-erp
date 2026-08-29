@@ -64,7 +64,7 @@ export async function GET(req: Request) {
   if (cloudApi?.phoneNumberId && cloudApi?.accessToken && cloudApi?.briefingTemplateName && recipients.length > 0) {
     await Promise.all(
       recipients.map((mobile) =>
-        sendWhatsAppTemplateText(cloudApi, mobile, cloudApi.briefingTemplateName!, cloudApi.languageCode || "en_US", message).catch((e) =>
+        sendWhatsAppTemplateText(cloudApi, mobile, cloudApi.briefingTemplateName!, cloudApi.languageCode || "en_US", [message]).catch((e) =>
           console.error(`Daily briefing WhatsApp send failed for ${mobile}:`, e)
         )
       )

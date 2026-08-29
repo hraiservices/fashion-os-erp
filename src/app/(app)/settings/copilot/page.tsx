@@ -3,7 +3,7 @@
 import { SettingsGuard } from "@/components/settings/settings-guard";
 import { PageHeader } from "@/components/ui/page-header";
 import { ChatbotGlossarySection } from "@/components/settings/chatbot-glossary-section";
-import { DailyBriefingWhatsAppSection } from "@/components/settings/daily-briefing-whatsapp-section";
+import { ProactiveWhatsAppSection } from "@/components/settings/proactive-whatsapp-section";
 
 export default function Page() {
   return (
@@ -11,7 +11,7 @@ export default function Page() {
       <PageHeader title="AI Copilot" description="Teach the AI Copilot your company's own vocabulary, so it stops guessing" />
       <SettingsGuard allow={({ isAdmin }) => isAdmin}>
         <ChatbotGlossarySection />
-        <DailyBriefingWhatsAppSection />
+        <ProactiveWhatsAppSection />
       </SettingsGuard>
     </div>
   );

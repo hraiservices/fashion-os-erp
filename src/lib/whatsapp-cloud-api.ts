@@ -39,6 +39,10 @@ export interface WhatsAppCloudApiConfig {
    *  send does; the briefing text doesn't fit that template's 3-parameter shape. Must have
    *  exactly one {{1}} body parameter, which receives the (possibly truncated) briefing text. */
   briefingTemplateName?: string;
+  /** Approved template for the "ready for pickup" nudge (src/app/api/orders/[id]/advance-stage)
+   *  — sent automatically the moment an order reaches "ready." Must have exactly 3 {{n}} body
+   *  parameters in order: customer name, order id, balance due. */
+  readyTemplateName?: string;
 }
 
 export function isCloudApiConfigured(config: Partial<WhatsAppCloudApiConfig> | null | undefined): config is WhatsAppCloudApiConfig {
@@ -102,17 +106,19 @@ export async function sendWhatsAppTemplateMessage({ config, toMobile, customerNa
 const TEMPLATE_BODY_PARAM_MAX = 1000;
 
 /**
- * Sends a single-{{1}}-parameter template message — a more general sibling of
- * sendWhatsAppTemplateMessage (which is hardcoded to the 3-parameter recommendation template).
- * Used by the daily-briefing push, and reusable for any future proactive (shop-initiated,
- * outside the 24-hour customer-service window) single-text-parameter template.
+ * Sends a template message with arbitrary {{1}}, {{2}}, ... body parameters — a more general
+ * sibling of sendWhatsAppTemplateMessage (which is hardcoded to the 3-parameter recommendation
+ * template + an optional image header). Used by the daily-briefing push (1 param: the briefing
+ * text) and the "ready for pickup" nudge (customer name + order id + balance due), and reusable
+ * for any future proactive (shop-initiated, outside the 24-hour customer-service window)
+ * text-only template.
  */
 export async function sendWhatsAppTemplateText(
   config: Pick<WhatsAppCloudApiConfig, "phoneNumberId" | "accessToken">,
   toMobile: string,
   templateName: string,
   languageCode: string,
-  bodyText: string
+  bodyParams: string[]
 ): Promise<void> {
   const res = await fetch(`https://graph.facebook.com/v21.0/${config.phoneNumberId}/messages`, {
     method: "POST",
@@ -124,7 +130,7 @@ export async function sendWhatsAppTemplateText(
       template: {
         name: templateName,
         language: { code: languageCode },
-        components: [{ type: "body", parameters: [{ type: "text", text: bodyText.slice(0, TEMPLATE_BODY_PARAM_MAX) }] }],
+        components: [{ type: "body", parameters: bodyParams.map((text) => ({ type: "text", text: text.slice(0, TEMPLATE_BODY_PARAM_MAX) })) }],
       },
     }),
   });

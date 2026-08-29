@@ -41,9 +41,9 @@ function NewLink({ href, onNavigate, label }: { href: string; onNavigate?: () =>
       onClick={onNavigate}
       aria-label={`Add new ${label}`}
       title={`Add new ${label}`}
-      className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/40 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground sm:size-6"
+      className="flex size-9 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/40 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground sm:size-6"
     >
-      <Plus className="size-4 sm:size-3.5" />
+      <Plus className="size-[18px] sm:size-3.5" />
     </Link>
   );
 }
@@ -57,11 +57,11 @@ function FlatLink({ item, active, onNavigate }: { item: NavFlatItem; active: boo
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "flex flex-1 items-center gap-3 rounded-lg px-3 py-3 text-base font-medium transition-colors sm:py-2 sm:text-sm",
+          "flex flex-1 items-center gap-3 rounded-lg px-3 py-3.5 text-[17px] font-medium transition-colors sm:py-2 sm:text-sm",
           active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
         )}
       >
-        <Icon className="size-5 shrink-0 sm:size-4" />
+        <Icon className="size-[22px] shrink-0 sm:size-4" />
         <span className="truncate">{item.label}</span>
       </Link>
       {item.newHref && <NewLink href={item.newHref} onNavigate={onNavigate} label={item.label} />}
@@ -79,11 +79,11 @@ function GroupIndexLink({ group, pathname, onNavigate }: { group: NavGroup; path
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-3 text-base font-medium transition-colors sm:py-2 sm:text-sm",
+        "flex items-center gap-3 rounded-lg px-3 py-3.5 text-[17px] font-medium transition-colors sm:py-2 sm:text-sm",
         active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
       )}
     >
-      <Icon className="size-5 shrink-0 sm:size-4" />
+      <Icon className="size-[22px] shrink-0 sm:size-4" />
       <span className="truncate">{group.label}</span>
     </Link>
   );
@@ -124,7 +124,7 @@ function GroupNav({
   }
 
   const rowClass = cn(
-    "flex w-full items-center gap-3 rounded-lg px-3 py-3 text-base font-medium transition-colors sm:py-2 sm:text-sm",
+    "flex w-full items-center gap-3 rounded-lg px-3 py-3.5 text-[17px] font-medium transition-colors sm:py-2 sm:text-sm",
     groupActive ? "text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
   );
 
@@ -135,9 +135,9 @@ function GroupNav({
   return (
     <div>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className={rowClass}>
-        <Icon className="size-5 shrink-0 sm:size-4" />
+        <Icon className="size-[22px] shrink-0 sm:size-4" />
         <span className="flex-1 truncate text-left">{group.label}</span>
-        <ChevronRight className={cn("size-4 shrink-0 transition-transform duration-200 sm:size-3.5", open && "rotate-90")} />
+        <ChevronRight className={cn("size-[18px] shrink-0 transition-transform duration-200 sm:size-3.5", open && "rotate-90")} />
       </button>
       {open && (
         <div className="mt-0.5 ml-[1.4rem] space-y-0.5 border-l pl-3">
@@ -147,7 +147,7 @@ function GroupNav({
               onClick={onNavigate}
               aria-current={pathname === group.indexHref ? "page" : undefined}
               className={cn(
-                "block truncate rounded-md px-2.5 py-2 text-sm font-medium transition-colors sm:py-1.5 sm:text-[13px]",
+                "block truncate rounded-md px-2.5 py-2.5 text-[15px] font-medium transition-colors sm:py-1.5 sm:text-[13px]",
                 pathname === group.indexHref ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
               )}
             >
@@ -163,10 +163,10 @@ function GroupNav({
                     type="button"
                     onClick={() => toggleSection(section.label!)}
                     aria-expanded={sectionOpen}
-                    className="flex w-full items-center gap-1 rounded px-2.5 py-1 text-left text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/35 hover:text-sidebar-foreground/60 sm:py-0 sm:pb-0.5 sm:text-[10px]"
+                    className="flex w-full items-center gap-1 rounded px-2.5 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/35 hover:text-sidebar-foreground/60 sm:py-0 sm:pb-0.5 sm:text-[10px]"
                   >
                     <span className="flex-1">{section.label}</span>
-                    <ChevronDown className={cn("size-3.5 shrink-0 transition-transform duration-200 sm:size-3", !sectionOpen && "-rotate-90")} />
+                    <ChevronDown className={cn("size-[14px] shrink-0 transition-transform duration-200 sm:size-3", !sectionOpen && "-rotate-90")} />
                   </button>
                 )}
                 {sectionOpen &&
@@ -179,7 +179,7 @@ function GroupNav({
                           onClick={onNavigate}
                           aria-current={active ? "page" : undefined}
                           className={cn(
-                            "block flex-1 truncate rounded-md px-2.5 py-2 text-sm transition-colors sm:py-1.5 sm:text-[13px]",
+                            "block flex-1 truncate rounded-md px-2.5 py-2.5 text-[15px] transition-colors sm:py-1.5 sm:text-[13px]",
                             active ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground" : "text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
                           )}
                         >
@@ -314,13 +314,13 @@ export function NavBrand() {
     <div className="flex items-center gap-2.5 px-5 py-4">
       {shop?.logoDataUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={shop.logoDataUrl} alt={shop.name || "Shop logo"} className="size-9 shrink-0 rounded-lg border bg-white object-contain sm:size-8" />
+        <img src={shop.logoDataUrl} alt={shop.name || "Shop logo"} className="size-10 shrink-0 rounded-lg border bg-white object-contain sm:size-8" />
       ) : (
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground sm:size-8">
-          <Scissors className="size-5 sm:size-4" />
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground sm:size-8">
+          <Scissors className="size-[22px] sm:size-4" />
         </span>
       )}
-      <span className="truncate text-base font-semibold tracking-tight sm:text-[15px]">{shop?.name || "Fashion Flow"}</span>
+      <span className="truncate text-[18px] font-semibold tracking-tight sm:text-[15px]">{shop?.name || "Fashion Flow"}</span>
     </div>
   );
 }

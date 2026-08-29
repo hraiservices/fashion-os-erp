@@ -4,10 +4,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
-import { DEFAULT_FONT_CONFIG, GOOGLE_FONTS, FONT_WEIGHTS, FONT_SIZES, googleFontUrl, type FontConfig } from "@/lib/fonts";
+import { DEFAULT_FONT_CONFIG, GOOGLE_FONTS, FONT_WEIGHTS, FONT_SIZES, CUSTOM_FONT_VALUE, googleFontUrl, type FontConfig } from "@/lib/fonts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -15,14 +16,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function FontSection() {
   const { data, isLoading, save } = useAppSetting<FontConfig>("font", DEFAULT_FONT_CONFIG);
   const [cfg, setCfg] = useState<FontConfig>(DEFAULT_FONT_CONFIG);
+  // A saved family outside the curated list means it was typed in manually — keep the
+  // "type your own" input showing instead of silently falling back to the dropdown.
+  const [useCustom, setUseCustom] = useState(false);
 
   useSyncFromSource(data, (d) => {
-    if (d) setCfg(d);
+    if (d) {
+      setCfg(d);
+      setUseCustom(!(GOOGLE_FONTS as readonly string[]).includes(d.family));
+    }
   });
 
   // Load the font being previewed (may differ from the saved one) so the sample below
   // renders correctly before hitting Save.
-  const previewLink = googleFontUrl(cfg.family, cfg.weight);
+  const previewLink = cfg.family.trim() ? googleFontUrl(cfg.family, cfg.weight) : null;
 
   async function onSave() {
     try {
@@ -35,6 +42,7 @@ export function FontSection() {
 
   function onReset() {
     setCfg(DEFAULT_FONT_CONFIG);
+    setUseCustom(false);
   }
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
@@ -45,12 +53,23 @@ export function FontSection() {
         <CardTitle className="text-sm">Font</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <link rel="stylesheet" href={previewLink} />
+        {previewLink && <link rel="stylesheet" href={previewLink} />}
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
             <Label>Font family</Label>
-            <Select value={cfg.family} onValueChange={(v) => v && setCfg({ ...cfg, family: v })}>
+            <Select
+              value={useCustom ? CUSTOM_FONT_VALUE : cfg.family}
+              onValueChange={(v) => {
+                if (!v) return;
+                if (v === CUSTOM_FONT_VALUE) {
+                  setUseCustom(true);
+                } else {
+                  setUseCustom(false);
+                  setCfg({ ...cfg, family: v });
+                }
+              }}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -60,8 +79,16 @@ export function FontSection() {
                     {f}
                   </SelectItem>
                 ))}
+                <SelectItem value={CUSTOM_FONT_VALUE}>Other (type a Google Font name)…</SelectItem>
               </SelectContent>
             </Select>
+            {useCustom && (
+              <Input
+                value={cfg.family}
+                onChange={(e) => setCfg({ ...cfg, family: e.target.value })}
+                placeholder="Exact name from fonts.google.com, e.g. Fraunces"
+              />
+            )}
           </div>
           <div className="space-y-2">
             <Label>Weight</Label>
@@ -103,7 +130,7 @@ export function FontSection() {
         </div>
 
         <div className="flex gap-2">
-          <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={onSave} disabled={save.isPending}>
+          <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={onSave} disabled={save.isPending || !cfg.family.trim()}>
             Save & apply
           </Button>
           <Button variant="outline" className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={onReset}>

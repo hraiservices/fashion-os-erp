@@ -1,21 +1,14 @@
 "use client";
 
-import { SettingsGuard } from "@/components/settings/settings-guard";
-import { SettingsPage } from "@/components/settings/settings-page";
-import { FontSection } from "@/components/settings/font-section";
-import { ColorThemeSection } from "@/components/settings/color-theme-section";
-import { DashboardHeaderSection } from "@/components/settings/dashboard-header-section";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
 
+/** Appearance now lives on the merged Personalize page — this route stays live only for old bookmarks/links. */
 export default function Page() {
-  return (
-    <SettingsPage title="Appearance" description="Color theme, font family, weight and size across the whole app">
-      <SettingsGuard allow={({ isAdmin }) => isAdmin}>
-        <div className="space-y-4">
-          <ColorThemeSection />
-          <FontSection />
-          <DashboardHeaderSection />
-        </div>
-      </SettingsGuard>
-    </SettingsPage>
-  );
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/settings/personalize");
+  }, [router]);
+  return <div className="p-6"><Skeleton className="h-64 w-full" /></div>;
 }

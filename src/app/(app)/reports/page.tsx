@@ -77,17 +77,89 @@ export default function ReportsIndexPage() {
     saveFavorites.mutate(next);
   }
 
+  // Grouped-by-category list for the report rows within one category card, shared by both the
+  // mobile grouped-sections view and (implicitly) mirrors the desktop table's row content.
+  function reportsFor(category: string) {
+    return allReports.filter((r) => r.category === category);
+  }
+
   return (
     <div className="flex h-full flex-col lg:flex-row">
-      {/* Category rail */}
-      <div className="shrink-0 border-b p-3 lg:w-56 lg:border-b-0 lg:border-r lg:p-4">
+      {/* Mobile: grouped category sections instead of a horizontally-scrolling tab rail — every
+          report is visible at once, stacked into one card per category, matching the native
+          "Reports" screen pattern (plain rows + chevron, grouped into rounded sections) rather
+          than a web-style filterable table. Desktop keeps the rail+table layout below. */}
+      <div className="flex-1 space-y-4 p-4 lg:hidden">
+        <h1 className="px-1 text-lg font-semibold tracking-tight">Reports</h1>
+
+        {/* Always shown first, even empty — Favourites is the whole point of a "pin what I use
+            most" feature, so it shouldn't disappear until you've actually pinned something. */}
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="flex items-center gap-1.5 border-b bg-muted/40 px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <Star className="size-3.5" /> Favourites
+          </div>
+          {favoriteCount > 0 ? (
+            <div className="divide-y">
+              {allReports
+                .filter((r) => favorites.has(r.href))
+                .map((r) => (
+                  <div key={r.href} className="flex items-center">
+                    <button
+                      type="button"
+                      onClick={() => toggleFavorite(r.href)}
+                      aria-label={`Remove ${r.label} from favourites`}
+                      aria-pressed
+                      className="p-3 text-muted-foreground hover:text-amber-500"
+                    >
+                      <Star className="size-4 fill-amber-400 text-amber-500" />
+                    </button>
+                    <Link href={r.href} className="flex flex-1 items-center justify-between gap-2 py-3 pr-4 text-primary">
+                      <span className="font-medium">{r.label}</span>
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                    </Link>
+                  </div>
+                ))}
+            </div>
+          ) : (
+            <p className="px-4 py-4 text-sm text-muted-foreground">Tap the star next to any report below to pin it here.</p>
+          )}
+        </div>
+
+        {categories.map((c) => (
+          <div key={c.label} className="overflow-hidden rounded-xl border bg-card">
+            <div className="border-b bg-muted/40 px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{c.label}</div>
+            <div className="divide-y">
+              {reportsFor(c.label).map((r) => (
+                <div key={r.href} className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => toggleFavorite(r.href)}
+                    aria-label={favorites.has(r.href) ? `Remove ${r.label} from favourites` : `Add ${r.label} to favourites`}
+                    aria-pressed={favorites.has(r.href)}
+                    className="p-3 text-muted-foreground hover:text-amber-500"
+                  >
+                    <Star className={cn("size-4", favorites.has(r.href) && "fill-amber-400 text-amber-500")} />
+                  </button>
+                  <Link href={r.href} className="flex flex-1 items-center justify-between gap-2 py-3 pr-4 text-primary">
+                    <span className="font-medium">{r.label}</span>
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: category rail */}
+      <div className="hidden shrink-0 lg:block lg:w-56 lg:border-r lg:p-4">
         <h1 className="mb-3 px-1 text-lg font-semibold tracking-tight">Reports</h1>
-        <nav className="scrollbar-hide flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
+        <nav className="flex flex-col gap-1">
           <button
             type="button"
             onClick={() => setActiveCategory(FAVORITES_CATEGORY)}
             className={cn(
-              "flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium transition-colors lg:w-full",
+              "flex min-h-10 w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium transition-colors",
               activeCategory === FAVORITES_CATEGORY ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
             )}
           >
@@ -99,7 +171,7 @@ export default function ReportsIndexPage() {
             type="button"
             onClick={() => setActiveCategory(null)}
             className={cn(
-              "flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium transition-colors lg:w-full",
+              "flex min-h-10 w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium transition-colors",
               activeCategory === null ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
             )}
           >
@@ -115,7 +187,7 @@ export default function ReportsIndexPage() {
                 type="button"
                 onClick={() => setActiveCategory(c.label)}
                 className={cn(
-                  "flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium transition-colors lg:w-full",
+                  "flex min-h-10 w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium transition-colors",
                   activeCategory === c.label ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
                 )}
               >
@@ -128,8 +200,8 @@ export default function ReportsIndexPage() {
         </nav>
       </div>
 
-      {/* Report table */}
-      <div className="min-w-0 flex-1 space-y-4 p-4 sm:p-6">
+      {/* Desktop: report table */}
+      <div className="hidden min-w-0 flex-1 space-y-4 p-4 lg:block sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-base font-semibold">
             {activeCategory === FAVORITES_CATEGORY ? "Favourites" : activeCategory || "All Reports"}{" "}

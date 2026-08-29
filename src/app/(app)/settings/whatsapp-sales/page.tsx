@@ -1,19 +1,15 @@
 "use client";
 
-import { SettingsGuard } from "@/components/settings/settings-guard";
-import { SettingsPage } from "@/components/settings/settings-page";
-import { WhatsAppSalesSection } from "@/components/settings/whatsapp-sales-section";
-import { RecommendationWhatsAppSection } from "@/components/settings/recommendation-whatsapp-section";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
 
+/** WhatsApp Templates now lives on the consolidated /settings/whatsapp page — this route stays
+ *  live only for old bookmarks/links. */
 export default function Page() {
-  return (
-    <SettingsPage title="WhatsApp Templates" description="Customize the messages sent to customers for sales invoices">
-      <SettingsGuard allow={({ isAdmin }) => isAdmin}>
-        <div className="space-y-5">
-          <WhatsAppSalesSection />
-          <RecommendationWhatsAppSection />
-        </div>
-      </SettingsGuard>
-    </SettingsPage>
-  );
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/settings/whatsapp");
+  }, [router]);
+  return <div className="p-6"><Skeleton className="h-64 w-full" /></div>;
 }

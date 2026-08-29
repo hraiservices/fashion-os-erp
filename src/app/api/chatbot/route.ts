@@ -11,6 +11,33 @@ const bodySchema = z.object({
 
 const NO_DATA_ANSWER = "I couldn't find an answer to that. Try asking about revenue, orders, deliveries, or payments.";
 
+type RefTable = "orders" | "invoices";
+
+/**
+ * Lets the UI turn a short result list into tappable links (e.g. "3 overdue orders" -> chips
+ * that jump straight to those orders) without the model ever needing to know about app routes.
+ * Only fires for a single-table query — a query that combines both views (a UNION, or "combine
+ * both unless clearly about one" per the system prompt) can't be attributed row-by-row to a
+ * source table, so it's left without links rather than guessed at.
+ */
+function detectRefTable(sql: string): RefTable | null {
+  const hasOrders = /\bv_chatbot_orders\b/i.test(sql);
+  const hasInvoices = /\bv_chatbot_invoices\b/i.test(sql);
+  if (hasOrders && !hasInvoices) return "orders";
+  if (hasInvoices && !hasOrders) return "invoices";
+  return null;
+}
+
+function buildRefs(rows: Record<string, unknown>[], table: RefTable | null): { id: string; label: string }[] {
+  if (!table || rows.length === 0 || rows.length > 5) return [];
+  return rows
+    .filter((r) => typeof r.id === "string" || typeof r.id === "number")
+    .map((r) => ({
+      id: String(r.id),
+      label: table === "invoices" && typeof r.invoice_number === "string" ? r.invoice_number : String(r.id),
+    }));
+}
+
 export async function POST(request: Request) {
   const { supabase, user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -23,6 +50,8 @@ export async function POST(request: Request) {
   let sql: string | null = null;
   let answer: string;
   let errorMessage: string | null = null;
+  let refs: { id: string; label: string }[] = [];
+  let refTable: RefTable | null = null;
 
   try {
     const glossary = await getChatbotGlossary(supabase);
@@ -42,6 +71,8 @@ export async function POST(request: Request) {
     } else {
       const rows = await runChatbotQuery(sql);
       answer = await generateAnswer(question, rows, history);
+      refTable = detectRefTable(sql);
+      refs = buildRefs(rows, refTable);
     }
   } catch (e) {
     errorMessage = e instanceof Error ? e.message : "Unknown error";
@@ -59,7 +90,7 @@ export async function POST(request: Request) {
     error: errorMessage,
   });
 
-  return NextResponse.json({ answer, sql });
+  return NextResponse.json({ answer, sql, refs, refTable });
 }
 
 export async function GET() {

@@ -35,7 +35,12 @@ export function useAskChatbot() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to get an answer");
-      return data as { answer: string; sql: string | null };
+      return data as {
+        answer: string;
+        sql: string | null;
+        refs: { id: string; label: string }[];
+        refTable: "orders" | "invoices" | null;
+      };
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["chatbot-history"] }),
   });

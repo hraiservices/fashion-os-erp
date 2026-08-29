@@ -7,7 +7,7 @@ import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, User2, Shirt, Wallet, Ruler, Gift, Check, ClipboardList, AlertTriangle, Receipt, TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, User2, Shirt, Wallet, Ruler, Gift, Check, ClipboardList, AlertTriangle, Receipt, TrendingUp, TrendingDown, Sparkles } from "lucide-react";
 import { useCreateOrder, useUpdateOrder } from "@/hooks/use-order-mutations";
 import { useOrders } from "@/hooks/use-orders";
 import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
@@ -22,7 +22,7 @@ import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
-import { getTailorWorkload } from "@/lib/analytics";
+import { getTailorWorkload, estimateDeliveryDate } from "@/lib/analytics";
 import {
   DEFAULT_RATES,
   DEFAULT_TAILOR_RATES,
@@ -37,7 +37,7 @@ import {
 } from "@/lib/business-rules";
 import { computeOrderProfit } from "@/lib/order-profit";
 import { hydrateMeasurements, compactMeasurements, type MeasureLang } from "@/lib/measurements";
-import { inr } from "@/lib/format";
+import { inr, fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Order, OrderType, Employee, Customer } from "@/lib/types";
 import { MeasurementGrid } from "@/components/measurements/measurement-grid";
@@ -334,6 +334,24 @@ function OrderFormFields({
   const tailorWorkload = allOrders && selectedTailor ? getTailorWorkload(allOrders).find((w) => w.tailor === selectedTailor) : undefined;
   const showCapacityWarning = !!tailorWorkload && (tailorWorkload.capacity === "High" || tailorWorkload.capacity === "Overloaded") && (!existingOrder || existingOrder.tailor !== selectedTailor);
 
+  // AI-adjacent smart suggestion (not an LLM call — a fast deterministic estimate so it can
+  // recompute live on every keystroke): the tailor's own historical turnaround if they have
+  // enough completed orders to trust, else the shop-wide average for these garment types,
+  // plus a queue-depth buffer and a day per garment beyond the first. Purely advisory — a chip
+  // next to the field, never auto-applied over whatever the user actually picks.
+  const inDate = useWatch({ control, name: "inDate" });
+  const deliveryDate = useWatch({ control, name: "deliveryDate" });
+  const deliveryEstimate =
+    allOrders && selectedTailor && inDate && garments.length > 0
+      ? estimateDeliveryDate(
+          allOrders,
+          selectedTailor,
+          garments.map((g) => g.type),
+          inDate
+        )
+      : undefined;
+  const showDeliverySuggestion = !!deliveryEstimate && deliveryEstimate.date !== deliveryDate;
+
   // Each garment also carries its OWN tailor field (drives per-garment piece-rate pay and the
   // Daily Tailor Worksheet report) — it's seeded from this order-level "Tailor" dropdown only
   // once, at form-mount time, and previously never followed it again. Changing the order-level
@@ -539,6 +557,25 @@ function OrderFormFields({
               <div className="grid grid-cols-2 gap-3 sm:col-span-2">
                 <FieldGroup label="Delivery date" required error={errors.deliveryDate?.message}>
                   <Controller control={control} name="deliveryDate" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} placeholder="Pick delivery date" />} />
+                  {showDeliverySuggestion && (
+                    <button
+                      type="button"
+                      onClick={() => setValue("deliveryDate", deliveryEstimate!.date, { shouldDirty: true, shouldValidate: true })}
+                      className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <Sparkles className="size-3 shrink-0 text-primary" />
+                      Suggested: <span className="font-medium text-foreground">{fmtDate(deliveryEstimate!.date)}</span>
+                      <span className="text-muted-foreground">
+                        (
+                        {deliveryEstimate!.basis === "tailor"
+                          ? "this tailor's usual pace"
+                          : deliveryEstimate!.basis === "garment-type"
+                            ? "typical for these garments"
+                            : "default estimate"}
+                        {tailorWorkload && (tailorWorkload.capacity === "High" || tailorWorkload.capacity === "Overloaded") ? " + queue" : ""})
+                      </span>
+                    </button>
+                  )}
                 </FieldGroup>
                 <FieldGroup label="Delivery time" hint="Countdown uses this if set">
                   <Controller control={control} name="deliveryTime" render={({ field }) => <TimePicker value={field.value} onChange={field.onChange} />} />

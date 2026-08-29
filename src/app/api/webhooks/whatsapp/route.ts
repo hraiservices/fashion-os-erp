@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { createServiceClient } from "@/lib/supabase/service";
 import { sendWhatsAppTextMessage, type WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
 import { generateConciergeReply } from "@/lib/chatbot/gemini";
+import { logWhatsAppSend, updateWhatsAppStatus, type WhatsAppMessageStatus } from "@/lib/whatsapp-log";
 
 /**
  * Meta WhatsApp Business Cloud API webhook — receives inbound customer messages and replies
@@ -78,13 +79,34 @@ function extractInboundMessage(payload: unknown): InboundMessage | null {
   }
 }
 
+const KNOWN_STATUSES: WhatsAppMessageStatus[] = ["sent", "delivered", "read", "failed"];
+
+/** Meta also delivers delivery/read/failed receipts for OUTBOUND messages this shop sent
+ *  through this same webhook (a `statuses` array alongside, or instead of, `messages`) — this
+ *  is what lets the send log show real delivery confirmation, not just "the API accepted it." */
+function extractStatusUpdates(payload: unknown): { waMessageId: string; status: WhatsAppMessageStatus }[] {
+  try {
+    const entry = (payload as { entry?: unknown[] })?.entry?.[0] as { changes?: unknown[] } | undefined;
+    const change = entry?.changes?.[0] as { value?: { statuses?: unknown[] } } | undefined;
+    const statuses = (change?.value?.statuses || []) as { id?: string; status?: string }[];
+    return statuses
+      .filter((s): s is { id: string; status: string } => !!s.id && KNOWN_STATUSES.includes(s.status as WhatsAppMessageStatus))
+      .map((s) => ({ waMessageId: s.id, status: s.status as WhatsAppMessageStatus }));
+  } catch {
+    return [];
+  }
+}
+
 export async function POST(request: Request) {
   const rawBody = await request.text();
   const { config, serviceClient } = await loadConfig();
 
   // Silently ack (200) rather than error whenever the feature just isn't set up — Meta retries
-  // aggressively on non-2xx responses, and "not configured"/"disabled" isn't a delivery failure.
-  if (!serviceClient || !config?.conciergeEnabled || !config.appSecret || !config.phoneNumberId || !config.accessToken) {
+  // aggressively on non-2xx responses, and "not configured" isn't a delivery failure. Signature
+  // verification needs appSecret regardless of whether the concierge itself is enabled, since
+  // this same webhook also carries delivery/read status updates for every OTHER WhatsApp
+  // feature (daily briefing, ready nudge, payment reminders, recommendations).
+  if (!serviceClient || !config?.appSecret || !config.phoneNumberId || !config.accessToken) {
     return NextResponse.json({ ok: true });
   }
 
@@ -100,6 +122,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  // Status updates (delivered/read/failed) for messages this shop already sent — independent
+  // of the concierge, so this runs even when conciergeEnabled is off.
+  for (const { waMessageId, status } of extractStatusUpdates(payload)) {
+    await updateWhatsAppStatus(serviceClient, waMessageId, status);
+  }
+
+  if (!config.conciergeEnabled) return NextResponse.json({ ok: true });
+
   const inbound = extractInboundMessage(payload);
   if (!inbound) return NextResponse.json({ ok: true });
 
@@ -114,8 +144,10 @@ export async function POST(request: Request) {
       .limit(5);
 
     const reply = await generateConciergeReply(inbound.text, orders || []);
-    await sendWhatsAppTextMessage(config, inbound.from, reply);
+    const waMessageId = await sendWhatsAppTextMessage(config, inbound.from, reply);
+    await logWhatsAppSend(serviceClient, { messageType: "concierge_reply", toMobile: inbound.from, waMessageId, status: "sent" });
   } catch (e) {
+    await logWhatsAppSend(serviceClient, { messageType: "concierge_reply", toMobile: inbound.from, status: "failed", error: e instanceof Error ? e.message : String(e) });
     // Never surface this to Meta as a webhook failure (it'll just retry the same message) —
     // log-and-swallow is the right behavior for a best-effort customer reply.
     console.error("WhatsApp concierge reply failed:", e);

@@ -235,6 +235,11 @@ export interface Customer {
   priceListId: string | null;
   tags: string[];
   gstin: string;
+  /** True once the customer has asked not to be WhatsApped — checked before every proactive
+   *  (shop-initiated) send: ready-for-pickup nudge, payment reminders, product recommendations.
+   *  Not checked for the order-status concierge, which only ever replies to a message the
+   *  customer sent first. */
+  whatsappOptOut: boolean;
 }
 
 /** mapCust(), line ~2324. */
@@ -257,6 +262,7 @@ export function mapCustomerRow(r: CustomerRow): Customer {
     priceListId: r.price_list_id,
     tags: Array.isArray(r.tags) ? r.tags : [],
     gstin: r.gstin || "",
+    whatsappOptOut: !!r.whatsapp_opt_out,
   };
 }
 

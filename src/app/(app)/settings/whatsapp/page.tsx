@@ -5,6 +5,7 @@ import { SettingsPage } from "@/components/settings/settings-page";
 import { WhatsAppSalesSection } from "@/components/settings/whatsapp-sales-section";
 import { RecommendationWhatsAppSection } from "@/components/settings/recommendation-whatsapp-section";
 import { ProactiveWhatsAppSection } from "@/components/settings/proactive-whatsapp-section";
+import { WhatsAppSendLogSection } from "@/components/settings/whatsapp-send-log-section";
 
 /** Every WhatsApp-related setting in one place — sales invoice message wording, Cloud API
  *  credentials, product recommendation sends, the order-status concierge, and the two proactive
@@ -18,6 +19,7 @@ export default function Page() {
           <WhatsAppSalesSection />
           <RecommendationWhatsAppSection />
           <ProactiveWhatsAppSection />
+          <WhatsAppSendLogSection />
         </div>
       </SettingsGuard>
     </SettingsPage>

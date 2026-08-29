@@ -10,8 +10,12 @@ import type { WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const DEFAULT_MIN_DAYS_OVERDUE = 3;
+const DEFAULT_COOLDOWN_DAYS = 7;
 
 const BLANK_CLOUD_API: WhatsAppCloudApiConfig = { phoneNumberId: "", accessToken: "", templateName: "", languageCode: "en_US" };
 
@@ -24,11 +28,19 @@ const BLANK_CLOUD_API: WhatsAppCloudApiConfig = { phoneNumberId: "", accessToken
 export function ProactiveWhatsAppSection() {
   const { data: recipients, isLoading: recipientsLoading, save: saveRecipients } = useAppSetting<string[]>("dailyBriefingRecipients", []);
   const { data: cloudApi, isLoading: cloudApiLoading, save: saveCloudApi } = useWhatsAppCloudApiConfig(BLANK_CLOUD_API);
+  const { data: minDaysOverdue, isLoading: minDaysLoading, save: saveMinDays } = useAppSetting<number>("paymentReminderMinDaysOverdue", DEFAULT_MIN_DAYS_OVERDUE);
+  const { data: reminderCooldown, isLoading: reminderCooldownLoading, save: saveReminderCooldown } = useAppSetting<number>(
+    "paymentReminderCooldownDays",
+    DEFAULT_COOLDOWN_DAYS
+  );
 
   const [list, setList] = useState<string[]>([]);
   const [templateName, setTemplateName] = useState("");
   const [readyTemplateName, setReadyTemplateName] = useState("");
+  const [paymentReminderTemplateName, setPaymentReminderTemplateName] = useState("");
   const [newMobile, setNewMobile] = useState("");
+  const [draftMinDays, setDraftMinDays] = useState(DEFAULT_MIN_DAYS_OVERDUE);
+  const [draftCooldown, setDraftCooldown] = useState(DEFAULT_COOLDOWN_DAYS);
 
   useSyncFromSource(recipients, (r) => {
     if (r) setList(r);
@@ -37,7 +49,14 @@ export function ProactiveWhatsAppSection() {
     if (c) {
       setTemplateName(c.briefingTemplateName || "");
       setReadyTemplateName(c.readyTemplateName || "");
+      setPaymentReminderTemplateName(c.paymentReminderTemplateName || "");
     }
+  });
+  useSyncFromSource(minDaysOverdue, (d) => {
+    if (d != null) setDraftMinDays(d);
+  });
+  useSyncFromSource(reminderCooldown, (d) => {
+    if (d != null) setDraftCooldown(d);
   });
 
   async function commitRecipients(next: string[], message: string) {
@@ -81,7 +100,20 @@ export function ProactiveWhatsAppSection() {
     }
   }
 
-  if (recipientsLoading || cloudApiLoading) return <Skeleton className="h-64 w-full" />;
+  async function savePaymentReminderSettings() {
+    try {
+      await Promise.all([
+        saveCloudApi.mutateAsync({ ...(cloudApi || BLANK_CLOUD_API), paymentReminderTemplateName }),
+        saveMinDays.mutateAsync(draftMinDays),
+        saveReminderCooldown.mutateAsync(draftCooldown),
+      ]);
+      toast.success("Payment reminder settings saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save");
+    }
+  }
+
+  if (recipientsLoading || cloudApiLoading || minDaysLoading || reminderCooldownLoading) return <Skeleton className="h-64 w-full" />;
 
   return (
     <>
@@ -164,6 +196,37 @@ export function ProactiveWhatsAppSection() {
             </Button>
           </div>
         </div>
+      </CardContent>
+    </Card>
+
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Payment reminder automation</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">
+          Auto-sends the same balance-due reminder the Customer Balances report&apos;s manual WhatsApp button already builds, once a stitching order or
+          sales invoice is overdue by at least this many days. Checks &quot;Don&apos;t WhatsApp this customer&quot; and won&apos;t remind the same
+          customer twice within the cooldown window. Needs a separate Meta-approved template with exactly 2 body parameters, in order: customer name,
+          amount due.
+        </p>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">Approved template name</Label>
+          <Input value={paymentReminderTemplateName} onChange={(e) => setPaymentReminderTemplateName(e.target.value)} placeholder="e.g. payment_reminder" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">Min days overdue</Label>
+            <NumberInput min={1} value={draftMinDays} onChange={setDraftMinDays} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">Cooldown (days)</Label>
+            <NumberInput min={1} value={draftCooldown} onChange={setDraftCooldown} />
+          </div>
+        </div>
+        <Button variant="outline" onClick={savePaymentReminderSettings} disabled={saveCloudApi.isPending || saveMinDays.isPending || saveReminderCooldown.isPending}>
+          Save
+        </Button>
       </CardContent>
     </Card>
     </>

@@ -105,6 +105,7 @@ export interface Database {
           price_list_id: string | null;
           tags: string[];
           gstin: string;
+          whatsapp_opt_out: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -422,6 +423,24 @@ export interface Database {
           qty_required: number;
         };
         Update: Partial<Database["public"]["Tables"]["bill_of_materials"]["Row"]>;
+        Relationships: [];
+      };
+      whatsapp_message_log: {
+        Row: {
+          id: string;
+          message_type: string;
+          to_mobile: string;
+          wa_message_id: string | null;
+          status: string;
+          error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["whatsapp_message_log"]["Row"]> & {
+          message_type: string;
+          to_mobile: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["whatsapp_message_log"]["Row"]>;
         Relationships: [];
       };
       inventory_ledger: {

@@ -67,7 +67,7 @@ function ExpensesPageContent() {
     <div className="space-y-5 p-4 sm:p-6">
       <PageHeader
         title="Expenses"
-        description="Track your shop's operating costs"
+        description="Track your company's operating costs"
         actions={
           canAdd && (
             <div className="flex gap-2">

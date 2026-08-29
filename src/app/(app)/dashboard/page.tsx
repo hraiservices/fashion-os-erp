@@ -51,7 +51,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             {shop.logoDataUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={shop.logoDataUrl} alt={shop.name || "Shop logo"} className="size-12 shrink-0 rounded-lg border bg-white object-contain" />
+              <img src={shop.logoDataUrl} alt={shop.name || "Company logo"} className="size-12 shrink-0 rounded-lg border bg-white object-contain" />
             ) : (
               <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Scissors className="size-5" />
@@ -70,7 +70,7 @@ export default function DashboardPage() {
 
       <PageHeader
         title="Dashboard"
-        description="Today's snapshot of your shop"
+        description="Today's snapshot of your company"
         actions={
           <>
             {user?.perms.addOrder && (

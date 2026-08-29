@@ -176,7 +176,7 @@ export default function LoginPage() {
             <div className="animate-login-logo-float relative flex size-16 items-center justify-center rounded-2xl border border-black/5 bg-white shadow-lg shadow-zinc-900/10">
               {shop?.logoDataUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={shop.logoDataUrl} alt={shop.name || "Shop logo"} className="size-full rounded-2xl object-contain p-1.5" />
+                <img src={shop.logoDataUrl} alt={shop.name || "Company logo"} className="size-full rounded-2xl object-contain p-1.5" />
               ) : (
                 <Scissors className="size-7 text-primary" />
               )}

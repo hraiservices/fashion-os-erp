@@ -60,7 +60,7 @@ export function PayslipDocument({
           <View>
             {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf/renderer's Image, not an HTML img */}
             {logoDataUrl && <Image src={logoDataUrl} style={styles.logo} />}
-            <Text style={styles.shopName}>{shopName || "Shop"}</Text>
+            <Text style={styles.shopName}>{shopName || "Company"}</Text>
             {shopAddress && <Text style={styles.muted}>{shopAddress}</Text>}
             {shopPhone && <Text style={styles.muted}>{shopPhone}</Text>}
           </View>

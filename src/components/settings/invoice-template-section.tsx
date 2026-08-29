@@ -226,7 +226,7 @@ export function InvoiceTemplateSection() {
               <NumberInput min={16} max={200} value={active.logoWidth} onChange={(v) => updateActive({ logoWidth: v || 64 })} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Shop name size</label>
+              <label className="text-xs font-medium text-muted-foreground">Company name size</label>
               <NumberInput min={8} max={40} value={active.shopNameFontSize} onChange={(v) => updateActive({ shopNameFontSize: v || 16 })} />
             </div>
             <div className="space-y-1.5">
@@ -243,7 +243,7 @@ export function InvoiceTemplateSection() {
             </div>
           </div>
           <div className="flex flex-wrap gap-4 pt-1">
-            <CheckboxRow label="Bold shop name" checked={active.boldShopName} onChange={(v) => updateActive({ boldShopName: v })} />
+            <CheckboxRow label="Bold company name" checked={active.boldShopName} onChange={(v) => updateActive({ boldShopName: v })} />
             <CheckboxRow label="Bold customer name" checked={active.boldCustomerName} onChange={(v) => updateActive({ boldCustomerName: v })} />
           </div>
         </div>

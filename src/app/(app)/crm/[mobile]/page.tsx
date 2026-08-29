@@ -92,7 +92,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   const combinedLifetime = cust.spent + salesSpent;
   const tel = `tel:+91${mobile.replace(/\D/g, "").replace(/^91/, "").slice(-10)}`;
   const reminderUrl = `https://wa.me/91${normalizeIndianMobile(mobile)}?text=${encodeURIComponent(
-    `Dear *${cust.name}* 🙏\n\n₹${combinedDue} is due on your account at *${shop?.name || "our shop"}* (across orders and invoices).\nPlease clear at your earliest convenience.\n📞 ${shop?.phone || ""}`
+    `Dear *${cust.name}* 🙏\n\n₹${combinedDue} is due on your account at *${shop?.name || "our company"}* (across orders and invoices).\nPlease clear at your earliest convenience.\n📞 ${shop?.phone || ""}`
   )}`;
   const wardrobeUrl = buildWardrobeSummaryUrl(mobile, cust.name, custOrders, shop);
   const tier = loyaltyCfg?.enabled ? loyaltyTier(cust.totalEarned, loyaltyCfg) : null;

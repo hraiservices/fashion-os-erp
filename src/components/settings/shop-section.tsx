@@ -24,7 +24,7 @@ export function ShopSection() {
   async function onSave() {
     try {
       await save.mutateAsync(shop);
-      toast.success("Shop settings saved");
+      toast.success("Company settings saved");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save");
     }
@@ -60,15 +60,15 @@ export function ShopSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">Shop information</CardTitle>
+        <CardTitle className="text-sm">Company information</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label>Shop logo</Label>
+          <Label>Company logo</Label>
           <div className="flex items-center gap-3">
             {shop.logoDataUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={shop.logoDataUrl} alt="Shop logo" className="size-14 rounded-lg border bg-white object-contain" />
+              <img src={shop.logoDataUrl} alt="Company logo" className="size-14 rounded-lg border bg-white object-contain" />
             ) : (
               <div className="flex size-14 items-center justify-center rounded-lg border text-[10px] text-muted-foreground">None</div>
             )}
@@ -107,10 +107,10 @@ export function ShopSection() {
               )}
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">Shown as the browser tab icon. A simple square image works best — falls back to the shop logo above when not set.</p>
+          <p className="text-xs text-muted-foreground">Shown as the browser tab icon. A simple square image works best — falls back to the company logo above when not set.</p>
         </div>
         <div className="space-y-2">
-          <Label>Shop name</Label>
+          <Label>Company name</Label>
           <Input value={shop.name} onChange={(e) => setShop({ ...shop, name: e.target.value })} />
         </div>
         <div className="space-y-2">
@@ -127,7 +127,7 @@ export function ShopSection() {
         </div>
         <div className="space-y-2">
           <Label>Website URL (shown in WhatsApp messages, optional)</Label>
-          <Input value={shop.websiteUrl} onChange={(e) => setShop({ ...shop, websiteUrl: e.target.value })} placeholder="https://yourshop.com" />
+          <Input value={shop.websiteUrl} onChange={(e) => setShop({ ...shop, websiteUrl: e.target.value })} placeholder="https://yourcompany.com" />
         </div>
         <div className="space-y-2">
           <Label>Google review link (shown after delivery, optional)</Label>

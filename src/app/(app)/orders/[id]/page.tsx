@@ -250,7 +250,16 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
         <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
           {order.balance > 0 ? (
-            <WhatsAppButton href={paymentReminderUrl} label="Payment Reminder" className="h-12 w-full justify-center sm:h-8 sm:w-auto sm:justify-start" />
+            <WhatsAppButton
+              href={paymentReminderUrl}
+              label={
+                <>
+                  <span className="sm:hidden">Remind</span>
+                  <span className="hidden sm:inline">Payment Reminder</span>
+                </>
+              }
+              className="h-12 w-full justify-center sm:h-8 sm:w-auto sm:justify-start"
+            />
           ) : (
             <WhatsAppButton href={waUrl} label="WhatsApp" className="h-12 w-full justify-center sm:h-8 sm:w-auto sm:justify-start" />
           )}

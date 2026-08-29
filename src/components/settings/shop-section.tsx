@@ -42,6 +42,19 @@ export function ShopSection() {
     }
   }
 
+  async function handleFaviconUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      // Small — a favicon is only ever shown a few pixels wide.
+      const dataUrl = await fileToDataUrl(file, 64);
+      setShop((s) => ({ ...s, faviconDataUrl: dataUrl }));
+    } catch {
+      toast.error("Could not read image");
+    }
+  }
+
   if (isLoading) return <Skeleton className="h-48 w-full" />;
 
   return (
@@ -72,6 +85,29 @@ export function ShopSection() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground">Shown on the dashboard. Invoice PDF logos are set separately under Settings → Invoice Template.</p>
+        </div>
+        <div className="space-y-2">
+          <Label>Favicon</Label>
+          <div className="flex items-center gap-3">
+            {shop.faviconDataUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={shop.faviconDataUrl} alt="Favicon" className="size-14 rounded-lg border bg-white object-contain p-1" />
+            ) : (
+              <div className="flex size-14 items-center justify-center rounded-lg border text-[10px] text-muted-foreground">None</div>
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" nativeButton={false} render={<label className="cursor-pointer" />}>
+                Upload
+                <input type="file" accept="image/*" className="hidden" onChange={handleFaviconUpload} />
+              </Button>
+              {shop.faviconDataUrl && (
+                <Button variant="ghost" size="sm" onClick={() => setShop((s) => ({ ...s, faviconDataUrl: null }))}>
+                  Remove
+                </Button>
+              )}
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">Shown as the browser tab icon. A simple square image works best — falls back to the shop logo above when not set.</p>
         </div>
         <div className="space-y-2">
           <Label>Shop name</Label>

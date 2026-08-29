@@ -286,11 +286,11 @@ export function ProductLineItemsEditor({
               <div className={cn("grid gap-2 sm:contents", showDiscount ? "grid-cols-3" : "grid-cols-2")}>
                 <div className="sm:w-20">
                   <label className="mb-1 block text-[10px] font-medium text-muted-foreground sm:hidden">Qty</label>
-                  <Input type="number" min={0} step="1" placeholder="Qty" className="h-10 w-full sm:w-20" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
+                  <Input type="number" inputMode="numeric" min={0} step="1" placeholder="Qty" className="h-10 w-full sm:w-20" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
                 </div>
                 <div className="sm:w-28">
                   <label className="mb-1 block text-[10px] font-medium text-muted-foreground sm:hidden">Price</label>
-                  <Input type="number" min={0} step="0.01" placeholder="Price" className="h-10 w-full sm:w-28" value={line.unitPrice} onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })} />
+                  <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="Price" className="h-10 w-full sm:w-28" value={line.unitPrice} onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })} />
                 </div>
                 {showDiscount && (
                   <div className="sm:w-auto sm:shrink-0">
@@ -307,6 +307,7 @@ export function ProductLineItemsEditor({
                       </button>
                       <Input
                         type="number"
+                        inputMode="decimal"
                         min={0}
                         max={discountType === "percent" ? 100 : undefined}
                         step="0.01"

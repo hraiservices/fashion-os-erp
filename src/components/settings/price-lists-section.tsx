@@ -136,7 +136,7 @@ export function PriceListsSection() {
                   ))}
                 </SelectContent>
               </Select>
-              <Input type="number" min={0} step="0.01" placeholder="Price" className="w-28" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} />
+              <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="Price" className="w-28" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} />
               <Button size="sm" onClick={addItem} disabled={!newProductId || !newPrice || saveItem.isPending}>
                 <Plus className="size-3.5" /> Add
               </Button>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Plus, Receipt, Search, ArrowUpDown, Copy, Upload, Wallet, Send, Trash2 } from "lucide-react";
 import { useSalesInvoices, type SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
+import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { useSalesQuotations } from "@/hooks/use-sales-quotations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
@@ -78,7 +79,8 @@ function marginText(m: number | null): string {
 }
 
 export default function SalesInvoicesPage() {
-  const { data: invoices, isLoading } = useSalesInvoices();
+  const { data: invoices, isLoading: invoicesLoading } = useSalesInvoices();
+  const isLoading = useDelayedLoading(invoicesLoading);
   const { data: quotes } = useSalesQuotations();
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();

@@ -157,7 +157,7 @@ export default function StockTransferPage() {
 
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Quantity</Label>
-              <Input type="number" step="0.001" placeholder="e.g. 10" value={qty} onChange={(e) => setQty(e.target.value)} />
+              <Input type="number" inputMode="decimal" step="0.001" placeholder="e.g. 10" value={qty} onChange={(e) => setQty(e.target.value)} />
             </div>
 
             <div className="space-y-1.5">

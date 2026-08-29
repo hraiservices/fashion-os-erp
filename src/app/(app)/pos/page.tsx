@@ -101,7 +101,7 @@ function CloseRegisterDialog({ open, onOpenChange, sessionId, openingCash }: { o
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium">Counted cash</label>
-            <Input type="number" min={0} step="0.01" value={counted} onChange={(e) => setCounted(e.target.value)} autoFocus />
+            <Input type="number" inputMode="decimal" min={0} step="0.01" value={counted} onChange={(e) => setCounted(e.target.value)} autoFocus />
           </div>
           {counted && (
             <p className={`text-sm font-medium ${variance === 0 ? "text-muted-foreground" : variance > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
@@ -419,7 +419,7 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
                     </option>
                   ))}
                 </select>
-                <Input type="number" min={0} step="0.01" className="w-28" placeholder="Amount" value={t.amount} onChange={(e) => updateTender(i, { amount: e.target.value })} />
+                <Input type="number" inputMode="decimal" min={0} step="0.01" className="w-28" placeholder="Amount" value={t.amount} onChange={(e) => updateTender(i, { amount: e.target.value })} />
                 {tenders.length > 1 && (
                   <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => removeTender(i)} aria-label="Remove tender line">
                     <X className="size-3.5" />

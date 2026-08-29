@@ -227,6 +227,7 @@ export function CustomerForm() {
                           <label className="block text-[11px] font-medium text-muted-foreground">{label}</label>
                           <Input
                             type="number"
+                            inputMode="decimal"
                             min={0}
                             step={0.5}
                             placeholder="—"

@@ -187,7 +187,7 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
                 </Select>
               </FieldGroup>
               <FieldGroup label="Tax rate (%)">
-                <Input type="number" min={0} max={100} step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} disabled={gstType === "none"} className="h-10" />
+                <Input type="number" inputMode="decimal" min={0} max={100} step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} disabled={gstType === "none"} className="h-10" />
               </FieldGroup>
             </div>
           </div>

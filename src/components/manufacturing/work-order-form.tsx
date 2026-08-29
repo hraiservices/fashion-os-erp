@@ -189,10 +189,10 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
                 </Select>
               </FieldGroup>
               <FieldGroup label="Quantity to produce" required>
-                <Input type="number" min={1} step="1" value={qtyToProduce} onChange={(e) => setQtyToProduce(e.target.value)} className="h-10" />
+                <Input type="number" inputMode="numeric" min={1} step="1" value={qtyToProduce} onChange={(e) => setQtyToProduce(e.target.value)} className="h-10" />
               </FieldGroup>
               <FieldGroup label="Labor cost per piece (₹)" hint="Per unit labor cost for payroll calculations.">
-                <Input type="number" min={0} step="0.01" value={laborCostPerPiece} onChange={(e) => setLaborCostPerPiece(e.target.value)} className="h-10" />
+                <Input type="number" inputMode="decimal" min={0} step="0.01" value={laborCostPerPiece} onChange={(e) => setLaborCostPerPiece(e.target.value)} className="h-10" />
               </FieldGroup>
             </div>
           </div>

@@ -245,8 +245,8 @@ export default function DayBookPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Input placeholder="Min ₹" type="number" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} className="h-9 w-24" />
-            <Input placeholder="Max ₹" type="number" value={maxAmount} onChange={(e) => setMaxAmount(e.target.value)} className="h-9 w-24" />
+            <Input placeholder="Min ₹" type="number" inputMode="decimal" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} className="h-9 w-24" />
+            <Input placeholder="Max ₹" type="number" inputMode="decimal" value={maxAmount} onChange={(e) => setMaxAmount(e.target.value)} className="h-9 w-24" />
             <Button
               variant="outline"
               size="sm"

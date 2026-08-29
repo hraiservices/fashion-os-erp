@@ -17,7 +17,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
 const DEFAULT_COOLDOWN_DAYS = 14;
-const BLANK_CLOUD_API: WhatsAppCloudApiConfig = { phoneNumberId: "", accessToken: "", templateName: "", languageCode: "en_US" };
+const BLANK_CLOUD_API: WhatsAppCloudApiConfig = {
+  phoneNumberId: "",
+  accessToken: "",
+  templateName: "",
+  languageCode: "en_US",
+  appSecret: "",
+  verifyToken: "",
+  conciergeEnabled: false,
+};
 
 /** Settings for Customer Purchase Intelligence's product-recommendation messages (Phase 6). */
 export function RecommendationWhatsAppSection() {
@@ -105,6 +113,46 @@ export function RecommendationWhatsAppSection() {
               <Input value={draftCloudApi.languageCode} onChange={(e) => setDraftCloudApi({ ...draftCloudApi, languageCode: e.target.value })} placeholder="e.g. en_US" />
             </div>
           </div>
+        </div>
+
+        <div className="space-y-3 rounded-lg border p-3">
+          <div>
+            <p className="text-xs font-medium">AI order-status concierge (optional)</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              When a customer texts your WhatsApp Business number (e.g. &quot;where&apos;s my order&quot;), auto-reply
+              with their own recent stitching orders&apos; status, delivery date, and balance due — read-only, never
+              books, cancels, or reschedules anything. Requires the Phone Number ID/Access Token above, plus a
+              webhook registered in Meta Business Manager pointing at{" "}
+              <code className="rounded bg-muted px-1 py-0.5">/api/webhooks/whatsapp</code> on this deployment.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">App Secret</Label>
+              <Input
+                type="password"
+                value={draftCloudApi.appSecret || ""}
+                onChange={(e) => setDraftCloudApi({ ...draftCloudApi, appSecret: e.target.value })}
+                placeholder="From Meta App Dashboard → Settings → Basic"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Webhook Verify Token</Label>
+              <Input
+                value={draftCloudApi.verifyToken || ""}
+                onChange={(e) => setDraftCloudApi({ ...draftCloudApi, verifyToken: e.target.value })}
+                placeholder="Any string you also enter in Meta's webhook setup"
+              />
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={!!draftCloudApi.conciergeEnabled}
+              onChange={(e) => setDraftCloudApi({ ...draftCloudApi, conciergeEnabled: e.target.checked })}
+            />
+            Enable the concierge (leave off until the webhook is registered and tested)
+          </label>
         </div>
 
         <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" disabled={saveTemplate.isPending || saveCooldown.isPending || saveCloudApi.isPending} onClick={onSave}>

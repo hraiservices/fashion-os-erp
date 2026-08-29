@@ -7,7 +7,7 @@ import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, User2, Shirt, Wallet, Ruler, Gift, Check, ClipboardList, AlertTriangle, Receipt, TrendingUp, TrendingDown, Sparkles } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, User2, Shirt, Wallet, Ruler, Gift, Check, ClipboardList, AlertTriangle, Receipt, TrendingUp, TrendingDown, Sparkles, ScanLine } from "lucide-react";
 import { useCreateOrder, useUpdateOrder } from "@/hooks/use-order-mutations";
 import { useOrders } from "@/hooks/use-orders";
 import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
@@ -22,7 +22,7 @@ import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
-import { getTailorWorkload, estimateDeliveryDate } from "@/lib/analytics";
+import { getTailorWorkload, estimateDeliveryDate, estimateReworkRisk } from "@/lib/analytics";
 import {
   DEFAULT_RATES,
   DEFAULT_TAILOR_RATES,
@@ -41,6 +41,8 @@ import { inr, fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Order, OrderType, Employee, Customer } from "@/lib/types";
 import { MeasurementGrid } from "@/components/measurements/measurement-grid";
+import { useExtractMeasurements } from "@/hooks/use-measurement-extraction";
+import { fileToDataUrl } from "@/lib/image-utils";
 import { MediaCapture } from "@/components/orders/media-capture";
 import { Button } from "@/components/ui/button";
 import { FormActionBar } from "@/components/ui/form-action-bar";
@@ -214,6 +216,29 @@ function OrderFormFields({
     hydrateMeasurements(measureFields, existingOrder?.measurements)
   );
   const [measureLang, setMeasureLang] = useState<MeasureLang>("en");
+  const extractMeasurements = useExtractMeasurements();
+
+  async function handleScanChart(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      // Bigger and higher-quality than the logo/favicon uploads elsewhere — this needs to stay
+      // legible enough for Gemini to read handwritten numbers off it.
+      const imageDataUrl = await fileToDataUrl(file, 1600);
+      const values = await extractMeasurements.mutateAsync({ imageDataUrl, fields: measureFields });
+      const foundCount = Object.keys(values).length;
+      if (foundCount === 0) {
+        toast.error("Couldn't read any measurements off that photo — try a clearer/closer shot.");
+        return;
+      }
+      setMeasurements((m) => ({ ...m, ...values }));
+      const missed = Math.max(0, measureFields.length - foundCount);
+      toast.success(`Filled ${foundCount} field${foundCount === 1 ? "" : "s"} from the photo${missed > 0 ? ` — review the rest manually` : ""}. Double-check before saving.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't read the chart");
+    }
+  }
   const [images, setImages] = useState<string[]>(existingOrder?.images || []);
   const [audios, setAudios] = useState<string[]>(existingOrder?.audios || []);
   const [videos, setVideos] = useState<string[]>(existingOrder?.videos || []);
@@ -351,6 +376,14 @@ function OrderFormFields({
         )
       : undefined;
   const showDeliverySuggestion = !!deliveryEstimate && deliveryEstimate.date !== deliveryDate;
+
+  // Same spirit, applied to rework risk instead of a date: a fast deterministic estimate over
+  // this tailor's (and garment type's) own history of flagged rework / overdue orders — not an
+  // LLM call, so it can recompute live as tailor/garments change. Advisory only, never blocks
+  // saving the order.
+  const reworkRisk =
+    allOrders && selectedTailor && garments.length > 0 ? estimateReworkRisk(allOrders, selectedTailor, garments.map((g) => g.type)) : null;
+  const showReworkRisk = !!reworkRisk && (reworkRisk.level === "medium" || reworkRisk.level === "high");
 
   // Each garment also carries its OWN tailor field (drives per-garment piece-rate pay and the
   // Daily Tailor Worksheet report) — it's seeded from this order-level "Tailor" dropdown only
@@ -618,6 +651,23 @@ function OrderFormFields({
                   </span>
                 </div>
               )}
+              {showReworkRisk && reworkRisk && (
+                <div
+                  className={`flex items-start gap-2 rounded-lg border p-2.5 text-xs sm:col-span-2 ${
+                    reworkRisk.level === "high"
+                      ? "border-red-500/30 bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-300"
+                      : "border-amber-500/30 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                  }`}
+                >
+                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                  <span>
+                    <span className="font-medium">{reworkRisk.riskRate}%</span> of{" "}
+                    {reworkRisk.basis === "combo" ? "this tailor's past orders for these garments" : "this tailor's past orders"} ({reworkRisk.sampleSize} order
+                    {reworkRisk.sampleSize === 1 ? "" : "s"}) needed rework or ran late.{" "}
+                    {reworkRisk.level === "high" ? "Consider closer follow-up or an earlier delivery date." : "Worth a closer look."}
+                  </span>
+                </div>
+              )}
               <FieldGroup label="How did they find us?" hint="Optional — helps track which channels bring in orders." className="sm:col-span-2">
                 <Controller
                   control={control}
@@ -667,9 +717,23 @@ function OrderFormFields({
                     </span>
                   </AccordionTrigger>
                   <AccordionContent>
-                    <p className="-mt-2 mb-4 text-xs text-muted-foreground">
-                      {prefilled ? "Loaded from this customer's saved profile — edit as needed." : "Saved to the customer for next time."}
-                    </p>
+                    <div className="-mt-2 mb-4 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs text-muted-foreground">
+                        {prefilled ? "Loaded from this customer's saved profile — edit as needed." : "Saved to the customer for next time."}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={extractMeasurements.isPending}
+                        nativeButton={false}
+                        render={<label className="cursor-pointer" />}
+                      >
+                        <ScanLine className="size-3.5" />
+                        {extractMeasurements.isPending ? "Reading chart…" : "Scan chart"}
+                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScanChart} disabled={extractMeasurements.isPending} />
+                      </Button>
+                    </div>
                     <MeasurementGrid
                       fields={measureFields}
                       values={measurements}

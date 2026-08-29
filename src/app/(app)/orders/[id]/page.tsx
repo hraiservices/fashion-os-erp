@@ -166,7 +166,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 pb-36 sm:p-6 sm:pb-36 lg:pb-6">
+    <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
       <Link href="/orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" /> Orders
       </Link>
@@ -225,19 +225,20 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      {/* Actions — sticky on mobile so the primary action is always thumb-reachable. Horizontally
-          scrollable with no wrap: this row can hold up to 8 buttons (stage/payment/WhatsApp/edit/
-          rework/payables/tag/print/delete) and wrapping them would break the sticky mobile bar's
-          fixed height, so overflow-x-auto lets extra buttons scroll into view instead of spilling
-          past the card's edge. */}
-      <div className="fixed inset-x-0 bottom-16 z-30 flex gap-2 overflow-x-auto border-t bg-background/95 p-3 backdrop-blur print:hidden lg:static lg:z-auto lg:flex-wrap lg:overflow-visible lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+      {/* Actions — a plain wrapping row in normal document flow, not a fixed/sticky bar. A fixed
+          bottom bar fought for the same screen corner as the app-wide WhatsApp-support/AI-Copilot
+          bubbles (no amount of horizontal clearance fully avoided it) and forced a horizontally
+          scrollable row to fit its buttons, which is worse than just wrapping them — this can
+          hold up to 8 buttons (stage/payment/WhatsApp/edit/rework/payables/tag/print/delete) and
+          they simply flow onto more than one line on a narrow screen instead. */}
+      <div className="flex flex-wrap gap-2 print:hidden">
         {user?.perms.changeStage && next && (
-          <Button className={cn("shrink-0 flex-1 h-12 text-base sm:h-8 sm:text-sm lg:flex-none", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
+          <Button className={cn("h-12 text-base sm:h-8 sm:text-sm", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
             <ArrowRight className="size-4" /> Move to {STAGE_META[next].label}
           </Button>
         )}
         {user?.perms.managePayments && order.balance > 0 && (
-          <Button variant="outline" className="shrink-0 flex-1 h-12 text-base sm:h-8 sm:text-sm lg:flex-none" onClick={() => setPaymentOpen(true)}>
+          <Button variant="outline" className="h-12 text-base sm:h-8 sm:text-sm" onClick={() => setPaymentOpen(true)}>
             <Wallet className="size-4" /> Collect payment
           </Button>
         )}

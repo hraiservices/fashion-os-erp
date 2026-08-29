@@ -14,6 +14,10 @@ const configSchema = z.object({
   briefingTemplateName: z.string().default(""),
   readyTemplateName: z.string().default(""),
   paymentReminderTemplateName: z.string().default(""),
+  broadcastTemplateName: z.string().default(""),
+  /** WhatsApp Business Account ID — needed only to list approved templates from Meta's Graph
+   *  API (see the templates sub-route below); the phoneNumberId above is what sends still use. */
+  wabaId: z.string().default(""),
 });
 
 /**

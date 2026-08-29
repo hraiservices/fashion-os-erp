@@ -12,6 +12,7 @@ const configSchema = z.object({
   verifyToken: z.string().default(""),
   conciergeEnabled: z.boolean().default(false),
   briefingTemplateName: z.string().default(""),
+  readyTemplateName: z.string().default(""),
 });
 
 /**

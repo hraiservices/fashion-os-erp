@@ -16,9 +16,9 @@ FROM expenses;
 
 CREATE OR REPLACE VIEW v_chatbot_payments AS
 SELECT
-  op.id,
+  op.id::text AS id,
   'order' AS source,
-  op.order_id AS reference_id,
+  op.order_id::text AS reference_id,
   o.name AS customer_name,
   o.mobile AS customer_mobile,
   op.amount,
@@ -29,21 +29,21 @@ FROM order_payments op
 JOIN orders o ON o.id = op.order_id
 UNION ALL
 SELECT
-  sp.id,
+  sp.id::text AS id,
   'invoice' AS source,
-  sp.invoice_id AS reference_id,
+  sp.invoice_id::text AS reference_id,
   i.customer_name,
   sp.customer_mobile,
   sp.amount,
   sp.method,
-  sp.date AS date,
+  sp.date::date AS date,
   sp.created_at
 FROM sales_payments sp
 JOIN sales_invoices i ON i.id = sp.invoice_id;
 
 CREATE OR REPLACE VIEW v_chatbot_inventory AS
 SELECT
-  p.id,
+  p.id::text AS id,
   'product' AS item_type,
   p.name,
   p.sku,
@@ -52,18 +52,18 @@ SELECT
   p.low_stock_alert,
   (COALESCE(s.stock_qty, 0) <= p.low_stock_alert) AS is_low_stock
 FROM products p
-LEFT JOIN inventory_stock s ON s.item_type = 'product' AND s.item_id = p.id
+LEFT JOIN inventory_stock s ON s.item_type = 'product' AND s.item_id::text = p.id::text
 UNION ALL
 SELECT
-  rm.id,
+  rm.id::text AS id,
   'raw_material' AS item_type,
   rm.name,
-  NULL AS sku,
+  NULL::text AS sku,
   rm.category,
   COALESCE(s.stock_qty, 0) AS stock_qty,
   rm.low_stock_alert,
   (COALESCE(s.stock_qty, 0) <= rm.low_stock_alert) AS is_low_stock
 FROM raw_materials rm
-LEFT JOIN inventory_stock s ON s.item_type = 'raw_material' AND s.item_id = rm.id;
+LEFT JOIN inventory_stock s ON s.item_type = 'raw_material' AND s.item_id::text = rm.id::text;
 
 GRANT SELECT ON v_chatbot_expenses, v_chatbot_payments, v_chatbot_inventory TO chatbot_readonly;

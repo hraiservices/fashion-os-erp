@@ -30,6 +30,13 @@ const bodySchema = z.object({
  * credit amount — a user could raise a credit note larger than the original
  * invoice, minting phantom positive balance (free credit) and generating
  * phantom stock restocks that never actually happened.
+ *
+ * All of the validation (aggregate ₹ cap, per-product invoiced-quantity cap) plus the credit
+ * note insert and its inventory_ledger restock now happen inside record_sales_credit_note() —
+ * one SELECT ... FOR UPDATE-locked transaction, not a separate read-then-insert followed by a
+ * best-effort compensating delete. Two near-simultaneous credit notes against the same invoice
+ * used to both read the same "credited so far" and both pass, together over-crediting the
+ * invoice and double-restocking the same returned units.
  */
 export async function POST(request: Request) {
   const { supabase, user } = await getServerUser();
@@ -43,96 +50,23 @@ export async function POST(request: Request) {
   const total = computeLineItemsTotal(fd.items as SalesLineItem[]);
   if (total <= 0) return NextResponse.json({ error: "Add at least one returned item" }, { status: 400 });
 
-  // H-2: Guard — total credits issued must not exceed the original invoice amount.
-  const { data: invoice } = await supabase
-    .from("sales_invoices")
-    .select("total, items")
-    .eq("id", fd.invoiceId)
-    .single();
-  if (!invoice) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
-
-  const { data: existingCredits } = await supabase
-    .from("sales_credit_notes")
-    .select("total, items")
-    .eq("invoice_id", fd.invoiceId);
-
-  const creditedSoFar = (existingCredits || []).reduce((s, c) => s + (c.total || 0), 0);
-  const maxAllowed = invoice.total - creditedSoFar;
-
-  if (total > maxAllowed + 0.01) {
-    return NextResponse.json(
-      { error: `Credit note of ₹${total} exceeds the creditable balance of ₹${maxAllowed.toFixed(2)} (invoice ₹${invoice.total} minus ₹${creditedSoFar} already credited)` },
-      { status: 422 }
-    );
-  }
-
-  // Was previously validated only by aggregate ₹ total, never against what the invoice
-  // actually contained — a credit note could reference a product/quantity never sold on this
-  // invoice at all, inserting a phantom restock into inventory_ledger. Cap each returned
-  // line's quantity at (that product's invoiced quantity − already-credited quantity).
-  const invoicedQty = new Map<string, number>();
-  for (const i of (invoice.items as unknown as SalesLineItem[]) || []) {
-    if (!i.productId) continue;
-    invoicedQty.set(i.productId, (invoicedQty.get(i.productId) || 0) + (i.qty || 0));
-  }
-  const alreadyCreditedQty = new Map<string, number>();
-  for (const c of existingCredits || []) {
-    for (const i of (c.items as unknown as SalesLineItem[]) || []) {
-      if (!i.productId) continue;
-      alreadyCreditedQty.set(i.productId, (alreadyCreditedQty.get(i.productId) || 0) + (i.qty || 0));
-    }
-  }
-  for (const i of fd.items) {
-    if (!i.productId) continue;
-    const invoiced = invoicedQty.get(i.productId) || 0;
-    const creditedForItem = alreadyCreditedQty.get(i.productId) || 0;
-    const remaining = invoiced - creditedForItem;
-    if (i.qty > remaining + 0.001) {
-      return NextResponse.json(
-        { error: `Cannot return ${i.qty} of "${i.productName}" — only ${Math.max(0, remaining)} of that item on this invoice remain un-returned.` },
-        { status: 422 }
-      );
-    }
-  }
-
-  const { data: creditNote, error } = await supabase
-    .from("sales_credit_notes")
-    .insert({
-      credit_number: fd.creditNumber,
-      invoice_id: fd.invoiceId,
-      customer_mobile: fd.customerMobile,
-      date: fd.date,
-      items: fd.items as never,
-      total,
-      reason: fd.reason.trim(),
-      notes: fd.notes.trim(),
-      created_by: user.email,
-    })
-    .select()
-    .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  const ledgerRows = fd.items
-    .filter((i) => i.productId && i.qty > 0)
-    .map((i) => ({
-      item_type: "product" as const,
-      item_id: i.productId!,
-      movement: i.qty,
-      ref_type: "sale_return" as const,
-      ref_id: creditNote.id,
-      note: `Return against invoice ${fd.invoiceNumber}`,
-      created_by: user.email,
-    }));
-
-  if (ledgerRows.length) {
-    const { error: ledgerError } = await supabase.from("inventory_ledger").insert(ledgerRows);
-    if (ledgerError) {
-      // Compensating: delete the credit note we just created
-      await supabase.from("sales_credit_notes").delete().eq("id", creditNote.id);
-      return NextResponse.json({ error: ledgerError.message }, { status: 500 });
-    }
+  const { data: creditId, error } = await supabase.rpc("record_sales_credit_note", {
+    p_invoice_id: fd.invoiceId,
+    p_invoice_number: fd.invoiceNumber,
+    p_credit_number: fd.creditNumber,
+    p_customer_mobile: fd.customerMobile,
+    p_date: fd.date,
+    p_items: fd.items as never,
+    p_total: total,
+    p_reason: fd.reason.trim(),
+    p_notes: fd.notes.trim(),
+    p_created_by: user.email,
+  });
+  if (error) {
+    const status = error.message.includes("not found") ? 404 : error.message.includes("exceeds") || error.message.includes("Cannot return") ? 422 : 500;
+    return NextResponse.json({ error: error.message }, { status });
   }
 
   await logAction(supabase, user.email, `Credit note raised: ${fd.creditNumber} (₹${total}) against invoice ${fd.invoiceNumber}`);
-  return NextResponse.json({ ok: true, id: creditNote.id });
+  return NextResponse.json({ ok: true, id: creditId });
 }

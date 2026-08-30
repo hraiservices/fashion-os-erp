@@ -71,8 +71,10 @@ export const REORDER_LOOKBACK_DAYS = 30;
  * Purely a projection of recent pace, not aware of seasonality or upcoming bulk orders.
  */
 export function estimateReorder(currentStock: number, consumedInWindow: number, lookbackDays = REORDER_LOOKBACK_DAYS): ReorderEstimate {
+  // lookbackDays <= 0 has no meaningful rate to compute (would divide by zero, or by a
+  // negative number) — same "no estimate" answer as zero consumption.
+  if (lookbackDays <= 0 || consumedInWindow <= 0) return { dailyRate: 0, daysUntilEmpty: null };
   const dailyRate = consumedInWindow / lookbackDays;
-  if (dailyRate <= 0) return { dailyRate: 0, daysUntilEmpty: null };
   return { dailyRate, daysUntilEmpty: Math.max(0, Math.floor(currentStock / dailyRate)) };
 }
 

@@ -21,6 +21,12 @@ const bodySchema = z.object({
  * overpayment guard — any authenticated user could record a ₹0 payment or a
  * payment larger than the invoice total, either of which corrupts the
  * paid/balance figures derived from SUM(sales_payments.amount).
+ *
+ * The overpayment check below now happens inside record_sales_payment() (a single
+ * SELECT ... FOR UPDATE + INSERT), not as a separate read-then-insert in this route — two
+ * near-simultaneous payments against the same invoice used to both read the same "balance so
+ * far" and both pass, together overpaying it. Mirrors record_order_payment/
+ * record_vendor_payment's existing row-lock pattern.
  */
 export async function POST(request: Request) {
   const { supabase, user } = await getServerUser();
@@ -35,46 +41,20 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
 
-  // H-1: Overpayment guard — fetch the invoice total and outstanding balance.
-  const { data: invoice } = await supabase
-    .from("sales_invoices")
-    .select("total")
-    .eq("id", fd.invoiceId)
-    .single();
-  if (!invoice) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
-
-  const { data: existingPayments } = await supabase
-    .from("sales_payments")
-    .select("amount")
-    .eq("invoice_id", fd.invoiceId);
-
-  const { data: creditNotes } = await supabase
-    .from("sales_credit_notes")
-    .select("total")
-    .eq("invoice_id", fd.invoiceId);
-
-  const paidSoFar = (existingPayments || []).reduce((s, p) => s + (p.amount || 0), 0);
-  const creditedSoFar = (creditNotes || []).reduce((s, c) => s + (c.total || 0), 0);
-  const balance = invoice.total - paidSoFar - creditedSoFar;
-
-  if (fd.amount > balance + 0.01) {
-    return NextResponse.json(
-      { error: `Payment of ₹${fd.amount} exceeds the outstanding balance of ₹${balance.toFixed(2)}` },
-      { status: 422 }
-    );
-  }
-
-  const { error } = await supabase.from("sales_payments").insert({
-    invoice_id: fd.invoiceId,
-    customer_mobile: fd.customerMobile,
-    amount: fd.amount,
-    method: fd.method,
-    date: fd.date,
-    note: fd.note.trim(),
-    pos_session_id: fd.posSessionId ?? null,
-    created_by: user.email,
+  const { error } = await supabase.rpc("record_sales_payment", {
+    p_invoice_id: fd.invoiceId,
+    p_customer_mobile: fd.customerMobile,
+    p_amount: fd.amount,
+    p_method: fd.method,
+    p_date: fd.date,
+    p_note: fd.note.trim(),
+    p_pos_session_id: fd.posSessionId ?? null,
+    p_created_by: user.email,
   });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const status = error.message.includes("not found") ? 404 : error.message.includes("exceeds") ? 422 : 500;
+    return NextResponse.json({ error: error.message }, { status });
+  }
 
   await logAction(supabase, user.email, `Payment received: ₹${fd.amount} for invoice ${fd.invoiceNumber}`);
   return NextResponse.json({ ok: true });

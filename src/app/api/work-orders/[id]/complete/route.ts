@@ -23,6 +23,12 @@ const bodySchema = z.object({ materials: z.array(materialSchema) });
  * laborCostPerPiece and tailor are read from the row itself rather than trusted from the
  * request body — the client only supplies what it's actually responsible for reporting
  * (how much material was really used/wasted).
+ *
+ * The status update, consumption ledger rows, and production ledger row all happen inside
+ * complete_work_order() — one transaction, not three independent calls. A crash/timeout
+ * between them used to be able to leave a work order "completed" with materials consumed but
+ * nothing produced (or the reverse); now either the whole completion commits or none of it
+ * does, and a concurrent duplicate "complete" click is rejected by the RPC's own row lock.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -46,47 +52,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const materials = parsed.data.materials as WorkOrderMaterial[];
   const cost = computeWoCost(materials, wo.labor_cost_per_piece, wo.qty_to_produce);
 
-  const { error } = await supabase
-    .from("work_orders")
-    .update({
-      status: "completed",
-      materials: materials as never,
-      material_cost: cost.materialCost,
-      wastage_cost: cost.wastageCost,
-      labor_cost: cost.laborCost,
-      total_cost: cost.totalCost,
-      cost_per_unit: cost.costPerUnit,
-      completed_at: new Date().toISOString(),
-    })
-    .eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
   const consumeRows = materials
     .filter((m) => (m.qtyUsed || 0) + (m.qtyWasted || 0) > 0)
     .map((m) => ({
-      item_type: "raw_material" as const,
-      item_id: m.rawMaterialId,
+      itemId: m.rawMaterialId,
       movement: -((m.qtyUsed || 0) + (m.qtyWasted || 0)),
-      ref_type: "work_order_consume" as const,
-      ref_id: id,
       note: `Consumed for ${wo.wo_number}`,
-      created_by: user.email,
     }));
-  if (consumeRows.length) {
-    const { error: consumeError } = await supabase.from("inventory_ledger").insert(consumeRows);
-    if (consumeError) return NextResponse.json({ error: consumeError.message }, { status: 500 });
-  }
 
-  const { error: produceError } = await supabase.from("inventory_ledger").insert({
-    item_type: "product",
-    item_id: wo.product_id,
-    movement: wo.qty_to_produce,
-    ref_type: "work_order_produce",
-    ref_id: id,
-    note: `Produced by ${wo.wo_number}`,
-    created_by: user.email,
+  const { error } = await supabase.rpc("complete_work_order", {
+    p_work_order_id: id,
+    p_materials: materials as never,
+    p_material_cost: cost.materialCost,
+    p_wastage_cost: cost.wastageCost,
+    p_labor_cost: cost.laborCost,
+    p_total_cost: cost.totalCost,
+    p_cost_per_unit: cost.costPerUnit,
+    p_consume: consumeRows as never,
+    p_product_id: wo.product_id,
+    p_qty_to_produce: wo.qty_to_produce,
+    p_wo_number: wo.wo_number,
+    p_created_by: user.email,
   });
-  if (produceError) return NextResponse.json({ error: produceError.message }, { status: 500 });
+  if (error) {
+    const status = error.message.includes("not found") ? 404 : error.message.includes("already completed") ? 409 : 500;
+    return NextResponse.json({ error: error.message }, { status });
+  }
 
   await logAction(supabase, user.email, `Work order completed: ${wo.wo_number}`, null, `Cost/unit ₹${cost.costPerUnit}`);
   return NextResponse.json({ ok: true, costPerUnit: cost.costPerUnit });

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
+import { istDateString } from "@/lib/ist-date";
 
 export interface BriefingSummary {
   overdueOrders: { count: number; balance: number };
@@ -18,7 +19,7 @@ export interface BriefingSummary {
  * route that calls this has no logged-in session.
  */
 export async function buildBriefingSummary(supabase: SupabaseClient<Database>): Promise<BriefingSummary> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = istDateString();
 
   const [ordersRes, invoicesRes, paymentsTodayRes, rawMaterialsRes, productsRes, ledgerRes] = await Promise.all([
     supabase.from("v_chatbot_orders").select("balance, is_overdue, created_at"),

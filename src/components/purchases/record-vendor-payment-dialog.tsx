@@ -14,6 +14,7 @@ import { BalanceDue } from "@/components/ui/money-text";
 import { useRecordVendorPayment } from "@/hooks/use-purchase-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr } from "@/lib/format";
+import { istDateString } from "@/lib/ist-date";
 
 const METHODS = ["Cash", "UPI", "Bank Transfer", "Cheque", "Card"];
 
@@ -37,7 +38,7 @@ export function RecordVendorPaymentDialog({
 
   const [amount, setAmount] = useState(String(balance || ""));
   const [method, setMethod] = useState("Cash");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(istDateString());
   const [note, setNote] = useState("");
 
   function handleClose() {

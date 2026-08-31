@@ -23,6 +23,7 @@ import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type Editabl
 import { usePriceListItemsMap } from "@/hooks/use-price-lists";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import type { Customer, SalesQuotation } from "@/lib/types";
+import { istDateString } from "@/lib/ist-date";
 
 const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
 
@@ -64,7 +65,7 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
   const [customer, setCustomer] = useState<Customer | null>(existing ? placeholderCustomer(existing.customerName, existing.customerMobile) : null);
   const priceOverrides = usePriceListItemsMap(customer?.priceListId);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [date, setDate] = useState(existing?.date || new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(existing?.date || istDateString());
   const [validUntil, setValidUntil] = useState(existing?.validUntil || "");
   const [lines, setLines] = useState<EditableSalesLine[]>(
     existing

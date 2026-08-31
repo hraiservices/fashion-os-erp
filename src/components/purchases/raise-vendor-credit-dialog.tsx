@@ -12,6 +12,7 @@ import { useRaiseVendorCredit } from "@/hooks/use-purchase-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { genCreditNumber } from "@/lib/purchases";
 import { LineItemsEditor, linesToItems, blankLine, type EditableLine } from "@/components/purchases/line-items-editor";
+import { istDateString } from "@/lib/ist-date";
 
 export function RaiseVendorCreditDialog({
   open,
@@ -32,7 +33,7 @@ export function RaiseVendorCreditDialog({
   const [lines, setLines] = useState<EditableLine[]>([blankLine()]);
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(istDateString());
 
   function handleClose() {
     setLines([blankLine()]);

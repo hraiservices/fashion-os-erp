@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePicker } from "@/components/ui/date-picker";
 import { inr } from "@/lib/format";
 import type { WorkOrder } from "@/lib/types";
+import { istDateString } from "@/lib/ist-date";
 
 function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
@@ -60,7 +61,7 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
   const [productId, setProductId] = useState(existing?.productId || "");
   const [qtyToProduce, setQtyToProduce] = useState(String(existing?.qtyToProduce ?? 1));
   const [tailor, setTailor] = useState(existing?.tailor || "");
-  const [startDate, setStartDate] = useState(existing?.startDate || new Date().toISOString().slice(0, 10));
+  const [startDate, setStartDate] = useState(existing?.startDate || istDateString());
   const [dueDate, setDueDate] = useState(existing?.dueDate || "");
   const [laborCostPerPiece, setLaborCostPerPiece] = useState(String(existing?.laborCostPerPiece ?? 0));
   const [notes, setNotes] = useState(existing?.notes || "");

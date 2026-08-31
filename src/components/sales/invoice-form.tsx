@@ -35,6 +35,7 @@ import { DEFAULT_DOCUMENT_NUMBERING, type DocumentNumberingSettings } from "@/li
 import type { Customer, SalesInvoice, InvoiceDocStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { istDateString } from "@/lib/ist-date";
 
 const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
 const paymentTermLabel = (v: unknown) => PAYMENT_TERM_LABELS[v as PaymentTerm] ?? "";
@@ -94,7 +95,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
   const priceOverrides = usePriceListItemsMap(customer?.priceListId);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [subject, setSubject] = useState(existing?.subject || "");
-  const [invoiceDate, setInvoiceDate] = useState(existing?.invoiceDate || new Date().toISOString().slice(0, 10));
+  const [invoiceDate, setInvoiceDate] = useState(existing?.invoiceDate || istDateString());
   const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>("due_on_receipt");
   const [dueDate, setDueDate] = useState(existing?.dueDate || "");
   const [lines, setLines] = useState<EditableSalesLine[]>(

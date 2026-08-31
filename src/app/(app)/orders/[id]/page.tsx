@@ -16,6 +16,7 @@ import { useAppSetting } from "@/hooks/use-app-setting";
 import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
 import { computeOrderProfit } from "@/lib/order-profit";
 import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppUrl, DEFAULT_TAILOR_RATES, isValidManualOrderNumber, type Lining, type TailorRateCard } from "@/lib/business-rules";
+import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
 import { inr, fmtDate } from "@/lib/format";
@@ -63,6 +64,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const nextOrderId = orderIndex >= 0 && allOrders && orderIndex < allOrders.length - 1 ? allOrders[orderIndex + 1]?.id : undefined;
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
+  const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   const advanceStage = useAdvanceStage();
   const deleteOrder = useDeleteOrder();
   const renameOrder = useRenameOrder();
@@ -142,8 +144,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   const next = getNextStage(order.status);
   const orderName = order.name;
-  const waUrl = buildWhatsAppUrl(order, resolveWaType(order), shop);
-  const paymentReminderUrl = buildWhatsAppUrl(order, "paymentDue", shop);
+  const waUrl = buildWhatsAppUrl(order, resolveWaType(order), shop, waTemplates);
+  const paymentReminderUrl = buildWhatsAppUrl(order, "paymentDue", shop, waTemplates);
   const paidPct = order.total > 0 ? Math.round((order.advance / order.total) * 100) : 0;
 
   const orderBalance = order.balance;

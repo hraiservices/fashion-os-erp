@@ -5,6 +5,8 @@ import { ChevronRight, Wallet } from "lucide-react";
 import { getNextStage, buildWhatsAppUrl, STAGE_META } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
+import { useAppSetting } from "@/hooks/use-app-setting";
+import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { inr, fmtDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { deliveryTarget, formatCountdownDHM, useCountdownNow } from "@/lib/delivery-countdown";
@@ -79,9 +81,10 @@ function AdvanceButton({ order, onAdvance, advancing, compact }: RowProps & { co
 }
 
 function OrderWhatsAppButton({ order, shop, compact }: { order: Order; shop?: Shop; compact?: boolean }) {
+  const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   return (
     <WhatsAppIconButton
-      href={buildWhatsAppUrl(order, resolveWaType(order), shop)}
+      href={buildWhatsAppUrl(order, resolveWaType(order), shop, waTemplates)}
       label={`WhatsApp ${order.name}`}
       className={cn("size-9", !compact && "sm:size-8")}
     />

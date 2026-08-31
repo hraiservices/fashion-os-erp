@@ -4,7 +4,9 @@ import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useShopSettings } from "@/hooks/use-shop-settings";
+import { useAppSetting } from "@/hooks/use-app-setting";
 import { buildWhatsAppUrl } from "@/lib/business-rules";
+import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -22,6 +24,7 @@ const BAND_STYLE: Record<string, string> = {
 export default function BalanceAgingPage() {
   const { aging, isLoading } = useReportsData();
   const { data: shop } = useShopSettings();
+  const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -75,7 +78,7 @@ export default function BalanceAgingPage() {
                   <BalanceDue amount={o.balance} />
                 </Td>
                 <Td align="right">
-                  <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop)} label={`Payment reminder to ${o.name}`} />
+                  <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop, waTemplates)} label={`Payment reminder to ${o.name}`} />
                 </Td>
               </tr>
             ))}

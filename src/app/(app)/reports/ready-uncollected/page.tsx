@@ -4,7 +4,9 @@ import Link from "next/link";
 import { PackageCheck } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useShopSettings } from "@/hooks/use-shop-settings";
+import { useAppSetting } from "@/hooks/use-app-setting";
 import { buildWhatsAppUrl } from "@/lib/business-rules";
+import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { fmtDate } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -18,6 +20,7 @@ import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 export default function ReadyUncollectedPage() {
   const { readyUncollected, isLoading } = useReportsData();
   const { data: shop } = useShopSettings();
+  const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -54,7 +57,7 @@ export default function ReadyUncollectedPage() {
                 </Td>
                 <Td align="right">{o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}</Td>
                 <Td align="right">
-                  <WhatsAppIconButton href={buildWhatsAppUrl(o, o.balance > 0 ? "paymentDue" : "ready", shop)} label={`Pickup reminder to ${o.name}`} />
+                  <WhatsAppIconButton href={buildWhatsAppUrl(o, o.balance > 0 ? "paymentDue" : "ready", shop, waTemplates)} label={`Pickup reminder to ${o.name}`} />
                 </Td>
               </tr>
             ))}

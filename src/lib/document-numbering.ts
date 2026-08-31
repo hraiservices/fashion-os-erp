@@ -57,7 +57,13 @@ export function periodKeyFor(fmt: DocNumberFormat, year: number): string {
 export function formatDocNumber(fmt: DocNumberFormat, n: number, year: number): string {
   const num = String(n).padStart(fmt.padding, "0");
   const parts = [fmt.prefix, ...(fmt.includeYear ? [String(year)] : []), num];
-  return parts.join(fmt.separator);
+  // The settings form blocks typing "/" going forward, but that's a UI-only guard — a shop
+  // whose app_settings row was saved back when "/" was still the default separator (as this
+  // one was) keeps generating broken ids from every order/invoice created after the UI fix,
+  // since nothing here re-validates what was already persisted. Sanitize at the point the
+  // separator actually gets used, so a stale stored value can never produce another one.
+  const separator = fmt.separator === INVALID_SEPARATOR ? "-" : fmt.separator;
+  return parts.join(separator);
 }
 
 /** Live one-line preview shown in the settings UI, e.g. "INV/2026/0001". */

@@ -57,6 +57,7 @@ import { BalanceDue } from "@/components/ui/money-text";
 import { DatePicker } from "@/components/ui/date-picker";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { istDateString } from "@/lib/ist-date";
 
 const garmentSchema = z.object({
   type: z.string().min(1, "Select a garment"),
@@ -116,7 +117,12 @@ type RateCard = Record<string, Record<Lining, number>>;
 const LININGS = Object.keys(LINING_LABELS) as Lining[];
 
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  // istDateString, NOT toISOString: toISOString() is always UTC regardless of device timezone,
+  // so between 00:00 and 05:30 IST (a device correctly set to IST included) it silently returns
+  // YESTERDAY's date — a new order's default "Order date" landed a day (and, at a month
+  // boundary, a whole month) behind reality, which is exactly what fed the dashboard's monthly
+  // charts the wrong bucket even after that bucketing math itself was fixed to use IST.
+  return istDateString();
 }
 
 /** "HH:mm" in local time — the current wall-clock moment an order is being received. */

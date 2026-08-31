@@ -20,7 +20,7 @@ export default function CombinedPlPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
-    <ReportShell title="Combined P&L" description="All revenue (stitching + product sales) against all costs — purchases, stitching job costs, manufacturing labour, shop expenses and salaries — last 6 months">
+    <ReportShell title="Combined P&L" description="All revenue (stitching + product sales) against all costs — purchases, stitching job costs, manufacturing labour, company expenses and salaries — last 6 months">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Total Revenue" value={inr(totals.revenue)} icon={TrendingUp} tone="success" />
         <StatCard label="Total Cost" value={inr(totals.cost)} icon={TrendingDown} tone="danger" />
@@ -91,9 +91,9 @@ export default function CombinedPlPage() {
         </tbody>
       </ReportTable>
       <p className="text-xs text-muted-foreground">
-        Stitching Cost is booked by each order's intake date, but Salaries is booked by when a payslip was actually paid — a garment taken in one month whose tailor is paid via a
+        Stitching Cost is booked by each order&apos;s intake date, but Salaries is booked by when a payslip was actually paid — a garment taken in one month whose tailor is paid via a
         later payroll run shows its cost in the earlier month and the matching salary reduction in the later one. Totals across the full period are still correct either way; a single
-        month's Net Profit can shift a little depending on payroll timing.
+        month&apos;s Net Profit can shift a little depending on payroll timing.
       </p>
     </ReportShell>
   );

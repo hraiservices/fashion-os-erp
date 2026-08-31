@@ -24,7 +24,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
         <div className="flex items-center gap-3">
           {showLogo && (
             // eslint-disable-next-line @next/next/no-img-element -- data URL, not an optimizable remote image
-            <img src={template.logoDataUrl!} alt={shopName || "Shop logo"} className="h-12 w-12 shrink-0 rounded object-contain" />
+            <img src={template.logoDataUrl!} alt={shopName || "Company logo"} className="h-12 w-12 shrink-0 rounded object-contain" />
           )}
           <div>
             <h1 className="text-lg font-semibold">{shopName || "Invoice"}</h1>
@@ -189,7 +189,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
         </div>
       )}
 
-      <p className="pt-4 text-center text-xs text-muted-foreground">{shopName || "Your Shop"} · Generated from Fashion Flow</p>
+      <p className="pt-4 text-center text-xs text-muted-foreground">{shopName || "Your Company"} · Generated from Fashion Flow</p>
     </div>
   );
 }

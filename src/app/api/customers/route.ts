@@ -20,6 +20,7 @@ const bodySchema = z.object({
   measurements: z.record(z.string(), z.unknown()).optional(),
   tags: z.array(z.string()).optional(),
   gstin: z.string().optional(),
+  whatsappOptOut: z.boolean().optional(),
 });
 
 /**
@@ -80,6 +81,7 @@ export async function POST(request: Request) {
     gstin: fd.gstin || "",
     ...(fd.measurements ? { measurements: fd.measurements as Json } : {}),
     ...(fd.tags ? { tags: fd.tags } : {}),
+    ...(fd.whatsappOptOut !== undefined ? { whatsapp_opt_out: fd.whatsappOptOut } : {}),
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

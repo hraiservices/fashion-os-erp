@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BalanceDue } from "@/components/ui/money-text";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function PurchaseBillsPage() {
@@ -81,10 +82,10 @@ export default function PurchaseBillsPage() {
           <span className="text-sm font-medium">{selection.count} selected</span>
           <div className="ml-auto flex flex-wrap gap-2">
             <ExportMenu rows={bulkExportRows} filename="bills_export" disabled={bulkBusy} />
-            <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
+            <Button variant="destructive" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
               <Trash2 className="size-3.5" /> Delete
             </Button>
-            <Button variant="ghost" size="sm" onClick={selection.clear} disabled={bulkBusy}>
+            <Button variant="ghost" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={selection.clear} disabled={bulkBusy}>
               Clear
             </Button>
           </div>
@@ -114,19 +115,17 @@ export default function PurchaseBillsPage() {
         <div className="space-y-2">
           {canManage && bills.length > 0 && (
             <label className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
-              <input type="checkbox" checked={selection.allSelected} onChange={selection.toggleAll} aria-label="Select all bills" />
+              <Checkbox checked={selection.allSelected} onChange={selection.toggleAll} aria-label="Select all bills" />
               Select all
             </label>
           )}
           {bills.map((b) => (
             <div key={b.id} className="flex items-center gap-2 rounded-xl border bg-card p-3 hover:bg-muted/40">
               {canManage && (
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={selection.selected.has(b.id)}
                   onChange={() => selection.toggle(b.id)}
                   aria-label={`Select bill ${b.billNumber}`}
-                  className="shrink-0"
                 />
               )}
               <Link href={`/purchases/bills/${b.id}`} className="flex min-w-0 flex-1 items-center gap-3">

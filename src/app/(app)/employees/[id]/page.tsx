@@ -167,7 +167,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
           </div>
           <div className="flex flex-wrap items-center gap-2 border-b p-4">
             <Wallet className="size-4 shrink-0 text-muted-foreground" />
-            <Input type="number" min={0} step="0.01" placeholder="Amount" className="w-32" value={advanceAmount} onChange={(e) => setAdvanceAmount(e.target.value)} />
+            <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="Amount" className="w-32" value={advanceAmount} onChange={(e) => setAdvanceAmount(e.target.value)} />
             <Input placeholder="Note (optional)" className="flex-1 min-w-32" value={advanceNote} onChange={(e) => setAdvanceNote(e.target.value)} />
             <Button size="sm" onClick={handleAddAdvance} disabled={addAdvance.isPending}>
               <Plus className="size-3.5" /> Record advance
@@ -186,7 +186,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                     </p>
                   </div>
                   {!a.payslipId && (
-                    <Button variant="ghost" size="icon-sm" onClick={() => handleDeleteAdvance(a.id)} aria-label="Remove advance">
+                    <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => handleDeleteAdvance(a.id)} aria-label="Remove advance">
                       <Trash2 className="size-3.5" />
                     </Button>
                   )}

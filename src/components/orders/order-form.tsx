@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, User2, Shirt, Wallet, Ruler, Gift, Check, ClipboardList, AlertTriangle, Receipt, TrendingUp, TrendingDown } from "lucide-react";
-import { useCreateOrder, useUpdateOrder, type NewOrderExpenseInput } from "@/hooks/use-order-mutations";
+import { ArrowLeft, Plus, Trash2, User2, Shirt, Wallet, Ruler, Gift, Check, ClipboardList, AlertTriangle, Receipt, TrendingUp, TrendingDown, Sparkles, ScanLine } from "lucide-react";
+import { useCreateOrder, useUpdateOrder } from "@/hooks/use-order-mutations";
 import { useOrders } from "@/hooks/use-orders";
 import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
 import { CustomerPicker } from "@/components/sales/customer-picker";
@@ -21,7 +21,9 @@ import { useActiveTailors } from "@/hooks/use-employees";
 import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
-import { getTailorWorkload } from "@/lib/analytics";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
+import { getTailorWorkload, estimateDeliveryDate, estimateReworkRisk, rankTailorsForOrder } from "@/lib/analytics";
+import { DEFAULT_FABRIC_USAGE, estimateFabricRequirement } from "@/lib/fabric-usage";
 import {
   DEFAULT_RATES,
   DEFAULT_TAILOR_RATES,
@@ -35,11 +37,14 @@ import {
   type TailorRateCard,
 } from "@/lib/business-rules";
 import { computeOrderProfit } from "@/lib/order-profit";
-import { hydrateMeasurements, compactMeasurements, toMKey, type MeasureLang } from "@/lib/measurements";
-import { inr } from "@/lib/format";
+import { hydrateMeasurements, compactMeasurements, type MeasureLang } from "@/lib/measurements";
+import { inr, fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Order, OrderType, Employee, Customer } from "@/lib/types";
 import { MeasurementGrid } from "@/components/measurements/measurement-grid";
+import { useExtractMeasurements } from "@/hooks/use-measurement-extraction";
+import { useTranscribeVoiceNote } from "@/hooks/use-transcribe-voice-note";
+import { fileToDataUrl } from "@/lib/image-utils";
 import { MediaCapture } from "@/components/orders/media-capture";
 import { Button } from "@/components/ui/button";
 import { FormActionBar } from "@/components/ui/form-action-bar";
@@ -50,6 +55,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
 import { DatePicker } from "@/components/ui/date-picker";
+import { TimePicker } from "@/components/ui/time-picker";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
 const garmentSchema = z.object({
   type: z.string().min(1, "Select a garment"),
@@ -211,21 +218,65 @@ function OrderFormFields({
     hydrateMeasurements(measureFields, existingOrder?.measurements)
   );
   const [measureLang, setMeasureLang] = useState<MeasureLang>("en");
+  const extractMeasurements = useExtractMeasurements();
+
+  async function handleScanChart(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      // Bigger and higher-quality than the logo/favicon uploads elsewhere — this needs to stay
+      // legible enough for Gemini to read handwritten numbers off it.
+      const imageDataUrl = await fileToDataUrl(file, 1600);
+      const values = await extractMeasurements.mutateAsync({ imageDataUrl, fields: measureFields });
+      const foundCount = Object.keys(values).length;
+      if (foundCount === 0) {
+        toast.error("Couldn't read any measurements off that photo — try a clearer/closer shot.");
+        return;
+      }
+      setMeasurements((m) => ({ ...m, ...values }));
+      const missed = Math.max(0, measureFields.length - foundCount);
+      toast.success(`Filled ${foundCount} field${foundCount === 1 ? "" : "s"} from the photo${missed > 0 ? ` — review the rest manually` : ""}. Double-check before saving.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't read the chart");
+    }
+  }
   const [images, setImages] = useState<string[]>(existingOrder?.images || []);
   const [audios, setAudios] = useState<string[]>(existingOrder?.audios || []);
   const [videos, setVideos] = useState<string[]>(existingOrder?.videos || []);
+  const transcribeVoiceNote = useTranscribeVoiceNote();
+  const [transcribingIndex, setTranscribingIndex] = useState<number | null>(null);
+
+  async function handleTranscribe(audioDataUrl: string, index: number) {
+    setTranscribingIndex(index);
+    try {
+      const text = await transcribeVoiceNote.mutateAsync(audioDataUrl);
+      if (text === "(could not transcribe)") {
+        toast.error("Couldn't make out that recording — try re-recording somewhere quieter.");
+        return;
+      }
+      const current = getValues("special");
+      setValue("special", current ? `${current}\n🎤 ${text}` : text, { shouldDirty: true });
+      toast.success("Added to Special Instructions — review before saving.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't transcribe that recording");
+    } finally {
+      setTranscribingIndex(null);
+    }
+  }
   const [usePoints, setUsePoints] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [prefilled, setPrefilled] = useState(false);
-  const [measureOpen, setMeasureOpen] = useState(!isAlteration);
+  const [measureOpen, setMeasureOpen] = useState(false);
+  const [costsOpen, setCostsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const {
     register,
     control,
     handleSubmit,
-    watch,
     setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -295,14 +346,14 @@ function OrderFormFields({
   // touch anything.
   const isSeededPlaceholderOrder = isEdit && existingOrder!.garments.length === 0;
   const { fields: expenseFields, append: appendExpense, remove: removeExpense } = useFieldArray({ control, name: "expenses" });
-  const garments = watch("garments");
-  const expenses = watch("expenses") || [];
-  const advance = watch("advance") || 0;
-  const mobile = watch("mobile");
-  const name = watch("name");
-  const selectedTailor = watch("tailor");
-  const fabricCost = watch("fabricCost") || 0;
-  const otherCost = watch("otherCost") || 0;
+  const garments = useWatch({ control, name: "garments" });
+  const expenses = useWatch({ control, name: "expenses" }) || [];
+  const advance = useWatch({ control, name: "advance" }) || 0;
+  const mobile = useWatch({ control, name: "mobile" });
+  const name = useWatch({ control, name: "name" });
+  const selectedTailor = useWatch({ control, name: "tailor" });
+  const fabricCost = useWatch({ control, name: "fabricCost" }) || 0;
+  const otherCost = useWatch({ control, name: "otherCost" }) || 0;
   const total = garments.reduce((s, g) => s + (g.amount || 0) * (g.no || 1), 0);
   const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
 
@@ -331,6 +382,49 @@ function OrderFormFields({
   const tailorWorkload = allOrders && selectedTailor ? getTailorWorkload(allOrders).find((w) => w.tailor === selectedTailor) : undefined;
   const showCapacityWarning = !!tailorWorkload && (tailorWorkload.capacity === "High" || tailorWorkload.capacity === "Overloaded") && (!existingOrder || existingOrder.tailor !== selectedTailor);
 
+  // AI-adjacent smart suggestion (not an LLM call — a fast deterministic estimate so it can
+  // recompute live on every keystroke): the tailor's own historical turnaround if they have
+  // enough completed orders to trust, else the shop-wide average for these garment types,
+  // plus a queue-depth buffer and a day per garment beyond the first. Purely advisory — a chip
+  // next to the field, never auto-applied over whatever the user actually picks.
+  const inDate = useWatch({ control, name: "inDate" });
+  const deliveryDate = useWatch({ control, name: "deliveryDate" });
+  const deliveryEstimate =
+    allOrders && selectedTailor && inDate && garments.length > 0
+      ? estimateDeliveryDate(
+          allOrders,
+          selectedTailor,
+          garments.map((g) => g.type),
+          inDate
+        )
+      : undefined;
+  const showDeliverySuggestion = !!deliveryEstimate && deliveryEstimate.date !== deliveryDate;
+
+  // Same spirit, applied to rework risk instead of a date: a fast deterministic estimate over
+  // this tailor's (and garment type's) own history of flagged rework / overdue orders — not an
+  // LLM call, so it can recompute live as tailor/garments change. Advisory only, never blocks
+  // saving the order.
+  const reworkRisk =
+    allOrders && selectedTailor && garments.length > 0 ? estimateReworkRisk(allOrders, selectedTailor, garments.map((g) => g.type)) : null;
+  const showReworkRisk = !!reworkRisk && (reworkRisk.level === "medium" || reworkRisk.level === "high");
+
+  // "Best tailor" recommendation — same combine-existing-signals idea as the rework-risk flag,
+  // just ranking every tailor instead of scoring the one already picked. Only worth surfacing
+  // before a tailor is chosen (or a brand-new order still on the auto-picked default) — once
+  // someone has deliberately picked a tailor themselves, second-guessing that on every garment
+  // edit would be noise, not help.
+  const recommendedTailor =
+    allOrders && tailors.length > 1 && garments.length > 0 && (!isEdit || !existingOrder?.tailor)
+      ? rankTailorsForOrder(allOrders, tailors.map((t) => t.id), garments.map((g) => g.type))[0]
+      : undefined;
+  const showTailorRecommendation = !!recommendedTailor && recommendedTailor.tailorId !== selectedTailor;
+
+  // Fabric requirement estimate — a configurable reference table (Settings → Rate Card), not
+  // learned from past orders like the estimators above: stitching orders never record a
+  // meters-consumed figure to learn from, only a ₹ fabricCost. See lib/fabric-usage.ts.
+  const { data: fabricUsage } = useAppSetting<Record<string, number>>("fabricUsage", DEFAULT_FABRIC_USAGE);
+  const fabricEstimate = estimateFabricRequirement(garments, fabricUsage || DEFAULT_FABRIC_USAGE);
+
   // Each garment also carries its OWN tailor field (drives per-garment piece-rate pay and the
   // Daily Tailor Worksheet report) — it's seeded from this order-level "Tailor" dropdown only
   // once, at form-mount time, and previously never followed it again. Changing the order-level
@@ -358,19 +452,19 @@ function OrderFormFields({
   const lookupMobile = !existingOrder && mobile?.length === 10 ? mobile : "";
   const { data: foundCustomer } = useCustomerByMobile(lookupMobile);
 
-  useEffect(() => {
-    if (!foundCustomer || existingOrder || prefilled) return;
-    setValue("name", foundCustomer.name, { shouldValidate: true });
-    const saved = hydrateMeasurements(measureFields, foundCustomer.measurements);
+  useSyncFromSource(existingOrder || prefilled ? null : foundCustomer, (customer) => {
+    if (!customer) return;
+    setValue("name", customer.name, { shouldValidate: true });
+    const saved = hydrateMeasurements(measureFields, customer.measurements);
     setMeasurements(saved);
     setPrefilled(true);
-    toast.success(`Loaded ${foundCustomer.name}'s details`);
-  }, [foundCustomer, existingOrder, prefilled, measureFields, setValue]);
+    toast.success(`Loaded ${customer.name}'s details`);
+  });
 
   // Reset the prefill latch if the number is edited, so a different customer re-triggers it.
-  useEffect(() => {
-    if (mobile?.length !== 10) setPrefilled(false);
-  }, [mobile]);
+  useSyncFromSource(mobile, (m) => {
+    if (m?.length !== 10) setPrefilled(false);
+  });
 
   const balanceBeforePoints = Math.max(0, total - advance);
   const availablePoints = loyaltyCfg?.enabled ? foundCustomer?.loyaltyPoints || 0 : 0;
@@ -461,6 +555,16 @@ function OrderFormFields({
             <h1 className="text-base font-semibold">{isEdit ? "Edit Order" : isAlteration ? "New Alteration" : "New Order"}</h1>
             {isEdit && <p className="text-[11px] text-muted-foreground font-mono">{existingOrder.id}</p>}
           </div>
+          {/* Duplicate of the bottom FormActionBar — mobile only, so Create/Save is reachable
+             without scrolling all the way down on a long order form. */}
+          <div className="flex items-center gap-2 sm:hidden">
+            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button size="sm" className="gap-1.5 bg-primary text-primary-foreground" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+              {isSubmitting ? "Saving…" : isEdit ? "Save" : "Create"}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -520,15 +624,34 @@ function OrderFormFields({
                   <Controller control={control} name="inDate" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} />} />
                 </FieldGroup>
                 <FieldGroup label="Order time" hint="When the order was received">
-                  <Input type="time" {...register("inTime")} className="h-10" />
+                  <Controller control={control} name="inTime" render={({ field }) => <TimePicker value={field.value} onChange={field.onChange} />} />
                 </FieldGroup>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:col-span-2">
                 <FieldGroup label="Delivery date" required error={errors.deliveryDate?.message}>
                   <Controller control={control} name="deliveryDate" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} placeholder="Pick delivery date" />} />
+                  {showDeliverySuggestion && (
+                    <button
+                      type="button"
+                      onClick={() => setValue("deliveryDate", deliveryEstimate!.date, { shouldDirty: true, shouldValidate: true })}
+                      className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <Sparkles className="size-3 shrink-0 text-primary" />
+                      Suggested: <span className="font-medium text-foreground">{fmtDate(deliveryEstimate!.date)}</span>
+                      <span className="text-muted-foreground">
+                        (
+                        {deliveryEstimate!.basis === "tailor"
+                          ? "this tailor's usual pace"
+                          : deliveryEstimate!.basis === "garment-type"
+                            ? "typical for these garments"
+                            : "default estimate"}
+                        {tailorWorkload && (tailorWorkload.capacity === "High" || tailorWorkload.capacity === "Overloaded") ? " + queue" : ""})
+                      </span>
+                    </button>
+                  )}
                 </FieldGroup>
                 <FieldGroup label="Delivery time" hint="Countdown uses this if set">
-                  <Input type="time" {...register("deliveryTime")} className="h-10" />
+                  <Controller control={control} name="deliveryTime" render={({ field }) => <TimePicker value={field.value} onChange={field.onChange} />} />
                 </FieldGroup>
               </div>
               <FieldGroup label="Tailor" className="sm:col-span-2">
@@ -558,6 +681,20 @@ function OrderFormFields({
                   // attribution. Add the employee first instead.
                   <Input disabled placeholder="Add a tailor under Employees first" className="h-10" />
                 )}
+                {showTailorRecommendation && recommendedTailor && (
+                  <button
+                    type="button"
+                    onClick={() => setValue("tailor", recommendedTailor.tailorId, { shouldDirty: true })}
+                    className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <Sparkles className="size-3 shrink-0 text-primary" />
+                    Recommended: <span className="font-medium text-foreground">{tailorName(recommendedTailor.tailorId)}</span>
+                    <span className="text-muted-foreground">
+                      ({recommendedTailor.capacity.toLowerCase()} load
+                      {recommendedTailor.riskRate !== null ? `, ${recommendedTailor.riskRate}% risk` : ""})
+                    </span>
+                  </button>
+                )}
               </FieldGroup>
               {showCapacityWarning && tailorWorkload && (
                 <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-50 p-2.5 text-xs text-amber-800 sm:col-span-2 dark:bg-amber-950/40 dark:text-amber-300">
@@ -565,6 +702,23 @@ function OrderFormFields({
                   <span>
                     <span className="font-medium">{tailorName(selectedTailor)}</span> has {tailorWorkload.active} active order{tailorWorkload.active === 1 ? "" : "s"} —{" "}
                     <span className="font-medium">{tailorWorkload.capacity}</span> load. Consider another tailor or a later delivery date.
+                  </span>
+                </div>
+              )}
+              {showReworkRisk && reworkRisk && (
+                <div
+                  className={`flex items-start gap-2 rounded-lg border p-2.5 text-xs sm:col-span-2 ${
+                    reworkRisk.level === "high"
+                      ? "border-red-500/30 bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-300"
+                      : "border-amber-500/30 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                  }`}
+                >
+                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                  <span>
+                    <span className="font-medium">{reworkRisk.riskRate}%</span> of{" "}
+                    {reworkRisk.basis === "combo" ? "this tailor's past orders for these garments" : "this tailor's past orders"} ({reworkRisk.sampleSize} order
+                    {reworkRisk.sampleSize === 1 ? "" : "s"}) needed rework or ran late.{" "}
+                    {reworkRisk.level === "high" ? "Consider closer follow-up or an earlier delivery date." : "Worth a closer look."}
                   </span>
                 </div>
               )}
@@ -606,35 +760,62 @@ function OrderFormFields({
 
           {measureFields.length > 0 && (
             <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-              <SectionHeading
-                icon={Ruler}
-                label="Measurements"
-                action={
-                  isAlteration ? (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setMeasureOpen((v) => !v)}>
-                      {measureOpen ? "Hide" : "Add measurements"}
-                    </Button>
-                  ) : undefined
-                }
-              />
-              <p className="-mt-2 mb-4 text-xs text-muted-foreground">
-                {prefilled ? "Loaded from this customer's saved profile — edit as needed." : "Saved to the customer for next time."}
-              </p>
-              {(!isAlteration || measureOpen) && (
-                <MeasurementGrid
-                  fields={measureFields}
-                  values={measurements}
-                  onChange={(key, value) => setMeasurements((m) => ({ ...m, [key]: value }))}
-                  lang={measureLang}
-                  onLangChange={setMeasureLang}
-                />
-              )}
+              <Accordion value={measureOpen ? ["measurements"] : []} onValueChange={(v) => setMeasureOpen(v.includes("measurements"))}>
+                <AccordionItem value="measurements" className="border-b-0">
+                  <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                    <span className="flex items-center gap-2">
+                      <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                        <Ruler className="size-3.5 text-primary" />
+                      </span>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Measurements</span>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="-mt-2 mb-4 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs text-muted-foreground">
+                        {prefilled ? "Loaded from this customer's saved profile — edit as needed." : "Saved to the customer for next time."}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={extractMeasurements.isPending}
+                        nativeButton={false}
+                        render={<label className="cursor-pointer" />}
+                      >
+                        <ScanLine className="size-3.5" />
+                        {extractMeasurements.isPending ? "Reading chart…" : "Scan chart"}
+                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScanChart} disabled={extractMeasurements.isPending} />
+                      </Button>
+                    </div>
+                    <MeasurementGrid
+                      fields={measureFields}
+                      values={measurements}
+                      onChange={(key, value) => setMeasurements((m) => ({ ...m, [key]: value }))}
+                      lang={measureLang}
+                      onLangChange={setMeasureLang}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </div>
           )}
 
           {/* Garments */}
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-            <SectionHeading icon={Shirt} label="Garments" />
+            <SectionHeading
+              icon={Shirt}
+              label="Garments"
+              action={
+                fabricEstimate && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Sparkles className="size-3 shrink-0 text-primary" />
+                    Est. fabric: <span className="font-medium text-foreground">~{fabricEstimate.meters}m</span>
+                    {fabricEstimate.missingTypes.length > 0 && " (partial)"}
+                  </span>
+                )
+              }
+            />
             {isSeededPlaceholderOrder && (
               <p className="mb-3 rounded-lg border border-amber-500/30 bg-amber-50 p-2.5 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
                 ⚠️ This order had no garment line details saved, so the line below stands in for its total (₹{(existingOrder!.total || 0).toLocaleString("en-IN")}) so nothing changes by
@@ -762,7 +943,17 @@ function OrderFormFields({
 
           {user?.perms.viewReports && (
             <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-              <SectionHeading icon={Receipt} label="Costs (internal — not shown to customer)" />
+              <Accordion value={costsOpen ? ["costs"] : []} onValueChange={(v) => setCostsOpen(v.includes("costs"))}>
+                <AccordionItem value="costs" className="border-b-0">
+                  <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                    <span className="flex items-center gap-2">
+                      <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                        <Receipt className="size-3.5 text-primary" />
+                      </span>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Costs (internal — not shown to customer)</span>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
               <p className="-mt-2 mb-4 text-xs text-muted-foreground">Powers the order-profitability report. Leave blank if unknown.</p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FieldGroup label="Fabric cost">
@@ -958,10 +1149,22 @@ function OrderFormFields({
                   </span>
                 </div>
               </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </div>
           )}
 
-          <MediaCapture images={images} audios={audios} videos={videos} onImagesChange={setImages} onAudiosChange={setAudios} onVideosChange={setVideos} />
+          <MediaCapture
+            images={images}
+            audios={audios}
+            videos={videos}
+            onImagesChange={setImages}
+            onAudiosChange={setAudios}
+            onVideosChange={setVideos}
+            onTranscribe={handleTranscribe}
+            transcribingIndex={transcribingIndex}
+          />
         </div>
 
         {/* ── Payment summary sidebar ───────────────────────────────────── */}
@@ -1068,11 +1271,23 @@ function OrderFormFields({
         </div>
       </form>
 
-      <FormActionBar>
-        <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>
+      <FormActionBar className="justify-start sm:justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="h-12 px-6 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          onClick={() => router.back()}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
-        <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+        <Button
+          size="lg"
+          className="h-12 flex-1 gap-1.5 bg-primary px-6 text-base text-primary-foreground sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          onClick={handleSubmit(onSubmit)}
+          disabled={isSubmitting}
+        >
           <ClipboardList className="size-3.5" />
           {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : `Create Order · ${inr(total)}`}
         </Button>

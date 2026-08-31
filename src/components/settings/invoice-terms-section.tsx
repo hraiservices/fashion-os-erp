@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_INVOICE_TERMS } from "@/lib/invoice-settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,9 +15,9 @@ export function InvoiceTermsSection() {
   const { data, isLoading, save } = useAppSetting<string>("invoiceTerms", DEFAULT_INVOICE_TERMS);
   const [terms, setTerms] = useState(DEFAULT_INVOICE_TERMS);
 
-  useEffect(() => {
-    if (data != null) setTerms(data);
-  }, [data]);
+  useSyncFromSource(data, (d) => {
+    if (d != null) setTerms(d);
+  });
 
   async function onSave() {
     try {
@@ -36,7 +37,7 @@ export function InvoiceTermsSection() {
       </CardHeader>
       <CardContent className="space-y-4">
         <Textarea rows={6} value={terms} onChange={(e) => setTerms(e.target.value)} placeholder="Payment terms, return policy, jurisdiction…" />
-        <Button disabled={save.isPending} onClick={onSave}>
+        <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" disabled={save.isPending} onClick={onSave}>
           {save.isPending ? "Saving…" : "Save changes"}
         </Button>
       </CardContent>

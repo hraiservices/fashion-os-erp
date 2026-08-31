@@ -6,6 +6,7 @@ import { Camera, LogOut, MapPin, CheckCircle2, Clock, History, Umbrella, Send, X
 import { CameraModal } from "@/components/orders/camera-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -145,13 +146,17 @@ export default function CheckInPage() {
   }
 
   useEffect(() => {
+    // loadMe is async — the setState calls inside it happen after the fetch resolves, not
+    // synchronously in this effect body (the linter's static analysis can't see past the await).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadMe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (step === "ready" && tab === "leave" && !leaveLoaded) loadLeave();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (step === "ready" && tab === "leave" && !leaveLoaded) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      loadLeave();
+    }
   }, [step, tab, leaveLoaded]);
 
   async function handleLogin(e: React.FormEvent) {
@@ -452,11 +457,11 @@ export default function CheckInPage() {
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1.5">
                             <Label className="text-xs font-medium">From</Label>
-                            <Input type="date" className="h-10" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+                            <DatePicker value={fromDate} onChange={setFromDate} />
                           </div>
                           <div className="space-y-1.5">
                             <Label className="text-xs font-medium">To</Label>
-                            <Input type="date" className="h-10" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+                            <DatePicker value={toDate} onChange={setToDate} />
                           </div>
                         </div>
                         {fromDate === toDate && (

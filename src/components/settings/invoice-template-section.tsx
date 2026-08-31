@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Plus, Trash2, Star } from "lucide-react";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { fileToDataUrl } from "@/lib/image-utils";
 import {
   blankInvoiceTemplate,
@@ -88,13 +89,12 @@ export function InvoiceTemplateSection() {
   const [setting, setSetting] = useState<InvoiceTemplatesSetting>(DEFAULT_INVOICE_TEMPLATES_SETTING);
   const [activeId, setActiveId] = useState<string>(DEFAULT_INVOICE_TEMPLATES_SETTING.defaultId);
 
-  useEffect(() => {
-    if (data) {
-      setSetting({ ...data, templates: data.templates.map(hydrateInvoiceTemplate) });
-      if (!data.templates.some((t) => t.id === activeId)) setActiveId(data.defaultId);
+  useSyncFromSource(data, (d) => {
+    if (d) {
+      setSetting({ ...d, templates: d.templates.map(hydrateInvoiceTemplate) });
+      if (!d.templates.some((t) => t.id === activeId)) setActiveId(d.defaultId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  });
 
   const active = setting.templates.find((t) => t.id === activeId) || setting.templates[0];
 
@@ -167,7 +167,7 @@ export function InvoiceTemplateSection() {
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Accent color</label>
             <div className="flex items-center gap-2">
-              <input type="color" value={active.colorTheme} onChange={(e) => updateActive({ colorTheme: e.target.value })} className="h-9 w-12 rounded border" />
+              <input type="color" value={active.colorTheme} onChange={(e) => updateActive({ colorTheme: e.target.value })} className="h-11 w-14 rounded border sm:h-9 sm:w-12" />
               <Input value={active.colorTheme} onChange={(e) => updateActive({ colorTheme: e.target.value })} />
             </div>
           </div>
@@ -226,11 +226,11 @@ export function InvoiceTemplateSection() {
               <NumberInput min={16} max={200} value={active.logoWidth} onChange={(v) => updateActive({ logoWidth: v || 64 })} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Shop name size</label>
+              <label className="text-xs font-medium text-muted-foreground">Company name size</label>
               <NumberInput min={8} max={40} value={active.shopNameFontSize} onChange={(v) => updateActive({ shopNameFontSize: v || 16 })} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">"INVOICE" title size</label>
+              <label className="text-xs font-medium text-muted-foreground">&quot;INVOICE&quot; title size</label>
               <NumberInput min={8} max={40} value={active.invoiceTitleFontSize} onChange={(v) => updateActive({ invoiceTitleFontSize: v || 18 })} />
             </div>
             <div className="space-y-1.5">
@@ -243,7 +243,7 @@ export function InvoiceTemplateSection() {
             </div>
           </div>
           <div className="flex flex-wrap gap-4 pt-1">
-            <CheckboxRow label="Bold shop name" checked={active.boldShopName} onChange={(v) => updateActive({ boldShopName: v })} />
+            <CheckboxRow label="Bold company name" checked={active.boldShopName} onChange={(v) => updateActive({ boldShopName: v })} />
             <CheckboxRow label="Bold customer name" checked={active.boldCustomerName} onChange={(v) => updateActive({ boldCustomerName: v })} />
           </div>
         </div>
@@ -311,7 +311,7 @@ export function InvoiceTemplateSection() {
               </Button>
             )}
           </div>
-          <Button disabled={save.isPending} onClick={onSave}>
+          <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" disabled={save.isPending} onClick={onSave}>
             {save.isPending ? "Saving…" : "Save changes"}
           </Button>
         </div>

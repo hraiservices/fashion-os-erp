@@ -5,6 +5,7 @@ import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { hapticTap } from "@/lib/haptics"
 
 function AlertDialog({ ...props }: AlertDialogPrimitive.Root.Props) {
   return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
@@ -141,14 +142,23 @@ function AlertDialogDescription({
   )
 }
 
+// Bigger tap target on mobile only — these are the actual Cancel/Confirm buttons inside
+// every confirmation dialog app-wide, so this one override covers all of them.
+const RESPONSIVE_SIZE_CLASS = "h-11 px-4 text-base sm:h-8 sm:px-2.5 sm:text-sm"
+
 function AlertDialogAction({
   className,
+  onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
   return (
     <Button
       data-slot="alert-dialog-action"
-      className={cn(className)}
+      className={cn(RESPONSIVE_SIZE_CLASS, className)}
+      onClick={(e) => {
+        hapticTap()
+        onClick?.(e)
+      }}
       {...props}
     />
   )
@@ -164,7 +174,7 @@ function AlertDialogCancel({
   return (
     <AlertDialogPrimitive.Close
       data-slot="alert-dialog-cancel"
-      className={cn(className)}
+      className={cn(RESPONSIVE_SIZE_CLASS, className)}
       render={<Button variant={variant} size={size} />}
       {...props}
     />

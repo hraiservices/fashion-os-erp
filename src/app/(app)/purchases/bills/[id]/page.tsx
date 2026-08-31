@@ -235,24 +235,24 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
             {canManage && (
               <>
                 {bill.balance > 0 && (
-                  <Button className="mt-4 w-full" onClick={() => setPaymentOpen(true)}>
+                  <Button className="mt-4 w-full h-12 text-base sm:h-7 sm:text-[0.8rem]" onClick={() => setPaymentOpen(true)}>
                     <Wallet className="size-4" /> Record payment
                   </Button>
                 )}
 
                 <div className="mt-4 space-y-1.5">
                   <p className="px-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Manage</p>
-                  <Button variant="outline" className="w-full justify-start" nativeButton={false} render={<Link href={`/purchases/bills/${bill.id}/edit`} />}>
+                  <Button variant="outline" className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" nativeButton={false} render={<Link href={`/purchases/bills/${bill.id}/edit`} />}>
                     <Pencil className="size-4" /> Edit
                   </Button>
-                  <Button variant="outline" className="w-full justify-start" onClick={() => setCreditOpen(true)}>
+                  <Button variant="outline" className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" onClick={() => setCreditOpen(true)}>
                     <Undo2 className="size-4" /> Raise vendor credit
                   </Button>
                 </div>
 
                 <div className="mt-4 border-t pt-4">
                   <AlertDialog>
-                    <AlertDialogTrigger render={<Button variant="destructive" className="w-full justify-start"><Trash2 className="size-4" /> Delete bill</Button>} />
+                    <AlertDialogTrigger render={<Button variant="destructive" className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]"><Trash2 className="size-4" /> Delete bill</Button>} />
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete {bill.billNumber}?</AlertDialogTitle>

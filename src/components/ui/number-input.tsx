@@ -15,15 +15,23 @@ export const NumberInput = React.forwardRef<HTMLInputElement, Omit<React.Compone
   value: number;
   onChange: (value: number) => void;
   placeholder?: string;
-}>(function NumberInput({ value, onChange, placeholder = "0", ...props }, ref) {
+}>(function NumberInput({ value, onChange, placeholder = "0", inputMode, onFocus, ...props }, ref) {
   return (
     <Input
       {...props}
       ref={ref}
       type="number"
+      inputMode={inputMode ?? "decimal"}
       placeholder={placeholder}
       value={value ? value : ""}
       onChange={(e) => onChange(e.target.value === "" ? 0 : Number(e.target.value))}
+      onFocus={(e) => {
+        // Native number fields let you tap in and immediately retype over the existing value;
+        // without this you'd have to manually clear it first — a small thing that makes every
+        // amount/quantity field feel like a web form rather than a native one.
+        e.target.select();
+        onFocus?.(e);
+      }}
     />
   );
 });

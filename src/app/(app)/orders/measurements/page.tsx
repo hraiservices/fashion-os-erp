@@ -101,7 +101,7 @@ export default function MeasurementsSearchPage() {
         <div className="space-y-3 print:hidden">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search name or mobile…" className="h-10 pl-9" value={query} onChange={(e) => setQuery(e.target.value)} />
+            <Input type="search" enterKeyHint="search" placeholder="Search name or mobile…" className="h-10 pl-9" value={query} onChange={(e) => setQuery(e.target.value)} />
           </div>
 
           {isLoading ? (

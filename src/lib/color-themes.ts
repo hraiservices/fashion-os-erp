@@ -47,3 +47,29 @@ export const DEFAULT_SIDEBAR_STYLE = "dark";
 export function isValidSidebarStyle(id: string): boolean {
   return SIDEBAR_STYLES.some((s) => s.id === id);
 }
+
+export interface CornerStyleMeta {
+  id: string;
+  name: string;
+  /** Value for the --radius CSS var (see globals.css) — every other radius token is derived from it. */
+  radius: string;
+}
+
+/** Applied by setting the --radius CSS var directly on <html> (not a class — the value itself varies). */
+export const CORNER_STYLES: CornerStyleMeta[] = [
+  { id: "sharp", name: "Sharp", radius: "0rem" },
+  { id: "small", name: "Small", radius: "0.3rem" },
+  { id: "default", name: "Default", radius: "0.625rem" },
+  { id: "large", name: "Large", radius: "1rem" },
+  { id: "full", name: "Full", radius: "1.5rem" },
+];
+
+export const DEFAULT_CORNER_STYLE = "default";
+
+export function isValidCornerStyle(id: string): boolean {
+  return CORNER_STYLES.some((c) => c.id === id);
+}
+
+export function cornerStyleRadius(id: string): string {
+  return CORNER_STYLES.find((c) => c.id === id)?.radius ?? CORNER_STYLES.find((c) => c.id === DEFAULT_CORNER_STYLE)!.radius;
+}

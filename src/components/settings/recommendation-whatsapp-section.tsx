@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useWhatsAppCloudApiConfig } from "@/hooks/use-whatsapp-cloud-api";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_RECOMMENDATION_TEMPLATE, RECOMMENDATION_TEMPLATE_VARIABLES } from "@/lib/recommendation-whatsapp";
 import type { WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
+import { WhatsAppTemplateField } from "@/components/settings/whatsapp-template-field";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -16,7 +18,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
 const DEFAULT_COOLDOWN_DAYS = 14;
-const BLANK_CLOUD_API: WhatsAppCloudApiConfig = { phoneNumberId: "", accessToken: "", templateName: "", languageCode: "en_US" };
+const BLANK_CLOUD_API: WhatsAppCloudApiConfig = {
+  phoneNumberId: "",
+  accessToken: "",
+  templateName: "",
+  languageCode: "en_US",
+  appSecret: "",
+  verifyToken: "",
+  conciergeEnabled: false,
+};
 
 /** Settings for Customer Purchase Intelligence's product-recommendation messages (Phase 6). */
 export function RecommendationWhatsAppSection() {
@@ -28,15 +38,15 @@ export function RecommendationWhatsAppSection() {
   const [draftCooldown, setDraftCooldown] = useState(DEFAULT_COOLDOWN_DAYS);
   const [draftCloudApi, setDraftCloudApi] = useState<WhatsAppCloudApiConfig>(BLANK_CLOUD_API);
 
-  useEffect(() => {
-    if (template) setDraftTemplate(template);
-  }, [template]);
-  useEffect(() => {
-    if (cooldown != null) setDraftCooldown(cooldown);
-  }, [cooldown]);
-  useEffect(() => {
-    if (cloudApi) setDraftCloudApi(cloudApi);
-  }, [cloudApi]);
+  useSyncFromSource(template, (t) => {
+    if (t) setDraftTemplate(t);
+  });
+  useSyncFromSource(cooldown, (c) => {
+    if (c != null) setDraftCooldown(c);
+  });
+  useSyncFromSource(cloudApi, (c) => {
+    if (c) setDraftCloudApi(c);
+  });
 
   async function onSave() {
     try {
@@ -56,7 +66,7 @@ export function RecommendationWhatsAppSection() {
       </CardHeader>
       <CardContent className="space-y-5">
         <p className="text-xs text-muted-foreground">
-          Used when sending a "customers who might want this" message from a product's edit page or a customer's profile.
+          Used when sending a &quot;customers who might want this&quot; message from a product&apos;s edit page or a customer&apos;s profile.
         </p>
 
         <div className="flex flex-wrap gap-1.5">
@@ -72,7 +82,7 @@ export function RecommendationWhatsAppSection() {
 
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">Cooldown (days)</Label>
-          <p className="text-[11px] text-muted-foreground">Don't let the same product be re-suggested to the same customer within this many days.</p>
+          <p className="text-[11px] text-muted-foreground">Don&apos;t let the same product be re-suggested to the same customer within this many days.</p>
           <NumberInput min={0} className="h-9 w-32" value={draftCooldown} onChange={setDraftCooldown} />
         </div>
 
@@ -80,7 +90,7 @@ export function RecommendationWhatsAppSection() {
           <div>
             <p className="text-xs font-medium">WhatsApp Business Cloud API (optional)</p>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Leave blank to use the free "open WhatsApp with message pre-filled" flow above. Filling this in sends
+              Leave blank to use the free &quot;open WhatsApp with message pre-filled&quot; flow above. Filling this in sends
               automatically instead — but requires your own Meta Business Account, a phone number registered with
               WhatsApp Business, and a message template approved by Meta with exactly 3 body parameters, in order:
               customer name, product name, price. Get these from Meta Business Manager → WhatsApp Manager.
@@ -97,16 +107,70 @@ export function RecommendationWhatsAppSection() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Approved Template Name</Label>
-              <Input value={draftCloudApi.templateName} onChange={(e) => setDraftCloudApi({ ...draftCloudApi, templateName: e.target.value })} placeholder="e.g. product_recommendation" />
+              <WhatsAppTemplateField
+                value={draftCloudApi.templateName}
+                onChange={(v) => setDraftCloudApi({ ...draftCloudApi, templateName: v })}
+                expectedParamCount={3}
+                templatesEnabled={!!draftCloudApi.wabaId && !!draftCloudApi.accessToken}
+                placeholder="e.g. product_recommendation"
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Template Language Code</Label>
               <Input value={draftCloudApi.languageCode} onChange={(e) => setDraftCloudApi({ ...draftCloudApi, languageCode: e.target.value })} placeholder="e.g. en_US" />
             </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs font-medium">WhatsApp Business Account ID (optional)</Label>
+              <Input value={draftCloudApi.wabaId || ""} onChange={(e) => setDraftCloudApi({ ...draftCloudApi, wabaId: e.target.value })} placeholder="e.g. 123456789012345" />
+              <p className="text-[11px] text-muted-foreground">
+                Lets every template field on this page show a dropdown of your actual approved templates instead of a plain text box. Find it in Meta
+                Business Manager → WhatsApp Manager → API Setup.
+              </p>
+            </div>
           </div>
         </div>
 
-        <Button disabled={saveTemplate.isPending || saveCooldown.isPending || saveCloudApi.isPending} onClick={onSave}>
+        <div className="space-y-3 rounded-lg border p-3">
+          <div>
+            <p className="text-xs font-medium">AI order-status concierge (optional)</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              When a customer texts your WhatsApp Business number (e.g. &quot;where&apos;s my order&quot;), auto-reply
+              with their own recent stitching orders&apos; status, delivery date, and balance due — read-only, never
+              books, cancels, or reschedules anything. Requires the Phone Number ID/Access Token above, plus a
+              webhook registered in Meta Business Manager pointing at{" "}
+              <code className="rounded bg-muted px-1 py-0.5">/api/webhooks/whatsapp</code> on this deployment.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">App Secret</Label>
+              <Input
+                type="password"
+                value={draftCloudApi.appSecret || ""}
+                onChange={(e) => setDraftCloudApi({ ...draftCloudApi, appSecret: e.target.value })}
+                placeholder="From Meta App Dashboard → Settings → Basic"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Webhook Verify Token</Label>
+              <Input
+                value={draftCloudApi.verifyToken || ""}
+                onChange={(e) => setDraftCloudApi({ ...draftCloudApi, verifyToken: e.target.value })}
+                placeholder="Any string you also enter in Meta's webhook setup"
+              />
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={!!draftCloudApi.conciergeEnabled}
+              onChange={(e) => setDraftCloudApi({ ...draftCloudApi, conciergeEnabled: e.target.checked })}
+            />
+            Enable the concierge (leave off until the webhook is registered and tested)
+          </label>
+        </div>
+
+        <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" disabled={saveTemplate.isPending || saveCooldown.isPending || saveCloudApi.isPending} onClick={onSave}>
           {saveTemplate.isPending || saveCooldown.isPending || saveCloudApi.isPending ? "Saving…" : "Save"}
         </Button>
       </CardContent>

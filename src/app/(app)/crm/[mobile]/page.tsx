@@ -19,7 +19,6 @@ import { useShopSettings } from "@/hooks/use-shop-settings";
 import { inr, fmtDate } from "@/lib/format";
 import { sumOrdersOutstanding } from "@/lib/balances";
 import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
-import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,7 +92,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   const combinedLifetime = cust.spent + salesSpent;
   const tel = `tel:+91${mobile.replace(/\D/g, "").replace(/^91/, "").slice(-10)}`;
   const reminderUrl = `https://wa.me/91${normalizeIndianMobile(mobile)}?text=${encodeURIComponent(
-    `Dear *${cust.name}* 🙏\n\n₹${combinedDue} is due on your account at *${shop?.name || "our shop"}* (across orders and invoices).\nPlease clear at your earliest convenience.\n📞 ${shop?.phone || ""}`
+    `Dear *${cust.name}* 🙏\n\n₹${combinedDue} is due on your account at *${shop?.name || "our company"}* (across orders and invoices).\nPlease clear at your earliest convenience.\n📞 ${shop?.phone || ""}`
   )}`;
   const wardrobeUrl = buildWardrobeSummaryUrl(mobile, cust.name, custOrders, shop);
   const tier = loyaltyCfg?.enabled ? loyaltyTier(cust.totalEarned, loyaltyCfg) : null;
@@ -199,27 +198,49 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}`} />} className="flex-1 sm:flex-none">
+          <Button nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}`} />} className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]">
             <Plus className="size-4" /> New order
           </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}&type=alteration`} />} className="flex-1 sm:flex-none">
+          <Button variant="outline" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}&type=alteration`} />} className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]">
             <Scissors className="size-4" /> New alteration
           </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="flex-1 sm:flex-none">
+          <Button variant="outline" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]">
             <Receipt className="size-4" /> New invoice
           </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />} className="flex-1 sm:flex-none">
+          <Button variant="outline" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />} className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]">
             <FileText className="size-4" /> Statement
           </Button>
-          {combinedDue > 0 && <WhatsAppButton href={reminderUrl} label="Payment Reminder" className="flex-1 sm:flex-none" />}
-          {custOrders.length > 0 && <WhatsAppButton href={wardrobeUrl} label="Send wardrobe summary" className="flex-1 sm:flex-none" />}
+          {combinedDue > 0 && (
+            <WhatsAppButton
+              href={reminderUrl}
+              label={
+                <>
+                  <span className="sm:hidden">Remind</span>
+                  <span className="hidden sm:inline">Payment Reminder</span>
+                </>
+              }
+              className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]"
+            />
+          )}
+          {custOrders.length > 0 && (
+            <WhatsAppButton
+              href={wardrobeUrl}
+              label={
+                <>
+                  <span className="sm:hidden">Wardrobe</span>
+                  <span className="hidden sm:inline">Send wardrobe summary</span>
+                </>
+              }
+              className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]"
+            />
+          )}
           {user?.perms.manageCustomers && (
-            <Button variant="outline" onClick={handleGiveCoupon} disabled={issueCoupon.isPending} className="flex-1 sm:flex-none">
+            <Button variant="outline" onClick={handleGiveCoupon} disabled={issueCoupon.isPending} className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]">
               <Ticket className="size-4" /> Give referral coupon
             </Button>
           )}
           {user?.perms.manageCustomers && (
-            <Button variant="outline" onClick={() => setEditOpen(true)} className="flex-1 sm:flex-none">
+            <Button variant="outline" onClick={() => setEditOpen(true)} className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]">
               <Pencil className="size-4" /> Edit
             </Button>
           )}
@@ -227,7 +248,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             <AlertDialog>
               <AlertDialogTrigger
                 render={
-                  <Button variant="destructive" aria-label="Delete customer">
+                  <Button variant="destructive" aria-label="Delete customer" className="size-12 sm:size-7">
                     <Trash2 className="size-4" />
                   </Button>
                 }

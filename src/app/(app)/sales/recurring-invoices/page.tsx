@@ -177,13 +177,13 @@ export default function RecurringInvoicesPage() {
                     <Button variant="outline" size="sm" onClick={() => handleGenerateNow(p)} disabled={generateNow.isPending || ended || !due} title={!ended && !due ? "Not due yet" : undefined}>
                       Generate now
                     </Button>
-                    <Button variant="ghost" size="icon-sm" onClick={() => handleToggleActive(p.id, p.active)} disabled={ended} aria-label={p.active ? "Pause" : "Resume"}>
+                    <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => handleToggleActive(p.id, p.active)} disabled={ended} aria-label={p.active ? "Pause" : "Resume"}>
                       {p.active ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
                     </Button>
-                    <Button variant="ghost" size="icon-sm" nativeButton={false} render={<Link href={`/sales/recurring-invoices/${p.id}/edit`} />} aria-label="Edit">
+                    <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" nativeButton={false} render={<Link href={`/sales/recurring-invoices/${p.id}/edit`} />} aria-label="Edit">
                       <Pencil className="size-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(p.id, p.name)} aria-label="Delete">
+                    <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => handleDelete(p.id, p.name)} aria-label="Delete">
                       <Trash2 className="size-3.5" />
                     </Button>
                   </div>

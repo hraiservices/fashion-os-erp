@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, CalendarDays, User2, FileText, Package2, ChevronDown, Truck, Tag, Receipt } from "lucide-react";
+import { ArrowLeft, User2, FileText, Package2, Tag, Receipt } from "lucide-react";
 import { useProducts } from "@/hooks/use-products";
 import { useSalesQuotation } from "@/hooks/use-sales-quotations";
 import { useSalesInvoice } from "@/hooks/use-sales-invoices";
@@ -26,9 +26,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CustomerPicker } from "@/components/sales/customer-picker";
 import { SearchSelect } from "@/components/ui/search-select";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
 import { FormActionBar } from "@/components/ui/form-action-bar";
 import { usePriceListItemsMap } from "@/hooks/use-price-lists";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_DOCUMENT_NUMBERING, type DocumentNumberingSettings } from "@/lib/document-numbering";
 import type { Customer, SalesInvoice, InvoiceDocStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -42,7 +44,7 @@ function blankIfZero(n: number | null | undefined): string {
 }
 
 function placeholderCustomer(name: string, mobile: string, paymentTerms = "due_on_receipt"): Customer {
-  return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms, priceListId: null, tags: [], gstin: "" };
+  return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms, priceListId: null, tags: [], gstin: "", whatsappOptOut: false };
 }
 
 function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
@@ -119,15 +121,14 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
   const [terms, setTerms] = useState(existing?.terms ?? "");
   const [notes, setNotes] = useState(existing?.notes || "");
 
-  useEffect(() => {
-    if (!isEdit && defaultTerms && !terms) setTerms(defaultTerms);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultTerms]);
+  useSyncFromSource(defaultTerms, (dt) => {
+    if (!isEdit && dt && !terms) setTerms(dt);
+  });
 
-  useEffect(() => {
-    if (!prefillCustomer || prefillQuoteId || prefillCloneId) return;
-    setCustomer(prefillCustomer);
-  }, [prefillCustomer, prefillQuoteId, prefillCloneId]);
+  useSyncFromSource(prefillQuoteId || prefillCloneId ? null : prefillCustomer, (pc) => {
+    if (!pc) return;
+    setCustomer(pc);
+  });
 
   // Editing an existing invoice seeds `customer` from a placeholder with an empty id (built
   // from just the saved name/mobile) — nothing else ever resolves the real record, so
@@ -135,18 +136,17 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
   // the whole edit session, and any new line added prices off the product's default instead of
   // this customer's assigned rate. Runs once real customer data is loaded; only replaces the
   // placeholder (id === ""), so it never clobbers a deliberate reselection mid-edit.
-  useEffect(() => {
-    if (!isEdit || !existing || !customers || customer?.id) return;
-    const real = customers.find((c) => c.mobile === existing.customerMobile);
+  useSyncFromSource(isEdit && existing ? customers : null, (custs) => {
+    if (!isEdit || !existing || !custs || customer?.id) return;
+    const real = custs.find((c) => c.mobile === existing.customerMobile);
     if (real) setCustomer(real);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEdit, existing, customers]);
+  });
 
-  useEffect(() => {
-    if (!prefillQuote) return;
-    setCustomer(placeholderCustomer(prefillQuote.customerName, prefillQuote.customerMobile));
+  useSyncFromSource(prefillQuote, (quote) => {
+    if (!quote) return;
+    setCustomer(placeholderCustomer(quote.customerName, quote.customerMobile));
     setLines(
-      prefillQuote.items.map((item) => ({
+      quote.items.map((item) => ({
         key: `quo-${item.productId}-${Math.random().toString(36).slice(2, 7)}`,
         productId: item.productId,
         qty: String(item.qty),
@@ -159,16 +159,16 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
         costPrice: item.costPrice !== undefined ? String(item.costPrice) : "",
       }))
     );
-    setGstType(prefillQuote.gstType);
-    setTaxRate(String(prefillQuote.taxRate));
-  }, [prefillQuote]);
+    setGstType(quote.gstType);
+    setTaxRate(String(quote.taxRate));
+  });
 
-  useEffect(() => {
-    if (!prefillClone) return;
-    setCustomer(placeholderCustomer(prefillClone.customerName, prefillClone.customerMobile));
-    setSubject(prefillClone.subject);
+  useSyncFromSource(prefillClone, (clone) => {
+    if (!clone) return;
+    setCustomer(placeholderCustomer(clone.customerName, clone.customerMobile));
+    setSubject(clone.subject);
     setLines(
-      prefillClone.items.map((item, i) => ({
+      clone.items.map((item, i) => ({
         key: `clone-${i}-${Math.random().toString(36).slice(2, 7)}`,
         productId: item.productId,
         qty: String(item.qty),
@@ -181,15 +181,14 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
         costPrice: item.costPrice !== undefined ? String(item.costPrice) : "",
       }))
     );
-    setGstType(prefillClone.gstType);
-    setTaxRate(String(prefillClone.taxRate));
-    setShippingCharges(blankIfZero(prefillClone.shippingCharges));
-    setDiscountType(prefillClone.discountType);
-    setDiscountValue(blankIfZero(prefillClone.discountValue));
-    setTerms(prefillClone.terms);
-    setNotes(prefillClone.notes);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefillClone]);
+    setGstType(clone.gstType);
+    setTaxRate(String(clone.taxRate));
+    setShippingCharges(blankIfZero(clone.shippingCharges));
+    setDiscountType(clone.discountType);
+    setDiscountValue(blankIfZero(clone.discountValue));
+    setTerms(clone.terms);
+    setNotes(clone.notes);
+  });
 
   function handleSelectCustomer(c: Customer) {
     setCustomer(c);
@@ -262,6 +261,22 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
           <div className="flex-1">
             <h1 className="text-base font-semibold">{isEdit ? "Edit Invoice" : "New Invoice"}</h1>
             <p className="text-[11px] text-muted-foreground font-mono">{customNumberingOn ? "Assigned automatically on save" : invoiceNumber}</p>
+          </div>
+          {/* Duplicate of the bottom FormActionBar — mobile only, so Save/Send is reachable
+             without scrolling all the way down on a long invoice. */}
+          <div className="flex items-center gap-2 sm:hidden">
+            <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveInvoice.isPending}>
+              Cancel
+            </Button>
+            {!isEdit && (
+              <Button variant="outline" size="sm" onClick={() => handleSave("draft")} disabled={saveInvoice.isPending}>
+                Draft
+              </Button>
+            )}
+            <Button size="sm" className="gap-1.5 bg-primary text-primary-foreground" onClick={() => handleSave(isEdit ? existing!.docStatus : "sent")} disabled={saveInvoice.isPending}>
+              <Receipt className="size-3.5" />
+              {saveInvoice.isPending ? "Saving…" : isEdit ? "Save" : "Send"}
+            </Button>
           </div>
         </div>
       </div>
@@ -346,10 +361,10 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
                 </Select>
               </FieldGroup>
               <FieldGroup label="Tax rate (%)">
-                <Input type="number" min={0} max={100} step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} disabled={gstType === "none"} className="h-10" />
+                <Input type="number" inputMode="decimal" min={0} max={100} step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} disabled={gstType === "none"} className="h-10" />
               </FieldGroup>
               <FieldGroup label="Shipping charges (₹)">
-                <Input type="number" min={0} step="0.01" placeholder="0" value={shippingCharges} onChange={(e) => setShippingCharges(e.target.value)} className="h-10" />
+                <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="0" value={shippingCharges} onChange={(e) => setShippingCharges(e.target.value)} className="h-10" />
               </FieldGroup>
               <div className="grid grid-cols-2 gap-3">
                 <FieldGroup label="Discount type">
@@ -364,7 +379,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
                   </Select>
                 </FieldGroup>
                 <FieldGroup label="Discount value">
-                  <Input type="number" min={0} step="0.01" placeholder="0" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} className="h-10" />
+                  <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="0" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} className="h-10" />
                 </FieldGroup>
               </div>
             </div>
@@ -377,9 +392,15 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
               <FieldGroup label="Customer notes" hint="Internal — not printed on the invoice">
                 <Textarea rows={2} placeholder="Order ref, special instructions…" value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none" />
               </FieldGroup>
-              <FieldGroup label="Terms & Conditions" hint="Printed on the invoice. Edit the shop-wide default in Settings → Invoice Terms.">
-                <Textarea rows={3} placeholder="Payment terms, return policy…" value={terms} onChange={(e) => setTerms(e.target.value)} className="resize-none" />
-              </FieldGroup>
+              <Accordion className="rounded-lg border px-3">
+                <AccordionItem value="terms" className="border-b-0">
+                  <AccordionTrigger className="text-xs font-medium text-foreground/80">Terms &amp; Conditions</AccordionTrigger>
+                  <AccordionContent className="space-y-1.5">
+                    <Textarea rows={3} placeholder="Payment terms, return policy…" value={terms} onChange={(e) => setTerms(e.target.value)} className="resize-none" />
+                    <p className="text-[11px] text-muted-foreground">Printed on the invoice. Edit the shop-wide default in Settings → Invoice Terms.</p>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </div>
           </div>
         </div>
@@ -462,25 +483,6 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
                 Editing adjusts the stock movement this invoice made. Changes to items will recompute finished-goods inventory.
               </p>
             )}
-
-            <div className="border-t px-5 py-4 space-y-2">
-              {isEdit ? (
-                <Button className="w-full h-10 gap-2" onClick={() => handleSave(existing!.docStatus)} disabled={saveInvoice.isPending}>
-                  <Receipt className="size-4" />
-                  {saveInvoice.isPending ? "Saving…" : `Save Changes · ${inr(totals.total)}`}
-                </Button>
-              ) : (
-                <>
-                  <Button className="w-full h-10 gap-2" onClick={() => handleSave("sent")} disabled={saveInvoice.isPending}>
-                    <Receipt className="size-4" />
-                    {saveInvoice.isPending ? "Saving…" : `Save & Send · ${inr(totals.total)}`}
-                  </Button>
-                  <Button variant="outline" className="w-full h-10" onClick={() => handleSave("draft")} disabled={saveInvoice.isPending}>
-                    {saveInvoice.isPending ? "Saving…" : "Save as Draft"}
-                  </Button>
-                </>
-              )}
-            </div>
           </div>
 
           {/* Quick checklist */}
@@ -503,16 +505,33 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
         </div>
       </div>
 
-      <FormActionBar>
-        <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveInvoice.isPending}>
+      <FormActionBar className="flex-wrap justify-start sm:flex-nowrap sm:justify-end">
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-12 px-5 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          onClick={() => router.back()}
+          disabled={saveInvoice.isPending}
+        >
           Cancel
         </Button>
         {!isEdit && (
-          <Button variant="outline" size="sm" onClick={() => handleSave("draft")} disabled={saveInvoice.isPending}>
+          <Button
+            variant="outline"
+            size="lg"
+            className="h-12 px-5 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+            onClick={() => handleSave("draft")}
+            disabled={saveInvoice.isPending}
+          >
             {saveInvoice.isPending ? "Saving…" : "Save Draft"}
           </Button>
         )}
-        <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={() => handleSave(isEdit ? existing!.docStatus : "sent")} disabled={saveInvoice.isPending}>
+        <Button
+          size="lg"
+          className="h-12 flex-1 gap-1.5 bg-primary px-5 text-base text-primary-foreground sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          onClick={() => handleSave(isEdit ? existing!.docStatus : "sent")}
+          disabled={saveInvoice.isPending}
+        >
           <Receipt className="size-3.5" />
           {saveInvoice.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(totals.total)}` : `Save & Send · ${inr(totals.total)}`}
         </Button>

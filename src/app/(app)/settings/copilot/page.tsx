@@ -7,7 +7,7 @@ import { ChatbotGlossarySection } from "@/components/settings/chatbot-glossary-s
 export default function Page() {
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
-      <PageHeader title="AI Copilot" description="Teach the AI Copilot your shop's own vocabulary, so it stops guessing" />
+      <PageHeader title="AI Copilot" description="Teach the AI Copilot your company's own vocabulary, so it stops guessing" />
       <SettingsGuard allow={({ isAdmin }) => isAdmin}>
         <ChatbotGlossarySection />
       </SettingsGuard>

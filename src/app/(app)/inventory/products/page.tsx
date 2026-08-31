@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -158,17 +159,17 @@ function ProductsPageContent() {
 
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search name, SKU or category…" className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search products" />
+        <Input type="search" enterKeyHint="search" placeholder="Search name, SKU or category…" className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search products" />
       </div>
 
       {canManage && selection.count > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
           <span className="text-sm font-medium">{selection.count} selected</span>
           <div className="ml-auto flex flex-wrap gap-2">
-            <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
+            <Button variant="destructive" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
               <Trash2 className="size-3.5" /> Delete
             </Button>
-            <Button variant="ghost" size="sm" onClick={selection.clear} disabled={bulkBusy}>
+            <Button variant="ghost" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={selection.clear} disabled={bulkBusy}>
               Clear
             </Button>
           </div>
@@ -201,8 +202,7 @@ function ProductsPageContent() {
               <TableRow>
                 {canManage && (
                   <TableHead className="w-8">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={selection.allSelected}
                       ref={(el) => {
                         if (el) el.indeterminate = selection.someSelected;
@@ -233,7 +233,7 @@ function ProductsPageContent() {
                   >
                     {canManage && (
                       <TableCell onClick={(e) => e.stopPropagation()}>
-                        <input type="checkbox" checked={selection.selected.has(p.id)} onChange={() => selection.toggle(p.id)} aria-label={`Select ${p.name}`} />
+                        <Checkbox checked={selection.selected.has(p.id)} onChange={() => selection.toggle(p.id)} aria-label={`Select ${p.name}`} />
                       </TableCell>
                     )}
                     <TableCell>
@@ -273,17 +273,17 @@ function ProductsPageContent() {
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           {p.barcode && (
-                            <Button variant="ghost" size="icon-sm" onClick={() => printBarcodeLabel(p)} aria-label={`Print barcode label for ${p.name}`} title="Print barcode label">
+                            <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => printBarcodeLabel(p)} aria-label={`Print barcode label for ${p.name}`} title="Print barcode label">
                               <Printer className="size-3.5" />
                             </Button>
                           )}
-                          <Button variant="ghost" size="icon-sm" onClick={() => openEdit(p)} aria-label={`Edit ${p.name}`}>
+                          <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => openEdit(p)} aria-label={`Edit ${p.name}`}>
                             <Pencil className="size-3.5" />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger
                               render={
-                                <Button variant="ghost" size="icon-sm" aria-label={`Delete ${p.name}`}>
+                                <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" aria-label={`Delete ${p.name}`}>
                                   <Trash2 className="size-3.5" />
                                 </Button>
                               }

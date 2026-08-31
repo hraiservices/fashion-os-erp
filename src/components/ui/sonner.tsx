@@ -11,6 +11,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      // Without this, a top-positioned toast can render right under the status bar/notch on an
+      // installed PWA (the same safe-area gap the topbar/tab-bar already account for) — this
+      // keeps it clear of that area on every side the app might ever position toasts from.
+      offset={{
+        top: "calc(env(safe-area-inset-top) + 1rem)",
+        bottom: "calc(env(safe-area-inset-bottom) + 1rem)",
+      }}
       icons={{
         success: (
           <CircleCheckIcon className="size-4" />

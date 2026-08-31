@@ -24,7 +24,7 @@ export const MODULE_CATALOG: ModuleMeta[] = [
   { id: "employees", label: "Employees", description: "Staff directory, attendance, commission, payroll & salaries" },
   { id: "expenses", label: "Expenses", description: "Expense tracking and categories" },
   { id: "pos", label: "POS", description: "Point-of-sale checkout screen" },
-  { id: "copilot", label: "AI Copilot", description: "AI chat assistant over the shop's data" },
+  { id: "copilot", label: "AI Copilot", description: "AI chat assistant over the company's data" },
   { id: "reports", label: "Reports", description: "The Reports center — individual reports are toggled separately below" },
 ];
 
@@ -78,8 +78,10 @@ export const DEFAULT_ENTITLEMENTS: ModuleEntitlements = {
   limits: DEFAULT_LIMITS,
 };
 
-/** Never individually gate-able, regardless of the `settings` map — Account always needs to stay reachable so a user can change their password, and Module Licensing is already restricted to the super-admin separately. */
-export const SETTINGS_ALWAYS_ENABLED = ["/settings/account", "/settings/module-licensing"];
+/** Never individually gate-able, regardless of the `settings` map — Personalize (which now hosts
+ *  Account) always needs to stay reachable so a user can change their password, and Module
+ *  Licensing is already restricted to the super-admin separately. */
+export const SETTINGS_ALWAYS_ENABLED = ["/settings/personalize", "/settings/account", "/settings/module-licensing"];
 
 /** Maps a REPORTS_GROUP leaf's `section` to the ModuleId that gates it, or null for sections that are always core (never module-gated). */
 const REPORT_SECTION_MODULE: Record<string, ModuleId | null> = {

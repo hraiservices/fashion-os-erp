@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Plus, Tag, X, ChevronDown, ChevronRight } from "lucide-react";
 import { useAppSetting } from "@/hooks/use-app-setting";
-import { EXPENSE_CATEGORIES, normalizeExpenseCategories, type ExpenseCategoryItem } from "@/lib/types";
+import { normalizeExpenseCategories, type ExpenseCategoryItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";

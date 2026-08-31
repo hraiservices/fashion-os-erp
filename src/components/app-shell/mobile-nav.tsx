@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Plus, ClipboardList, Receipt, Wallet, UserPlus } from "lucide-react";
@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 import { MOBILE_TABS } from "@/components/app-shell/nav-config";
 import { NavContent, NavBrand } from "@/components/app-shell/nav-content";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
+import { hapticTap } from "@/lib/haptics";
 import { Sheet, SheetContent, SheetTitle, SheetHeader } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
@@ -21,13 +23,11 @@ export function MobileNavTrigger() {
   const pathname = usePathname();
 
   // Close the drawer whenever navigation happens, so it never lingers over the new page.
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+  useSyncFromSource(pathname, () => setOpen(false));
 
   return (
     <>
-      <Button variant="ghost" size="icon-sm" aria-label="Open menu" className="size-9 lg:hidden" onClick={() => setOpen(true)}>
+      <Button variant="ghost" size="icon-sm" aria-label="Open menu" className="size-11 sm:size-9 lg:hidden" onClick={() => setOpen(true)}>
         <Menu className="size-5" />
       </Button>
       <Sheet open={open} onOpenChange={setOpen}>
@@ -79,7 +79,9 @@ export function MobileTabBar() {
           active ? "text-primary" : "text-muted-foreground"
         )}
       >
-        <Icon className="size-5" />
+        <span className={cn("flex items-center justify-center rounded-full px-3 py-0.5 transition-colors", active && "bg-primary/10")}>
+          <Icon className={cn("size-5 transition-transform", active && "scale-110")} fill={active ? "currentColor" : "none"} fillOpacity={active ? 0.15 : 0} />
+        </span>
         {label}
       </Link>
     );
@@ -95,7 +97,10 @@ export function MobileTabBar() {
         <button
           type="button"
           aria-label="Create new…"
-          onClick={() => setCreateOpen(true)}
+          onClick={() => {
+            hapticTap();
+            setCreateOpen(true);
+          }}
           className="relative -top-3 mx-1 flex size-12 shrink-0 items-center justify-center self-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-transform active:scale-95"
         >
           <Plus className="size-6" />

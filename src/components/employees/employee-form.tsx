@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -18,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { EmployeePinManager } from "@/components/employees/employee-pin-manager";
 import { LinkedUserAccountManager } from "@/components/employees/linked-user-account-manager";
 import type { Employee, CommissionType, SalaryType } from "@/lib/types";
@@ -86,7 +88,6 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
     register,
     handleSubmit,
     control,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema) as never,
@@ -128,8 +129,11 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
   // (useActiveTailorNames) — role is free text so any other wording (Sales Person, Cutter,
   // Manager, ...) never appears there. This mirrors that check so the form doesn't imply
   // every active employee shows up as a tailor.
-  const roleValue = watch("role");
+  const roleValue = useWatch({ control, name: "role" });
   const willShowAsTailor = (roleValue || "").trim().toLowerCase() === "tailor";
+  const [commissionOpen, setCommissionOpen] = useState(false);
+  const [salaryOpen, setSalaryOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
 
   async function onSubmit(values: FormValues) {
     try {
@@ -173,6 +177,17 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
           <div className="flex-1">
             <h1 className="text-base font-semibold">{isEdit ? "Edit Employee" : "New Employee"}</h1>
             {isEdit && <p className="text-[11px] font-mono text-muted-foreground">{existing!.name}</p>}
+          </div>
+          {/* Duplicate of the bottom FormActionBar — mobile only, so Add/Save is reachable
+             without scrolling all the way down. */}
+          <div className="flex items-center gap-2 sm:hidden">
+            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
+              <Save className="size-3.5" />
+              {isSubmitting ? "Saving…" : isEdit ? "Save" : "Add"}
+            </Button>
           </div>
         </div>
       </div>
@@ -232,41 +247,54 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
 
         {/* Commission */}
         <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-          <SectionHeading icon={TrendingUp} label="Commission" />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FieldGroup label="Commission type">
-              <Controller
-                control={control}
-                name="commissionType"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
-                    <SelectTrigger className="h-10 w-full">
-                      <SelectValue>{commissionLabel}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(COMMISSION_LABELS) as CommissionType[]).map((c) => (
-                        <SelectItem key={c} value={c}>{COMMISSION_LABELS[c]}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </FieldGroup>
-            <FieldGroup label="Commission rate" hint="% of sales or flat ₹ per order.">
-              <Controller
-                control={control}
-                name="commissionRate"
-                render={({ field }) => <NumberInput min={0} step={0.01} className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
-              />
-            </FieldGroup>
-          </div>
+          <Accordion value={commissionOpen ? ["commission"] : []} onValueChange={(v) => setCommissionOpen(v.includes("commission"))}>
+            <AccordionItem value="commission" className="border-b-0">
+              <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                    <TrendingUp className="size-3.5 text-primary" />
+                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Commission</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <FieldGroup label="Commission type">
+                    <Controller
+                      control={control}
+                      name="commissionType"
+                      render={({ field }) => (
+                        <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
+                          <SelectTrigger className="h-10 w-full">
+                            <SelectValue>{commissionLabel}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(Object.keys(COMMISSION_LABELS) as CommissionType[]).map((c) => (
+                              <SelectItem key={c} value={c}>{COMMISSION_LABELS[c]}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </FieldGroup>
+                  <FieldGroup label="Commission rate" hint="% of sales or flat ₹ per order.">
+                    <Controller
+                      control={control}
+                      name="commissionRate"
+                      render={({ field }) => <NumberInput min={0} step={0.01} className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
+                    />
+                  </FieldGroup>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
 
         {/* Attendance */}
         <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
           <SectionHeading icon={MapPin} label="Attendance" />
           <div className="space-y-4">
-            <FieldGroup label="Shop location" hint="Required for self check-in — geofencing checks against this location.">
+            <FieldGroup label="Company location" hint="Required for self check-in — geofencing checks against this location.">
               <Controller
                 control={control}
                 name="locationId"
@@ -297,60 +325,100 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
         {/* Salary */}
         {user?.perms.managePayroll && (
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-            <SectionHeading icon={Banknote} label="Salary" />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FieldGroup label="Pay basis">
-                <Controller
-                  control={control}
-                  name="salaryType"
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
-                      <SelectTrigger className="h-10 w-full">
-                        <SelectValue>{salaryLabel}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(Object.keys(SALARY_TYPE_LABELS) as SalaryType[]).map((t) => (
-                          <SelectItem key={t} value={t}>{SALARY_TYPE_LABELS[t]}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </FieldGroup>
-              <FieldGroup label="Rate (₹)" hint="Per month / per day / per hour based on pay basis.">
-                <Controller
-                  control={control}
-                  name="salaryRate"
-                  render={({ field }) => <NumberInput min={0} step={0.01} className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
-                />
-              </FieldGroup>
-            </div>
-            <div className="flex items-center gap-2 pt-1">
-              <input type="checkbox" id="pieceRateEligible" className="size-4 rounded" {...register("pieceRateEligible")} />
-              <Label htmlFor="pieceRateEligible" className="text-xs font-medium text-foreground/80 cursor-pointer">
-                Piece-rate eligible — also earns per-garment/per-unit pay on top of the salary above, from garments and work orders assigned to them
-              </Label>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Overtime is a shop-wide flat ₹/hour rate, not set per employee — configure it under{" "}
-              <Link href="/settings/attendance-payroll" className="underline hover:text-foreground">Settings → Attendance &amp; Payroll</Link>. It applies automatically to hours worked
-              beyond the standard shift, based on this employee&apos;s self check-in/out times.
-            </p>
+            <Accordion value={salaryOpen ? ["salary"] : []} onValueChange={(v) => setSalaryOpen(v.includes("salary"))}>
+              <AccordionItem value="salary" className="border-b-0">
+                <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                  <span className="flex items-center gap-2">
+                    <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                      <Banknote className="size-3.5 text-primary" />
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Salary</span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <FieldGroup label="Pay basis">
+                      <Controller
+                        control={control}
+                        name="salaryType"
+                        render={({ field }) => (
+                          <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
+                            <SelectTrigger className="h-10 w-full">
+                              <SelectValue>{salaryLabel}</SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(Object.keys(SALARY_TYPE_LABELS) as SalaryType[]).map((t) => (
+                                <SelectItem key={t} value={t}>{SALARY_TYPE_LABELS[t]}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </FieldGroup>
+                    <FieldGroup label="Rate (₹)" hint="Per month / per day / per hour based on pay basis.">
+                      <Controller
+                        control={control}
+                        name="salaryRate"
+                        render={({ field }) => <NumberInput min={0} step={0.01} className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />}
+                      />
+                    </FieldGroup>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <input type="checkbox" id="pieceRateEligible" className="size-4 rounded" {...register("pieceRateEligible")} />
+                    <Label htmlFor="pieceRateEligible" className="text-xs font-medium text-foreground/80 cursor-pointer">
+                      Piece-rate eligible — also earns per-garment/per-unit pay on top of the salary above, from garments and work orders assigned to them
+                    </Label>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Overtime is a shop-wide flat ₹/hour rate, not set per employee — configure it under{" "}
+                    <Link href="/settings/attendance-payroll" className="underline hover:text-foreground">Settings → Attendance &amp; Payroll</Link>. It applies automatically to hours worked
+                    beyond the standard shift, based on this employee&apos;s self check-in/out times.
+                  </p>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
         )}
 
         {/* Notes */}
         <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-          <SectionHeading icon={Banknote} label="Notes" />
-          <FieldGroup label="Internal notes">
-            <Textarea placeholder="Optional notes…" rows={2} className="resize-none" {...register("notes")} />
-          </FieldGroup>
+          <Accordion value={notesOpen ? ["notes"] : []} onValueChange={(v) => setNotesOpen(v.includes("notes"))}>
+            <AccordionItem value="notes" className="border-b-0">
+              <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                    <Banknote className="size-3.5 text-primary" />
+                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <FieldGroup label="Internal notes">
+                  <Textarea placeholder="Optional notes…" rows={2} className="resize-none" {...register("notes")} />
+                </FieldGroup>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       </div>
 
-      <FormActionBar>
-        <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
-        <Button type="submit" size="sm" className="gap-1.5" disabled={isSubmitting}>
+      <FormActionBar className="justify-start sm:justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="h-12 px-6 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          onClick={() => router.back()}
+          disabled={isSubmitting}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          size="lg"
+          className="h-12 flex-1 gap-1.5 px-6 text-base sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          disabled={isSubmitting}
+        >
           <Save className="size-3.5" />
           {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : "Add Employee"}
         </Button>

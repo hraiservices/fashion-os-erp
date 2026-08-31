@@ -13,6 +13,8 @@ import { AlterationBadge, ReworkBadge } from "@/components/orders/order-card";
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { hapticTap } from "@/lib/haptics";
 import type { useRowSelection } from "@/hooks/use-row-selection";
 import type { Order } from "@/lib/types";
 import type { Shop } from "@/lib/settings";
@@ -58,15 +60,20 @@ function AdvanceButton({ order, onAdvance, advancing, compact }: RowProps & { co
   return (
     <Button
       size="sm"
-      className={cn("h-9 whitespace-nowrap px-2.5 text-xs sm:h-8", style.solid, compact && "flex-1")}
+      className={cn("h-9 px-2.5 text-xs sm:h-8", style.solid, compact && "min-w-0 flex-1")}
       disabled={advancing}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
+        hapticTap();
         onAdvance?.(order.id);
       }}
     >
-      {advancing ? "…" : `Move to ${STAGE_META[next].label}`}
+      {/* min-w-0/truncate here (rather than the old blanket whitespace-nowrap) matters only for
+          the compact card row, where this button shares a fixed-width row with two icon buttons
+          — a long stage name (e.g. "Move to Delivered") could otherwise force the row wider than
+          the card instead of just ellipsizing. The non-compact table-row usage has room to spare. */}
+      <span className={compact ? "truncate" : "whitespace-nowrap"}>{advancing ? "…" : `Move to ${STAGE_META[next].label}`}</span>
     </Button>
   );
 }
@@ -169,8 +176,7 @@ export function OrderTableRow(props: TableRowProps) {
       </td>
       {selection && (
         <td className="px-3 py-3">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={selection.selected.has(order.id)}
             onChange={() => selection.toggle(order.id)}
             aria-label={`Select order ${order.id}`}

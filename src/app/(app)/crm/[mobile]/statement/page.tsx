@@ -10,7 +10,7 @@ import { buildCustomerTransactions } from "@/lib/customer-ledger";
 import { inr, fmtDate } from "@/lib/format";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -55,11 +55,11 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
   }, [allTransactions, typeFilter, from, to]);
 
   const rows = useMemo(() => {
-    let running = 0;
-    return filtered.map((t) => {
-      running += t.billed - t.paid;
-      return { ...t, running };
-    });
+    return filtered.reduce<(typeof filtered[number] & { running: number })[]>((acc, t) => {
+      const prevRunning = acc.length ? acc[acc.length - 1].running : 0;
+      acc.push({ ...t, running: prevRunning + t.billed - t.paid });
+      return acc;
+    }, []);
   }, [filtered]);
 
   const summary = useMemo(() => {
@@ -116,11 +116,11 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">From</Label>
-          <Input type="date" className="h-8 w-36" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <DatePicker className="w-36" value={from} onChange={setFrom} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">To</Label>
-          <Input type="date" className="h-8 w-36" value={to} onChange={(e) => setTo(e.target.value)} />
+          <DatePicker className="w-36" value={to} onChange={setTo} />
         </div>
         {(from || to) && (
           <Button variant="ghost" size="sm" onClick={() => { setFrom(""); setTo(""); }}>
@@ -134,14 +134,14 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
           <div className="flex items-center gap-3">
             {shop?.logoDataUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={shop.logoDataUrl} alt={shop.name || "Shop logo"} className="size-12 rounded-lg border bg-white object-contain" />
+              <img src={shop.logoDataUrl} alt={shop.name || "Company logo"} className="size-12 rounded-lg border bg-white object-contain" />
             ) : (
               <div className="flex size-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Scissors className="size-5" />
               </div>
             )}
             <div>
-              <p className="font-semibold">{shop?.name || "Shop"}</p>
+              <p className="font-semibold">{shop?.name || "Company"}</p>
               {shop?.phone && <p className="text-xs text-muted-foreground">{shop.phone}</p>}
             </div>
           </div>
@@ -191,42 +191,79 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
             <EmptyState title="No transactions in this range" />
           </div>
         ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b text-left text-xs text-muted-foreground">
-                <tr>
-                  <th className="py-2 pr-2 font-medium">Date</th>
-                  <th className="py-2 pr-2 font-medium">Type</th>
-                  <th className="py-2 pr-2 font-medium">Reference</th>
-                  <th className="py-2 pr-2 font-medium">Description</th>
-                  <th className="py-2 pr-2 text-right font-medium">Billed</th>
-                  <th className="py-2 pr-2 text-right font-medium">Paid</th>
-                  <th className="py-2 text-right font-medium">Balance</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {rows.map((t) => (
-                  <tr key={t.id}>
-                    <td className="py-2 pr-2 whitespace-nowrap">{fmtDate(t.date)}</td>
-                    <td className="py-2 pr-2">
-                      <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap", TYPE_STYLE[t.type])}>
-                        {TYPE_LABEL[t.type]}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-2 whitespace-nowrap">
-                      <Link href={t.href} className="text-primary hover:underline print:text-foreground print:no-underline">
+          <>
+            <div className="mt-4 space-y-2 sm:hidden print:hidden">
+              {rows.map((t) => (
+                <div key={t.id} className="rounded-lg border p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <Link href={t.href} className="font-medium text-primary hover:underline">
                         {t.reference}
                       </Link>
-                    </td>
-                    <td className="max-w-40 truncate py-2 pr-2 text-muted-foreground">{t.description}</td>
-                    <td className="py-2 pr-2 text-right tabular-nums">{inr(t.billed)}</td>
-                    <td className="py-2 pr-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{t.paid > 0 ? inr(t.paid) : "—"}</td>
-                    <td className={cn("py-2 text-right font-medium tabular-nums", t.balance > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>{inr(t.balance)}</td>
+                      <p className="truncate text-xs text-muted-foreground">{t.description}</p>
+                    </div>
+                    <span className={cn("inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap", TYPE_STYLE[t.type])}>
+                      {TYPE_LABEL[t.type]}
+                    </span>
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-1 border-t pt-2 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Date</p>
+                      <p className="tabular-nums">{fmtDate(t.date)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Billed</p>
+                      <p className="tabular-nums">{inr(t.billed)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Paid</p>
+                      <p className="tabular-nums text-emerald-600 dark:text-emerald-400">{t.paid > 0 ? inr(t.paid) : "—"}</p>
+                    </div>
+                  </div>
+                  <p className={cn("mt-1.5 text-right text-sm font-medium tabular-nums", t.balance > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
+                    Balance: {inr(t.balance)}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 hidden overflow-x-auto sm:block print:block">
+              <table className="w-full text-sm">
+                <thead className="border-b text-left text-xs text-muted-foreground">
+                  <tr>
+                    <th className="py-2 pr-2 font-medium">Date</th>
+                    <th className="py-2 pr-2 font-medium">Type</th>
+                    <th className="py-2 pr-2 font-medium">Reference</th>
+                    <th className="py-2 pr-2 font-medium">Description</th>
+                    <th className="py-2 pr-2 text-right font-medium">Billed</th>
+                    <th className="py-2 pr-2 text-right font-medium">Paid</th>
+                    <th className="py-2 text-right font-medium">Balance</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y">
+                  {rows.map((t) => (
+                    <tr key={t.id}>
+                      <td className="py-2 pr-2 whitespace-nowrap">{fmtDate(t.date)}</td>
+                      <td className="py-2 pr-2">
+                        <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap", TYPE_STYLE[t.type])}>
+                          {TYPE_LABEL[t.type]}
+                        </span>
+                      </td>
+                      <td className="py-2 pr-2 whitespace-nowrap">
+                        <Link href={t.href} className="text-primary hover:underline print:text-foreground print:no-underline">
+                          {t.reference}
+                        </Link>
+                      </td>
+                      <td className="max-w-40 truncate py-2 pr-2 text-muted-foreground">{t.description}</td>
+                      <td className="py-2 pr-2 text-right tabular-nums">{inr(t.billed)}</td>
+                      <td className="py-2 pr-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{t.paid > 0 ? inr(t.paid) : "—"}</td>
+                      <td className={cn("py-2 text-right font-medium tabular-nums", t.balance > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>{inr(t.balance)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

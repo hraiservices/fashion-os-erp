@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -92,7 +93,7 @@ export default function SalesPaymentsPage() {
 
       <div className="relative sm:max-w-xs">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search invoice#, customer, mobile…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Input type="search" enterKeyHint="search" placeholder="Search invoice#, customer, mobile…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
       {canManage && selection.count > 0 && (
@@ -124,8 +125,7 @@ export default function SalesPaymentsPage() {
               <TableRow>
                 {canManage && (
                   <TableHead className="w-8">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={selection.allSelected}
                       ref={(el) => {
                         if (el) el.indeterminate = selection.someSelected;
@@ -151,7 +151,7 @@ export default function SalesPaymentsPage() {
                   <TableRow key={p.id}>
                     {canManage && (
                       <TableCell>
-                        <input type="checkbox" checked={selection.selected.has(p.id)} onChange={() => selection.toggle(p.id)} aria-label={`Select payment of ${inr(p.amount)}`} />
+                        <Checkbox checked={selection.selected.has(p.id)} onChange={() => selection.toggle(p.id)} aria-label={`Select payment of ${inr(p.amount)}`} />
                       </TableCell>
                     )}
                     <TableCell className="text-muted-foreground">{fmtDate(p.date)}</TableCell>
@@ -173,7 +173,7 @@ export default function SalesPaymentsPage() {
                     <TableCell className="max-w-48 truncate text-muted-foreground">{p.note || "—"}</TableCell>
                     {canManage && (
                       <TableCell>
-                        <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-destructive" onClick={() => setConfirmOne(p.id)} aria-label="Delete payment">
+                        <Button variant="ghost" size="icon-sm" className="size-11 text-muted-foreground hover:text-destructive sm:size-7" onClick={() => setConfirmOne(p.id)} aria-label="Delete payment">
                           <Trash2 className="size-3.5" />
                         </Button>
                       </TableCell>

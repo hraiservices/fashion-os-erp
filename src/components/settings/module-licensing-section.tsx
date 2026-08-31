@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { REPORTS_GROUP, resolveReportSection, SETTINGS_GROUP, EMPLOYEES_GROUP, ORDERS_GROUP } from "@/components/app-shell/nav-config";
 import { BUILTIN_WIDGETS } from "@/lib/dashboard-widgets";
@@ -16,6 +16,7 @@ import {
   type ModuleId,
 } from "@/lib/entitlements";
 import { useModuleEntitlements, useSaveModuleEntitlements } from "@/hooks/use-module-entitlements";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,9 +44,9 @@ export function ModuleLicensingSection() {
   const save = useSaveModuleEntitlements();
   const [ent, setEnt] = useState<ModuleEntitlements>(DEFAULT_ENTITLEMENTS);
 
-  useEffect(() => {
-    if (data) setEnt(data);
-  }, [data]);
+  useSyncFromSource(data, (d) => {
+    if (d) setEnt(d);
+  });
 
   function toggleModule(id: ModuleId, v: boolean) {
     setEnt((e) => ({ ...e, modules: { ...e.modules, [id]: v } }));
@@ -135,11 +136,11 @@ export function ModuleLicensingSection() {
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Max orders per month</Label>
-            <Input type="number" min={0} placeholder="Unlimited" value={ent.limits?.maxOrdersPerMonth ?? ""} onChange={(e) => setLimit("maxOrdersPerMonth", e.target.value)} />
+            <Input type="number" inputMode="numeric" min={0} placeholder="Unlimited" value={ent.limits?.maxOrdersPerMonth ?? ""} onChange={(e) => setLimit("maxOrdersPerMonth", e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Max staff accounts</Label>
-            <Input type="number" min={0} placeholder="Unlimited" value={ent.limits?.maxStaffAccounts ?? ""} onChange={(e) => setLimit("maxStaffAccounts", e.target.value)} />
+            <Input type="number" inputMode="numeric" min={0} placeholder="Unlimited" value={ent.limits?.maxStaffAccounts ?? ""} onChange={(e) => setLimit("maxStaffAccounts", e.target.value)} />
           </div>
           <p className="text-xs text-muted-foreground sm:col-span-2">Soft caps only — never blocks a customer from working, just shows a warning once exceeded.</p>
         </CardContent>
@@ -206,7 +207,7 @@ export function ModuleLicensingSection() {
       </Card>
 
       <div className="flex justify-end">
-        <Button disabled={save.isPending} onClick={onSave}>
+        <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" disabled={save.isPending} onClick={onSave}>
           {save.isPending ? "Saving…" : "Save changes"}
         </Button>
       </div>

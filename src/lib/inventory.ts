@@ -50,6 +50,34 @@ export function isLowStock(stockQty: number, lowStockAlert: number): boolean {
   return lowStockAlert > 0 && stockQty <= lowStockAlert;
 }
 
+export interface ReorderEstimate {
+  /** Units consumed per day, averaged over the lookback window. */
+  dailyRate: number;
+  /** null when consumption is at/near zero — "runs out" has no meaningful date to give. */
+  daysUntilEmpty: number | null;
+}
+
+/** How many days of ledger history to average consumption over — long enough to smooth out a
+ *  single unusually busy/quiet day, short enough to reflect the shop's CURRENT order pace
+ *  rather than a stale average from months ago. */
+export const REORDER_LOOKBACK_DAYS = 30;
+
+/**
+ * Projects how many days of stock remain at the recent consumption pace — "you'll run out of
+ * this in ~N days" rather than only a binary low-stock flag. `consumedInWindow` is the total
+ * (positive) quantity consumed over the last `REORDER_LOOKBACK_DAYS` days (movement < 0 rows
+ * from inventory_ledger, negated) — the caller aggregates that from the ledger since it varies
+ * by data source (raw material consumption today, could extend to product sales pace later).
+ * Purely a projection of recent pace, not aware of seasonality or upcoming bulk orders.
+ */
+export function estimateReorder(currentStock: number, consumedInWindow: number, lookbackDays = REORDER_LOOKBACK_DAYS): ReorderEstimate {
+  // lookbackDays <= 0 has no meaningful rate to compute (would divide by zero, or by a
+  // negative number) — same "no estimate" answer as zero consumption.
+  if (lookbackDays <= 0 || consumedInWindow <= 0) return { dailyRate: 0, daysUntilEmpty: null };
+  const dailyRate = consumedInWindow / lookbackDays;
+  return { dailyRate, daysUntilEmpty: Math.max(0, Math.floor(currentStock / dailyRate)) };
+}
+
 /** Auto-generated Code128-safe barcode for a new product — a 12-digit numeric code (timestamp tail + random), scannable and printable as-is. Stays user-editable for shops with pre-printed codes. */
 export function genBarcode(): string {
   const time = Date.now().toString().slice(-9);

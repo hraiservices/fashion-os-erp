@@ -7,7 +7,7 @@ import { useAllSalesPayments } from "@/hooks/use-sales-payments";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useAllOrderPayments } from "@/hooks/use-order-payments";
 import { useOrders } from "@/hooks/use-orders";
-import { buildInvoicePaymentRows, buildOrderPaymentRows, sortPaymentRows, type PaymentReceivedRow, type PaymentSource } from "@/lib/payments-received";
+import { buildInvoicePaymentRows, buildOrderPaymentRows, sortPaymentRows, type PaymentSource } from "@/lib/payments-received";
 import { inr, fmtDate } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
@@ -88,7 +88,7 @@ export default function PaymentsReceivedReportPage() {
         </div>
         <div className="relative max-w-xs flex-1 min-w-40">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search customer, mobile, reference…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search payments" />
+          <Input type="search" enterKeyHint="search" placeholder="Search customer, mobile, reference…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search payments" />
         </div>
       </div>
 

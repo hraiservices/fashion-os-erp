@@ -40,9 +40,9 @@ export function useReportsData() {
   const { data: tailorRates } = useAppSetting<TailorRateCard>("tailorRates", DEFAULT_TAILOR_RATES);
   const { data: expensesByOrderId } = useOrderExpensesByOrderId();
 
-  const list = orders || [];
-  const custList = customers || [];
-  const couponList = coupons || [];
+  const list = useMemo(() => orders || [], [orders]);
+  const custList = useMemo(() => customers || [], [customers]);
+  const couponList = useMemo(() => coupons || [], [coupons]);
 
   const monthly = useMemo(() => getMonthly(list), [list]);
   const tailorStats = useMemo(() => getTailorStats(list), [list]);

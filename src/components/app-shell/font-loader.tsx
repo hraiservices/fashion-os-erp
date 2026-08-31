@@ -30,6 +30,14 @@ export function FontLoader() {
     root.style.setProperty("font-family", `"${cfg.family}", sans-serif`);
     root.style.setProperty("font-weight", String(cfg.weight));
     root.style.setProperty("font-size", `${cfg.size}px`);
+
+    // Cached so the blocking <script> in layout.tsx's <head> can re-apply this choice on the
+    // very next page load before React (and this effect) even runs — see that script's comment.
+    try {
+      localStorage.setItem("shop-font-config", JSON.stringify(cfg));
+    } catch {
+      // Private browsing / storage disabled — fine, this is just a perf nicety.
+    }
   }, [data]);
 
   return null;

@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { useRaiseVendorCredit } from "@/hooks/use-purchase-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -77,7 +78,7 @@ export function RaiseVendorCreditDialog({
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Return date</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <DatePicker value={date} onChange={setDate} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Reason *</Label>

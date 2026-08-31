@@ -51,7 +51,6 @@ export function useCustomCardValue(config: CustomCardConfig) {
       default:
         return [];
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.dataSource, orders, salesInvoices, purchaseBills, workOrders, rawMaterials, products, expenses, vendors, customers]);
 
   const value = useMemo(() => computeCustomCardValue(config, rows as unknown as Record<string, unknown>[]), [config, rows]);

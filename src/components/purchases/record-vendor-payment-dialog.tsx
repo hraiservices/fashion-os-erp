@@ -75,7 +75,7 @@ export function RecordVendorPaymentDialog({
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Amount (₹)</Label>
-            <Input type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <Input type="number" inputMode="decimal" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

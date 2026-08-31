@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { PrintButton } from "@/components/ui/print-button";
 
@@ -19,6 +21,10 @@ export function ReportShell({
 }) {
   return (
     <div className="space-y-4 p-4 sm:p-6 print:p-0">
+      {/* Mobile only — desktop already has the persistent Reports category rail as its "back". */}
+      <Link href="/reports" className="inline-flex items-center gap-0.5 text-sm text-primary lg:hidden print:hidden">
+        <ChevronLeft className="size-5" /> Reports
+      </Link>
       <PageHeader
         title={title}
         description={description}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSaveProduct } from "@/hooks/use-inventory-mutations";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { printBarcodeLabel } from "@/lib/barcode";
@@ -82,7 +83,7 @@ export function ProductFormDialog({
     defaultValues: { name: "", sku: "", category: "", sellingPrice: 0, costPrice: 0, taxRate: 5, lowStockAlert: 0, notes: "", openingStock: 0 },
   });
 
-  useEffect(() => {
+  useSyncFromSource(`${open}:${product?.id ?? "new"}`, () => {
     if (!open) return;
     if (product) {
       reset({
@@ -101,7 +102,7 @@ export function ProductFormDialog({
       reset({ name: defaultName || "", sku: "", category: "", sellingPrice: 0, costPrice: 0, taxRate: 5, lowStockAlert: 0, notes: "", openingStock: 0 });
       setBomRows([]);
     }
-  }, [open, product, reset, defaultName]);
+  });
 
   function handleClose() {
     onOpenChange(false);
@@ -240,6 +241,7 @@ export function ProductFormDialog({
                       </Select>
                       <Input
                         type="number"
+                        inputMode="decimal"
                         min={0}
                         step="0.001"
                         placeholder="Qty"
@@ -258,8 +260,8 @@ export function ProductFormDialog({
           </div>
 
           <DialogFooter className="mx-0 mb-0 border-t px-5 py-3 shrink-0">
-            <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="button" variant="outline" className="h-11 px-4 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={handleClose}>Cancel</Button>
+            <Button type="submit" className="h-11 px-4 text-base sm:h-8 sm:px-2.5 sm:text-sm" disabled={isSubmitting}>
               {isSubmitting ? "Saving…" : isEdit ? "Save changes" : "Add product"}
             </Button>
           </DialogFooter>

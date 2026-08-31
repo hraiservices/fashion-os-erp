@@ -57,7 +57,7 @@ export function CustomerListRow({
     .filter(isOrderOutstanding)
     .sort((a, b) => new Date(b.inDate).getTime() - new Date(a.inDate).getTime())[0];
   const reminderUrl = `https://wa.me/91${normalizeIndianMobile(cust.mobile)}?text=${encodeURIComponent(
-    `Dear *${cust.name}* 🙏\n\n₹${outstanding} is due on your account at *${shop?.name || "our shop"}*.\nPlease clear at your earliest convenience.\n📞 ${shop?.phone || ""}`
+    `Dear *${cust.name}* 🙏\n\n₹${outstanding} is due on your account at *${shop?.name || "our company"}*.\nPlease clear at your earliest convenience.\n📞 ${shop?.phone || ""}`
   )}`;
   const initial = cust.name?.[0]?.toUpperCase() || "?";
   const orderChips = [...cust.orders]

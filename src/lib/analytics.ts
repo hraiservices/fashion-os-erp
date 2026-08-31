@@ -301,6 +301,91 @@ export function getTailorWorkload(orders: Order[]): WorkloadStat[] {
     .sort((a, b) => b.active - a.active);
 }
 
+/** Extra scheduling buffer (days) added on top of the base turnaround estimate when a tailor's
+ *  queue is already deep — a Low-capacity tailor can start right away, an Overloaded one
+ *  realistically needs over a week longer before they even get to a new order. */
+const CAPACITY_BUFFER_DAYS: Record<Capacity, number> = { Low: 0, Normal: 1, High: 3, Overloaded: 6 };
+
+/** A tailor needs at least this many completed orders before their own average turnaround is
+ *  trusted over the shop-wide per-garment-type figures — otherwise one unusually fast/slow past
+ *  order would skew every future estimate for a tailor who's still new or rarely used. */
+const MIN_COMPLETED_FOR_TAILOR_AVG = 3;
+
+/** Used only when there's neither enough of this tailor's own history nor any shop-wide
+ *  history for the garment type(s) being ordered (e.g. the very first order ever, or a brand
+ *  new garment type) — a generic, conservative placeholder rather than refusing to suggest
+ *  anything at all. */
+const DEFAULT_TURNAROUND_DAYS = 5;
+
+export interface DeliveryEstimate {
+  /** ISO yyyy-mm-dd suggested delivery date. */
+  date: string;
+  /** Total estimated turnaround days folded into that date (base + queue buffer + extra garments). */
+  days: number;
+  /** What the base turnaround figure (before queue buffer/garment-count adjustments) came from —
+   *  shown in the UI so the suggestion doesn't read as an opaque black box. */
+  basis: "tailor" | "garment-type" | "default";
+}
+
+/** Shop-wide average turnaround (delivery_date − in_date) per garment type, from completed
+ *  orders only — the same "promised days," not actual finish time, caveat as getTailorStats.avg. */
+function getGarmentTurnaroundDays(orders: Order[]): Record<string, number> {
+  const byType: Record<string, { sum: number; count: number }> = {};
+  for (const o of orders) {
+    if (o.status !== "delivered" && o.status !== "payment") continue;
+    if (!o.inDate || !o.deliveryDate) continue;
+    const days = Math.ceil((new Date(o.deliveryDate).getTime() - new Date(o.inDate).getTime()) / 86400000);
+    if (days <= 0) continue;
+    for (const g of o.garments) {
+      if (!g.type) continue;
+      const bucket = (byType[g.type] ??= { sum: 0, count: 0 });
+      bucket.sum += days;
+      bucket.count += 1;
+    }
+  }
+  return Object.fromEntries(Object.entries(byType).map(([type, { sum, count }]) => [type, Math.round(sum / count)]));
+}
+
+/**
+ * Suggests a realistic delivery date for a NEW order — purely a suggestion the order form shows
+ * as a tappable chip, never auto-applied over what someone picks. Prefers the selected tailor's
+ * own historical turnaround (once they have enough completed orders to trust it), falls back to
+ * the shop-wide average for the garment type(s) in this order, then a flat default. Adds a
+ * queue-depth buffer from the tailor's current active-order capacity, plus one day per garment
+ * beyond the first (a 5-garment order realistically takes longer than a 1-garment one).
+ */
+export function estimateDeliveryDate(orders: Order[], tailorId: string, garmentTypes: string[], fromDateIso: string): DeliveryEstimate {
+  const tailorStats = getTailorStats(orders).find((t) => t.tailor === tailorId);
+  const workload = getTailorWorkload(orders).find((w) => w.tailor === tailorId);
+
+  let baseDays: number;
+  let basis: DeliveryEstimate["basis"];
+  if (tailorStats && tailorStats.done >= MIN_COMPLETED_FOR_TAILOR_AVG && tailorStats.avg > 0) {
+    baseDays = tailorStats.avg;
+    basis = "tailor";
+  } else {
+    const perType = getGarmentTurnaroundDays(orders);
+    const relevant = garmentTypes.map((t) => perType[t]).filter((d): d is number => !!d);
+    if (relevant.length) {
+      baseDays = Math.round(relevant.reduce((s, d) => s + d, 0) / relevant.length);
+      basis = "garment-type";
+    } else {
+      baseDays = DEFAULT_TURNAROUND_DAYS;
+      basis = "default";
+    }
+  }
+
+  const buffer = workload ? CAPACITY_BUFFER_DAYS[workload.capacity] : 0;
+  const extraGarmentDays = Math.max(0, garmentTypes.length - 1);
+  const days = Math.max(1, baseDays + buffer + extraGarmentDays);
+
+  const from = new Date(`${fromDateIso}T00:00:00`);
+  from.setDate(from.getDate() + days);
+  const date = from.toISOString().slice(0, 10);
+
+  return { date, days, basis };
+}
+
 export interface GarmentRevRow {
   label: string;
   count: number;
@@ -398,6 +483,104 @@ export function getReworkRate(orders: Order[]): ReworkRateRow[] {
     })
     .filter((r) => r.totalOrders > 0)
     .sort((a, b) => b.reworkRate - a.reworkRate);
+}
+
+export type RiskLevel = "low" | "medium" | "high";
+
+export interface ReworkRiskEstimate {
+  level: RiskLevel;
+  /** % of the matching historical orders that were either flagged rework or ran overdue. */
+  riskRate: number;
+  sampleSize: number;
+  /** "combo" = this exact tailor + garment-type pairing has enough history; "tailor" = fell
+   *  back to this tailor's overall record because the specific pairing is too thin to trust. */
+  basis: "combo" | "tailor";
+}
+
+/** A tailor needs at least this many matching past orders before a risk rate means anything —
+ *  below this, one bad order would swing the rate wildly and just be noise. */
+const MIN_SAMPLE_FOR_RISK = 3;
+
+/** An order counts as overdue for this purpose the same way the rest of the app defines it
+ *  (see getTailorStats' `over` and the chatbot's is_overdue view): still open past its promised
+ *  delivery date. There's no separate "actually delivered late" timestamp to look at, so a
+ *  currently-overdue order is the closest available proxy for "this combo tends to run late." */
+function isOrderOverdue(o: Order): boolean {
+  if (!o.deliveryDate) return false;
+  const isOpen = o.status !== "delivered" && o.status !== "payment";
+  return isOpen && daysLeft(o.deliveryDate) < 0;
+}
+
+/**
+ * Flags a NEW order as likely-to-need-rework or likely-to-run-late before cutting starts,
+ * based on how often this tailor's past orders for these garment type(s) were flagged rework
+ * (order.reworkFlag, set manually via set_order_rework) or ran overdue. Prefers the exact
+ * tailor + garment-type combination when there's enough history, falling back to the tailor's
+ * overall record otherwise. Returns null when there isn't enough history either way — silence,
+ * not a false "low risk," is the honest answer for a brand-new tailor or garment type.
+ */
+export function estimateReworkRisk(orders: Order[], tailorId: string, garmentTypes: string[]): ReworkRiskEstimate | null {
+  if (!tailorId || garmentTypes.length === 0) return null;
+  const types = new Set(garmentTypes);
+
+  let pool = orders.filter((o) => o.tailor === tailorId && o.garments.some((g) => types.has(g.type)));
+  let basis: ReworkRiskEstimate["basis"] = "combo";
+  if (pool.length < MIN_SAMPLE_FOR_RISK) {
+    pool = orders.filter((o) => o.tailor === tailorId);
+    basis = "tailor";
+  }
+  if (pool.length < MIN_SAMPLE_FOR_RISK) return null;
+
+  const flagged = pool.filter((o) => o.reworkFlag || isOrderOverdue(o)).length;
+  const riskRate = Math.round((flagged / pool.length) * 100);
+  const level: RiskLevel = riskRate >= 30 ? "high" : riskRate >= 15 ? "medium" : "low";
+
+  return { level, riskRate, sampleSize: pool.length, basis };
+}
+
+export interface TailorRanking {
+  tailorId: string;
+  capacity: Capacity;
+  activeCount: number;
+  /** null when there isn't enough history to compute a risk rate yet (see estimateReworkRisk). */
+  riskRate: number | null;
+  /** null for a tailor with no completed orders yet. */
+  avgDays: number | null;
+}
+
+/** Lower is better — same order the capacity badges already use elsewhere in the app. */
+const CAPACITY_RANK: Record<Capacity, number> = { Low: 0, Normal: 1, High: 2, Overloaded: 3 };
+
+/**
+ * Ranks a shop's tailors for a NEW order with these garment type(s), best-first — folding
+ * together three signals that already exist separately (current queue depth, this
+ * tailor+garment-type combo's rework/overdue risk, historical turnaround) so the order form can
+ * surface one recommendation instead of the owner mentally combining three numbers themselves.
+ * A tailor with no order history yet ranks as available (Low capacity, unknown risk treated as
+ * neutral) rather than being excluded — everyone starts somewhere.
+ */
+export function rankTailorsForOrder(orders: Order[], tailorIds: string[], garmentTypes: string[]): TailorRanking[] {
+  const workloadById = new Map(getTailorWorkload(orders).map((w) => [w.tailor, w]));
+
+  return tailorIds
+    .map((tailorId) => {
+      const workload = workloadById.get(tailorId);
+      const risk = estimateReworkRisk(orders, tailorId, garmentTypes);
+      return {
+        tailorId,
+        capacity: workload?.capacity ?? "Low",
+        activeCount: workload?.active ?? 0,
+        riskRate: risk?.riskRate ?? null,
+        avgDays: workload && workload.done > 0 ? workload.avg : null,
+      };
+    })
+    .sort((a, b) => {
+      const capDiff = CAPACITY_RANK[a.capacity] - CAPACITY_RANK[b.capacity];
+      if (capDiff !== 0) return capDiff;
+      const riskDiff = (a.riskRate ?? 0) - (b.riskRate ?? 0);
+      if (riskDiff !== 0) return riskDiff;
+      return (a.avgDays ?? 0) - (b.avgDays ?? 0);
+    });
 }
 
 /** No deposit at all, or a deposit under 20% of the order total — a fixed threshold for v1,

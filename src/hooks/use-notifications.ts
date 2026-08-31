@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { playNotificationSound } from "@/lib/notification-sound";
 
 export interface AdminNotification {
   id: number;
@@ -49,10 +50,16 @@ export function useNotifications() {
 
   useEffect(() => {
     const supabase = createClient();
+    // Listening to INSERT only meant a dismiss/"Clear all" done from another tab or device
+    // (an UPDATE, not an INSERT) never refreshed this client's list — it kept showing
+    // already-cleared notifications until something else happened to invalidate the cache.
     const channel = supabase
       .channel("admin_notifications_changes")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_notifications" }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "admin_notifications" }, (payload) => {
         qc.invalidateQueries({ queryKey: ["notifications"] });
+        // Only chime for a genuinely new notification — not for a dismiss/"Clear all" (UPDATE),
+        // which also flows through this same handler now that it listens to every event.
+        if (payload.eventType === "INSERT") playNotificationSound();
       })
       .subscribe();
     return () => {

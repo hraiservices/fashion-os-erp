@@ -71,9 +71,9 @@ export default function LoginPage() {
   const [ok, setOk] = useState("");
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.location.hash.includes("type=recovery")) {
-      setMode("reset");
-    }
+    if (typeof window === "undefined" || !window.location.hash.includes("type=recovery")) return;
+    const t = setTimeout(() => setMode("reset"), 0);
+    return () => clearTimeout(t);
   }, []);
 
   async function go() {
@@ -176,7 +176,7 @@ export default function LoginPage() {
             <div className="animate-login-logo-float relative flex size-16 items-center justify-center rounded-2xl border border-black/5 bg-white shadow-lg shadow-zinc-900/10">
               {shop?.logoDataUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={shop.logoDataUrl} alt={shop.name || "Shop logo"} className="size-full rounded-2xl object-contain p-1.5" />
+                <img src={shop.logoDataUrl} alt={shop.name || "Company logo"} className="size-full rounded-2xl object-contain p-1.5" />
               ) : (
                 <Scissors className="size-7 text-primary" />
               )}
@@ -229,7 +229,10 @@ export default function LoginPage() {
                 <TabsTrigger value="login" className="flex-1">
                   Sign in
                 </TabsTrigger>
-                <TabsTrigger value="signup" className="flex-1">
+                <TabsTrigger
+                  value="signup"
+                  className="flex-1 text-emerald-600 data-active:bg-emerald-50 data-active:text-emerald-700 dark:text-emerald-400 dark:data-active:bg-emerald-950/40 dark:data-active:text-emerald-400"
+                >
                   Sign up
                 </TabsTrigger>
               </TabsList>

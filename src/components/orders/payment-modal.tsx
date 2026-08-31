@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Check, Wallet } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PaidAmount, BalanceDue } from "@/components/ui/money-text";
 import { useCustomerByMobile } from "@/hooks/use-customer";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useRecordPayment } from "@/hooks/use-order-mutations";
 import { computeRedemption } from "@/lib/business-rules";
@@ -39,16 +40,15 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
   // but resetting the user's typed amount there is surprising — so track whether the user has
   // manually edited it and preserve that edit across toggle changes.
   const [amountEdited, setAmountEdited] = useState(false);
-  useEffect(() => {
-    if (!amountEdited) setAmount(effectiveBalance);
-  }, [effectiveBalance, amountEdited]);
-  useEffect(() => {
+  useSyncFromSource(amountEdited ? null : effectiveBalance, (bal) => {
+    if (bal != null) setAmount(bal);
+  });
+  // Intentionally only runs on order.balance changes, not on effectiveBalance (which includes ptDiscount).
+  useSyncFromSource(order.balance, () => {
     // Reset the "edited" flag whenever the modal is reopened (order.balance changes).
     setAmountEdited(false);
     setAmount(effectiveBalance);
-    // Intentionally only runs on order.balance changes, not on effectiveBalance (which includes ptDiscount).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order.balance]);
+  });
 
   async function save() {
     try {
@@ -129,10 +129,10 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" className="h-11 px-4 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={save} disabled={recordPayment.isPending || (!amount && !ptDiscount)}>
+          <Button className="h-11 px-4 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={save} disabled={recordPayment.isPending || (!amount && !ptDiscount)}>
             {recordPayment.isPending ? "Saving…" : "Record payment"}
           </Button>
         </DialogFooter>

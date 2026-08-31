@@ -4,6 +4,7 @@ import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { DEFAULT_RECOMMENDATION_TEMPLATE, renderRecommendationMessage, buildRecommendationWaUrl } from "@/lib/recommendation-whatsapp";
 import { isCloudApiConfigured, sendWhatsAppTemplateMessage, type WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
+import { logWhatsAppSend } from "@/lib/whatsapp-log";
 import { normalizeIndianMobile } from "@/lib/business-rules";
 
 const bodySchema = z.object({
@@ -41,17 +42,22 @@ export async function POST(request: Request) {
   // `authenticated` role (lockdown_whatsapp_cloud_api_config.sql) — read it via the service-role
   // client, which bypasses RLS, rather than the session client every other read here uses.
   const serviceClient = createServiceClient();
-  const [{ data: cooldownSetting }, { data: templateSetting }, cloudApiResult, { data: productRow }] = await Promise.all([
+  const [{ data: cooldownSetting }, { data: templateSetting }, cloudApiResult, { data: productRow }, { data: customerRow }] = await Promise.all([
     supabase.from("app_settings").select("value").eq("key", "recommendationCooldownDays").maybeSingle(),
     supabase.from("app_settings").select("value").eq("key", "recommendationWhatsAppTemplate").maybeSingle(),
     serviceClient
       ? serviceClient.from("app_settings").select("value").eq("key", "whatsappCloudApiConfig").maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from("products").select("image_data_url").eq("id", fd.productId).maybeSingle(),
+    supabase.from("customers").select("whatsapp_opt_out").eq("mobile", fd.mobile).maybeSingle(),
   ]);
   const cloudApiSetting = cloudApiResult?.data;
   const cooldownDays = typeof cooldownSetting?.value === "number" ? cooldownSetting.value : DEFAULT_COOLDOWN_DAYS;
   const template = typeof templateSetting?.value === "string" ? templateSetting.value : DEFAULT_RECOMMENDATION_TEMPLATE;
+
+  if (customerRow?.whatsapp_opt_out) {
+    return NextResponse.json({ blocked: true, reason: "opted_out" }, { status: 409 });
+  }
 
   const cutoff = new Date(Date.now() - cooldownDays * 86_400_000).toISOString();
   const { data: recent } = await supabase
@@ -84,14 +90,16 @@ export async function POST(request: Request) {
     try {
       const origin = new URL(request.url).origin;
       const imageUrl = productRow?.image_data_url ? `${origin}/api/products/${fd.productId}/image` : undefined;
-      await sendWhatsAppTemplateMessage({
+      const toMobile = `91${normalizeIndianMobile(fd.mobile)}`;
+      const waMessageId = await sendWhatsAppTemplateMessage({
         config: cloudApiConfig,
-        toMobile: `91${normalizeIndianMobile(fd.mobile)}`,
+        toMobile,
         customerName: fd.customerName,
         productName: fd.productName,
         price: String(fd.price),
         imageUrl,
       });
+      await logWhatsAppSend(supabase, { messageType: "recommendation", toMobile, waMessageId, status: "sent" });
       await supabase.from("customer_recommendations").insert({
         customer_mobile: fd.mobile,
         customer_name: fd.customerName,
@@ -106,6 +114,12 @@ export async function POST(request: Request) {
     } catch (e) {
       // Fall through to wa.me below — logged so the failure is visible, but not fatal.
       console.error("WhatsApp Cloud API send failed, falling back to wa.me:", e instanceof Error ? e.message : e);
+      await logWhatsAppSend(supabase, {
+        messageType: "recommendation",
+        toMobile: `91${normalizeIndianMobile(fd.mobile)}`,
+        status: "failed",
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 

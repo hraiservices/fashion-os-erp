@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, Building2, Package2, Tag, FileText, ShoppingCart } from "lucide-react";
@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useVendors } from "@/hooks/use-vendors";
 import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
 import { useSaveBill } from "@/hooks/use-purchase-mutations";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { genBillNumber } from "@/lib/purchases";
 import { computeGst, GST_TYPE_LABELS, type GstType } from "@/lib/gst";
@@ -21,6 +22,7 @@ import { FormActionBar } from "@/components/ui/form-action-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { LineItemsEditor, linesToItems, blankLine, lineFromItem, type EditableLine } from "@/components/purchases/line-items-editor";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import type { PurchaseBill } from "@/lib/types";
 
 const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
@@ -68,12 +70,13 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
   const [gstType, setGstType] = useState<GstType>(existing?.gstType || "none");
   const [taxRate, setTaxRate] = useState(String(existing?.taxRate ?? 5));
   const [notes, setNotes] = useState(existing?.notes || "");
+  const [notesOpen, setNotesOpen] = useState(false);
 
-  useEffect(() => {
-    if (!prefillPo) return;
-    setVendorId(prefillPo.vendorId);
-    setLines(prefillPo.items.map((item, i) => lineFromItem(item, `po-${i}`)));
-  }, [prefillPo]);
+  useSyncFromSource(prefillPo, (po) => {
+    if (!po) return;
+    setVendorId(po.vendorId);
+    setLines(po.items.map((item, i) => lineFromItem(item, `po-${i}`)));
+  });
 
   function handleTermChange(term: PaymentTerm) {
     setPaymentTerm(term);
@@ -127,6 +130,17 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
           <div className="flex-1">
             <h1 className="text-base font-semibold">{isEdit ? "Edit Bill" : "New Bill"}</h1>
             <p className="text-[11px] text-muted-foreground font-mono">{billNumber}</p>
+          </div>
+          {/* Duplicate of the bottom FormActionBar — mobile only, so Record/Save is reachable
+             without scrolling all the way down. */}
+          <div className="flex items-center gap-2 sm:hidden">
+            <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveBill.isPending}>
+              Cancel
+            </Button>
+            <Button size="sm" className="gap-1.5 bg-primary text-primary-foreground" onClick={handleSave} disabled={saveBill.isPending}>
+              <ShoppingCart className="size-3.5" />
+              {saveBill.isPending ? "Saving…" : isEdit ? "Save" : "Record"}
+            </Button>
           </div>
         </div>
       </div>
@@ -196,17 +210,30 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
                 </Select>
               </FieldGroup>
               <FieldGroup label="Tax rate (%)">
-                <Input type="number" min={0} max={100} step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} disabled={gstType === "none"} className="h-10" />
+                <Input type="number" inputMode="decimal" min={0} max={100} step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} disabled={gstType === "none"} className="h-10" />
               </FieldGroup>
             </div>
           </div>
 
           {/* Notes */}
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-            <SectionHeading icon={FileText} label="Notes" />
-            <FieldGroup label="Internal notes">
-              <Textarea rows={3} placeholder="Ref number, quality remarks, delivery details…" value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none" />
-            </FieldGroup>
+            <Accordion value={notesOpen ? ["notes"] : []} onValueChange={(v) => setNotesOpen(v.includes("notes"))}>
+              <AccordionItem value="notes" className="border-b-0">
+                <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                  <span className="flex items-center gap-2">
+                    <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                      <FileText className="size-3.5 text-primary" />
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes</span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <FieldGroup label="Internal notes">
+                    <Textarea rows={3} placeholder="Ref number, quality remarks, delivery details…" value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none" />
+                  </FieldGroup>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
         </div>
 
@@ -256,9 +283,22 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
         </div>
       </div>
 
-      <FormActionBar>
-        <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveBill.isPending}>Cancel</Button>
-        <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={handleSave} disabled={saveBill.isPending}>
+      <FormActionBar className="justify-start sm:justify-end">
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-12 px-6 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          onClick={() => router.back()}
+          disabled={saveBill.isPending}
+        >
+          Cancel
+        </Button>
+        <Button
+          size="lg"
+          className="h-12 flex-1 gap-1.5 bg-primary px-6 text-base text-primary-foreground sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          onClick={handleSave}
+          disabled={saveBill.isPending}
+        >
           <ShoppingCart className="size-3.5" />
           {saveBill.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(gstPreview.total)}` : `Record Bill · ${inr(gstPreview.total)}`}
         </Button>

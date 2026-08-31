@@ -49,6 +49,7 @@ export function MeasurementDocument({
       <Page size="A4" style={styles.page}>
         <View style={styles.headerRow}>
           <View>
+            {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf/renderer's Image, not an HTML img */}
             {logoDataUrl && <Image src={logoDataUrl} style={styles.logo} />}
             <Text style={styles.shopName}>{shopName || "Measurement Card"}</Text>
             {shopAddress && <Text style={styles.muted}>{shopAddress}</Text>}

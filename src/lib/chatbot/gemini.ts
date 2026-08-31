@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { GlossaryEntry } from "@/lib/chatbot/glossary";
+import { toMKey } from "@/lib/measurements";
 
 let client: GoogleGenAI | null = null;
 
@@ -25,8 +26,8 @@ const MODEL = "gemini-flash-latest";
  * the audit that preceded this chatbot's design.
  */
 const SCHEMA_CONTEXT = `
-You can query exactly two PostgreSQL views. Do not reference any other table or view — you have
-no access to them and the query will fail.
+You can query exactly these five PostgreSQL views. Do not reference any other table or view —
+you have no access to them and the query will fail.
 
 TABLE v_chatbot_orders (custom tailoring orders):
   id text, customer_name text, customer_mobile text, in_date date, delivery_date date,
@@ -50,10 +51,34 @@ TABLE v_chatbot_invoices (product sales invoices, separate from tailoring orders
     never describe a 'partial' invoice as paid.
   - balance already accounts for payments and credit notes — it is authoritative.
 
+TABLE v_chatbot_expenses (shop expenses — rent, salaries, supplies, etc.):
+  id uuid, date date, category text, description text, amount numeric, pay_method text,
+  customer_name text (nullable), customer_mobile text (nullable), created_at timestamptz
+
+  - customer_name/customer_mobile are only set for expenses linked to a specific customer
+    (rare) — most rows have them null.
+
+TABLE v_chatbot_payments (money actually received — both stitching-order and product-sale
+payments combined into one ledger, separate from an order/invoice's running balance):
+  id uuid, source text, reference_id text, customer_name text, customer_mobile text,
+  amount numeric, method text, date date, created_at timestamptz
+
+  - source is 'order' (stitching order payment) or 'invoice' (product sale payment).
+  - Use this view (not v_chatbot_orders.advance or v_chatbot_invoices.paid_total) for
+    "how much did I collect today/this week/this month" style questions — those columns are
+    running totals, not individual payment events, so they can't answer "on what day."
+
+TABLE v_chatbot_inventory (products and raw materials, with current stock level):
+  id text, item_type text, name text, sku text (nullable, raw materials have none),
+  category text, stock_qty integer, low_stock_alert integer, is_low_stock boolean
+
+  - item_type is 'product' (finished goods for sale) or 'raw_material' (fabric etc. used in
+    stitching).
+  - is_low_stock is already computed (stock_qty <= low_stock_alert) — use it directly.
+
 Business context: this is an Indian tailoring shop. Money is in Indian Rupees (₹). "Revenue"
-or "business" spans both tables — tailoring orders (v_chatbot_orders.total) AND product sales
-(v_chatbot_invoices.total) — combine both unless the question is clearly about only one.
-Today's date is {{TODAY}}.
+or "business" spans both v_chatbot_orders.total and v_chatbot_invoices.total — combine both
+unless the question is clearly about only one. Today's date is {{TODAY}}.
 `;
 
 const SQL_SYSTEM_PROMPT = `You are a PostgreSQL query generator for a tailoring-shop ERP chatbot.
@@ -64,10 +89,10 @@ both), write exactly one read-only SELECT statement that answers it.
 Rules:
 - SELECT only. Never write INSERT, UPDATE, DELETE, or any DDL.
 - Exactly one statement — no semicolons except an optional single trailing one.
-- Only reference v_chatbot_orders and v_chatbot_invoices.
+- Only reference the five views listed above.
 - Prefer aggregates (COUNT, SUM, AVG) with clear column aliases when the question asks "how
   many" or "how much".
-- If the question truly cannot be answered from these two views, return a query that selects
+- If the question truly cannot be answered from these views, return a query that selects
   nothing meaningful is not allowed — instead set "sql" to an empty string.
 Respond with JSON only: {"sql": "<the query>"}.`;
 
@@ -82,7 +107,11 @@ Rules:
 - If the rows array is empty, say so clearly and suggest what they might try instead.
 - For lists of 5 or fewer items, name them. For longer lists give the count and top examples.
 - Keep it short and conversational — 1-3 sentences or a tight bullet list. No markdown tables, no code blocks.
-- If the answer implies something actionable (overdue balance, pending delivery), say so.`;
+- If the answer implies something actionable (overdue balance, pending delivery), say so.
+- Also suggest 2-3 short, natural follow-up questions the owner would plausibly ask next, in
+  the same language/mix as the question. Keep each under 8 words. Skip a follow-up that's
+  basically a restatement of what was just answered.
+Respond with JSON only: {"answer": "<the answer>", "followups": ["<short question>", ...]}.`;
 
 function buildGlossaryBlock(glossary: GlossaryEntry[]): string {
   if (!glossary.length) return "";
@@ -152,15 +181,131 @@ export async function generateBriefing(summary: unknown): Promise<string> {
   return response.text?.trim() || "Couldn't generate today's briefing — try again shortly.";
 }
 
+const CONCIERGE_SYSTEM_PROMPT = `You are a WhatsApp assistant for an Indian tailoring shop, replying directly to ONE
+customer about their OWN stitching orders only. You will be given their message and a JSON list
+of their own recent orders (already filtered to just them by their WhatsApp number — never
+imply or mention anything about any other customer).
+
+Rules:
+- Reply in the same language/mix as their message (Hinglish -> Hinglish, English -> English).
+- Be short and direct — 1-3 sentences, plain WhatsApp-style text, no markdown, no code blocks.
+- Use ₹ for money, state the real numbers from the data given.
+- If the order list is empty, say you couldn't find any order under this number and suggest
+  they contact the shop directly — don't guess.
+- Never invent a status, date, or amount that isn't in the data you were given.
+- You cannot take any action (can't change a date, cancel, or record a payment) — if asked to
+  do one of those, say to contact the shop directly instead.
+Respond with plain text only — no JSON, no quotes around the whole message.`;
+
+/**
+ * Generates the concierge's reply to an inbound WhatsApp message — used only by the
+ * order-status webhook (src/app/api/webhooks/whatsapp/route.ts), never by the in-app Copilot.
+ * Deliberately much narrower than generateAnswer(): the caller has already fetched exactly
+ * this one customer's own orders via a plain `WHERE mobile = ?` query (never an LLM-generated
+ * one), so there's no SQL-generation step and no way for the reply to reach another customer's
+ * data — Gemini's only job here is phrasing, on data it never chose itself.
+ */
+export async function generateConciergeReply(question: string, orders: unknown[]): Promise<string> {
+  const ai = getClient();
+  const response = await ai.models.generateContent({
+    model: MODEL,
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: `Customer's message: ${question}\n\nTheir recent orders (JSON, may be empty): ${JSON.stringify(orders).slice(0, 4000)}` }],
+      },
+    ],
+    config: { systemInstruction: CONCIERGE_SYSTEM_PROMPT, temperature: 0.2 },
+  });
+  return response.text?.trim() || "Sorry, I couldn't look that up right now — please contact the shop directly.";
+}
+
+const MEASUREMENT_EXTRACTION_PROMPT = `You are reading a photo of a handwritten or printed tailoring measurement chart for an
+Indian tailoring shop. Extract numeric values for exactly these fields:
+{{FIELDS}}
+
+Rules:
+- Match values to fields using whatever labels/handwriting appear on the chart — they may be
+  abbreviated, in Hindi, or listed in a different order than above.
+- Only include a field if you can read a clear number for it. Never guess, estimate, or carry
+  a value over from a similar-looking field — leave it out entirely instead.
+- Return each value as the number only (e.g. "38", "38.5"), no units or extra text.
+Respond with JSON only: {"values": {"<field label exactly as given above>": "<number>", ...}}`;
+
+/**
+ * Reads a photo of a paper measurement chart and returns a { measurement-key: value } map
+ * ready to merge into the order form's measurement grid — the shop still reviews/edits every
+ * value before saving, this only replaces re-typing what's already on the paper. Uses the same
+ * Gemini client as the rest of this module, just with an image input instead of text-only.
+ */
+export async function extractMeasurementsFromImage(imageDataUrl: string, fieldLabels: string[]): Promise<Record<string, string>> {
+  const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(imageDataUrl);
+  if (!match) throw new Error("Invalid image");
+  const [, mimeType, base64] = match;
+
+  const ai = getClient();
+  const prompt = MEASUREMENT_EXTRACTION_PROMPT.replace("{{FIELDS}}", fieldLabels.map((f) => `- ${f}`).join("\n"));
+  const response = await ai.models.generateContent({
+    model: MODEL,
+    contents: [{ role: "user", parts: [{ inlineData: { mimeType, data: base64 } }, { text: prompt }] }],
+    config: { responseMimeType: "application/json", temperature: 0 },
+  });
+
+  const text = response.text;
+  if (!text) return {};
+  try {
+    const parsed = JSON.parse(text) as { values?: Record<string, string> };
+    const out: Record<string, string> = {};
+    for (const [label, value] of Object.entries(parsed.values || {})) {
+      const trimmed = String(value ?? "").trim();
+      if (trimmed) out[toMKey(label)] = trimmed;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+const VOICE_NOTE_TRANSCRIPTION_PROMPT = `Transcribe this voice note from an Indian tailoring shop. It may be in English, Hindi, or a
+mix (Hinglish) — transcribe it in whatever language/script it's actually spoken in (Hindi in
+Devanagari, Hinglish in Roman script), don't translate it. Output ONLY the transcription itself
+— no preamble, no "Here is the transcription," no quotes around it. If the audio is silent or
+unintelligible, output exactly: (could not transcribe)`;
+
+/**
+ * Transcribes a tailor's voice note (recorded on the order form, see MediaCapture) into text
+ * for the Special Instructions field — so nobody has to replay it to know what was said.
+ * Doesn't try to summarize or act on the content, only transcribe it verbatim.
+ */
+export async function transcribeVoiceNote(audioDataUrl: string): Promise<string> {
+  const match = /^data:(audio\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(audioDataUrl);
+  if (!match) throw new Error("Invalid audio");
+  const [, mimeType, base64] = match;
+
+  const ai = getClient();
+  const response = await ai.models.generateContent({
+    model: MODEL,
+    contents: [{ role: "user", parts: [{ inlineData: { mimeType, data: base64 } }, { text: VOICE_NOTE_TRANSCRIPTION_PROMPT }] }],
+    config: { temperature: 0 },
+  });
+  return response.text?.trim() || "(could not transcribe)";
+}
+
+export interface GeneratedAnswer {
+  answer: string;
+  followups: string[];
+}
+
 export async function generateAnswer(
   question: string,
   rows: unknown[],
   history: { question: string; answer: string }[] = [],
-): Promise<string> {
+): Promise<GeneratedAnswer> {
   const ai = getClient();
   const historyBlock = history.length
     ? `\n\nPrior conversation:\n${history.map((h) => `Q: ${h.question}\nA: ${h.answer}`).join("\n\n")}`
     : "";
+  const fallback = { answer: "I couldn't turn that into an answer — try rephrasing the question.", followups: [] };
   const response = await ai.models.generateContent({
     model: MODEL,
     contents: [
@@ -171,8 +316,25 @@ export async function generateAnswer(
     ],
     config: {
       systemInstruction: ANSWER_SYSTEM_PROMPT,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          answer: { type: Type.STRING },
+          followups: { type: Type.ARRAY, items: { type: Type.STRING } },
+        },
+        required: ["answer", "followups"],
+      },
       temperature: 0.3,
     },
   });
-  return response.text?.trim() || "I couldn't turn that into an answer — try rephrasing the question.";
+  const text = response.text;
+  if (!text) return fallback;
+  try {
+    const parsed = JSON.parse(text) as { answer?: string; followups?: string[] };
+    if (!parsed.answer) return fallback;
+    return { answer: parsed.answer, followups: (parsed.followups || []).slice(0, 3) };
+  } catch {
+    return fallback;
+  }
 }

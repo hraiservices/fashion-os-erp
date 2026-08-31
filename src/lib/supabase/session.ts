@@ -99,7 +99,7 @@ export async function updateSession(request: NextRequest) {
 
       if (moduleDisabled || reportDisabled || settingsDisabled) {
         const url = request.nextUrl.clone();
-        url.pathname = reportDisabled ? "/reports" : settingsDisabled ? "/settings/account" : RESTRICTED_FALLBACK_ROUTE;
+        url.pathname = reportDisabled ? "/reports" : settingsDisabled ? "/settings/personalize" : RESTRICTED_FALLBACK_ROUTE;
         url.search = "";
         return NextResponse.redirect(url);
       }

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Plus, Trash2, MapPin, Crosshair, Clock } from "lucide-react";
 import { useShopLocations, useSaveShopLocation, useDeleteShopLocation } from "@/hooks/use-shop-locations";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { DEFAULT_ATTENDANCE_SETTINGS, type AttendanceSettings } from "@/lib/attendance-settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -80,7 +81,7 @@ function LocationForm({ draft, onChange, onCancel, onSave, saving }: { draft: Lo
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">Geofence radius (meters)</Label>
-          <Input type="number" min={10} className="h-9" value={draft.geofenceRadiusM} onChange={(e) => onChange({ ...draft, geofenceRadiusM: e.target.value })} />
+          <Input type="number" inputMode="numeric" min={10} className="h-9" value={draft.geofenceRadiusM} onChange={(e) => onChange({ ...draft, geofenceRadiusM: e.target.value })} />
         </div>
         <div className="flex items-end">
           <Button type="button" variant="outline" size="sm" className="h-9 gap-1.5" onClick={useCurrentPosition} disabled={locating}>
@@ -89,8 +90,8 @@ function LocationForm({ draft, onChange, onCancel, onSave, saving }: { draft: Lo
         </div>
       </div>
       <div className="flex justify-end gap-1.5">
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
-        <Button type="button" size="sm" onClick={onSave} disabled={saving}>Save location</Button>
+        <Button type="button" variant="ghost" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={onCancel}>Cancel</Button>
+        <Button type="button" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={onSave} disabled={saving}>Save location</Button>
       </div>
     </div>
   );
@@ -107,9 +108,9 @@ export function AttendancePayrollSection() {
 
   const [editing, setEditing] = useState<LocationDraft | null>(null);
 
-  useEffect(() => {
-    if (attendanceSettings) setDraftSettings(attendanceSettings);
-  }, [attendanceSettings]);
+  useSyncFromSource(attendanceSettings, (s) => {
+    if (s) setDraftSettings(s);
+  });
 
   async function handleSaveLocation() {
     if (!editing) return;
@@ -158,7 +159,7 @@ export function AttendancePayrollSection() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-sm">
-            <MapPin className="size-4" /> Shop locations
+            <MapPin className="size-4" /> Company locations
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -246,7 +247,7 @@ export function AttendancePayrollSection() {
                   </Select>
                 </div>
               </div>
-              <Button size="sm" onClick={handleSaveSettings} disabled={saveSettings.isPending}>
+              <Button size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={handleSaveSettings} disabled={saveSettings.isPending}>
                 {saveSettings.isPending ? "Saving…" : "Save"}
               </Button>
             </>

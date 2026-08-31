@@ -16,12 +16,14 @@ import { inr } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/customer-picker";
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
 import type { Customer, RecurringInvoiceProfile, RecurringFrequency, RecurringEndType } from "@/lib/types";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
 const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
 const discountTypeLabel = (v: unknown) => (v === "percent" ? "Percent (%)" : "Flat (₹)");
@@ -29,7 +31,7 @@ const frequencyLabel = (v: unknown) => RECURRING_FREQUENCY_LABELS[v as Recurring
 const endTypeLabel = (v: unknown) => RECURRING_END_TYPE_LABELS[v as RecurringEndType] ?? "";
 
 function placeholderCustomer(name: string, mobile: string): Customer {
-  return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms: "due_on_receipt", priceListId: null, tags: [], gstin: "" };
+  return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms: "due_on_receipt", priceListId: null, tags: [], gstin: "", whatsappOptOut: false };
 }
 
 /** Renders blank (with the input's own "0" placeholder) instead of a literal typed "0" for fields where zero and "not entered" should look the same. */
@@ -148,7 +150,7 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Next run date</Label>
-              <Input type="date" value={nextRunDate} onChange={(e) => setNextRunDate(e.target.value)} />
+              <DatePicker value={nextRunDate} onChange={setNextRunDate} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Ends</Label>
@@ -170,13 +172,13 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
           {endType === "on_date" && (
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">End date</Label>
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <DatePicker value={endDate} onChange={setEndDate} />
             </div>
           )}
           {endType === "after_count" && (
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Number of invoices to generate</Label>
-              <Input type="number" min={1} value={endAfterCount} onChange={(e) => setEndAfterCount(e.target.value)} />
+              <Input type="number" inputMode="numeric" min={1} value={endAfterCount} onChange={(e) => setEndAfterCount(e.target.value)} />
             </div>
           )}
 
@@ -201,14 +203,14 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Tax rate (%)</Label>
-              <Input type="number" min={0} max={100} step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} disabled={gstType === "none"} />
+              <Input type="number" inputMode="decimal" min={0} max={100} step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} disabled={gstType === "none"} />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Shipping charges (₹)</Label>
-              <Input type="number" min={0} step="0.01" value={shippingCharges} onChange={(e) => setShippingCharges(e.target.value)} />
+              <Input type="number" inputMode="decimal" min={0} step="0.01" value={shippingCharges} onChange={(e) => setShippingCharges(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Discount type</Label>
@@ -224,14 +226,18 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Discount value</Label>
-              <Input type="number" min={0} step="0.01" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} />
+              <Input type="number" inputMode="decimal" min={0} step="0.01" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} />
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Terms & Conditions</Label>
-            <Textarea rows={3} value={terms} onChange={(e) => setTerms(e.target.value)} />
-          </div>
+          <Accordion className="rounded-lg border px-3">
+            <AccordionItem value="terms" className="border-b-0">
+              <AccordionTrigger className="text-xs font-medium">Terms &amp; Conditions</AccordionTrigger>
+              <AccordionContent>
+                <Textarea rows={3} value={terms} onChange={(e) => setTerms(e.target.value)} />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Notes</Label>

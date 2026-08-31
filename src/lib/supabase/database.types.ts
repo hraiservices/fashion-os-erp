@@ -105,6 +105,7 @@ export interface Database {
           price_list_id: string | null;
           tags: string[];
           gstin: string;
+          whatsapp_opt_out: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -422,6 +423,24 @@ export interface Database {
           qty_required: number;
         };
         Update: Partial<Database["public"]["Tables"]["bill_of_materials"]["Row"]>;
+        Relationships: [];
+      };
+      whatsapp_message_log: {
+        Row: {
+          id: string;
+          message_type: string;
+          to_mobile: string;
+          wa_message_id: string | null;
+          status: string;
+          error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["whatsapp_message_log"]["Row"]> & {
+          message_type: string;
+          to_mobile: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["whatsapp_message_log"]["Row"]>;
         Relationships: [];
       };
       inventory_ledger: {
@@ -1281,6 +1300,51 @@ export interface Database {
       };
       release_referral_coupon: {
         Args: { p_code: string };
+        Returns: undefined;
+      };
+      record_sales_payment: {
+        Args: {
+          p_invoice_id: string;
+          p_customer_mobile: string;
+          p_amount: number;
+          p_method: string;
+          p_date: string;
+          p_note: string;
+          p_pos_session_id: string | null;
+          p_created_by: string | null;
+        };
+        Returns: string;
+      };
+      record_sales_credit_note: {
+        Args: {
+          p_invoice_id: string;
+          p_invoice_number: string;
+          p_credit_number: string;
+          p_customer_mobile: string;
+          p_date: string;
+          p_items: Json;
+          p_total: number;
+          p_reason: string;
+          p_notes: string | null;
+          p_created_by: string | null;
+        };
+        Returns: string;
+      };
+      complete_work_order: {
+        Args: {
+          p_work_order_id: string;
+          p_materials: Json;
+          p_material_cost: number;
+          p_wastage_cost: number;
+          p_labor_cost: number;
+          p_total_cost: number;
+          p_cost_per_unit: number;
+          p_consume: Json;
+          p_product_id: string;
+          p_qty_to_produce: number;
+          p_wo_number: string;
+          p_created_by: string | null;
+        };
         Returns: undefined;
       };
     };

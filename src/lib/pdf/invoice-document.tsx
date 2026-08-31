@@ -96,8 +96,9 @@ export function InvoiceDocument({
       <Page size={PAPER_SIZE[t.paperSize]} orientation={t.orientation} style={{ padding: t.margin, fontSize: 10, fontFamily: t.font, color: "#111827" }}>
         <View style={styles.headerRow}>
           <View>
+            {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf/renderer's Image, not an HTML img */}
             {t.showLogo && t.logoDataUrl && <Image src={t.logoDataUrl} style={[styles.logo, { width: t.logoWidth, height: t.logoWidth }]} />}
-            <Text style={[styles.shopName, { fontSize: t.shopNameFontSize, fontFamily: t.boldShopName ? bold : t.font }]}>{shopName || "Your Shop"}</Text>
+            <Text style={[styles.shopName, { fontSize: t.shopNameFontSize, fontFamily: t.boldShopName ? bold : t.font }]}>{shopName || "Your Company"}</Text>
             {shopAddress && <Text style={styles.muted}>{shopAddress}</Text>}
             {shopPhone && <Text style={styles.muted}>{shopPhone}</Text>}
             {shopGstin && <Text style={styles.muted}>GSTIN: {shopGstin}</Text>}
@@ -224,6 +225,7 @@ export function InvoiceDocument({
 
         {t.showQrCode && t.qrCodeDataUrl && (
           <View style={styles.qrBlock}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf/renderer's Image, not an HTML img */}
             <Image src={t.qrCodeDataUrl} style={styles.qrImage} />
             <Text style={styles.qrCaption}>Scan to pay</Text>
           </View>
@@ -252,13 +254,14 @@ export function InvoiceDocument({
 
         {t.showSignature && t.signatureDataUrl && (
           <View style={styles.signatureBlock}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf/renderer's Image, not an HTML img */}
             <Image src={t.signatureDataUrl} style={styles.signatureImage} />
             <Text style={styles.signatureCaption}>Authorized Signatory</Text>
           </View>
         )}
 
         <View style={styles.footer} fixed>
-          <Text>{shopName || "Your Shop"} · Generated from Fashion Flow</Text>
+          <Text>{shopName || "Your Company"} · Generated from Fashion Flow</Text>
           {t.showPageNumbers && <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />}
         </View>
       </Page>

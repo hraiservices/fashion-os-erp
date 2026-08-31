@@ -8,6 +8,7 @@ import { Plus, Search, LayoutList, KanbanSquare, ArrowRight, Trash2, Upload, Mes
 import { BulkWhatsAppDialog } from "@/components/orders/bulk-whatsapp-dialog";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { useOrders } from "@/hooks/use-orders";
+import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useActiveTailors, useTailorName } from "@/hooks/use-employees";
 import { useAdvanceStage, useSetStage, useDeleteOrder } from "@/hooks/use-order-mutations";
@@ -26,7 +27,7 @@ import type { Order } from "@/lib/types";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, SkeletonListItem } from "@/components/ui/skeleton";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
 import { SavedViewsMenu } from "@/components/ui/saved-views-menu";
 import { ExportMenu } from "@/components/ui/export-menu";
@@ -43,7 +44,6 @@ import {
 import { Suspense } from "react";
 import { daysLeft, getNextStage, STAGE_META, DEFAULT_TAILOR_RATES, type Stage, type TailorRateCard } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 interface PendingStageChange {
   type: "advance" | "set";
@@ -100,7 +100,8 @@ function OrdersContent() {
     router.replace(`/orders${params.toString() ? `?${params.toString()}` : ""}`);
   }
 
-  const { data: orders, isLoading } = useOrders();
+  const { data: orders, isLoading: ordersLoading } = useOrders();
+  const isLoading = useDelayedLoading(ordersLoading);
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
   const advanceStage = useAdvanceStage();
@@ -314,6 +315,8 @@ function OrdersContent() {
           <div className="relative min-w-40 flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              type="search"
+              enterKeyHint="search"
               placeholder="Search name, mobile or order ID…"
               className="h-10 pl-9"
               value={search}
@@ -354,16 +357,16 @@ function OrdersContent() {
           <div className="ml-auto flex flex-wrap gap-2">
             <ExportMenu rows={bulkExportRows} filename="orders_export" disabled={bulkBusy} />
             {user?.perms.managePayments && (
-              <Button variant="outline" size="sm" onClick={() => setBulkWhatsAppOpen(true)} disabled={bulkBusy}>
+              <Button variant="outline" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={() => setBulkWhatsAppOpen(true)} disabled={bulkBusy}>
                 <MessageCircle className="size-3.5" /> Send reminders
               </Button>
             )}
             {user?.perms.deleteOrder && (
-              <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
+              <Button variant="destructive" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
                 <Trash2 className="size-3.5" /> Delete
               </Button>
             )}
-            <Button variant="ghost" size="sm" onClick={selection.clear} disabled={bulkBusy}>
+            <Button variant="ghost" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={selection.clear} disabled={bulkBusy}>
               Clear
             </Button>
           </div>
@@ -373,7 +376,7 @@ function OrdersContent() {
       {isLoading ? (
         <div className="space-y-2.5">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full md:h-14" />
+            <SkeletonListItem key={i} />
           ))}
         </div>
       ) : view === "board" ? (

@@ -75,7 +75,7 @@ export default function CopilotPage() {
               <Sparkles className="size-6" />
             </span>
             <div>
-              <p className="text-sm font-medium">Ask me anything about the shop</p>
+              <p className="text-sm font-medium">Ask me anything about the company</p>
               <p className="mt-0.5 text-xs text-muted-foreground">Try one of these, or type your own question below.</p>
             </div>
             <div className="flex flex-wrap justify-center gap-2">

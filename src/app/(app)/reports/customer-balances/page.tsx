@@ -29,7 +29,7 @@ export default function CustomerBalancesPage() {
   const [filter, setFilter] = useState<Filter>("all");
 
   function reminderUrl(name: string, mobile: string, due: number) {
-    const text = `Dear *${name || "Customer"}* 🙏\n\n₹${due} is due on your account at *${shop?.name || "our shop"}*.\nPlease clear at your earliest convenience.\n📞 ${shop?.phone || ""}`;
+    const text = `Dear *${name || "Customer"}* 🙏\n\n₹${due} is due on your account at *${shop?.name || "our company"}*.\nPlease clear at your earliest convenience.\n📞 ${shop?.phone || ""}`;
     return `https://wa.me/91${normalizeIndianMobile(mobile)}?text=${encodeURIComponent(text)}`;
   }
 
@@ -52,7 +52,7 @@ export default function CustomerBalancesPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative sm:max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search name or mobile…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input type="search" enterKeyHint="search" placeholder="Search name or mobile…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="flex flex-wrap gap-1.5">
           {FILTERS.map((f) => (

@@ -1,15 +1,14 @@
 "use client";
 
-import { SettingsGuard } from "@/components/settings/settings-guard";
-import { SettingsPage } from "@/components/settings/settings-page";
-import { DocumentNumberingSection } from "@/components/settings/document-numbering-section";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
 
+/** Document Numbering now lives on the merged Personalize page — this route stays live only for old bookmarks/links. */
 export default function Page() {
-  return (
-    <SettingsPage title="Document Numbering" description="Control your own invoice and stitching order numbers, auto-assigned on save">
-      <SettingsGuard allow={({ isAdmin }) => isAdmin}>
-        <DocumentNumberingSection />
-      </SettingsGuard>
-    </SettingsPage>
-  );
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/settings/personalize");
+  }, [router]);
+  return <div className="p-6"><Skeleton className="h-64 w-full" /></div>;
 }

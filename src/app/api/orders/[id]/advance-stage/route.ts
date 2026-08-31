@@ -5,6 +5,9 @@ import { STAGE_META, getNextStage, fmtNow, deliveryBonusPoints } from "@/lib/bus
 import { logAction, sendAdminNotification } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
+import { sendWhatsAppTemplateText, type WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
+import { logWhatsAppSend } from "@/lib/whatsapp-log";
+import { inr } from "@/lib/format";
 
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -64,6 +67,32 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       }
     } catch (loyaltyErr) {
       await logAction(supabase, user.email, `⚠️ Delivery bonus failed for ${id} — manual correction needed`, id, String(loyaltyErr));
+    }
+  }
+
+  // Best-effort, same reasoning as the loyalty side-effect above — a send failure (or the
+  // feature simply not being configured) must never fail a stage change that already
+  // succeeded. A proactive, shop-initiated message needs its own approved Meta template
+  // (readyTemplateName), same restriction as the daily-briefing push.
+  if (next === "ready") {
+    try {
+      const [{ data: cloudApiSetting }, { data: customerRow }] = await Promise.all([
+        supabase.from("app_settings").select("value").eq("key", "whatsappCloudApiConfig").maybeSingle(),
+        supabase.from("customers").select("whatsapp_opt_out").eq("mobile", order.mobile).maybeSingle(),
+      ]);
+      const cloudApi = cloudApiSetting?.value as WhatsAppCloudApiConfig | null;
+      const updated = mapOrderRow(updatedRow);
+      if (cloudApi?.phoneNumberId && cloudApi?.accessToken && cloudApi?.readyTemplateName && !customerRow?.whatsapp_opt_out) {
+        const waMessageId = await sendWhatsAppTemplateText(cloudApi, updated.mobile, cloudApi.readyTemplateName, cloudApi.languageCode || "en_US", [
+          updated.name,
+          updated.id,
+          inr(updated.balance),
+        ]);
+        await logWhatsAppSend(supabase, { messageType: "ready_nudge", toMobile: updated.mobile, waMessageId, status: "sent" });
+      }
+    } catch (e) {
+      await logAction(supabase, user.email, `⚠️ "Ready for pickup" WhatsApp nudge failed for ${id} — order still advanced fine`, id, String(e));
+      await logWhatsAppSend(supabase, { messageType: "ready_nudge", toMobile: order.mobile, status: "failed", error: e instanceof Error ? e.message : String(e) });
     }
   }
 

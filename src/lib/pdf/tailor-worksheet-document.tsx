@@ -60,8 +60,9 @@ export function TailorWorksheetDocument({
         <Page key={section.tailorId} size="A4" style={styles.page}>
           <View style={styles.headerRow}>
             <View>
+              {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf/renderer's Image, not an HTML img */}
               {logoDataUrl && <Image src={logoDataUrl} style={styles.logo} />}
-              <Text style={styles.shopName}>{shopName || "Shop"}</Text>
+              <Text style={styles.shopName}>{shopName || "Company"}</Text>
             </View>
             <View>
               <Text style={styles.tailorName}>{section.tailorName}</Text>
@@ -91,7 +92,7 @@ export function TailorWorksheetDocument({
             </>
           )}
 
-          <Text style={styles.sectionTitle}>Today's work ({section.newToday.length})</Text>
+          <Text style={styles.sectionTitle}>Today&apos;s work ({section.newToday.length})</Text>
           {section.newToday.length > 0 ? (
             <View style={styles.todayBox}>
               {section.newToday.map((g, i) => (

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_SALES_WHATSAPP_TEMPLATES, SALES_WHATSAPP_LABELS, SALES_WHATSAPP_VARIABLES, type SalesWhatsAppTemplates, type SalesWhatsAppType } from "@/lib/sales-whatsapp";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -18,9 +19,9 @@ export function WhatsAppSalesSection() {
   const { data, isLoading, save } = useAppSetting<SalesWhatsAppTemplates>("salesWhatsAppTemplates", DEFAULT_SALES_WHATSAPP_TEMPLATES);
   const [templates, setTemplates] = useState<SalesWhatsAppTemplates>(DEFAULT_SALES_WHATSAPP_TEMPLATES);
 
-  useEffect(() => {
-    if (data) setTemplates(data);
-  }, [data]);
+  useSyncFromSource(data, (d) => {
+    if (d) setTemplates(d);
+  });
 
   async function onSave() {
     try {
@@ -59,7 +60,7 @@ export function WhatsAppSalesSection() {
           </div>
         ))}
 
-        <Button disabled={save.isPending} onClick={onSave}>
+        <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" disabled={save.isPending} onClick={onSave}>
           {save.isPending ? "Saving…" : "Save templates"}
         </Button>
       </CardContent>

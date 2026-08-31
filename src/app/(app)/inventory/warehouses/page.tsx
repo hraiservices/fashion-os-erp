@@ -138,13 +138,13 @@ export default function WarehousesPage() {
               )}
               {canManage && (
                 <div className="flex shrink-0 items-center gap-1">
-                  <Button variant="ghost" size="icon-sm" onClick={() => openEdit(w)} aria-label={`Edit ${w.name}`}>
+                  <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => openEdit(w)} aria-label={`Edit ${w.name}`}>
                     <Pencil className="size-3.5" />
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger
                       render={
-                        <Button variant="ghost" size="icon-sm" aria-label={`Delete ${w.name}`}>
+                        <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" aria-label={`Delete ${w.name}`}>
                           <Trash2 className="size-3.5" />
                         </Button>
                       }
@@ -186,7 +186,7 @@ export default function WarehousesPage() {
             <label className="flex items-center justify-between rounded-lg border p-3">
               <div>
                 <p className="text-sm font-medium">Set as default</p>
-                <p className="text-xs text-muted-foreground">Used when a movement doesn't specify a warehouse.</p>
+                <p className="text-xs text-muted-foreground">Used when a movement doesn&apos;t specify a warehouse.</p>
               </div>
               <input type="checkbox" className="size-4" checked={form.isDefault} onChange={(e) => setForm((f) => ({ ...f, isDefault: e.target.checked }))} />
             </label>

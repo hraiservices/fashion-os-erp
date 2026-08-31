@@ -63,7 +63,7 @@ export default function DayBookPage() {
   const canView = !!user?.perms.viewReports;
   const { data, isLoading, isError, error } = useDayBook(date);
 
-  const entries = data?.entries || [];
+  const entries = useMemo(() => data?.entries || [], [data]);
 
   const distinctUsers = useMemo(() => {
     const set = new Set(entries.map((e) => e.user).filter((u) => u && u !== "—"));
@@ -217,7 +217,7 @@ export default function DayBookPage() {
           <ReportCard className="flex flex-wrap items-center gap-2 p-3 print:hidden">
             <div className="relative min-w-[180px] flex-1">
               <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Search reference, name, description…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 pl-8" />
+              <Input type="search" enterKeyHint="search" placeholder="Search reference, name, description…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 pl-8" />
             </div>
             <Select value={moduleFilter} onValueChange={(v) => v && setModuleFilter(v as DayBookModule | "all")}>
               <SelectTrigger className="h-9 w-40">
@@ -245,8 +245,8 @@ export default function DayBookPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Input placeholder="Min ₹" type="number" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} className="h-9 w-24" />
-            <Input placeholder="Max ₹" type="number" value={maxAmount} onChange={(e) => setMaxAmount(e.target.value)} className="h-9 w-24" />
+            <Input placeholder="Min ₹" type="number" inputMode="decimal" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} className="h-9 w-24" />
+            <Input placeholder="Max ₹" type="number" inputMode="decimal" value={maxAmount} onChange={(e) => setMaxAmount(e.target.value)} className="h-9 w-24" />
             <Button
               variant="outline"
               size="sm"

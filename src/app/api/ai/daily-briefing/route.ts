@@ -3,6 +3,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { buildBriefingSummary } from "@/lib/ai-briefing";
 import { generateBriefing } from "@/lib/chatbot/gemini";
 import { sendPushToAll } from "@/lib/push";
+import { sendWhatsAppTemplateText, type WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
+import { logWhatsAppSend } from "@/lib/whatsapp-log";
 
 /**
  * Cron entry point — hit daily by vercel.json's schedule, mirroring the recurring-invoices
@@ -49,6 +51,29 @@ export async function GET(req: Request) {
   // Best-effort — a push failure (or push not configured at all) shouldn't fail the briefing
   // itself, which already succeeded and is visible via the in-app notification bell regardless.
   await sendPushToAll({ title: "Daily Briefing", body: message, url: "/dashboard" }).catch(() => {});
+
+  // Also best-effort, and independently so one bad recipient number doesn't block the rest —
+  // this is a proactive, shop-initiated message, so it goes through an approved template
+  // rather than sendWhatsAppTextMessage (that one's only for replying to an inbound message
+  // within Meta's 24-hour customer-service window, which doesn't apply here).
+  const [{ data: cloudApiSetting }, { data: recipientsSetting }] = await Promise.all([
+    supabase.from("app_settings").select("value").eq("key", "whatsappCloudApiConfig").maybeSingle(),
+    supabase.from("app_settings").select("value").eq("key", "dailyBriefingRecipients").maybeSingle(),
+  ]);
+  const cloudApi = cloudApiSetting?.value as WhatsAppCloudApiConfig | null;
+  const recipients = (recipientsSetting?.value as string[] | null) || [];
+  if (cloudApi?.phoneNumberId && cloudApi?.accessToken && cloudApi?.briefingTemplateName && recipients.length > 0) {
+    await Promise.all(
+      recipients.map((mobile) =>
+        sendWhatsAppTemplateText(cloudApi, mobile, cloudApi.briefingTemplateName!, cloudApi.languageCode || "en_US", [message])
+          .then((waMessageId) => logWhatsAppSend(supabase, { messageType: "daily_briefing", toMobile: mobile, waMessageId, status: "sent" }))
+          .catch((e) => {
+            console.error(`Daily briefing WhatsApp send failed for ${mobile}:`, e);
+            return logWhatsAppSend(supabase, { messageType: "daily_briefing", toMobile: mobile, status: "failed", error: e instanceof Error ? e.message : String(e) });
+          })
+      )
+    );
+  }
 
   return NextResponse.json({ generated: true, summary, message });
 }

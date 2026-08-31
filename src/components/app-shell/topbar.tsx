@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { LogOut, User } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { NotificationBell } from "@/components/app-shell/notification-bell";
 import { ThemeToggle } from "@/components/app-shell/theme-toggle";
@@ -35,7 +34,7 @@ export function Topbar() {
   const initial = user?.email?.[0]?.toUpperCase() || "?";
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-3 backdrop-blur sm:px-4 lg:px-6">
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur sm:px-4 lg:px-6">
       <MobileNavTrigger />
       <div className="min-w-0 flex-1">
         <CommandTrigger />
@@ -50,7 +49,7 @@ export function Topbar() {
           <DropdownMenuTrigger
             render={
               <button type="button" aria-label="Account menu" className="rounded-full p-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
-                <Avatar className="size-9 sm:size-8">
+                <Avatar className="size-11 sm:size-8">
                   <AvatarFallback className="text-xs">{initial}</AvatarFallback>
                 </Avatar>
               </button>
@@ -64,7 +63,7 @@ export function Topbar() {
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push("/settings/account")}>
+            <DropdownMenuItem onClick={() => router.push("/settings/personalize")}>
               <User className="size-4" /> Account
             </DropdownMenuItem>
             <DropdownMenuItem onClick={signOut}>

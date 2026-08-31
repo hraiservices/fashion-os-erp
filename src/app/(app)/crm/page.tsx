@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, Users, UserPlus, LayoutGrid, LayoutList, ArrowUpDown, Upload } from "lucide-react";
+import { Search, Users, UserPlus, LayoutGrid, LayoutList, ArrowUpDown, Upload, MessageSquare } from "lucide-react";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -22,7 +22,6 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow
 import { CustomerCard } from "@/components/crm/customer-card";
 import { CustomerListRow } from "@/components/crm/customer-list-row";
 import { PaymentModal } from "@/components/orders/payment-modal";
-import { BalanceDue } from "@/components/ui/money-text";
 import { inr, fmtDateShort } from "@/lib/format";
 import { loyaltyTier } from "@/lib/business-rules";
 import { sumOrdersOutstanding, sumInvoicesOutstanding } from "@/lib/balances";
@@ -177,6 +176,11 @@ function CrmContent() {
               </button>
             </div>
             {canAdd && (
+              <Button variant="outline" nativeButton={false} render={<Link href="/crm/broadcast" />}>
+                <MessageSquare className="size-4" /> Broadcast
+              </Button>
+            )}
+            {canAdd && (
               <Button variant="outline" nativeButton={false} render={<Link href="/crm/import" />}>
                 <Upload className="size-4" /> Import
               </Button>
@@ -194,6 +198,8 @@ function CrmContent() {
         <div className="relative max-w-md flex-1 min-w-48">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            type="search"
+            enterKeyHint="search"
             placeholder="Search by name or mobile…"
             className="h-10 pl-9"
             value={search}

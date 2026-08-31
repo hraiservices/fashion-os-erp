@@ -7,14 +7,14 @@ import { toast } from "sonner";
 import { Plus, Search, Package, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useDeleteRawMaterial } from "@/hooks/use-inventory-mutations";
+import { useRawMaterialConsumption } from "@/hooks/use-inventory-ledger";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { isLowStock } from "@/lib/inventory";
+import { isLowStock, estimateReorder, REORDER_LOOKBACK_DAYS } from "@/lib/inventory";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
@@ -37,6 +37,11 @@ function RawMaterialsPageContent() {
   const { data: materials, isLoading } = useRawMaterials();
   const { data: user } = useCurrentUser();
   const deleteMaterial = useDeleteRawMaterial();
+  // "Runs out in ~N days" reorder estimate, from recent consumption pace — a deterministic
+  // projection (not an AI call) that recomputes as ledger activity comes in, same spirit as the
+  // order form's delivery-date and rework-risk estimates.
+  const { data: consumption } = useRawMaterialConsumption(REORDER_LOOKBACK_DAYS);
+  const daysUntilEmpty = (m: RawMaterial) => (consumption ? estimateReorder(m.stockQty, consumption.get(m.id) || 0).daysUntilEmpty : null);
 
   const [search, setSearch] = useState("");
 
@@ -76,7 +81,7 @@ function RawMaterialsPageContent() {
 
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search name or category…" className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search raw materials" />
+        <Input type="search" enterKeyHint="search" placeholder="Search name or category…" className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search raw materials" />
       </div>
 
       {isLoading ? (
@@ -113,6 +118,7 @@ function RawMaterialsPageContent() {
             <TableBody>
               {filtered.map((m) => {
                 const low = isLowStock(m.stockQty, m.lowStockAlert);
+                const runsOut = daysUntilEmpty(m);
                 return (
                   <TableRow key={m.id}>
                     <TableCell className="font-medium">{m.name}</TableCell>
@@ -124,18 +130,21 @@ function RawMaterialsPageContent() {
                           {m.stockQty} {m.unitName}
                         </span>
                       </div>
+                      {runsOut !== null && runsOut <= 45 && (
+                        <div className="text-[11px] text-muted-foreground">Runs out in ~{runsOut} day{runsOut === 1 ? "" : "s"}</div>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">{inr(m.costPerUnit)}</TableCell>
                     {canManage && (
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon-sm" onClick={() => openEdit(m)} aria-label={`Edit ${m.name}`}>
+                          <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => openEdit(m)} aria-label={`Edit ${m.name}`}>
                             <Pencil className="size-3.5" />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger
                               render={
-                                <Button variant="ghost" size="icon-sm" aria-label={`Delete ${m.name}`}>
+                                <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" aria-label={`Delete ${m.name}`}>
                                   <Trash2 className="size-3.5" />
                                 </Button>
                               }
@@ -169,6 +178,7 @@ function RawMaterialsPageContent() {
         <MobileRecordList>
           {filtered.map((m) => {
             const low = isLowStock(m.stockQty, m.lowStockAlert);
+            const runsOut = daysUntilEmpty(m);
             return (
               <MobileRecordCard key={m.id} onClick={canManage ? () => openEdit(m) : undefined}>
                 <MobileRecordHeader title={m.name} subtitle={m.category || undefined} value={inr(m.costPerUnit)} showChevron={canManage} />
@@ -181,6 +191,7 @@ function RawMaterialsPageContent() {
                     </span>
                   }
                 />
+                {runsOut !== null && runsOut <= 45 && <MobileRecordRow label="Reorder" value={`Runs out in ~${runsOut} day${runsOut === 1 ? "" : "s"}`} />}
               </MobileRecordCard>
             );
           })}

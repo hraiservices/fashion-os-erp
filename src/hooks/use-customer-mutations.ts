@@ -22,6 +22,7 @@ interface SaveCustomerInput {
   measurements?: Record<string, Json>;
   tags?: string[];
   gstin?: string;
+  whatsappOptOut?: boolean;
   userEmail?: string;
 }
 

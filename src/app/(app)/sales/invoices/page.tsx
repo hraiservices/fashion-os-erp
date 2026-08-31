@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Plus, Receipt, Search, ArrowUpDown, Copy, Upload, Wallet, Send, Trash2 } from "lucide-react";
 import { useSalesInvoices, type SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
+import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { useSalesQuotations } from "@/hooks/use-sales-quotations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
@@ -21,13 +22,14 @@ import { ExportMenu } from "@/components/ui/export-menu";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, SkeletonListItem } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { BalanceDue } from "@/components/ui/money-text";
+import { Checkbox } from "@/components/ui/checkbox";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
 import { SavedViewsMenu } from "@/components/ui/saved-views-menu";
@@ -77,7 +79,8 @@ function marginText(m: number | null): string {
 }
 
 export default function SalesInvoicesPage() {
-  const { data: invoices, isLoading } = useSalesInvoices();
+  const { data: invoices, isLoading: invoicesLoading } = useSalesInvoices();
+  const isLoading = useDelayedLoading(invoicesLoading);
   const { data: quotes } = useSalesQuotations();
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
@@ -259,7 +262,7 @@ export default function SalesInvoicesPage() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative sm:max-w-xs flex-1 min-w-40">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search invoice#, customer, mobile…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input type="search" enterKeyHint="search" placeholder="Search invoice#, customer, mobile…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <SavedViewsMenu
           views={savedViews.views}
@@ -275,14 +278,14 @@ export default function SalesInvoicesPage() {
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
           <span className="text-sm font-medium">{selection.count} selected</span>
           <div className="ml-auto flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={bulkMarkSent} disabled={bulkBusy}>
+            <Button variant="outline" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={bulkMarkSent} disabled={bulkBusy}>
               <Send className="size-3.5" /> Mark as sent
             </Button>
             <ExportMenu rows={bulkExportRows} filename="invoices_export" disabled={bulkBusy} />
-            <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
+            <Button variant="destructive" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
               <Trash2 className="size-3.5" /> Delete
             </Button>
-            <Button variant="ghost" size="sm" onClick={selection.clear} disabled={bulkBusy}>
+            <Button variant="ghost" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={selection.clear} disabled={bulkBusy}>
               Clear
             </Button>
           </div>
@@ -292,7 +295,7 @@ export default function SalesInvoicesPage() {
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
+            <SkeletonListItem key={i} />
           ))}
         </div>
       ) : !invoices || invoices.length === 0 ? (
@@ -317,8 +320,7 @@ export default function SalesInvoicesPage() {
               <TableRow>
                 {canManage && (
                   <TableHead className="w-8">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={selection.allSelected}
                       ref={(el) => {
                         if (el) el.indeterminate = selection.someSelected;
@@ -354,7 +356,7 @@ export default function SalesInvoicesPage() {
                   <TableRow key={inv.id} className="cursor-pointer" onClick={() => (window.location.href = `/sales/invoices/${inv.id}`)}>
                     {canManage && (
                       <TableCell onClick={(e) => e.stopPropagation()}>
-                        <input type="checkbox" checked={selection.selected.has(inv.id)} onChange={() => selection.toggle(inv.id)} aria-label={`Select invoice ${inv.invoiceNumber}`} />
+                        <Checkbox checked={selection.selected.has(inv.id)} onChange={() => selection.toggle(inv.id)} aria-label={`Select invoice ${inv.invoiceNumber}`} />
                       </TableCell>
                     )}
                     {table.isVisible("date") && <TableCell className="text-muted-foreground">{fmtDate(inv.invoiceDate)}</TableCell>}
@@ -403,7 +405,7 @@ export default function SalesInvoicesPage() {
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           {inv.balance > 0 && (
-                            <Button variant="outline" size="icon-sm" aria-label="Record payment" title="Record payment" nativeButton={false} render={<Link href={`/sales/invoices/${inv.id}/payment`} />}>
+                            <Button variant="outline" size="icon-sm" className="size-11 sm:size-7" aria-label="Record payment" title="Record payment" nativeButton={false} render={<Link href={`/sales/invoices/${inv.id}/payment`} />}>
                               <Wallet className="size-3.5" />
                             </Button>
                           )}

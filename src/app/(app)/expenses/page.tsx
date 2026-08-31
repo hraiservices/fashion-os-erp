@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,7 +67,7 @@ function ExpensesPageContent() {
     <div className="space-y-5 p-4 sm:p-6">
       <PageHeader
         title="Expenses"
-        description="Track your shop's operating costs"
+        description="Track your company's operating costs"
         actions={
           canAdd && (
             <div className="flex gap-2">
@@ -125,7 +126,19 @@ function ExpensesPageContent() {
             ))}
           </div>
         ) : !expenses?.length ? (
-          <EmptyState icon={Wallet} title="No expenses yet" description="Add your first expense to start tracking costs." className="border-0" />
+          <EmptyState
+            icon={Wallet}
+            title="No expenses yet"
+            description="Add your first expense to start tracking costs."
+            className="border-0"
+            action={
+              canAdd && (
+                <Button nativeButton={false} render={<Link href="/expenses/new" />}>
+                  <Plus className="size-4" /> Add Expense
+                </Button>
+              )
+            }
+          />
         ) : (
           <>
           <div className="hidden overflow-x-auto sm:block">
@@ -134,8 +147,7 @@ function ExpensesPageContent() {
                 <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
                   {canAdd && (
                     <th className="w-8 px-4 py-2.5">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={selection.allSelected}
                         ref={(el) => {
                           if (el) el.indeterminate = selection.someSelected;
@@ -158,7 +170,7 @@ function ExpensesPageContent() {
                   <tr key={e.id} className="transition-colors hover:bg-muted/30">
                     {canAdd && (
                       <td className="px-4 py-3">
-                        <input type="checkbox" checked={selection.selected.has(e.id)} onChange={() => selection.toggle(e.id)} aria-label={`Select expense on ${fmtDateShort(e.date)}`} />
+                        <Checkbox checked={selection.selected.has(e.id)} onChange={() => selection.toggle(e.id)} aria-label={`Select expense on ${fmtDateShort(e.date)}`} />
                       </td>
                     )}
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">{fmtDateShort(e.date)}</td>
@@ -206,13 +218,13 @@ function ExpensesPageContent() {
                 <MobileRecordRow label="Method" value={e.payMethod} />
                 {canAdd && (
                   <div className="flex items-center justify-end gap-1 pt-1">
-                    <Button variant="ghost" size="icon-sm" className="size-8 text-muted-foreground" nativeButton={false} render={<Link href={`/expenses/${e.id}/edit`} />} aria-label="Edit expense">
+                    <Button variant="ghost" size="icon-sm" className="size-11 text-muted-foreground" nativeButton={false} render={<Link href={`/expenses/${e.id}/edit`} />} aria-label="Edit expense">
                       <Pencil className="size-3.5" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      className="size-8 text-muted-foreground hover:text-destructive"
+                      className="size-11 text-muted-foreground hover:text-destructive"
                       onClick={() => handleDelete(e.id)}
                       disabled={deleteExpense.isPending}
                       aria-label="Delete expense"

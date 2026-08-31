@@ -28,14 +28,15 @@ export function OnboardingChecklist() {
 
   const [dismissed, setDismissed] = useState(true);
   useEffect(() => {
-    setDismissed(localStorage.getItem(DISMISS_KEY) === "1");
+    const t = setTimeout(() => setDismissed(localStorage.getItem(DISMISS_KEY) === "1"), 0);
+    return () => clearTimeout(t);
   }, []);
 
   const loaded = shop !== undefined && products !== undefined && orders !== undefined && invoices !== undefined;
   if (!loaded || dismissed) return null;
 
   const items: ChecklistItem[] = [
-    { label: "Add your shop logo", done: !!shop?.logoDataUrl, href: "/settings/shop" },
+    { label: "Add your company logo", done: !!shop?.logoDataUrl, href: "/settings/personalize" },
     { label: "Add your first product", done: (products?.length || 0) > 0, href: "/inventory/products?new=1" },
     { label: "Add a customer", done: profiles.length > 0, href: "/crm/new" },
     { label: "Create your first order", done: (orders?.length || 0) > 0, href: "/orders/new" },

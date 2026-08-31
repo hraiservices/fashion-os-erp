@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
   genSheetNo,
@@ -17,9 +18,10 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import type { CostSheetWithItems } from "@/hooks/use-cost-sheet";
 import { Button } from "@/components/ui/button";
 import { FormActionBar } from "@/components/ui/form-action-bar";
-import { X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -149,7 +151,32 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-muted/30">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
+        <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3 sm:px-6">
+          <Link href="/cost-estimator" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="size-4" />
+            <span className="hidden sm:inline">Cost sheets</span>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-base font-semibold">{existing ? "Edit Cost Sheet" : "New Cost Sheet"}</h1>
+            <p className="text-[11px] font-mono text-muted-foreground">{sheetNo}</p>
+          </div>
+          {/* Duplicate of the bottom FormActionBar — mobile only, so Save is reachable
+             without scrolling all the way down. */}
+          <div className="flex items-center gap-2 sm:hidden">
+            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={saveCostSheet.isPending}>
+              Cancel
+            </Button>
+            <Button type="button" size="sm" disabled={saveCostSheet.isPending} onClick={() => save("final")}>
+              {saveCostSheet.isPending ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 space-y-5">
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">{sheetNo}</CardTitle>
@@ -165,7 +192,7 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
           </div>
           <div className="space-y-2">
             <Label>Date</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <DatePicker value={date} onChange={setDate} />
           </div>
           <div className="space-y-2">
             <Label>Customer name (optional)</Label>
@@ -261,15 +288,32 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
           </div>
         </CardContent>
       </Card>
+      </div>
 
-      <FormActionBar>
-        <Button variant="outline" onClick={print}>
+      <FormActionBar className="flex-wrap justify-start sm:flex-nowrap sm:justify-end">
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-12 px-5 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          onClick={print}
+        >
           Print
         </Button>
-        <Button variant="outline" disabled={saveCostSheet.isPending} onClick={() => save("draft")}>
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-12 px-5 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          disabled={saveCostSheet.isPending}
+          onClick={() => save("draft")}
+        >
           Save draft
         </Button>
-        <Button disabled={saveCostSheet.isPending} onClick={() => save("final")}>
+        <Button
+          size="lg"
+          className="h-12 flex-1 px-5 text-base sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          disabled={saveCostSheet.isPending}
+          onClick={() => save("final")}
+        >
           Save final
         </Button>
       </FormActionBar>

@@ -21,12 +21,13 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/customer-picker";
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
 import { usePriceListItemsMap } from "@/hooks/use-price-lists";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import type { Customer, SalesQuotation } from "@/lib/types";
 
 const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
 
 function placeholderCustomer(name: string, mobile: string): Customer {
-  return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms: "due_on_receipt", priceListId: null, tags: [], gstin: "" };
+  return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms: "due_on_receipt", priceListId: null, tags: [], gstin: "", whatsappOptOut: false };
 }
 
 function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
@@ -82,6 +83,7 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
   const [gstType, setGstType] = useState<GstType>(existing?.gstType || "none");
   const [taxRate, setTaxRate] = useState(String(existing?.taxRate ?? 5));
   const [notes, setNotes] = useState(existing?.notes || "");
+  const [notesOpen, setNotesOpen] = useState(false);
 
   const productsById = useMemo(() => new Map((products || []).map((p) => [p.id, { name: p.name }])), [products]);
   const items = salesLinesToItems(lines, productsById);
@@ -126,6 +128,17 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
           <div className="flex-1">
             <h1 className="text-base font-semibold">{isEdit ? "Edit Quotation" : "New Quotation"}</h1>
             <p className="text-[11px] text-muted-foreground font-mono">{quoteNumber}</p>
+          </div>
+          {/* Duplicate of the bottom FormActionBar — mobile only, so Create/Save is reachable
+             without scrolling all the way down. */}
+          <div className="flex items-center gap-2 sm:hidden">
+            <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveQuotation.isPending}>
+              Cancel
+            </Button>
+            <Button size="sm" className="gap-1.5 bg-primary text-primary-foreground" onClick={handleSave} disabled={saveQuotation.isPending}>
+              <FileCheck className="size-3.5" />
+              {saveQuotation.isPending ? "Saving…" : isEdit ? "Save" : "Create"}
+            </Button>
           </div>
         </div>
       </div>
@@ -174,17 +187,30 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
                 </Select>
               </FieldGroup>
               <FieldGroup label="Tax rate (%)">
-                <Input type="number" min={0} max={100} step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} disabled={gstType === "none"} className="h-10" />
+                <Input type="number" inputMode="decimal" min={0} max={100} step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} disabled={gstType === "none"} className="h-10" />
               </FieldGroup>
             </div>
           </div>
 
           {/* Notes */}
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-            <SectionHeading icon={FileText} label="Notes" />
-            <FieldGroup label="Notes to customer">
-              <Textarea rows={3} placeholder="Special conditions, payment terms, delivery details…" value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none" />
-            </FieldGroup>
+            <Accordion value={notesOpen ? ["notes"] : []} onValueChange={(v) => setNotesOpen(v.includes("notes"))}>
+              <AccordionItem value="notes" className="border-b-0">
+                <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                  <span className="flex items-center gap-2">
+                    <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                      <FileText className="size-3.5 text-primary" />
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes</span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <FieldGroup label="Notes to customer">
+                    <Textarea rows={3} placeholder="Special conditions, payment terms, delivery details…" value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none" />
+                  </FieldGroup>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
         </div>
 
@@ -229,9 +255,22 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
         </div>
       </div>
 
-      <FormActionBar>
-        <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveQuotation.isPending}>Cancel</Button>
-        <Button size="sm" className="bg-primary text-primary-foreground gap-1.5" onClick={handleSave} disabled={saveQuotation.isPending}>
+      <FormActionBar className="justify-start sm:justify-end">
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-12 px-6 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          onClick={() => router.back()}
+          disabled={saveQuotation.isPending}
+        >
+          Cancel
+        </Button>
+        <Button
+          size="lg"
+          className="h-12 flex-1 gap-1.5 bg-primary px-6 text-base text-primary-foreground sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          onClick={handleSave}
+          disabled={saveQuotation.isPending}
+        >
           <FileCheck className="size-3.5" />
           {saveQuotation.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(gstPreview.total)}` : `Create Quotation · ${inr(gstPreview.total)}`}
         </Button>

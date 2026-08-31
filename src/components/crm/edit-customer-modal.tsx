@@ -63,6 +63,7 @@ export function EditCustomerModal({ cust, open, onOpenChange }: { cust: Customer
   );
   const [measureOpen, setMeasureOpen] = useState(false);
   const [tags, setTags] = useState<string[]>(cust.tags || []);
+  const [whatsappOptOut, setWhatsappOptOut] = useState(cust.whatsappOptOut || false);
 
   const {
     register,
@@ -106,6 +107,7 @@ export function EditCustomerModal({ cust, open, onOpenChange }: { cust: Customer
         priceListId: values.priceListId && values.priceListId !== NO_PRICE_LIST ? values.priceListId : null,
         measurements: measurePayload,
         tags,
+        whatsappOptOut,
         userEmail: user?.email,
       });
       toast.success("Profile saved");
@@ -210,6 +212,10 @@ export function EditCustomerModal({ cust, open, onOpenChange }: { cust: Customer
                 <Field label="Notes">
                   <Textarea placeholder="Fit preferences, fabric choices, anything special…" rows={2} {...register("notes")} />
                 </Field>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={whatsappOptOut} onChange={(e) => setWhatsappOptOut(e.target.checked)} />
+                  Don&apos;t WhatsApp this customer
+                </label>
               </div>
             </section>
 
@@ -241,6 +247,7 @@ export function EditCustomerModal({ cust, open, onOpenChange }: { cust: Customer
                           <label className="block text-[11px] font-medium text-muted-foreground">{label}</label>
                           <Input
                             type="number"
+                            inputMode="decimal"
                             min={0}
                             step={0.5}
                             placeholder="—"

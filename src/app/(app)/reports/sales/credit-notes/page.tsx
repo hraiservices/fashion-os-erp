@@ -18,7 +18,7 @@ export default function CreditNoteDetailsPage() {
   const isLoading = l1 || l2;
 
   const invoiceById = useMemo(() => new Map((invoices || []).map((i) => [i.id, i])), [invoices]);
-  const rows = creditNotes || [];
+  const rows = useMemo(() => creditNotes || [], [creditNotes]);
   const total = useMemo(() => rows.reduce((s, c) => s + c.total, 0), [rows]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;

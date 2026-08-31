@@ -56,7 +56,9 @@ export default function TailorPayablesPage() {
     // compare would put anything finished between 00:00–05:30 IST into the previous
     // day/month. Compare against the real UTC instant that starts the IST day instead.
     const today = istDateString();
-    const weekStartUtc = istDayBoundsUtc(istDateString(new Date(Date.now() - 6 * 86_400_000))).startUtc;
+    const sixDaysAgo = new Date(`${today}T00:00:00Z`);
+    sixDaysAgo.setUTCDate(sixDaysAgo.getUTCDate() - 6);
+    const weekStartUtc = istDayBoundsUtc(sixDaysAgo.toISOString().slice(0, 10)).startUtc;
     const monthStartUtc = istDayBoundsUtc(`${today.slice(0, 7)}-01`).startUtc;
 
     const confirmedOrders = (orders || []).filter((o) => o.payablesConfirmedAt);

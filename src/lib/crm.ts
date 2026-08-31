@@ -20,6 +20,7 @@ export interface CustomerProfile {
   priceListId: string | null;
   tags: string[];
   gstin: string;
+  whatsappOptOut: boolean;
 }
 
 /**
@@ -33,7 +34,7 @@ export function buildCustomerMap(orders: Order[], customers: Customer[]): Custom
   const BLANK_PROFILE = (name: string, mobile: string): CustomerProfile => ({
     name, mobile, email: "", dob: "", anniversary: "", address: "",
     orders: [], spent: 0, measurements: {}, notes: "",
-    loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms: "due_on_receipt", priceListId: null, tags: [], gstin: "",
+    loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms: "due_on_receipt", priceListId: null, tags: [], gstin: "", whatsappOptOut: false,
   });
 
   orders.forEach((o) => {
@@ -58,6 +59,7 @@ export function buildCustomerMap(orders: Order[], customers: Customer[]): Custom
     m[c.mobile].priceListId = c.priceListId;
     m[c.mobile].tags = c.tags || [];
     m[c.mobile].gstin = c.gstin || "";
+    m[c.mobile].whatsappOptOut = c.whatsappOptOut || false;
   });
 
   return Object.values(m).sort((a, b) => {

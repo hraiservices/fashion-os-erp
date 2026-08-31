@@ -248,17 +248,14 @@ export const SETTINGS_GROUP: NavGroup = {
   label: "Settings",
   icon: Settings,
   children: [
-    { href: "/settings/shop", label: "Shop Profile" },
-    { href: "/settings/account", label: "Account" },
+    { href: "/settings/personalize", label: "Personalize" },
+    { href: "/settings/whatsapp", label: "WhatsApp" },
     { href: "/settings/loyalty", label: "Loyalty" },
-    { href: "/settings/whatsapp-sales", label: "WhatsApp Templates" },
     { href: "/settings/invoice-terms", label: "Invoice Terms" },
     { href: "/settings/invoice-template", label: "Invoice Template" },
     { href: "/settings/price-lists", label: "Price Lists" },
     { href: "/settings/copilot", label: "AI Copilot" },
-    { href: "/settings/font", label: "Appearance" },
     { href: "/settings/navigation", label: "Sidebar Navigation" },
-    { href: "/settings/document-numbering", label: "Document Numbering" },
     { href: "/settings/module-licensing", label: "Module Licensing" },
   ],
 };
@@ -278,25 +275,16 @@ export function employeesLeafVisible(href: string, isAdmin: boolean): boolean {
   return true;
 }
 
-/** Per-section Settings gating, mirroring the old app's rules. Module Licensing is platform-owner-only — invisible to every shop's own admin, including "admin" role. */
+/** Per-section Settings gating, mirroring the old app's rules. Module Licensing is platform-owner-only — invisible to every shop's own admin, including "admin" role. Personalize merges Shop Profile/Account/Appearance/Document Numbering onto one page, so it stays visible to everyone the same way Account did — the page itself hides the admin/manager-only sections inline. */
 export function settingsLeafVisible(href: string, isAdmin: boolean, canManageShop: boolean, isSuperAdmin: boolean): boolean {
   if (href === "/settings/module-licensing") return isSuperAdmin;
-  if (href === "/settings/shop") return canManageShop;
   if (
-    [
-      "/settings/loyalty",
-      "/settings/whatsapp-sales",
-      "/settings/invoice-terms",
-      "/settings/invoice-template",
-      "/settings/price-lists",
-      "/settings/copilot",
-      "/settings/font",
-      "/settings/navigation",
-      "/settings/document-numbering",
-    ].includes(href)
+    ["/settings/whatsapp", "/settings/loyalty", "/settings/invoice-terms", "/settings/invoice-template", "/settings/price-lists", "/settings/copilot", "/settings/navigation"].includes(
+      href,
+    )
   )
     return isAdmin;
-  return true; // /settings/account — everyone
+  return true; // /settings/personalize and /settings/account — everyone (canManageShop kept as a param for callers/backward compat)
 }
 
 /** Bottom tab bar on mobile. Deliberately 5 items max, thumb-reachable. */

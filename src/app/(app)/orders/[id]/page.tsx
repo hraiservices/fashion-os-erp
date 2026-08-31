@@ -4,8 +4,9 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt } from "lucide-react";
 import { useOrder } from "@/hooks/use-order";
+import { useOrders } from "@/hooks/use-orders";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useConfirmOrderPayables, useDeleteOrderPayment, useBackfillOrderPayment } from "@/hooks/use-order-mutations";
 import { useOrderPayments } from "@/hooks/use-order-payments";
@@ -51,6 +52,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params);
   const router = useRouter();
   const { data: order, isLoading } = useOrder(id);
+  // Same list + ordering (newest-first by created_at) the notification bell and dashboard
+  // widgets already query — reused here just to let the detail page step to the adjacent
+  // order without forcing a round trip back through the list's own filters/search/sort.
+  const { data: allOrders } = useOrders();
+  const orderIndex = allOrders?.findIndex((o) => o.id === id) ?? -1;
+  const prevOrderId = orderIndex > 0 ? allOrders?.[orderIndex - 1]?.id : undefined;
+  const nextOrderId = orderIndex >= 0 && allOrders && orderIndex < allOrders.length - 1 ? allOrders[orderIndex + 1]?.id : undefined;
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
   const advanceStage = useAdvanceStage();
@@ -167,9 +175,35 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
-      <Link href="/orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Orders
-      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <Link href="/orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="size-4" /> Orders
+        </Link>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="size-9 sm:size-8"
+            aria-label="Previous order"
+            title="Previous order"
+            disabled={!prevOrderId}
+            onClick={() => prevOrderId && router.push(`/orders/${prevOrderId}`)}
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="size-9 sm:size-8"
+            aria-label="Next order"
+            title="Next order"
+            disabled={!nextOrderId}
+            onClick={() => nextOrderId && router.push(`/orders/${nextOrderId}`)}
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
+      </div>
 
       {/* Header */}
       <div className="overflow-hidden rounded-xl border bg-card">

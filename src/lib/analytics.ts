@@ -11,15 +11,22 @@ function fmtMon(yyyyMm: string): string {
 }
 
 function getLast6Months(): string[] {
+  // Anchor entirely on the IST calendar month, not the server's local one. The previous version
+  // read the current month via d.getMonth() (server-local — UTC on Vercel/Supabase) and only
+  // converted to IST afterward, which is fine most of the day but silently disagrees with IST
+  // for the ~5.5 hours after midnight IST (00:00-05:30) whenever that crosses a month boundary:
+  // at, say, 02:00 IST on the 1st of a new month, UTC is still 20:30 the previous day, so
+  // server-local getMonth() reports the OLD month — every bucket (and the current month itself)
+  // silently shifted a whole month behind, exactly the reported "dashboard chart missing this
+  // month's orders" bug. Deriving the anchor from istDateString() first avoids any dependency on
+  // what timezone the server happens to run in.
+  const [y, m] = istDateString().split("-").map(Number);
   const months: string[] = [];
   for (let i = 5; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(1);
-    d.setMonth(d.getMonth() - i);
-    // istDateString, NOT toISOString: setDate(1) keeps the current time-of-day, so between
-    // 00:00 and 05:30 IST toISOString() rolls back to the last day of the PREVIOUS month and
-    // every bucket key silently shifts a month (the current month vanishes from the report).
-    months.push(istDateString(d).substring(0, 7));
+    const total = y * 12 + (m - 1) - i;
+    const yy = Math.floor(total / 12);
+    const mm = (total % 12) + 1;
+    months.push(`${yy}-${String(mm).padStart(2, "0")}`);
   }
   return months;
 }

@@ -49,9 +49,12 @@ export function useNotifications() {
 
   useEffect(() => {
     const supabase = createClient();
+    // Listening to INSERT only meant a dismiss/"Clear all" done from another tab or device
+    // (an UPDATE, not an INSERT) never refreshed this client's list — it kept showing
+    // already-cleared notifications until something else happened to invalidate the cache.
     const channel = supabase
       .channel("admin_notifications_changes")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_notifications" }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "admin_notifications" }, () => {
         qc.invalidateQueries({ queryKey: ["notifications"] });
       })
       .subscribe();

@@ -13,6 +13,7 @@ import {
   type TailorLineItem,
   type ProfitConfig,
 } from "@/lib/cost-sheet";
+import { istDateString } from "@/lib/ist-date";
 import { useSaveCostSheet } from "@/hooks/use-cost-sheet-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import type { CostSheetWithItems } from "@/hooks/use-cost-sheet";
@@ -91,7 +92,7 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
   const saveCostSheet = useSaveCostSheet();
 
   const [sheetNo] = useState(existing?.cost_sheet_no || genSheetNo());
-  const [date, setDate] = useState(existing?.date || new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(existing?.date || istDateString());
   const [customerName, setCustomerName] = useState(existing?.customer_name || "");
   const [customerMobile, setCustomerMobile] = useState(existing?.customer_mobile || "");
   const [productName, setProductName] = useState(existing?.product_name || "");

@@ -13,6 +13,7 @@ import { useRaiseSalesCreditNote } from "@/hooks/use-sales-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { genSalesCreditNumber } from "@/lib/sales";
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
+import { istDateString } from "@/lib/ist-date";
 
 export function RaiseSalesCreditDialog({
   open,
@@ -34,7 +35,7 @@ export function RaiseSalesCreditDialog({
   const [lines, setLines] = useState<EditableSalesLine[]>([blankSalesLine()]);
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(istDateString());
 
   const productsById = useMemo(() => new Map((products || []).map((p) => [p.id, { name: p.name }])), [products]);
 

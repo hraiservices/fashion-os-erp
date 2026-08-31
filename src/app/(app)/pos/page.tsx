@@ -23,6 +23,7 @@ import { CustomerPicker } from "@/components/sales/customer-picker";
 import { BarcodeScannerModal } from "@/components/pos/barcode-scanner-modal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import type { Customer } from "@/lib/types";
+import { istDateString } from "@/lib/ist-date";
 
 const TENDER_METHODS = ["Cash", "UPI", "Bank Transfer", "Cheque", "Card"];
 
@@ -206,7 +207,7 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
       const items: SalesLineItem[] = cart.map((c) => ({ productId: c.productId, productName: c.productName, qty: c.qty, unitPrice: c.unitPrice, discountPercent: 0, amount: c.qty * c.unitPrice }));
       const totals = computeInvoiceTotals(items, 0, "flat", 0, 0, "none");
       const invoiceNumber = genInvoiceNumber();
-      const invoiceDate = new Date().toISOString().slice(0, 10);
+      const invoiceDate = istDateString();
       const invoice = await saveInvoice.mutateAsync({
         invoiceNumber,
         customerMobile: customer?.mobile || "walk-in",
@@ -234,7 +235,7 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
           invoiceNumber,
           amount: amt,
           method: t.method,
-          date: new Date().toISOString().slice(0, 10),
+          date: istDateString(),
           note: "POS sale",
           posSessionId: sessionId,
           userEmail: user?.email,

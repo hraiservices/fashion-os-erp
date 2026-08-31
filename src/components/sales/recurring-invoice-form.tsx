@@ -24,6 +24,7 @@ import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/custom
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
 import type { Customer, RecurringInvoiceProfile, RecurringFrequency, RecurringEndType } from "@/lib/types";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { istDateString } from "@/lib/ist-date";
 
 const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
 const discountTypeLabel = (v: unknown) => (v === "percent" ? "Percent (%)" : "Flat (₹)");
@@ -66,7 +67,7 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
   const [notes, setNotes] = useState(existing?.notes || "");
 
   const [frequency, setFrequency] = useState<RecurringFrequency>(existing?.frequency || "monthly");
-  const [nextRunDate, setNextRunDate] = useState(existing?.nextRunDate || new Date().toISOString().slice(0, 10));
+  const [nextRunDate, setNextRunDate] = useState(existing?.nextRunDate || istDateString());
   const [endType, setEndType] = useState<RecurringEndType>(existing?.endType || "never");
   const [endDate, setEndDate] = useState(existing?.endDate || "");
   const [endAfterCount, setEndAfterCount] = useState(String(existing?.endAfterCount ?? 12));

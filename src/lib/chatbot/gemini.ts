@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { GlossaryEntry } from "@/lib/chatbot/glossary";
 import { toMKey } from "@/lib/measurements";
+import { istDateString } from "@/lib/ist-date";
 
 let client: GoogleGenAI | null = null;
 
@@ -131,7 +132,7 @@ export async function generateSql(
   history: { question: string; answer: string }[] = [],
 ): Promise<string> {
   const ai = getClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = istDateString();
   const systemInstruction =
     SQL_SYSTEM_PROMPT.replace("{{TODAY}}", today) +
     buildGlossaryBlock(glossary) +

@@ -24,6 +24,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { LineItemsEditor, linesToItems, blankLine, lineFromItem, type EditableLine } from "@/components/purchases/line-items-editor";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import type { PurchaseBill } from "@/lib/types";
+import { istDateString } from "@/lib/ist-date";
 
 const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
 const paymentTermLabel = (v: unknown) => PAYMENT_TERM_LABELS[v as PaymentTerm] ?? "";
@@ -61,7 +62,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
 
   const [billNumber] = useState(existing?.billNumber || genBillNumber());
   const [vendorId, setVendorId] = useState(existing?.vendorId || "");
-  const [billDate, setBillDate] = useState(existing?.billDate || new Date().toISOString().slice(0, 10));
+  const [billDate, setBillDate] = useState(existing?.billDate || istDateString());
   const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>("due_on_receipt");
   const [dueDate, setDueDate] = useState(existing?.dueDate || "");
   const [lines, setLines] = useState<EditableLine[]>(

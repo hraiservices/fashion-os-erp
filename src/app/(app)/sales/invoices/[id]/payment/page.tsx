@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BalanceDue } from "@/components/ui/money-text";
+import { istDateString } from "@/lib/ist-date";
 
 const METHODS = ["Cash", "UPI", "Bank Transfer", "Cheque", "Card"];
 
@@ -31,7 +32,7 @@ export default function RecordSalesPaymentPage({ params }: { params: Promise<{ i
 
   const [amount, setAmount] = useState<string | null>(null);
   const [method, setMethod] = useState("Cash");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(istDateString());
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
 

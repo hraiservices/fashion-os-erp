@@ -19,6 +19,7 @@ import { LineItemsEditor, linesToItems, blankLine, lineFromItem, type EditableLi
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { inr } from "@/lib/format";
 import type { PurchaseOrder } from "@/lib/types";
+import { istDateString } from "@/lib/ist-date";
 
 function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
@@ -52,7 +53,7 @@ export function PurchaseOrderForm({ existing }: { existing?: PurchaseOrder }) {
 
   const [poNumber] = useState(existing?.poNumber || genPoNumber());
   const [vendorId, setVendorId] = useState(existing?.vendorId || "");
-  const [date, setDate] = useState(existing?.date || new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(existing?.date || istDateString());
   const [lines, setLines] = useState<EditableLine[]>(
     existing ? existing.items.map((item, i) => lineFromItem(item, `existing-${i}`)) : [blankLine()]
   );

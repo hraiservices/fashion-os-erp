@@ -20,6 +20,7 @@ import {
   type ImportMappingPresetsSetting,
   type ImportRowResult,
 } from "@/lib/expense-import";
+import { istDateString } from "@/lib/ist-date";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -42,7 +43,7 @@ function validateRows(table: ParsedTable, mapping: ImportMapping, categories: st
     const category = get("category");
     const amountRaw = get("amount");
     const amount = parseFloat(amountRaw);
-    const date = get("date") || new Date().toISOString().slice(0, 10);
+    const date = get("date") || istDateString();
     const payMethod = get("payMethod") || "Cash";
 
     let error: string | undefined;

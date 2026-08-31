@@ -91,6 +91,26 @@ function OrderWhatsAppButton({ order, shop, compact }: { order: Order; shop?: Sh
   );
 }
 
+/** Balance-due orders get a one-tap "PR" (payment reminder) link next to the WhatsApp button,
+ *  so staff don't have to open the order just to nudge a customer for the outstanding balance. */
+function PaymentReminderButton({ order, shop, compact }: { order: Order; shop?: Shop; compact?: boolean }) {
+  const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
+  if (order.balance <= 0) return null;
+  return (
+    <Button
+      variant="outline"
+      size="icon-sm"
+      className={cn("size-9 shrink-0 text-[11px] font-semibold", !compact && "sm:size-8")}
+      aria-label={`Payment reminder to ${order.name}`}
+      title="Payment reminder"
+      nativeButton={false}
+      render={<a href={buildWhatsAppUrl(order, "paymentDue", shop, waTemplates)} target="_blank" rel="noopener noreferrer" />}
+    >
+      PR
+    </Button>
+  );
+}
+
 function RecordPaymentButton({ order, onRecordPayment, compact }: { order: Order; onRecordPayment?: (order: Order) => void; compact?: boolean }) {
   if (!onRecordPayment || order.balance <= 0) return null;
   return (
@@ -161,6 +181,7 @@ export function OrderCardRow(props: RowProps) {
         {canChangeStage && <AdvanceButton {...props} compact />}
         <RecordPaymentButton order={order} onRecordPayment={onRecordPayment} compact />
         <OrderWhatsAppButton order={order} shop={shop} compact />
+        <PaymentReminderButton order={order} shop={shop} compact />
         <DeleteOrderButton order={order} compact />
       </div>
     </div>
@@ -241,6 +262,7 @@ export function OrderTableRow(props: TableRowProps) {
           {canChangeStage && <AdvanceButton {...props} />}
           <RecordPaymentButton order={order} onRecordPayment={onRecordPayment} />
           <OrderWhatsAppButton order={order} shop={shop} />
+          <PaymentReminderButton order={order} shop={shop} />
           <DeleteOrderButton order={order} />
         </div>
       </td>

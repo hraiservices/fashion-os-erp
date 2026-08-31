@@ -2,20 +2,33 @@
 
 import { useMemo } from "react";
 import { useCombinedPl } from "@/hooks/use-combined-pl";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportCard, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { TrendingUp, TrendingDown, Wallet, Receipt } from "lucide-react";
 
 export default function CombinedPlPage() {
+  const { data: user } = useCurrentUser();
   const { monthly, isLoading } = useCombinedPl();
 
   const totals = useMemo(
     () => monthly.reduce((acc, m) => ({ revenue: acc.revenue + m.revenue, cost: acc.cost + m.totalCost, net: acc.net + m.netProfit }), { revenue: 0, cost: 0, net: 0 }),
     [monthly]
   );
+
+  // Profit & Loss is entirely profit data — restricted to the admin role specifically,
+  // everywhere in the app.
+  if (user && user.role !== "admin") {
+    return (
+      <div className="p-4 sm:p-6">
+        <EmptyState icon={Wallet} title="No access" description="Combined P&L is restricted to admins." />
+      </div>
+    );
+  }
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 

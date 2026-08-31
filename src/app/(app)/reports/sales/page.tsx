@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ShoppingBag, Receipt, Wallet, TrendingUp, ChevronRight, Users, Clock, FileMinus } from "lucide-react";
 import { useOrders } from "@/hooks/use-orders";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr } from "@/lib/format";
 import { buildUnifiedSales, filterByType, type SaleTypeFilter } from "@/lib/unified-sales";
 import { ReportShell } from "@/components/reports/report-shell";
@@ -28,9 +29,13 @@ const SUB_REPORTS = [
 ];
 
 export default function SalesSummaryPage() {
+  const { data: user } = useCurrentUser();
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const { data: invoices, isLoading: invoicesLoading } = useSalesInvoices();
   const [filter, setFilter] = useState<SaleTypeFilter>("all");
+  // Profit by Item is restricted to the admin role specifically — hide the link itself, not
+  // just the destination page.
+  const subReports = user?.role === "admin" ? SUB_REPORTS : SUB_REPORTS.filter((r) => r.href !== "/reports/sales/profit-by-item");
 
   const isLoading = ordersLoading || invoicesLoading;
 
@@ -60,7 +65,7 @@ export default function SalesSummaryPage() {
       <div>
         <h2 className="mb-2 text-sm font-semibold">Detailed reports</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {SUB_REPORTS.map((r) => (
+          {subReports.map((r) => (
             <Link key={r.href} href={r.href} className="flex items-center gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <r.icon className="size-4" />

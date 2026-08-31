@@ -341,7 +341,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
           {/* Line Items */}
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
             <SectionHeading icon={Package2} label="Items" />
-            <ProductLineItemsEditor lines={lines} onChange={setLines} showDiscount showMargin={!!user?.perms.viewReports} priceOverrides={priceOverrides} />
+            <ProductLineItemsEditor lines={lines} onChange={setLines} showDiscount showMargin={user?.role === "admin"} priceOverrides={priceOverrides} />
           </div>
 
           {/* Tax, Shipping & Discount */}
@@ -414,7 +414,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
               <p className="text-2xl font-bold text-primary-foreground tabular-nums">{inr(totals.total)}</p>
             </div>
 
-            {user?.perms.viewReports && items.length > 0 && (
+            {user?.role === "admin" && items.length > 0 && (
               <div className={cn("flex items-center justify-between border-b px-5 py-2.5", margin === null ? "bg-muted/40" : "bg-emerald-50 dark:bg-emerald-950/30")}>
                 <span className={cn("text-xs font-semibold uppercase tracking-wide", margin === null ? "text-muted-foreground" : "text-emerald-700 dark:text-emerald-400")}>
                   Profit margin

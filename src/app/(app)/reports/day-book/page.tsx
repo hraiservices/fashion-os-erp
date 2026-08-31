@@ -61,6 +61,9 @@ export default function DayBookPage() {
   const [maxAmount, setMaxAmount] = useState("");
 
   const canView = !!user?.perms.viewReports;
+  // Profit is restricted to the admin role specifically — the rest of the Day Book (sales,
+  // payments, expenses, activity) stays visible to any manager who can already view reports.
+  const canViewProfit = user?.role === "admin";
   const { data, isLoading, isError, error } = useDayBook(date);
 
   const entries = useMemo(() => data?.entries || [], [data]);
@@ -101,7 +104,7 @@ export default function DayBookPage() {
         { name: "Purchases", value: data.totals.purchases, color: "#f59e0b" },
         { name: "Expenses", value: data.totals.expenses, color: "#ef4444" },
         { name: "Refunds", value: data.totals.refunds, color: "#a855f7" },
-        { name: "Profit", value: data.totals.profit, color: data.totals.profit >= 0 ? "#059669" : "#ef4444" },
+        ...(canViewProfit ? [{ name: "Profit", value: data.totals.profit, color: data.totals.profit >= 0 ? "#059669" : "#ef4444" }] : []),
       ]
     : [];
 
@@ -164,7 +167,9 @@ export default function DayBookPage() {
             <StatCard label="Purchases" value={inr(data.totals.purchases)} icon={ShoppingCart} tone="default" />
             <StatCard label="Expenses" value={inr(data.totals.expenses)} icon={Wallet} tone="danger" />
             <StatCard label="Refunds" value={inr(data.totals.refunds)} icon={RotateCcw} tone="warning" />
-            <StatCard label="Profit" value={inr(data.totals.profit)} icon={data.totals.profit >= 0 ? TrendingUp : TrendingDown} tone={data.totals.profit >= 0 ? "success" : "danger"} />
+            {canViewProfit && (
+              <StatCard label="Profit" value={inr(data.totals.profit)} icon={data.totals.profit >= 0 ? TrendingUp : TrendingDown} tone={data.totals.profit >= 0 ? "success" : "danger"} />
+            )}
           </div>
 
           {/* Operational KPIs */}

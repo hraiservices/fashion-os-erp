@@ -88,7 +88,9 @@ export default function SalesInvoicesPage() {
   const setDocStatus = useSetInvoiceDocStatus();
   const deleteInvoice = useDeleteInvoice();
   const canManage = !!user?.perms.manageSales;
-  const canViewMargin = !!user?.perms.viewReports;
+  // Profit margin is restricted to the admin role specifically, not just viewReports (which
+  // managers also hold) — a shop-wide requirement, not just this one table.
+  const canViewMargin = user?.role === "admin";
 
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date");
@@ -96,7 +98,9 @@ export default function SalesInvoicesPage() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  const table = useColumnVisibility("sales-invoices", COLUMNS);
+  // The Profit Margin column toggle itself is hidden from the picker for non-admins, not just its data.
+  const columns = canViewMargin ? COLUMNS : COLUMNS.filter((c) => c.key !== "margin");
+  const table = useColumnVisibility("sales-invoices", columns);
   const savedViews = useSavedViews<InvoiceViewFilters>("sales-invoices");
 
   function reminderUrl(inv: SalesInvoiceWithBalance) {

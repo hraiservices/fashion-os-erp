@@ -4,10 +4,10 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, ShoppingBag, Pencil, Trash2, AlertTriangle, Printer, Upload } from "lucide-react";
+import { Plus, Search, ShoppingBag, Pencil, Trash2, AlertTriangle, Printer, Upload, Archive, ArchiveRestore } from "lucide-react";
 import { printBarcodeLabel } from "@/lib/barcode";
 import { useProducts } from "@/hooks/use-products";
-import { useDeleteProduct, useBulkDeleteProducts, useQuickUpdateProduct } from "@/hooks/use-inventory-mutations";
+import { useDeleteProduct, useBulkDeleteProducts, useQuickUpdateProduct, useArchiveProduct } from "@/hooks/use-inventory-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRowSelection } from "@/hooks/use-row-selection";
 import { isLowStock } from "@/lib/inventory";
@@ -97,6 +97,7 @@ function ProductsPageContent() {
   const { data: user } = useCurrentUser();
   const deleteProduct = useDeleteProduct();
   const bulkDeleteProducts = useBulkDeleteProducts();
+  const archiveProduct = useArchiveProduct();
 
   const [search, setSearch] = useState("");
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
@@ -135,6 +136,15 @@ function ProductsPageContent() {
       toast.success(`${p.name} deleted`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to delete");
+    }
+  }
+
+  async function handleToggleArchive(p: Product) {
+    try {
+      await archiveProduct.mutateAsync({ id: p.id, active: !p.active, name: p.name, userEmail: user?.email });
+      toast.success(p.active ? `${p.name} archived` : `${p.name} unarchived`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update");
     }
   }
 
@@ -246,7 +256,14 @@ function ProductsPageContent() {
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="font-medium">{p.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <span className={cn(!p.active && "text-muted-foreground")}>{p.name}</span>
+                      {!p.active && (
+                        <Badge variant="secondary" className="ml-2">
+                          Archived
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{p.sku}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
@@ -280,6 +297,17 @@ function ProductsPageContent() {
                           <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => openEdit(p)} aria-label={`Edit ${p.name}`}>
                             <Pencil className="size-3.5" />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="size-11 sm:size-7"
+                            onClick={() => handleToggleArchive(p)}
+                            disabled={archiveProduct.isPending}
+                            aria-label={p.active ? `Archive ${p.name}` : `Unarchive ${p.name}`}
+                            title={p.active ? "Archive — hides it from new sales, keeps its history" : "Unarchive"}
+                          >
+                            {p.active ? <Archive className="size-3.5" /> : <ArchiveRestore className="size-3.5" />}
+                          </Button>
                           <AlertDialog>
                             <AlertDialogTrigger
                               render={
@@ -293,7 +321,9 @@ function ProductsPageContent() {
                                 <AlertDialogTitle>Delete {p.name}?</AlertDialogTitle>
                                 <AlertDialogDescription>
                                   This removes the product and its bill of materials. Stock ledger history is kept for audit purposes.
-                                  {p.stockQty > 0 && ` Current stock is ${p.stockQty} pcs.`}
+                                  {p.stockQty > 0 && ` Current stock is ${p.stockQty} pcs.`} If this product has ever had a purchase, sale, or
+                                  adjustment recorded against it, deleting it will be refused — use Archive instead to hide it from new sales
+                                  while keeping its history intact.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -319,7 +349,17 @@ function ProductsPageContent() {
             const low = isLowStock(p.stockQty, p.lowStockAlert);
             return (
               <MobileRecordCard key={p.id} onClick={canManage ? () => openEdit(p) : undefined}>
-                <MobileRecordHeader title={p.name} subtitle={p.sku} value={inr(p.sellingPrice)} showChevron={canManage} />
+                <MobileRecordHeader
+                  title={!p.active ? <span className="text-muted-foreground">{p.name}</span> : p.name}
+                  subtitle={p.sku}
+                  value={
+                    <span className="inline-flex items-center gap-1.5">
+                      {!p.active && <Badge variant="secondary">Archived</Badge>}
+                      {inr(p.sellingPrice)}
+                    </span>
+                  }
+                  showChevron={canManage}
+                />
                 <MobileRecordRow
                   label="Stock"
                   value={

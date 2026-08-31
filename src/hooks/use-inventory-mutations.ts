@@ -126,6 +126,17 @@ export function useQuickUpdateProduct() {
   });
 }
 
+/** Archive/unarchive — the way to actually retire a product that has stock ledger history and
+ *  so can't be hard-deleted (see useDeleteProduct's 409 below). */
+export function useArchiveProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, active, name }: { id: string; active: boolean; name: string; userEmail?: string }) =>
+      apiPatch<{ ok: true }>(`/api/inventory/products/${id}`, { active, name }),
+    onSuccess: () => invalidateInventory(qc),
+  });
+}
+
 export function useDeleteProduct() {
   const qc = useQueryClient();
   return useMutation({

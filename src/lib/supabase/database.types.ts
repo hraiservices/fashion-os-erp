@@ -366,6 +366,7 @@ export interface Database {
           occasion: string | null;
           brand: string | null;
           image_data_url: string | null;
+          active: boolean;
           created_at: string;
           updated_at: string;
         };

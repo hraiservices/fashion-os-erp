@@ -4,12 +4,15 @@ import { getServerUser } from "@/lib/auth-server";
 import { logAction } from "@/lib/logging";
 
 const patchSchema = z.object({
-  sellingPrice: z.number().min(0),
+  sellingPrice: z.number().min(0).optional(),
   name: z.string().min(1),
+  /** Archive/unarchive — the only way to actually retire a product that has stock ledger
+   *  history and so can't be hard-deleted (see DELETE below). */
+  active: z.boolean().optional(),
 });
 
-/** Targeted single-field patch (e.g. inline table editing) — unlike the full product save,
- *  never touches BOM rows. Previously ran entirely client-side with no permission check. */
+/** Targeted single-field patch (e.g. inline table editing, archive/unarchive) — unlike the full
+ *  product save, never touches BOM rows. Previously ran entirely client-side with no permission check. */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { supabase, user } = await getServerUser();
@@ -18,12 +21,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const parsed = patchSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-  const { sellingPrice, name } = parsed.data;
+  const { sellingPrice, name, active } = parsed.data;
 
-  const { error } = await supabase.from("products").update({ selling_price: sellingPrice }).eq("id", id);
+  const update: { selling_price?: number; active?: boolean } = {};
+  if (sellingPrice !== undefined) update.selling_price = sellingPrice;
+  if (active !== undefined) update.active = active;
+
+  const { error } = await supabase.from("products").update(update).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await logAction(supabase, user.email, `Product price updated: ${name} → ${sellingPrice}`);
+  if (sellingPrice !== undefined) await logAction(supabase, user.email, `Product price updated: ${name} → ${sellingPrice}`);
+  if (active !== undefined) await logAction(supabase, user.email, `Product ${active ? "unarchived" : "archived"}: ${name}`);
   return NextResponse.json({ ok: true });
 }
 
@@ -48,7 +56,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     .limit(1);
   if (ledgerRows && ledgerRows.length > 0) {
     return NextResponse.json(
-      { error: "This product has stock movement history (purchases, sales, adjustments) and cannot be deleted." },
+      { error: "This product has stock movement history (purchases, sales, adjustments) and cannot be deleted. Archive it instead to hide it from new sales while keeping its history." },
       { status: 409 }
     );
   }

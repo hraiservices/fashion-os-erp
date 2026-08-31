@@ -379,6 +379,9 @@ export interface Product {
   brand: string;
   /** Resized JPEG data URL (see fileToDataUrl) — same inline-storage pattern as branding images. */
   imageDataUrl: string | null;
+  /** false = archived/discontinued — kept (with all its stock ledger history) rather than
+   *  deleted, just hidden from pickers for new sales going forward. */
+  active: boolean;
   createdAt: string;
 }
 
@@ -403,6 +406,7 @@ export function mapProductRow(r: ProductRow, stockQty: number, bom: BomLine[]): 
     occasion: r.occasion || "",
     brand: r.brand || "",
     imageDataUrl: r.image_data_url || null,
+    active: r.active ?? true,
     createdAt: r.created_at,
   };
 }

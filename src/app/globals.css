@@ -521,6 +521,16 @@
   thead {
     display: table-header-group;
   }
+  /* Any inner scrollable region (order history, activity feeds, long option lists, etc.) is
+     built with a fixed max-height + overflow-y-auto so it stays a small scrollable box on
+     screen — printing it as-is silently drops everything outside whatever scroll position the
+     box happened to be at, instead of paginating the full content across sheets. This forces
+     every such box back to its natural full height for print, so nothing gets truncated. */
+  [class*="overflow-y-auto"],
+  [class*="overflow-auto"] {
+    overflow: visible !important;
+    max-height: none !important;
+  }
 }
 
 /* Login screen — animated aurora background blobs + logo float/glow. Scoped to their own

@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Wallet } from "lucide-react";
+import { toast } from "sonner";
+import { ChevronRight, Wallet, Trash2 } from "lucide-react";
 import { getNextStage, buildWhatsAppUrl, STAGE_META } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
@@ -14,7 +16,20 @@ import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { hapticTap } from "@/lib/haptics";
+import { useDeleteOrder } from "@/hooks/use-order-mutations";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import type { useRowSelection } from "@/hooks/use-row-selection";
 import type { Order } from "@/lib/types";
 import type { Shop } from "@/lib/settings";
@@ -109,6 +124,64 @@ function RecordPaymentButton({ order, onRecordPayment, compact }: { order: Order
 }
 
 /**
+ * Quick delete straight from the list — gated on deleteOrder, same as the order detail page's
+ * delete button and the list's bulk-select delete, just without needing to open the order or
+ * select it first. Self-contained (own confirm dialog + mutation) so it drops into either row
+ * type with no wiring through OrdersList/orders/page.tsx.
+ */
+function DeleteOrderButton({ order, compact }: { order: Order; compact?: boolean }) {
+  const { data: user } = useCurrentUser();
+  const deleteOrder = useDeleteOrder();
+  const [open, setOpen] = useState(false);
+  if (!user?.perms.deleteOrder) return null;
+
+  async function doDelete() {
+    try {
+      await deleteOrder.mutateAsync({ id: order.id, name: order.name, userEmail: user?.email });
+      toast.success("Order deleted");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete order");
+    } finally {
+      setOpen(false);
+    }
+  }
+
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger
+        render={
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className={cn("size-9 shrink-0 text-destructive hover:bg-destructive/10", !compact && "sm:size-8")}
+            aria-label={`Delete order ${order.id}`}
+            title="Delete order"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        }
+      />
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete this order?</AlertDialogTitle>
+          <AlertDialogDescription>{order.id} for {order.name} will be permanently removed. This cannot be undone.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleteOrder.isPending}>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={doDelete} disabled={deleteOrder.isPending}>
+            {deleteOrder.isPending ? "Deleting…" : "Delete"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+/**
  * Mobile order card. Tables force horizontal scrolling on phones, so below `md`
  * every order becomes a tap-friendly card with its actions inline.
  */
@@ -158,6 +231,7 @@ export function OrderCardRow(props: RowProps) {
         {canChangeStage && <AdvanceButton {...props} compact />}
         <RecordPaymentButton order={order} onRecordPayment={onRecordPayment} compact />
         <OrderWhatsAppButton order={order} shop={shop} compact />
+        <DeleteOrderButton order={order} compact />
       </div>
     </div>
   );
@@ -237,6 +311,7 @@ export function OrderTableRow(props: TableRowProps) {
           {canChangeStage && <AdvanceButton {...props} />}
           <RecordPaymentButton order={order} onRecordPayment={onRecordPayment} />
           <OrderWhatsAppButton order={order} shop={shop} />
+          <DeleteOrderButton order={order} />
         </div>
       </td>
     </tr>

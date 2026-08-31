@@ -5,6 +5,7 @@ import { getAttendanceEmployeeId } from "@/lib/attendance-session-server";
 import { checkGeofence } from "@/lib/geofence";
 import { istDateString } from "@/lib/ist-date";
 import { notifyAttendance } from "@/lib/logging";
+import { MAX_SHIFT_HOURS } from "@/lib/attendance-settings";
 
 const bodySchema = z.object({
   lat: z.number(),
@@ -45,10 +46,10 @@ export async function POST(request: Request) {
   // An overnight shift (checked in before midnight IST, not yet checked out) lives on
   // YESTERDAY's row — checking `date = today` alone missed it, letting a second check-in
   // create a brand-new row for today while yesterday's stayed open forever (check_in_at set,
-  // check_out_at null, hours never recorded). Block a new check-in until that shift is closed.
+  // check_out_at null, hours never recorded).
   const { data: openShift } = await supabase
     .from("employee_attendance")
-    .select("id, date")
+    .select("id, date, check_in_at")
     .eq("employee_id", employeeId)
     .not("check_in_at", "is", null)
     .is("check_out_at", null)
@@ -56,10 +57,19 @@ export async function POST(request: Request) {
     .limit(1)
     .maybeSingle();
   if (openShift) {
-    return NextResponse.json(
-      { error: openShift.date === today ? "You've already checked in today" : "You still have an open shift from your last check-in — check out first." },
-      { status: 409 }
-    );
+    if (openShift.date === today) {
+      return NextResponse.json({ error: "You've already checked in today" }, { status: 409 });
+    }
+    // A stale open shift from a PRIOR day (forgot to check out) must not block today's
+    // check-in indefinitely — auto-close it at end-of-day so it stops looking "open" and the
+    // employee can carry on, instead of being stuck until someone manually fixes the old row.
+    const shiftEndIso = new Date(`${openShift.date}T23:59:59+05:30`).toISOString();
+    const rawHours = (new Date(shiftEndIso).getTime() - new Date(openShift.check_in_at!).getTime()) / 3_600_000;
+    const hoursWorked = Math.round(Math.min(Math.max(rawHours, 0), MAX_SHIFT_HOURS) * 100) / 100;
+    await supabase
+      .from("employee_attendance")
+      .update({ check_out_at: shiftEndIso, hours_worked: hoursWorked, notes: "Auto-closed: no check-out recorded before the next check-in." })
+      .eq("id", openShift.id);
   }
 
   const { data: existing } = await supabase.from("employee_attendance").select("id, check_in_at").eq("employee_id", employeeId).eq("date", today).maybeSingle();

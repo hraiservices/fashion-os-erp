@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { daysLeft } from "@/lib/business-rules";
+import { daysLeft, normalizeIndianMobile } from "@/lib/business-rules";
 import { deriveInvoiceBalance } from "@/lib/sales";
 import { inr } from "@/lib/format";
 import { sendWhatsAppTemplateText, type WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
@@ -60,7 +60,12 @@ export async function GET(req: Request) {
   (creditRows || []).forEach((c) => creditsByInvoice.set(c.invoice_id, (creditsByInvoice.get(c.invoice_id) || 0) + c.total));
 
   const dueByMobile = new Map<string, { name: string; due: number }>();
-  const bump = (mobile: string, name: string, amount: number) => {
+  const bump = (rawMobile: string, name: string, amount: number) => {
+    // Normalize first: a customer whose order has "9876543210" but whose invoice has
+    // "919876543210" would otherwise be treated as two different people, splitting their due
+    // amount across two map entries and sending two separate reminders (or one to a malformed
+    // "9191..." number, if the un-normalized value were used to build the WhatsApp recipient).
+    const mobile = normalizeIndianMobile(rawMobile);
     if (!mobile || amount <= 0) return;
     const existing = dueByMobile.get(mobile);
     if (existing) existing.due += amount;

@@ -86,6 +86,17 @@ export function newOrderId(): string {
   return `SOR-${rand}`;
 }
 
+/** A manually-typed order number becomes the order's real primary key and is used verbatim as
+ *  a URL segment (/orders/[id]) — the exact same trap the auto-generated separator once fell
+ *  into (see INVALID_SEPARATOR in document-numbering.ts). Restricted to a small, definitely
+ *  URL-safe charset rather than just blocking "/", since a manual field is more likely to see
+ *  spaces, quotes, or other characters an auto-formatter would never produce. */
+export const ORDER_NUMBER_PATTERN = /^[A-Za-z0-9._-]{1,40}$/;
+
+export function isValidManualOrderNumber(s: string): boolean {
+  return ORDER_NUMBER_PATTERN.test(s);
+}
+
 /** custId(), line ~2214. */
 export function customerIdFromMobile(mobile: string): string {
   return `CUST-${mobile}`;

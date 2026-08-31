@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { mapOrderRow } from "@/lib/types";
-import { newOrderId, customerIdFromMobile, deriveBalance, fmtNow, computeEarnPoints, computeRedemption, REFERRAL_BONUS_POINTS } from "@/lib/business-rules";
+import { newOrderId, customerIdFromMobile, deriveBalance, fmtNow, computeEarnPoints, computeRedemption, REFERRAL_BONUS_POINTS, isValidManualOrderNumber } from "@/lib/business-rules";
 import { logAction } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
@@ -48,6 +48,9 @@ const bodySchema = z.object({
   otherCost: z.number().min(0).optional().default(0),
   /** Referral coupon code to redeem against this order's balance at creation. */
   couponCode: z.string().optional(),
+  /** Manual override for the order's id/number — leave unset for the usual auto-generated or
+   *  sequential (Document Numbering) behavior. Only meaningful on create. */
+  orderNumber: z.string().optional(),
   expenses: z
     .array(
       z.object({
@@ -88,21 +91,36 @@ export async function POST(request: Request) {
 
   // Sequential numbering (Settings > Document Numbering) — falls back to the random SOR-xxxxx
   // id when disabled. Either way this becomes the order's real primary key, so it's resolved
-  // before anything else touches the row.
+  // before anything else touches the row. A manually-typed orderNumber overrides both: the
+  // person creating the order explicitly asked for it (matching an old system's numbering, a
+  // one-off exception, etc.), so it wins over whatever auto-numbering is configured.
   let id = newOrderId();
-  const { data: numberingSetting } = await supabase.from("app_settings").select("value").eq("key", "documentNumbering").maybeSingle();
-  const numbering: DocumentNumberingSettings = { ...DEFAULT_DOCUMENT_NUMBERING, ...((numberingSetting?.value as Partial<DocumentNumberingSettings>) || {}) };
-  const orderNumberFmt = numbering.stitchingOrder;
-  if (orderNumberFmt.enabled) {
-    const parsedDate = fd.inDate ? new Date(fd.inDate) : new Date();
-    const year = isNaN(parsedDate.getTime()) ? new Date().getFullYear() : parsedDate.getFullYear();
-    const { data: nextNumber, error: seqError } = await supabase.rpc("next_document_number", {
-      p_doc_type: "stitching_order",
-      p_period_key: periodKeyFor(orderNumberFmt, year),
-      p_start: orderNumberFmt.startNumber,
-    });
-    if (seqError) return NextResponse.json({ error: seqError.message }, { status: 500 });
-    id = formatDocNumber(orderNumberFmt, nextNumber, year);
+  if (fd.orderNumber?.trim()) {
+    const manualId = fd.orderNumber.trim();
+    if (!isValidManualOrderNumber(manualId)) {
+      return NextResponse.json(
+        { error: "Order number can only contain letters, numbers, dots, dashes and underscores (no spaces or slashes)." },
+        { status: 400 }
+      );
+    }
+    const { data: existing } = await supabase.from("orders").select("id").eq("id", manualId).maybeSingle();
+    if (existing) return NextResponse.json({ error: `Order number ${manualId} is already in use.` }, { status: 409 });
+    id = manualId;
+  } else {
+    const { data: numberingSetting } = await supabase.from("app_settings").select("value").eq("key", "documentNumbering").maybeSingle();
+    const numbering: DocumentNumberingSettings = { ...DEFAULT_DOCUMENT_NUMBERING, ...((numberingSetting?.value as Partial<DocumentNumberingSettings>) || {}) };
+    const orderNumberFmt = numbering.stitchingOrder;
+    if (orderNumberFmt.enabled) {
+      const parsedDate = fd.inDate ? new Date(fd.inDate) : new Date();
+      const year = isNaN(parsedDate.getTime()) ? new Date().getFullYear() : parsedDate.getFullYear();
+      const { data: nextNumber, error: seqError } = await supabase.rpc("next_document_number", {
+        p_doc_type: "stitching_order",
+        p_period_key: periodKeyFor(orderNumberFmt, year),
+        p_start: orderNumberFmt.startNumber,
+      });
+      if (seqError) return NextResponse.json({ error: seqError.message }, { status: 500 });
+      id = formatDocNumber(orderNumberFmt, nextNumber, year);
+    }
   }
   const userName = user.email.split("@")[0] || "user";
   const loyaltyCfg = await getLoyaltyConfig(supabase);

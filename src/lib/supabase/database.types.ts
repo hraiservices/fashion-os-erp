@@ -1347,6 +1347,10 @@ export interface Database {
         };
         Returns: undefined;
       };
+      rename_order_id: {
+        Args: { p_old_id: string; p_new_id: string };
+        Returns: Database["public"]["Tables"]["orders"]["Row"][];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

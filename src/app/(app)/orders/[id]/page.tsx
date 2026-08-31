@@ -8,14 +8,14 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Pencil, Trash2, Wallet, ArrowRigh
 import { useOrder } from "@/hooks/use-order";
 import { useOrders } from "@/hooks/use-orders";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useConfirmOrderPayables, useDeleteOrderPayment, useBackfillOrderPayment } from "@/hooks/use-order-mutations";
+import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useConfirmOrderPayables, useDeleteOrderPayment, useBackfillOrderPayment, useRenameOrder } from "@/hooks/use-order-mutations";
 import { useOrderPayments } from "@/hooks/use-order-payments";
 import { useTailorName } from "@/hooks/use-employees";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
 import { computeOrderProfit } from "@/lib/order-profit";
-import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppUrl, DEFAULT_TAILOR_RATES, type Lining, type TailorRateCard } from "@/lib/business-rules";
+import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppUrl, DEFAULT_TAILOR_RATES, isValidManualOrderNumber, type Lining, type TailorRateCard } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
 import { inr, fmtDate } from "@/lib/format";
@@ -31,6 +31,7 @@ import { ReworkDialog } from "@/components/orders/rework-dialog";
 import { printOrderTag } from "@/lib/order-tag";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { PrintButton } from "@/components/ui/print-button";
@@ -47,6 +48,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -63,6 +65,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const { data: shop } = useShopSettings();
   const advanceStage = useAdvanceStage();
   const deleteOrder = useDeleteOrder();
+  const renameOrder = useRenameOrder();
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [newOrderNumber, setNewOrderNumber] = useState("");
+  const renameError = newOrderNumber && !isValidManualOrderNumber(newOrderNumber.trim()) ? "Only letters, numbers, dots, dashes and underscores (no spaces or slashes)" : null;
   const updateOrder = useUpdateOrder();
   const setRework = useSetOrderRework();
   const confirmPayables = useConfirmOrderPayables();
@@ -100,6 +106,21 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       toast.success("Payment record created — you can now delete it from here if needed");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to create payment record");
+    }
+  }
+
+  async function doRename() {
+    const trimmed = newOrderNumber.trim();
+    if (!trimmed || !isValidManualOrderNumber(trimmed)) return;
+    try {
+      const res = await renameOrder.mutateAsync({ id, newId: trimmed });
+      setRenameOpen(false);
+      toast.success(`Order renamed to ${res.order.id}`);
+      // The old id's page (this one) is gone the moment the rename lands — move on before the
+      // user hits reload and gets a 404 for an id that no longer exists.
+      router.replace(`/orders/${res.order.id}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to rename order");
     }
   }
 
@@ -214,6 +235,49 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <h1 className="truncate text-xl font-semibold tracking-tight">{order.name}</h1>
               <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                 <span>{order.id}</span>
+                {user?.perms.deleteOrder && (
+                  <Dialog
+                    open={renameOpen}
+                    onOpenChange={(open) => {
+                      setRenameOpen(open);
+                      if (open) setNewOrderNumber(order.id);
+                    }}
+                  >
+                    <DialogTrigger
+                      render={
+                        <button type="button" className="inline-flex items-center gap-1 hover:text-foreground" aria-label="Change order number" title="Change order number">
+                          <Pencil className="size-3.5" />
+                        </button>
+                      }
+                    />
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Change order number</DialogTitle>
+                        <DialogDescription>
+                          This is the order&apos;s actual id — every payment, expense, log entry, and shared link that points at {order.id} will be repointed to the new number.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <Input
+                        value={newOrderNumber}
+                        onChange={(e) => setNewOrderNumber(e.target.value)}
+                        placeholder="e.g. SOR-2026-0193"
+                        autoFocus
+                      />
+                      {renameError && <p className="text-[11px] text-destructive">{renameError}</p>}
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setRenameOpen(false)} disabled={renameOrder.isPending}>
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={doRename}
+                          disabled={renameOrder.isPending || !newOrderNumber.trim() || newOrderNumber.trim() === order.id || !!renameError}
+                        >
+                          {renameOrder.isPending ? "Renaming…" : "Rename"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
                 <a href={`tel:${order.mobile}`} className="inline-flex items-center gap-1 hover:text-foreground">
                   <Phone className="size-3.5" /> {order.mobile}
                 </a>

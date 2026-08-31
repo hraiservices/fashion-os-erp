@@ -1,0 +1,12 @@
+-- Run this once in your Supabase SQL editor.
+--
+-- Deleting a product that already has stock ledger history (a purchase, sale, or adjustment ever
+-- recorded against it) is deliberately blocked — inventory_ledger.item_id has no real FK (by
+-- design, per the app-layer-enforced-relationships convention), so hard-deleting the row would
+-- silently orphan its ledger history, breaking historical reports (Inventory Valuation, Order
+-- Profitability, Sales by Item) with no audit trail. That guard is correct and stays.
+--
+-- But it left no way to actually retire a discontinued product — "cannot be deleted" was a dead
+-- end. Adds an `active` flag instead: archiving a product keeps its row (and every historical
+-- reference to it) fully intact, just hides it from new-sale pickers going forward.
+ALTER TABLE products ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;

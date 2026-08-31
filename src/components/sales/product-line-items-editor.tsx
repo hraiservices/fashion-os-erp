@@ -175,10 +175,15 @@ export function ProductLineItemsEditor({
     else scanAdd(code);
   }
 
-  const productOptions = useMemo(
-    () => (products || []).map((p) => ({ value: p.id, label: p.name, sublabel: `${p.sku} · ${p.stockQty} in stock · ${inr(p.sellingPrice)}` })),
-    [products]
-  );
+  // Archived products are hidden from new selections — the whole point of archiving is to stop
+  // it coming up for new sales — but a line already pointing at one (an existing invoice/quote
+  // being edited) must still resolve to its name rather than showing a blank/unknown option.
+  const productOptions = useMemo(() => {
+    const usedIds = new Set(lines.map((l) => l.productId).filter(Boolean));
+    return (products || [])
+      .filter((p) => p.active || usedIds.has(p.id))
+      .map((p) => ({ value: p.id, label: p.name, sublabel: `${p.sku} · ${p.stockQty} in stock · ${inr(p.sellingPrice)}` }));
+  }, [products, lines]);
 
   function lineTotals(l: EditableSalesLine) {
     const qty = parseFloat(l.qty) || 0;

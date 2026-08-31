@@ -272,9 +272,11 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
   }
 
   const filteredProducts = useMemo(() => {
+    // Archived products are discontinued — don't let them come up at checkout.
+    const active = (products || []).filter((p) => p.active);
     const q = scanValue.trim().toLowerCase();
-    if (!q) return (products || []).slice(0, 24);
-    return (products || []).filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || p.barcode === q).slice(0, 24);
+    if (!q) return active.slice(0, 24);
+    return active.filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || p.barcode === q).slice(0, 24);
   }, [products, scanValue]);
 
   return (

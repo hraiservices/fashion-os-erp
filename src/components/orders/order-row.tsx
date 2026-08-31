@@ -15,6 +15,7 @@ import { AlterationBadge, ReworkBadge, DeleteOrderButton } from "@/components/or
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { Checkbox } from "@/components/ui/checkbox";
 import { hapticTap } from "@/lib/haptics";
 import type { useRowSelection } from "@/hooks/use-row-selection";
@@ -91,22 +92,22 @@ function OrderWhatsAppButton({ order, shop, compact }: { order: Order; shop?: Sh
   );
 }
 
-/** Balance-due orders get a one-tap "PR" (payment reminder) link next to the WhatsApp button,
- *  so staff don't have to open the order just to nudge a customer for the outstanding balance. */
+/** Balance-due orders get a one-tap payment-reminder WhatsApp link next to the plain WhatsApp
+ *  button, so staff don't have to open the order just to nudge a customer for the balance. */
 function PaymentReminderButton({ order, shop, compact }: { order: Order; shop?: Shop; compact?: boolean }) {
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   if (order.balance <= 0) return null;
   return (
     <Button
       variant="outline"
-      size="icon-sm"
-      className={cn("size-9 shrink-0 text-[11px] font-semibold", !compact && "sm:size-8")}
+      size="sm"
+      className={cn("h-9 shrink-0 gap-1.5 px-2.5 text-xs", !compact && "sm:h-8")}
       aria-label={`Payment reminder to ${order.name}`}
       title="Payment reminder"
       nativeButton={false}
       render={<a href={buildWhatsAppUrl(order, "paymentDue", shop, waTemplates)} target="_blank" rel="noopener noreferrer" />}
     >
-      PR
+      <WhatsAppIcon className="size-3.5 text-[#25D366]" /> Reminder
     </Button>
   );
 }

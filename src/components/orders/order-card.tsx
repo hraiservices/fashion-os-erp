@@ -7,6 +7,8 @@ import { Wallet, RotateCcw, Trash2 } from "lucide-react";
 import { getNextStage, buildWhatsAppUrl, STAGE_META } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
+import { useAppSetting } from "@/hooks/use-app-setting";
+import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { inr, fmtDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { orderChecklistProgress } from "@/lib/garment-checklist";
@@ -141,6 +143,7 @@ export function OrderCard({
   onRecordPayment?: (order: Order) => void;
 }) {
   const next = getNextStage(order.status);
+  const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
 
   return (
     <div
@@ -207,7 +210,7 @@ export function OrderCard({
           </Button>
         )}
         <WhatsAppIconButton
-          href={buildWhatsAppUrl(order, resolveWaType(order), shop)}
+          href={buildWhatsAppUrl(order, resolveWaType(order), shop, waTemplates)}
           label={`WhatsApp ${order.name}`}
           className="size-8"
         />

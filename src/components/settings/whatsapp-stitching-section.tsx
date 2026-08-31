@@ -4,7 +4,13 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
-import { DEFAULT_SALES_WHATSAPP_TEMPLATES, SALES_WHATSAPP_LABELS, SALES_WHATSAPP_VARIABLES, type SalesWhatsAppTemplates, type SalesWhatsAppType } from "@/lib/sales-whatsapp";
+import {
+  DEFAULT_STITCHING_WHATSAPP_TEMPLATES,
+  STITCHING_WHATSAPP_LABELS,
+  STITCHING_WHATSAPP_VARIABLES,
+  type StitchingWhatsAppTemplates,
+} from "@/lib/stitching-whatsapp";
+import type { WhatsAppMessageType } from "@/lib/business-rules";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,11 +18,11 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
-const TYPES: SalesWhatsAppType[] = ["invoiceSent", "paymentReminder", "paymentReceived", "sendPdfLink"];
+const TYPES: WhatsAppMessageType[] = ["received", "ready", "overdue", "delivered", "payment", "paymentDue"];
 
-export function WhatsAppSalesSection() {
-  const { data, isLoading, save } = useAppSetting<SalesWhatsAppTemplates>("salesWhatsAppTemplates", DEFAULT_SALES_WHATSAPP_TEMPLATES);
-  const [templates, setTemplates] = useState<SalesWhatsAppTemplates>(DEFAULT_SALES_WHATSAPP_TEMPLATES);
+export function WhatsAppStitchingSection() {
+  const { data, isLoading, save } = useAppSetting<StitchingWhatsAppTemplates>("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
+  const [templates, setTemplates] = useState<StitchingWhatsAppTemplates>(DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
 
   useSyncFromSource(data, (d) => {
     if (d) setTemplates(d);
@@ -36,11 +42,11 @@ export function WhatsAppSalesSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">Sales WhatsApp templates</CardTitle>
+        <CardTitle className="text-sm">Stitching order WhatsApp templates</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="flex flex-wrap gap-1.5">
-          {SALES_WHATSAPP_VARIABLES.map((v) => (
+          {STITCHING_WHATSAPP_VARIABLES.map((v) => (
             <Badge key={v} variant="secondary" className="font-mono">
               {v}
             </Badge>
@@ -49,7 +55,7 @@ export function WhatsAppSalesSection() {
 
         {TYPES.map((type) => (
           <div key={type} className="space-y-1.5">
-            <Label className="text-xs font-medium">{SALES_WHATSAPP_LABELS[type]}</Label>
+            <Label className="text-xs font-medium">{STITCHING_WHATSAPP_LABELS[type]}</Label>
             <Textarea
               rows={4}
               className="font-mono text-xs"

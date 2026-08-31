@@ -3,6 +3,7 @@
 // (see plan doc: loyalty math, due-date badges, balance derivation, WhatsApp templates).
 
 import { istDateString } from "@/lib/ist-date";
+import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 
 /** How a customer found the shop — free-choice list, not enforced server-side (a blank/custom
  *  value is fine, this just drives the order-form dropdown and the booking-source report). */
@@ -314,7 +315,7 @@ function fmtDateIN(iso: string): string {
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export function buildWhatsAppMessage(order: WhatsAppOrder, type: WhatsAppMessageType, shop?: Shop): string {
+export function buildWhatsAppMessage(order: WhatsAppOrder, type: WhatsAppMessageType, shop?: Shop, templates?: Record<WhatsAppMessageType, string>): string {
   const ph = shop?.phone || "";
   const sn = shop?.name || "Fashion Boutique";
   const gs = (order.garments || []).map((g) => g.type).join(", ");
@@ -323,16 +324,20 @@ export function buildWhatsAppMessage(order: WhatsAppOrder, type: WhatsAppMessage
   // Google review link, which every other shop running this app would otherwise send
   // to their customers by mistake.
   const websiteLine = shop?.websiteUrl ? `\n🛍️ Shop Online: ${shop.websiteUrl}` : "";
-  const reviewLine = shop?.reviewUrl ? `\n🌐 ${shop.reviewUrl}` : "";
-  const messages: Record<WhatsAppMessageType, string> = {
-    received: `Dear *${order.name}*🙏\n\nYour Stitching Order *${order.id}* Received at *${sn}* Boutique.\n🗓️ Delivery Date is: *${fmtDateIN(order.deliveryDate)}*\n We will notify you when Ready! Thanks.🌸\n📞 ${ph}${websiteLine}`,
-    ready: `Dear *${order.name}*✅\n\nYour Stitching Order *${order.id}* is *READY!* 🎉\n${gs}. Please Collect soon !.${order.balance ? `\n💰 Balance Payment is : *₹${order.balance}*` : ""}\n📞 *${ph}*\n_${sn}_ 🌸`,
-    overdue: `Dear *${order.name}* 🙏\n\nYour Stitching Order *${order.id}* was due on *${fmtDateIN(order.deliveryDate)}* and is still in progress.\nWe sincerely apologize for the delay. We will notify you as soon as it is Ready! 🙏\n📞 ${ph}\n_${sn}_${websiteLine}`,
-    delivered: `Dear *${order.name}*💐\n Thank you for collecting your garments from *${sn}!* 😍${reviewLine ? `\nPlease Review on Google ! Click Below⭐${reviewLine}` : ""}${websiteLine}`,
-    payment: `Dear *${order.name}*🙏\nPayment of *₹${order.balance || 0}* received. Thank you! 💚\n_${sn}_ ✂️${websiteLine}`,
-    paymentDue: `Dear *${order.name}* 🙏\n\n₹${order.balance || 0} is due against your stitching order *${order.id}*.\nPlease clear at your earliest convenience.\n📞 ${ph}\n_${sn}_`,
-  };
-  return messages[type] || messages.received;
+  const reviewLine = shop?.reviewUrl ? `\nPlease Review on Google ! Click Below⭐\n🌐 ${shop.reviewUrl}` : "";
+  const balanceLine = order.balance ? `\n💰 Balance Payment is : *₹${order.balance}*` : "";
+  const template = templates?.[type] || DEFAULT_STITCHING_WHATSAPP_TEMPLATES[type] || DEFAULT_STITCHING_WHATSAPP_TEMPLATES.received;
+  return template
+    .replaceAll("{name}", order.name)
+    .replaceAll("{order_id}", order.id)
+    .replaceAll("{delivery_date}", fmtDateIN(order.deliveryDate))
+    .replaceAll("{garments}", gs)
+    .replaceAll("{balance}", String(order.balance || 0))
+    .replaceAll("{shop_name}", sn)
+    .replaceAll("{shop_phone}", ph)
+    .replaceAll("{website_line}", websiteLine)
+    .replaceAll("{review_line}", reviewLine)
+    .replaceAll("{balance_line}", balanceLine);
 }
 
 /** Strips everything but digits, then a leading 91 country code, so a number typed/exported as
@@ -347,9 +352,9 @@ export function normalizeIndianMobile(mobile: string): string {
   return raw;
 }
 
-export function buildWhatsAppUrl(order: WhatsAppOrder, type: WhatsAppMessageType, shop?: Shop): string {
+export function buildWhatsAppUrl(order: WhatsAppOrder, type: WhatsAppMessageType, shop?: Shop, templates?: Record<WhatsAppMessageType, string>): string {
   const mobile = normalizeIndianMobile(order.mobile);
-  const message = buildWhatsAppMessage(order, type, shop);
+  const message = buildWhatsAppMessage(order, type, shop, templates);
   return `https://wa.me/91${mobile}?text=${encodeURIComponent(message)}`;
 }
 

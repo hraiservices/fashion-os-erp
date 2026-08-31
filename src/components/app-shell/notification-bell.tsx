@@ -26,6 +26,11 @@ export function NotificationBell() {
   const router = useRouter();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  // getLastSeenAt() reads localStorage, which isn't itself reactive — keeping it in state (set
+  // once from storage, updated whenever markNotificationsSeen() runs) means unreadCount actually
+  // recomputes when the bell closes, instead of keeping already-viewed items flagged "new" until
+  // unrelated notifs/orders data happens to change.
+  const [lastSeen, setLastSeen] = useState(getLastSeenAt);
   const { data: orders } = useOrders();
   const { data: notifs } = useNotifications();
   const { data: user } = useCurrentUser();
@@ -50,18 +55,20 @@ export function NotificationBell() {
   }, [orders]);
 
   const unreadCount = useMemo(() => {
-    const lastSeen = getLastSeenAt();
     const visible = [...stageNotifs, ...briefingNotifs, ...employeeNotifs];
     const newNotifs = visible.filter((n) => new Date(n.created_at).getTime() > lastSeen).length;
     // Only count urgent orders created after the bell was last opened — orders that have been
     // sitting in the list (and been seen) shouldn't re-trigger the badge on every render.
     const newUrgent = urgentOrders.filter((o) => new Date(o.createdAt).getTime() > lastSeen).length;
     return newNotifs + newUrgent;
-  }, [stageNotifs, briefingNotifs, employeeNotifs, urgentOrders]);
+  }, [stageNotifs, briefingNotifs, employeeNotifs, urgentOrders, lastSeen]);
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
-    if (!next) markNotificationsSeen();
+    if (!next) {
+      markNotificationsSeen();
+      setLastSeen(getLastSeenAt());
+    }
   }
 
   function goToOrder(orderId: string | null) {

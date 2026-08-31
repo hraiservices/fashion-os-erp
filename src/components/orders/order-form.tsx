@@ -33,6 +33,7 @@ import {
   REFERRAL_COUPON_DISCOUNT,
   computeRedemption,
   loyaltyTier,
+  isValidManualOrderNumber,
   type Lining,
   type TailorRateCard,
 } from "@/lib/business-rules";
@@ -86,6 +87,12 @@ const expenseSchema = z.object({
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
   mobile: z.string().min(10, "Enter a valid 10-digit mobile number"),
+  // Only ever sent/used on create (see the isEdit guard around its field) — an existing order's
+  // number is changed through the dedicated rename action instead, not a routine form save.
+  orderNumber: z
+    .string()
+    .optional()
+    .refine((v) => !v || isValidManualOrderNumber(v.trim()), "Only letters, numbers, dots, dashes and underscores (no spaces or slashes)"),
   inDate: z.string().min(1),
   inTime: z.string(),
   deliveryDate: z.string().min(1, "Delivery date is required"),
@@ -619,6 +626,16 @@ function OrderFormFields({
               <FieldGroup label="Name" required error={errors.name?.message}>
                 <Input {...register("name")} placeholder="Customer name" autoComplete="name" className="h-10" />
               </FieldGroup>
+              {!isEdit && (
+                <FieldGroup
+                  label="Order number"
+                  hint="Optional — leave blank to auto-generate. Set this to match an old system's numbering or a specific requirement."
+                  error={errors.orderNumber?.message}
+                  className="sm:col-span-2"
+                >
+                  <Input {...register("orderNumber")} placeholder="Leave blank to auto-generate" className="h-10" />
+                </FieldGroup>
+              )}
               <div className="grid grid-cols-2 gap-3 sm:col-span-2">
                 <FieldGroup label="Order date" required>
                   <Controller control={control} name="inDate" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} />} />

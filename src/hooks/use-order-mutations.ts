@@ -37,6 +37,9 @@ interface CreateOrderInput {
   otherCost?: number;
   couponCode?: string;
   expenses?: NewOrderExpenseInput[];
+  /** Manual override for the order's id/number — leave unset for the usual auto-generated or
+   *  sequential (Document Numbering) behavior. */
+  orderNumber?: string;
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -225,6 +228,18 @@ export function useDeleteOrder() {
       // for the identical reason; this one never did.
       qc.invalidateQueries({ queryKey: ["customers"] });
       qc.invalidateQueries({ queryKey: ["customer-by-mobile"] });
+    },
+  });
+}
+
+export function useRenameOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, newId }: { id: string; newId: string }) => postJson<{ order: Order }>(`/api/orders/${id}/rename`, { newId }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["order", vars.id] });
+      qc.invalidateQueries({ queryKey: ["order", vars.newId] });
     },
   });
 }

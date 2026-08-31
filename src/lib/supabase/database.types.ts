@@ -40,7 +40,7 @@ export interface Database {
           special: string;
           history: Json;
           measurements: Json;
-          images: Json;
+          images: string[];
           audios: Json;
           videos: Json;
           payments: Json;

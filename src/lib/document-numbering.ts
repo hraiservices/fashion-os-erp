@@ -28,11 +28,16 @@ export interface DocumentNumberingSettings {
   stitchingOrder: DocNumberFormat;
 }
 
+// "/" is deliberately never a valid separator here — the formatted number becomes the actual
+// order/invoice id, which is used verbatim as a URL segment (/orders/[id]) and in plenty of
+// other places that don't expect a path separator inside an id. Anything containing "/" 404s.
+export const INVALID_SEPARATOR = "/";
+
 const BLANK_FORMAT = (prefix: string): DocNumberFormat => ({
   enabled: false,
   prefix,
   includeYear: true,
-  separator: "/",
+  separator: "-",
   padding: 4,
   resetYearly: true,
   startNumber: 1,

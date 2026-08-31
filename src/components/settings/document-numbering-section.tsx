@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Hash, FileText, Shirt } from "lucide-react";
 import { useAppSetting } from "@/hooks/use-app-setting";
-import { DEFAULT_DOCUMENT_NUMBERING, previewDocNumber, type DocumentNumberingSettings, type DocNumberFormat } from "@/lib/document-numbering";
+import { DEFAULT_DOCUMENT_NUMBERING, previewDocNumber, INVALID_SEPARATOR, type DocumentNumberingSettings, type DocNumberFormat } from "@/lib/document-numbering";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -57,7 +57,18 @@ function FormatEditor({
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Separator</Label>
-                <Input className="h-10" maxLength={1} value={fmt.separator} onChange={(e) => onChange({ ...fmt, separator: e.target.value || "/" })} />
+                <Input
+                  className="h-10"
+                  maxLength={1}
+                  value={fmt.separator}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    // "/" becomes part of the actual order/invoice id, which is used as a URL
+                    // segment — allowing it here silently breaks that document's own page.
+                    if (v === INVALID_SEPARATOR) return;
+                    onChange({ ...fmt, separator: v || "-" });
+                  }}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Digits</Label>

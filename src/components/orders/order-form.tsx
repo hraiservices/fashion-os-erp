@@ -47,7 +47,6 @@ import { useTranscribeVoiceNote } from "@/hooks/use-transcribe-voice-note";
 import { fileToDataUrl } from "@/lib/image-utils";
 import { MediaCapture } from "@/components/orders/media-capture";
 import { Button } from "@/components/ui/button";
-import { FormActionBar } from "@/components/ui/form-action-bar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -555,7 +554,8 @@ function OrderFormFields({
             <h1 className="text-base font-semibold">{isEdit ? "Edit Order" : isAlteration ? "New Alteration" : "New Order"}</h1>
             {isEdit && <p className="text-[11px] text-muted-foreground font-mono">{existingOrder.id}</p>}
           </div>
-          {/* Duplicate of the bottom FormActionBar — mobile only, so Create/Save is reachable
+          {/* Duplicate of the summary card's primary action, mobile only — that card sits at
+             the end of a single-column stack on mobile, so this keeps Create/Save reachable
              without scrolling all the way down on a long order form. */}
           <div className="flex items-center gap-2 sm:hidden">
             <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>
@@ -1266,32 +1266,27 @@ function OrderFormFields({
                   {ptDiscount > 0 && <p className="mt-0.5 text-[11px] text-emerald-600 dark:text-emerald-400">after {inr(ptDiscount)} points discount</p>}
                 </div>
               </div>
+
+              {/* Primary actions live here, right under the running total/balance they commit
+                  to — not in a page-wide sticky footer detached from the numbers they submit. */}
+              <div className="flex flex-col gap-2 border-t pt-3">
+                <Button
+                  size="lg"
+                  className="h-12 w-full gap-1.5 bg-primary text-base text-primary-foreground"
+                  onClick={handleSubmit(onSubmit)}
+                  disabled={isSubmitting}
+                >
+                  <ClipboardList className="size-4" />
+                  {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : `Create Order · ${inr(total)}`}
+                </Button>
+                <Button type="button" variant="outline" size="lg" className="h-11 w-full text-base" onClick={() => router.back()} disabled={isSubmitting}>
+                  Cancel
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       </form>
-
-      <FormActionBar className="justify-start sm:justify-end">
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="h-12 px-6 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
-          onClick={() => router.back()}
-          disabled={isSubmitting}
-        >
-          Cancel
-        </Button>
-        <Button
-          size="lg"
-          className="h-12 flex-1 gap-1.5 bg-primary px-6 text-base text-primary-foreground sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
-          onClick={handleSubmit(onSubmit)}
-          disabled={isSubmitting}
-        >
-          <ClipboardList className="size-3.5" />
-          {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : `Create Order · ${inr(total)}`}
-        </Button>
-      </FormActionBar>
 
       {!isEdit && <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={selectCustomer} />}
     </div>

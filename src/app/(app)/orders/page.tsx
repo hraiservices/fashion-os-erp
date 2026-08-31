@@ -111,18 +111,20 @@ function OrdersContent() {
   const { data: expensesByOrderId } = useOrderExpensesByOrderId();
 
   // Same computeOrderProfit() the New Order form, Order Details, and Order Profitability
-  // report all use — one Profit column that can never disagree with those. Only computed
-  // (and only ever shown) for users who can see cost data at all.
+  // report all use — one Profit column that can never disagree with those. Profit figures are
+  // restricted to the admin role specifically, not just viewReports (which managers also hold).
   const profitByOrderId = useMemo(() => {
-    if (!user?.perms.viewReports || !orders) return undefined;
+    if (user?.role !== "admin" || !orders) return undefined;
     const map = new Map<string, OrderProfitBreakdown>();
     for (const o of orders) {
       map.set(o.id, computeOrderProfit(o, tailorRates || DEFAULT_TAILOR_RATES, expensesByOrderId.get(o.id) || []));
     }
     return map;
-  }, [orders, user?.perms.viewReports, tailorRates, expensesByOrderId]);
+  }, [orders, user?.role, tailorRates, expensesByOrderId]);
 
-  const columnTable = useColumnVisibility("orders", ORDER_COLUMNS);
+  // The Profit column toggle itself is hidden from the picker for non-admins, not just its data.
+  const orderColumns = useMemo(() => (user?.role === "admin" ? ORDER_COLUMNS : ORDER_COLUMNS.filter((c) => c.key !== "profit")), [user?.role]);
+  const columnTable = useColumnVisibility("orders", orderColumns);
   const tailorName = useTailorName();
   const savedViews = useSavedViews<OrdersViewFilters>("orders");
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);

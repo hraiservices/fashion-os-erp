@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { TrendingUp } from "lucide-react";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useProducts } from "@/hooks/use-products";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
@@ -13,6 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 /** Product-only — margin/cost only exists for Product Sales; stitching orders have no product cost price to compare against. */
 export default function ProfitByItemPage() {
+  const { data: user } = useCurrentUser();
   const { data: invoices, isLoading: l1 } = useSalesInvoices();
   const { data: products, isLoading: l2 } = useProducts();
   const isLoading = l1 || l2;
@@ -39,6 +41,15 @@ export default function ProfitByItemPage() {
   }, [invoices, costPriceById]);
 
   const totals = useMemo(() => rows.reduce((acc, r) => ({ revenue: acc.revenue + r.revenue, cost: acc.cost + r.cost, margin: acc.margin + r.margin }), { revenue: 0, cost: 0, margin: 0 }), [rows]);
+
+  // Profit/margin figures are restricted to the admin role specifically, everywhere in the app.
+  if (user && user.role !== "admin") {
+    return (
+      <div className="p-4 sm:p-6">
+        <EmptyState icon={TrendingUp} title="No access" description="Profit by item is restricted to admins." />
+      </div>
+    );
+  }
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 

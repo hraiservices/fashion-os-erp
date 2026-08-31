@@ -26,6 +26,10 @@ export interface NavLeaf {
   newHref?: string;
   /** When set, a small section header is rendered above this leaf whenever it differs from the previous leaf's section — groups a flat children list into categories without changing the data shape. */
   section?: string;
+  /** Profit/margin reports — restricted to the admin role specifically, not just viewReports
+   *  (which managers also hold). Hidden from the Reports index/sidebar entirely for non-admins;
+   *  the destination page enforces the same check independently in case of a direct link. */
+  adminOnly?: boolean;
 }
 
 export interface NavGroup {
@@ -84,7 +88,7 @@ export const REPORTS_GROUP: NavGroup = {
   indexHref: "/reports",
   children: [
     { href: "/reports/day-book", label: "Day Book", section: "Summary" },
-    { href: "/reports/combined-pl", label: "Combined P&L" },
+    { href: "/reports/combined-pl", label: "Combined P&L", adminOnly: true },
     { href: "/reports/payments-received", label: "Payments Received" },
 
     { href: "/reports/monthly", label: "Stitching Monthly P&L", section: "Stitching Orders" },
@@ -101,7 +105,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/ready-uncollected", label: "Ready & Uncollected" },
     { href: "/reports/rework-rate", label: "Rework Rate" },
     { href: "/reports/deposit-compliance", label: "Deposit Compliance" },
-    { href: "/reports/order-profitability", label: "Order Profitability" },
+    { href: "/reports/order-profitability", label: "Order Profitability", adminOnly: true },
     { href: "/reports/booking-sources", label: "Booking Sources" },
     { href: "/reports/reorder-candidates", label: "Reorder Candidates" },
     { href: "/reports/top-referrers", label: "Top Referrers" },
@@ -115,7 +119,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/sales", label: "Sales Summary", section: "Sales" },
     { href: "/reports/sales/by-customer", label: "Sales by Customer" },
     { href: "/reports/sales/by-item", label: "Sales by Item" },
-    { href: "/reports/sales/profit-by-item", label: "Profit by Item" },
+    { href: "/reports/sales/profit-by-item", label: "Profit by Item", adminOnly: true },
     { href: "/sales/payments", label: "Payments Received" },
     { href: "/reports/sales/time-to-get-paid", label: "Time to Get Paid" },
     { href: "/reports/sales/credit-notes", label: "Credit Note Details" },

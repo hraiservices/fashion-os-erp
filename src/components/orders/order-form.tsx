@@ -1138,34 +1138,39 @@ function OrderFormFields({
                 </div>
               </div>
 
-              <div className="mt-5 space-y-1.5 border-t pt-4 text-sm">
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Order value</span>
-                  <span className="tabular-nums">{inr(profit.revenue)}</span>
+              {/* Profit margin is restricted to the admin role specifically — a manager entering
+                  fabric/other cost above still needs those fields to do their job, but the
+                  derived profit figure itself is admin-only, everywhere in the app. */}
+              {user?.role === "admin" && (
+                <div className="mt-5 space-y-1.5 border-t pt-4 text-sm">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Order value</span>
+                    <span className="tabular-nums">{inr(profit.revenue)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Tailor cost{profit.tailorCostIsEstimate ? " (estimated)" : ""}</span>
+                    <span className="tabular-nums">−{inr(profit.tailorCost)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Stitching expenses</span>
+                    <span className="tabular-nums">−{inr(profit.stitchingExpenses)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Fabric + other cost</span>
+                    <span className="tabular-nums">−{inr(profit.fabricCost + profit.otherCost)}</span>
+                  </div>
+                  <div className="flex items-center justify-between border-t pt-2 text-base font-semibold">
+                    <span className="flex items-center gap-1.5">
+                      {profit.profit >= 0 ? <TrendingUp className="size-4 text-emerald-600 dark:text-emerald-400" /> : <TrendingDown className="size-4 text-red-600 dark:text-red-400" />}
+                      {profit.tailorCostIsEstimate ? "Estimated profit margin" : "Profit margin"}
+                    </span>
+                    <span className={cn("tabular-nums", profit.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
+                      {inr(profit.profit)}
+                      {profit.marginPct != null && <span className="ml-1 text-xs font-normal text-muted-foreground">({profit.marginPct}%)</span>}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Tailor cost{profit.tailorCostIsEstimate ? " (estimated)" : ""}</span>
-                  <span className="tabular-nums">−{inr(profit.tailorCost)}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Stitching expenses</span>
-                  <span className="tabular-nums">−{inr(profit.stitchingExpenses)}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Fabric + other cost</span>
-                  <span className="tabular-nums">−{inr(profit.fabricCost + profit.otherCost)}</span>
-                </div>
-                <div className="flex items-center justify-between border-t pt-2 text-base font-semibold">
-                  <span className="flex items-center gap-1.5">
-                    {profit.profit >= 0 ? <TrendingUp className="size-4 text-emerald-600 dark:text-emerald-400" /> : <TrendingDown className="size-4 text-red-600 dark:text-red-400" />}
-                    {profit.tailorCostIsEstimate ? "Estimated profit margin" : "Profit margin"}
-                  </span>
-                  <span className={cn("tabular-nums", profit.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
-                    {inr(profit.profit)}
-                    {profit.marginPct != null && <span className="ml-1 text-xs font-normal text-muted-foreground">({profit.marginPct}%)</span>}
-                  </span>
-                </div>
-              </div>
+              )}
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>

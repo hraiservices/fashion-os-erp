@@ -16,12 +16,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function OrderProfitabilityPage() {
   const { data: user } = useCurrentUser();
   const { orderProfitability, isLoading } = useReportsData();
-  const canView = !!user?.perms.viewReports;
+  // Profit figures are restricted to the admin role specifically, not just viewReports (which
+  // managers also hold) — a shop-wide requirement, not just this one report.
+  const canView = user?.role === "admin";
 
   if (!canView) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={TrendingUp} title="No access" description="Order profitability is restricted to admins and managers." />
+        <EmptyState icon={TrendingUp} title="No access" description="Order profitability is restricted to admins." />
       </div>
     );
   }

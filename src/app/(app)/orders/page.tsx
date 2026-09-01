@@ -91,10 +91,16 @@ function OrdersContent() {
   });
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
-  // Derive view directly from URL — reactive to sidebar nav and back/forward.
-  const view = searchParams.get("view") === "board" ? "board" : "list";
+  // Derived from the URL so it stays in sync with the sidebar nav and back/forward — but a
+  // click needs to flip the toggle immediately rather than wait on the URL round-trip, so an
+  // explicit click is also mirrored into this local override; it's dropped once the URL catches up.
+  const viewFromUrl = searchParams.get("view") === "board" ? "board" : "list";
+  const [viewOverride, setViewOverride] = useState<"board" | "list" | null>(null);
+  const view = viewOverride ?? viewFromUrl;
+  if (viewOverride && viewOverride === viewFromUrl) setViewOverride(null);
 
   function setView(v: "board" | "list") {
+    setViewOverride(v);
     const params = new URLSearchParams(searchParams.toString());
     if (v === "board") params.set("view", "board");
     else params.delete("view");
@@ -349,25 +355,29 @@ function OrdersContent() {
           mobileOpen={filterSheetOpen}
           onMobileOpenChange={setFilterSheetOpen}
           mobileLeading={
-            <div className="flex shrink-0 rounded-lg border p-0.5" role="group" aria-label="View mode">
-              <button
+            <div className="flex shrink-0 gap-2" role="group" aria-label="View mode">
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setView("list")}
                 aria-pressed={view === "list"}
                 aria-label="List view"
-                className={cn("flex size-9 items-center justify-center rounded-md transition-colors", view === "list" ? "bg-muted" : "text-muted-foreground")}
+                className={cn("h-10 w-10 shrink-0 px-0", view === "list" && "bg-muted")}
               >
                 <LayoutList className="size-4" />
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setView("board")}
                 aria-pressed={view === "board"}
                 aria-label="Board view"
-                className={cn("flex size-9 items-center justify-center rounded-md transition-colors", view === "board" ? "bg-muted" : "text-muted-foreground")}
+                className={cn("h-10 w-10 shrink-0 px-0", view === "board" && "bg-muted")}
               >
                 <KanbanSquare className="size-4" />
-              </button>
+              </Button>
             </div>
           }
           views={savedViews.views}

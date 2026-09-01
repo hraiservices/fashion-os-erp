@@ -15,6 +15,7 @@ import {
 } from "@/hooks/use-user-roles";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { useEmployees } from "@/hooks/use-employees";
+import { EmployeePinManager } from "@/components/employees/employee-pin-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -137,9 +138,12 @@ function PinSection({
     <div>
       <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Dashboard PIN login</p>
       {row.linked_employee_id ? (
-        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <KeyRound className="size-3.5" /> Uses {employeeName || "the linked employee"}&apos;s attendance PIN — change it from that employee&apos;s record.
-        </p>
+        <div className="space-y-1.5">
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <KeyRound className="size-3.5" /> Uses {employeeName || "the linked employee"}&apos;s attendance PIN — set here or from that employee&apos;s own record, either updates the same PIN.
+          </p>
+          <EmployeePinManager employeeId={row.linked_employee_id} />
+        </div>
       ) : editing ? (
         <div className="flex max-w-xs gap-1">
           <Input

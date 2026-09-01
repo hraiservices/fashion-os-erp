@@ -159,13 +159,13 @@ export default function LoginPage() {
   const isEmailFlow = (mode === "login" || mode === "signup") && method === "email";
 
   return (
-    <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100 p-5">
+    <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100 p-5 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950">
       {/* Animated aurora backdrop — purely decorative, sits behind everything. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="animate-login-blob absolute -top-32 -left-24 size-96 rounded-full bg-primary/25 blur-[110px]" />
-        <div className="animate-login-blob-slow absolute -bottom-32 -right-16 size-[28rem] rounded-full bg-indigo-300/35 blur-[120px]" />
-        <div className="animate-login-blob absolute top-1/3 right-1/4 size-72 rounded-full bg-fuchsia-300/30 blur-[100px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(255,255,255,0.55)_100%)]" />
+        <div className="animate-login-blob-slow absolute -bottom-32 -right-16 size-[28rem] rounded-full bg-indigo-300/35 blur-[120px] dark:bg-indigo-500/20" />
+        <div className="animate-login-blob absolute top-1/3 right-1/4 size-72 rounded-full bg-fuchsia-300/30 blur-[100px] dark:bg-fuchsia-500/15" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(255,255,255,0.55)_100%)] dark:bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(9,9,11,0.55)_100%)]" />
       </div>
 
       <div className="animate-login-card-in relative z-10 w-full max-w-md">
@@ -173,7 +173,7 @@ export default function LoginPage() {
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="relative mb-4 flex size-20 items-center justify-center">
             <div className="animate-login-logo-glow absolute inset-0 rounded-full bg-primary/40 blur-xl" />
-            <div className="animate-login-logo-float relative flex size-16 items-center justify-center rounded-2xl border border-black/5 bg-white shadow-lg shadow-zinc-900/10">
+            <div className="animate-login-logo-float relative flex size-16 items-center justify-center rounded-2xl border border-black/5 bg-white shadow-lg shadow-zinc-900/10 dark:border-white/10">
               {shop?.logoDataUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={shop.logoDataUrl} alt={shop.name || "Company logo"} className="size-full rounded-2xl object-contain p-1.5" />
@@ -200,7 +200,7 @@ export default function LoginPage() {
             e.preventDefault();
             if (!loading) go();
           }}
-          className="space-y-4 rounded-3xl border border-black/5 bg-white/70 p-6 shadow-2xl shadow-zinc-900/10 backdrop-blur-xl sm:p-7"
+          className="space-y-4 rounded-3xl border border-black/5 bg-white/70 p-6 shadow-2xl shadow-zinc-900/10 backdrop-blur-xl sm:p-7 dark:border-white/10 dark:bg-zinc-900/70 dark:shadow-black/40"
         >
           {mode !== "reset" && (
             <Tabs
@@ -289,13 +289,13 @@ export default function LoginPage() {
           )}
 
           {err && (
-            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
               <span>{err}</span>
             </div>
           )}
           {ok && (
-            <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400">
               <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
               <span>{ok}</span>
             </div>

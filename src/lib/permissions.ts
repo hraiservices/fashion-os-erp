@@ -130,6 +130,22 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
   },
 };
 
+/** Groups PERMISSION_LABELS keys for a readable checklist, shown in both the role-reference
+ *  table and any per-user permission override panel. */
+export const PERMISSION_GROUPS: { label: string; keys: (keyof Permissions)[] }[] = [
+  { label: "Orders", keys: ["addOrder", "editOrder", "deleteOrder", "changeStage", "managePayments", "editMeasurements"] },
+  { label: "Customers", keys: ["manageCustomers", "deleteCustomers"] },
+  { label: "Modules", keys: ["manageInventory", "managePurchases", "manageManufacturing", "manageSales"] },
+  { label: "Admin", keys: ["viewReports", "manageUsers", "useChatbot"] },
+];
+
+export const ROLE_OPTIONS: [Role, string][] = [
+  ["admin", "Admin"],
+  ["manager", "Manager"],
+  ["sales", "Sales Staff"],
+  ["tailor", "Tailor"],
+];
+
 export function resolvePerms(role: string, custom?: Partial<Permissions> | null): Permissions {
   const key = (ROLE_DEFAULTS[role as Role] ? role : "tailor") as Role;
   const base = { ...ROLE_DEFAULTS[key] };

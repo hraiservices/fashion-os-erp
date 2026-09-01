@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePicker } from "@/components/ui/date-picker";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { EmployeePinManager } from "@/components/employees/employee-pin-manager";
-import { LinkedUserAccountManager } from "@/components/employees/linked-user-account-manager";
+import { DashboardAccessManager } from "@/components/employees/dashboard-access-manager";
 import type { Employee, CommissionType, SalaryType } from "@/lib/types";
 import { SALARY_TYPE_LABELS } from "@/lib/payroll";
 
@@ -318,7 +318,7 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
             ) : (
               <p className="text-[11px] text-muted-foreground">Save this employee first, then come back to set their self check-in PIN.</p>
             )}
-            {isEdit && user?.perms.manageUsers && <LinkedUserAccountManager employeeId={existing!.id} />}
+            {isEdit && user?.perms.manageUsers && <DashboardAccessManager employeeId={existing!.id} employeeMobile={existing!.mobile} />}
           </div>
         </div>
 

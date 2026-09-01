@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { resolvePerms, type Permissions } from "@/lib/permissions";
+import { resolvePerms, type Permissions, type RoleDefaultOverrides } from "@/lib/permissions";
 
 export interface ServerUser {
   email: string;
@@ -15,14 +15,13 @@ export async function getServerUser(): Promise<{ supabase: Awaited<ReturnType<ty
   } = await supabase.auth.getUser();
   if (!user?.email) return { supabase, user: null };
 
-  const { data: roleRow } = await supabase
-    .from("user_roles")
-    .select("role, custom_permissions")
-    .eq("email", user.email)
-    .maybeSingle();
+  const [{ data: roleRow }, { data: overridesRow }] = await Promise.all([
+    supabase.from("user_roles").select("role, custom_permissions").eq("email", user.email).maybeSingle(),
+    supabase.from("app_settings").select("value").eq("key", "roleDefaultOverrides").maybeSingle(),
+  ]);
 
   const role = roleRow?.role || "tailor";
-  const perms = resolvePerms(role, roleRow?.custom_permissions as Partial<Permissions> | null);
+  const perms = resolvePerms(role, roleRow?.custom_permissions as Partial<Permissions> | null, overridesRow?.value as RoleDefaultOverrides | null);
 
   return { supabase, user: { email: user.email, role, perms } };
 }

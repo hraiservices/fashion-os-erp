@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { isRestrictedRole, resolvePerms, type Permissions } from "@/lib/permissions";
+import { isRestrictedRole, resolvePerms, type Permissions, type RoleDefaultOverrides } from "@/lib/permissions";
 
 export interface CurrentUser {
   email: string;
@@ -25,14 +25,13 @@ async function fetchCurrentUser(): Promise<CurrentUser | null> {
   } = await supabase.auth.getUser();
   if (!user?.email) return null;
 
-  const { data: roleRow } = await supabase
-    .from("user_roles")
-    .select("role, custom_permissions")
-    .eq("email", user.email)
-    .maybeSingle();
+  const [{ data: roleRow }, { data: overridesRow }] = await Promise.all([
+    supabase.from("user_roles").select("role, custom_permissions").eq("email", user.email).maybeSingle(),
+    supabase.from("app_settings").select("value").eq("key", "roleDefaultOverrides").maybeSingle(),
+  ]);
 
   const role = roleRow?.role || "tailor";
-  const perms = resolvePerms(role, roleRow?.custom_permissions as Partial<Permissions> | null);
+  const perms = resolvePerms(role, roleRow?.custom_permissions as Partial<Permissions> | null, overridesRow?.value as RoleDefaultOverrides | null);
 
   return { email: user.email, role, perms, restricted: isRestrictedRole(role), isSuperAdmin: checkSuperAdmin(user.email) };
 }

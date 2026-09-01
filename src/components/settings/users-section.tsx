@@ -3,6 +3,7 @@
 import { Fragment, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useUserRoles,
   useSetUserRole,
@@ -16,6 +17,7 @@ import {
 } from "@/hooks/use-user-roles";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { useEmployees } from "@/hooks/use-employees";
+import { useAppSetting } from "@/hooks/use-app-setting";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,7 +28,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { ROLE_DEFAULTS, ROLE_OPTIONS, PERMISSION_GROUPS, PERMISSION_LABELS, type Permissions, type Role } from "@/lib/permissions";
+import {
+  ROLE_DEFAULTS,
+  ROLE_OPTIONS,
+  PERMISSION_GROUPS,
+  PERMISSION_LABELS,
+  DEFAULT_ROLE_DEFAULT_OVERRIDES,
+  type Permissions,
+  type Role,
+  type RoleDefaultOverrides,
+} from "@/lib/permissions";
 
 /** Base UI renders the raw value unless given a formatter (would show "admin", not "Admin"). */
 const roleLabel = (v: unknown) => ROLE_OPTIONS.find(([val]) => val === v)?.[1] ?? String(v ?? "");
@@ -39,9 +50,36 @@ function PermCheck({ on }: { on: boolean }) {
   );
 }
 
-/** "What can each role do?" reference table — shows the built-in default matrix so an admin knows
- *  what tailor/manager/sales start with, before layering a per-user override on top. */
+/** "What can each role do?" reference table — live-editable: clicking a cell changes that
+ *  role's shop-wide starting permission (stored in app_settings as roleDefaultOverrides), not
+ *  just one person's. Per-user overrides below still take precedence over whatever's set here. */
 function RoleReferenceCard() {
+  const qc = useQueryClient();
+  const { data: overrides, isLoading } = useAppSetting<RoleDefaultOverrides>("roleDefaultOverrides", DEFAULT_ROLE_DEFAULT_OVERRIDES);
+  const [saving, setSaving] = useState<string | null>(null);
+
+  async function toggle(role: Role, key: keyof Permissions) {
+    const current = overrides?.[role]?.[key] ?? ROLE_DEFAULTS[role][key];
+    const next: RoleDefaultOverrides = { ...overrides, [role]: { ...overrides?.[role], [key]: !current } };
+    setSaving(`${role}.${key}`);
+    try {
+      const res = await fetch("/api/settings/role-defaults", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save");
+      qc.setQueryData(["app-setting", "roleDefaultOverrides"], next);
+      qc.invalidateQueries({ queryKey: ["current-user"] });
+      toast.success(`${PERMISSION_LABELS[key]} ${!current ? "granted" : "revoked"} for ${roleLabel(role)} by default`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(null);
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -72,11 +110,23 @@ function RoleReferenceCard() {
                 {group.keys.map((key) => (
                   <tr key={key} className="border-b last:border-0">
                     <td className="py-1.5 pr-2">{PERMISSION_LABELS[key]}</td>
-                    {ROLE_OPTIONS.map(([v]) => (
-                      <td key={v} className="px-2 py-1.5 text-center">
-                        <PermCheck on={ROLE_DEFAULTS[v as Role][key]} />
-                      </td>
-                    ))}
+                    {ROLE_OPTIONS.map(([v]) => {
+                      const on = overrides?.[v]?.[key] ?? ROLE_DEFAULTS[v][key];
+                      const isOverridden = overrides?.[v]?.[key] !== undefined;
+                      return (
+                        <td key={v} className="px-2 py-1.5 text-center">
+                          <button
+                            type="button"
+                            disabled={isLoading || saving === `${v}.${key}`}
+                            onClick={() => toggle(v, key)}
+                            title={isOverridden ? "Changed from the built-in default — click to toggle" : "Built-in default — click to toggle"}
+                            className="mx-auto block disabled:opacity-50"
+                          >
+                            <PermCheck on={on} />
+                          </button>
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </Fragment>
@@ -84,7 +134,8 @@ function RoleReferenceCard() {
           </tbody>
         </table>
         <p className="mt-3 text-xs text-muted-foreground">
-          These are starting points. Expand any user below to override individual permissions — e.g. a tailor who should only change order stage, or a manager who shouldn&apos;t delete orders.
+          Click any checkmark to change that role&apos;s starting permission shop-wide. Expand any user below to override just that one person instead —
+          e.g. a tailor who should only change order stage, or a manager who shouldn&apos;t delete orders.
         </p>
       </CardContent>
     </Card>
@@ -245,6 +296,7 @@ export function UsersSection() {
   const { data: rows, isLoading } = useUserRoles();
   const { data: entitlements } = useModuleEntitlements();
   const { data: employees } = useEmployees();
+  const { data: roleDefaultOverrides } = useAppSetting<RoleDefaultOverrides>("roleDefaultOverrides", DEFAULT_ROLE_DEFAULT_OVERRIDES);
   const setRole = useSetUserRole();
   const renameEmail = useRenameUserEmail();
   const setPhone = useSetUserPhone();
@@ -320,7 +372,9 @@ export function UsersSection() {
   }
 
   function permValue(row: UserRoleRow, key: keyof Permissions): boolean {
-    return row.custom_permissions?.[key] ?? ROLE_DEFAULTS[row.role as Role]?.[key] ?? false;
+    const roleDefault = ROLE_DEFAULTS[row.role as Role]?.[key] ?? false;
+    const roleOverride = roleDefaultOverrides?.[row.role as Role]?.[key];
+    return row.custom_permissions?.[key] ?? roleOverride ?? roleDefault;
   }
 
   async function togglePerm(row: UserRoleRow, key: keyof Permissions) {

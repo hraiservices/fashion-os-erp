@@ -5,7 +5,17 @@ import { toast } from "sonner";
 import { Check } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ROLE_DEFAULTS, ROLE_OPTIONS, PERMISSION_GROUPS, PERMISSION_LABELS, type Permissions, type Role } from "@/lib/permissions";
+import { useAppSetting } from "@/hooks/use-app-setting";
+import {
+  ROLE_DEFAULTS,
+  ROLE_OPTIONS,
+  PERMISSION_GROUPS,
+  PERMISSION_LABELS,
+  DEFAULT_ROLE_DEFAULT_OVERRIDES,
+  type Permissions,
+  type Role,
+  type RoleDefaultOverrides,
+} from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 interface AccessState {
@@ -27,6 +37,7 @@ export function DashboardAccessManager({ employeeId, employeeMobile }: { employe
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [state, setState] = useState<AccessState>({ enabled: false, role: "tailor", custom: {} });
+  const { data: roleDefaultOverrides } = useAppSetting<RoleDefaultOverrides>("roleDefaultOverrides", DEFAULT_ROLE_DEFAULT_OVERRIDES);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,7 +54,7 @@ export function DashboardAccessManager({ employeeId, employeeMobile }: { employe
   }, [employeeId]);
 
   function permValue(state: AccessState, key: keyof Permissions): boolean {
-    return state.custom[key] ?? ROLE_DEFAULTS[state.role][key];
+    return state.custom[key] ?? roleDefaultOverrides?.[state.role]?.[key] ?? ROLE_DEFAULTS[state.role][key];
   }
 
   async function save(next: AccessState) {

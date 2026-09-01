@@ -657,7 +657,7 @@ function OrderFormFields({
                     <button
                       type="button"
                       onClick={() => setValue("deliveryDate", deliveryEstimate!.date, { shouldDirty: true, shouldValidate: true })}
-                      className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                      className="mt-1.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-left text-xs text-muted-foreground hover:text-foreground"
                     >
                       <Sparkles className="size-3 shrink-0 text-primary" />
                       Suggested: <span className="font-medium text-foreground">{fmtDate(deliveryEstimate!.date)}</span>
@@ -708,7 +708,7 @@ function OrderFormFields({
                   <button
                     type="button"
                     onClick={() => setValue("tailor", recommendedTailor.tailorId, { shouldDirty: true })}
-                    className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    className="mt-1.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-left text-xs text-muted-foreground hover:text-foreground"
                   >
                     <Sparkles className="size-3 shrink-0 text-primary" />
                     Recommended: <span className="font-medium text-foreground">{tailorName(recommendedTailor.tailorId)}</span>

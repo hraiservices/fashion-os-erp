@@ -231,14 +231,26 @@ export function OrderFilters<F>({
     <>
       {/* Mobile trigger row */}
       <div className="flex items-center gap-2 md:hidden">
-        <Button variant="outline" size="sm" className="h-10 flex-1" onClick={() => onMobileOpenChange(true)}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="relative h-10 w-10 flex-1 px-0"
+          onClick={() => onMobileOpenChange(true)}
+          aria-label="Filters"
+        >
           <SlidersHorizontal className="size-4" />
-          Filters
-          {count > 0 && <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">{count}</span>}
+          {count > 0 && (
+            <span className="absolute -right-1 -top-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">{count}</span>
+          )}
         </Button>
-        <Button variant="outline" size="sm" className="h-10" onClick={toggleSort}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-10 w-10 shrink-0 px-0"
+          onClick={toggleSort}
+          aria-label={value.sort === "newest" ? "Sorted newest first — tap for oldest first" : "Sorted oldest first — tap for newest first"}
+        >
           <ArrowDownUp className="size-4" />
-          {value.sort === "newest" ? "Newest" : "Oldest"}
         </Button>
       </div>
 

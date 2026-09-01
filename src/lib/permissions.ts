@@ -146,9 +146,18 @@ export const ROLE_OPTIONS: [Role, string][] = [
   ["tailor", "Tailor"],
 ];
 
-export function resolvePerms(role: string, custom?: Partial<Permissions> | null): Permissions {
+/** Shop-wide edits to a role's starting permissions — e.g. an admin unchecking "Delete Orders"
+ *  for every Manager, not just one person (that's what custom_permissions on a single user_roles
+ *  row is for). Stored in app_settings under "roleDefaultOverrides"; see
+ *  add_role_default_overrides_lockdown.sql for why writes are routed through
+ *  /api/settings/role-defaults rather than a direct app_settings upsert — this is exactly as
+ *  sensitive as tailorRates (a role could otherwise grant itself more than intended). */
+export type RoleDefaultOverrides = Partial<Record<Role, Partial<Permissions>>>;
+export const DEFAULT_ROLE_DEFAULT_OVERRIDES: RoleDefaultOverrides = {};
+
+export function resolvePerms(role: string, custom?: Partial<Permissions> | null, roleDefaultOverrides?: RoleDefaultOverrides | null): Permissions {
   const key = (ROLE_DEFAULTS[role as Role] ? role : "tailor") as Role;
-  const base = { ...ROLE_DEFAULTS[key] };
+  const base = { ...ROLE_DEFAULTS[key], ...(roleDefaultOverrides?.[key] || {}) };
   if (custom && typeof custom === "object") Object.assign(base, custom);
   return base;
 }

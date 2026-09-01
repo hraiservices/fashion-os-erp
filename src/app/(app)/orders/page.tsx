@@ -91,10 +91,18 @@ function OrdersContent() {
   });
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
-  // Derived from the URL so it stays in sync with the sidebar nav and back/forward — but a
-  // click needs to flip the toggle immediately rather than wait on the URL round-trip, so an
-  // explicit click is also mirrored into this local override; it's dropped once the URL catches up.
-  const viewFromUrl = searchParams.get("view") === "board" ? "board" : "list";
+  const { data: user } = useCurrentUser();
+  // Tailors and sales staff live on the board day-to-day (stage-by-stage progress); everyone
+  // else (admin/manager) defaults to the list. Only applies when the URL doesn't already say —
+  // an explicit ?view= (from a link, back/forward, or the toggle itself) always wins.
+  const defaultView = user?.role === "tailor" || user?.role === "sales" ? "board" : "list";
+
+  // Derived from the URL (falling back to the role default above) so it stays in sync with the
+  // sidebar nav and back/forward — but a click needs to flip the toggle immediately rather than
+  // wait on the URL round-trip, so an explicit click is also mirrored into this local override;
+  // it's dropped once the URL catches up.
+  const viewParam = searchParams.get("view");
+  const viewFromUrl = viewParam === "board" ? "board" : viewParam === "list" ? "list" : defaultView;
   const [viewOverride, setViewOverride] = useState<"board" | "list" | null>(null);
   const view = viewOverride ?? viewFromUrl;
   if (viewOverride && viewOverride === viewFromUrl) setViewOverride(null);
@@ -102,14 +110,12 @@ function OrdersContent() {
   function setView(v: "board" | "list") {
     setViewOverride(v);
     const params = new URLSearchParams(searchParams.toString());
-    if (v === "board") params.set("view", "board");
-    else params.delete("view");
-    router.replace(`/orders${params.toString() ? `?${params.toString()}` : ""}`);
+    params.set("view", v);
+    router.replace(`/orders?${params.toString()}`);
   }
 
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const isLoading = useDelayedLoading(ordersLoading);
-  const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
   const advanceStage = useAdvanceStage();
   const setStage = useSetStage();

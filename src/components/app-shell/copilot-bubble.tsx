@@ -325,7 +325,15 @@ export function CopilotBubble() {
   );
 
   return (
-    <div className="fixed bottom-20 right-3 z-50 flex flex-col items-end gap-2 lg:bottom-8 lg:right-6 print:hidden">
+    // bottom-20 is a guess at the mobile tab bar's height — unlike the tab bar itself
+    // (mobile-nav.tsx's pb-[env(safe-area-inset-bottom)]), this never accounted for the bottom
+    // safe-area inset, so on a phone with a tall gesture-nav area the FAB stack could sit too
+    // close to (or overlapping) the tab bar/page content instead of clearing it. calc() layers
+    // the inset on top of the fixed guess rather than replacing it, so this only pushes the
+    // stack up further on devices that actually have a non-zero inset.
+    <div
+      className="fixed right-3 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-50 flex flex-col items-end gap-2 lg:right-6 lg:bottom-8 print:hidden"
+    >
       {/* Desktop: small floating panel */}
       {isDesktop && open && canUse && (
         <div className="mb-2 flex h-[440px] w-[350px] flex-col overflow-hidden rounded-2xl border bg-popover text-popover-foreground shadow-2xl ring-1 ring-foreground/10">

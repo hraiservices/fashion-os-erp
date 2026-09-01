@@ -88,7 +88,14 @@ export async function updateSession(request: NextRequest) {
 
     if (modulePrefix || reportLeaf || settingsLeaf) {
       const { data: settingRow } = await supabase.from("app_settings").select("value").eq("key", "moduleEntitlements").maybeSingle();
-      const entitlements = (settingRow?.value as ModuleEntitlements | null) || DEFAULT_ENTITLEMENTS;
+      // Shallow-merge over the defaults, same as the client-side useAppSetting hook does for
+      // every other setting — a row saved before a newer top-level key existed (e.g. `settings`,
+      // added after `modules`/`reports`/`widgets`/`billing`/`limits` were already in use) would
+      // otherwise come back missing that key entirely, and isSettingEnabled()/isModuleEnabled()
+      // reading `entitlements.settings[href]` on a genuinely undefined `settings` throws — in
+      // middleware, uncaught by any error boundary, so it took down the whole route with a raw
+      // 500 rather than a clean fallback.
+      const entitlements: ModuleEntitlements = { ...DEFAULT_ENTITLEMENTS, ...(settingRow?.value as Partial<ModuleEntitlements> | null) };
 
       // A path can be both a module page and a REPORTS_GROUP leaf (e.g. /purchases/bills) —
       // the module check takes priority since these are primarily functional module pages,

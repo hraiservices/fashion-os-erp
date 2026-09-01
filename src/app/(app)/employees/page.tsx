@@ -117,7 +117,7 @@ function EmployeesPageContent() {
               )}
               {canSeeLinkedUsers && linkedEmailByEmployeeId.has(e.id) && (
                 <Badge variant="outline" className="shrink-0 gap-1 text-emerald-600 dark:text-emerald-400" title={`Login: ${linkedEmailByEmployeeId.get(e.id)}`}>
-                  <Link2 className="size-3" /> Linked
+                  <Link2 className="size-3" /> Dashboard access
                 </Badge>
               )}
               {canManage && (

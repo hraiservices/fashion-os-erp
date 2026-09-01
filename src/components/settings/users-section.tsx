@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
   useUserRoles,
@@ -15,7 +16,6 @@ import {
 } from "@/hooks/use-user-roles";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { useEmployees } from "@/hooks/use-employees";
-import { EmployeePinManager } from "@/components/employees/employee-pin-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,22 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { ROLE_DEFAULTS, PERMISSION_LABELS, type Permissions, type Role } from "@/lib/permissions";
-
-const ROLE_OPTIONS: [string, string][] = [
-  ["admin", "Admin"],
-  ["manager", "Manager"],
-  ["sales", "Sales Staff"],
-  ["tailor", "Tailor"],
-];
-
-/** Groups PERMISSION_LABELS keys for a readable checklist, in both the role-reference table and the per-user override panel. */
-const PERMISSION_GROUPS: { label: string; keys: (keyof Permissions)[] }[] = [
-  { label: "Orders", keys: ["addOrder", "editOrder", "deleteOrder", "changeStage", "managePayments", "editMeasurements"] },
-  { label: "Customers", keys: ["manageCustomers", "deleteCustomers"] },
-  { label: "Modules", keys: ["manageInventory", "managePurchases", "manageManufacturing", "manageSales"] },
-  { label: "Admin", keys: ["viewReports", "manageUsers", "useChatbot"] },
-];
+import { ROLE_DEFAULTS, ROLE_OPTIONS, PERMISSION_GROUPS, PERMISSION_LABELS, type Permissions, type Role } from "@/lib/permissions";
 
 /** Base UI renders the raw value unless given a formatter (would show "admin", not "Admin"). */
 const roleLabel = (v: unknown) => ROLE_OPTIONS.find(([val]) => val === v)?.[1] ?? String(v ?? "");
@@ -221,12 +206,13 @@ function PinSection({
     <div>
       <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Dashboard PIN login</p>
       {row.linked_employee_id ? (
-        <div className="space-y-1.5">
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <KeyRound className="size-3.5" /> Uses {employeeName || "the linked employee"}&apos;s attendance PIN — set here or from that employee&apos;s own record, either updates the same PIN.
-          </p>
-          <EmployeePinManager employeeId={row.linked_employee_id} />
-        </div>
+        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <KeyRound className="size-3.5" /> Managed from{" "}
+          <Link href={`/employees/${row.linked_employee_id}/edit`} className="underline hover:text-foreground">
+            {employeeName || "the linked employee"}&apos;s
+          </Link>{" "}
+          record — see &quot;Dashboard access&quot; there.
+        </p>
       ) : editing ? (
         <div className="flex max-w-xs gap-1">
           <Input
@@ -565,6 +551,10 @@ export function UsersSection() {
                   <div className="space-y-3 border-t bg-muted/20 p-3">
                     <div>
                       <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Linked employee</p>
+                      <p className="mb-1.5 text-[11px] text-muted-foreground">
+                        For an account that already exists on its own (e.g. an email/password login). To give a staff member dashboard access from
+                        scratch, use &quot;Dashboard access&quot; on their own employee record instead — no need to come here at all.
+                      </p>
                       <SearchSelect
                         className="max-w-xs"
                         inputClassName="h-9"

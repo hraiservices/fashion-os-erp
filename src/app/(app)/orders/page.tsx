@@ -299,7 +299,7 @@ function OrdersContent() {
               ]}
             />
             {user?.perms.addOrder && (
-              <Button variant="outline" nativeButton={false} render={<Link href="/orders/import" />}>
+              <Button variant="outline" nativeButton={false} render={<Link href="/orders/import" />} className="hidden sm:inline-flex">
                 <Upload className="size-4" /> Import
               </Button>
             )}
@@ -314,7 +314,7 @@ function OrdersContent() {
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-40 flex-1">
+          <div className="relative hidden min-w-40 flex-1 sm:block">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="search"

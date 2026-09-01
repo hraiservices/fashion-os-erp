@@ -291,7 +291,7 @@ export default function CheckInPage() {
   const selectedBalance = leaveData?.balances.find((b) => b.leaveTypeId === leaveTypeId);
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-muted/30 p-4">
+    <div className="flex min-h-screen min-h-dvh items-center justify-center bg-muted/30 p-4">
       <div className="w-full max-w-sm rounded-2xl border bg-card p-6 shadow-sm">
         <div className="mb-5 text-center">
           <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-full bg-primary/10">

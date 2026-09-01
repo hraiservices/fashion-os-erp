@@ -25,7 +25,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [user, pathname, router]);
 
   return (
-    <div className="flex min-h-dvh flex-1 bg-muted/20 print:block print:bg-white">
+    <div className="flex min-h-screen min-h-dvh flex-1 bg-muted/20 print:block print:bg-white">
       <div className="print:hidden">
         <Sidebar />
       </div>

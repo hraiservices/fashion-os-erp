@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Menu, Plus, ClipboardList, Receipt, Wallet, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MOBILE_TABS } from "@/components/app-shell/nav-config";
@@ -48,6 +48,19 @@ export function MobileNavTrigger() {
  * native mobile apps. Hidden on lg+ where the sidebar takes over.
  */
 export function MobileTabBar() {
+  return (
+    <Suspense fallback={<MobileTabBarInner searchParams={null} />}>
+      <MobileTabBarWithSearchParams />
+    </Suspense>
+  );
+}
+
+function MobileTabBarWithSearchParams() {
+  const searchParams = useSearchParams();
+  return <MobileTabBarInner searchParams={searchParams} />;
+}
+
+function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof useSearchParams> | null }) {
   const pathname = usePathname();
   const { data: user } = useCurrentUser();
   const [createOpen, setCreateOpen] = useState(false);
@@ -68,7 +81,11 @@ export function MobileTabBar() {
   const right = tabs.slice(mid);
 
   function TabLink({ href, label, icon: Icon }: (typeof MOBILE_TABS)[number]) {
-    const active = pathname === href.split("?")[0];
+    const [hrefPath, hrefQuery] = href.split("?");
+    // Compare the query string too — otherwise every tab whose href points at the same
+    // pathname with a different `?view=` (e.g. "Orders" vs "Board", both /orders) lights
+    // up together regardless of which one is actually selected.
+    const active = pathname === hrefPath && (hrefQuery ?? "") === (searchParams?.toString() ?? "");
     return (
       <Link
         key={href}

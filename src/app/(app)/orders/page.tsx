@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Plus, Search, LayoutList, KanbanSquare, ArrowRight, Trash2, Upload, MessageCircle } from "lucide-react";
 import { BulkWhatsAppDialog } from "@/components/orders/bulk-whatsapp-dialog";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
+import { cn } from "@/lib/utils";
 import { useOrders } from "@/hooks/use-orders";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -289,15 +290,17 @@ function OrdersContent() {
         description={`${filtered.length} of ${orders?.length ?? 0} orders`}
         actions={
           <>
-            <SegmentedToggle
-              ariaLabel="View mode"
-              value={view}
-              onChange={setView}
-              options={[
-                { value: "list", label: "List", icon: LayoutList },
-                { value: "board", label: "Board", icon: KanbanSquare },
-              ]}
-            />
+            <div className="hidden sm:block">
+              <SegmentedToggle
+                ariaLabel="View mode"
+                value={view}
+                onChange={setView}
+                options={[
+                  { value: "list", label: "List", icon: LayoutList },
+                  { value: "board", label: "Board", icon: KanbanSquare },
+                ]}
+              />
+            </div>
             {user?.perms.addOrder && (
               <Button variant="outline" nativeButton={false} render={<Link href="/orders/import" />} className="hidden sm:inline-flex">
                 <Upload className="size-4" /> Import
@@ -345,6 +348,28 @@ function OrdersContent() {
           resultCount={filtered.length}
           mobileOpen={filterSheetOpen}
           onMobileOpenChange={setFilterSheetOpen}
+          mobileLeading={
+            <div className="flex shrink-0 rounded-lg border p-0.5" role="group" aria-label="View mode">
+              <button
+                type="button"
+                onClick={() => setView("list")}
+                aria-pressed={view === "list"}
+                aria-label="List view"
+                className={cn("flex size-9 items-center justify-center rounded-md transition-colors", view === "list" ? "bg-muted" : "text-muted-foreground")}
+              >
+                <LayoutList className="size-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("board")}
+                aria-pressed={view === "board"}
+                aria-label="Board view"
+                className={cn("flex size-9 items-center justify-center rounded-md transition-colors", view === "board" ? "bg-muted" : "text-muted-foreground")}
+              >
+                <KanbanSquare className="size-4" />
+              </button>
+            </div>
+          }
           views={savedViews.views}
           onApplyView={applyView}
           onSaveView={savedViews.save}

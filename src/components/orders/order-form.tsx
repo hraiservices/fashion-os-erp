@@ -547,7 +547,7 @@ function OrderFormFields({
         toast.success(res.ptDiscount > 0 ? `Order ${res.order.id} created · ${inr(res.ptDiscount)} points discount applied` : `Order ${res.order.id} created`);
         if (res.limitWarning) toast.warning(res.limitWarning);
         if (res.paymentLedgerWarning) toast.warning(res.paymentLedgerWarning, { duration: 12_000 });
-        router.push(`/orders/${res.order.id}`);
+        router.push("/orders");
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save order");

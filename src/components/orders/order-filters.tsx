@@ -209,6 +209,7 @@ export function OrderFilters<F>({
   onSaveView,
   onRemoveView,
   currentViewFilters,
+  mobileLeading,
 }: {
   value: FilterState;
   onChange: (f: FilterState) => void;
@@ -222,6 +223,8 @@ export function OrderFilters<F>({
   onSaveView: (name: string, f: F) => void;
   onRemoveView: (id: string) => void;
   currentViewFilters: F;
+  /** Extra control (e.g. a view-mode toggle) rendered before the Filters button on mobile, to share its row. */
+  mobileLeading?: React.ReactNode;
 }) {
   const count = activeFilterCount(value);
   const set = (patch: Partial<FilterState>) => onChange({ ...value, ...patch });
@@ -231,6 +234,7 @@ export function OrderFilters<F>({
     <>
       {/* Mobile trigger row */}
       <div className="flex items-center gap-2 md:hidden">
+        {mobileLeading}
         <Button
           variant="outline"
           size="sm"

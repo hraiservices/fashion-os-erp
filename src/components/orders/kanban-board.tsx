@@ -132,9 +132,10 @@ export function KanbanBoard({
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{progressPct}% complete</span>
       </div>
 
-      {/* Mobile: one stage at a time, picked via tab pills — no sideways-scrolling board. */}
+      {/* Mobile: one stage at a time, picked via tab pills — all stages visible at once in an
+          even grid rather than a scrolling row (STAGES has 6 entries, so 3 columns × 2 rows). */}
       <div className="sm:hidden">
-        <div className="scrollbar-hide -mx-4 mb-3 flex touch-pan-x gap-1.5 overflow-x-auto px-4 pb-1">
+        <div className="mb-3 grid grid-cols-3 gap-1.5">
           {STAGES.map((stage) => {
             const meta = STAGE_META[stage];
             const count = orders.filter((o) => o.status === stage).length;
@@ -145,12 +146,12 @@ export function KanbanBoard({
                 type="button"
                 onClick={() => setMobileStage(stage)}
                 className={cn(
-                  "flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
+                  "flex items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-medium truncate transition-colors",
                   active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
-                {meta.label}
-                <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] tabular-nums", active ? "bg-primary-foreground/20" : "bg-muted")}>{count}</span>
+                <span className="truncate">{meta.label}</span>
+                <span className={cn("shrink-0 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums", active ? "bg-primary-foreground/20" : "bg-muted")}>{count}</span>
               </button>
             );
           })}

@@ -19,6 +19,11 @@ const postSchema = z.object({
   enabled: z.boolean(),
   role: z.enum(["admin", "manager", "sales", "tailor"]).optional(),
   custom: z.record(z.string(), z.boolean()).optional(),
+  // The mobile number as currently typed in the form, which may not be saved to the employee
+  // record yet (the main "Save Changes" button is separate from this toggle). Auto-saving it
+  // here means flipping this toggle on works immediately instead of failing with "needs a valid
+  // mobile number first" until the admin remembers to save the rest of the form separately.
+  mobile: z.string().optional(),
 });
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -43,7 +48,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const parsed = postSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-  const { enabled, role, custom } = parsed.data;
+  const { enabled, role, custom, mobile: formMobile } = parsed.data;
 
   const serviceClient = createServiceClient();
   if (!serviceClient) return NextResponse.json({ error: "Server is not configured to manage users (missing service role key)" }, { status: 501 });
@@ -65,7 +70,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   if (!role) return NextResponse.json({ error: "Choose a role" }, { status: 400 });
 
-  const mobile = normalizePhone(employee.mobile || "");
+  let mobile = normalizePhone(employee.mobile || "");
+  const formMobileNormalized = formMobile ? normalizePhone(formMobile) : "";
+  if (formMobileNormalized.length === 10 && formMobileNormalized !== mobile) {
+    const { error: mobileError } = await serviceClient.from("employees").update({ mobile: formMobileNormalized }).eq("id", id);
+    if (mobileError) return NextResponse.json({ error: mobileError.message }, { status: 500 });
+    mobile = formMobileNormalized;
+  }
   if (mobile.length !== 10) return NextResponse.json({ error: "This employee needs a valid mobile number first (see Basic info above) — dashboard login uses it to sign in." }, { status: 400 });
 
   if (existingLink) {

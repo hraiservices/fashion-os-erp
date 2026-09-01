@@ -52,7 +52,10 @@ export function DashboardAccessManager({ employeeId, employeeMobile }: { employe
       const res = await fetch(`/api/employees/${employeeId}/dashboard-access`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: next.enabled, role: next.role, custom: next.custom }),
+        // Sending the mobile number as currently typed (even if the rest of the form hasn't
+        // been saved yet) lets turning this on auto-save just that field instead of failing
+        // with "needs a valid mobile number first" until the admin saves the whole form.
+        body: JSON.stringify({ enabled: next.enabled, role: next.role, custom: next.custom, mobile: employeeMobile }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save");

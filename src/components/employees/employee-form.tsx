@@ -131,6 +131,7 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
   // every active employee shows up as a tailor.
   const roleValue = useWatch({ control, name: "role" });
   const willShowAsTailor = (roleValue || "").trim().toLowerCase() === "tailor";
+  const mobileValue = useWatch({ control, name: "mobile" });
   const [commissionOpen, setCommissionOpen] = useState(false);
   const [salaryOpen, setSalaryOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -318,7 +319,7 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
             ) : (
               <p className="text-[11px] text-muted-foreground">Save this employee first, then come back to set their self check-in PIN.</p>
             )}
-            {isEdit && user?.perms.manageUsers && <DashboardAccessManager employeeId={existing!.id} employeeMobile={existing!.mobile} />}
+            {isEdit && user?.perms.manageUsers && <DashboardAccessManager employeeId={existing!.id} employeeMobile={mobileValue || existing!.mobile} />}
           </div>
         </div>
 

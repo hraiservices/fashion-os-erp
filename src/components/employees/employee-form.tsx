@@ -10,6 +10,7 @@ import { ArrowLeft, User, TrendingUp, Banknote, Save, MapPin } from "lucide-reac
 import Link from "next/link";
 import { useSaveEmployee } from "@/hooks/use-employee-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useEmployees } from "@/hooks/use-employees";
 import { useActiveShopLocations } from "@/hooks/use-shop-locations";
 import { Button } from "@/components/ui/button";
 import { FormActionBar } from "@/components/ui/form-action-bar";
@@ -18,6 +19,7 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchSelect } from "@/components/ui/search-select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { EmployeePinManager } from "@/components/employees/employee-pin-manager";
@@ -26,6 +28,11 @@ import type { Employee, CommissionType, SalaryType } from "@/lib/types";
 import { SALARY_TYPE_LABELS } from "@/lib/payroll";
 
 const NO_LOCATION = "__no_location__";
+
+// Sensible starting options for a shop with no employees yet — the Tailor dropdown check
+// below only ever cares about the exact string "Tailor", so this list is purely for the
+// picker's convenience, not enforced anywhere.
+const COMMON_JOB_ROLES = ["Tailor", "Manager", "Sales Person", "Cutter", "Helper", "Accountant"];
 
 const COMMISSION_LABELS: Record<CommissionType, string> = {
   none: "No commission",
@@ -81,8 +88,17 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
   const router = useRouter();
   const { data: user } = useCurrentUser();
   const { data: locations } = useActiveShopLocations();
+  const { data: allEmployees } = useEmployees();
   const saveEmployee = useSaveEmployee();
   const isEdit = !!existing;
+
+  // Job-title options for the Role picker: every distinct one already in use across employees,
+  // plus a handful of common defaults so a fresh shop with no employees yet still has choices.
+  // Free text underneath (via the picker's "Add new" option) — nothing is enforced against this
+  // list, it's just there to save retyping "Sales Person" for the tenth time.
+  const roleOptions = Array.from(new Set([...(allEmployees || []).map((e) => e.role).filter(Boolean), ...COMMON_JOB_ROLES]))
+    .sort((a, b) => a.localeCompare(b))
+    .map((r) => ({ value: r, label: r }));
 
   const {
     register,
@@ -213,7 +229,22 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
                     : "Only employees whose role is exactly \"Tailor\" appear in the Tailor dropdown on Orders. Other roles (Sales Person, Cutter, Manager, Accountant, …) do not."
                 }
               >
-                <Input placeholder="e.g. Tailor, Sales Person, Cutter, Manager" className="h-10" {...register("role")} />
+                <Controller
+                  control={control}
+                  name="role"
+                  render={({ field }) => (
+                    <SearchSelect
+                      inputClassName="h-10"
+                      placeholder="Select or type a role…"
+                      value={field.value || ""}
+                      fallbackLabel={field.value || undefined}
+                      options={roleOptions}
+                      onSelect={(v) => field.onChange(v)}
+                      onCreateNew={(query) => query && field.onChange(query)}
+                      createLabel="Add new role"
+                    />
+                  )}
+                />
               </FieldGroup>
               <FieldGroup label="Employment type">
                 <Controller

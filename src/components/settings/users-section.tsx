@@ -19,7 +19,7 @@ import { EmployeePinManager } from "@/components/employees/employee-pin-manager"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { X, Check, ChevronDown, ChevronRight, Info, Link2, KeyRound } from "lucide-react";
+import { X, Check, ChevronDown, ChevronRight, Info, Link2, KeyRound, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -101,6 +101,89 @@ function RoleReferenceCard() {
         <p className="mt-3 text-xs text-muted-foreground">
           These are starting points. Expand any user below to override individual permissions — e.g. a tailor who should only change order stage, or a manager who shouldn&apos;t delete orders.
         </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface PhoneCheckResult {
+  found: boolean;
+  collision?: boolean;
+  emails?: string[];
+  email?: string;
+  linkedEmployeeName?: string | null;
+  hasPin?: boolean;
+  locked?: boolean;
+}
+
+/** "Why can't this mobile number log in?" diagnostic — mirrors what /api/auth/phone-login
+ *  actually looks up (by phone, following the linked-employee PIN indirection) so an admin can
+ *  see the real stored state instead of guessing from the login page's necessarily generic
+ *  "Invalid mobile number or PIN" error. Never surfaces the PIN itself, only whether one is set. */
+function PhoneCheckCard() {
+  const [phone, setPhone] = useState("");
+  const [result, setResult] = useState<PhoneCheckResult | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  async function check() {
+    setChecking(true);
+    setResult(null);
+    try {
+      const res = await fetch(`/api/user-roles/phone-check?phone=${encodeURIComponent(phone)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Check failed");
+      setResult(data);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Check failed");
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-1.5 text-sm">
+          <Search className="size-4 text-muted-foreground" /> Why can&apos;t this number log in?
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          <Input
+            className="min-w-40 flex-1"
+            inputMode="numeric"
+            maxLength={10}
+            placeholder="10-digit mobile number"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+          />
+          <Button onClick={check} disabled={checking || phone.length !== 10}>
+            {checking ? "Checking…" : "Check"}
+          </Button>
+        </div>
+        {result && (
+          <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+            {!result.found ? (
+              <p className="text-destructive">No login has this phone number saved — mobile+PIN sign-in will always fail until one does.</p>
+            ) : result.collision ? (
+              <p className="text-destructive">
+                <strong>{result.emails?.length}</strong> different logins all have this exact phone number ({result.emails?.join(", ")}) — that
+                collision makes the login lookup ambiguous and fails for all of them. Clear the phone off every row but one.
+              </p>
+            ) : (
+              <ul className="space-y-1">
+                <li>
+                  Login: <strong>{result.email}</strong>
+                </li>
+                <li>Linked employee: {result.linkedEmployeeName ? <strong>{result.linkedEmployeeName}</strong> : "none (uses its own PIN)"}</li>
+                <li className={result.hasPin ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
+                  {result.hasPin ? "A PIN is set" : "No PIN is set — this is why sign-in fails"}
+                </li>
+                {result.locked && <li className="text-destructive">Currently locked out from too many failed attempts — wait or ask them to retry later.</li>}
+              </ul>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -311,6 +394,7 @@ export function UsersSection() {
 
   return (
     <div className="space-y-4">
+      <PhoneCheckCard />
       <RoleReferenceCard />
 
       <Card>

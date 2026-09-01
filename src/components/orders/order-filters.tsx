@@ -238,7 +238,7 @@ export function OrderFilters<F>({
         <Button
           variant="outline"
           size="sm"
-          className="relative h-10 w-10 flex-1 px-0"
+          className="relative h-10 w-10 shrink-0 px-0"
           onClick={() => onMobileOpenChange(true)}
           aria-label="Filters"
         >

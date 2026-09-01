@@ -47,7 +47,14 @@ export async function POST(request: Request) {
     if (!row?.phone) {
       const { data: employee } = await serviceClient.from("employees").select("mobile").eq("id", employeeId).maybeSingle();
       const mobile = employee?.mobile ? normalizePhone(employee.mobile) : "";
-      if (mobile.length === 10) await serviceClient.from("user_roles").update({ phone: mobile }).eq("email", email);
+      // No DB-level unique constraint on phone — silently backfilling a number some other
+      // login already has would make phone-login's by-phone lookup match two rows and fail
+      // both of them. Skip the backfill in that case; the admin can still resolve the
+      // collision manually via the phone field's own 409 check in /api/user-roles/phone.
+      if (mobile.length === 10) {
+        const { data: collision } = await serviceClient.from("user_roles").select("email").eq("phone", mobile).neq("email", email).maybeSingle();
+        if (!collision) await serviceClient.from("user_roles").update({ phone: mobile }).eq("email", email);
+      }
     }
   }
 

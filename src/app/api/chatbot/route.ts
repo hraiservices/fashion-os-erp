@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
-import { generateSql, generateAnswer } from "@/lib/chatbot/gemini";
+import { generateSql, generateAnswer, GeminiNotConfiguredError } from "@/lib/chatbot/gemini";
 import { runChatbotQuery } from "@/lib/chatbot/db";
 import { getChatbotGlossary } from "@/lib/settings";
 
@@ -79,7 +79,10 @@ export async function POST(request: Request) {
     }
   } catch (e) {
     errorMessage = e instanceof Error ? e.message : "Unknown error";
-    answer = NO_DATA_ANSWER;
+    // A missing/invalid Gemini API key fails every single question identically — surfacing the
+    // real reason here (rather than the generic "no answer" message) is the difference between
+    // an admin fixing it in Settings in 30 seconds and it looking like the AI just doesn't work.
+    answer = e instanceof GeminiNotConfiguredError ? e.message : NO_DATA_ANSWER;
   }
 
   // Persisted regardless of outcome — the SQL and any error are exactly what you'd need to

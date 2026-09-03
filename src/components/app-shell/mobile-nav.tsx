@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Menu, Plus, ClipboardList, Receipt, Wallet, UserPlus, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MOBILE_TABS } from "@/components/app-shell/nav-config";
+import { MOBILE_TABS_ADMIN_LEFT, MOBILE_TABS_ADMIN_RIGHT, MOBILE_TABS_RESTRICTED_LEFT, type NavFlatItem } from "@/components/app-shell/nav-config";
 import { NavContent, NavBrand } from "@/components/app-shell/nav-content";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
@@ -27,6 +27,13 @@ import { Button } from "@/components/ui/button";
 export function MobileNavTrigger() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const { data: user } = useCurrentUser();
+  const { data: shop } = useShopSettings();
+  const { data: entitlements } = useModuleEntitlements();
+  const { setOpen: setCopilotOpen } = useCopilotOpen();
+  const restricted = !!user?.restricted;
+  const canUseCopilot = !!user?.perms.useChatbot && isModuleEnabled(entitlements ?? DEFAULT_ENTITLEMENTS, "copilot");
+  const supportHref = buildSupportWhatsAppHref(shop?.name);
 
   // Close the drawer whenever navigation happens, so it never lingers over the new page.
   useSyncFromSource(pathname, () => setOpen(false));
@@ -42,6 +49,36 @@ export function MobileNavTrigger() {
           <NavBrand />
           <div className="flex-1 overflow-y-auto">
             <NavContent onNavigate={() => setOpen(false)} />
+            {/* Admin/manager reach Support and Copilot from here instead of the bottom tab bar
+                (see MobileTabBar) — tailor/sales already have them as bottom-nav tabs, so no
+                need to duplicate here for that role. */}
+            {!restricted && (
+              <div className="space-y-0.5 border-t border-sidebar-border/60 px-3 py-2">
+                <a
+                  href={supportHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-3 rounded-lg px-3 py-3.5 text-[17px] font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground sm:py-2 sm:text-sm"
+                >
+                  <WhatsAppIcon className="size-[22px] shrink-0 text-[#25D366] sm:size-4" />
+                  Support
+                </a>
+                {canUseCopilot && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false);
+                      setCopilotOpen(true);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-3.5 text-[17px] font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground sm:py-2 sm:text-sm"
+                  >
+                    <Sparkles className="size-[22px] shrink-0 sm:size-4" />
+                    AI Copilot
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </SheetContent>
       </Sheet>
@@ -74,7 +111,12 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
   const { open: copilotOpen, setOpen: setCopilotOpen } = useCopilotOpen();
   const [createOpen, setCreateOpen] = useState(false);
   const restricted = !!user?.restricted;
-  const tabs = MOBILE_TABS.filter((t) => !(restricted && t.restricted));
+  // Admin/manager: Home, Orders, Board, +, Clients, Invoices, Reports — Support/Copilot live in
+  // the hamburger drawer instead (see NavContent). Tailor/sales: Orders, Board, +, Support,
+  // Copilot — day-to-day is just the board, so Support/Copilot fill the space admin/manager
+  // spends on Clients/Invoices/Reports.
+  const left = restricted ? MOBILE_TABS_RESTRICTED_LEFT : MOBILE_TABS_ADMIN_LEFT;
+  const right = restricted ? [] : MOBILE_TABS_ADMIN_RIGHT;
   const canAdd = user?.perms.addOrder;
   const canUseCopilot = !!user?.perms.useChatbot && isModuleEnabled(entitlements ?? DEFAULT_ENTITLEMENTS, "copilot");
   const supportHref = buildSupportWhatsAppHref(shop?.name);
@@ -86,11 +128,7 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
     { href: "/crm/new", label: "New Customer", icon: UserPlus, show: user?.perms.manageCustomers || user?.role === "admin" || user?.role === "manager" },
   ].filter((o) => o.show);
 
-  // Nav tabs (Home/Orders/Board/Clients) sit left of the centre "+" FAB; Support and Copilot
-  // sit right of it — a fixed grouping rather than an even left/right split, so navigation and
-  // the two utility actions don't get shuffled around each other as tabs are added/removed.
-
-  function TabLink({ href, label, icon: Icon }: (typeof MOBILE_TABS)[number]) {
+  function TabLink({ href, label, icon: Icon }: NavFlatItem) {
     const [hrefPath, hrefQuery] = href.split("?");
     // Compare the query string too — otherwise every tab whose href points at the same
     // pathname with a different `?view=` (e.g. "Orders" vs "Board", both /orders) lights
@@ -119,7 +157,7 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
       aria-label="Primary"
       className="fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
     >
-      {tabs.map(TabLink)}
+      {left.map(TabLink)}
       {canAdd && (
         <button
           type="button"
@@ -133,35 +171,42 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
           <Plus className="size-6" />
         </button>
       )}
-      {/* WhatsApp support + AI Copilot live here instead of floating over page content — see
-          CopilotBubble, whose own FAB stack is now desktop (lg+) only. */}
-      <a
-        href={supportHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => hapticTap()}
-        className="flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-muted-foreground transition-colors"
-      >
-        <span className="flex items-center justify-center rounded-full px-3 py-0.5">
-          <WhatsAppIcon className="size-5 text-[#25D366]" />
-        </span>
-        Support
-      </a>
-      {canUseCopilot && (
-        <button
-          type="button"
-          onClick={() => {
-            hapticTap();
-            setCopilotOpen((o) => !o);
-          }}
-          aria-pressed={copilotOpen}
-          className={cn("flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors", copilotOpen ? "text-primary" : "text-muted-foreground")}
-        >
-          <span className={cn("flex items-center justify-center rounded-full px-3 py-0.5 transition-colors", copilotOpen && "bg-primary/10")}>
-            {copilotOpen ? <X className="size-5" /> : <Sparkles className={cn("size-5 transition-transform", copilotOpen && "scale-110")} />}
-          </span>
-          Copilot
-        </button>
+      {restricted ? (
+        // WhatsApp support + AI Copilot live here instead of floating over page content — see
+        // CopilotBubble, whose own FAB stack is now desktop (lg+) only. Admin/manager get these
+        // from the hamburger drawer instead (NavContent) — see right.map(TabLink) below.
+        <>
+          <a
+            href={supportHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => hapticTap()}
+            className="flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-muted-foreground transition-colors"
+          >
+            <span className="flex items-center justify-center rounded-full px-3 py-0.5">
+              <WhatsAppIcon className="size-5 text-[#25D366]" />
+            </span>
+            Support
+          </a>
+          {canUseCopilot && (
+            <button
+              type="button"
+              onClick={() => {
+                hapticTap();
+                setCopilotOpen((o) => !o);
+              }}
+              aria-pressed={copilotOpen}
+              className={cn("flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors", copilotOpen ? "text-primary" : "text-muted-foreground")}
+            >
+              <span className={cn("flex items-center justify-center rounded-full px-3 py-0.5 transition-colors", copilotOpen && "bg-primary/10")}>
+                {copilotOpen ? <X className="size-5" /> : <Sparkles className={cn("size-5 transition-transform", copilotOpen && "scale-110")} />}
+              </span>
+              Copilot
+            </button>
+          )}
+        </>
+      ) : (
+        right.map(TabLink)
       )}
 
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>

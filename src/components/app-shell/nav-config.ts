@@ -16,6 +16,7 @@ import {
   Scissors,
   UserCog,
   ScanBarcode,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -291,10 +292,27 @@ export function settingsLeafVisible(href: string, isAdmin: boolean, canManageSho
   return true; // /settings/personalize and /settings/account — everyone (canManageShop kept as a param for callers/backward compat)
 }
 
-/** Bottom tab bar on mobile. Deliberately 5 items max, thumb-reachable. */
-export const MOBILE_TABS: NavFlatItem[] = [
-  { href: "/dashboard", label: "Home", icon: LayoutDashboard, restricted: true },
+/** Bottom tab bar on mobile for admin/manager (unrestricted) logins — sits left of the centre
+ *  "+"; MOBILE_TABS_ADMIN_RIGHT sits right of it. Support/WhatsApp and AI Copilot are NOT here
+ *  for this role — they live in the hamburger side drawer instead (NavContent), since an
+ *  admin/manager already has a full set of nav destinations competing for the bar's limited
+ *  space. */
+export const MOBILE_TABS_ADMIN_LEFT: NavFlatItem[] = [
+  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/orders?view=list", label: "Orders", icon: Receipt },
   { href: "/orders?view=board", label: "Board", icon: KanbanSquare },
-  { href: "/crm", label: "Clients", icon: Users, restricted: true },
+];
+
+export const MOBILE_TABS_ADMIN_RIGHT: NavFlatItem[] = [
+  { href: "/crm", label: "Clients", icon: Users },
+  { href: "/sales/invoices", label: "Invoices", icon: FileText },
+  { href: "/reports", label: "Reports", icon: BarChart3 },
+];
+
+/** Bottom tab bar on mobile for tailor/sales (restricted) logins — day-to-day work is just
+ *  Orders/Board, so Support and Copilot (rendered separately in MobileTabBar, not part of this
+ *  list) fill the space admin/manager instead spends on Clients/Invoices/Reports. */
+export const MOBILE_TABS_RESTRICTED_LEFT: NavFlatItem[] = [
+  { href: "/orders?view=list", label: "Orders", icon: Receipt },
+  { href: "/orders?view=board", label: "Board", icon: KanbanSquare },
 ];

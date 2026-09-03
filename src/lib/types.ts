@@ -1240,6 +1240,10 @@ export interface Payslip {
   status: PayslipStatus;
   paidAt: string | null;
   notes: string;
+  /** Manual bonus (positive) or deduction (negative) applied on top of the attendance-based
+   *  math — see src/app/api/payroll/payslips/[id]/route.ts. Zero for every payslip that hasn't
+   *  been manually adjusted. */
+  adjustmentAmount: number;
 }
 
 export function mapPayslipRow(r: PayslipRow): Payslip {
@@ -1261,6 +1265,7 @@ export function mapPayslipRow(r: PayslipRow): Payslip {
     status: (r.status as PayslipStatus) || "draft",
     paidAt: r.paid_at,
     notes: r.notes || "",
+    adjustmentAmount: r.adjustment_amount || 0,
   };
 }
 

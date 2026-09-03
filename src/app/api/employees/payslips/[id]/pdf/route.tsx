@@ -9,13 +9,16 @@ export const runtime = "nodejs";
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { supabase, user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!user.perms.managePayroll) return NextResponse.json({ error: "No permission to view payslips" }, { status: 403 });
 
   const { id } = await params;
 
   const { data: payslipRow, error: payslipError } = await supabase.from("payslips").select("*").eq("id", id).maybeSingle();
   if (payslipError) return NextResponse.json({ error: payslipError.message }, { status: 500 });
   if (!payslipRow) return NextResponse.json({ error: "Payslip not found" }, { status: 404 });
+
+  // Either full payroll access, or this is the logged-in employee's own payslip.
+  const isOwnPayslip = !!user.employeeId && user.employeeId === payslipRow.employee_id;
+  if (!user.perms.managePayroll && !isOwnPayslip) return NextResponse.json({ error: "No permission to view this payslip" }, { status: 403 });
 
   const [{ data: employeeRow }, { data: runRow }, { data: advanceRows }, { data: shopSetting }, { data: templateSetting }] = await Promise.all([
     supabase.from("employees").select("*").eq("id", payslipRow.employee_id).maybeSingle(),

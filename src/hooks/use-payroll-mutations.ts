@@ -70,6 +70,18 @@ export function useMarkPayslipPaid() {
   });
 }
 
+/** Apply a manual bonus (positive amount) or deduction (negative amount) to a draft payslip,
+ *  with a required note explaining why — e.g. a one-off bonus or a fine the attendance-based
+ *  math has no way to express. Rejected server-side once the payslip is marked paid. */
+export function useAdjustPayslip() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, amount, note }: { id: string; amount: number; note: string }) =>
+      apiJson<{ ok: true }>(`/api/payroll/payslips/${id}`, "PATCH", { action: "adjust", amount, note }),
+    onSuccess: () => invalidatePayroll(qc),
+  });
+}
+
 /** Record an advance. Routed through POST /api/employees/[id]/advances — same reasoning as
  *  useMarkPayslipPaid above. */
 export function useAddAdvance() {

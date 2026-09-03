@@ -2,16 +2,24 @@ import { GoogleGenAI, Type } from "@google/genai";
 import type { GlossaryEntry } from "@/lib/chatbot/glossary";
 import { toMKey } from "@/lib/measurements";
 import { istDateString } from "@/lib/ist-date";
+import { resolveGeminiApiKey } from "@/lib/gemini-config";
 
-let client: GoogleGenAI | null = null;
-
-function getClient(): GoogleGenAI {
-  if (!client) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error("GEMINI_API_KEY is not configured — add it to .env.local");
-    client = new GoogleGenAI({ apiKey });
+/** Thrown when neither GEMINI_API_KEY nor the Settings → AI Copilot key is configured — callers
+ *  (chatbot route) match on this to give a specific "not configured" answer instead of the
+ *  generic "couldn't find an answer" every other failure gets. */
+export class GeminiNotConfiguredError extends Error {
+  constructor() {
+    super("The AI Copilot isn't configured yet — ask your admin to add a Gemini API key under Settings → AI Copilot.");
+    this.name = "GeminiNotConfiguredError";
   }
-  return client;
+}
+
+// Deliberately not cached across calls — an admin saving a new/corrected key in Settings must
+// take effect on the very next question, not after a redeploy or server restart.
+async function getClient(): Promise<GoogleGenAI> {
+  const apiKey = await resolveGeminiApiKey();
+  if (!apiKey) throw new GeminiNotConfiguredError();
+  return new GoogleGenAI({ apiKey });
 }
 
 // "latest" alias rather than a pinned version — the pinned "gemini-2.5-flash" tag is listed
@@ -131,7 +139,7 @@ export async function generateSql(
   glossary: GlossaryEntry[] = [],
   history: { question: string; answer: string }[] = [],
 ): Promise<string> {
-  const ai = getClient();
+  const ai = await getClient();
   const today = istDateString();
   const systemInstruction =
     SQL_SYSTEM_PROMPT.replace("{{TODAY}}", today) +
@@ -170,7 +178,7 @@ Rules:
 - Keep it conversational, no markdown tables or code blocks. A short bulleted list is fine.`;
 
 export async function generateBriefing(summary: unknown): Promise<string> {
-  const ai = getClient();
+  const ai = await getClient();
   const response = await ai.models.generateContent({
     model: MODEL,
     contents: [{ role: "user", parts: [{ text: `Today's business summary (JSON): ${JSON.stringify(summary)}` }] }],
@@ -207,7 +215,7 @@ Respond with plain text only — no JSON, no quotes around the whole message.`;
  * data — Gemini's only job here is phrasing, on data it never chose itself.
  */
 export async function generateConciergeReply(question: string, orders: unknown[]): Promise<string> {
-  const ai = getClient();
+  const ai = await getClient();
   const response = await ai.models.generateContent({
     model: MODEL,
     contents: [
@@ -244,7 +252,7 @@ export async function extractMeasurementsFromImage(imageDataUrl: string, fieldLa
   if (!match) throw new Error("Invalid image");
   const [, mimeType, base64] = match;
 
-  const ai = getClient();
+  const ai = await getClient();
   const prompt = MEASUREMENT_EXTRACTION_PROMPT.replace("{{FIELDS}}", fieldLabels.map((f) => `- ${f}`).join("\n"));
   const response = await ai.models.generateContent({
     model: MODEL,
@@ -283,7 +291,7 @@ export async function transcribeVoiceNote(audioDataUrl: string): Promise<string>
   if (!match) throw new Error("Invalid audio");
   const [, mimeType, base64] = match;
 
-  const ai = getClient();
+  const ai = await getClient();
   const response = await ai.models.generateContent({
     model: MODEL,
     contents: [{ role: "user", parts: [{ inlineData: { mimeType, data: base64 } }, { text: VOICE_NOTE_TRANSCRIPTION_PROMPT }] }],
@@ -302,7 +310,7 @@ export async function generateAnswer(
   rows: unknown[],
   history: { question: string; answer: string }[] = [],
 ): Promise<GeneratedAnswer> {
-  const ai = getClient();
+  const ai = await getClient();
   const historyBlock = history.length
     ? `\n\nPrior conversation:\n${history.map((h) => `Q: ${h.question}\nA: ${h.answer}`).join("\n\n")}`
     : "";

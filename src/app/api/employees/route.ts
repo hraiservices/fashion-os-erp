@@ -29,6 +29,31 @@ const bodySchema = z.object({
   locationId: z.string().nullable().optional(),
 });
 
+const EMPLOYEE_COLUMNS_WITH_SALARY =
+  "id, name, mobile, role, employment_type, commission_type, commission_rate, active, joined_date, notes, salary_type, salary_rate, piece_rate_eligible, location_id, manager_id, created_at, updated_at";
+
+/**
+ * The salary-bearing employee list, for the payroll and employee screens.
+ *
+ * salary_type/salary_rate/piece_rate_eligible are no longer readable by `authenticated` at all
+ * (lockdown_employee_salary_columns.sql), so this is the only way to get them. use-employees.ts
+ * still reads the non-salary columns straight from the browser — that half needs no privilege
+ * and keeps the tailor dropdown, the order form and the attendance sheet working for everyone.
+ */
+export async function GET() {
+  const { user } = await getServerUser();
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  if (!user.perms.managePayroll) return NextResponse.json({ error: "No permission to view salaries" }, { status: 403 });
+
+  const serviceClient = createServiceClient();
+  if (!serviceClient) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
+  const { data, error } = await serviceClient.from("employees").select(EMPLOYEE_COLUMNS_WITH_SALARY).order("name");
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ employees: (data || []).map((r) => mapEmployeeRow({ ...r, pin_hash: null } as never)) });
+}
+
 export async function POST(request: Request) {
   const { supabase, user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -68,9 +93,7 @@ export async function POST(request: Request) {
       ...(fd.pieceRateEligible !== undefined ? { piece_rate_eligible: fd.pieceRateEligible } : {}),
       ...(fd.locationId !== undefined ? { location_id: fd.locationId } : {}),
     })
-    .select(
-      "id, name, mobile, role, employment_type, commission_type, commission_rate, active, joined_date, notes, salary_type, salary_rate, piece_rate_eligible, location_id, manager_id, created_at, updated_at"
-    )
+    .select(EMPLOYEE_COLUMNS_WITH_SALARY)
     .single();
   if (error || !data) return NextResponse.json({ error: error?.message || "Save failed" }, { status: 500 });
 

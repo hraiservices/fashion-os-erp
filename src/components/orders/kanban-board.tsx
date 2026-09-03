@@ -134,7 +134,10 @@ export function KanbanBoard({
 
       {/* Mobile: one stage at a time, picked via tab pills — all stages visible at once in an
           even grid rather than a scrolling row (STAGES has 6 entries, so 3 columns × 2 rows). */}
-      <div className="sm:hidden">
+      {/* pr-14: the CopilotBubble FAB stack is fixed near the bottom-right of the viewport —
+          without this clearance, whichever card scrolls into that band has its WhatsApp/delete
+          buttons visually and functionally covered by the FAB. */}
+      <div className="pr-14 sm:hidden">
         <div className="mb-3 grid grid-cols-3 gap-1.5">
           {STAGES.map((stage) => {
             const meta = STAGE_META[stage];

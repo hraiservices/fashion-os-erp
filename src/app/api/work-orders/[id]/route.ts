@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 
 const materialSchema = z.object({
@@ -34,17 +35,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageManufacturing) return NextResponse.json({ error: "No permission to manage manufacturing" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = patchSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
 
-  const { data: row } = await supabase.from("work_orders").select("status").eq("id", id).maybeSingle();
+  const { data: row } = await db.from("work_orders").select("status").eq("id", id).maybeSingle();
   if (!row) return NextResponse.json({ error: "Work order not found" }, { status: 404 });
   if (row.status === "completed") {
     return NextResponse.json({ error: "This work order is already completed and can't be edited." }, { status: 409 });
   }
 
-  const { error } = await supabase
+  const { error } = await db
     .from("work_orders")
     .update({
       product_id: fd.productId,
@@ -73,7 +77,10 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageManufacturing) return NextResponse.json({ error: "No permission to manage manufacturing" }, { status: 403 });
 
-  const { data: row } = await supabase.from("work_orders").select("wo_number, status, labor_payable_confirmed_at, piece_rate_paid_at").eq("id", id).maybeSingle();
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
+  const { data: row } = await db.from("work_orders").select("wo_number, status, labor_payable_confirmed_at, piece_rate_paid_at").eq("id", id).maybeSingle();
   if (!row) return NextResponse.json({ error: "Work order not found" }, { status: 404 });
 
   // Confirming the labor payable freezes it for payroll to pick up; deleting the work order
@@ -87,8 +94,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "This work order's labor payable has been confirmed for payroll and cannot be deleted." }, { status: 409 });
   }
 
-  await supabase.from("inventory_ledger").delete().eq("ref_id", id).in("ref_type", ["work_order_consume", "work_order_produce"]);
-  const { error } = await supabase.from("work_orders").delete().eq("id", id);
+  await db.from("inventory_ledger").delete().eq("ref_id", id).in("ref_type", ["work_order_consume", "work_order_produce"]);
+  const { error } = await db.from("work_orders").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await logAction(supabase, user.email, `Work order deleted: ${row.wo_number}` + (row.status === "completed" ? " — stock reverted" : ""));

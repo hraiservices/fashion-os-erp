@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { mapOrderRow } from "@/lib/types";
 import { newOrderId, customerIdFromMobile, deriveBalance, fmtNow, computeEarnPoints, computeRedemption, REFERRAL_BONUS_POINTS, isValidManualOrderNumber } from "@/lib/business-rules";
 import { logAction } from "@/lib/logging";
@@ -76,6 +77,9 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.addOrder) return NextResponse.json({ error: "No permission to add orders" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
@@ -103,17 +107,17 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    const { data: existing } = await supabase.from("orders").select("id").eq("id", manualId).maybeSingle();
+    const { data: existing } = await db.from("orders").select("id").eq("id", manualId).maybeSingle();
     if (existing) return NextResponse.json({ error: `Order number ${manualId} is already in use.` }, { status: 409 });
     id = manualId;
   } else {
-    const { data: numberingSetting } = await supabase.from("app_settings").select("value").eq("key", "documentNumbering").maybeSingle();
+    const { data: numberingSetting } = await db.from("app_settings").select("value").eq("key", "documentNumbering").maybeSingle();
     const numbering: DocumentNumberingSettings = { ...DEFAULT_DOCUMENT_NUMBERING, ...((numberingSetting?.value as Partial<DocumentNumberingSettings>) || {}) };
     const orderNumberFmt = numbering.stitchingOrder;
     if (orderNumberFmt.enabled) {
       const parsedDate = fd.inDate ? new Date(fd.inDate) : new Date();
       const year = isNaN(parsedDate.getTime()) ? new Date().getFullYear() : parsedDate.getFullYear();
-      const { data: nextNumber, error: seqError } = await supabase.rpc("next_document_number", {
+      const { data: nextNumber, error: seqError } = await db.rpc("next_document_number", {
         p_doc_type: "stitching_order",
         p_period_key: periodKeyFor(orderNumberFmt, year),
         p_start: orderNumberFmt.startNumber,
@@ -141,7 +145,7 @@ export async function POST(request: Request) {
   let ptsToRedeem = 0;
 
   if (fd.usePoints && loyaltyCfg.enabled) {
-    const { data: custRow } = await supabase
+    const { data: custRow } = await db
       .from("customers")
       .select("loyalty_points")
       .eq("id", customerIdFromMobile(fd.mobile))
@@ -152,7 +156,7 @@ export async function POST(request: Request) {
     if (redemption.canRedeem) {
       // C1: atomically reserve loyalty points before inserting the order so two concurrent
       // orders for the same customer can't both claim the same points balance.
-      const { data: reserved } = await supabase.rpc("reserve_loyalty_discount", {
+      const { data: reserved } = await db.rpc("reserve_loyalty_discount", {
         p_mobile: fd.mobile,
         p_pts_to_redeem: redemption.ptsToRedeem,
         p_order_id: id,
@@ -175,7 +179,7 @@ export async function POST(request: Request) {
   let couponReferrerName: string | null = null;
   if (fd.couponCode?.trim()) {
     const code = fd.couponCode.trim().toUpperCase();
-    const { data: redeemedRows, error: couponError } = await supabase.rpc("redeem_referral_coupon", { p_code: code, p_order_id: id });
+    const { data: redeemedRows, error: couponError } = await db.rpc("redeem_referral_coupon", { p_code: code, p_order_id: id });
     if (couponError) {
       const msg = couponError.message.includes("COUPON_NOT_FOUND")
         ? "That coupon code wasn't found"
@@ -204,7 +208,7 @@ export async function POST(request: Request) {
     (ptDiscount > 0 ? ` · 🎁 ₹${ptDiscount} loyalty pts applied` : "") +
     (couponDiscount > 0 ? ` · 🎟️ ₹${couponDiscount} referral coupon applied` : "");
 
-  const { data: insertedRow, error: insertError } = await supabase
+  const { data: insertedRow, error: insertError } = await db
     .from("orders")
     .insert({
       id,
@@ -238,7 +242,7 @@ export async function POST(request: Request) {
     // exist, so nothing will ever consume that discount — hand the points back, otherwise
     // a failed insert silently burns the customer's balance.
     if (ptsToRedeem > 0) {
-      await supabase.rpc("refund_loyalty_discount", {
+      await db.rpc("refund_loyalty_discount", {
         p_mobile: fd.mobile,
         p_pts: ptsToRedeem,
         p_order_id: id,
@@ -247,7 +251,7 @@ export async function POST(request: Request) {
     }
     // Same reasoning for a reserved-but-now-orphaned referral coupon.
     if (redeemedCouponCode) {
-      await supabase.rpc("release_referral_coupon", { p_code: redeemedCouponCode });
+      await db.rpc("release_referral_coupon", { p_code: redeemedCouponCode });
     }
     return NextResponse.json({ error: insertError?.message || "Insert failed" }, { status: 500 });
   }
@@ -260,7 +264,7 @@ export async function POST(request: Request) {
   // stitching expenses below: a failure here doesn't fail the whole request (the order and its
   // real advance/balance already exist), just gets logged.
   if (advance > 0) {
-    const { error: paymentError } = await supabase.from("order_payments").insert({
+    const { error: paymentError } = await db.from("order_payments").insert({
       order_id: id,
       amount: cashAdvance,
       pt_discount: ptDiscount + couponDiscount,
@@ -284,7 +288,7 @@ export async function POST(request: Request) {
   // whole request since the order already exists; logged instead, same pattern as the
   // customer-sync step below.
   if (fd.expenses.length > 0) {
-    const { error: expensesError } = await supabase.from("order_expenses").insert(
+    const { error: expensesError } = await db.from("order_expenses").insert(
       fd.expenses.map((e) => ({
         order_id: id,
         category: e.category,
@@ -317,7 +321,7 @@ export async function POST(request: Request) {
         const netTotal = Math.max(0, fd.total - ptDiscount - couponDiscount);
         const earnPts = computeEarnPoints(netTotal, loyaltyCfg);
         if (earnPts > 0) {
-          await awardLoyaltyPoints(supabase, fd.mobile, fd.name, earnPts, "earn", id, `Order paid in full ₹${fd.total}`);
+          await awardLoyaltyPoints(db, fd.mobile, fd.name, earnPts, "earn", id, `Order paid in full ₹${fd.total}`);
         }
       }
     } catch (loyaltyErr) {
@@ -329,7 +333,7 @@ export async function POST(request: Request) {
   // toggle above (a referral reward is a separate mechanic from points-per-rupee-spent).
   if (couponReferrerMobile) {
     try {
-      await awardLoyaltyPoints(supabase, couponReferrerMobile, couponReferrerName || "", REFERRAL_BONUS_POINTS, "referral", id, `Referral coupon redeemed by ${fd.name}`);
+      await awardLoyaltyPoints(db, couponReferrerMobile, couponReferrerName || "", REFERRAL_BONUS_POINTS, "referral", id, `Referral coupon redeemed by ${fd.name}`);
     } catch (referralErr) {
       await logAction(supabase, user.email, `⚠️ Referral bonus failed for ${id} — manual correction needed`, id, String(referralErr));
     }
@@ -339,7 +343,7 @@ export async function POST(request: Request) {
   // The order itself already saved successfully above, so a failure here doesn't fail the
   // request — but it must not be swallowed silently, or the customer's measurements/loyalty
   // seed record can go missing with no trace. Logged to Activity Log so it's visible.
-  const { data: existingCustomer, error: lookupError } = await supabase
+  const { data: existingCustomer, error: lookupError } = await db
     .from("customers")
     .select("id, name")
     .eq("mobile", fd.mobile)
@@ -348,10 +352,10 @@ export async function POST(request: Request) {
   let customerSyncError = lookupError?.message;
   if (!lookupError) {
     if (existingCustomer) {
-      const { error } = await supabase.from("customers").update({ measurements: fd.measurements as Json }).eq("id", existingCustomer.id);
+      const { error } = await db.from("customers").update({ measurements: fd.measurements as Json }).eq("id", existingCustomer.id);
       customerSyncError = error?.message;
     } else {
-      const { error } = await supabase.from("customers").insert({
+      const { error } = await db.from("customers").insert({
         id: customerIdFromMobile(fd.mobile),
         name: fd.name,
         mobile: fd.mobile,
@@ -369,13 +373,13 @@ export async function POST(request: Request) {
 
   // Soft usage-cap warning — never blocks the order, which has already been created above.
   let limitWarning: string | undefined;
-  const { data: entSetting } = await supabase.from("app_settings").select("value").eq("key", "moduleEntitlements").maybeSingle();
+  const { data: entSetting } = await db.from("app_settings").select("value").eq("key", "moduleEntitlements").maybeSingle();
   const maxOrders = (entSetting?.value as ModuleEntitlements | null)?.limits?.maxOrdersPerMonth;
   if (maxOrders != null) {
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
-    const { count } = await supabase.from("orders").select("id", { count: "exact", head: true }).gte("created_at", startOfMonth.toISOString());
+    const { count } = await db.from("orders").select("id", { count: "exact", head: true }).gte("created_at", startOfMonth.toISOString());
     if (count != null && count >= maxOrders) {
       limitWarning = `You've reached your plan's order limit (${count}/${maxOrders} this month). Contact us to upgrade.`;
     }

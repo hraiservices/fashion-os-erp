@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { generateSql, generateAnswer, GeminiNotConfiguredError } from "@/lib/chatbot/gemini";
 import { runChatbotQuery } from "@/lib/chatbot/db";
 import { getChatbotGlossary } from "@/lib/settings";
@@ -43,6 +44,9 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.useChatbot) return NextResponse.json({ error: "No permission to use the AI Copilot" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   const { question } = parsed.data;
@@ -58,7 +62,7 @@ export async function POST(request: Request) {
     const glossary = await getChatbotGlossary(supabase);
 
     // Pass recent conversation so the model can handle follow-up questions correctly.
-    const { data: recentMessages } = await supabase
+    const { data: recentMessages } = await db
       .from("chatbot_messages")
       .select("question, answer")
       .eq("user_email", user.email)
@@ -88,7 +92,7 @@ export async function POST(request: Request) {
   // Persisted regardless of outcome — the SQL and any error are exactly what you'd need to
   // audit "why did it say that." RLS on this table is permissive like the rest of the schema;
   // the real per-user scoping happens here and in the GET route below.
-  await supabase.from("chatbot_messages").insert({
+  await db.from("chatbot_messages").insert({
     user_email: user.email,
     question,
     generated_sql: sql,
@@ -100,11 +104,14 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const { supabase, user } = await getServerUser();
+  const { user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.useChatbot) return NextResponse.json({ error: "No permission to use the AI Copilot" }, { status: 403 });
 
-  const { data, error } = await supabase
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
+  const { data, error } = await db
     .from("chatbot_messages")
     .select("*")
     .eq("user_email", user.email)
@@ -118,11 +125,14 @@ export async function GET() {
 /** Clears this user's own conversation — lets them start fresh instead of every new topic
  *  dragging in unrelated "recent conversation" context from a much older question. */
 export async function DELETE() {
-  const { supabase, user } = await getServerUser();
+  const { user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.useChatbot) return NextResponse.json({ error: "No permission to use the AI Copilot" }, { status: 403 });
 
-  const { error } = await supabase.from("chatbot_messages").delete().eq("user_email", user.email);
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
+  const { error } = await db.from("chatbot_messages").delete().eq("user_email", user.email);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ cleared: true });
 }

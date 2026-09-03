@@ -17,7 +17,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   // check above is what authorises this; logAction keeps using the caller's own session so
   // the audit trail still names the real actor.
   const db = createServiceClient();
-  if (!db) return NextResponse.json({ error: "Server is not configured (missing service role key)" }, { status: 501 });
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
 
   const { error } = await db.from("employee_advances").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

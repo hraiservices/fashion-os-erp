@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { mapOrderRow } from "@/lib/types";
 import { STAGES, STAGE_META, fmtNow, deliveryBonusPoints, computeEarnPoints, loyaltyDiscountOf, couponDiscountOf, getNextStage, type Stage } from "@/lib/business-rules";
 import { logAction, sendAdminNotification } from "@/lib/logging";
@@ -15,11 +16,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.changeStage) return NextResponse.json({ error: "No permission to change order stage" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: "Invalid stage" }, { status: 400 });
   const target = parsed.data.stage;
 
-  const { data: row, error: fetchError } = await supabase.from("orders").select("*").eq("id", id).maybeSingle();
+  const { data: row, error: fetchError } = await db.from("orders").select("*").eq("id", id).maybeSingle();
   if (fetchError || !row) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
   const order = mapOrderRow(row);
@@ -55,7 +59,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const historyLine = `${nextMeta.emoji} ${nextMeta.label} — ${fmtNow()} by ${userName}`;
 
   // C2: optimistic-lock on current status prevents skipping stages under concurrency.
-  const { data: updatedRows, error: updateError } = await supabase.rpc("set_order_stage", {
+  const { data: updatedRows, error: updateError } = await db.rpc("set_order_stage", {
     p_order_id:        id,
     p_new_status:      target,
     p_history_line:    historyLine,
@@ -85,14 +89,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const loyaltyCfg = await getLoyaltyConfig(supabase);
     if (loyaltyCfg.enabled) {
       if (target === "delivered") {
-        await awardLoyaltyPoints(supabase, order.mobile, order.name, deliveryBonusPoints(loyaltyCfg), "delivery", id, "Order delivered");
+        await awardLoyaltyPoints(db, order.mobile, order.name, deliveryBonusPoints(loyaltyCfg), "delivery", id, "Order delivered");
       }
       if (target === "payment" && order.balance === 0) {
         // H5: earn on net total (total - any loyalty/coupon discount already applied to this order).
         const netTotal = Math.max(0, order.total - loyaltyDiscountOf(order) - couponDiscountOf(order));
         const earnPts = computeEarnPoints(netTotal, loyaltyCfg);
         if (earnPts > 0) {
-          await awardLoyaltyPoints(supabase, order.mobile, order.name, earnPts, "earn", id, `Full payment received ₹${order.total}`);
+          await awardLoyaltyPoints(db, order.mobile, order.name, earnPts, "earn", id, `Full payment received ₹${order.total}`);
         }
       }
     }

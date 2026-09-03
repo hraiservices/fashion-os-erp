@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 
 /**
@@ -14,13 +15,16 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.managePurchases) return NextResponse.json({ error: "No permission to delete bills" }, { status: 403 });
 
-  const { data: bill } = await supabase
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
+  const { data: bill } = await db
     .from("purchase_bills")
     .select("bill_number")
     .eq("id", id)
     .maybeSingle();
 
-  const { data: payments } = await supabase
+  const { data: payments } = await db
     .from("vendor_payments")
     .select("id")
     .eq("bill_id", id)
@@ -33,7 +37,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     );
   }
 
-  const { data: credits } = await supabase
+  const { data: credits } = await db
     .from("vendor_credits")
     .select("id")
     .eq("bill_id", id)
@@ -46,9 +50,9 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     );
   }
 
-  await supabase.from("inventory_ledger").delete().eq("ref_type", "purchase").eq("ref_id", id);
+  await db.from("inventory_ledger").delete().eq("ref_type", "purchase").eq("ref_id", id);
 
-  const { error } = await supabase.from("purchase_bills").delete().eq("id", id);
+  const { error } = await db.from("purchase_bills").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await logAction(supabase, user.email, `Bill deleted: ${bill?.bill_number ?? id}`);

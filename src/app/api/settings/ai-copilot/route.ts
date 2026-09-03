@@ -17,7 +17,7 @@ export async function GET() {
   if (user.role !== "admin") return NextResponse.json({ error: "Admin only" }, { status: 403 });
 
   const serviceClient = createServiceClient();
-  if (!serviceClient) return NextResponse.json({ error: "Server is not configured (missing service role key)" }, { status: 501 });
+  if (!serviceClient) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
 
   const { data } = await serviceClient.from("app_settings").select("value").eq("key", "geminiApiKeyConfig").maybeSingle();
   const config = data?.value as { apiKey?: string } | null;
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
 
   const serviceClient = createServiceClient();
-  if (!serviceClient) return NextResponse.json({ error: "Server is not configured (missing service role key)" }, { status: 501 });
+  if (!serviceClient) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
 
   const { error } = await serviceClient.from("app_settings").upsert({ key: "geminiApiKeyConfig", value: parsed.data });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

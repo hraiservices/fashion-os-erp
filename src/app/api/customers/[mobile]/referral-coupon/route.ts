@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { mapReferralCouponRow } from "@/lib/types";
 import { REFERRAL_COUPON_DISCOUNT, REFERRAL_COUPON_VALIDITY_DAYS } from "@/lib/business-rules";
 import { logAction } from "@/lib/logging";
@@ -19,7 +20,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ mo
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageCustomers) return NextResponse.json({ error: "No permission to manage customers" }, { status: 403 });
 
-  const { data: customer } = await supabase.from("customers").select("name, mobile").eq("mobile", mobile).maybeSingle();
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
+  const { data: customer } = await db.from("customers").select("name, mobile").eq("mobile", mobile).maybeSingle();
   if (!customer) return NextResponse.json({ error: "Customer not found" }, { status: 404 });
 
   const expiresAt = new Date(Date.now() + REFERRAL_COUPON_VALIDITY_DAYS * 86400000).toISOString();
@@ -27,7 +31,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ mo
   // Retry a handful of times on the rare unique-constraint collision rather than failing outright.
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = randomCode();
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("referral_coupons")
       .insert({
         code,

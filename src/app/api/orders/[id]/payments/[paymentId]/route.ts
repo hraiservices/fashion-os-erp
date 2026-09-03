@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { fmtNow, couponDiscountOf, REFERRAL_BONUS_POINTS } from "@/lib/business-rules";
 import { logAction } from "@/lib/logging";
 import { mapOrderRow } from "@/lib/types";
@@ -17,19 +18,22 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.managePayments) return NextResponse.json({ error: "No permission to delete payments" }, { status: 403 });
 
-  const { data: payment } = await supabase
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
+  const { data: payment } = await db
     .from("order_payments")
     .select("amount, pt_discount, pts_redeemed, order_id")
     .eq("id", paymentId)
     .maybeSingle();
   if (!payment || payment.order_id !== id) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
 
-  const { data: orderRow } = await supabase.from("orders").select("mobile, name, history, balance").eq("id", id).maybeSingle();
+  const { data: orderRow } = await db.from("orders").select("mobile, name, history, balance").eq("id", id).maybeSingle();
   const wasFullyPaid = orderRow?.balance === 0;
 
   const historyLine = `↩️ Payment reversed: ₹${payment.amount}${payment.pt_discount > 0 ? ` + ₹${payment.pt_discount} pts` : ""} — ${fmtNow()} by ${user.email}`;
 
-  const { data: updatedRows, error } = await supabase.rpc("delete_order_payment", {
+  const { data: updatedRows, error } = await db.rpc("delete_order_payment", {
     p_payment_id: paymentId,
     p_history_line: historyLine,
   });
@@ -38,7 +42,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   // Refund the exact points redeemed as part of this payment, if any — same compensating-action
   // pattern already used when a payment insert itself fails (payment/route.ts).
   if (payment.pts_redeemed > 0 && orderRow?.mobile) {
-    await supabase.rpc("refund_loyalty_discount", {
+    await db.rpc("refund_loyalty_discount", {
       p_mobile: orderRow.mobile,
       p_pts: payment.pts_redeemed,
       p_order_id: id,
@@ -56,12 +60,12 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const nowUnpaid = (updatedRows[0].balance ?? 0) > 0;
   if (wasFullyPaid && nowUnpaid && orderRow?.mobile) {
     const custId = `CUST-${orderRow.mobile}`;
-    const { data: custRow } = await supabase.from("customers").select("name, loyalty_history").eq("id", custId).maybeSingle();
+    const { data: custRow } = await db.from("customers").select("name, loyalty_history").eq("id", custId).maybeSingle();
     const history = (custRow?.loyalty_history as Array<{ type: string; orderId: string | null; pts: number; note?: string }> | null) || [];
     const earnEntry = history.find((h) => h.type === "earn" && h.orderId === id);
     const alreadyReversed = history.some((h) => h.type === "manual" && h.orderId === id && (h.note || "").includes("Full payment reversed"));
     if (earnEntry && earnEntry.pts > 0 && !alreadyReversed) {
-      await awardLoyaltyPoints(supabase, orderRow.mobile, custRow?.name || orderRow.name, -earnEntry.pts, "manual", id, "Full payment reversed — earned points clawed back");
+      await awardLoyaltyPoints(db, orderRow.mobile, custRow?.name || orderRow.name, -earnEntry.pts, "manual", id, "Full payment reversed — earned points clawed back");
     }
   }
 
@@ -71,14 +75,14 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   // guess. Only safe to do once this deletion empties the order's entire payment ledger, which
   // mirrors what full order deletion already does for the same coupon (orders/[id]/route.ts).
   try {
-    const { count: remaining } = await supabase.from("order_payments").select("id", { count: "exact", head: true }).eq("order_id", id);
+    const { count: remaining } = await db.from("order_payments").select("id", { count: "exact", head: true }).eq("order_id", id);
     if ((remaining || 0) === 0) {
       const couponAmount = couponDiscountOf({ history: Array.isArray(orderRow?.history) ? (orderRow.history as string[]) : [] });
       if (couponAmount > 0) {
-        const { data: couponRow } = await supabase.from("referral_coupons").select("code, referrer_mobile, referrer_name").eq("redeemed_order_id", id).maybeSingle();
+        const { data: couponRow } = await db.from("referral_coupons").select("code, referrer_mobile, referrer_name").eq("redeemed_order_id", id).maybeSingle();
         if (couponRow) {
-          await supabase.rpc("release_referral_coupon", { p_code: couponRow.code });
-          await awardLoyaltyPoints(supabase, couponRow.referrer_mobile, couponRow.referrer_name, -REFERRAL_BONUS_POINTS, "manual", id, `Referral bonus reversed — last payment on order ${id} deleted`);
+          await db.rpc("release_referral_coupon", { p_code: couponRow.code });
+          await awardLoyaltyPoints(db, couponRow.referrer_mobile, couponRow.referrer_name, -REFERRAL_BONUS_POINTS, "manual", id, `Referral bonus reversed — last payment on order ${id} deleted`);
         }
       }
     }

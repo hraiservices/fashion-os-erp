@@ -23,7 +23,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // check above is what authorises this; logAction keeps using the caller's own session so
   // the audit trail still names the real actor.
   const db = createServiceClient();
-  if (!db) return NextResponse.json({ error: "Server is not configured (missing service role key)" }, { status: 501 });
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });

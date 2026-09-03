@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 
 /**
  * Delete a customer and their order history.
  *
  * Previously this ran entirely client-side as
- *   supabase.from("orders").delete().eq("mobile", mobile)
+ *   db.from("orders").delete().eq("mobile", mobile)
  * with no server-side authorization at all — any authenticated user could wipe every
  * order belonging to a customer, including delivered and fully-paid ones, bypassing both
  * the deleteCustomers permission and the paid/delivered guard on the per-order delete.
@@ -17,9 +18,12 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.deleteCustomers) return NextResponse.json({ error: "No permission to delete customers" }, { status: 403 });
 
-  const { data: cust } = await supabase.from("customers").select("name").eq("id", `CUST-${mobile}`).maybeSingle();
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
 
-  const { data: deletedCount, error } = await supabase.rpc("delete_customer_cascade", { p_mobile: mobile });
+  const { data: cust } = await db.from("customers").select("name").eq("id", `CUST-${mobile}`).maybeSingle();
+
+  const { data: deletedCount, error } = await db.rpc("delete_customer_cascade", { p_mobile: mobile });
 
   if (error) {
     if (error.message?.includes("HAS_SETTLED_ORDERS")) {

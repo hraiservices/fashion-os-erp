@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { mapOrderRow } from "@/lib/types";
 import { STAGE_META, getNextStage, fmtNow, deliveryBonusPoints } from "@/lib/business-rules";
 import { logAction, sendAdminNotification } from "@/lib/logging";
@@ -15,7 +16,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.changeStage) return NextResponse.json({ error: "No permission to change order stage" }, { status: 403 });
 
-  const { data: row, error: fetchError } = await supabase.from("orders").select("*").eq("id", id).maybeSingle();
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
+  const { data: row, error: fetchError } = await db.from("orders").select("*").eq("id", id).maybeSingle();
   if (fetchError || !row) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
   const order = mapOrderRow(row);
@@ -32,7 +36,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   // C2: pass p_expected_status so a concurrent advance on the same order returns 0 rows
   // (both read "cutting", both try to advance to "stitching"; second one is a no-op).
-  const { data: updatedRows, error: updateError } = await supabase.rpc("set_order_stage", {
+  const { data: updatedRows, error: updateError } = await db.rpc("set_order_stage", {
     p_order_id:        id,
     p_new_status:      next,
     p_history_line:    historyLine,
@@ -63,7 +67,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     try {
       const loyaltyCfg = await getLoyaltyConfig(supabase);
       if (loyaltyCfg.enabled) {
-        await awardLoyaltyPoints(supabase, order.mobile, order.name, deliveryBonusPoints(loyaltyCfg), "delivery", id, "Order delivered");
+        await awardLoyaltyPoints(db, order.mobile, order.name, deliveryBonusPoints(loyaltyCfg), "delivery", id, "Order delivered");
       }
     } catch (loyaltyErr) {
       await logAction(supabase, user.email, `⚠️ Delivery bonus failed for ${id} — manual correction needed`, id, String(loyaltyErr));
@@ -77,8 +81,8 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (next === "ready") {
     try {
       const [{ data: cloudApiSetting }, { data: customerRow }] = await Promise.all([
-        supabase.from("app_settings").select("value").eq("key", "whatsappCloudApiConfig").maybeSingle(),
-        supabase.from("customers").select("whatsapp_opt_out").eq("mobile", order.mobile).maybeSingle(),
+        db.from("app_settings").select("value").eq("key", "whatsappCloudApiConfig").maybeSingle(),
+        db.from("customers").select("whatsapp_opt_out").eq("mobile", order.mobile).maybeSingle(),
       ]);
       const cloudApi = cloudApiSetting?.value as WhatsAppCloudApiConfig | null;
       const updated = mapOrderRow(updatedRow);

@@ -86,10 +86,9 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
     { href: "/crm/new", label: "New Customer", icon: UserPlus, show: user?.perms.manageCustomers || user?.role === "admin" || user?.role === "manager" },
   ].filter((o) => o.show);
 
-  // Split tabs around the centre FAB so it sits in the middle of the bar.
-  const mid = Math.ceil(tabs.length / 2);
-  const left = tabs.slice(0, mid);
-  const right = tabs.slice(mid);
+  // Nav tabs (Home/Orders/Board/Clients) sit left of the centre "+" FAB; Support and Copilot
+  // sit right of it — a fixed grouping rather than an even left/right split, so navigation and
+  // the two utility actions don't get shuffled around each other as tabs are added/removed.
 
   function TabLink({ href, label, icon: Icon }: (typeof MOBILE_TABS)[number]) {
     const [hrefPath, hrefQuery] = href.split("?");
@@ -120,7 +119,7 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
       aria-label="Primary"
       className="fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
     >
-      {left.map(TabLink)}
+      {tabs.map(TabLink)}
       {canAdd && (
         <button
           type="button"
@@ -134,8 +133,6 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
           <Plus className="size-6" />
         </button>
       )}
-      {right.map(TabLink)}
-
       {/* WhatsApp support + AI Copilot live here instead of floating over page content — see
           CopilotBubble, whose own FAB stack is now desktop (lg+) only. */}
       <a

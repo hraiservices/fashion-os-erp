@@ -10,6 +10,7 @@ import { OfflineBanner } from "@/components/app-shell/offline-banner";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { RESTRICTED_FALLBACK_ROUTE, isRestrictedRoute } from "@/lib/permissions";
 import { CopilotBubble } from "@/components/app-shell/copilot-bubble";
+import { CopilotOpenProvider } from "@/components/app-shell/copilot-context";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: user } = useCurrentUser();
@@ -38,10 +39,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* pb-24 on mobile keeps content clear of the fixed bottom tab bar. */}
         <main className="flex-1 pb-24 lg:pb-0 print:pb-0">{children}</main>
       </div>
-      <div className="print:hidden">
-        <MobileTabBar />
-      </div>
-      <CopilotBubble />
+      <CopilotOpenProvider>
+        <div className="print:hidden">
+          <MobileTabBar />
+        </div>
+        <CopilotBubble />
+      </CopilotOpenProvider>
     </div>
   );
 }

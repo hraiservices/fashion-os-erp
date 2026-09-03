@@ -3,12 +3,18 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Menu, Plus, ClipboardList, Receipt, Wallet, UserPlus } from "lucide-react";
+import { Menu, Plus, ClipboardList, Receipt, Wallet, UserPlus, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MOBILE_TABS } from "@/components/app-shell/nav-config";
 import { NavContent, NavBrand } from "@/components/app-shell/nav-content";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
+import { useShopSettings } from "@/hooks/use-shop-settings";
+import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
+import { isModuleEnabled, DEFAULT_ENTITLEMENTS } from "@/lib/entitlements";
+import { buildSupportWhatsAppHref } from "@/components/app-shell/copilot-bubble";
+import { useCopilotOpen } from "@/components/app-shell/copilot-context";
+import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { hapticTap } from "@/lib/haptics";
 import { Sheet, SheetContent, SheetTitle, SheetHeader } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -63,10 +69,15 @@ function MobileTabBarWithSearchParams() {
 function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof useSearchParams> | null }) {
   const pathname = usePathname();
   const { data: user } = useCurrentUser();
+  const { data: shop } = useShopSettings();
+  const { data: entitlements } = useModuleEntitlements();
+  const { open: copilotOpen, setOpen: setCopilotOpen } = useCopilotOpen();
   const [createOpen, setCreateOpen] = useState(false);
   const restricted = !!user?.restricted;
   const tabs = MOBILE_TABS.filter((t) => !(restricted && t.restricted));
   const canAdd = user?.perms.addOrder;
+  const canUseCopilot = !!user?.perms.useChatbot && isModuleEnabled(entitlements ?? DEFAULT_ENTITLEMENTS, "copilot");
+  const supportHref = buildSupportWhatsAppHref(shop?.name);
 
   const createOptions = [
     { href: "/orders/new", label: "New Order", icon: ClipboardList, show: user?.perms.addOrder },
@@ -124,6 +135,37 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
         </button>
       )}
       {right.map(TabLink)}
+
+      {/* WhatsApp support + AI Copilot live here instead of floating over page content — see
+          CopilotBubble, whose own FAB stack is now desktop (lg+) only. */}
+      <a
+        href={supportHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => hapticTap()}
+        className="flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-muted-foreground transition-colors"
+      >
+        <span className="flex items-center justify-center rounded-full px-3 py-0.5">
+          <WhatsAppIcon className="size-5 text-[#25D366]" />
+        </span>
+        Support
+      </a>
+      {canUseCopilot && (
+        <button
+          type="button"
+          onClick={() => {
+            hapticTap();
+            setCopilotOpen((o) => !o);
+          }}
+          aria-pressed={copilotOpen}
+          className={cn("flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors", copilotOpen ? "text-primary" : "text-muted-foreground")}
+        >
+          <span className={cn("flex items-center justify-center rounded-full px-3 py-0.5 transition-colors", copilotOpen && "bg-primary/10")}>
+            {copilotOpen ? <X className="size-5" /> : <Sparkles className={cn("size-5 transition-transform", copilotOpen && "scale-110")} />}
+          </span>
+          Copilot
+        </button>
+      )}
 
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
         <SheetContent side="bottom" className="rounded-t-2xl">

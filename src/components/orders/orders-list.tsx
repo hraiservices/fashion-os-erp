@@ -35,10 +35,8 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
 
   return (
     <div className="space-y-2.5">
-      {/* Mobile cards. pr-14: the CopilotBubble FAB stack is fixed near the bottom-right of the
-          viewport — without this clearance, whichever card scrolls into that band has its
-          WhatsApp/delete buttons visually and functionally covered by the FAB. */}
-      <div className="pr-14 md:hidden space-y-2.5">
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-2.5">
         {orders.map((o) => (
           <OrderCardRow
             key={o.id}

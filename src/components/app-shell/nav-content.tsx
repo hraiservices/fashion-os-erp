@@ -93,6 +93,7 @@ function GroupNav({
   group,
   childrenOverride,
   pathname,
+  searchParams,
   filterLeaf,
   onNavigate,
 }: {
@@ -100,6 +101,7 @@ function GroupNav({
   /** Resolved (reordered/re-grouped/hidden) children from the admin nav layout — falls back to the group's static default list. */
   childrenOverride?: NavLeaf[];
   pathname: string;
+  searchParams: URLSearchParams;
   filterLeaf?: (href: string) => boolean;
   onNavigate?: () => void;
 }) {
@@ -171,7 +173,10 @@ function GroupNav({
                 )}
                 {sectionOpen &&
                   section.items.map((leaf) => {
-                    const active = pathname === leaf.href;
+                    const [leafPath, leafQuery] = leaf.href.split("?");
+                    // Compare the query too — otherwise a leaf whose href carries one (e.g.
+                    // "/orders?view=list") never matches, since `pathname` never includes it.
+                    const active = pathname === leafPath && (leafQuery ?? "") === searchParams.toString();
                     return (
                       <div key={leaf.href} className="flex items-center gap-0.5">
                         <Link
@@ -291,6 +296,7 @@ function NavContentInner({ onNavigate }: { onNavigate?: () => void }) {
             group={node.group}
             childrenOverride={node.children}
             pathname={pathname}
+            searchParams={searchParams}
             filterLeaf={
               node.group.id === "settings"
                 ? (href) => settingsLeafVisible(href, isAdmin, canManageShop, isSuperAdmin) && (isSuperAdmin || isSettingEnabled(entitlements!, href))

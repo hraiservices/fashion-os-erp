@@ -64,7 +64,7 @@ export const ORDERS_GROUP: NavGroup = {
   label: "Stitching Orders",
   icon: Receipt,
   children: [
-    { href: "/orders", label: "All Orders", newHref: "/orders/new" },
+    { href: "/orders?view=list", label: "All Orders", newHref: "/orders/new" },
     { href: "/orders/measurements", label: "Search Measurement" },
     { href: "/settings/rates", label: "Rate Card" },
     { href: "/settings/measurements", label: "Measurements" },
@@ -294,7 +294,7 @@ export function settingsLeafVisible(href: string, isAdmin: boolean, canManageSho
 /** Bottom tab bar on mobile. Deliberately 5 items max, thumb-reachable. */
 export const MOBILE_TABS: NavFlatItem[] = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard, restricted: true },
-  { href: "/orders", label: "Orders", icon: Receipt },
+  { href: "/orders?view=list", label: "Orders", icon: Receipt },
   { href: "/orders?view=board", label: "Board", icon: KanbanSquare },
   { href: "/crm", label: "Clients", icon: Users, restricted: true },
 ];

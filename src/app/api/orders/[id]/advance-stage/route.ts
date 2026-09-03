@@ -48,7 +48,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const updatedRow = updatedRows?.[0];
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
   // 0 rows = another concurrent request already advanced the stage — treat as conflict.
-  if (!updatedRow) return NextResponse.json({ error: "Stage was already changed by another request. Please refresh." }, { status: 409 });
+  if (!updatedRow) return NextResponse.json({ error: "Someone else already updated this order — its card has been refreshed." }, { status: 409 });
 
   // order.tailor is now an employee id, not a name — dropped from this detail string (was
   // showing a raw UUID); the order's own detail page already shows the tailor's name.

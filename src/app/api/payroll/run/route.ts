@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 import { computeGrossPay, countAttendance } from "@/lib/payroll";
 import { mapEmployeeRow, mapAttendanceRow, type Order, type WorkOrder } from "@/lib/types";
@@ -54,8 +55,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Period start must be before period end" }, { status: 400 });
   }
 
+  // Every table this run touches (employees, employee_attendance, employee_advances,
+  // payroll_runs, payslips) is now write-locked for `authenticated`, and employees' salary
+  // columns are only reachable with a service-role SELECT — see lockdown_hr_payroll_writes.sql
+  // and lockdown_pin_hash_columns.sql. The managePayroll check above is what authorises all of
+  // it; `supabase` (the caller's own session) is kept only for the audit-log write, so the
+  // action is still attributed to the real actor rather than to the service role.
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured to run payroll (missing service role key)" }, { status: 501 });
+
   // C-4 preflight: friendly error before hitting the DB UNIQUE constraint.
-  const { data: existing } = await supabase
+  const { data: existing } = await db
     .from("payroll_runs")
     .select("id")
     .eq("period_start", periodStart)
@@ -66,7 +76,7 @@ export async function POST(request: Request) {
   }
 
   // Create the run header.
-  const { data: runRow, error: runError } = await supabase
+  const { data: runRow, error: runError } = await db
     .from("payroll_runs")
     .insert({ period_start: periodStart, period_end: periodEnd, created_by: user.email, status: "draft" })
     .select()
@@ -77,7 +87,7 @@ export async function POST(request: Request) {
   let employeeCount = 0;
 
   try {
-    const { data: employeeRows, error: empError } = await supabase
+    const { data: employeeRows, error: empError } = await db
       .from("employees")
       .select("*")
       .eq("active", true);
@@ -87,7 +97,7 @@ export async function POST(request: Request) {
 
     // Flat rupees-per-hour OT rate (per the "flat OT rate" decision, not a multiplier of each
     // employee's own rate) — one shop-wide setting, read once for the whole run.
-    const { data: attSettingRow } = await supabase.from("app_settings").select("value").eq("key", "attendanceSettings").maybeSingle();
+    const { data: attSettingRow } = await db.from("app_settings").select("value").eq("key", "attendanceSettings").maybeSingle();
     const attendanceSettings: AttendanceSettings = { ...DEFAULT_ATTENDANCE_SETTINGS, ...((attSettingRow?.value as Partial<AttendanceSettings>) || {}) };
 
     // Compute all payslips in memory first so the batch insert is all-or-nothing.
@@ -123,13 +133,13 @@ export async function POST(request: Request) {
     // marked paid can ever be summed again, however the chosen period overlaps a prior run.
     const periodEndOfDay = `${periodEnd}T23:59:59.999+05:30`;
     const [{ data: allAttRows }, { data: allAdvanceRows }, { data: confirmedOrderRows }, { data: confirmedWoRows }] = await Promise.all([
-      supabase.from("employee_attendance").select("*").in("employee_id", employeeIds).gte("date", periodStart).lte("date", periodEnd),
-      supabase.from("employee_advances").select("*").in("employee_id", employeeIds).is("payslip_id", null).lte("date", periodEnd).order("date", { ascending: true }),
+      db.from("employee_attendance").select("*").in("employee_id", employeeIds).gte("date", periodStart).lte("date", periodEnd),
+      db.from("employee_advances").select("*").in("employee_id", employeeIds).is("payslip_id", null).lte("date", periodEnd).order("date", { ascending: true }),
       hasPieceRateEmployees
-        ? supabase.from("orders").select("id, garments").not("payables_confirmed_at", "is", null).is("piece_rate_paid_at", null).lte("ready_at", periodEndOfDay)
+        ? db.from("orders").select("id, garments").not("payables_confirmed_at", "is", null).is("piece_rate_paid_at", null).lte("ready_at", periodEndOfDay)
         : Promise.resolve({ data: [] as { id: string; garments: unknown }[] }),
       hasPieceRateEmployees
-        ? supabase.from("work_orders").select("id, tailor, labor_cost").not("labor_payable_confirmed_at", "is", null).is("piece_rate_paid_at", null).lte("completed_at", periodEndOfDay)
+        ? db.from("work_orders").select("id, tailor, labor_cost").not("labor_payable_confirmed_at", "is", null).is("piece_rate_paid_at", null).lte("completed_at", periodEndOfDay)
         : Promise.resolve({ data: [] as { id: string; tailor: string; labor_cost: number | null }[] }),
     ]);
     const confirmedOrders = (confirmedOrderRows || []) as (Pick<Order, "garments"> & { id: string })[];
@@ -223,7 +233,7 @@ export async function POST(request: Request) {
     }
 
     // Batch insert all payslips — either all succeed or we clean up and fail.
-    const { data: insertedPayslips, error: payslipError } = await supabase
+    const { data: insertedPayslips, error: payslipError } = await db
       .from("payslips")
       .insert(payslipRows)
       .select("id, employee_id");
@@ -233,7 +243,7 @@ export async function POST(request: Request) {
     for (const ps of insertedPayslips || []) {
       const ids = advanceLinkMap.get(ps.employee_id) || [];
       if (ids.length > 0) {
-        await supabase.from("employee_advances").update({ payslip_id: ps.id }).in("id", ids);
+        await db.from("employee_advances").update({ payslip_id: ps.id }).in("id", ids);
       }
     }
 
@@ -249,14 +259,14 @@ export async function POST(request: Request) {
     const paidWoIds = confirmedWorkOrders.filter((w) => w.tailor && paidEmployeeIds.has(w.tailor)).map((w) => w.id);
     const nowIso = new Date().toISOString();
     if (paidOrderIds.length > 0) {
-      await supabase.from("orders").update({ piece_rate_paid_at: nowIso }).in("id", paidOrderIds);
+      await db.from("orders").update({ piece_rate_paid_at: nowIso }).in("id", paidOrderIds);
     }
     if (paidWoIds.length > 0) {
-      await supabase.from("work_orders").update({ piece_rate_paid_at: nowIso }).in("id", paidWoIds);
+      await db.from("work_orders").update({ piece_rate_paid_at: nowIso }).in("id", paidWoIds);
     }
   } catch (err) {
     // Clean up the run header so the admin gets a clean slate.
-    await supabase.from("payroll_runs").delete().eq("id", runId);
+    await db.from("payroll_runs").delete().eq("id", runId);
     return NextResponse.json({ error: err instanceof Error ? err.message : "Payroll run failed" }, { status: 500 });
   }
 

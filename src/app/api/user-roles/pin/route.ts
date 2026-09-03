@@ -13,14 +13,19 @@ const bodySchema = z.object({
 /** Tells the Users & Roles UI whether a PIN is currently set, without ever exposing the hash —
  *  same reasoning and shape as GET /api/employees/[id]/set-pin. */
 export async function GET(request: Request) {
-  const { supabase, user } = await getServerUser();
+  const { user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageUsers) return NextResponse.json({ error: "No permission to manage users" }, { status: 403 });
 
   const email = new URL(request.url).searchParams.get("email");
   if (!email) return NextResponse.json({ error: "email is required" }, { status: 400 });
 
-  const { data: row } = await supabase.from("user_roles").select("pin_hash").eq("email", email).maybeSingle();
+  // Service-role client: `authenticated` no longer holds SELECT on pin_hash at all — see
+  // lockdown_pin_hash_columns.sql. Only the boolean ever leaves this route.
+  const serviceClient = createServiceClient();
+  if (!serviceClient) return NextResponse.json({ error: "Server is not configured to manage users (missing service role key)" }, { status: 501 });
+
+  const { data: row } = await serviceClient.from("user_roles").select("pin_hash").eq("email", email).maybeSingle();
   return NextResponse.json({ hasPin: !!row?.pin_hash });
 }
 

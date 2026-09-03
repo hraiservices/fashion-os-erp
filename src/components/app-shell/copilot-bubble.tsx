@@ -9,12 +9,19 @@ import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { isModuleEnabled, DEFAULT_ENTITLEMENTS } from "@/lib/entitlements";
 import { useChatbotHistory, useAskChatbot, useClearChatbotHistory } from "@/hooks/use-chatbot";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useCopilotOpen } from "@/components/app-shell/copilot-context";
 import { hapticTap } from "@/lib/haptics";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
-const WA_SUPPORT = "919897504343";
+/** Also used by MobileTabBar to build the same support link for its "Support" tab. */
+export const WA_SUPPORT = "919897504343";
+
+export function buildSupportWhatsAppHref(shopName?: string): string {
+  const text = encodeURIComponent(`Hi, I need support with ${shopName || "Fashion Flow"}`);
+  return `https://wa.me/${WA_SUPPORT}?text=${text}`;
+}
 
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
@@ -91,7 +98,7 @@ export function CopilotBubble() {
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const micSupported = useMicSupport();
 
-  const [open, setOpen] = useState(false);
+  const { open, setOpen } = useCopilotOpen();
   const [question, setQuestion] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
   const [lastFailedQuestion, setLastFailedQuestion] = useState<string | null>(null);
@@ -105,9 +112,7 @@ export function CopilotBubble() {
 
   const canUse = !!user?.perms.useChatbot && isModuleEnabled(entitlements ?? DEFAULT_ENTITLEMENTS, "copilot");
 
-  const shopName = shop?.name || "Fashion Flow";
-  const waText = encodeURIComponent(`Hi, I need support with ${shopName}`);
-  const waHref = `https://wa.me/${WA_SUPPORT}?text=${waText}`;
+  const waHref = buildSupportWhatsAppHref(shop?.name);
 
   useEffect(() => {
     if (open) {
@@ -390,8 +395,9 @@ export function CopilotBubble() {
         </Sheet>
       )}
 
-      {/* ── FAB buttons ── */}
-      <div className="flex flex-col items-end gap-2">
+      {/* ── FAB buttons — desktop only; on mobile these live in the bottom tab bar instead
+          (MobileTabBar), so the floating circles don't sit on top of page content. ── */}
+      <div className="hidden flex-col items-end gap-2 lg:flex">
         {/* WhatsApp support */}
         <a
           href={waHref}

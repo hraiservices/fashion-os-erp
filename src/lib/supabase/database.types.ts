@@ -923,6 +923,7 @@ export interface Database {
           status: string;
           paid_at: string | null;
           notes: string;
+          adjustment_amount: number;
         };
         Insert: Partial<Database["public"]["Tables"]["payslips"]["Row"]> & {
           payroll_run_id: string;

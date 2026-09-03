@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { mapPayrollRunRow, mapPayslipRow, mapEmployeeAdvanceRow } from "@/lib/types";
+import { mapPayrollRunRow, mapPayslipRow, mapEmployeeAdvanceRow, type Payslip, type PayrollRun } from "@/lib/types";
 
 async function fetchPayrollRuns() {
   const supabase = createClient();
@@ -77,5 +77,22 @@ export function useAdvancesForEmployee(employeeId: string) {
     queryKey: ["employee-advances", employeeId],
     queryFn: () => fetchAdvancesForEmployee(employeeId),
     enabled: !!employeeId,
+  });
+}
+
+async function fetchMyPayslips(): Promise<{ payslips: Payslip[]; runs: PayrollRun[] }> {
+  const res = await fetch("/api/payroll/my-payslips");
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to load payslips");
+  return data;
+}
+
+/** The logged-in staff member's own payslips (scoped server-side to their linked employee
+ *  record) — for the "My Payslips" self-service page, not payroll administration. */
+export function useMyPayslips() {
+  return useQuery({
+    queryKey: ["payslips", "mine"],
+    queryFn: fetchMyPayslips,
+    staleTime: 15_000,
   });
 }

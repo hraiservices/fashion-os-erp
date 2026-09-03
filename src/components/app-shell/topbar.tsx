@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -63,6 +63,11 @@ export function Topbar() {
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
+            {!!user?.employeeId && (
+              <DropdownMenuItem onClick={() => router.push("/employees/my-payslips")}>
+                <Wallet className="size-4" /> My Payslips
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={() => router.push("/settings/personalize")}>
               <User className="size-4" /> Account
             </DropdownMenuItem>

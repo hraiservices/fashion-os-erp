@@ -11,6 +11,9 @@ export interface CurrentUser {
   restricted: boolean;
   /** Platform owner, identified by a fixed env-var email — governs module licensing, not per-shop roles/permissions. */
   isSuperAdmin: boolean;
+  /** The employees row this login is linked to (user_roles.linked_employee_id), if any — lets
+   *  the UI show "your own" employee data (e.g. My Payslips) without the managePayroll permission. */
+  employeeId: string | null;
 }
 
 function checkSuperAdmin(email: string): boolean {
@@ -26,14 +29,21 @@ async function fetchCurrentUser(): Promise<CurrentUser | null> {
   if (!user?.email) return null;
 
   const [{ data: roleRow }, { data: overridesRow }] = await Promise.all([
-    supabase.from("user_roles").select("role, custom_permissions").eq("email", user.email).maybeSingle(),
+    supabase.from("user_roles").select("role, custom_permissions, linked_employee_id").eq("email", user.email).maybeSingle(),
     supabase.from("app_settings").select("value").eq("key", "roleDefaultOverrides").maybeSingle(),
   ]);
 
   const role = roleRow?.role || "tailor";
   const perms = resolvePerms(role, roleRow?.custom_permissions as Partial<Permissions> | null, overridesRow?.value as RoleDefaultOverrides | null);
 
-  return { email: user.email, role, perms, restricted: isRestrictedRole(role), isSuperAdmin: checkSuperAdmin(user.email) };
+  return {
+    email: user.email,
+    role,
+    perms,
+    restricted: isRestrictedRole(role),
+    isSuperAdmin: checkSuperAdmin(user.email),
+    employeeId: roleRow?.linked_employee_id ?? null,
+  };
 }
 
 export function useCurrentUser() {

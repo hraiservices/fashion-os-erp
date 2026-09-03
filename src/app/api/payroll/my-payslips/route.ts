@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { mapPayslipRow, mapPayrollRunRow } from "@/lib/types";
 
 /**
@@ -8,16 +9,24 @@ import { mapPayslipRow, mapPayrollRunRow } from "@/lib/types";
  * login with no linked employee record (most admin/manager accounts) just gets an empty list.
  */
 export async function GET() {
-  const { supabase, user } = await getServerUser();
+  const { user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.employeeId) return NextResponse.json({ payslips: [], runs: [] });
 
-  const { data: payslipRows, error: payslipError } = await supabase.from("payslips").select("*").eq("employee_id", user.employeeId);
+  // Service-role client, even though this is the caller's own data: payslips is readable to a
+  // linked employee for their own rows (lockdown_reads_per_row.sql), but payroll_runs is gated
+  // on managePayroll outright — and without the run there is no pay period to sort or label a
+  // payslip by. The `.eq("employee_id", user.employeeId)` below, with employeeId taken from the
+  // session rather than the request, is what scopes this to the caller.
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
+  const { data: payslipRows, error: payslipError } = await db.from("payslips").select("*").eq("employee_id", user.employeeId);
   if (payslipError) return NextResponse.json({ error: payslipError.message }, { status: 500 });
 
   const runIds = Array.from(new Set((payslipRows || []).map((r) => r.payroll_run_id)));
   const { data: runRows, error: runError } = runIds.length
-    ? await supabase.from("payroll_runs").select("*").in("id", runIds)
+    ? await db.from("payroll_runs").select("*").in("id", runIds)
     : { data: [], error: null };
   if (runError) return NextResponse.json({ error: runError.message }, { status: 500 });
 

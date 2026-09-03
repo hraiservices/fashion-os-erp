@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 
 /**
@@ -15,7 +16,13 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.managePayroll) return NextResponse.json({ error: "No permission to confirm tailor payables" }, { status: 403 });
 
-  const { data: row, error: fetchError } = await supabase
+  // work_orders is read-scoped for `authenticated` (lockdown_reads_per_row.sql) and managePayroll
+  // is not one of the permissions that opens it, so this lookup has to use the service client.
+  // The managePayroll check above is the authority.
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
+  const { data: row, error: fetchError } = await db
     .from("work_orders")
     .select("id, wo_number, status, labor_payable_confirmed_at")
     .eq("id", id)

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { istDayBoundsUtc } from "@/lib/ist-date";
 import {
   buildSalesInvoiceEntries,
@@ -36,13 +37,22 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
  * invoice/bill list pages would show for the same records.
  */
 export async function GET(request: Request) {
-  const { supabase, user } = await getServerUser();
+  const { user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.viewReports) return NextResponse.json({ error: "No permission to view reports" }, { status: 403 });
 
   const { searchParams } = new URL(request.url);
   const date = searchParams.get("date") || "";
   if (!DATE_RE.test(date)) return NextResponse.json({ error: "Invalid or missing date (expected YYYY-MM-DD)" }, { status: 400 });
+
+  // Every table below is read-scoped for `authenticated` after lockdown_reads_whole_table.sql /
+  // lockdown_reads_per_row.sql, and viewReports is not the permission that opens most of them —
+  // a manager without managePurchases would silently get a Day Book with the purchases half
+  // missing, which is worse than an error because the totals would still add up. The viewReports
+  // check above (and canSeePayroll below) is the authority; the service client makes the reads
+  // complete.
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
 
   const { startUtc, endUtc } = istDayBoundsUtc(date);
   const canSeePayroll = !!user.perms.managePayroll;
@@ -67,29 +77,29 @@ export async function GET(request: Request) {
     vendorsRes,
     completedWorkOrdersRes,
   ] = await Promise.all([
-    supabase.from("sales_invoices").select("id, invoice_number, customer_name, customer_mobile, total, doc_status, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
-    supabase.from("sales_payments").select("id, invoice_id, customer_mobile, amount, method, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
-    supabase.from("sales_credit_notes").select("id, credit_number, invoice_id, total, reason, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
-    supabase.from("expenses").select("id, category, description, amount, pay_method, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
-    supabase.from("purchase_bills").select("id, bill_number, vendor_id, total, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
-    supabase.from("vendor_payments").select("id, bill_id, vendor_id, amount, method, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
-    supabase.from("vendor_credits").select("id, credit_number, vendor_id, bill_id, total, reason, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
-    supabase.from("orders").select("id, name, mobile, total, advance, status, created_at, garments, fabric_cost, other_cost").gte("created_at", startUtc).lt("created_at", endUtc),
-    supabase.from("activity_log").select("id, user_email, user_name, action, order_id, details, created_at").not("order_id", "is", null).gte("created_at", startUtc).lt("created_at", endUtc),
-    supabase.from("order_payments").select("id, order_id, amount, pt_discount, method, note, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
-    supabase.from("customers").select("id, name, mobile, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
+    db.from("sales_invoices").select("id, invoice_number, customer_name, customer_mobile, total, doc_status, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
+    db.from("sales_payments").select("id, invoice_id, customer_mobile, amount, method, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
+    db.from("sales_credit_notes").select("id, credit_number, invoice_id, total, reason, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
+    db.from("expenses").select("id, category, description, amount, pay_method, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
+    db.from("purchase_bills").select("id, bill_number, vendor_id, total, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
+    db.from("vendor_payments").select("id, bill_id, vendor_id, amount, method, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
+    db.from("vendor_credits").select("id, credit_number, vendor_id, bill_id, total, reason, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
+    db.from("orders").select("id, name, mobile, total, advance, status, created_at, garments, fabric_cost, other_cost").gte("created_at", startUtc).lt("created_at", endUtc),
+    db.from("activity_log").select("id, user_email, user_name, action, order_id, details, created_at").not("order_id", "is", null).gte("created_at", startUtc).lt("created_at", endUtc),
+    db.from("order_payments").select("id, order_id, amount, pt_discount, method, note, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
+    db.from("customers").select("id, name, mobile, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
     // Every activity_log row not tied to an order (already covered by orderActivityRes above) —
     // split into customer-update vs. everything-else in JS below, rather than duplicating the
     // same ilike patterns across two separate queries.
-    supabase.from("activity_log").select("id, user_email, user_name, action, order_id, details, created_at").is("order_id", null).gte("created_at", startUtc).lt("created_at", endUtc),
-    supabase.from("employee_attendance").select("id, employee_id, status, check_in_at, check_out_at, hours_worked, overtime_hours, created_by").eq("date", date),
-    supabase.from("leave_requests").select("id, employee_id, from_date, to_date, days, status, requested_by, requested_at, decided_by, decided_at").gte("requested_at", startUtc).lt("requested_at", endUtc),
-    supabase.from("leave_requests").select("id, employee_id, from_date, to_date, days, status, requested_by, requested_at, decided_by, decided_at").gte("decided_at", startUtc).lt("decided_at", endUtc),
-    supabase.from("employees").select("id, name"),
-    supabase.from("vendors").select("id, name"),
+    db.from("activity_log").select("id, user_email, user_name, action, order_id, details, created_at").is("order_id", null).gte("created_at", startUtc).lt("created_at", endUtc),
+    db.from("employee_attendance").select("id, employee_id, status, check_in_at, check_out_at, hours_worked, overtime_hours, created_by").eq("date", date),
+    db.from("leave_requests").select("id, employee_id, from_date, to_date, days, status, requested_by, requested_at, decided_by, decided_at").gte("requested_at", startUtc).lt("requested_at", endUtc),
+    db.from("leave_requests").select("id, employee_id, from_date, to_date, days, status, requested_by, requested_at, decided_by, decided_at").gte("decided_at", startUtc).lt("decided_at", endUtc),
+    db.from("employees").select("id, name"),
+    db.from("vendors").select("id, name"),
     // Mirrors getCombinedMonthly's laborCost — completed work orders' labor cost, bucketed by
     // completedAt, the same date basis Combined P&L uses for this category.
-    supabase.from("work_orders").select("id, labor_cost").eq("status", "completed").gte("completed_at", startUtc).lt("completed_at", endUtc),
+    db.from("work_orders").select("id, labor_cost").eq("status", "completed").gte("completed_at", startUtc).lt("completed_at", endUtc),
   ]);
 
   const firstError = [
@@ -110,8 +120,8 @@ export async function GET(request: Request) {
   let payrollCostForProfit = 0;
   if (canSeePayroll) {
     const [payslipsRes, advancesRes] = await Promise.all([
-      supabase.from("payslips").select("id, employee_id, net_pay, piece_rate_pay, status, paid_at").eq("status", "paid").gte("paid_at", startUtc).lt("paid_at", endUtc),
-      supabase.from("employee_advances").select("id, employee_id, amount, note, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
+      db.from("payslips").select("id, employee_id, net_pay, piece_rate_pay, status, paid_at").eq("status", "paid").gte("paid_at", startUtc).lt("paid_at", endUtc),
+      db.from("employee_advances").select("id, employee_id, amount, note, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
     ]);
     if (payslipsRes.error) return NextResponse.json({ error: payslipsRes.error.message }, { status: 500 });
     if (advancesRes.error) return NextResponse.json({ error: advancesRes.error.message }, { status: 500 });
@@ -131,21 +141,21 @@ export async function GET(request: Request) {
     ...(creditNotesRes.data || []).map((c) => c.invoice_id),
   ]);
   const { data: invoiceLookupRows } = invoiceIds.size
-    ? await supabase.from("sales_invoices").select("id, invoice_number, customer_name").in("id", Array.from(invoiceIds))
+    ? await db.from("sales_invoices").select("id, invoice_number, customer_name").in("id", Array.from(invoiceIds))
     : { data: [] };
   const invoiceByIdMap = new Map((invoiceLookupRows || []).map((i) => [i.id, { invoiceNumber: i.invoice_number, customerName: i.customer_name }]));
 
   const billIds = new Set<string>([
     ...(vendorPaymentsRes.data || []).map((p) => p.bill_id),
   ]);
-  const { data: billLookupRows } = billIds.size ? await supabase.from("purchase_bills").select("id, bill_number").in("id", Array.from(billIds)) : { data: [] };
+  const { data: billLookupRows } = billIds.size ? await db.from("purchase_bills").select("id, bill_number").in("id", Array.from(billIds)) : { data: [] };
   const billNumberById = new Map((billLookupRows || []).map((b) => [b.id, b.bill_number]));
 
   // Orders referenced by a payment made today but created a different day — same cross-day
   // reference-lookup reasoning as invoiceByIdMap/billNumberById above.
   const paidOrderIds = new Set<string>((orderPaymentsRes.data || []).map((p) => p.order_id));
   const { data: paidOrderLookupRows } = paidOrderIds.size
-    ? await supabase.from("orders").select("id, name, mobile").in("id", Array.from(paidOrderIds))
+    ? await db.from("orders").select("id, name, mobile").in("id", Array.from(paidOrderIds))
     : { data: [] };
   const orderByIdMap = new Map((paidOrderLookupRows || []).map((o) => [o.id, { name: o.name, mobile: o.mobile }]));
 
@@ -160,7 +170,7 @@ export async function GET(request: Request) {
   // Per-order stitching expense line items for today's orders, for the stitchingCost total below.
   const todayOrderIds = (ordersRes.data || []).map((o) => o.id);
   const { data: orderExpenseRows } = todayOrderIds.length
-    ? await supabase.from("order_expenses").select("order_id, amount").in("order_id", todayOrderIds)
+    ? await db.from("order_expenses").select("order_id, amount").in("order_id", todayOrderIds)
     : { data: [] };
   const orderExpenseByOrderId = new Map<string, number>();
   for (const e of orderExpenseRows || []) {

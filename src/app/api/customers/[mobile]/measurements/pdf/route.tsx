@@ -14,6 +14,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ mobile:
   const { mobile } = await params;
   const { supabase, user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // customers is read-scoped on manageCustomers (lockdown_reads_whole_table.sql) — say so,
+  // rather than letting the empty read report the customer as missing.
+  if (!user.perms.manageCustomers) return NextResponse.json({ error: "No permission to view customer measurements" }, { status: 403 });
 
   const [{ data: customerRow }, { data: fieldsSetting }, { data: shopSetting }, { data: templateSetting }] = await Promise.all([
     supabase.from("customers").select("name, mobile, measurements").eq("mobile", mobile).maybeSingle(),

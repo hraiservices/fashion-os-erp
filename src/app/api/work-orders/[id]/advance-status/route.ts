@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 import { nextWoStatus, WO_STATUS_LABELS } from "@/lib/manufacturing";
 
@@ -16,10 +17,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageManufacturing) return NextResponse.json({ error: "No permission to manage manufacturing" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
 
-  const { data: row } = await supabase.from("work_orders").select("wo_number, status").eq("id", id).maybeSingle();
+  const { data: row } = await db.from("work_orders").select("wo_number, status").eq("id", id).maybeSingle();
   if (!row) return NextResponse.json({ error: "Work order not found" }, { status: 404 });
 
   const expected = nextWoStatus(row.status as never);
@@ -27,7 +31,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Invalid stage transition" }, { status: 409 });
   }
 
-  const { error } = await supabase.from("work_orders").update({ status: parsed.data.status }).eq("id", id);
+  const { error } = await db.from("work_orders").update({ status: parsed.data.status }).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await logAction(supabase, user.email, `Work order ${row.wo_number} moved to ${WO_STATUS_LABELS[parsed.data.status]}`);

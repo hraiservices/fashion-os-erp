@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 import { computeWoCost, type WorkOrderMaterial } from "@/lib/manufacturing";
 
@@ -36,10 +37,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageManufacturing) return NextResponse.json({ error: "No permission to manage manufacturing" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
 
-  const { data: wo } = await supabase
+  const { data: wo } = await db
     .from("work_orders")
     .select("wo_number, product_id, qty_to_produce, labor_cost_per_piece, status")
     .eq("id", id)
@@ -60,7 +64,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       note: `Consumed for ${wo.wo_number}`,
     }));
 
-  const { error } = await supabase.rpc("complete_work_order", {
+  const { error } = await db.rpc("complete_work_order", {
     p_work_order_id: id,
     p_materials: materials as never,
     p_material_cost: cost.materialCost,

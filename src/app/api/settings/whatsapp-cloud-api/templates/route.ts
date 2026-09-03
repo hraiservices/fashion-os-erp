@@ -12,7 +12,7 @@ export async function GET() {
   if (user.role !== "admin") return NextResponse.json({ error: "Admin only" }, { status: 403 });
 
   const serviceClient = createServiceClient();
-  if (!serviceClient) return NextResponse.json({ error: "Server is not configured (missing service role key)" }, { status: 501 });
+  if (!serviceClient) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
 
   const { data } = await serviceClient.from("app_settings").select("value").eq("key", "whatsappCloudApiConfig").maybeSingle();
   const config = data?.value as WhatsAppCloudApiConfig | null;

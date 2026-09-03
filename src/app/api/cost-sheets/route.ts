@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 import { computeTotals, type LineItem, type TailorLineItem, type ProfitConfig } from "@/lib/cost-sheet";
 
@@ -31,13 +32,16 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageSales) return NextResponse.json({ error: "No permission to manage cost sheets" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
   const id = fd.id || `cs_${Date.now()}`;
   const totals = computeTotals(fd.materials as LineItem[], fd.tailors as TailorLineItem[], fd.overheads as LineItem[], fd.profit as ProfitConfig);
 
-  const { error } = await supabase.from("product_cost_sheets").upsert({
+  const { error } = await db.from("product_cost_sheets").upsert({
     id,
     cost_sheet_no: fd.cost_sheet_no,
     date: fd.date,
@@ -59,7 +63,7 @@ export async function POST(request: Request) {
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await supabase.from("cost_sheet_items").delete().eq("cost_sheet_id", id);
+  await db.from("cost_sheet_items").delete().eq("cost_sheet_id", id);
 
   const rows = [
     ...fd.materials
@@ -73,7 +77,7 @@ export async function POST(request: Request) {
       .map((o) => ({ id: `csi_o_${o.id}`, cost_sheet_id: id, expense_name: o.expense_name || "", quantity: parseFloat(String(o.quantity)) || 1, unit: o.unit || "", rate: parseFloat(String(o.rate)) || 0, amount: parseFloat(String(o.amount)) || 0, item_type: "overhead" })),
   ];
   if (rows.length) {
-    const { error: itemsError } = await supabase.from("cost_sheet_items").insert(rows);
+    const { error: itemsError } = await db.from("cost_sheet_items").insert(rows);
     if (itemsError) return NextResponse.json({ error: itemsError.message }, { status: 500 });
   }
 

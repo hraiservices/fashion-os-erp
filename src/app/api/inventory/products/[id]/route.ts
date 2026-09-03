@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 
 const patchSchema = z.object({
@@ -19,6 +20,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageInventory) return NextResponse.json({ error: "No permission to manage inventory" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = patchSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const { sellingPrice, name, active } = parsed.data;
@@ -27,7 +31,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (sellingPrice !== undefined) update.selling_price = sellingPrice;
   if (active !== undefined) update.active = active;
 
-  const { error } = await supabase.from("products").update(update).eq("id", id);
+  const { error } = await db.from("products").update(update).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   if (sellingPrice !== undefined) await logAction(supabase, user.email, `Product price updated: ${name} → ${sellingPrice}`);
@@ -46,9 +50,12 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageInventory) return NextResponse.json({ error: "No permission to manage inventory" }, { status: 403 });
 
-  const { data: product } = await supabase.from("products").select("name").eq("id", id).maybeSingle();
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
 
-  const { data: ledgerRows } = await supabase
+  const { data: product } = await db.from("products").select("name").eq("id", id).maybeSingle();
+
+  const { data: ledgerRows } = await db
     .from("inventory_ledger")
     .select("id")
     .eq("item_type", "product")
@@ -61,7 +68,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     );
   }
 
-  const { error } = await supabase.from("products").delete().eq("id", id);
+  const { error } = await db.from("products").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await logAction(supabase, user.email, `Product deleted: ${product?.name ?? id}`);

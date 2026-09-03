@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 import { computeLineItemsTotal, purchaseItemType, purchaseItemId, type PurchaseLineItem } from "@/lib/purchases";
 import { computeGst } from "@/lib/gst";
@@ -45,6 +46,9 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.managePurchases) return NextResponse.json({ error: "No permission to manage bills" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
@@ -52,8 +56,8 @@ export async function POST(request: Request) {
 
   if (!isNew) {
     const [{ data: payments }, { data: credits }] = await Promise.all([
-      supabase.from("vendor_payments").select("id").eq("bill_id", fd.id!).limit(1),
-      supabase.from("vendor_credits").select("id").eq("bill_id", fd.id!).limit(1),
+      db.from("vendor_payments").select("id").eq("bill_id", fd.id!).limit(1),
+      db.from("vendor_credits").select("id").eq("bill_id", fd.id!).limit(1),
     ]);
     if ((payments && payments.length > 0) || (credits && credits.length > 0)) {
       return NextResponse.json(
@@ -66,7 +70,7 @@ export async function POST(request: Request) {
   const taxableAmount = computeLineItemsTotal(fd.items as PurchaseLineItem[]);
   const gst = computeGst(taxableAmount, fd.taxRate, fd.gstType);
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("purchase_bills")
     .upsert({
       id: fd.id,
@@ -99,7 +103,7 @@ export async function POST(request: Request) {
       note: `Bill ${fd.billNumber}`,
       created_by: user.email,
     }));
-  const { error: ledgerError } = await supabase.rpc("replace_inventory_ledger", {
+  const { error: ledgerError } = await db.rpc("replace_inventory_ledger", {
     p_ref_type: "purchase",
     p_ref_id: data.id,
     p_rows: ledgerRows,

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { mapOrderRow } from "@/lib/types";
 import { fmtNow, loyaltyDiscountOf, couponDiscountOf, customerIdFromMobile, REFERRAL_BONUS_POINTS } from "@/lib/business-rules";
 import { logAction } from "@/lib/logging";
@@ -81,6 +82,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.editOrder) return NextResponse.json({ error: "No permission to edit orders" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = patchSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const patch = parsed.data;
@@ -97,7 +101,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   let historyLine: string | null = null;
 
   if (financialSubmitted) {
-    const { data: cur } = await supabase.from("orders").select("total,advance").eq("id", id).maybeSingle();
+    const { data: cur } = await db.from("orders").select("total,advance").eq("id", id).maybeSingle();
     const curTotal   = cur?.total   ?? 0;
     const curAdvance = cur?.advance ?? 0;
     const newTotal   = patch.total   ?? curTotal;
@@ -127,7 +131,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
   }
 
-  const { data: updatedRows, error } = await supabase.rpc("edit_order", {
+  const { data: updatedRows, error } = await db.rpc("edit_order", {
     p_order_id:      id,
     p_name:          patch.name          ?? null,
     p_mobile:        patch.mobile        ?? null,
@@ -173,11 +177,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // when the field wasn't sent, so an edit that doesn't touch the Costs section never touches
   // existing expense rows.
   if (patch.expenses !== undefined) {
-    const { error: deleteExpensesError } = await supabase.from("order_expenses").delete().eq("order_id", id);
+    const { error: deleteExpensesError } = await db.from("order_expenses").delete().eq("order_id", id);
     if (deleteExpensesError) {
       await logAction(supabase, user.email, `⚠️ Stitching expenses not updated for order ${id}`, id, deleteExpensesError.message);
     } else if (patch.expenses.length > 0) {
-      const { error: insertExpensesError } = await supabase.from("order_expenses").insert(
+      const { error: insertExpensesError } = await db.from("order_expenses").insert(
         patch.expenses.map((e) => ({
           order_id: id,
           category: e.category,
@@ -199,17 +203,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // edited orders — line ~17070). Without this, editing an order's measurements silently
   // never reaches the customer record, and CRM measurements go stale after the first order.
   if (patch.measurements !== undefined) {
-    const { data: existingCustomer, error: lookupError } = await supabase
+    const { data: existingCustomer, error: lookupError } = await db
       .from("customers")
       .select("id")
       .eq("mobile", updatedRow.mobile)
       .maybeSingle();
     if (!lookupError) {
       if (existingCustomer) {
-        const { error } = await supabase.from("customers").update({ measurements: patch.measurements as Json }).eq("id", existingCustomer.id);
+        const { error } = await db.from("customers").update({ measurements: patch.measurements as Json }).eq("id", existingCustomer.id);
         if (error) await logAction(supabase, user.email, `⚠️ Customer measurements not synced for order ${id}`, id, error.message);
       } else {
-        const { error } = await supabase.from("customers").insert({
+        const { error } = await db.from("customers").insert({
           id: customerIdFromMobile(updatedRow.mobile),
           name: updatedRow.name,
           mobile: updatedRow.mobile,
@@ -236,8 +240,11 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.deleteOrder) return NextResponse.json({ error: "No permission to delete orders" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   // Fetch enough columns for guards + loyalty refund; avoid mapOrderRow on a partial row (M2).
-  const { data: row, error: fetchError } = await supabase
+  const { data: row, error: fetchError } = await db
     .from("orders")
     .select("id, name, status, mobile, history, advance, payables_confirmed_at, piece_rate_paid_at")
     .eq("id", id)
@@ -282,7 +289,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     );
   }
 
-  const { error: deleteError } = await supabase.from("orders").delete().eq("id", id);
+  const { error: deleteError } = await db.from("orders").delete().eq("id", id);
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
 
   await logAction(supabase, user.email, `🗑️ Order deleted: ${row.name}`, id);
@@ -296,7 +303,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
         // Read the exact points spent from the customer's own ledger rather than
         // recomputing from ptDiscount via the *current* redeemPer100pts config — if that
         // rate changed since the order was placed, recomputing would over- or under-refund.
-        const { data: custRow } = await supabase
+        const { data: custRow } = await db
           .from("customers")
           .select("loyalty_history")
           .eq("id", customerIdFromMobile(row.mobile))
@@ -305,7 +312,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
         const redeemEntry = history.find((e) => e?.type === "redeem" && e?.orderId === id);
         const ptsToRefund = redeemEntry ? Math.abs(redeemEntry.pts || 0) : Math.round((ptDiscount / (loyaltyCfg.redeemPer100pts || 10)) * 100);
         if (ptsToRefund > 0) {
-          await awardLoyaltyPoints(supabase, row.mobile, row.name, ptsToRefund, "manual", id, `Refund — order ${id} deleted`);
+          await awardLoyaltyPoints(db, row.mobile, row.name, ptsToRefund, "manual", id, `Refund — order ${id} deleted`);
         }
       }
     }
@@ -320,10 +327,10 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   try {
     const couponAmount = couponDiscountOf({ history: Array.isArray(row.history) ? (row.history as string[]) : [] });
     if (couponAmount > 0) {
-      const { data: couponRow } = await supabase.from("referral_coupons").select("code, referrer_mobile, referrer_name").eq("redeemed_order_id", id).maybeSingle();
+      const { data: couponRow } = await db.from("referral_coupons").select("code, referrer_mobile, referrer_name").eq("redeemed_order_id", id).maybeSingle();
       if (couponRow) {
-        await supabase.rpc("release_referral_coupon", { p_code: couponRow.code });
-        await awardLoyaltyPoints(supabase, couponRow.referrer_mobile, couponRow.referrer_name, -REFERRAL_BONUS_POINTS, "manual", id, `Referral bonus reversed — order ${id} deleted`);
+        await db.rpc("release_referral_coupon", { p_code: couponRow.code });
+        await awardLoyaltyPoints(db, couponRow.referrer_mobile, couponRow.referrer_name, -REFERRAL_BONUS_POINTS, "manual", id, `Referral bonus reversed — order ${id} deleted`);
       }
     }
   } catch {

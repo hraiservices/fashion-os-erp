@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { isRestrictedRole } from "@/lib/permissions";
 import { mapExpenseRow } from "@/lib/types";
 import { logAction } from "@/lib/logging";
@@ -20,12 +21,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (isRestrictedRole(user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const { id } = await params;
   const parsed = bodySchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
 
   const fd = parsed.data;
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("expenses")
     .update({
       date: fd.date,
@@ -50,8 +54,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (isRestrictedRole(user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const { id } = await params;
-  const { error } = await supabase.from("expenses").delete().eq("id", id);
+  const { error } = await db.from("expenses").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await logAction(supabase, user.email, `🗑️ Expense deleted`);

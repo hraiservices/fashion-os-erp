@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { mapOrderRow } from "@/lib/types";
 import { computeRedemption, computeEarnPoints, loyaltyDiscountOf, couponDiscountOf, fmtNow, customerIdFromMobile, ORDER_PAYMENT_METHODS as PAYMENT_METHODS } from "@/lib/business-rules";
 // customerIdFromMobile retained for loyalty lookup below
@@ -39,17 +40,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.managePayments) return NextResponse.json({ error: "No permission to manage payments" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const { amount, payMethod, note, usePoints, expectedAdvance } = parsed.data;
   const safeNote = note ? sanitizeHistoryText(note) : "";
 
-  const { data: row, error: fetchError } = await supabase.from("orders").select("*").eq("id", id).maybeSingle();
+  const { data: row, error: fetchError } = await db.from("orders").select("*").eq("id", id).maybeSingle();
   if (fetchError || !row) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   const order = mapOrderRow(row);
 
   const loyaltyCfg = await getLoyaltyConfig(supabase);
-  const { data: custRow } = await supabase
+  const { data: custRow } = await db
     .from("customers")
     .select("loyalty_points")
     .eq("id", customerIdFromMobile(order.mobile))
@@ -69,7 +73,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   let ptDiscount = 0;
   let ptsToRedeem = 0;
   if (usePoints && redemption.canRedeem) {
-    const { data: reserved } = await supabase.rpc("reserve_loyalty_discount", {
+    const { data: reserved } = await db.rpc("reserve_loyalty_discount", {
       p_mobile: order.mobile,
       p_pts_to_redeem: redemption.ptsToRedeem,
       p_order_id: id,
@@ -95,7 +99,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // p_expected_advance rejects the whole request outright if a payment already landed since
   // the client last saw this order (a retried submit on a slow connection, or two staff
   // acting on the same order at once).
-  const { data: updatedRows, error: updateError } = await supabase.rpc("record_order_payment", {
+  const { data: updatedRows, error: updateError } = await db.rpc("record_order_payment", {
     p_order_id: id,
     p_cash_paid: cashPaid,
     p_pt_discount: ptDiscount,
@@ -112,7 +116,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // back rather than silently burning the customer's balance (mirrors order creation's
     // insert-failure refund).
     if (ptsToRedeem > 0) {
-      await supabase.rpc("refund_loyalty_discount", {
+      await db.rpc("refund_loyalty_discount", {
         p_mobile: order.mobile,
         p_pts: ptsToRedeem,
         p_order_id: id,
@@ -154,7 +158,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const netTotal = Math.max(0, order.total - priorDiscount);
       const earnPts = computeEarnPoints(netTotal, loyaltyCfg);
       if (earnPts > 0) {
-        await awardLoyaltyPoints(supabase, order.mobile, order.name, earnPts, "earn", id, `Full payment received ₹${order.total}`);
+        await awardLoyaltyPoints(db, order.mobile, order.name, earnPts, "earn", id, `Full payment received ₹${order.total}`);
       }
     }
   } catch (loyaltyErr) {

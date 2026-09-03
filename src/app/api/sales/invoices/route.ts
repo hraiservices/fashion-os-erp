@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 import { computeInvoiceTotals, type DiscountType } from "@/lib/invoice-totals";
 import { type GstType } from "@/lib/gst";
@@ -61,6 +62,9 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageSales) return NextResponse.json({ error: "No permission to manage invoices" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
@@ -75,8 +79,8 @@ export async function POST(request: Request) {
   // already been credited).
   if (isEdit) {
     const [{ data: payments }, { data: credits }] = await Promise.all([
-      supabase.from("sales_payments").select("id").eq("invoice_id", fd.id!).limit(1),
-      supabase.from("sales_credit_notes").select("id").eq("invoice_id", fd.id!).limit(1),
+      db.from("sales_payments").select("id").eq("invoice_id", fd.id!).limit(1),
+      db.from("sales_credit_notes").select("id").eq("invoice_id", fd.id!).limit(1),
     ]);
 
     if (payments && payments.length > 0) {
@@ -97,7 +101,7 @@ export async function POST(request: Request) {
   // invoice" twice (double-click, or retrying after navigating away before the redirect)
   // created two separate invoices from the same quote, each independently decrementing stock.
   if (!isEdit && fd.quoteId) {
-    const { data: existingForQuote } = await supabase.from("sales_invoices").select("id, invoice_number").eq("quote_id", fd.quoteId).limit(1).maybeSingle();
+    const { data: existingForQuote } = await db.from("sales_invoices").select("id, invoice_number").eq("quote_id", fd.quoteId).limit(1).maybeSingle();
     if (existingForQuote) {
       return NextResponse.json(
         { error: `This quotation was already converted to invoice ${existingForQuote.invoice_number}.` },
@@ -111,12 +115,12 @@ export async function POST(request: Request) {
   // for when this is disabled. Editing an existing invoice never renumbers it.
   let invoiceNumber = fd.invoiceNumber;
   if (!isEdit) {
-    const { data: numberingSetting } = await supabase.from("app_settings").select("value").eq("key", "documentNumbering").maybeSingle();
+    const { data: numberingSetting } = await db.from("app_settings").select("value").eq("key", "documentNumbering").maybeSingle();
     const numbering: DocumentNumberingSettings = { ...DEFAULT_DOCUMENT_NUMBERING, ...((numberingSetting?.value as Partial<DocumentNumberingSettings>) || {}) };
     const fmt = numbering.invoice;
     if (fmt.enabled) {
       const year = new Date(fd.invoiceDate).getFullYear();
-      const { data: nextNumber, error: seqError } = await supabase.rpc("next_document_number", {
+      const { data: nextNumber, error: seqError } = await db.rpc("next_document_number", {
         p_doc_type: "invoice",
         p_period_key: periodKeyFor(fmt, year),
         p_start: fmt.startNumber,
@@ -134,7 +138,7 @@ export async function POST(request: Request) {
   const productIds = Array.from(new Set(fd.items.map((i) => i.productId).filter((id): id is string => !!id)));
   const costById = new Map<string, number>();
   if (productIds.length > 0) {
-    const { data: productRows } = await supabase.from("products").select("id, cost_price").in("id", productIds);
+    const { data: productRows } = await db.from("products").select("id, cost_price").in("id", productIds);
     for (const p of productRows || []) costById.set(p.id, p.cost_price || 0);
   }
   const itemsWithVerifiedCost: SalesLineItem[] = fd.items.map((i) => ({
@@ -151,7 +155,7 @@ export async function POST(request: Request) {
     fd.gstType as GstType
   );
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("sales_invoices")
     .upsert({
       id: fd.id,
@@ -194,7 +198,7 @@ export async function POST(request: Request) {
         created_by: user.email,
       }));
 
-    const { error: ledgerError } = await supabase.rpc("replace_inventory_ledger", {
+    const { error: ledgerError } = await db.rpc("replace_inventory_ledger", {
       p_ref_type: "sale",
       p_ref_id: data.id,
       p_rows: ledgerRows,
@@ -203,7 +207,7 @@ export async function POST(request: Request) {
   }
 
   if (!isEdit && fd.quoteId) {
-    await supabase.from("sales_quotations").update({ status: "accepted" }).eq("id", fd.quoteId);
+    await db.from("sales_quotations").update({ status: "accepted" }).eq("id", fd.quoteId);
   }
 
   await logAction(supabase, user.email, isEdit ? `Invoice updated: ${invoiceNumber}` : `Invoice created: ${invoiceNumber}`, null, `₹${totals.total}`);

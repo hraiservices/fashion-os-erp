@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { customerIdFromMobile } from "@/lib/business-rules";
 import { logAction } from "@/lib/logging";
 import type { Json } from "@/lib/supabase/database.types";
@@ -33,6 +34,9 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageCustomers) return NextResponse.json({ error: "No permission to manage customers" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
@@ -44,7 +48,7 @@ export async function POST(request: Request) {
   // already belong to someone else would otherwise upsert straight over that existing
   // customer's profile with no warning. Block it here instead.
   if (!fd.originalMobile) {
-    const { data: collision } = await supabase.from("customers").select("name").eq("id", customerIdFromMobile(fd.mobile)).maybeSingle();
+    const { data: collision } = await db.from("customers").select("name").eq("id", customerIdFromMobile(fd.mobile)).maybeSingle();
     if (collision) {
       return NextResponse.json({ error: `${fd.mobile} already belongs to ${collision.name}. Edit that customer instead of adding a new one.` }, { status: 409 });
     }
@@ -53,7 +57,7 @@ export async function POST(request: Request) {
   // A changed mobile re-keys the customer (id is 'CUST-' || mobile). Migrate first so the
   // loyalty balance, history and existing orders follow them to the new number.
   if (fd.originalMobile && fd.originalMobile !== fd.mobile) {
-    const { error: migrateError } = await supabase.rpc("change_customer_mobile", {
+    const { error: migrateError } = await db.rpc("change_customer_mobile", {
       p_old_mobile: fd.originalMobile,
       p_new_mobile: fd.mobile,
     });
@@ -67,7 +71,7 @@ export async function POST(request: Request) {
   }
 
   // Loyalty columns are deliberately absent — they are only ever moved by the loyalty RPCs.
-  const { error } = await supabase.from("customers").upsert({
+  const { error } = await db.from("customers").upsert({
     id: customerIdFromMobile(fd.mobile),
     name: fd.name,
     mobile: fd.mobile,

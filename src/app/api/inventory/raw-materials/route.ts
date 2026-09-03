@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 import type { ItemType } from "@/lib/inventory";
 
@@ -25,12 +26,15 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageInventory) return NextResponse.json({ error: "No permission to manage inventory" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
   const isNew = !fd.id;
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("raw_materials")
     .upsert({
       id: fd.id,
@@ -46,7 +50,7 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   if (isNew && fd.openingStock && fd.openingStock > 0) {
-    const { error: ledgerError } = await supabase.from("inventory_ledger").insert({
+    const { error: ledgerError } = await db.from("inventory_ledger").insert({
       item_type: "raw_material" as ItemType,
       item_id: data.id,
       movement: fd.openingStock,

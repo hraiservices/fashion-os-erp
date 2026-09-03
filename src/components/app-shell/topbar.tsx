@@ -34,7 +34,7 @@ export function Topbar() {
   const initial = user?.email?.[0]?.toUpperCase() || "?";
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur sm:px-4 lg:px-6">
+    <header className="sticky top-0 z-30 flex min-h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur sm:px-4 lg:px-6">
       <MobileNavTrigger />
       <div className="min-w-0 flex-1">
         <CommandTrigger />

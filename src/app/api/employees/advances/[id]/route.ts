@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 
 /** Deletes an advance. Server-side so managePayroll is enforced — this used to be a direct
@@ -12,7 +13,13 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.managePayroll) return NextResponse.json({ error: "No permission to manage payroll" }, { status: 403 });
 
-  const { error } = await supabase.from("employee_advances").delete().eq("id", id);
+  // Write-locked for `authenticated` — see lockdown_hr_payroll_writes.sql. The permission
+  // check above is what authorises this; logAction keeps using the caller's own session so
+  // the audit trail still names the real actor.
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured (missing service role key)" }, { status: 501 });
+
+  const { error } = await db.from("employee_advances").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await logAction(supabase, user.email, `Advance deleted: ${id}`);

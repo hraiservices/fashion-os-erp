@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { mapEmployeeRow } from "@/lib/types";
 import { logAction } from "@/lib/logging";
 
@@ -42,8 +43,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No permission to manage payroll" }, { status: 403 });
   }
 
+  // Service-role client for the write: `authenticated` no longer holds INSERT/UPDATE on
+  // employees (lockdown_hr_payroll_writes.sql — it was the hole that let anyone edit their own
+  // salary_rate straight from the console). The two permission checks above are the authority.
+  const serviceClient = createServiceClient();
+  if (!serviceClient) return NextResponse.json({ error: "Server is not configured to manage employees (missing service role key)" }, { status: 501 });
+
   const isNew = !fd.id;
-  const { data, error } = await supabase
+  const { data, error } = await serviceClient
     .from("employees")
     .upsert({
       id: fd.id,

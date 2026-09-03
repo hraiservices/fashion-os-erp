@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 
 /** Marks a payslip paid, or applies a manual bonus/deduction adjustment. Server-side so
@@ -18,12 +19,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.managePayroll) return NextResponse.json({ error: "No permission to manage payroll" }, { status: 403 });
 
+  // payslips is write-locked for `authenticated` — see lockdown_hr_payroll_writes.sql. The
+  // managePayroll check above is what authorises this; logAction keeps the caller's own
+  // session so the audit trail still names the real actor.
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured to manage payroll (missing service role key)" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
 
   if (parsed.data.action === "adjust") {
     const { amount, note } = parsed.data;
-    const { data: existing, error: fetchError } = await supabase
+    const { data: existing, error: fetchError } = await db
       .from("payslips")
       .select("status, gross_pay, overtime_pay, piece_rate_pay, deductions")
       .eq("id", id)
@@ -37,7 +44,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       0,
       Math.round((existing.gross_pay + existing.overtime_pay + existing.piece_rate_pay + amount - existing.deductions) * 100) / 100
     );
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("payslips")
       .update({ adjustment_amount: amount, notes: note, net_pay: netPay })
       .eq("id", id)
@@ -50,7 +57,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ ok: true });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("payslips")
     .update({ status: "paid", paid_at: new Date().toISOString() })
     .eq("id", id)

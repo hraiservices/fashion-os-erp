@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 
 /** Deletes an employee. Server-side so manageEmployees is enforced — see the sibling POST
@@ -21,7 +22,12 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     );
   }
 
-  const { error } = await supabase.from("employees").delete().eq("id", id);
+  // Service-role client for the delete — `authenticated` no longer holds DELETE on employees
+  // (lockdown_hr_payroll_writes.sql). The manageEmployees check above is the authority.
+  const serviceClient = createServiceClient();
+  if (!serviceClient) return NextResponse.json({ error: "Server is not configured to manage employees (missing service role key)" }, { status: 501 });
+
+  const { error } = await serviceClient.from("employees").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await logAction(supabase, user.email, `Employee deleted: ${employee.name}`);

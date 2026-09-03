@@ -20,8 +20,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const isOwnPayslip = !!user.employeeId && user.employeeId === payslipRow.employee_id;
   if (!user.perms.managePayroll && !isOwnPayslip) return NextResponse.json({ error: "No permission to view this payslip" }, { status: 403 });
 
+  // `select("*")` on employees would now fail — `authenticated` holds SELECT only on the
+  // non-credential columns (lockdown_pin_hash_columns.sql), and pin_hash is not something a
+  // payslip PDF has any business loading anyway. Naming the columns keeps this on the caller's
+  // own session (so RLS still applies) instead of reaching for the service role.
   const [{ data: employeeRow }, { data: runRow }, { data: advanceRows }, { data: shopSetting }, { data: templateSetting }] = await Promise.all([
-    supabase.from("employees").select("*").eq("id", payslipRow.employee_id).maybeSingle(),
+    supabase
+      .from("employees")
+      .select(
+        "id, name, mobile, role, employment_type, commission_type, commission_rate, active, joined_date, notes, salary_type, salary_rate, piece_rate_eligible, location_id, manager_id, created_at, updated_at"
+      )
+      .eq("id", payslipRow.employee_id)
+      .maybeSingle(),
     supabase.from("payroll_runs").select("*").eq("id", payslipRow.payroll_run_id).maybeSingle(),
     supabase.from("employee_advances").select("*").eq("payslip_id", id).order("date", { ascending: true }),
     supabase.from("app_settings").select("value").eq("key", "shop").maybeSingle(),
@@ -30,7 +40,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!employeeRow || !runRow) return NextResponse.json({ error: "Payslip's employee or payroll run not found" }, { status: 404 });
 
   const payslip = mapPayslipRow(payslipRow);
-  const employee = mapEmployeeRow(employeeRow);
+  // The credential columns aren't selected above and aren't used by the document — filled in
+  // here only to satisfy the EmployeeRow shape, same as use-employees.ts does client-side.
+  const employee = mapEmployeeRow({ ...employeeRow, pin_hash: null, failed_pin_attempts: 0, pin_locked_until: null });
   const run = mapPayrollRunRow(runRow);
   const advances = (advanceRows || []).map(mapEmployeeAdvanceRow);
   const shop = (shopSetting?.value as { name?: string; phone?: string; address?: string } | null) || {};

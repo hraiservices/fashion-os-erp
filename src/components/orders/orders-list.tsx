@@ -24,9 +24,11 @@ interface Props {
   profitByOrderId?: Map<string, OrderProfitBreakdown>;
   /** Resolves order.tailor (an employee id) to a display name — see orders/page.tsx. */
   tailorName?: (id: string) => string;
+  /** Customer mobile → their public order-status link, for the {track_link} WhatsApp variable. */
+  trackUrlByMobile?: Map<string, string>;
 }
 
-export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, shop, onRecordPayment, columnTable, selection, profitByOrderId, tailorName }: Props) {
+export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, shop, onRecordPayment, columnTable, selection, profitByOrderId, tailorName, trackUrlByMobile }: Props) {
   if (orders.length === 0) {
     return <EmptyState icon={Inbox} title="No orders found" description="Try clearing your filters or search." />;
   }
@@ -47,6 +49,7 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
             shop={shop}
             onRecordPayment={onRecordPayment}
             tailorName={tailorName}
+            trackUrl={trackUrlByMobile?.get(o.mobile)}
           />
         ))}
       </div>
@@ -95,6 +98,7 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
                   selection={selection}
                   profit={profitByOrderId?.get(o.id)}
                   tailorName={tailorName}
+                  trackUrl={trackUrlByMobile?.get(o.mobile)}
                 />
               ))}
             </tbody>

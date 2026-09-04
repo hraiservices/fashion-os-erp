@@ -130,6 +130,7 @@ export function OrderCard({
   onDragEnd,
   dragging,
   onRecordPayment,
+  trackUrl,
 }: {
   order: Order;
   canChangeStage?: boolean;
@@ -141,6 +142,8 @@ export function OrderCard({
   onDragEnd?: () => void;
   dragging?: boolean;
   onRecordPayment?: (order: Order) => void;
+  /** Customer's public order-status link, for the {track_link} WhatsApp variable. */
+  trackUrl?: string;
 }) {
   const next = getNextStage(order.status);
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
@@ -210,7 +213,7 @@ export function OrderCard({
           </Button>
         )}
         <WhatsAppIconButton
-          href={buildWhatsAppUrl(order, resolveWaType(order), shop, waTemplates)}
+          href={buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates)}
           label={`WhatsApp ${order.name}`}
           className="size-8"
         />

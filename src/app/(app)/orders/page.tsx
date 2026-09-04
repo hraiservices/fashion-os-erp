@@ -9,6 +9,7 @@ import { BulkWhatsAppDialog } from "@/components/orders/bulk-whatsapp-dialog";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { cn } from "@/lib/utils";
 import { useOrders } from "@/hooks/use-orders";
+import { useCustomers } from "@/hooks/use-customers";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useActiveTailors, useTailorName } from "@/hooks/use-employees";
@@ -117,6 +118,19 @@ function OrdersContent() {
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const isLoading = useDelayedLoading(ordersLoading);
   const { data: shop } = useShopSettings();
+  // A brand-new order redirects here (not to its detail page) — see order-form.tsx — so this is
+  // where the "received" WhatsApp message actually gets sent from. Built once for the whole list
+  // rather than one customer lookup per card/row.
+  const { data: customers } = useCustomers();
+  const trackUrlByMobile = useMemo(() => {
+    const map = new Map<string, string>();
+    if (typeof window === "undefined") return map;
+    const origin = window.location.origin;
+    for (const c of customers || []) {
+      if (c.shareToken) map.set(c.mobile, `${origin}/track/${c.shareToken}`);
+    }
+    return map;
+  }, [customers]);
   const advanceStage = useAdvanceStage();
   const setStage = useSetStage();
   const deleteOrder = useDeleteOrder();
@@ -431,6 +445,7 @@ function OrdersContent() {
           shop={shop}
           onSetStage={handleSetStage}
           onRecordPayment={user?.perms.managePayments ? setPaymentOrder : undefined}
+          trackUrlByMobile={trackUrlByMobile}
         />
       ) : (
         <OrdersList
@@ -444,6 +459,7 @@ function OrdersContent() {
           selection={user?.perms.deleteOrder || user?.perms.managePayments ? selection : undefined}
           profitByOrderId={profitByOrderId}
           tailorName={tailorName}
+          trackUrlByMobile={trackUrlByMobile}
         />
       )}
 
@@ -471,7 +487,7 @@ function OrdersContent() {
 
       {paymentOrder && <PaymentModal order={paymentOrder} open={!!paymentOrder} onOpenChange={(v) => !v && setPaymentOrder(null)} />}
 
-      <BulkWhatsAppDialog orders={selectedOrders} shop={shop} open={bulkWhatsAppOpen} onOpenChange={setBulkWhatsAppOpen} />
+      <BulkWhatsAppDialog orders={selectedOrders} shop={shop} open={bulkWhatsAppOpen} onOpenChange={setBulkWhatsAppOpen} trackUrlByMobile={trackUrlByMobile} />
 
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
         <AlertDialogContent>

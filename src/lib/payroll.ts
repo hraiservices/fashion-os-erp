@@ -12,6 +12,13 @@ function daysBetweenInclusive(start: string, end: string): number {
   return Math.round((e.getTime() - s.getTime()) / 86400000) + 1;
 }
 
+/** Number of calendar days in the month a date (YYYY-MM-DD) falls in — the divisor a monthly
+ *  salary is actually quoted against, whatever the length of the payroll period being run. */
+function daysInMonthOf(dateStr: string): number {
+  const d = new Date(dateStr);
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+}
+
 export interface AttendanceCounts {
   presentDays: number;
   absentDays: number;
@@ -46,9 +53,17 @@ export function computeGrossPay(employee: Pick<Employee, "salaryType" | "salaryR
   if (salaryType === "monthly") {
     const totalDaysInPeriod = daysBetweenInclusive(periodStart, periodEnd);
     if (totalDaysInPeriod <= 0) return 0;
-    const perDayRate = salaryRate / totalDaysInPeriod;
+    // The per-day rate a monthly salary is actually quoted against is salaryRate divided by
+    // the calendar month's own length — NOT the length of whatever period this run happens to
+    // cover. Dividing by totalDaysInPeriod instead (the previous behaviour) meant any period
+    // shorter than a full month, with zero recorded absences, paid the employee their ENTIRE
+    // monthly salary: a 4-day run for someone on ₹1,50,000/month would show ₹1,50,000 gross for
+    // those 4 days, because a 0 "unpaid day equivalent" times ANY per-day rate is still 0, so
+    // gross = salaryRate - 0 regardless of how short the period was.
+    const perDayRate = salaryRate / daysInMonthOf(periodStart);
     const unpaidDayEquivalent = absentDays + leaveDays + 0.5 * halfDays;
-    return Math.max(0, Math.round((salaryRate - perDayRate * unpaidDayEquivalent) * 100) / 100);
+    const paidDays = Math.max(0, totalDaysInPeriod - unpaidDayEquivalent);
+    return Math.round(perDayRate * paidDays * 100) / 100;
   }
 
   // daily and hourly (hours aren't tracked separately, so hourly is treated as a daily rate per attended day)

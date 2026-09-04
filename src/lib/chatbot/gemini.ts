@@ -122,6 +122,19 @@ Rules:
   basically a restatement of what was just answered.
 Respond with JSON only: {"answer": "<the answer>", "followups": ["<short question>", ...]}.`;
 
+/**
+ * `responseMimeType: "application/json"` is a strong hint, not a guarantee — Gemini
+ * occasionally wraps the JSON in a ```json ... ``` fence anyway (a known, intermittent quirk,
+ * not tied to any one question). A bare `JSON.parse` on that raw text throws, and generateSql
+ * had no try/catch around its parse at all, so this single-line issue surfaced as "AI Copilot
+ * is broken" for whatever question happened to trigger it, indistinguishable from a question
+ * that's genuinely out of scope.
+ */
+function parseJsonResponse<T>(text: string): T {
+  const stripped = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
+  return JSON.parse(stripped) as T;
+}
+
 function buildGlossaryBlock(glossary: GlossaryEntry[]): string {
   if (!glossary.length) return "";
   const lines = glossary.map((g) => `- "${g.term}": ${g.meaning}`).join("\n");
@@ -161,7 +174,7 @@ export async function generateSql(
   });
   const text = response.text;
   if (!text) throw new Error("Empty response from the model");
-  const parsed = JSON.parse(text) as { sql?: string };
+  const parsed = parseJsonResponse<{ sql?: string }>(text);
   if (!parsed.sql) throw new Error("The question couldn't be turned into a query");
   return parsed.sql;
 }
@@ -263,7 +276,7 @@ export async function extractMeasurementsFromImage(imageDataUrl: string, fieldLa
   const text = response.text;
   if (!text) return {};
   try {
-    const parsed = JSON.parse(text) as { values?: Record<string, string> };
+    const parsed = parseJsonResponse<{ values?: Record<string, string> }>(text);
     const out: Record<string, string> = {};
     for (const [label, value] of Object.entries(parsed.values || {})) {
       const trimmed = String(value ?? "").trim();
@@ -340,7 +353,7 @@ export async function generateAnswer(
   const text = response.text;
   if (!text) return fallback;
   try {
-    const parsed = JSON.parse(text) as { answer?: string; followups?: string[] };
+    const parsed = parseJsonResponse<{ answer?: string; followups?: string[] }>(text);
     if (!parsed.answer) return fallback;
     return { answer: parsed.answer, followups: (parsed.followups || []).slice(0, 3) };
   } catch {

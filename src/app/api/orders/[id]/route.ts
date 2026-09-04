@@ -246,7 +246,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   // Fetch enough columns for guards + loyalty refund; avoid mapOrderRow on a partial row (M2).
   const { data: row, error: fetchError } = await db
     .from("orders")
-    .select("id, name, status, mobile, history, advance, payables_confirmed_at, piece_rate_paid_at")
+    .select("id, name, status, mobile, history, advance, garments, payables_confirmed_at, piece_rate_paid_at")
     .eq("id", id)
     .maybeSingle();
   if (fetchError || !row) return NextResponse.json({ error: "Order not found" }, { status: 404 });
@@ -305,6 +305,28 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     if (deletePaymentsError) return NextResponse.json({ error: deletePaymentsError.message }, { status: 500 });
   }
 
+  // The order is the only place a garment's frozen payableAmount lives — deleting it destroys
+  // that number outright. If it was already paid out (piece_rate_paid_at set), that's harmless:
+  // the payslip snapshot the run created holds the tailor's total independently. But a payable
+  // that's confirmed and NOT yet paid is still counted live off this exact row by every future
+  // payroll run (see /api/payroll/run's confirmedOrders query) — deleting it here with no trace
+  // would silently write off money genuinely owed to the tailor, with no payslip ever created
+  // for it. Surface exactly what's being lost, per tailor, so accounting can settle it by hand.
+  let lostPayableNote: string | null = null;
+  if (isAdmin && row.payables_confirmed_at && !row.piece_rate_paid_at) {
+    const garments = (Array.isArray(row.garments) ? row.garments : []) as { tailor?: string; payableAmount?: number }[];
+    const byTailor = new Map<string, number>();
+    for (const g of garments) {
+      if (g.tailor && (g.payableAmount || 0) > 0) byTailor.set(g.tailor, (byTailor.get(g.tailor) || 0) + (g.payableAmount || 0));
+    }
+    if (byTailor.size > 0) {
+      const { data: tailorRows } = await db.from("employees").select("id, name").in("id", Array.from(byTailor.keys()));
+      const nameById = new Map((tailorRows || []).map((t) => [t.id, t.name]));
+      const parts = Array.from(byTailor.entries()).map(([tailorId, amount]) => `${nameById.get(tailorId) || tailorId}: ₹${amount}`);
+      lostPayableNote = `⚠️ Confirmed-but-unpaid tailor payable(s) lost on delete — ${parts.join(", ")}. Settle manually if owed.`;
+    }
+  }
+
   const { error: deleteError } = await db.from("orders").delete().eq("id", id);
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
 
@@ -314,7 +336,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     isAdminOverride
       ? `🗑️ Order deleted (admin override — bypassed payable/payment guards): ${row.name}`
       : `🗑️ Order deleted: ${row.name}`,
-    id
+    id,
+    lostPayableNote
   );
 
   // L3: refund any loyalty points the customer spent as a redemption discount on this order.

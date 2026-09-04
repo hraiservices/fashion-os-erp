@@ -251,48 +251,71 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     .maybeSingle();
   if (fetchError || !row) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-  // Confirming payables freezes them for payroll to pick up; deleting the order after that
-  // (with no equivalent guard to the advance>0 check below) would silently destroy the only
-  // record that the payable was confirmed/paid — a real gap once a payroll run has already
-  // paid the tailor for it. Mirrors the identical guard added to work-orders/[id]/route.ts.
-  if (row.piece_rate_paid_at) {
-    return NextResponse.json(
-      { error: "This order's tailor payable has already been paid out in a payroll run and cannot be deleted." },
-      { status: 409 }
-    );
-  }
-  if (row.payables_confirmed_at) {
-    return NextResponse.json(
-      { error: "This order's tailor payable has been confirmed for payroll and cannot be deleted." },
-      { status: 409 }
-    );
-  }
+  // Admin override: an admin can always delete an order, bypassing every guard below. Every
+  // other role still goes through them. Since order_payments.order_id has no ON DELETE CASCADE
+  // (unlike order_expenses), an admin deleting an order with payment rows still needs those
+  // rows removed first below, or the delete would fail on the foreign key instead of the guard.
+  const isAdmin = user.role === "admin";
+  const guardWouldHaveBlocked = !!row.piece_rate_paid_at || !!row.payables_confirmed_at || (row.advance || 0) > 0;
+  const isAdminOverride = isAdmin && guardWouldHaveBlocked;
 
-  // A blanket "delivered"/"payment" stage block used to sit here, pointing at an "Archive"
-  // feature that was never actually built — a genuine dead end, since deleting the order's
-  // payment(s) below (which the message DID offer as an option) still leaves the order at
-  // "delivered" stage (delete_order_payment only reverts payment -> delivered, not further),
-  // meaning a fully-paid-then-refunded order could never actually be deleted at all. The real
-  // safeguard for "this is an accounting record" is the money check right below — a delivered/
-  // paid order becomes deletable once its payment rows are gone (order detail page ->
-  // Payments), same as any other order; stage alone no longer blocks it.
+  if (!isAdmin) {
+    // Confirming payables freezes them for payroll to pick up; deleting the order after that
+    // (with no equivalent guard to the advance>0 check below) would silently destroy the only
+    // record that the payable was confirmed/paid — a real gap once a payroll run has already
+    // paid the tailor for it. Mirrors the identical guard added to work-orders/[id]/route.ts.
+    if (row.piece_rate_paid_at) {
+      return NextResponse.json(
+        { error: "This order's tailor payable has already been paid out in a payroll run and cannot be deleted." },
+        { status: 409 }
+      );
+    }
+    if (row.payables_confirmed_at) {
+      return NextResponse.json(
+        { error: "This order's tailor payable has been confirmed for payroll and cannot be deleted." },
+        { status: 409 }
+      );
+    }
 
-  // Refuse to delete an order that already has money collected against it. Each payment is a
-  // real row in order_payments now — deleting them there (order detail page → Payments) reverses
-  // this same advance figure, at which point the order becomes deletable normally.
-  if ((row.advance || 0) > 0) {
-    return NextResponse.json(
-      {
-        error: `This order has ₹${row.advance} collected against it and cannot be deleted. Delete the recorded payment(s) first from the order's Payments section, or move the order to a closed stage instead.`,
-      },
-      { status: 409 }
-    );
+    // A blanket "delivered"/"payment" stage block used to sit here, pointing at an "Archive"
+    // feature that was never actually built — a genuine dead end, since deleting the order's
+    // payment(s) below (which the message DID offer as an option) still leaves the order at
+    // "delivered" stage (delete_order_payment only reverts payment -> delivered, not further),
+    // meaning a fully-paid-then-refunded order could never actually be deleted at all. The real
+    // safeguard for "this is an accounting record" is the money check right below — a delivered/
+    // paid order becomes deletable once its payment rows are gone (order detail page ->
+    // Payments), same as any other order; stage alone no longer blocks it.
+
+    // Refuse to delete an order that already has money collected against it. Each payment is a
+    // real row in order_payments now — deleting them there (order detail page → Payments) reverses
+    // this same advance figure, at which point the order becomes deletable normally.
+    if ((row.advance || 0) > 0) {
+      return NextResponse.json(
+        {
+          error: `This order has ₹${row.advance} collected against it and cannot be deleted. Delete the recorded payment(s) first from the order's Payments section, or move the order to a closed stage instead.`,
+        },
+        { status: 409 }
+      );
+    }
+  } else if ((row.advance || 0) > 0) {
+    // Bypassing the money guard above still requires clearing order_payments rows first —
+    // the table has no ON DELETE CASCADE, so leaving them would fail the delete below with a
+    // foreign key error instead of a guard message.
+    const { error: deletePaymentsError } = await db.from("order_payments").delete().eq("order_id", id);
+    if (deletePaymentsError) return NextResponse.json({ error: deletePaymentsError.message }, { status: 500 });
   }
 
   const { error: deleteError } = await db.from("orders").delete().eq("id", id);
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
 
-  await logAction(supabase, user.email, `🗑️ Order deleted: ${row.name}`, id);
+  await logAction(
+    supabase,
+    user.email,
+    isAdminOverride
+      ? `🗑️ Order deleted (admin override — bypassed payable/payment guards): ${row.name}`
+      : `🗑️ Order deleted: ${row.name}`,
+    id
+  );
 
   // L3: refund any loyalty points the customer spent as a redemption discount on this order.
   try {

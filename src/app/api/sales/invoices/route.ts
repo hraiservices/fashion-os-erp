@@ -78,10 +78,15 @@ export async function POST(request: Request) {
   // stock gain that never actually happened (and letting the edited total drop below what's
   // already been credited).
   if (isEdit) {
-    const [{ data: payments }, { data: credits }] = await Promise.all([
+    const [{ data: payments, error: paymentsError }, { data: credits, error: creditsError }] = await Promise.all([
       db.from("sales_payments").select("id").eq("invoice_id", fd.id!).limit(1),
       db.from("sales_credit_notes").select("id").eq("invoice_id", fd.id!).limit(1),
     ]);
+    // A failed check here must not silently read as "no payments/credits found" — that's
+    // exactly the gap this guard exists to close, and it fails toward the dangerous side:
+    // an edit sails through as if the invoice were untouched, when the truth is simply unknown.
+    if (paymentsError) return NextResponse.json({ error: `Could not verify existing payments: ${paymentsError.message}` }, { status: 500 });
+    if (creditsError) return NextResponse.json({ error: `Could not verify existing credit notes: ${creditsError.message}` }, { status: 500 });
 
     if (payments && payments.length > 0) {
       return NextResponse.json(

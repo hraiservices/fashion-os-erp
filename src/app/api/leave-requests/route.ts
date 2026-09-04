@@ -54,10 +54,15 @@ export async function POST(request: Request) {
 
   if (fd.toDate < fd.fromDate) return NextResponse.json({ error: "To date must be on or after from date" }, { status: 400 });
 
-  const [{ data: holidayRows }, { data: attSettingRow }] = await Promise.all([
+  const [{ data: holidayRows, error: holidayError }, { data: attSettingRow }] = await Promise.all([
     db.from("holidays").select("*").eq("active", true).gte("date", fd.fromDate).lte("date", fd.toDate),
     db.from("app_settings").select("value").eq("key", "attendanceSettings").maybeSingle(),
   ]);
+  // A failed lookup here must not silently read as "no holidays in this range" — that
+  // over-counts chargeable leave days (a real holiday gets deducted from the employee's
+  // balance) rather than under-counting, so it fails toward costing the employee leave they
+  // didn't use.
+  if (holidayError) return NextResponse.json({ error: `Could not check holidays for this range: ${holidayError.message}` }, { status: 500 });
   const attendanceSettings: AttendanceSettings = { ...DEFAULT_ATTENDANCE_SETTINGS, ...((attSettingRow?.value as Partial<AttendanceSettings>) || {}) };
   const holidayDates = new Set((holidayRows || []).map(mapHolidayRow).map((h) => h.date));
 

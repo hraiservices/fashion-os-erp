@@ -34,7 +34,12 @@ export async function GET() {
   }
 
   const pieceRateEmployees = (employeeRows || []).filter((e) => e.piece_rate_eligible);
-  const caps = await Promise.all(pieceRateEmployees.map((e) => getPieceRateAdvanceCap(db, e.id)));
+  let caps: number[];
+  try {
+    caps = await Promise.all(pieceRateEmployees.map((e) => getPieceRateAdvanceCap(db, e.id)));
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Could not compute piece-rate advance caps" }, { status: 500 });
+  }
   const capByEmployeeId = new Map(pieceRateEmployees.map((e, i) => [e.id, caps[i]]));
 
   const employees = (employeeRows || []).map((e) => ({
@@ -91,7 +96,12 @@ export async function POST(request: Request) {
 
   const pieceRateEligibleIds = new Set((employeeRows || []).filter((e) => e.piece_rate_eligible).map((e) => e.id));
   const pieceRateEntryIds = knownEntries.filter((e) => pieceRateEligibleIds.has(e.employeeId)).map((e) => e.employeeId);
-  const caps = await Promise.all(pieceRateEntryIds.map((id) => getPieceRateAdvanceCap(db, id)));
+  let caps: number[];
+  try {
+    caps = await Promise.all(pieceRateEntryIds.map((id) => getPieceRateAdvanceCap(db, id)));
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Could not compute piece-rate advance caps" }, { status: 500 });
+  }
   const capsByEmployeeId = new Map(pieceRateEntryIds.map((id, i) => [id, caps[i]]));
 
   const { valid, skipped } = partitionBulkAdvances(knownEntries, pieceRateEligibleIds, capsByEmployeeId);

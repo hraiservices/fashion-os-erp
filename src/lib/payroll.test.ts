@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeGrossPay } from "@/lib/payroll";
+import { computeGrossPay, partitionBulkAdvances } from "@/lib/payroll";
 
 describe("computeGrossPay — monthly salary", () => {
   it("pays the full monthly rate for a full, fully-attended calendar month", () => {
@@ -77,5 +77,46 @@ describe("computeGrossPay — daily/hourly salary", () => {
       leaveDays: 0,
     });
     expect(gross).toBe(500 * 3);
+  });
+});
+
+describe("partitionBulkAdvances", () => {
+  it("lets a salaried employee through with no cap at all", () => {
+    const { valid, skipped } = partitionBulkAdvances(
+      [{ employeeId: "e1", amount: 100000 }],
+      new Set(),
+      new Map()
+    );
+    expect(valid).toEqual([{ employeeId: "e1", amount: 100000 }]);
+    expect(skipped).toEqual([]);
+  });
+
+  it("allows a piece-rate employee's entry when it's within their cap", () => {
+    const { valid, skipped } = partitionBulkAdvances(
+      [{ employeeId: "e1", amount: 500 }],
+      new Set(["e1"]),
+      new Map([["e1", 800]])
+    );
+    expect(valid).toEqual([{ employeeId: "e1", amount: 500 }]);
+    expect(skipped).toEqual([]);
+  });
+
+  it("skips a piece-rate employee's entry when it exceeds their cap, without touching others", () => {
+    const { valid, skipped } = partitionBulkAdvances(
+      [
+        { employeeId: "e1", amount: 900 },
+        { employeeId: "e2", amount: 200 },
+      ],
+      new Set(["e1"]),
+      new Map([["e1", 800]])
+    );
+    expect(valid).toEqual([{ employeeId: "e2", amount: 200 }]);
+    expect(skipped).toEqual([{ employeeId: "e1", reason: "Exceeds this tailor's ₹800 piece-rate advance cap" }]);
+  });
+
+  it("fails closed to a ₹0 cap when a piece-rate employee has no computed cap entry", () => {
+    const { valid, skipped } = partitionBulkAdvances([{ employeeId: "e1", amount: 1 }], new Set(["e1"]), new Map());
+    expect(valid).toEqual([]);
+    expect(skipped).toEqual([{ employeeId: "e1", reason: "Exceeds this tailor's ₹0 piece-rate advance cap" }]);
   });
 });

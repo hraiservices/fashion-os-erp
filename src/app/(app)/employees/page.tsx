@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, UserCog, Pencil, Trash2, ChevronRight, CalendarCheck, Link2 } from "lucide-react";
+import { Plus, Search, UserCog, Pencil, Trash2, ChevronRight, CalendarCheck, Link2, Wallet } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useDeleteEmployee } from "@/hooks/use-employee-mutations";
@@ -38,6 +38,7 @@ function EmployeesPageContent() {
   const [search, setSearch] = useState("");
 
   const canManage = !!user?.perms.manageEmployees;
+  const canManagePayroll = !!user?.perms.managePayroll;
   const linkedEmailByEmployeeId = new Map((userRoles || []).filter((r) => r.linked_employee_id).map((r) => [r.linked_employee_id as string, r.email]));
 
   const filtered = useMemo(() => {
@@ -69,6 +70,11 @@ function EmployeesPageContent() {
             <Button variant="outline" nativeButton={false} render={<Link href="/employees/attendance" />}>
               <CalendarCheck className="size-4" /> Attendance
             </Button>
+            {canManagePayroll && (
+              <Button variant="outline" nativeButton={false} render={<Link href="/employees/advances" />}>
+                <Wallet className="size-4" /> Advances
+              </Button>
+            )}
             {canManage && (
               <Button nativeButton={false} render={<Link href="/employees/new" />}>
                 <Plus className="size-4" /> Add employee

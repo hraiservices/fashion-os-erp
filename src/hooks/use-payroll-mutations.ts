@@ -93,6 +93,19 @@ export function useAddAdvance() {
   });
 }
 
+/** Bulk-records advances for several employees at once — the weekly (often Saturday) round
+ *  where a manager pays out several tailors' advances in one sitting instead of opening each
+ *  employee's own page. Partial success is normal: `skipped` names anyone whose entry was
+ *  rejected (e.g. over their piece-rate cap) without failing the others. */
+export function useAddBulkAdvances() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { date: string; entries: { employeeId: string; amount: number; note?: string }[] }) =>
+      apiJson<{ inserted: number; skipped: { employeeId: string; reason: string }[] }>("/api/employees/advances/bulk", "POST", input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["employee-advances"] }),
+  });
+}
+
 /** Delete an advance. Routed through DELETE /api/employees/advances/[id] — same reasoning. */
 export function useDeleteAdvance() {
   const qc = useQueryClient();

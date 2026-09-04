@@ -70,3 +70,45 @@ export function computeGrossPay(employee: Pick<Employee, "salaryType" | "salaryR
   const paidDayEquivalent = presentDays + 0.5 * halfDays;
   return Math.round(salaryRate * paidDayEquivalent * 100) / 100;
 }
+
+export interface BulkAdvanceEntry {
+  employeeId: string;
+  amount: number;
+  note?: string;
+}
+
+export interface BulkAdvanceSkip {
+  employeeId: string;
+  reason: string;
+}
+
+/**
+ * Splits a weekly/bulk batch of advance entries into ones that fit each employee's own limit
+ * and ones that don't, so one over-cap tailor in a Saturday batch of nine doesn't block the
+ * other eight — the caller inserts `valid` and reports `skipped` back with its reasons.
+ *
+ * Salaried employees have no cap here (a manager judgment call, same as the single-employee
+ * advance route). A piece-rate-eligible employee can only draw against what they've actually
+ * earned so far — `capsByEmployeeId` is expected to hold a real, freshly-computed cap for every
+ * id in `pieceRateEligibleIds`; a missing entry is treated as a cap of ₹0 rather than
+ * unlimited, so a lookup failure fails closed.
+ */
+export function partitionBulkAdvances(
+  entries: BulkAdvanceEntry[],
+  pieceRateEligibleIds: Set<string>,
+  capsByEmployeeId: Map<string, number>
+): { valid: BulkAdvanceEntry[]; skipped: BulkAdvanceSkip[] } {
+  const valid: BulkAdvanceEntry[] = [];
+  const skipped: BulkAdvanceSkip[] = [];
+  for (const entry of entries) {
+    if (pieceRateEligibleIds.has(entry.employeeId)) {
+      const cap = capsByEmployeeId.get(entry.employeeId) ?? 0;
+      if (entry.amount > cap) {
+        skipped.push({ employeeId: entry.employeeId, reason: `Exceeds this tailor's ₹${cap} piece-rate advance cap` });
+        continue;
+      }
+    }
+    valid.push(entry);
+  }
+  return { valid, skipped };
+}

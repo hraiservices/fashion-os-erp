@@ -29,6 +29,33 @@ async function getClient(): Promise<GoogleGenAI> {
 const MODEL = "gemini-flash-latest";
 
 /**
+ * "This model is currently experiencing high demand" (503 UNAVAILABLE) is a real, common,
+ * genuinely transient condition on the shared/free Gemini tier — confirmed as the cause of a
+ * live "AI Copilot never answers" report, where it failed the very first call (generateSql,
+ * before any query even existed) and the whole question died with it. Nothing about the
+ * question was wrong; the model was momentarily overloaded. One retry with a short backoff
+ * turns "every question has a chance of failing outright" into "occasionally half a second
+ * slower," which is the actual fix — no amount of prompt or parsing work addresses a 503.
+ *
+ * 429 (RESOURCE_EXHAUSTED / rate limit) is bundled in for the same reason: also transient, also
+ * resolved by waiting a moment, and indistinguishable from 503 as far as the caller is concerned.
+ */
+function isRetryableGeminiError(e: unknown): boolean {
+  const message = e instanceof Error ? e.message : String(e);
+  return /"code"\s*:\s*(503|429)\b/.test(message) || /\b(UNAVAILABLE|RESOURCE_EXHAUSTED)\b/.test(message);
+}
+
+async function withGeminiRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    if (!isRetryableGeminiError(e)) throw e;
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    return fn();
+  }
+}
+
+/**
  * Everything the model needs to know about the two views it's allowed to query, plus the
  * business rules that are non-obvious from the column names alone. These are exactly the
  * rules that caused real reporting bugs elsewhere in this app when duplicated ad hoc — see
@@ -158,20 +185,22 @@ export async function generateSql(
     SQL_SYSTEM_PROMPT.replace("{{TODAY}}", today) +
     buildGlossaryBlock(glossary) +
     buildHistoryBlock(history);
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    contents: [{ role: "user", parts: [{ text: question }] }],
-    config: {
-      systemInstruction,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: { sql: { type: Type.STRING } },
-        required: ["sql"],
+  const response = await withGeminiRetry(() =>
+    ai.models.generateContent({
+      model: MODEL,
+      contents: [{ role: "user", parts: [{ text: question }] }],
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: { sql: { type: Type.STRING } },
+          required: ["sql"],
+        },
+        temperature: 0,
       },
-      temperature: 0,
-    },
-  });
+    })
+  );
   const text = response.text;
   if (!text) throw new Error("Empty response from the model");
   const parsed = parseJsonResponse<{ sql?: string }>(text);
@@ -192,14 +221,16 @@ Rules:
 
 export async function generateBriefing(summary: unknown): Promise<string> {
   const ai = await getClient();
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    contents: [{ role: "user", parts: [{ text: `Today's business summary (JSON): ${JSON.stringify(summary)}` }] }],
-    config: {
-      systemInstruction: BRIEFING_SYSTEM_PROMPT,
-      temperature: 0.3,
-    },
-  });
+  const response = await withGeminiRetry(() =>
+    ai.models.generateContent({
+      model: MODEL,
+      contents: [{ role: "user", parts: [{ text: `Today's business summary (JSON): ${JSON.stringify(summary)}` }] }],
+      config: {
+        systemInstruction: BRIEFING_SYSTEM_PROMPT,
+        temperature: 0.3,
+      },
+    })
+  );
   return response.text?.trim() || "Couldn't generate today's briefing — try again shortly.";
 }
 
@@ -229,16 +260,18 @@ Respond with plain text only — no JSON, no quotes around the whole message.`;
  */
 export async function generateConciergeReply(question: string, orders: unknown[]): Promise<string> {
   const ai = await getClient();
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: `Customer's message: ${question}\n\nTheir recent orders (JSON, may be empty): ${JSON.stringify(orders).slice(0, 4000)}` }],
-      },
-    ],
-    config: { systemInstruction: CONCIERGE_SYSTEM_PROMPT, temperature: 0.2 },
-  });
+  const response = await withGeminiRetry(() =>
+    ai.models.generateContent({
+      model: MODEL,
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: `Customer's message: ${question}\n\nTheir recent orders (JSON, may be empty): ${JSON.stringify(orders).slice(0, 4000)}` }],
+        },
+      ],
+      config: { systemInstruction: CONCIERGE_SYSTEM_PROMPT, temperature: 0.2 },
+    })
+  );
   return response.text?.trim() || "Sorry, I couldn't look that up right now — please contact the shop directly.";
 }
 
@@ -267,11 +300,13 @@ export async function extractMeasurementsFromImage(imageDataUrl: string, fieldLa
 
   const ai = await getClient();
   const prompt = MEASUREMENT_EXTRACTION_PROMPT.replace("{{FIELDS}}", fieldLabels.map((f) => `- ${f}`).join("\n"));
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    contents: [{ role: "user", parts: [{ inlineData: { mimeType, data: base64 } }, { text: prompt }] }],
-    config: { responseMimeType: "application/json", temperature: 0 },
-  });
+  const response = await withGeminiRetry(() =>
+    ai.models.generateContent({
+      model: MODEL,
+      contents: [{ role: "user", parts: [{ inlineData: { mimeType, data: base64 } }, { text: prompt }] }],
+      config: { responseMimeType: "application/json", temperature: 0 },
+    })
+  );
 
   const text = response.text;
   if (!text) return {};
@@ -305,11 +340,13 @@ export async function transcribeVoiceNote(audioDataUrl: string): Promise<string>
   const [, mimeType, base64] = match;
 
   const ai = await getClient();
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    contents: [{ role: "user", parts: [{ inlineData: { mimeType, data: base64 } }, { text: VOICE_NOTE_TRANSCRIPTION_PROMPT }] }],
-    config: { temperature: 0 },
-  });
+  const response = await withGeminiRetry(() =>
+    ai.models.generateContent({
+      model: MODEL,
+      contents: [{ role: "user", parts: [{ inlineData: { mimeType, data: base64 } }, { text: VOICE_NOTE_TRANSCRIPTION_PROMPT }] }],
+      config: { temperature: 0 },
+    })
+  );
   return response.text?.trim() || "(could not transcribe)";
 }
 
@@ -328,28 +365,30 @@ export async function generateAnswer(
     ? `\n\nPrior conversation:\n${history.map((h) => `Q: ${h.question}\nA: ${h.answer}`).join("\n\n")}`
     : "";
   const fallback = { answer: "I couldn't turn that into an answer — try rephrasing the question.", followups: [] };
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: `Question: ${question}${historyBlock}\n\nQuery result (JSON array, may be empty): ${JSON.stringify(rows).slice(0, 8000)}` }],
-      },
-    ],
-    config: {
-      systemInstruction: ANSWER_SYSTEM_PROMPT,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          answer: { type: Type.STRING },
-          followups: { type: Type.ARRAY, items: { type: Type.STRING } },
+  const response = await withGeminiRetry(() =>
+    ai.models.generateContent({
+      model: MODEL,
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: `Question: ${question}${historyBlock}\n\nQuery result (JSON array, may be empty): ${JSON.stringify(rows).slice(0, 8000)}` }],
         },
-        required: ["answer", "followups"],
+      ],
+      config: {
+        systemInstruction: ANSWER_SYSTEM_PROMPT,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            answer: { type: Type.STRING },
+            followups: { type: Type.ARRAY, items: { type: Type.STRING } },
+          },
+          required: ["answer", "followups"],
+        },
+        temperature: 0.3,
       },
-      temperature: 0.3,
-    },
-  });
+    })
+  );
   const text = response.text;
   if (!text) return fallback;
   try {

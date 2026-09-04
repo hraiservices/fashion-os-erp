@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { ArrowLeft, ChevronLeft, ChevronRight, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt } from "lucide-react";
 import { useOrder } from "@/hooks/use-order";
 import { useOrders } from "@/hooks/use-orders";
+import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useConfirmOrderPayables, useDeleteOrderPayment, useBackfillOrderPayment, useRenameOrder } from "@/hooks/use-order-mutations";
 import { useOrderPayments } from "@/hooks/use-order-payments";
@@ -55,6 +56,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params);
   const router = useRouter();
   const { data: order, isLoading } = useOrder(id);
+  const { data: customer } = useCustomerByMobile(order?.mobile || "");
   // Same list + ordering (newest-first by created_at) the notification bell and dashboard
   // widgets already query — reused here just to let the detail page step to the adjacent
   // order without forcing a round trip back through the list's own filters/search/sort.
@@ -144,8 +146,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   const next = getNextStage(order.status);
   const orderName = order.name;
-  const waUrl = buildWhatsAppUrl(order, resolveWaType(order), shop, waTemplates);
-  const paymentReminderUrl = buildWhatsAppUrl(order, "paymentDue", shop, waTemplates);
+  const trackUrl = typeof window !== "undefined" && customer?.shareToken ? `${window.location.origin}/track/${customer.shareToken}` : undefined;
+  const waUrl = buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates);
+  const paymentReminderUrl = buildWhatsAppUrl({ ...order, trackUrl }, "paymentDue", shop, waTemplates);
   const paidPct = order.total > 0 ? Math.round((order.advance / order.total) * 100) : 0;
 
   const orderBalance = order.balance;

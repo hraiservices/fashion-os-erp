@@ -306,6 +306,9 @@ export interface WhatsAppOrder {
   balance?: number;
   deliveryDate: string;
   garments?: { type: string }[];
+  /** Customer's public order-status link (/track/[token]), if the caller has one ready.
+   *  Omitted entirely (rather than an empty {track_link} line) when absent. */
+  trackUrl?: string;
 }
 
 function fmtDateIN(iso: string): string {
@@ -326,6 +329,7 @@ export function buildWhatsAppMessage(order: WhatsAppOrder, type: WhatsAppMessage
   const websiteLine = shop?.websiteUrl ? `\n🛍️ Shop Online: ${shop.websiteUrl}` : "";
   const reviewLine = shop?.reviewUrl ? `\nPlease Review on Google ! Click Below⭐\n🌐 ${shop.reviewUrl}` : "";
   const balanceLine = order.balance ? `\n💰 Balance Payment is : *₹${order.balance}*` : "";
+  const trackLine = order.trackUrl ? `\n📲 Track your order anytime: ${order.trackUrl}` : "";
   const template = templates?.[type] || DEFAULT_STITCHING_WHATSAPP_TEMPLATES[type] || DEFAULT_STITCHING_WHATSAPP_TEMPLATES.received;
   return template
     .replaceAll("{name}", order.name)
@@ -337,7 +341,8 @@ export function buildWhatsAppMessage(order: WhatsAppOrder, type: WhatsAppMessage
     .replaceAll("{shop_phone}", ph)
     .replaceAll("{website_line}", websiteLine)
     .replaceAll("{review_line}", reviewLine)
-    .replaceAll("{balance_line}", balanceLine);
+    .replaceAll("{balance_line}", balanceLine)
+    .replaceAll("{track_link}", trackLine);
 }
 
 /** Strips everything but digits, then a leading 91 country code, so a number typed/exported as

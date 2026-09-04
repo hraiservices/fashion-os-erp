@@ -11,7 +11,7 @@ import { DEFAULT_ENTITLEMENTS, ROUTE_MODULE_PREFIXES, isModuleEnabled, isReportE
 // entry, every unauthenticated visit to /checkin was server-redirected to /login before the
 // page could even render its own PIN login form — silently making self-service check-in (and
 // the leave-management self-service tab) completely unreachable.
-const PUBLIC_PATHS = ["/login", "/checkin", "/invoice/view", "/api/public", "/api/recurring-invoices/generate"];
+const PUBLIC_PATHS = ["/login", "/checkin", "/invoice/view", "/track", "/api/public", "/api/recurring-invoices/generate"];
 
 function isSuperAdminEmail(email: string | undefined): boolean {
   const ownerEmail = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL;

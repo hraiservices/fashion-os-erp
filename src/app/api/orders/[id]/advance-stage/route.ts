@@ -6,6 +6,7 @@ import { STAGE_META, getNextStage, fmtNow, deliveryBonusPoints } from "@/lib/bus
 import { logAction, sendAdminNotification } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
+import { isSelfConfirmedPayable } from "@/lib/piece-rate";
 import { sendWhatsAppTemplateText, type WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
 import { logWhatsAppSend } from "@/lib/whatsapp-log";
 import { inr } from "@/lib/format";
@@ -50,6 +51,34 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   // 0 rows = another concurrent request already advanced the stage — treat as conflict.
   if (!updatedRow) return NextResponse.json({ error: "Someone else already updated this order — its card has been refreshed." }, { status: 409 });
 
+  // Auto-confirm piece-rate payables the moment an order first reaches "ready" — previously a
+  // separate manual step (POST /api/orders/[id]/confirm-payables), which in practice meant
+  // real, already-earned piece-rate pay sat un-confirmed (and so invisible to payroll and to
+  // Weekly Advances' cap) until someone remembered to click a second button. confirm_order_payables
+  // is idempotent (COALESCE on payables_confirmed_at/by) and SECURITY DEFINER, so calling it here
+  // is safe to repeat on every "ready" re-entry and needs no extra permission check beyond the
+  // changeStage the caller already holds.
+  //
+  // The self-dealing risk this bypasses (a tailor moving their own order to ready and thereby
+  // confirming their own pay) is deliberately NOT gated here — that would just reintroduce the
+  // original friction for the common case. Instead it's flagged after the fact: when the actor
+  // confirming is the same tailor the payable is for, both the activity log and the admin
+  // notification below for this stage change call it out explicitly, so a manager reviews it
+  // rather than being asked to approve it before the order can move at all.
+  let selfConfirmedNote: string | undefined;
+  if (next === "ready") {
+    try {
+      const { data: confirmedRows } = await db.rpc("confirm_order_payables", { p_order_id: id, p_user_email: user.email });
+      const confirmedOrder = confirmedRows?.[0];
+      if (confirmedOrder && isSelfConfirmedPayable(user.employeeId, mapOrderRow(confirmedOrder))) {
+        selfConfirmedNote = "⚠️ tailor self-confirmed their own piece-rate payable, needs review";
+        await logAction(supabase, user.email, `⚠️ Payable self-confirmed by ${userName} on their own order ${id} — review recommended`, id);
+      }
+    } catch (e) {
+      await logAction(supabase, user.email, `⚠️ Auto-confirm payables failed for ${id} — confirm manually`, id, String(e));
+    }
+  }
+
   // order.tailor is now an employee id, not a name — dropped from this detail string (was
   // showing a raw UUID); the order's own detail page already shows the tailor's name.
   await logAction(
@@ -58,7 +87,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     id
   );
   await sendAdminNotification(supabase, user.email, {
-    orderId: id, customerName: order.name, fromStage: curMeta.label, toStage: nextMeta.label,
+    orderId: id, customerName: order.name, fromStage: curMeta.label, toStage: nextMeta.label, note: selfConfirmedNote,
   });
 
   // H7: loyalty side-effects run after the stage is committed. Any failure returns a warning

@@ -7,6 +7,7 @@ import { STAGES, STAGE_META, fmtNow, deliveryBonusPoints, computeEarnPoints, loy
 import { logAction, sendAdminNotification } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
+import { isSelfConfirmedPayable } from "@/lib/piece-rate";
 
 const bodySchema = z.object({ stage: z.enum(STAGES as unknown as [Stage, ...Stage[]]) });
 
@@ -72,6 +73,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
   if (!updatedRow) return NextResponse.json({ error: "Someone else already updated this order — its card has been refreshed." }, { status: 409 });
 
+  // Auto-confirm piece-rate payables the moment an order reaches "ready" via a board drag —
+  // see advance-stage/route.ts for the full reasoning (this is the drag-and-drop counterpart
+  // to that "next stage" button; both are the only two paths an order reaches "ready" through,
+  // so both need this). confirm_order_payables is idempotent, so re-entering "ready" is safe.
+  let selfConfirmedNote: string | undefined;
+  if (target === "ready") {
+    try {
+      const { data: confirmedRows } = await db.rpc("confirm_order_payables", { p_order_id: id, p_user_email: user.email });
+      const confirmedOrder = confirmedRows?.[0];
+      if (confirmedOrder && isSelfConfirmedPayable(user.employeeId, mapOrderRow(confirmedOrder))) {
+        selfConfirmedNote = "⚠️ tailor self-confirmed their own piece-rate payable, needs review";
+        await logAction(supabase, user.email, `⚠️ Payable self-confirmed by ${userName} on their own order ${id} — review recommended`, id);
+      }
+    } catch (e) {
+      await logAction(supabase, user.email, `⚠️ Auto-confirm payables failed for ${id} — confirm manually`, id, String(e));
+    }
+  }
+
   // order.tailor is now an employee id, not a name — dropped from this detail string (was
   // showing a raw UUID); the order's own detail page already shows the tailor's name.
   await logAction(
@@ -80,7 +99,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     id
   );
   await sendAdminNotification(supabase, user.email, {
-    orderId: id, customerName: order.name, fromStage: curMeta.label, toStage: nextMeta.label,
+    orderId: id, customerName: order.name, fromStage: curMeta.label, toStage: nextMeta.label, note: selfConfirmedNote,
   });
 
   // H7/M9: loyalty calls happen after stage is committed — wrap in try/catch so a loyalty

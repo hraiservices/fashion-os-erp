@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { getPieceRateAdvanceCap } from "@/lib/piece-rate";
+import { getPieceRateAdvanceCap, isSelfConfirmedPayable } from "@/lib/piece-rate";
+import type { Garment } from "@/lib/types";
 
 /**
  * Regression test for a real, confirmed-live bug: getPieceRateAdvanceCap always computed ₹0
@@ -88,5 +89,27 @@ describe("getPieceRateAdvanceCap", () => {
   it("returns ₹0, not an error, when there's genuinely no confirmed order for this employee", async () => {
     const cap = await getPieceRateAdvanceCap(fakeSupabase(null, employeeId) as never, employeeId);
     expect(cap).toBe(0);
+  });
+});
+
+describe("isSelfConfirmedPayable", () => {
+  const tailorId = "f868385c-3118-4227-9454-dfa4ea9a9aeb";
+  const garment = (overrides: Partial<Garment> = {}): Garment => ({ type: "Simple Suit", ...overrides });
+
+  it("is false when nobody's logged in as a linked employee (most admin/manager accounts)", () => {
+    expect(isSelfConfirmedPayable(null, { tailor: tailorId, garments: [garment({ tailor: tailorId })] })).toBe(false);
+    expect(isSelfConfirmedPayable(undefined, { tailor: tailorId, garments: [] })).toBe(false);
+  });
+
+  it("is true when the actor is the order-level tailor", () => {
+    expect(isSelfConfirmedPayable(tailorId, { tailor: tailorId, garments: [] })).toBe(true);
+  });
+
+  it("is true when the actor matches a garment's own tailor, even if the order-level tailor differs", () => {
+    expect(isSelfConfirmedPayable(tailorId, { tailor: "someone-else", garments: [garment({ tailor: tailorId })] })).toBe(true);
+  });
+
+  it("is false when the actor matches neither the order nor any garment", () => {
+    expect(isSelfConfirmedPayable(tailorId, { tailor: "someone-else", garments: [garment({ tailor: "another-one" })] })).toBe(false);
   });
 });

@@ -240,6 +240,9 @@ export interface Customer {
    *  Not checked for the order-status concierge, which only ever replies to a message the
    *  customer sent first. */
   whatsappOptOut: boolean;
+  /** Random token addressing this customer's public order-status page (/track/[token]) —
+   *  never guessable from mobile/id, safe to put in a plain-text WhatsApp link. */
+  shareToken: string;
 }
 
 /** mapCust(), line ~2324. */
@@ -263,6 +266,7 @@ export function mapCustomerRow(r: CustomerRow): Customer {
     tags: Array.isArray(r.tags) ? r.tags : [],
     gstin: r.gstin || "",
     whatsappOptOut: !!r.whatsapp_opt_out,
+    shareToken: r.share_token || "",
   };
 }
 

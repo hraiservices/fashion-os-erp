@@ -6,7 +6,7 @@ import type { WhatsAppMessageType } from "@/lib/business-rules";
 export type StitchingWhatsAppTemplates = Record<WhatsAppMessageType, string>;
 
 export const DEFAULT_STITCHING_WHATSAPP_TEMPLATES: StitchingWhatsAppTemplates = {
-  received: "Dear *{name}*🙏\n\nYour Stitching Order *{order_id}* Received at *{shop_name}* Boutique.\n🗓️ Delivery Date is: *{delivery_date}*\n We will notify you when Ready! Thanks.🌸\n📞 {shop_phone}{website_line}",
+  received: "Dear *{name}*🙏\n\nYour Stitching Order *{order_id}* Received at *{shop_name}* Boutique.\n🗓️ Delivery Date is: *{delivery_date}*\n We will notify you when Ready! Thanks.🌸\n📞 {shop_phone}{website_line}{track_link}",
   ready: "Dear *{name}*✅\n\nYour Stitching Order *{order_id}* is *READY!* 🎉\n{garments}. Please Collect soon !.{balance_line}\n📞 *{shop_phone}*\n_{shop_name}_ 🌸",
   overdue: "Dear *{name}* 🙏\n\nYour Stitching Order *{order_id}* was due on *{delivery_date}* and is still in progress.\nWe sincerely apologize for the delay. We will notify you as soon as it is Ready! 🙏\n📞 {shop_phone}\n_{shop_name}_{website_line}",
   delivered: "Dear *{name}*💐\n Thank you for collecting your garments from *{shop_name}!* 😍{review_line}{website_line}",
@@ -34,4 +34,5 @@ export const STITCHING_WHATSAPP_VARIABLES = [
   "{website_line}",
   "{review_line}",
   "{balance_line}",
+  "{track_link}",
 ];

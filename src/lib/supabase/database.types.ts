@@ -106,6 +106,7 @@ export interface Database {
           tags: string[];
           gstin: string;
           whatsapp_opt_out: boolean;
+          share_token: string;
           created_at: string;
           updated_at: string;
         };
@@ -1169,6 +1170,10 @@ export interface Database {
         Returns: undefined;
       };
       get_public_invoice: {
+        Args: { p_token: string };
+        Returns: Json;
+      };
+      get_customer_order_status: {
         Args: { p_token: string };
         Returns: Json;
       };

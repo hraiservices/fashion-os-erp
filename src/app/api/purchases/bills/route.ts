@@ -55,10 +55,15 @@ export async function POST(request: Request) {
   const isNew = !fd.id;
 
   if (!isNew) {
-    const [{ data: payments }, { data: credits }] = await Promise.all([
+    const [{ data: payments, error: paymentsError }, { data: credits, error: creditsError }] = await Promise.all([
       db.from("vendor_payments").select("id").eq("bill_id", fd.id!).limit(1),
       db.from("vendor_credits").select("id").eq("bill_id", fd.id!).limit(1),
     ]);
+    // Same reasoning as the sibling guard on sales invoices: a failed check must not silently
+    // read as "nothing found" — that fails toward letting a bill with real payments/credits
+    // against it be edited as if it were untouched.
+    if (paymentsError) return NextResponse.json({ error: `Could not verify existing payments: ${paymentsError.message}` }, { status: 500 });
+    if (creditsError) return NextResponse.json({ error: `Could not verify existing vendor credits: ${creditsError.message}` }, { status: 500 });
     if ((payments && payments.length > 0) || (credits && credits.length > 0)) {
       return NextResponse.json(
         { error: "This bill has payments or vendor credits recorded against it and can no longer be edited. Delete those first if you need to correct it." },

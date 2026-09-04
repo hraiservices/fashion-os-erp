@@ -213,6 +213,7 @@ export const EMPLOYEES_GROUP: NavGroup = {
     { href: "/employees/attendance", label: "Attendance" },
     { href: "/employees/leave", label: "Leave" },
     { href: "/employees/payroll", label: "Payroll" },
+    { href: "/employees/advances", label: "Advances" },
     { href: "/settings/attendance-payroll", label: "Attendance & Payroll Settings" },
     { href: "/settings/leave-policy", label: "Leave Policy" },
     { href: "/settings/tailor-rates", label: "Tailor Payable Rates" },

@@ -32,6 +32,8 @@ interface RowProps {
   onRecordPayment?: (order: Order) => void;
   /** Resolves order.tailor (an employee id) to a display name — see orders/page.tsx. */
   tailorName?: (id: string) => string;
+  /** Customer's public order-status link, for the {track_link} WhatsApp variable. */
+  trackUrl?: string;
 }
 
 interface TableRowProps extends RowProps {
@@ -81,11 +83,11 @@ function AdvanceButton({ order, onAdvance, advancing, compact }: RowProps & { co
   );
 }
 
-function OrderWhatsAppButton({ order, shop, compact }: { order: Order; shop?: Shop; compact?: boolean }) {
+function OrderWhatsAppButton({ order, shop, compact, trackUrl }: { order: Order; shop?: Shop; compact?: boolean; trackUrl?: string }) {
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   return (
     <WhatsAppIconButton
-      href={buildWhatsAppUrl(order, resolveWaType(order), shop, waTemplates)}
+      href={buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates)}
       label={`WhatsApp ${order.name}`}
       className={cn("size-9", !compact && "sm:size-8")}
     />
@@ -94,7 +96,7 @@ function OrderWhatsAppButton({ order, shop, compact }: { order: Order; shop?: Sh
 
 /** Balance-due orders get a one-tap payment-reminder WhatsApp link next to the plain WhatsApp
  *  button, so staff don't have to open the order just to nudge a customer for the balance. */
-function PaymentReminderButton({ order, shop, compact }: { order: Order; shop?: Shop; compact?: boolean }) {
+function PaymentReminderButton({ order, shop, compact, trackUrl }: { order: Order; shop?: Shop; compact?: boolean; trackUrl?: string }) {
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   if (order.balance <= 0) return null;
   return (
@@ -105,7 +107,7 @@ function PaymentReminderButton({ order, shop, compact }: { order: Order; shop?: 
       aria-label={`Payment reminder to ${order.name}`}
       title="Payment reminder"
       nativeButton={false}
-      render={<a href={buildWhatsAppUrl(order, "paymentDue", shop, waTemplates)} target="_blank" rel="noopener noreferrer" />}
+      render={<a href={buildWhatsAppUrl({ ...order, trackUrl }, "paymentDue", shop, waTemplates)} target="_blank" rel="noopener noreferrer" />}
     >
       <WhatsAppIcon className="size-3.5 text-[#25D366]" /> Reminder
     </Button>
@@ -137,7 +139,7 @@ function RecordPaymentButton({ order, onRecordPayment, compact }: { order: Order
  * every order becomes a tap-friendly card with its actions inline.
  */
 export function OrderCardRow(props: RowProps) {
-  const { order, canChangeStage, shop, onRecordPayment, tailorName } = props;
+  const { order, canChangeStage, shop, onRecordPayment, tailorName, trackUrl } = props;
   const style = STAGE_STYLE[order.status];
 
   return (
@@ -181,8 +183,8 @@ export function OrderCardRow(props: RowProps) {
       <div className="flex items-center gap-2 border-t bg-muted/30 p-2">
         {canChangeStage && <AdvanceButton {...props} compact />}
         <RecordPaymentButton order={order} onRecordPayment={onRecordPayment} compact />
-        <OrderWhatsAppButton order={order} shop={shop} compact />
-        <PaymentReminderButton order={order} shop={shop} compact />
+        <OrderWhatsAppButton order={order} shop={shop} compact trackUrl={trackUrl} />
+        <PaymentReminderButton order={order} shop={shop} compact trackUrl={trackUrl} />
         <DeleteOrderButton order={order} compact />
       </div>
     </div>
@@ -191,7 +193,7 @@ export function OrderCardRow(props: RowProps) {
 
 /** Desktop table row. */
 export function OrderTableRow(props: TableRowProps) {
-  const { order, canChangeStage, shop, onRecordPayment, selection, profit, tailorName } = props;
+  const { order, canChangeStage, shop, onRecordPayment, selection, profit, tailorName, trackUrl } = props;
   const style = STAGE_STYLE[order.status];
   const isVisible = props.isVisible || (() => true);
 
@@ -262,8 +264,8 @@ export function OrderTableRow(props: TableRowProps) {
         <div className="flex items-center justify-end gap-1.5">
           {canChangeStage && <AdvanceButton {...props} />}
           <RecordPaymentButton order={order} onRecordPayment={onRecordPayment} />
-          <OrderWhatsAppButton order={order} shop={shop} />
-          <PaymentReminderButton order={order} shop={shop} />
+          <OrderWhatsAppButton order={order} shop={shop} trackUrl={trackUrl} />
+          <PaymentReminderButton order={order} shop={shop} trackUrl={trackUrl} />
           <DeleteOrderButton order={order} />
         </div>
       </td>

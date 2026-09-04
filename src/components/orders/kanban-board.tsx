@@ -23,6 +23,7 @@ export function KanbanBoard({
   shop,
   onSetStage,
   onRecordPayment,
+  trackUrlByMobile,
 }: {
   orders: Order[];
   canChangeStage?: boolean;
@@ -33,6 +34,8 @@ export function KanbanBoard({
   onSetStage?: (id: string, stage: Stage) => void;
   /** Omit to hide the Record Payment action (e.g. user lacks managePayments). */
   onRecordPayment?: (order: Order) => void;
+  /** Customer mobile → their public order-status link, for the {track_link} WhatsApp variable. */
+  trackUrlByMobile?: Map<string, string>;
 }) {
   const done = orders.filter((o) => o.status === "delivered" || o.status === "payment").length;
   const progressPct = orders.length ? Math.round((done / orders.length) * 100) : 0;
@@ -100,6 +103,7 @@ export function KanbanBoard({
               advancing={advancingId === o.id}
               shop={shop}
               onRecordPayment={onRecordPayment}
+              trackUrl={trackUrlByMobile?.get(o.mobile)}
               draggable={dndEnabled}
               dragging={draggingId === o.id}
               onDragStart={(e) => {

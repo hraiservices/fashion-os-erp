@@ -52,7 +52,9 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-semibold">Order {order.id}</p>
-              <p className="text-xs text-muted-foreground">Expected delivery: {fmtDate(order.deliveryDate)}</p>
+              <p className="text-xs text-muted-foreground">
+                Expected delivery: <span className="font-medium text-emerald-600 dark:text-emerald-400">{fmtDate(order.deliveryDate)}</span>
+              </p>
             </div>
             <span
               className="rounded-full border px-2.5 py-1 text-xs font-medium"

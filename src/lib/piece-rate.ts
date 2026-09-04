@@ -10,6 +10,20 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import type { Order, WorkOrder } from "@/lib/types";
 
+/**
+ * True when the person confirming an order's piece-rate payables is the same tailor who's
+ * actually getting paid — either the order-level tailor or any garment's own tailor. Auto-
+ * confirm-on-ready (advance-stage / set-stage) still fires either way, since gating it would
+ * bring back the exact friction it exists to remove; this is what a manager reviews afterward
+ * instead of what blocks the confirmation beforehand. `actorEmployeeId` is null for any login
+ * with no linked employee record (most admin/manager accounts), which never counts as self.
+ */
+export function isSelfConfirmedPayable(actorEmployeeId: string | null | undefined, order: Pick<Order, "tailor" | "garments">): boolean {
+  if (!actorEmployeeId) return false;
+  if (order.tailor === actorEmployeeId) return true;
+  return order.garments.some((g) => g.tailor === actorEmployeeId);
+}
+
 /** Sums payables for garments assigned to this employee, confirmed, in orders whose readyAt
  *  falls within [periodStart, periodEnd]. `orders` should already be pre-filtered to confirmed
  *  rows in the period by the caller (matches the batch-fetch-once pattern the payroll run

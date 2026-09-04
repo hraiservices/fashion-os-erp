@@ -19,15 +19,17 @@ export async function logAction(
   });
 }
 
-/** sendAdminNotification(), line ~16385. */
+/** sendAdminNotification(), line ~16385. `note` appends a short flag to the message — used for
+ *  the "this tailor's own piece-rate payable was auto-confirmed on their own stage change"
+ *  case, so a manager reviewing notifications sees it without a separate notification type. */
 export async function sendAdminNotification(
   supabase: SupabaseClient<Database>,
   userEmail: string | null | undefined,
-  params: { orderId: string; customerName: string; fromStage: string; toStage: string }
+  params: { orderId: string; customerName: string; fromStage: string; toStage: string; note?: string }
 ): Promise<void> {
   const uEmail = userEmail || "unknown";
   const uName = uEmail.split("@")[0] || "user";
-  const message = `${uName} changed ${params.customerName} (${params.orderId}) from ${params.fromStage} → ${params.toStage}`;
+  const message = `${uName} changed ${params.customerName} (${params.orderId}) from ${params.fromStage} → ${params.toStage}${params.note ? ` — ${params.note}` : ""}`;
   await supabase.from("admin_notifications").insert({
     type: "stage_change",
     order_id: params.orderId,

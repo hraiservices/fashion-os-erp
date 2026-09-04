@@ -33,7 +33,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // salaried employees keep today's uncapped behavior (a manager judgment call), unchanged.
   const { data: employeeRow } = await db.from("employees").select("piece_rate_eligible").eq("id", id).maybeSingle();
   if (employeeRow?.piece_rate_eligible) {
-    const cap = await getPieceRateAdvanceCap(supabase, id);
+    let cap: number;
+    try {
+      cap = await getPieceRateAdvanceCap(supabase, id);
+    } catch (e) {
+      return NextResponse.json({ error: e instanceof Error ? e.message : "Could not compute the piece-rate advance cap" }, { status: 500 });
+    }
     if (amount > cap) {
       return NextResponse.json({ error: `This tailor has only ₹${cap} in confirmed, unpaid piece-rate earnings — can't advance more than that.` }, { status: 409 });
     }

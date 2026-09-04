@@ -56,12 +56,23 @@ export async function getPieceRateAdvanceCap(supabase: SupabaseClient<Database>,
     // (full garments payload, no employee filter at all) and did the per-employee match in JS.
     // Harmless at today's order volume but pure waste that scales with total company order
     // count instead of this one employee's, on every single advance request.
+    //
+    // .filter(..., "cs", ...) rather than .contains(): supabase-js's .contains() branches on
+    // typeof value, and for an ARRAY value (which [{ tailor: employeeId }] is) it serializes
+    // using Postgres's native-array literal syntax — `cs.{${value.join(',')}}` — not JSON. That
+    // syntax is for a real `text[]`/`int[]` column; on a jsonb column, joining an array
+    // containing one object stringifies it to the literal text "[object Object]", producing an
+    // invalid filter (`garments=cs.{[object Object]}`) that PostgREST rejects. This function
+    // never checked ordersRes.error, so that failure was swallowed as "zero matching orders" —
+    // every piece-rate tailor's advance cap silently undercounted their order-based earnings by
+    // this term, unconditionally, for as long as this line existed. .filter() with an
+    // already-JSON-encoded string sidesteps .contains()'s type-based branching entirely.
     supabase
       .from("orders")
       .select("garments")
       .not("payables_confirmed_at", "is", null)
       .is("piece_rate_paid_at", null)
-      .contains("garments", [{ tailor: employeeId }]),
+      .filter("garments", "cs", JSON.stringify([{ tailor: employeeId }])),
     supabase
       .from("work_orders")
       .select("labor_cost")
@@ -70,6 +81,13 @@ export async function getPieceRateAdvanceCap(supabase: SupabaseClient<Database>,
       .is("piece_rate_paid_at", null),
     supabase.from("employee_advances").select("amount").eq("employee_id", employeeId).is("payslip_id", null),
   ]);
+
+  // A failed query here must not be swallowed into "this employee earned/owes nothing" — that's
+  // exactly the failure mode the broken .contains() call above produced for as long as it went
+  // unchecked: a silent ₹0 cap that looked like a legitimate business rule instead of a bug.
+  if (ordersRes.error) throw new Error(`Could not load confirmed orders for the piece-rate cap: ${ordersRes.error.message}`);
+  if (workOrdersRes.error) throw new Error(`Could not load confirmed work orders for the piece-rate cap: ${workOrdersRes.error.message}`);
+  if (advancesRes.error) throw new Error(`Could not load existing advances for the piece-rate cap: ${advancesRes.error.message}`);
 
   const orders = (ordersRes.data || []) as { garments: unknown }[];
   let earnedFromOrders = 0;

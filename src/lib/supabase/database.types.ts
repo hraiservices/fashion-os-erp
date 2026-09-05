@@ -239,7 +239,6 @@ export interface Database {
           pin_hash: string | null;
           failed_pin_attempts: number;
           pin_locked_until: string | null;
-          scratchpad_note: string;
           created_at: string;
           updated_at: string;
         };
@@ -247,6 +246,21 @@ export interface Database {
           email: string;
         };
         Update: Partial<Database["public"]["Tables"]["user_roles"]["Row"]>;
+        Relationships: [];
+      };
+      user_scratch_notes: {
+        Row: {
+          id: string;
+          user_email: string;
+          color: string;
+          content: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["user_scratch_notes"]["Row"]> & {
+          user_email: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["user_scratch_notes"]["Row"]>;
         Relationships: [];
       };
       admin_notifications: {

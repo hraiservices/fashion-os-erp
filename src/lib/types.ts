@@ -1357,3 +1357,27 @@ export function mapWarehouseRow(r: WarehouseRow): Warehouse {
     createdAt: r.created_at,
   };
 }
+
+/** Desktop utility rail's sticky notes — same idea as Zoho Notebook's color swatches. */
+export const NOTE_COLORS = ["yellow", "green", "blue", "pink", "purple", "orange"] as const;
+export type NoteColor = (typeof NOTE_COLORS)[number];
+
+export type NoteRow = Database["public"]["Tables"]["user_scratch_notes"]["Row"];
+
+export interface Note {
+  id: string;
+  color: NoteColor;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function mapNoteRow(r: NoteRow): Note {
+  return {
+    id: r.id,
+    color: (NOTE_COLORS as readonly string[]).includes(r.color) ? (r.color as NoteColor) : "yellow",
+    content: r.content || "",
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}

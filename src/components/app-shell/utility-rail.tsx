@@ -2,22 +2,54 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Sparkles, StickyNote, Settings, Calculator as CalculatorIcon, History, Keyboard, ChevronLeft, ChevronRight, Delete } from "lucide-react";
+import { Sparkles, StickyNote, Settings, Calculator as CalculatorIcon, History, Keyboard, ChevronLeft, ChevronRight, Delete, Plus, MoreVertical, Copy, Trash2, Check } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { isModuleEnabled, DEFAULT_ENTITLEMENTS } from "@/lib/entitlements";
-import { useScratchpadNote } from "@/hooks/use-scratchpad-note";
+import { useNotes } from "@/hooks/use-notes";
+import { NOTE_COLORS, type Note, type NoteColor } from "@/lib/types";
 import { useCopilotOpen } from "@/components/app-shell/copilot-context";
 import { buildSupportWhatsAppHref } from "@/components/app-shell/copilot-bubble";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "utility-rail:collapsed";
-const RAIL_BUTTON_CLASS = "size-10 text-foreground/70 hover:bg-foreground/10 hover:text-foreground";
+
+/** Each rail icon gets its own color (the ask was "make all icons colorful") — text tint plus a
+ *  matching faint hover wash, rather than one flat gray for everything. */
+const TINTS = {
+  green: "text-[#25D366] hover:bg-[#25D366]/10",
+  violet: "text-violet-500 hover:bg-violet-500/10",
+  amber: "text-amber-500 hover:bg-amber-500/10",
+  blue: "text-blue-500 hover:bg-blue-500/10",
+  teal: "text-teal-500 hover:bg-teal-500/10",
+  indigo: "text-indigo-500 hover:bg-indigo-500/10",
+  rose: "text-rose-500 hover:bg-rose-500/10",
+} as const;
+type Tint = keyof typeof TINTS;
+
+const NOTE_CARD_CLASSES: Record<NoteColor, string> = {
+  yellow: "bg-amber-100 border-amber-200",
+  green: "bg-emerald-100 border-emerald-200",
+  blue: "bg-sky-100 border-sky-200",
+  pink: "bg-pink-100 border-pink-200",
+  purple: "bg-violet-100 border-violet-200",
+  orange: "bg-orange-100 border-orange-200",
+};
+
+const NOTE_SWATCH_CLASSES: Record<NoteColor, string> = {
+  yellow: "bg-amber-400",
+  green: "bg-emerald-400",
+  blue: "bg-sky-400",
+  pink: "bg-pink-400",
+  purple: "bg-violet-400",
+  orange: "bg-orange-400",
+};
 
 function loadCollapsed(): boolean {
   if (typeof window === "undefined") return false;
@@ -52,13 +84,14 @@ export function useUtilityRailCollapsed() {
 /** A rail icon that either navigates (href) or fires a click handler, with a hover tooltip —
  *  every button on this 56px-wide rail is icon-only, so the tooltip is the only label a mouse
  *  user gets (touch has no hover, but this rail is desktop-only anyway). */
-function RailButton({ label, onClick, href, children }: { label: string; onClick?: () => void; href?: string; children: ReactNode }) {
+function RailButton({ label, onClick, href, tint, children }: { label: string; onClick?: () => void; href?: string; tint: Tint; children: ReactNode }) {
+  const className = cn("size-10", TINTS[tint]);
   const buttonEl = href ? (
-    <Button type="button" variant="ghost" size="icon" aria-label={label} nativeButton={false} render={<Link href={href} />} className={RAIL_BUTTON_CLASS}>
+    <Button type="button" variant="ghost" size="icon" aria-label={label} nativeButton={false} render={<Link href={href} />} className={className}>
       {children}
     </Button>
   ) : (
-    <Button type="button" variant="ghost" size="icon" aria-label={label} onClick={onClick} className={RAIL_BUTTON_CLASS}>
+    <Button type="button" variant="ghost" size="icon" aria-label={label} onClick={onClick} className={className}>
       {children}
     </Button>
   );
@@ -73,12 +106,12 @@ function RailButton({ label, onClick, href, children }: { label: string; onClick
 /** A rail icon that opens a popover panel (Notes, Calculator, Help) — same visual button, no
  *  separate tooltip layered on top of the popover trigger; the icon plus the panel that opens
  *  is label enough, and `title` gives a free native hover hint. */
-function RailPopoverButton({ label, icon, children }: { label: string; icon: ReactNode; children: ReactNode }) {
+function RailPopoverButton({ label, icon, tint, children }: { label: string; icon: ReactNode; tint: Tint; children: ReactNode }) {
   return (
     <Popover>
       <PopoverTrigger
         render={
-          <Button type="button" variant="ghost" size="icon" aria-label={label} title={label} className={RAIL_BUTTON_CLASS}>
+          <Button type="button" variant="ghost" size="icon" aria-label={label} title={label} className={cn("size-10", TINTS[tint])}>
             {icon}
           </Button>
         }
@@ -90,41 +123,98 @@ function RailPopoverButton({ label, icon, children }: { label: string; icon: Rea
   );
 }
 
-/** Notes popover — autosaves 800ms after the last keystroke, no explicit Save button (the
- *  whole point is "always be saved"). Loads the account's existing note on open. */
-function NotesPopover() {
-  const { data: note, isLoading, save } = useScratchpadNote();
-  const [draft, setDraft] = useState("");
-  const [synced, setSynced] = useState(false);
+/** One sticky note — autosaves 600ms after the last keystroke (no explicit Save button), plus a
+ *  "…" menu for copy/re-color/delete. Local `content` state exists purely so typing feels
+ *  instant; the account-side value only catches up after the debounce fires. */
+function NoteCard({ note, onUpdate, onDelete }: { note: Note; onUpdate: (patch: { content?: string; color?: NoteColor }) => void; onDelete: () => void }) {
+  const [content, setContent] = useState(note.content);
+  const [copied, setCopied] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Adjust local state during render (React's documented pattern for "initialize once a value
-  // arrives") rather than in an effect, once the account's saved note has actually loaded —
-  // avoids a spurious extra render pass from setState-in-effect.
-  if (!synced && !isLoading && note !== undefined) {
-    setSynced(true);
-    setDraft(note);
+  function onChange(value: string) {
+    setContent(value);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => onUpdate({ content: value }), 600);
   }
 
-  function onChange(value: string) {
-    setDraft(value);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => save.mutate(value), 800);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch {
+      // Clipboard permission denied/unavailable — nothing else to fall back to here.
+    }
   }
 
   return (
-    <div className="w-72 space-y-1.5 p-1">
-      <div className="flex items-center justify-between px-1">
-        <p className="text-xs font-semibold text-muted-foreground">My notes</p>
-        <span className="text-[10px] text-muted-foreground">{save.isPending ? "Saving…" : "Saved"}</span>
-      </div>
+    <div className={cn("relative rounded-lg border p-2.5 pr-7", NOTE_CARD_CLASSES[note.color])}>
       <textarea
-        value={draft}
+        value={content}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Jot anything down — it's saved automatically and stays on your account."
-        rows={8}
-        className="w-full resize-none rounded-lg border bg-background p-2.5 text-sm outline-none focus:ring-1 focus:ring-primary"
+        placeholder="Type a note…"
+        rows={3}
+        className="w-full resize-none bg-transparent text-sm text-neutral-800 outline-none placeholder:text-neutral-500"
       />
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <button type="button" aria-label="Note options" className="absolute right-1.5 top-1.5 rounded p-0.5 text-neutral-500 hover:bg-black/10 hover:text-neutral-800">
+              <MoreVertical className="size-3.5" />
+            </button>
+          }
+        />
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={copy}>
+            {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />} {copied ? "Copied" : "Copy"}
+          </DropdownMenuItem>
+          <div className="flex items-center gap-1.5 px-1.5 py-2">
+            {NOTE_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                aria-label={`Color: ${c}`}
+                onClick={() => onUpdate({ color: c })}
+                className={cn("size-4 rounded-full ring-1 ring-black/10", NOTE_SWATCH_CLASSES[c], note.color === c && "ring-2 ring-offset-1 ring-foreground")}
+              />
+            ))}
+          </div>
+          <DropdownMenuItem variant="destructive" onClick={onDelete}>
+            <Trash2 className="size-3.5" /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
+/** Notes popover — a small notebook, not one scratchpad: add as many colored sticky notes as
+ *  needed, each independently editable/copyable/deletable, all saved to the account. */
+function NotesPopover() {
+  const { data: notes, isLoading, create, update, remove } = useNotes();
+
+  return (
+    <div className="flex max-h-[70vh] w-80 flex-col">
+      <div className="flex items-center justify-between px-1 pb-2">
+        <p className="text-xs font-semibold text-muted-foreground">My notes</p>
+        <Button type="button" variant="outline" size="icon-sm" aria-label="Add note" disabled={create.isPending} onClick={() => create.mutate("yellow")}>
+          <Plus className="size-3.5" />
+        </Button>
+      </div>
+      <div className="space-y-2 overflow-y-auto p-1">
+        {isLoading && <p className="px-2 py-6 text-center text-xs text-muted-foreground">Loading…</p>}
+        {!isLoading && !notes?.length && (
+          <p className="px-2 py-6 text-center text-xs text-muted-foreground">No notes yet — tap + to add one.</p>
+        )}
+        {notes?.map((note) => (
+          <NoteCard
+            key={note.id}
+            note={note}
+            onUpdate={(patch) => update.mutate({ id: note.id, ...patch })}
+            onDelete={() => remove.mutate(note.id)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -264,33 +354,33 @@ export function UtilityRail({ collapsed, onToggleCollapsed }: { collapsed: boole
         </button>
       ) : (
         <div className="flex w-14 flex-col items-center gap-1 border-l bg-white/70 py-3 shadow-[-2px_0_8px_rgba(0,0,0,0.04)] backdrop-blur-md">
-          <RailButton label="WhatsApp support" onClick={() => window.open(waHref, "_blank", "noopener,noreferrer")}>
-            <WhatsAppIcon className="size-[18px] text-[#25D366]" />
+          <RailButton label="WhatsApp support" tint="green" onClick={() => window.open(waHref, "_blank", "noopener,noreferrer")}>
+            <WhatsAppIcon className="size-[18px]" />
           </RailButton>
 
           {canUseCopilot && (
-            <RailButton label="AI Copilot" onClick={() => setCopilotOpen((o) => !o)}>
-              <Sparkles className="size-[18px] text-primary" />
+            <RailButton label="AI Copilot" tint="violet" onClick={() => setCopilotOpen((o) => !o)}>
+              <Sparkles className="size-[18px]" />
             </RailButton>
           )}
 
-          <RailPopoverButton label="My notes" icon={<StickyNote className="size-[18px]" />}>
+          <RailPopoverButton label="My notes" tint="amber" icon={<StickyNote className="size-[18px]" />}>
             <NotesPopover />
           </RailPopoverButton>
 
-          <RailPopoverButton label="Calculator" icon={<CalculatorIcon className="size-[18px]" />}>
+          <RailPopoverButton label="Calculator" tint="blue" icon={<CalculatorIcon className="size-[18px]" />}>
             <CalculatorWidget />
           </RailPopoverButton>
 
-          <RailButton label="Activity log" href="/activity-log">
+          <RailButton label="Activity log" tint="teal" href="/activity-log">
             <History className="size-[18px]" />
           </RailButton>
 
-          <RailButton label="Settings" href="/settings">
+          <RailButton label="Settings" tint="indigo" href="/settings">
             <Settings className="size-[18px]" />
           </RailButton>
 
-          <RailPopoverButton label="Help & tips" icon={<Keyboard className="size-[18px]" />}>
+          <RailPopoverButton label="Help & tips" tint="rose" icon={<Keyboard className="size-[18px]" />}>
             <HelpPopover waHref={waHref} />
           </RailPopoverButton>
 

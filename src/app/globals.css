@@ -481,6 +481,27 @@
     -webkit-user-select: none;
     user-select: none;
   }
+  /* Tailwind's preflight resets <button> to cursor: default (matching native browser chrome,
+     not a bug) — so every clickable button/tab/menu-item/checkbox/radio in the app showed the
+     plain arrow on hover instead of the hand a mouse user expects from something clickable.
+     Links already get the hand from the browser; disabled/aria-disabled controls correctly
+     keep not-allowed instead. */
+  button:not(:disabled):not([aria-disabled="true"]),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([aria-disabled="true"]),
+  [role="checkbox"]:not([aria-disabled="true"]),
+  [role="radio"]:not([aria-disabled="true"]),
+  [role="switch"]:not([aria-disabled="true"]),
+  label:has(input[type="checkbox"]),
+  label:has(input[type="radio"]),
+  select:not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }
 
 /* Universal print support — app shell chrome and interactive-only UI carry `print:hidden`

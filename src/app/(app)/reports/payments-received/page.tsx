@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 const SOURCE_FILTERS: { key: "all" | PaymentSource; label: string }[] = [
   { key: "all", label: "All" },
@@ -37,6 +39,7 @@ export default function PaymentsReceivedReportPage() {
 
   const [source, setSource] = useState<"all" | PaymentSource>("all");
   const [search, setSearch] = useState("");
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const rows = useMemo(() => {
     const invoiceByIdMap = new Map((invoices || []).map((i) => [i.id, { invoiceNumber: i.invoiceNumber, customerName: i.customerName }]));
@@ -48,6 +51,7 @@ export default function PaymentsReceivedReportPage() {
 
   const filtered = useMemo(() => {
     let list = source === "all" ? rows : rows.filter((r) => r.source === source);
+    list = list.filter((r) => isWithinDateRange(r.date, range));
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter(
@@ -55,7 +59,7 @@ export default function PaymentsReceivedReportPage() {
       );
     }
     return list;
-  }, [rows, source, search]);
+  }, [rows, source, search, range]);
 
   const totalAll = useMemo(() => rows.reduce((s, r) => s + r.amount, 0), [rows]);
   const totalInvoice = useMemo(() => rows.filter((r) => r.source === "invoice").reduce((s, r) => s + r.amount, 0), [rows]);
@@ -71,6 +75,15 @@ export default function PaymentsReceivedReportPage() {
         <StatCard label="Invoice Payments" value={inr(totalInvoice)} icon={Receipt} />
         <StatCard label="Stitching Payments" value={inr(totalStitching)} icon={Scissors} />
       </div>
+
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-lg border p-0.5" role="group" aria-label="Payment source">

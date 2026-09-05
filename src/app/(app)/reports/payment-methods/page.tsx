@@ -10,6 +10,8 @@ import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-sh
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 interface MethodRow {
   method: string;
@@ -69,12 +71,20 @@ export default function PaymentMethodsReportPage() {
   const { data: vendorPayments, isLoading: l2 } = useAllVendorPayments();
   const { data: orderPayments, isLoading: l3 } = useAllOrderPayments();
   const isLoading = l1 || l2 || l3;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   // Both revenue streams — sales_payments (product sales) and order_payments (stitching orders)
   // both have a real `method` column now, so this report reflects every rupee to reconcile
   // against a bank deposit, not just retail.
-  const receivedByMethod = useMemo(() => byMethod([...(salesPayments || []), ...(orderPayments || [])]), [salesPayments, orderPayments]);
-  const madeByMethod = useMemo(() => byMethod(vendorPayments || []), [vendorPayments]);
+  const receivedByMethod = useMemo(
+    () =>
+      byMethod([
+        ...(salesPayments || []).filter((p) => isWithinDateRange(p.date, range)),
+        ...(orderPayments || []).filter((p) => isWithinDateRange(p.createdAt, range)),
+      ]),
+    [salesPayments, orderPayments, range]
+  );
+  const madeByMethod = useMemo(() => byMethod((vendorPayments || []).filter((p) => isWithinDateRange(p.date, range))), [vendorPayments, range]);
   const totalReceived = useMemo(() => receivedByMethod.reduce((s, r) => s + r.amount, 0), [receivedByMethod]);
   const totalMade = useMemo(() => madeByMethod.reduce((s, r) => s + r.amount, 0), [madeByMethod]);
 
@@ -82,6 +92,15 @@ export default function PaymentMethodsReportPage() {
 
   return (
     <ReportShell title="Payment Methods" description="Cash, UPI, bank transfer and card totals across stitching orders and product sales — useful for daily reconciliation against your bank deposits">
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Payments Received" value={inr(totalReceived)} icon={ArrowDownCircle} />
         <StatCard label="Payments Made" value={inr(totalMade)} icon={ArrowUpCircle} />

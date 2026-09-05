@@ -9,14 +9,17 @@ import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-sh
 import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 /** Product-only — stitching orders aren't broken down by product/item, only by garment type (see Garment Analysis). */
 export default function SalesByItemPage() {
   const { data: invoices, isLoading } = useSalesInvoices();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const rows = useMemo(() => {
     const map = new Map<string, { productId: string; productName: string; qty: number; revenue: number; orders: number }>();
-    (invoices || []).forEach((inv) => {
+    (invoices || []).filter((inv) => isWithinDateRange(inv.invoiceDate, range)).forEach((inv) => {
       inv.items.forEach((item) => {
         const row = map.get(item.productId) || { productId: item.productId, productName: item.productName, qty: 0, revenue: 0, orders: 0 };
         row.qty += item.qty;
@@ -26,7 +29,7 @@ export default function SalesByItemPage() {
       });
     });
     return Array.from(map.values()).sort((a, b) => b.revenue - a.revenue);
-  }, [invoices]);
+  }, [invoices, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -50,6 +53,16 @@ export default function SalesByItemPage() {
           for stitching order breakdowns.
         </span>
       </div>
+
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+        resultLabel={`${rows.length} product${rows.length === 1 ? "" : "s"}`}
+      />
 
       {rows.length === 0 ? (
         <EmptyState icon={ShoppingBag} title="No product sales yet" />

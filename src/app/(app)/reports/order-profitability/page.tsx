@@ -8,6 +8,8 @@ import { inr, fmtDate } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 /** Profit = customer price − tailor cost − stitching expenses − fabric/other cost (order
  *  form's "Costs" section, gated to the same viewReports permission). Tailor cost is the real,
@@ -19,6 +21,7 @@ export default function OrderProfitabilityPage() {
   // Profit figures are restricted to the admin role specifically, not just viewReports (which
   // managers also hold) — a shop-wide requirement, not just this one report.
   const canView = user?.role === "admin";
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   if (!canView) {
     return (
@@ -30,7 +33,7 @@ export default function OrderProfitabilityPage() {
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
-  const withCosts = orderProfitability.filter((o) => o.cost > 0);
+  const withCosts = orderProfitability.filter((o) => o.cost > 0 && isWithinDateRange(o.inDate, range));
   const totalProfit = withCosts.reduce((s, o) => s + o.profit, 0);
 
   return (
@@ -42,6 +45,16 @@ export default function OrderProfitabilityPage() {
           : "No orders have cost data yet — assign a tailor with a configured rate, or fill in Fabric/Other cost on the order form, to populate this report."
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+        resultLabel={`${withCosts.length} order${withCosts.length === 1 ? "" : "s"}`}
+      />
+
       {withCosts.length === 0 ? (
         <EmptyState icon={TrendingUp} title="No cost data yet" description="Add fabric/other cost on an order to see its profitability here." />
       ) : (

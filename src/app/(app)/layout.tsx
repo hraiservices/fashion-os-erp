@@ -11,11 +11,14 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { RESTRICTED_FALLBACK_ROUTE, isRestrictedRoute } from "@/lib/permissions";
 import { CopilotBubble } from "@/components/app-shell/copilot-bubble";
 import { CopilotOpenProvider } from "@/components/app-shell/copilot-context";
+import { UtilityRail, useUtilityRailCollapsed } from "@/components/app-shell/utility-rail";
+import { cn } from "@/lib/utils";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: user } = useCurrentUser();
   const pathname = usePathname();
   const router = useRouter();
+  const { collapsed: railCollapsed, toggle: toggleRail } = useUtilityRailCollapsed();
 
   // Mirrors the old app's `_isRestrictedRole && _RESTRICTED_TABS.indexOf(tab) !== -1` guard
   // (line ~17686): a restricted role landing on a hidden route is bounced to Orders.
@@ -38,7 +41,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="print:hidden">
           <Sidebar />
         </div>
-        <div className="flex min-w-0 flex-1 flex-col print:block">
+        {/* lg:pr-14 reserves the same 56px the utility rail itself occupies when expanded, so
+            it displaces page content instead of floating over whatever sits at the right edge
+            (table action columns, scrollbars, etc.) — dropped once the rail is collapsed. */}
+        <div className={cn("flex min-w-0 flex-1 flex-col print:block", !railCollapsed && "lg:pr-14")}>
           <div className="print:hidden">
             <Topbar />
           </div>
@@ -51,6 +57,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <MobileTabBar />
         </div>
         <CopilotBubble />
+        <UtilityRail collapsed={railCollapsed} onToggleCollapsed={toggleRail} />
       </div>
     </CopilotOpenProvider>
   );

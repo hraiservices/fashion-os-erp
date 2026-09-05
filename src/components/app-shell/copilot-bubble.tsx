@@ -4,7 +4,6 @@ import { useRef, useEffect, useState, useSyncExternalStore, type ReactNode } fro
 import Link from "next/link";
 import { Sparkles, Send, X, Copy, Check, Mic, MicOff, RotateCcw, Eraser } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { isModuleEnabled, DEFAULT_ENTITLEMENTS } from "@/lib/entitlements";
 import { useChatbotHistory, useAskChatbot, useClearChatbotHistory } from "@/hooks/use-chatbot";
@@ -90,7 +89,6 @@ function MessageActions({ text }: { text: string }) {
 
 export function CopilotBubble() {
   const { data: user } = useCurrentUser();
-  const { data: shop } = useShopSettings();
   const { data: entitlements } = useModuleEntitlements();
   const { data: history } = useChatbotHistory();
   const ask = useAskChatbot();
@@ -111,8 +109,6 @@ export function CopilotBubble() {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   const canUse = !!user?.perms.useChatbot && isModuleEnabled(entitlements ?? DEFAULT_ENTITLEMENTS, "copilot");
-
-  const waHref = buildSupportWhatsAppHref(shop?.name);
 
   useEffect(() => {
     if (open) {
@@ -395,38 +391,6 @@ export function CopilotBubble() {
         </Sheet>
       )}
 
-      {/* ── FAB buttons — desktop only; on mobile these live in the bottom tab bar instead
-          (MobileTabBar), so the floating circles don't sit on top of page content. ── */}
-      <div className="hidden flex-col items-end gap-2 lg:flex">
-        {/* WhatsApp support */}
-        <a
-          href={waHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="WhatsApp support"
-          className="flex size-12 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
-        >
-          <WhatsAppIcon className="size-[22px]" />
-        </a>
-
-        {/* AI Copilot toggle */}
-        {canUse && (
-          <button
-            type="button"
-            onClick={() => {
-              hapticTap();
-              setOpen((o) => !o);
-            }}
-            aria-label={open ? "Close AI Copilot" : "Open AI Copilot"}
-            className={cn(
-              "flex size-12 items-center justify-center rounded-full shadow-lg transition-all hover:scale-105 active:scale-95",
-              open ? "bg-primary text-primary-foreground ring-2 ring-primary/30" : "border bg-background text-primary hover:bg-primary/5"
-            )}
-          >
-            {open ? <X className="size-5" /> : <Sparkles className="size-5" />}
-          </button>
-        )}
-      </div>
     </div>
   );
 }

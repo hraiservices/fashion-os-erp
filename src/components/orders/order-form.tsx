@@ -781,19 +781,19 @@ function OrderFormFields({
             )}
           </div>
 
-          {measureFields.length > 0 && (
-            <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-              <Accordion value={measureOpen ? ["measurements"] : []} onValueChange={(v) => setMeasureOpen(v.includes("measurements"))}>
-                <AccordionItem value="measurements" className="border-b-0">
-                  <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
-                    <span className="flex items-center gap-2">
-                      <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
-                        <Ruler className="size-3.5 text-primary" />
-                      </span>
-                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Measurements</span>
+          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+            <Accordion value={measureOpen ? ["measurements"] : []} onValueChange={(v) => setMeasureOpen(v.includes("measurements"))}>
+              <AccordionItem value="measurements" className="border-b-0">
+                <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                  <span className="flex items-center gap-2">
+                    <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                      <Ruler className="size-3.5 text-primary" />
                     </span>
-                  </AccordionTrigger>
-                  <AccordionContent>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Measurements</span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  {measureFields.length > 0 && (
                     <div className="-mt-2 mb-4 flex flex-wrap items-center justify-between gap-2">
                       <p className="text-xs text-muted-foreground">
                         {prefilled ? "Loaded from this customer's saved profile — edit as needed." : "Saved to the customer for next time."}
@@ -811,18 +811,18 @@ function OrderFormFields({
                         <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScanChart} disabled={extractMeasurements.isPending} />
                       </Button>
                     </div>
-                    <MeasurementGrid
-                      fields={measureFields}
-                      values={measurements}
-                      onChange={(key, value) => setMeasurements((m) => ({ ...m, [key]: value }))}
-                      lang={measureLang}
-                      onLangChange={setMeasureLang}
-                    />
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </div>
-          )}
+                  )}
+                  <MeasurementGrid
+                    fields={measureFields}
+                    values={measurements}
+                    onChange={(key, value) => setMeasurements((m) => ({ ...m, [key]: value }))}
+                    lang={measureLang}
+                    onLangChange={setMeasureLang}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
 
           {/* Garments */}
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">

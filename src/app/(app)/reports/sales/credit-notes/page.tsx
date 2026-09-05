@@ -11,14 +11,17 @@ import { StatCard } from "@/components/ui/stat-card";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 export default function CreditNoteDetailsPage() {
   const { data: creditNotes, isLoading: l1 } = useSalesCreditNotes();
   const { data: invoices, isLoading: l2 } = useSalesInvoices();
   const isLoading = l1 || l2;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const invoiceById = useMemo(() => new Map((invoices || []).map((i) => [i.id, i])), [invoices]);
-  const rows = useMemo(() => creditNotes || [], [creditNotes]);
+  const rows = useMemo(() => (creditNotes || []).filter((c) => isWithinDateRange(c.date, range)), [creditNotes, range]);
   const total = useMemo(() => rows.reduce((s, c) => s + c.total, 0), [rows]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
@@ -47,6 +50,16 @@ export default function CreditNoteDetailsPage() {
         <StatCard label="Total Credit Notes" value={rows.length} icon={FileMinus} />
         <StatCard label="Total Credited" value={inr(total)} icon={FileMinus} />
       </div>
+
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+        resultLabel={`${rows.length} credit note${rows.length === 1 ? "" : "s"}`}
+      />
 
       {rows.length === 0 ? (
         <EmptyState icon={FileMinus} title="No credit notes yet" description="Credit notes issued against sales invoices will appear here." />

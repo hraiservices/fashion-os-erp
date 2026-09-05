@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { FileMinus } from "lucide-react";
 import { useVendorCredits } from "@/hooks/use-vendor-credits";
@@ -12,16 +12,24 @@ import { StatCard } from "@/components/ui/stat-card";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 export default function VendorCreditDetailsPage() {
   const { data: credits, isLoading: l1 } = useVendorCredits();
   const { data: vendors, isLoading: l2 } = useVendors();
   const { data: bills, isLoading: l3 } = usePurchaseBills();
   const isLoading = l1 || l2 || l3;
+  const [vendorId, setVendorId] = useState("all");
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const vendorNameById = useMemo(() => new Map((vendors || []).map((v) => [v.id, v.name])), [vendors]);
   const billById = useMemo(() => new Map((bills || []).map((b) => [b.id, b])), [bills]);
-  const rows = useMemo(() => credits || [], [credits]);
+  const rows = useMemo(
+    () => (credits || []).filter((c) => isWithinDateRange(c.date, range)).filter((c) => vendorId === "all" || c.vendorId === vendorId),
+    [credits, range, vendorId],
+  );
   const total = useMemo(() => rows.reduce((s, c) => s + c.total, 0), [rows]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
@@ -50,6 +58,31 @@ export default function VendorCreditDetailsPage() {
         <StatCard label="Total Credit Notes" value={rows.length} icon={FileMinus} />
         <StatCard label="Total Credited" value={inr(total)} icon={FileMinus} />
       </div>
+
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+        resultLabel={`${rows.length} credit${rows.length === 1 ? "" : "s"}`}
+        category={
+          <Select value={vendorId} onValueChange={(v) => v && setVendorId(v)}>
+            <SelectTrigger className="h-9 w-44">
+              <SelectValue>{vendorId === "all" ? "All Vendors" : vendorNameById.get(vendorId) || "Unknown vendor"}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Vendors</SelectItem>
+              {(vendors || []).map((v) => (
+                <SelectItem key={v.id} value={v.id}>
+                  {v.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+      />
 
       {rows.length === 0 ? (
         <EmptyState icon={FileMinus} title="No vendor credits yet" />

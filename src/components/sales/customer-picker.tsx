@@ -13,18 +13,38 @@ export function CustomerPicker({
   open,
   onOpenChange,
   onSelect,
+  startInAddMode,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (customer: Customer) => void;
+  /** Skip straight to the "New customer" form instead of the search list — for a caller whose
+   *  own trigger already means "add a new customer" (e.g. a dedicated New button), so a second
+   *  "New customer" click inside the dialog would just be a redundant extra step. */
+  startInAddMode?: boolean;
 }) {
   const { data: customers } = useCustomers();
   const saveCustomer = useSaveCustomer();
   const [query, setQuery] = useState("");
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(!!startInAddMode);
   const [newName, setNewName] = useState("");
   const [newMobile, setNewMobile] = useState("");
   const [addError, setAddError] = useState("");
+
+  // The dialog stays mounted across opens/closes (its parent renders it unconditionally), so
+  // `adding`'s initial useState value only applies on first mount. Adjusting state during
+  // render (rather than in an effect) on an `open` transition is React's documented pattern for
+  // "reset state when a prop changes" — it re-applies the caller's intended starting mode every
+  // time the dialog is actually opened again, without an extra render pass.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setAdding(!!startInAddMode);
+      setNewName("");
+      setAddError("");
+    }
+  }
 
   const filtered = useMemo(() => {
     const list = customers || [];

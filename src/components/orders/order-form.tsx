@@ -1316,7 +1316,7 @@ function OrderFormFields({
         </div>
       </form>
 
-      {!isEdit && <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={selectCustomer} />}
+      {!isEdit && <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={selectCustomer} startInAddMode />}
     </div>
   );
 }

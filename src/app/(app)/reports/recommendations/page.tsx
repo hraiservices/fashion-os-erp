@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Sparkles, Send, CheckCircle2, TrendingUp } from "lucide-react";
 import { useCustomerRecommendations } from "@/hooks/use-customer-recommendations";
@@ -12,6 +12,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { fmtDate } from "@/lib/format";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 /**
  * Phase 8: "is this feature actually generating sales?" — cross-references every logged
@@ -25,19 +28,24 @@ export default function RecommendationsReportPage() {
   const { data: invoices, isLoading: invoicesLoading } = useSalesInvoices();
 
   const isLoading = recsLoading || invoicesLoading;
+  const [channel, setChannel] = useState<"all" | "whatsapp_api" | "wa_me">("all");
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const rows = useMemo(() => {
     if (!recommendations || !invoices) return [];
-    return recommendations.map((rec) => {
-      const convertedInvoice = invoices.find(
-        (inv) =>
-          inv.customerMobile === rec.customerMobile &&
-          new Date(inv.invoiceDate).getTime() >= new Date(rec.createdAt).getTime() &&
-          inv.items.some((it) => it.productId === rec.productId)
-      );
-      return { rec, converted: !!convertedInvoice, convertedDate: convertedInvoice?.invoiceDate };
-    });
-  }, [recommendations, invoices]);
+    return recommendations
+      .filter((rec) => isWithinDateRange(rec.createdAt, range))
+      .filter((rec) => channel === "all" || (channel === "wa_me" ? rec.channel !== "whatsapp_api" : rec.channel === "whatsapp_api"))
+      .map((rec) => {
+        const convertedInvoice = invoices.find(
+          (inv) =>
+            inv.customerMobile === rec.customerMobile &&
+            new Date(inv.invoiceDate).getTime() >= new Date(rec.createdAt).getTime() &&
+            inv.items.some((it) => it.productId === rec.productId)
+        );
+        return { rec, converted: !!convertedInvoice, convertedDate: convertedInvoice?.invoiceDate };
+      });
+  }, [recommendations, invoices, range, channel]);
 
   const totalSent = rows.length;
   const viaApi = rows.filter((r) => r.rec.channel === "whatsapp_api").length;
@@ -49,7 +57,7 @@ export default function RecommendationsReportPage() {
 
   return (
     <ReportShell title="Recommendation Performance" description="Product recommendations sent to customers, and whether they led to a sale">
-      {totalSent === 0 ? (
+      {(recommendations || []).length === 0 ? (
         <EmptyState
           icon={Sparkles}
           title="No recommendations sent yet"
@@ -57,6 +65,28 @@ export default function RecommendationsReportPage() {
         />
       ) : (
         <>
+          <ReportFilterBar
+            preset={preset}
+            onPresetChange={setPreset}
+            customFrom={customFrom}
+            onCustomFromChange={setCustomFrom}
+            customTo={customTo}
+            onCustomToChange={setCustomTo}
+            resultLabel={`${totalSent} recommendation${totalSent === 1 ? "" : "s"}`}
+            category={
+              <Select value={channel} onValueChange={(v) => v && setChannel(v as typeof channel)}>
+                <SelectTrigger className="h-9 w-40">
+                  <SelectValue>{channel === "all" ? "All Channels" : channel === "whatsapp_api" ? "API" : "wa.me"}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Channels</SelectItem>
+                  <SelectItem value="whatsapp_api">API</SelectItem>
+                  <SelectItem value="wa_me">wa.me</SelectItem>
+                </SelectContent>
+              </Select>
+            }
+          />
+
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard label="Recommendations sent" value={totalSent} icon={Send} />
             <StatCard label="Via WhatsApp API" value={viaApi} hint={`${viaWaMe} via wa.me`} icon={Sparkles} />

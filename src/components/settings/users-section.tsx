@@ -544,12 +544,13 @@ export function UsersSection() {
                     ) : (
                       <button
                         className="text-left hover:underline"
+                        title={row.email}
                         onClick={() => {
                           setEditingEmail(row.email);
                           setEmailVal(row.email);
                         }}
                       >
-                        {row.email}
+                        {row.linked_employee_id ? employeesById.get(row.linked_employee_id)?.name || row.email : row.email}
                       </button>
                     )}
                   </div>

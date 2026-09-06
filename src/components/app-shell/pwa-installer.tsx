@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
+import { isNativePlatform } from "@/lib/capacitor";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => void;
@@ -36,6 +37,22 @@ export function PwaInstaller() {
   const [showIOSHint, setShowIOSHint] = useState(false);
 
   useEffect(() => {
+    // The Capacitor shell must never run the service worker. It already IS an installed app, so
+    // the offline shell and install prompt are both pointless there — and a service worker sitting
+    // in front of a WebView's requests is actively harmful: a cold app start fires requests before
+    // connectivity has settled, and a single failed asset fetch used to poison the page (see
+    // public/sw.js). Unregister rather than merely skip, so a device that already installed a build
+    // which registered one gets healed on the next successful load instead of staying broken.
+    if (isNativePlatform()) {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.getRegistrations().then((regs) => regs.forEach((r) => r.unregister())).catch(() => {});
+      }
+      if ("caches" in window) {
+        caches.keys().then((keys) => keys.forEach((k) => caches.delete(k))).catch(() => {});
+      }
+      return;
+    }
+
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
@@ -60,6 +77,9 @@ export function PwaInstaller() {
   // worker claiming a page that had no controller yet, not something to reload for.
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
+    // Native never has a worker of its own, and the unregister above changes the controller —
+    // reloading on that would just fight the cleanup.
+    if (isNativePlatform()) return;
     let hadController = !!navigator.serviceWorker.controller;
     let reloaded = false;
     function onControllerChange() {

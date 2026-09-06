@@ -18,6 +18,10 @@ const config: CapacitorConfig = {
     url: "https://app.fashionflow.app",
     // The production domain is already HTTPS — cleartext (plain HTTP) traffic stays disallowed.
     cleartext: false,
+    // Bundled offline fallback with a retry button. Without it a failed load (dead zone, cold
+    // start before connectivity settles) strands the app on the WebView's own error page, which
+    // has no way back short of force-stopping it — the app just looks broken forever.
+    errorPath: "error.html",
   },
 };
 

@@ -10,17 +10,22 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 export default function ManufacturingReportPage() {
-  const { data: workOrders, isLoading } = useWorkOrders();
+  const { data: allWorkOrders, isLoading } = useWorkOrders();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+
+  const workOrders = useMemo(() => (allWorkOrders || []).filter((w) => isWithinDateRange(w.startDate, range)), [allWorkOrders, range]);
 
   const statusCounts = useMemo(() => {
     const counts = { draft: 0, in_progress: 0, qc: 0, completed: 0 };
-    (workOrders || []).forEach((w) => (counts[w.status] += 1));
+    workOrders.forEach((w) => (counts[w.status] += 1));
     return counts;
   }, [workOrders]);
 
-  const completed = useMemo(() => (workOrders || []).filter((w) => w.status === "completed"), [workOrders]);
+  const completed = useMemo(() => workOrders.filter((w) => w.status === "completed"), [workOrders]);
   const totalProductionCost = useMemo(() => completed.reduce((s, w) => s + (w.totalCost || 0), 0), [completed]);
   const totalWastageCost = useMemo(() => completed.reduce((s, w) => s + (w.wastageCost || 0), 0), [completed]);
   const totalMaterialCost = useMemo(() => completed.reduce((s, w) => s + (w.materialCost || 0), 0), [completed]);
@@ -44,6 +49,15 @@ export default function ManufacturingReportPage() {
 
   return (
     <ReportShell title="Manufacturing" description="Work order status, production cost and wastage">
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Active Work Orders" value={statusCounts.draft + statusCounts.in_progress + statusCounts.qc} icon={Factory} />
         <StatCard label="Production Cost" value={inr(totalProductionCost)} icon={Wallet} />

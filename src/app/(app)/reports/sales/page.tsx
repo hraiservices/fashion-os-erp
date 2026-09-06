@@ -12,6 +12,8 @@ import { ReportShell } from "@/components/reports/report-shell";
 import { SalesTypeFilter } from "@/components/reports/sales-type-filter";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 const DESCRIPTIONS: Record<SaleTypeFilter, string> = {
   all: "Total revenue across Stitching Orders and Product Sales, combined.",
@@ -38,8 +40,12 @@ export default function SalesSummaryPage() {
   const subReports = user?.role === "admin" ? SUB_REPORTS : SUB_REPORTS.filter((r) => r.href !== "/reports/sales/profit-by-item");
 
   const isLoading = ordersLoading || invoicesLoading;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
-  const filtered = useMemo(() => filterByType(buildUnifiedSales(orders || [], invoices || []), filter), [orders, invoices, filter]);
+  const filtered = useMemo(
+    () => filterByType(buildUnifiedSales(orders || [], invoices || []), filter).filter((t) => isWithinDateRange(t.date, range)),
+    [orders, invoices, filter, range]
+  );
 
   const totalBilled = useMemo(() => filtered.reduce((s, t) => s + t.billed, 0), [filtered]);
   const totalCollected = useMemo(() => filtered.reduce((s, t) => s + t.paid, 0), [filtered]);
@@ -47,13 +53,24 @@ export default function SalesSummaryPage() {
   const collectionPct = totalBilled > 0 ? Math.round((totalCollected / totalBilled) * 100) : 0;
 
   // GST only applies to retail invoices — always computed from the retail slice, regardless of the active filter.
-  const totalGst = useMemo(() => (invoices || []).reduce((s, i) => s + i.cgst + i.sgst + i.igst, 0), [invoices]);
+  const totalGst = useMemo(
+    () => (invoices || []).filter((i) => isWithinDateRange(i.invoiceDate, range)).reduce((s, i) => s + i.cgst + i.sgst + i.igst, 0),
+    [invoices, range]
+  );
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
     <ReportShell title="Sales Summary" description={DESCRIPTIONS[filter]}>
-      <SalesTypeFilter value={filter} onChange={setFilter} />
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+        category={<SalesTypeFilter value={filter} onChange={setFilter} />}
+      />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Total Billed" value={inr(totalBilled)} icon={Receipt} />

@@ -12,8 +12,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
-/** Salary/payroll report — every payslip ever generated, across all runs, with employee + period joined in client-side. Admin-only (managePayroll), same as the Payroll pages themselves. */
+/** Salary/payroll report — every payslip ever generated, across all runs, with employee + period joined in client-side. Admin-only (managePayroll), same as the Payroll pages themselves.
+ *  Each payslip covers a pay period rather than a single date — the date range matches it against
+ *  the run's periodStart. */
 export default function PayrollSummaryReportPage() {
   const { data: user } = useCurrentUser();
   const { data: employees, isLoading: employeesLoading } = useEmployees();
@@ -21,6 +25,7 @@ export default function PayrollSummaryReportPage() {
   const { data: payslips, isLoading: payslipsLoading } = useAllPayslips();
   const canManagePayroll = !!user?.perms.managePayroll;
   const isLoading = employeesLoading || runsLoading || payslipsLoading;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const employeeName = (id: string) => (employees || []).find((e) => e.id === id)?.name || "—";
   const runById = useMemo(() => new Map((runs || []).map((r) => [r.id, r])), [runs]);
@@ -28,9 +33,9 @@ export default function PayrollSummaryReportPage() {
   const rows = useMemo(() => {
     return (payslips || [])
       .map((p) => ({ payslip: p, run: runById.get(p.payrollRunId) }))
-      .filter((r) => r.run)
+      .filter((r) => r.run && isWithinDateRange(r.run.periodStart, range))
       .sort((a, b) => (b.run!.periodStart || "").localeCompare(a.run!.periodStart || ""));
-  }, [payslips, runById]);
+  }, [payslips, runById, range]);
 
   const totals = rows.reduce(
     (acc, r) => ({ gross: acc.gross + r.payslip.grossPay, deductions: acc.deductions + r.payslip.deductions, net: acc.net + r.payslip.netPay }),
@@ -73,6 +78,15 @@ export default function PayrollSummaryReportPage() {
         )
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       {rows.length === 0 ? (
         <EmptyState icon={Wallet} title="No payslips yet" description="Run payroll from Employees → Payroll to see salary history here." />
       ) : (

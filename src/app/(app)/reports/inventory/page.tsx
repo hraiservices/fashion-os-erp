@@ -10,11 +10,17 @@ import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-sh
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange } from "@/lib/report-date-range";
 
+/** Pure point-in-time stock/valuation snapshot — raw materials and products carry no date field
+ *  at all (current stockQty/cost only), so there is no underlying transaction for a date range to
+ *  filter. The bar is shown anyway for consistency with every other report; it has no effect here. */
 export default function InventoryReportPage() {
   const { data: rawMaterials, isLoading: loadingMaterials } = useRawMaterials();
   const { data: products, isLoading: loadingProducts } = useProducts();
   const isLoading = loadingMaterials || loadingProducts;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo } = useReportDateRange();
 
   const rawValue = useMemo(() => (rawMaterials || []).reduce((s, m) => s + m.stockQty * m.costPerUnit, 0), [rawMaterials]);
   // "Inventory Value" is cost-basis (what you paid) — the accounting-correct figure for a
@@ -32,6 +38,15 @@ export default function InventoryReportPage() {
 
   return (
     <ReportShell title="Inventory Valuation" description="Stock on hand valued at cost (accounting basis) and at retail, across raw materials and finished goods">
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <StatCard label="Raw Materials" value={rawMaterials?.length ?? 0} icon={Package} />
         <StatCard label="Products" value={products?.length ?? 0} icon={ShoppingBag} />

@@ -10,10 +10,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { TrendingUp, TrendingDown, Wallet, Receipt } from "lucide-react";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange } from "@/lib/report-date-range";
 
+/** useCombinedPl() hardcodes a trailing-6-month window across purchases/expenses/payroll/orders/
+ *  invoices with no date-range parameter of its own — properly honoring a custom range here needs
+ *  that hook reworked to accept one. The bar is shown for consistency; it doesn't filter yet. */
 export default function CombinedPlPage() {
   const { data: user } = useCurrentUser();
   const { monthly, isLoading } = useCombinedPl();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo } = useReportDateRange();
 
   const totals = useMemo(
     () => monthly.reduce((acc, m) => ({ revenue: acc.revenue + m.revenue, cost: acc.cost + m.totalCost, net: acc.net + m.netProfit }), { revenue: 0, cost: 0, net: 0 }),
@@ -34,6 +40,15 @@ export default function CombinedPlPage() {
 
   return (
     <ReportShell title="Combined P&L" description="All revenue (stitching + product sales) against all costs — purchases, stitching job costs, manufacturing labour, company expenses and salaries — last 6 months">
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Total Revenue" value={inr(totals.revenue)} icon={TrendingUp} tone="success" />
         <StatCard label="Total Cost" value={inr(totals.cost)} icon={TrendingDown} tone="danger" />

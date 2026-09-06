@@ -9,6 +9,8 @@ import { inr } from "@/lib/format";
 import { ReportShell } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 const SUB_REPORTS = [
   { href: "/reports/payables/vendor-balance-summary", label: "Vendor Balance Summary", description: "Billed, paid, and balance per vendor", icon: Truck },
@@ -25,16 +27,28 @@ const SUB_REPORTS = [
 
 export default function PayableSummaryPage() {
   const { data: bills, isLoading } = usePurchaseBills();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
-  const totalBilled = useMemo(() => (bills || []).reduce((s, b) => s + b.total, 0), [bills]);
-  const totalPayable = useMemo(() => (bills || []).reduce((s, b) => s + b.balance, 0), [bills]);
-  const totalGst = useMemo(() => (bills || []).reduce((s, b) => s + b.cgst + b.sgst + b.igst, 0), [bills]);
-  const overdueCount = useMemo(() => (bills || []).filter((b) => b.balance > 0 && b.dueDate && daysLeft(b.dueDate) < 0).length, [bills]);
+  const filteredBills = useMemo(() => (bills || []).filter((b) => isWithinDateRange(b.billDate, range)), [bills, range]);
+
+  const totalBilled = useMemo(() => filteredBills.reduce((s, b) => s + b.total, 0), [filteredBills]);
+  const totalPayable = useMemo(() => filteredBills.reduce((s, b) => s + b.balance, 0), [filteredBills]);
+  const totalGst = useMemo(() => filteredBills.reduce((s, b) => s + b.cgst + b.sgst + b.igst, 0), [filteredBills]);
+  const overdueCount = useMemo(() => filteredBills.filter((b) => b.balance > 0 && b.dueDate && daysLeft(b.dueDate) < 0).length, [filteredBills]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
     <ReportShell title="Payable Summary" description="Vendor spend, payables and bill aging, at a glance">
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Total Billed" value={inr(totalBilled)} icon={Receipt} />
         <StatCard label="Total Payable" value={inr(totalPayable)} icon={Wallet} tone={totalPayable > 0 ? "warning" : "default"} />

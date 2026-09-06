@@ -1,17 +1,27 @@
 "use client";
 
+import { useMemo } from "react";
 import { Megaphone } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
+import { getBookingSourceBreakdown } from "@/lib/analytics";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 /** How customers found the shop — "Not recorded" is expected and honest for orders created
  *  before this field existed, or where it was left blank. See order-form.tsx's "How did they
  *  find us?" field and src/lib/analytics.ts getBookingSourceBreakdown. */
 export default function BookingSourcesPage() {
-  const { bookingSourceBreakdown, isLoading } = useReportsData();
+  const { orders, isLoading } = useReportsData();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+
+  const bookingSourceBreakdown = useMemo(
+    () => getBookingSourceBreakdown(orders.filter((o) => isWithinDateRange(o.inDate, range))),
+    [orders, range]
+  );
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -19,6 +29,15 @@ export default function BookingSourcesPage() {
 
   return (
     <ReportShell title="Booking Sources" description={`${totalOrders} order(s), by how the customer found the company`}>
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       {bookingSourceBreakdown.length === 0 ? (
         <EmptyState icon={Megaphone} title="No orders yet" />
       ) : (

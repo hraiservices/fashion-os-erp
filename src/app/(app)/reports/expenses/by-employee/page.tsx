@@ -8,14 +8,17 @@ import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-sh
 import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 /** "Employee" here is whoever was logged in when the expense was recorded (`createdBy`) — this app doesn't have a separate staff/employee directory beyond user accounts. */
 export default function ExpensesByEmployeePage() {
   const { data: expenses, isLoading } = useExpenses();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const rows = useMemo(() => {
     const map = new Map<string, { user: string; count: number; total: number }>();
-    (expenses || []).forEach((e) => {
+    (expenses || []).filter((e) => isWithinDateRange(e.date, range)).forEach((e) => {
       const key = e.createdBy || "Unknown";
       const row = map.get(key) || { user: key, count: 0, total: 0 };
       row.count += 1;
@@ -23,7 +26,7 @@ export default function ExpensesByEmployeePage() {
       map.set(key, row);
     });
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [expenses]);
+  }, [expenses, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -37,6 +40,16 @@ export default function ExpensesByEmployeePage() {
         )
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+        resultLabel={`${rows.length} user${rows.length === 1 ? "" : "s"}`}
+      />
+
       {rows.length === 0 ? (
         <EmptyState icon={Users} title="No expenses yet" />
       ) : (

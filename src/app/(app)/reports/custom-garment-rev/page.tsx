@@ -1,23 +1,39 @@
 "use client";
 
+import { useMemo } from "react";
 import { Shirt } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
+import { getCustomGarmentRevenue } from "@/lib/analytics";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 /**
  * ReportsView's `customGarRev`, Stitching_Manager_Pro_v16.html ~line 8111. Rows show as
  * "Standard" until OrderForm collects a custom garment name — see the note in analytics.ts.
  */
 export default function CustomGarmentRevPage() {
-  const { customGarRev, isLoading } = useReportsData();
+  const { orders, isLoading } = useReportsData();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+
+  const customGarRev = useMemo(() => getCustomGarmentRevenue(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   return (
     <ReportShell title="Custom Garment Revenue" description="Revenue split between custom-named garments and standard rate-card types">
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       {customGarRev.length === 0 ? (
         <EmptyState icon={Shirt} title="No garment revenue yet" />
       ) : (

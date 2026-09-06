@@ -8,13 +8,16 @@ import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-sh
 import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 export default function ExpensesByCategoryPage() {
   const { data: expenses, isLoading } = useExpenses();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const rows = useMemo(() => {
     const map = new Map<string, { category: string; count: number; total: number }>();
-    (expenses || []).forEach((e) => {
+    (expenses || []).filter((e) => isWithinDateRange(e.date, range)).forEach((e) => {
       const row = map.get(e.category) || { category: e.category, count: 0, total: 0 };
       row.count += 1;
       row.total += e.amount;
@@ -24,7 +27,7 @@ export default function ExpensesByCategoryPage() {
     return Array.from(map.values())
       .map((r) => ({ ...r, pct: grandTotal > 0 ? (r.total / grandTotal) * 100 : 0 }))
       .sort((a, b) => b.total - a.total);
-  }, [expenses]);
+  }, [expenses, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -41,6 +44,16 @@ export default function ExpensesByCategoryPage() {
         )
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+        resultLabel={`${rows.length} categor${rows.length === 1 ? "y" : "ies"}`}
+      />
+
       {rows.length === 0 ? (
         <EmptyState icon={PieChart} title="No expenses yet" />
       ) : (

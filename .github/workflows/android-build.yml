@@ -1,0 +1,54 @@
+name: Build Android APK
+
+# GitHub's runners have full internet access to the Android SDK repositories, unlike the sandbox
+# this project is developed in — so this is where the actual .apk gets built, not locally in that
+# environment. Manual trigger (Actions tab → this workflow → "Run workflow") plus automatically
+# whenever the native Android project or web build actually changes, so a debug APK is always
+# available to download without anyone needing Android Studio installed at all.
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - "capacitor.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/android-build.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fashion-flow-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

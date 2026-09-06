@@ -199,6 +199,22 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["push_subscriptions"]["Row"]>;
         Relationships: [];
       };
+      native_push_tokens: {
+        Row: {
+          id: string;
+          email: string;
+          token: string;
+          platform: string;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["native_push_tokens"]["Row"]> & {
+          email: string;
+          token: string;
+          platform: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["native_push_tokens"]["Row"]>;
+        Relationships: [];
+      };
       billing_events: {
         Row: {
           id: string;

@@ -11,18 +11,23 @@ import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-sh
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 export default function EmployeeCommissionReportPage() {
   const { data: employees, isLoading: employeesLoading } = useEmployees();
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const isLoading = employeesLoading || ordersLoading;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+
+  const filteredOrders = useMemo(() => (orders || []).filter((o) => isWithinDateRange(o.inDate, range)), [orders, range]);
 
   const rows = useMemo(() => {
     return (employees || [])
       .filter((e) => e.commissionType !== "none")
-      .map((e) => ({ employee: e, ...computeCommission(e, orders || []) }))
+      .map((e) => ({ employee: e, ...computeCommission(e, filteredOrders) }))
       .sort((a, b) => b.commission - a.commission);
-  }, [employees, orders]);
+  }, [employees, filteredOrders]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -49,6 +54,15 @@ export default function EmployeeCommissionReportPage() {
         )
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       {rows.length === 0 ? (
         <EmptyState icon={UserCog} title="No commission-eligible employees" description="Set a commission type on an employee in Employees to see them here." />
       ) : (

@@ -1,11 +1,13 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { PackageCheck } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { buildWhatsAppUrl } from "@/lib/business-rules";
+import { getReadyUncollected } from "@/lib/analytics";
 import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { fmtDate } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
@@ -13,19 +15,33 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 /** Orders sitting in "ready" the longest without being picked up — distinct from Balance Aging,
  *  which tracks the delivery-date promise, not physical pickup. Excludes orders that reached
  *  "ready" before the ready_at column existed (see src/lib/analytics.ts getReadyUncollected). */
 export default function ReadyUncollectedPage() {
-  const { readyUncollected, isLoading } = useReportsData();
+  const { orders, isLoading } = useReportsData();
   const { data: shop } = useShopSettings();
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+
+  const readyUncollected = useMemo(() => getReadyUncollected(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   return (
     <ReportShell title="Ready & Uncollected" description={`${readyUncollected.length} order(s) ready for pickup, longest-waiting first`}>
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       {readyUncollected.length === 0 ? (
         <EmptyState icon={PackageCheck} title="Nothing waiting" description="Every ready order has been picked up." />
       ) : (

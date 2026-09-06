@@ -6,18 +6,24 @@ import { useReportsData } from "@/hooks/use-reports-data";
 import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useTailorName } from "@/hooks/use-employees";
 import { getManufacturingTailorStats } from "@/lib/manufacturing";
+import { getTailorStats } from "@/lib/analytics";
 import { printReport } from "@/lib/export";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 export default function TailorPerformancePage() {
-  const { tailorStats, isLoading: reportsLoading } = useReportsData();
+  const { orders, isLoading: reportsLoading } = useReportsData();
   const { data: workOrders, isLoading: woLoading } = useWorkOrders();
   const isLoading = reportsLoading || woLoading;
   const tailorName = useTailorName();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+
+  const tailorStats = useMemo(() => getTailorStats(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
 
   const mfgByTailor = useMemo(() => {
     const stats = getManufacturingTailorStats(workOrders || []);
@@ -49,6 +55,15 @@ export default function TailorPerformancePage() {
         )
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       {tailorStats.length === 0 ? (
         <EmptyState icon={Users} title="No tailor data yet" description="Assign tailors to orders to see performance here." />
       ) : (

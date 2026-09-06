@@ -18,6 +18,7 @@ interface SaveEmployeeInput {
   salaryRate?: number;
   pieceRateEligible?: boolean;
   locationId?: string | null;
+  photoUrl?: string | null;
   userEmail?: string;
 }
 

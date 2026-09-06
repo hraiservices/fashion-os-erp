@@ -856,6 +856,7 @@ export interface Database {
           failed_pin_attempts: number;
           pin_locked_until: string | null;
           manager_id: string | null;
+          photo_url: string | null;
           created_at: string;
           updated_at: string;
         };

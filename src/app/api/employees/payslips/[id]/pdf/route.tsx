@@ -35,7 +35,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     db
       .from("employees")
       .select(
-        "id, name, mobile, role, employment_type, commission_type, commission_rate, active, joined_date, notes, salary_type, salary_rate, piece_rate_eligible, location_id, manager_id, created_at, updated_at"
+        "id, name, mobile, role, employment_type, commission_type, commission_rate, active, joined_date, notes, salary_type, salary_rate, piece_rate_eligible, location_id, manager_id, photo_url, created_at, updated_at"
       )
       .eq("id", payslipRow.employee_id)
       .maybeSingle(),

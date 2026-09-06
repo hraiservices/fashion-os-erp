@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, User, TrendingUp, Banknote, Save, MapPin } from "lucide-react";
+import { ArrowLeft, User, TrendingUp, Banknote, Save, MapPin, Camera, Loader2, X } from "lucide-react";
 import Link from "next/link";
 import { useSaveEmployee } from "@/hooks/use-employee-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -24,8 +24,10 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { EmployeePinManager } from "@/components/employees/employee-pin-manager";
 import { DashboardAccessManager } from "@/components/employees/dashboard-access-manager";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { Employee, CommissionType, SalaryType } from "@/lib/types";
 import { SALARY_TYPE_LABELS } from "@/lib/payroll";
+import { compressImage, approxBytesOfDataUrl, formatBytes, MAX_IMAGE_BYTES } from "@/lib/media";
 
 const NO_LOCATION = "__no_location__";
 
@@ -151,6 +153,29 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
   const [commissionOpen, setCommissionOpen] = useState(false);
   const [salaryOpen, setSalaryOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(existing?.photoUrl || null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  async function onPhotoPicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return toast.error(`${file.name} isn't an image.`);
+    setPhotoBusy(true);
+    try {
+      // Smaller than an order attachment (200px is plenty for an avatar) so a profile photo
+      // doesn't bloat the employees row every time someone re-saves the form.
+      const dataUrl = await compressImage(file, 200, 0.8);
+      const size = approxBytesOfDataUrl(dataUrl);
+      if (size > MAX_IMAGE_BYTES) return toast.error(`That photo is ${formatBytes(size)} — too large (limit ${formatBytes(MAX_IMAGE_BYTES)}).`);
+      setPhotoUrl(dataUrl);
+    } catch {
+      toast.error("Could not read that image.");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   async function onSubmit(values: FormValues) {
     try {
@@ -173,6 +198,7 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
           ? { salaryType: values.salaryType, salaryRate: values.salaryRate || 0, pieceRateEligible: values.pieceRateEligible }
           : {}),
         locationId: values.locationId === NO_LOCATION ? null : values.locationId,
+        photoUrl,
         userEmail: user?.email,
       });
       toast.success(isEdit ? "Employee updated" : "Employee added");
@@ -214,6 +240,27 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
         <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
           <SectionHeading icon={User} label="Basic info" />
           <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Avatar size="lg" className="size-16">
+                {photoUrl && <AvatarImage src={photoUrl} alt="" />}
+                <AvatarFallback className="text-lg">{(existing?.name || "?")[0]?.toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" size="sm" disabled={photoBusy} onClick={() => photoInputRef.current?.click()}>
+                    {photoBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Camera className="size-3.5" />}
+                    {photoUrl ? "Change photo" : "Add photo"}
+                  </Button>
+                  {photoUrl && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setPhotoUrl(null)}>
+                      <X className="size-3.5" /> Remove
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">Shown on their dashboard login and in staff lists.</p>
+              </div>
+              <input ref={photoInputRef} type="file" accept="image/*" hidden onChange={onPhotoPicked} />
+            </div>
             <FieldGroup label="Full name" required error={errors.name?.message}>
               <Input placeholder="e.g. Ramesh Kumar" className="h-10" {...register("name")} />
             </FieldGroup>

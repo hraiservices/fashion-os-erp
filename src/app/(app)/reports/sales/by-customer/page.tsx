@@ -13,15 +13,18 @@ import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BalanceDue } from "@/components/ui/money-text";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 export default function SalesByCustomerPage() {
   const { data: orders, isLoading: l1 } = useOrders();
   const { data: invoices, isLoading: l2 } = useSalesInvoices();
   const [filter, setFilter] = useState<SaleTypeFilter>("all");
   const isLoading = l1 || l2;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const rows = useMemo(() => {
-    const unified = filterByType(buildUnifiedSales(orders || [], invoices || []), filter);
+    const unified = filterByType(buildUnifiedSales(orders || [], invoices || []), filter).filter((t) => isWithinDateRange(t.date, range));
     const map = new Map<string, { customerMobile: string; customerName: string; count: number; billed: number; paid: number; balance: number }>();
     unified.forEach((t) => {
       const row = map.get(t.customerMobile) || { customerMobile: t.customerMobile, customerName: t.customerName, count: 0, billed: 0, paid: 0, balance: 0 };
@@ -32,7 +35,7 @@ export default function SalesByCustomerPage() {
       map.set(t.customerMobile, row);
     });
     return Array.from(map.values()).sort((a, b) => b.billed - a.billed);
-  }, [orders, invoices, filter]);
+  }, [orders, invoices, filter, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -49,7 +52,15 @@ export default function SalesByCustomerPage() {
         )
       }
     >
-      <SalesTypeFilter value={filter} onChange={setFilter} />
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+        category={<SalesTypeFilter value={filter} onChange={setFilter} />}
+      />
 
       {rows.length === 0 ? (
         <EmptyState icon={Receipt} title="No sales yet" />

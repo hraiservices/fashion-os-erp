@@ -11,6 +11,8 @@ import { StatCard } from "@/components/ui/stat-card";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 /** Product-only — margin/cost only exists for Product Sales; stitching orders have no product cost price to compare against. */
 export default function ProfitByItemPage() {
@@ -18,12 +20,13 @@ export default function ProfitByItemPage() {
   const { data: invoices, isLoading: l1 } = useSalesInvoices();
   const { data: products, isLoading: l2 } = useProducts();
   const isLoading = l1 || l2;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const costPriceById = useMemo(() => new Map((products || []).map((p) => [p.id, p.costPrice])), [products]);
 
   const rows = useMemo(() => {
     const map = new Map<string, { productId: string; productName: string; qty: number; revenue: number }>();
-    (invoices || []).forEach((inv) => {
+    (invoices || []).filter((inv) => isWithinDateRange(inv.invoiceDate, range)).forEach((inv) => {
       inv.items.forEach((item) => {
         const row = map.get(item.productId) || { productId: item.productId, productName: item.productName, qty: 0, revenue: 0 };
         row.qty += item.qty;
@@ -38,7 +41,7 @@ export default function ProfitByItemPage() {
         return { ...r, cost, margin, marginPct: r.revenue > 0 ? (margin / r.revenue) * 100 : 0 };
       })
       .sort((a, b) => b.margin - a.margin);
-  }, [invoices, costPriceById]);
+  }, [invoices, costPriceById, range]);
 
   const totals = useMemo(() => rows.reduce((acc, r) => ({ revenue: acc.revenue + r.revenue, cost: acc.cost + r.cost, margin: acc.margin + r.margin }), { revenue: 0, cost: 0, margin: 0 }), [rows]);
 
@@ -66,6 +69,15 @@ export default function ProfitByItemPage() {
         )
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <div className="grid grid-cols-3 gap-3">
         <StatCard label="Revenue" value={inr(totals.revenue)} icon={TrendingUp} />
         <StatCard label="Cost" value={inr(totals.cost)} icon={TrendingUp} />

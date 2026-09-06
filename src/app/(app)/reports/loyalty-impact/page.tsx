@@ -1,20 +1,34 @@
 "use client";
 
+import { useMemo } from "react";
 import { Gift, Coins, TicketPercent, Users } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
+import { getLoyaltyImpact } from "@/lib/analytics";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportCard } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useCustomers } from "@/hooks/use-customers";
 
 /**
  * Loyalty Impact — an original construction for this rewrite (see getLoyaltyImpact() in
  * lib/analytics.ts): the old app's sidebar had this label but no matching computation,
- * so this is built from data already on hand rather than fabricated.
+ * so this is built from data already on hand rather than fabricated. Point-in-time snapshot
+ * ("lifetime earned" is cumulative-to-date) — the date range filters the underlying orders
+ * (by inDate) feeding it, per the earlier decision to apply the range everywhere.
  */
 export default function LoyaltyImpactPage() {
-  const { loyaltyImpact, loyaltyCfg, isLoading } = useReportsData();
+  const { orders, loyaltyCfg, isLoading } = useReportsData();
+  const { data: customers } = useCustomers();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+
+  const loyaltyImpact = useMemo(
+    () => getLoyaltyImpact(orders.filter((o) => isWithinDateRange(o.inDate, range)), customers || [], loyaltyCfg),
+    [orders, customers, loyaltyCfg, range]
+  );
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -30,6 +44,15 @@ export default function LoyaltyImpactPage() {
 
   return (
     <ReportShell title="Loyalty Impact" description="What your points programme is costing and earning">
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Points outstanding" value={loyaltyImpact.totalPointsOutstanding.toLocaleString("en-IN")} hint="unredeemed liability" icon={Coins} />
         <StatCard label="Lifetime earned" value={loyaltyImpact.totalPointsEverEarned.toLocaleString("en-IN")} hint="all points ever given" icon={Gift} />

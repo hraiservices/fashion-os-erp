@@ -3,7 +3,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, Users } from "lucide-react";
-import { useCustomerLedger } from "@/hooks/use-customer-ledger";
+import { useOrders } from "@/hooks/use-orders";
+import { useSalesInvoices } from "@/hooks/use-sales-invoices";
+import { useCustomers } from "@/hooks/use-customers";
+import { buildCustomerLedger } from "@/lib/customer-ledger";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { normalizeIndianMobile } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
@@ -14,6 +17,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { cn } from "@/lib/utils";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 type Filter = "all" | "due" | "paid";
 const FILTERS: { value: Filter; label: string }[] = [
@@ -22,11 +27,28 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "paid", label: "Fully paid" },
 ];
 
+/** Point-in-time snapshot (current balances) — the date range filters the underlying orders
+ *  and invoices (by inDate/invoiceDate) feeding each customer's ledger, per the earlier decision
+ *  to apply the range everywhere for consistency. */
 export default function CustomerBalancesPage() {
-  const { data: rows, isLoading } = useCustomerLedger();
+  const { data: orders, isLoading: l1 } = useOrders();
+  const { data: invoices, isLoading: l2 } = useSalesInvoices();
+  const { data: customers, isLoading: l3 } = useCustomers();
+  const isLoading = l1 || l2 || l3;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
   const { data: shop } = useShopSettings();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+
+  const rows = useMemo(
+    () =>
+      buildCustomerLedger(
+        (orders || []).filter((o) => isWithinDateRange(o.inDate, range)),
+        (invoices || []).filter((i) => isWithinDateRange(i.invoiceDate, range)),
+        customers || []
+      ),
+    [orders, invoices, customers, range]
+  );
 
   function reminderUrl(name: string, mobile: string, due: number) {
     const text = `Dear *${name || "Customer"}* 🙏\n\n₹${due} is due on your account at *${shop?.name || "our company"}*.\nPlease clear at your earliest convenience.\n📞 ${shop?.phone || ""}`;
@@ -49,6 +71,15 @@ export default function CustomerBalancesPage() {
 
   return (
     <ReportShell title="Customer Balances" description="Stitching order dues and product sales dues, shown separately, per customer">
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative sm:max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

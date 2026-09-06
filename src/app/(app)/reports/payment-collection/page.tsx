@@ -1,17 +1,33 @@
 "use client";
 
+import { useMemo } from "react";
 import { useReportsData } from "@/hooks/use-reports-data";
+import { getPaymentStats } from "@/lib/analytics";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 export default function PaymentCollectionPage() {
-  const { paymentStats, isLoading } = useReportsData();
+  const { orders, isLoading } = useReportsData();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+
+  const paymentStats = useMemo(() => getPaymentStats(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   return (
     <ReportShell title="Stitching Payment Collection" description="Stitching orders only — how much of what you billed actually came in, month by month. For both revenue streams combined, see Combined P&L.">
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <ReportTable>
         <thead className="border-b bg-muted/40">
           <tr>

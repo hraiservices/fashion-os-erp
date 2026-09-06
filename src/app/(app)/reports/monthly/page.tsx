@@ -1,19 +1,37 @@
 "use client";
 
+import { useMemo } from "react";
 import { useReportsData } from "@/hooks/use-reports-data";
+import { getMonthly } from "@/lib/analytics";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportCard, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
+/** The month buckets shown are always the trailing 6 months (see getMonthly) — the date range
+ *  narrows which orders count toward each bucket, not the window of months shown. */
 export default function MonthlyPnlPage() {
-  const { monthly, isLoading } = useReportsData();
+  const { orders, isLoading } = useReportsData();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+
+  const monthly = useMemo(() => getMonthly(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-80 w-full" /></div>;
 
   return (
     <ReportShell title="Stitching Monthly P&L" description="Stitching orders only — billed vs collected over the last 6 months. For both revenue streams combined, see Combined P&L.">
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <ReportCard className="p-4">
         <div className="h-64 sm:h-72">
           <ResponsiveContainer width="100%" height="100%">

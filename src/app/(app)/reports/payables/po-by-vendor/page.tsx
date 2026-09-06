@@ -9,24 +9,27 @@ import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-sh
 import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 export default function PurchaseOrdersByVendorPage() {
   const { data: orders, isLoading: l1 } = usePurchaseOrders();
   const { data: vendors, isLoading: l2 } = useVendors();
   const isLoading = l1 || l2;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const vendorNameById = useMemo(() => new Map((vendors || []).map((v) => [v.id, v.name])), [vendors]);
 
   const rows = useMemo(() => {
     const map = new Map<string, { vendorId: string; count: number; total: number }>();
-    (orders || []).forEach((po) => {
+    (orders || []).filter((po) => isWithinDateRange(po.date, range)).forEach((po) => {
       const row = map.get(po.vendorId) || { vendorId: po.vendorId, count: 0, total: 0 };
       row.count += 1;
       row.total += po.total;
       map.set(po.vendorId, row);
     });
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [orders]);
+  }, [orders, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -40,6 +43,15 @@ export default function PurchaseOrdersByVendorPage() {
         )
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       {rows.length === 0 ? (
         <EmptyState icon={Truck} title="No purchase orders yet" />
       ) : (

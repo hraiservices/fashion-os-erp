@@ -9,13 +9,16 @@ import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-sh
 import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 export default function PurchaseOrderByItemPage() {
   const { data: orders, isLoading } = usePurchaseOrders();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const rows = useMemo(() => {
     const map = new Map<string, { itemName: string; unitName: string; qty: number; amount: number; poCount: number }>();
-    (orders || []).forEach((po) => {
+    (orders || []).filter((po) => isWithinDateRange(po.date, range)).forEach((po) => {
       po.items.forEach((item) => {
         const id = purchaseItemId(item);
         if (!id) return;
@@ -27,7 +30,7 @@ export default function PurchaseOrderByItemPage() {
       });
     });
     return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
-  }, [orders]);
+  }, [orders, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -44,6 +47,15 @@ export default function PurchaseOrderByItemPage() {
         )
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       {rows.length === 0 ? (
         <EmptyState icon={Package} title="No purchase orders yet" />
       ) : (

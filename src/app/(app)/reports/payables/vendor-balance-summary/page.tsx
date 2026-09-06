@@ -12,16 +12,19 @@ import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BalanceDue } from "@/components/ui/money-text";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 export default function VendorBalanceSummaryPage() {
   const { data: bills, isLoading: l1 } = usePurchaseBills();
   const { data: vendors, isLoading: l2 } = useVendors();
   const isLoading = l1 || l2;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const vendorNameById = useMemo(() => new Map((vendors || []).map((v) => [v.id, v.name])), [vendors]);
 
   const rows = useMemo(() => {
-    const billsList = bills || [];
+    const billsList = (bills || []).filter((b) => isWithinDateRange(b.billDate, range));
     const map = new Map<string, { vendorId: string; billCount: number; total: number; paid: number; balance: number; bills: typeof billsList }>();
     billsList.forEach((b) => {
       const row = map.get(b.vendorId) || { vendorId: b.vendorId, billCount: 0, total: 0, paid: 0, balance: 0, bills: [] as typeof billsList };
@@ -35,7 +38,7 @@ export default function VendorBalanceSummaryPage() {
     return Array.from(map.values())
       .map((r) => ({ ...r, avgDaysToPay: avgDaysToPayVendor(r.bills) }))
       .sort((a, b) => b.balance - a.balance);
-  }, [bills]);
+  }, [bills, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -59,6 +62,15 @@ export default function VendorBalanceSummaryPage() {
         )
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       {rows.length === 0 ? (
         <EmptyState icon={Truck} title="No purchases yet" />
       ) : (

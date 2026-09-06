@@ -11,20 +11,25 @@ import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-sh
 import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
+/** Point-in-time snapshot ("outstanding as of today") — the date range filters which bills
+ *  (by billDate) feed the list, not the "days overdue" math, which stays as-of-now. */
 export default function ApAgingDetailsPage() {
   const { data: bills, isLoading: l1 } = usePurchaseBills();
   const { data: vendors, isLoading: l2 } = useVendors();
   const isLoading = l1 || l2;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const vendorNameById = useMemo(() => new Map((vendors || []).map((v) => [v.id, v.name])), [vendors]);
 
   const rows = useMemo(() => {
     return (bills || [])
-      .filter((b) => b.balance > 0)
+      .filter((b) => b.balance > 0 && isWithinDateRange(b.billDate, range))
       .map((b) => ({ ...b, daysOverdue: b.dueDate ? Math.max(0, -daysLeft(b.dueDate)) : 0 }))
       .sort((a, b) => b.daysOverdue - a.daysOverdue);
-  }, [bills]);
+  }, [bills, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -47,6 +52,15 @@ export default function ApAgingDetailsPage() {
         )
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       {rows.length === 0 ? (
         <EmptyState icon={Wallet} title="No outstanding bills" description="Everything is paid up." />
       ) : (

@@ -10,6 +10,8 @@ import { StatCard } from "@/components/ui/stat-card";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 const BANDS = [
   { key: "current", label: "Not yet due" },
@@ -29,11 +31,12 @@ function bandOf(daysOverdue: number): BandKey {
 
 export default function ApAgingSummaryPage() {
   const { data: bills, isLoading } = usePurchaseBills();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const buckets = useMemo(() => {
     const map = new Map<BandKey, { count: number; total: number }>(BANDS.map((b) => [b.key, { count: 0, total: 0 }]));
     (bills || [])
-      .filter((b) => b.balance > 0)
+      .filter((b) => b.balance > 0 && isWithinDateRange(b.billDate, range))
       .forEach((b) => {
         const daysOverdue = b.dueDate ? Math.max(0, -daysLeft(b.dueDate)) : 0;
         const band = map.get(bandOf(daysOverdue))!;
@@ -41,7 +44,7 @@ export default function ApAgingSummaryPage() {
         band.total += b.balance;
       });
     return map;
-  }, [bills]);
+  }, [bills, range]);
 
   const totalPayable = useMemo(() => Array.from(buckets.values()).reduce((s, b) => s + b.total, 0), [buckets]);
 
@@ -60,6 +63,15 @@ export default function ApAgingSummaryPage() {
         )
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Total Payable" value={inr(totalPayable)} icon={Wallet} tone={totalPayable > 0 ? "warning" : "default"} />
       </div>

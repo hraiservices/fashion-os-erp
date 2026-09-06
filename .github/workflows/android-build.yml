@@ -81,8 +81,23 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Only the CDP client is needed here, not the app's full dependency tree. playwright-core
+      # ships no browser binaries — it drives the emulator's own WebView.
+      - name: Install CDP client
+        run: npm install --no-save playwright-core
+
       - name: Launch app on an emulator
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          # Optional. Set these as repository secrets to have the audit sign in and check the
+          # order/invoice forms too; without them it audits the login screen only. Kept in
+          # secrets rather than the repo so the value never lands in git history.
+          FF_TEST_MOBILE: ${{ secrets.FF_TEST_MOBILE }}
+          FF_TEST_PIN: ${{ secrets.FF_TEST_PIN }}
         with:
           api-level: 34
           target: google_apis

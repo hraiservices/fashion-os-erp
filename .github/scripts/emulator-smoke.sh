@@ -44,9 +44,23 @@ sleep 30
 adb exec-out screencap -p > "$OUT/02-after-reopen.png"
 echo "::endgroup::"
 
+echo "::group::Drive the WebView over CDP"
+# A debug APK is debuggable, so Capacitor turns on WebView contents debugging — that exposes a
+# devtools socket we can forward and drive with a real automation client. Far more reliable than
+# blind coordinate taps, and it lets us assert on the DOM instead of eyeballing screenshots.
+SOCKET=$(adb shell cat /proc/net/unix | grep -o "webview_devtools_remote_[0-9]*" | head -1)
+if [ -n "$SOCKET" ]; then
+  echo "Forwarding $SOCKET"
+  adb forward tcp:9222 "localabstract:$SOCKET"
+  node .github/scripts/webview-ui-check.mjs || UI_FAILED=1
+else
+  echo "::warning::No WebView devtools socket found — skipping the UI audit"
+fi
+echo "::endgroup::"
+
 adb logcat -d > "$OUT/logcat.txt"
 
-FAILED=0
+FAILED=${UI_FAILED:-0}
 
 # 1. The process must still be alive — a crash or a dead WebView both show up here.
 if adb shell pidof "$PKG" > /dev/null 2>&1; then

@@ -1,10 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { buildWhatsAppUrl } from "@/lib/business-rules";
+import { getPendingOrders } from "@/lib/analytics";
 import { fmtDate } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
@@ -12,15 +14,29 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 export default function PendingOrdersPage() {
-  const { pending, isLoading } = useReportsData();
+  const { orders, isLoading } = useReportsData();
   const { data: shop } = useShopSettings();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+
+  const pending = useMemo(() => getPendingOrders(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   return (
     <ReportShell title="Pending Orders" description={`${pending.length} orders still in progress, soonest delivery first`}>
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       {pending.length === 0 ? (
         <EmptyState icon={CheckCircle2} title="Nothing pending" description="Every order has been delivered and paid." />
       ) : (

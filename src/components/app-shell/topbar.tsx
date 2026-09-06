@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LogOut, User, Wallet } from "lucide-react";
+import { LogOut, User, Wallet, CalendarCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NotificationBell } from "@/components/app-shell/notification-bell";
 import { ThemeToggle } from "@/components/app-shell/theme-toggle";
 import { PwaInstaller } from "@/components/app-shell/pwa-installer";
@@ -31,7 +31,7 @@ export function Topbar() {
     router.refresh();
   }
 
-  const initial = user?.email?.[0]?.toUpperCase() || "?";
+  const initial = (user?.employeeName || user?.email)?.[0]?.toUpperCase() || "?";
 
   return (
     <header className="sticky top-0 z-30 flex min-h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur sm:px-4 lg:px-6">
@@ -50,6 +50,7 @@ export function Topbar() {
             render={
               <button type="button" aria-label="Account menu" className="rounded-full p-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
                 <Avatar className="size-11 sm:size-8">
+                  {user?.employeePhotoUrl && <AvatarImage src={user.employeePhotoUrl} alt="" />}
                   <AvatarFallback className="text-xs">{initial}</AvatarFallback>
                 </Avatar>
               </button>
@@ -58,15 +59,21 @@ export function Topbar() {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuGroup>
               <DropdownMenuLabel className="font-normal">
-                <p className="truncate text-sm font-medium">{user?.email}</p>
+                {user?.employeeName && <p className="truncate text-sm font-medium">{user.employeeName}</p>}
+                <p className={user?.employeeName ? "truncate text-xs text-muted-foreground" : "truncate text-sm font-medium"}>{user?.email}</p>
                 <p className="text-xs capitalize text-muted-foreground">{user?.role}</p>
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             {!!user?.employeeId && (
-              <DropdownMenuItem onClick={() => router.push("/employees/my-payslips")}>
-                <Wallet className="size-4" /> My Payslips
-              </DropdownMenuItem>
+              <>
+                <DropdownMenuItem onClick={() => router.push("/employees/my-attendance")}>
+                  <CalendarCheck className="size-4" /> My Attendance
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push("/employees/my-payslips")}>
+                  <Wallet className="size-4" /> My Payslips
+                </DropdownMenuItem>
+              </>
             )}
             <DropdownMenuItem onClick={() => router.push("/settings/personalize")}>
               <User className="size-4" /> Account

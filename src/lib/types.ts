@@ -973,6 +973,8 @@ export interface Employee {
   /** Reporting manager (another employee's id) — org-structure data, not yet used to scope
    *  approval visibility (see leave management plan notes). */
   managerId: string | null;
+  /** Profile photo as a data URL (see src/lib/media.ts) — null until set from the employee form. */
+  photoUrl: string | null;
   createdAt: string;
 }
 
@@ -996,6 +998,7 @@ export function mapEmployeeRow(r: EmployeeRow, hasPin = false): Employee {
     locationId: r.location_id ?? null,
     hasPin,
     managerId: r.manager_id ?? null,
+    photoUrl: r.photo_url ?? null,
     createdAt: r.created_at,
   };
 }

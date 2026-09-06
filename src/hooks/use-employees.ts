@@ -10,7 +10,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 // must never reach the browser at all (RLS lets any authenticated staff member read the
 // employees table, so "just don't display it" isn't enough — it can't be in the payload).
 const EMPLOYEE_COLUMNS_BASE =
-  "id, name, mobile, role, employment_type, commission_type, commission_rate, active, joined_date, notes, location_id, manager_id, created_at, updated_at";
+  "id, name, mobile, role, employment_type, commission_type, commission_rate, active, joined_date, notes, location_id, manager_id, photo_url, created_at, updated_at";
 
 /**
  * Salary comes from the server, everything else comes straight from the browser.

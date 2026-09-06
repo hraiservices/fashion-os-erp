@@ -14,6 +14,10 @@ export interface CurrentUser {
   /** The employees row this login is linked to (user_roles.linked_employee_id), if any — lets
    *  the UI show "your own" employee data (e.g. My Payslips) without the managePayroll permission. */
   employeeId: string | null;
+  /** Name/photo off that same linked employee row, for the topbar avatar/menu — null unless
+   *  employeeId is also set. */
+  employeeName: string | null;
+  employeePhotoUrl: string | null;
 }
 
 function checkSuperAdmin(email: string): boolean {
@@ -35,6 +39,15 @@ async function fetchCurrentUser(): Promise<CurrentUser | null> {
 
   const role = roleRow?.role || "tailor";
   const perms = resolvePerms(role, roleRow?.custom_permissions as Partial<Permissions> | null, overridesRow?.value as RoleDefaultOverrides | null);
+  const employeeId: string | null = roleRow?.linked_employee_id ?? null;
+
+  let employeeName: string | null = null;
+  let employeePhotoUrl: string | null = null;
+  if (employeeId) {
+    const { data: employeeRow } = await supabase.from("employees").select("name, photo_url").eq("id", employeeId).maybeSingle();
+    employeeName = employeeRow?.name ?? null;
+    employeePhotoUrl = employeeRow?.photo_url ?? null;
+  }
 
   return {
     email: user.email,
@@ -42,7 +55,9 @@ async function fetchCurrentUser(): Promise<CurrentUser | null> {
     perms,
     restricted: isRestrictedRole(role),
     isSuperAdmin: checkSuperAdmin(user.email),
-    employeeId: roleRow?.linked_employee_id ?? null,
+    employeeId,
+    employeeName,
+    employeePhotoUrl,
   };
 }
 

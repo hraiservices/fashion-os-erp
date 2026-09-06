@@ -27,10 +27,11 @@ const bodySchema = z.object({
   salaryRate: z.number().min(0).optional(),
   pieceRateEligible: z.boolean().optional(),
   locationId: z.string().nullable().optional(),
+  photoUrl: z.string().max(1_500_000).nullable().optional(),
 });
 
 const EMPLOYEE_COLUMNS_WITH_SALARY =
-  "id, name, mobile, role, employment_type, commission_type, commission_rate, active, joined_date, notes, salary_type, salary_rate, piece_rate_eligible, location_id, manager_id, created_at, updated_at";
+  "id, name, mobile, role, employment_type, commission_type, commission_rate, active, joined_date, notes, salary_type, salary_rate, piece_rate_eligible, location_id, manager_id, photo_url, created_at, updated_at";
 
 /**
  * The salary-bearing employee list, for the payroll and employee screens.
@@ -92,6 +93,7 @@ export async function POST(request: Request) {
       ...(fd.salaryRate !== undefined ? { salary_rate: fd.salaryRate } : {}),
       ...(fd.pieceRateEligible !== undefined ? { piece_rate_eligible: fd.pieceRateEligible } : {}),
       ...(fd.locationId !== undefined ? { location_id: fd.locationId } : {}),
+      ...(fd.photoUrl !== undefined ? { photo_url: fd.photoUrl } : {}),
     })
     .select(EMPLOYEE_COLUMNS_WITH_SALARY)
     .single();

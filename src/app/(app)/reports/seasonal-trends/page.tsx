@@ -1,19 +1,38 @@
 "use client";
 
+import { useMemo } from "react";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
+import { getSeasonalTrends } from "@/lib/analytics";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportCard, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
+/** The month buckets themselves are always the trailing 12 months (see getSeasonalTrends) — the
+ *  date range narrows which orders count toward each bucket's revenue, not the window of months
+ *  shown. */
 export default function SeasonalTrendsPage() {
-  const { seasonal, isLoading } = useReportsData();
+  const { orders, isLoading } = useReportsData();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+
+  const seasonal = useMemo(() => getSeasonalTrends(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-80 w-full" /></div>;
 
   return (
     <ReportShell title="Seasonal Trends" description="Revenue and order volume across the last 12 months">
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <ReportCard className="p-4">
         <div className="h-64 sm:h-72">
           <ResponsiveContainer width="100%" height="100%">

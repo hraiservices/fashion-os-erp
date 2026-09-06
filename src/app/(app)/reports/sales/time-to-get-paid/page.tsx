@@ -11,6 +11,8 @@ import { StatCard } from "@/components/ui/stat-card";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 /**
  * Only fully-paid invoices have a "time to get paid" — a partial payment means the invoice
@@ -19,10 +21,12 @@ import { EmptyState } from "@/components/ui/empty-state";
  */
 export default function TimeToGetPaidPage() {
   const { data: invoices, isLoading } = useSalesInvoices();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const rows = useMemo(() => {
     return (invoices || [])
       .filter((inv) => inv.paymentStatus === "paid" && inv.lastPaymentDate)
+      .filter((inv) => isWithinDateRange(inv.invoiceDate, range))
       .map((inv) => ({
         id: inv.id,
         invoiceNumber: inv.invoiceNumber,
@@ -33,7 +37,7 @@ export default function TimeToGetPaidPage() {
         days: Math.max(0, Math.round((new Date(inv.lastPaymentDate as string).getTime() - new Date(inv.invoiceDate).getTime()) / 86_400_000)),
       }))
       .sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime());
-  }, [invoices]);
+  }, [invoices, range]);
 
   const avgDays = avgDaysToGetPaid(invoices || []);
 
@@ -52,6 +56,15 @@ export default function TimeToGetPaidPage() {
         )
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Avg. Days to Get Paid" value={avgDays != null ? `${avgDays}d` : "—"} icon={Clock} />
       </div>

@@ -9,10 +9,14 @@
     "lint": "eslint",
     "test": "vitest run",
     "usage-report": "node scripts/usage-report.mjs",
-    "onboard-customer": "node scripts/onboard-customer.mjs"
+    "onboard-customer": "node scripts/onboard-customer.mjs",
+    "android:sync": "cap sync android",
+    "android:open": "cap open android"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/core": "^8.5.1",
     "@google/genai": "^2.16.0",
     "@hookform/resolvers": "^5.5.7",
     "@react-pdf/renderer": "^4.5.1",
@@ -45,6 +49,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.20.4",

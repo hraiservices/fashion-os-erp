@@ -116,8 +116,8 @@ export function CustomerForm() {
             <ArrowLeft className="size-4" />
             <span className="hidden sm:inline">Customers</span>
           </Link>
-          <div className="flex-1">
-            <h1 className="text-base font-semibold">New Customer</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-semibold truncate">New Customer</h1>
           </div>
           {/* Duplicate of the bottom FormActionBar — mobile only, so Add Customer is
              reachable without scrolling all the way down. */}

@@ -41,15 +41,15 @@ export function TotalRevenueWidget() {
           <div className="h-full flex-1 rounded-r-full bg-orange-500" />
         </div>
       </div>
-      <div className="flex gap-4 text-xs">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
         <span className="flex items-center gap-1.5 text-muted-foreground">
-          <span className="inline-block size-2.5 rounded-full bg-blue-500" />
+          <span className="inline-block size-2.5 shrink-0 rounded-full bg-blue-500" />
           Collected&nbsp;:&nbsp;<span className="font-medium text-foreground">{inr(totalCollected)}</span>
         </span>
         <span className="flex items-center gap-1.5 text-muted-foreground">
-          <span className="inline-block size-2.5 rounded-full bg-orange-500" />
+          <span className="inline-block size-2.5 shrink-0 rounded-full bg-orange-500" />
           Pending&nbsp;:&nbsp;<span className="font-medium text-foreground">{inr(totalUnpaid)}</span>
-          <ChevronDown className="size-3" />
+          <ChevronDown className="size-3 shrink-0" />
         </span>
       </div>
     </div>

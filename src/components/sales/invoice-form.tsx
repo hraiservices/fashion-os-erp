@@ -259,13 +259,13 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
             <ArrowLeft className="size-4" />
             <span className="hidden sm:inline">Invoices</span>
           </Link>
-          <div className="flex-1">
-            <h1 className="text-base font-semibold">{isEdit ? "Edit Invoice" : "New Invoice"}</h1>
-            <p className="text-[11px] text-muted-foreground font-mono">{customNumberingOn ? "Assigned automatically on save" : invoiceNumber}</p>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Invoice" : "New Invoice"}</h1>
+            <p className="text-[11px] text-muted-foreground font-mono truncate">{customNumberingOn ? "Assigned automatically on save" : invoiceNumber}</p>
           </div>
           {/* Duplicate of the bottom FormActionBar — mobile only, so Save/Send is reachable
              without scrolling all the way down on a long invoice. */}
-          <div className="flex items-center gap-2 sm:hidden">
+          <div className="flex shrink-0 items-center gap-1.5 sm:hidden">
             <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveInvoice.isPending}>
               Cancel
             </Button>

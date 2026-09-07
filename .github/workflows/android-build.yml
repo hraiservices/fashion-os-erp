@@ -85,11 +85,10 @@ jobs:
         with:
           node-version: 22
 
-      # Only the CDP client is needed here, not the app's full dependency tree. playwright-core
-      # ships no browser binaries — it drives the emulator's own WebView.
-      - name: Install CDP client
-        run: npm install --no-save playwright-core
-
+      # No npm install here on purpose: the audit speaks CDP over Node 22's global WebSocket.
+      # Playwright cannot attach to an Android WebView at all — connectOverCDP calls
+      # Browser.setDownloadBehavior, which WebView answers with "Browser context management is
+      # not supported" — so there is no client library to install.
       - name: Launch app on an emulator
         uses: reactivecircus/android-emulator-runner@v2
         env:

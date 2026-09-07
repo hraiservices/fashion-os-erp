@@ -15,6 +15,17 @@ const garmentSchema = z.object({
   no: z.number().optional(),
   amount: z.number().optional(),
   checklist: z.record(z.string(), z.boolean()).optional(),
+  // One entry per unit for a qty>1 line (e.g. 3 suits on one line, each cut/stitched
+  // independently) — see src/lib/garment-checklist.ts. Absent/short arrays are fine; missing
+  // pieces are treated as not-yet-started.
+  pieces: z
+    .array(
+      z.object({
+        checklist: z.record(z.string(), z.boolean()).optional(),
+        label: z.string().optional(),
+      })
+    )
+    .optional(),
   tailor: z.string().optional(),
   // Stable id preserve_garment_payables() matches on to reattach a frozen payableAmount to the
   // right garment even if lines are reordered/deleted during this edit.

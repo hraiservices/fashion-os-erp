@@ -4,7 +4,7 @@
 // pending for its assigned tailor until it's marked `pressed`.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
-import { getChecklist } from "@/lib/garment-checklist";
+import { isFullyDone } from "@/lib/garment-checklist";
 import { istDateString } from "@/lib/ist-date";
 import type { Garment } from "@/lib/types";
 
@@ -46,15 +46,15 @@ export function garmentKey(orderId: string, garment: Garment, index: number): st
   return `${orderId}:${garment.lineId ?? index}`;
 }
 
-/** Every garment across all orders that isn't fully finished yet (checklist.pressed is not
- *  true), grouped by assigned tailor — independent of the order's own stage field. */
+/** Every garment across all orders that isn't fully finished yet (every piece's checklist has
+ *  reached "Ready"), grouped by assigned tailor — independent of the order's own stage field. */
 export function pendingGarmentsByTailor(orders: OrderForWorksheet[]): Map<string, WorksheetGarment[]> {
   const byTailor = new Map<string, WorksheetGarment[]>();
   for (const order of orders) {
     order.garments.forEach((garment, index) => {
       const tailorId = garment.tailor;
       if (!tailorId) return;
-      if (getChecklist(garment).pressed) return;
+      if (isFullyDone(garment)) return;
 
       const entry: WorksheetGarment = {
         key: garmentKey(order.id, garment, index),

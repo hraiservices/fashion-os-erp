@@ -29,6 +29,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
 import { FormActionBar } from "@/components/ui/form-action-bar";
+import { isNativePlatform } from "@/lib/capacitor";
 import { usePriceListItemsMap } from "@/hooks/use-price-lists";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_DOCUMENT_NUMBERING, type DocumentNumberingSettings } from "@/lib/document-numbering";
@@ -506,37 +507,43 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
         </div>
       </div>
 
-      <FormActionBar className="flex-wrap justify-start sm:flex-nowrap sm:justify-end">
-        <Button
-          variant="outline"
-          size="lg"
-          className="h-12 px-5 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
-          onClick={() => router.back()}
-          disabled={saveInvoice.isPending}
-        >
-          Cancel
-        </Button>
-        {!isEdit && (
+      {/* Inside the native app the sticky header above already carries Cancel/Draft/Send (it's
+          only hidden on desktop widths, which the app never runs at) — repeating them again down
+          here just doubled up the same three buttons on one screen. Browser/PWA users keep this
+          bar: on desktop it's their only way to save, since the header's copy is sm:hidden there. */}
+      {!isNativePlatform() && (
+        <FormActionBar className="flex-wrap justify-start sm:flex-nowrap sm:justify-end">
           <Button
             variant="outline"
             size="lg"
             className="h-12 px-5 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
-            onClick={() => handleSave("draft")}
+            onClick={() => router.back()}
             disabled={saveInvoice.isPending}
           >
-            {saveInvoice.isPending ? "Saving…" : "Save Draft"}
+            Cancel
           </Button>
-        )}
-        <Button
-          size="lg"
-          className="h-12 flex-1 gap-1.5 bg-primary px-5 text-base text-primary-foreground sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
-          onClick={() => handleSave(isEdit ? existing!.docStatus : "sent")}
-          disabled={saveInvoice.isPending}
-        >
-          <Receipt className="size-3.5" />
-          {saveInvoice.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(totals.total)}` : `Save & Send · ${inr(totals.total)}`}
-        </Button>
-      </FormActionBar>
+          {!isEdit && (
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-12 px-5 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+              onClick={() => handleSave("draft")}
+              disabled={saveInvoice.isPending}
+            >
+              {saveInvoice.isPending ? "Saving…" : "Save Draft"}
+            </Button>
+          )}
+          <Button
+            size="lg"
+            className="h-12 flex-1 gap-1.5 bg-primary px-5 text-base text-primary-foreground sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+            onClick={() => handleSave(isEdit ? existing!.docStatus : "sent")}
+            disabled={saveInvoice.isPending}
+          >
+            <Receipt className="size-3.5" />
+            {saveInvoice.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(totals.total)}` : `Save & Send · ${inr(totals.total)}`}
+          </Button>
+        </FormActionBar>
+      )}
 
       <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={handleSelectCustomer} />
     </div>

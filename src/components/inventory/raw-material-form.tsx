@@ -98,7 +98,7 @@ export function RawMaterialForm({ existing }: { existing?: RawMaterial }) {
     <form onSubmit={handleSubmit(onSubmit as never)} className="min-h-screen bg-muted/30">
       {/* Sticky header */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
-        <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-4xl items-center gap-4 px-4 py-3 sm:px-6">
           <Link href="/inventory/raw-materials" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="size-4" />
             <span className="hidden sm:inline">Raw materials</span>
@@ -121,7 +121,7 @@ export function RawMaterialForm({ existing }: { existing?: RawMaterial }) {
         </div>
       </div>
 
-      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 space-y-5">
+      <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 space-y-5">
         {/* Material info */}
         <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
           <SectionHeading icon={Layers} label="Material info" />

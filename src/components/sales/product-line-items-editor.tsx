@@ -289,13 +289,13 @@ export function ProductLineItemsEditor({
 
               {/* Qty / Price / Discount — labeled grid on mobile, inline row on desktop */}
               <div className={cn("grid gap-2 sm:contents", showDiscount ? "grid-cols-3" : "grid-cols-2")}>
-                <div className="sm:w-20">
+                <div className="sm:w-24">
                   <label className="mb-1 block text-[10px] font-medium text-muted-foreground sm:hidden">Qty</label>
-                  <Input type="number" inputMode="numeric" min={0} step="1" placeholder="Qty" className="h-10 w-full text-sm sm:w-20" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
+                  <Input type="number" inputMode="numeric" min={0} step="1" placeholder="Qty" className="h-10 w-full text-sm sm:w-24" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
                 </div>
-                <div className="sm:w-28">
+                <div className="sm:w-32">
                   <label className="mb-1 block text-[10px] font-medium text-muted-foreground sm:hidden">Price</label>
-                  <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="Price" className="h-10 w-full text-sm sm:w-28" value={line.unitPrice} onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })} />
+                  <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="Price" className="h-10 w-full text-sm sm:w-32" value={line.unitPrice} onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })} />
                 </div>
                 {showDiscount && (
                   <div className="sm:w-auto sm:shrink-0">

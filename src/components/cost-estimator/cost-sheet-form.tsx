@@ -63,7 +63,7 @@ function LineItemsEditor({
       <CardContent className="space-y-2">
         {items.map((item, i) => (
           <div key={item.id} className="grid grid-cols-12 items-center gap-2">
-            <Input className="col-span-4" placeholder="Item name" value={item.expense_name} onChange={(e) => update(i, { expense_name: e.target.value })} />
+            <Input className="col-span-3" placeholder="Item name" value={item.expense_name} onChange={(e) => update(i, { expense_name: e.target.value })} />
             {showQtyUnit && (
               <>
                 <NumberInput className="col-span-2" min={0} placeholder="Qty" value={item.quantity} onChange={(v) => update(i, { quantity: v })} />
@@ -71,7 +71,7 @@ function LineItemsEditor({
               </>
             )}
             <NumberInput
-              className={showQtyUnit ? "col-span-2" : "col-span-5"}
+              className={showQtyUnit ? "col-span-3" : "col-span-6"}
               min={0}
               placeholder="Rate"
               value={item.rate}
@@ -155,7 +155,7 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
     <div className="min-h-screen bg-muted/30">
       {/* Sticky header */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
-        <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-3 sm:px-6">
           <Link href="/cost-estimator" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="size-4" />
             <span className="hidden sm:inline">Cost sheets</span>
@@ -177,7 +177,7 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
         </div>
       </div>
 
-      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 space-y-5">
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 space-y-5">
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">{sheetNo}</CardTitle>

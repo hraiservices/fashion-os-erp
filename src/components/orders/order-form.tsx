@@ -898,9 +898,22 @@ function OrderFormFields({
                 <AccordionContent>
                   {measureFields.length > 0 && (
                     <div className="-mt-2 mb-4 flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs text-muted-foreground">
-                        {prefilled ? "Loaded from this customer's saved profile — edit as needed." : "Saved to the customer for next time."}
-                      </p>
+                      {/* text-xs text-muted-foreground alone (11px, low-contrast gray) was too
+                          subtle to notice as a hint — reported as looking "hidden" even though
+                          the color itself was rendering exactly as specified. An icon + stronger
+                          color make this actually readable at a glance instead of technically-
+                          correct-but-invisible. */}
+                      {prefilled ? (
+                        <p className="flex items-center gap-1.5 text-sm font-medium text-sky-700 dark:text-sky-400">
+                          <Sparkles className="size-3.5 shrink-0" />
+                          Loaded from this customer&apos;s saved profile — edit as needed.
+                        </p>
+                      ) : (
+                        <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                          <Check className="size-3.5 shrink-0" />
+                          Saved to the customer for next time.
+                        </p>
+                      )}
                       <Button
                         type="button"
                         variant="outline"

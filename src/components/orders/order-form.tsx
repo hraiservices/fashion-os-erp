@@ -648,7 +648,7 @@ function OrderFormFields({
     <div className="min-h-screen bg-muted/30">
       {/* ── Page header bar ───────────────────────────────────────────────── */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
-        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-4 py-3 sm:px-6">
           <Link href="/orders" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="size-4" />
             <span className="hidden sm:inline">Orders</span>
@@ -671,7 +671,7 @@ function OrderFormFields({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
+      <form onSubmit={handleSubmit(onSubmit)} className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
         <div className="lg:col-span-2 space-y-5">
           {!isEdit && (
             <label className="flex cursor-pointer items-start gap-2 rounded-xl border bg-white dark:bg-card shadow-sm p-4">
@@ -868,9 +868,6 @@ function OrderFormFields({
                   )}
                 />
               </FieldGroup>
-              <FieldGroup label="Special instructions" className="sm:col-span-2">
-                <Textarea {...register("special")} rows={2} placeholder="Anything the tailor should know…" />
-              </FieldGroup>
             </div>
 
             {foundCustomer && !isEdit && (
@@ -882,49 +879,6 @@ function OrderFormFields({
                 </p>
               </div>
             )}
-          </div>
-
-          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-            <Accordion value={measureOpen ? ["measurements"] : []} onValueChange={(v) => setMeasureOpen(v.includes("measurements"))}>
-              <AccordionItem value="measurements" className="border-b-0">
-                <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
-                  <span className="flex items-center gap-2">
-                    <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
-                      <Ruler className="size-3.5 text-primary" />
-                    </span>
-                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Measurements</span>
-                  </span>
-                </AccordionTrigger>
-                <AccordionContent>
-                  {measureFields.length > 0 && (
-                    <div className="-mt-2 mb-4 flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs text-muted-foreground">
-                        {prefilled ? "Loaded from this customer's saved profile — edit as needed." : "Saved to the customer for next time."}
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={extractMeasurements.isPending}
-                        nativeButton={false}
-                        render={<label className="cursor-pointer" />}
-                      >
-                        <ScanLine className="size-3.5" />
-                        {extractMeasurements.isPending ? "Reading chart…" : "Scan chart"}
-                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScanChart} disabled={extractMeasurements.isPending} />
-                      </Button>
-                    </div>
-                  )}
-                  <MeasurementGrid
-                    fields={measureFields}
-                    values={measurements}
-                    onChange={(key, value) => setMeasurements((m) => ({ ...m, [key]: value }))}
-                    lang={measureLang}
-                    onLangChange={setMeasureLang}
-                  />
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
           </div>
 
           {/* Garments */}
@@ -1008,7 +962,7 @@ function OrderFormFields({
                         )}
                       />
                     </FieldGroup>
-                    <FieldGroup label="Tailor" className="sm:col-span-3" hint={tailors.length === 0 ? "Add tailors in Employees" : undefined}>
+                    <FieldGroup label="Tailor" className="sm:col-span-2" hint={tailors.length === 0 ? "Add tailors in Employees" : undefined}>
                       <Controller
                         control={control}
                         name={`garments.${index}.tailor`}
@@ -1029,7 +983,7 @@ function OrderFormFields({
                         )}
                       />
                     </FieldGroup>
-                    <FieldGroup label="Qty" className="sm:col-span-1">
+                    <FieldGroup label="Qty" className="sm:col-span-2">
                       <Input type="number" min={1} inputMode="numeric" className="h-10" {...register(`garments.${index}.no`, { valueAsNumber: true })} />
                     </FieldGroup>
                     <FieldGroup label="Rate" className="sm:col-span-2">
@@ -1064,8 +1018,78 @@ function OrderFormFields({
                 <Plus className="size-4" /> Add garment
               </Button>
               {errors.garments && <p className="text-xs text-destructive">{errors.garments.message as string}</p>}
+              <FieldGroup label="Special instructions" className="pt-1">
+                <Textarea {...register("special")} rows={2} placeholder="Anything the tailor should know…" />
+              </FieldGroup>
             </div>
           </div>
+
+          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+            <Accordion value={measureOpen ? ["measurements"] : []} onValueChange={(v) => setMeasureOpen(v.includes("measurements"))}>
+              <AccordionItem value="measurements" className="border-b-0">
+                <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                  <span className="flex items-center gap-2">
+                    <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                      <Ruler className="size-3.5 text-primary" />
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Measurements</span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  {measureFields.length > 0 && (
+                    <div className="-mt-2 mb-4 flex flex-wrap items-center justify-between gap-2">
+                      {/* text-xs text-muted-foreground alone (11px, low-contrast gray) was too
+                          subtle to notice as a hint — reported as looking "hidden" even though
+                          the color itself was rendering exactly as specified. An icon + stronger
+                          color make this actually readable at a glance instead of technically-
+                          correct-but-invisible. */}
+                      {prefilled ? (
+                        <p className="flex items-center gap-1.5 text-sm font-medium text-sky-700 dark:text-sky-400">
+                          <Sparkles className="size-3.5 shrink-0" />
+                          Loaded from this customer&apos;s saved profile — edit as needed.
+                        </p>
+                      ) : (
+                        <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                          <Check className="size-3.5 shrink-0" />
+                          Saved to the customer for next time.
+                        </p>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={extractMeasurements.isPending}
+                        nativeButton={false}
+                        render={<label className="cursor-pointer" />}
+                      >
+                        <ScanLine className="size-3.5" />
+                        {extractMeasurements.isPending ? "Reading chart…" : "Scan chart"}
+                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScanChart} disabled={extractMeasurements.isPending} />
+                      </Button>
+                    </div>
+                  )}
+                  <MeasurementGrid
+                    fields={measureFields}
+                    values={measurements}
+                    onChange={(key, value) => setMeasurements((m) => ({ ...m, [key]: value }))}
+                    lang={measureLang}
+                    onLangChange={setMeasureLang}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+
+          <MediaCapture
+            images={images}
+            audios={audios}
+            videos={videos}
+            onImagesChange={setImages}
+            onAudiosChange={setAudios}
+            onVideosChange={setVideos}
+            onTranscribe={handleTranscribe}
+            transcribingIndex={transcribingIndex}
+          />
 
           {user?.perms.viewReports && (
             <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
@@ -1285,17 +1309,6 @@ function OrderFormFields({
               </Accordion>
             </div>
           )}
-
-          <MediaCapture
-            images={images}
-            audios={audios}
-            videos={videos}
-            onImagesChange={setImages}
-            onAudiosChange={setAudios}
-            onVideosChange={setVideos}
-            onTranscribe={handleTranscribe}
-            transcribingIndex={transcribingIndex}
-          />
         </div>
 
         {/* ── Payment summary sidebar ───────────────────────────────────── */}

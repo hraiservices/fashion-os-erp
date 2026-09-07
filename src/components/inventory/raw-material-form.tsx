@@ -185,7 +185,7 @@ export function RawMaterialForm({ existing }: { existing?: RawMaterial }) {
           type="button"
           variant="outline"
           size="lg"
-          className="h-12 px-6 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 px-4 text-sm sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
           onClick={() => router.back()}
           disabled={isSubmitting}
         >
@@ -194,7 +194,7 @@ export function RawMaterialForm({ existing }: { existing?: RawMaterial }) {
         <Button
           type="submit"
           size="lg"
-          className="h-12 flex-1 gap-1.5 px-6 text-base sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 flex-1 gap-1.5 px-4 text-sm sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
           disabled={isSubmitting}
         >
           <Save className="size-3.5" />

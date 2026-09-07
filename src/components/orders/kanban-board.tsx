@@ -61,6 +61,13 @@ export function KanbanBoard({
     onSetStage?.(id, stage);
   }
 
+  // Best-effort — only among orders currently loaded on this board (whatever filters/search are
+  // active), not a live query across every order ever created with this group_id. Good enough
+  // for "at a glance"; the order detail page's own linked-orders list is the authoritative one.
+  function groupSiblingsOf(o: Order) {
+    return o.groupId ? orders.filter((sib) => sib.groupId === o.groupId) : [];
+  }
+
   function renderColumn(stage: Stage, className?: string) {
     const meta = STAGE_META[stage];
     const style = STAGE_STYLE[stage];
@@ -104,7 +111,8 @@ export function KanbanBoard({
               shop={shop}
               onRecordPayment={onRecordPayment}
               trackUrl={trackUrlByMobile?.get(o.mobile)}
-              groupSize={o.groupId ? orders.filter((sib) => sib.groupId === o.groupId).length : undefined}
+              groupSize={o.groupId ? groupSiblingsOf(o).length : undefined}
+              groupTotal={o.groupId ? groupSiblingsOf(o).reduce((s, sib) => s + sib.total, 0) : undefined}
               draggable={dndEnabled}
               dragging={draggingId === o.id}
               onDragStart={(e) => {

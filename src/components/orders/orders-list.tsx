@@ -34,10 +34,12 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
   }
 
   const isVisible = (key: string) => !columnTable || columnTable.isVisible(key);
-  // Best-effort — only counts siblings visible on this same filtered/paginated list, not every
-  // order sharing the group_id across the whole system. Good enough for "at a glance", not
-  // meant as an authoritative count (the order detail page's own linked-orders list is that).
-  const groupSizeOf = (o: Order) => (o.groupId ? orders.filter((sib) => sib.groupId === o.groupId).length : undefined);
+  // Best-effort — only counts/sums siblings visible on this same filtered/paginated list, not
+  // every order sharing the group_id across the whole system. Good enough for "at a glance", not
+  // meant as authoritative (the order detail page's own linked-orders list is that).
+  const groupSiblingsOf = (o: Order) => (o.groupId ? orders.filter((sib) => sib.groupId === o.groupId) : []);
+  const groupSizeOf = (o: Order) => (o.groupId ? groupSiblingsOf(o).length : undefined);
+  const groupTotalOf = (o: Order) => (o.groupId ? groupSiblingsOf(o).reduce((s, sib) => s + sib.total, 0) : undefined);
 
   return (
     <div className="space-y-2.5">
@@ -55,6 +57,7 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
             tailorName={tailorName}
             trackUrl={trackUrlByMobile?.get(o.mobile)}
             groupSize={groupSizeOf(o)}
+            groupTotal={groupTotalOf(o)}
           />
         ))}
       </div>
@@ -80,6 +83,7 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
                 )}
                 {isVisible("order") && <th className="px-3 py-2.5 font-medium">Order</th>}
                 {isVisible("customer") && <th className="px-3 py-2.5 font-medium">Customer</th>}
+                {isVisible("garment") && <th className="px-3 py-2.5 font-medium">Garment</th>}
                 {isVisible("stage") && <th className="px-3 py-2.5 font-medium">Stage</th>}
                 {isVisible("tailor") && <th className="px-3 py-2.5 font-medium">Tailor</th>}
                 {isVisible("delivery") && <th className="px-3 py-2.5 font-medium">Delivery</th>}
@@ -105,6 +109,7 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
                   tailorName={tailorName}
                   trackUrl={trackUrlByMobile?.get(o.mobile)}
                   groupSize={groupSizeOf(o)}
+                  groupTotal={groupTotalOf(o)}
                 />
               ))}
             </tbody>

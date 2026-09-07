@@ -25,10 +25,13 @@ export const metadata: Metadata = {
   description: "Tailoring shop management — orders, CRM, billing, reports.",
   manifest: "/manifest.json",
   icons: {
-    // Dynamic — serves the shop's own uploaded logo (Settings → Shop) once one is set,
-    // falling back to the default scissors icon otherwise. See that route's comment.
+    // Dynamic — serves the shop's own uploaded favicon/logo (Settings → Personalize) once one
+    // is set, falling back to the default scissors icon otherwise. See that route's comment.
+    // `apple` used to point at the static default /icon-192.png regardless of what a shop
+    // uploaded, so an uploaded logo never actually showed up as the Home Screen/bookmark icon
+    // on iOS — pointing both at the same dynamic route fixes that.
     icon: "/api/branding/icon",
-    apple: "/icon-192.png",
+    apple: "/api/branding/icon",
   },
   appleWebApp: {
     capable: true,

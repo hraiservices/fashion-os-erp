@@ -468,6 +468,13 @@
   html {
     @apply bg-background font-sans;
     overscroll-behavior-y: none;
+    /* Android's WebView/Chrome "font boosting" inflates text size in narrow columns to keep it
+       legible, independent of any CSS font-size — it isn't reproducible in a desktop browser,
+       which doesn't apply the heuristic, only on-device. Left on, it was inflating the delivery
+       date/time fields (a two-column grid row) enough to overflow their box and overlap the
+       neighboring field, while wider single-column fields never triggered it. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
   /* Long-pressing a button/link/icon shouldn't pop the browser's text-selection callout —
      native apps never let you "select" a control's label. Real text content isn't touched

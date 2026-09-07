@@ -57,10 +57,10 @@ export function DatePicker({
             type="button"
             variant="outline"
             disabled={disabled}
-            className={cn("h-10 w-full justify-start font-normal", !value && "text-muted-foreground", className)}
+            className={cn("h-10 w-full min-w-0 shrink justify-start font-normal", !value && "text-muted-foreground", className)}
           >
             <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
-            {value ? fmtDate(value) : placeholder}
+            <span className="truncate">{value ? fmtDate(value) : placeholder}</span>
           </Button>
         }
       />

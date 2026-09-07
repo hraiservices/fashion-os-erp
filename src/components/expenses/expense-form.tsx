@@ -111,8 +111,8 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
             <ArrowLeft className="size-4" />
             <span className="hidden sm:inline">Expenses</span>
           </Link>
-          <div className="flex-1">
-            <h1 className="text-base font-semibold">{isEdit ? "Edit Expense" : "New Expense"}</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Expense" : "New Expense"}</h1>
           </div>
           {/* Duplicate of the bottom FormActionBar — mobile only, so Record/Save is reachable
              without scrolling all the way down. */}

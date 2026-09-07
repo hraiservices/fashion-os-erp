@@ -103,8 +103,8 @@ export function RawMaterialForm({ existing }: { existing?: RawMaterial }) {
             <ArrowLeft className="size-4" />
             <span className="hidden sm:inline">Raw materials</span>
           </Link>
-          <div className="flex-1">
-            <h1 className="text-base font-semibold">{isEdit ? "Edit Raw Material" : "New Raw Material"}</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Raw Material" : "New Raw Material"}</h1>
             {isEdit && <p className="text-[11px] font-mono text-muted-foreground">{existing!.name}</p>}
           </div>
           {/* Duplicate of the bottom FormActionBar — mobile only, so Add/Save is reachable

@@ -1,5 +1,6 @@
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { deriveBalance, STAGES, type Stage } from "@/lib/business-rules";
+import type { MeasurementProfile } from "@/lib/measurement-profiles";
 
 export type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
 export type OrderExpenseRow = Database["public"]["Tables"]["order_expenses"]["Row"];
@@ -134,6 +135,11 @@ export interface Order {
    *  normal way. Purely a grouping label for staff to see related orders together; it carries
    *  no other meaning (no shared money, no shared stage). */
   groupId: string | null;
+  /** Which of the customer's saved measurement profiles (if any) this order's measurements were
+   *  taken from — a snapshot label, not a live foreign key, so it stays meaningful even if the
+   *  profile is later renamed or archived. Null for orders that didn't reference a named profile. */
+  measurementProfileId: string | null;
+  measurementProfileName: string | null;
 }
 
 export type OrderType = "new" | "alteration";
@@ -191,6 +197,8 @@ export function mapOrderRow(r: OrderRowForMapping): Order {
     rawStatus: r.status || "received",
     createdAt: r.created_at || "",
     groupId: r.group_id ?? null,
+    measurementProfileId: r.measurement_profile_id ?? null,
+    measurementProfileName: r.measurement_profile_name ?? null,
   };
 }
 
@@ -249,6 +257,10 @@ export interface Customer {
   /** Random token addressing this customer's public order-status page (/track/[token]) —
    *  never guessable from mobile/id, safe to put in a plain-text WhatsApp link. */
   shareToken: string;
+  /** Named measurement profiles ("Regular fit", "Loose fit") — see lib/measurement-profiles.ts.
+   *  Empty for a customer who's never engaged with this; the flat `measurements` field above
+   *  still works exactly as before and getProfiles() synthesizes a fallback from it. */
+  measurementProfiles: MeasurementProfile[];
 }
 
 /** mapCust(), line ~2324. */
@@ -273,6 +285,7 @@ export function mapCustomerRow(r: CustomerRow): Customer {
     gstin: r.gstin || "",
     whatsappOptOut: !!r.whatsapp_opt_out,
     shareToken: r.share_token || "",
+    measurementProfiles: (Array.isArray(r.measurement_profiles) ? r.measurement_profiles : []) as unknown as MeasurementProfile[],
   };
 }
 

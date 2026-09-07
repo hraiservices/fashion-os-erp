@@ -28,6 +28,7 @@ import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { EditCustomerModal } from "@/components/crm/edit-customer-modal";
 import { CustomerMeasurements } from "@/components/crm/customer-measurements";
+import { CustomerMeasurementProfiles } from "@/components/crm/customer-measurement-profiles";
 import { CustomerBuyingProfileCard } from "@/components/crm/customer-buying-profile-card";
 import { CustomerProductRecommendations } from "@/components/crm/customer-product-recommendations";
 import {
@@ -344,6 +345,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
       )}
 
       <CustomerMeasurements cust={cust} />
+      <CustomerMeasurementProfiles cust={cust} />
 
       <section className="rounded-xl border bg-card">
         <div className="border-b px-4 py-3">

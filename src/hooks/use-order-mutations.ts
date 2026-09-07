@@ -43,6 +43,10 @@ interface CreateOrderInput {
   /** Links this order to sibling orders from the same "split into one order per garment"
    *  submission — see order-form.tsx's splitIntoGroupOrders(). */
   groupId?: string;
+  /** See src/lib/measurement-profiles.ts and /api/orders' bodySchema. */
+  measurementProfileId?: string;
+  measurementProfileName?: string;
+  measurementSaveMode?: "profile" | "flat" | "skip";
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -207,7 +211,7 @@ export function useBackfillOrderPayment() {
  * the server resolves the authenticated user from the session cookie.
  */
 /** Patch payload — order fields plus the optimistic-concurrency baseline for `advance`. */
-type OrderEditPatch = Partial<Order> & { expectedAdvance?: number; expenses?: NewOrderExpenseInput[] };
+type OrderEditPatch = Partial<Order> & { expectedAdvance?: number; expenses?: NewOrderExpenseInput[]; measurementSaveMode?: "profile" | "flat" | "skip" };
 
 export function useUpdateOrder() {
   const qc = useQueryClient();

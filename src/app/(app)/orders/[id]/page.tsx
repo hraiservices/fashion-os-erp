@@ -649,6 +649,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <section className="rounded-xl border bg-card">
           <div className="border-b px-4 py-3">
             <h2 className="text-sm font-semibold">Measurements</h2>
+            {order.measurementProfileName && (
+              <p className="mt-0.5 text-xs text-muted-foreground">From profile: {order.measurementProfileName}</p>
+            )}
           </div>
           <div className="p-4">
             <MeasurementView fields={measureFields || []} values={hydrateMeasurements(measureFields || [], order.measurements)} />

@@ -60,6 +60,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { istDateString } from "@/lib/ist-date";
+import { getProfiles, activeProfiles, defaultProfile, findProfile } from "@/lib/measurement-profiles";
 
 const garmentSchema = z.object({
   type: z.string().min(1, "Select a garment"),
@@ -233,6 +234,15 @@ function OrderFormFields({
   );
   const [measureLang, setMeasureLang] = useState<MeasureLang>("en");
   const extractMeasurements = useExtractMeasurements();
+
+  // Which of the customer's saved measurement profiles (if any) is currently loaded — carried
+  // through to the save payload so the server can snapshot it onto the order and, when a name
+  // is set, upsert it back into the customer's profile array. See lib/measurement-profiles.ts.
+  const [measureProfileId, setMeasureProfileId] = useState<string | null>(existingOrder?.measurementProfileId ?? null);
+  const [measureProfileName, setMeasureProfileName] = useState<string>(existingOrder?.measurementProfileName ?? "");
+  // Whether to persist the measurements typed here back onto the customer at all — off for a
+  // genuine one-off order, on otherwise (matches the legacy always-sync behavior by default).
+  const [saveMeasurementsToCustomer, setSaveMeasurementsToCustomer] = useState(true);
 
   async function handleScanChart(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -471,14 +481,41 @@ function OrderFormFields({
   const lookupMobile = !existingOrder && mobile?.length === 10 ? mobile : "";
   const { data: foundCustomer } = useCustomerByMobile(lookupMobile);
 
+  // Also looked up on edit (and kept live as the mobile field changes) purely to read the
+  // customer's saved measurement profiles for the Load/Save controls below — never used to
+  // auto-prefill name/measurements outside the new-order flow above.
+  const profileLookupMobile = mobile?.length === 10 ? mobile : "";
+  const { data: profileCustomer } = useCustomerByMobile(profileLookupMobile);
+  const measureProfiles = profileCustomer
+    ? activeProfiles(getProfiles({ measurements: profileCustomer.measurements, measurementProfiles: profileCustomer.measurementProfiles, createdAt: profileCustomer.createdAt }))
+    : [];
+
   useSyncFromSource(existingOrder || prefilled ? null : foundCustomer, (customer) => {
     if (!customer) return;
     setValue("name", customer.name, { shouldValidate: true });
-    const saved = hydrateMeasurements(measureFields, customer.measurements);
+    const profiles = activeProfiles(getProfiles({ measurements: customer.measurements, measurementProfiles: customer.measurementProfiles, createdAt: customer.createdAt }));
+    const toLoad = defaultProfile(profiles);
+    const saved = toLoad ? hydrateMeasurements(measureFields, toLoad.values) : hydrateMeasurements(measureFields, customer.measurements);
     setMeasurements(saved);
+    setMeasureProfileId(toLoad?.id ?? null);
+    setMeasureProfileName(toLoad?.name ?? "");
     setPrefilled(true);
     toast.success(`Loaded ${customer.name}'s details`);
   });
+
+  function handlePickProfile(id: string) {
+    if (id === "__blank__") {
+      setMeasurements(hydrateMeasurements(measureFields, {}));
+      setMeasureProfileId(null);
+      setMeasureProfileName("");
+      return;
+    }
+    const profile = findProfile(measureProfiles, id);
+    if (!profile) return;
+    setMeasurements(hydrateMeasurements(measureFields, profile.values));
+    setMeasureProfileId(profile.id);
+    setMeasureProfileName(profile.name);
+  }
 
   // Reset the prefill latch if the number is edited, so a different customer re-triggers it.
   useSyncFromSource(mobile, (m) => {
@@ -566,6 +603,7 @@ function OrderFormFields({
           garments: [{ type: piece.type, lining: piece.lining, no: 1, amount: piece.amount, tailor: piece.tailor }],
           total: piece.amount,
           measurements: measurementPayload,
+          ...(i === 0 ? measurementProfileFields : { measurementSaveMode: "skip" as const }),
           images, audios, videos,
           usePoints: i === 0 ? usePoints : false,
           orderType,
@@ -592,6 +630,12 @@ function OrderFormFields({
     return created;
   }
 
+  const measurementSaveMode: "profile" | "flat" | "skip" = !saveMeasurementsToCustomer ? "skip" : measureProfileName.trim() ? "profile" : "flat";
+  const measurementProfileFields =
+    measurementSaveMode === "profile"
+      ? { measurementProfileId: measureProfileId ?? undefined, measurementProfileName: measureProfileName.trim(), measurementSaveMode }
+      : { measurementSaveMode };
+
   async function onSubmit({ paymentMethod, ...values }: FormValues) {
     const measurementPayload = compactMeasurements(measurements);
     try {
@@ -603,6 +647,7 @@ function OrderFormFields({
             total,
             garments: values.garments as Order["garments"],
             measurements: measurementPayload,
+            ...measurementProfileFields,
             images,
             audios,
             videos,
@@ -626,6 +671,7 @@ function OrderFormFields({
           ...values,
           total,
           measurements: measurementPayload,
+          ...measurementProfileFields,
           images,
           audios,
           videos,
@@ -1068,6 +1114,28 @@ function OrderFormFields({
                       </Button>
                     </div>
                   )}
+                  {/* Only surfaced once the customer actually has more than one saved profile —
+                      per the locked design, a customer with a single (or no) profile keeps
+                      seeing exactly the old, simpler single-measurements form. */}
+                  {measureProfiles.length >= 2 && (
+                    <div className="mb-3">
+                      <Label className="mb-1 block text-xs font-medium">Load measurements</Label>
+                      <Select value={measureProfileId ?? "__blank__"} onValueChange={(v) => v && handlePickProfile(v)}>
+                        <SelectTrigger className="w-full sm:w-72">
+                          <SelectValue placeholder="Choose a saved profile…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {measureProfiles.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name}
+                              {p.isDefault ? " (usual)" : ""}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="__blank__">+ Start blank</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <MeasurementGrid
                     fields={measureFields}
                     values={measurements}
@@ -1075,6 +1143,23 @@ function OrderFormFields({
                     lang={measureLang}
                     onLangChange={setMeasureLang}
                   />
+                  {measureFields.length > 0 && (
+                    <div className="mt-4 space-y-2 border-t pt-3">
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox checked={saveMeasurementsToCustomer} onChange={(e) => setSaveMeasurementsToCustomer(e.target.checked)} />
+                        Save these measurements to the customer
+                      </label>
+                      {saveMeasurementsToCustomer && (
+                        <FieldGroup label="Profile name (optional — leave blank to just update the customer's default measurements)">
+                          <Input
+                            value={measureProfileName}
+                            onChange={(e) => setMeasureProfileName(e.target.value)}
+                            placeholder="e.g. Regular fit, Loose fit, Wedding suit"
+                          />
+                        </FieldGroup>
+                      )}
+                    </div>
+                  )}
                 </AccordionContent>
               </AccordionItem>
             </Accordion>

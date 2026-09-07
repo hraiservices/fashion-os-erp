@@ -40,6 +40,9 @@ interface CreateOrderInput {
   /** Manual override for the order's id/number — leave unset for the usual auto-generated or
    *  sequential (Document Numbering) behavior. */
   orderNumber?: string;
+  /** Links this order to sibling orders from the same "split into one order per garment"
+   *  submission — see order-form.tsx's splitIntoGroupOrders(). */
+  groupId?: string;
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {

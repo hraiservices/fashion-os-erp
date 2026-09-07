@@ -19,7 +19,7 @@ import { mapOrderRow, type Order } from "@/lib/types";
 // Hence no `as OrderRow` cast below: the row type must genuinely satisfy mapOrderRow so a
 // missing column is a compile error, not a silent wrong number.
 const ORDER_LIST_COLUMNS =
-  "id, name, mobile, in_date, delivery_date, in_time, delivery_time, garments, total, advance, balance, tailor, status, special, history, measurements, payments, pay_breakdown, order_type, booking_source, fabric_cost, other_cost, rework_flag, rework_reason, rework_flagged_by, rework_flagged_at, ready_at, payables_confirmed_at, payables_confirmed_by, piece_rate_paid_at, created_at, updated_at";
+  "id, name, mobile, in_date, delivery_date, in_time, delivery_time, garments, total, advance, balance, tailor, status, special, history, measurements, payments, pay_breakdown, order_type, booking_source, fabric_cost, other_cost, rework_flag, rework_reason, rework_flagged_by, rework_flagged_at, ready_at, payables_confirmed_at, payables_confirmed_by, piece_rate_paid_at, group_id, created_at, updated_at";
 
 async function fetchOrders(): Promise<Order[]> {
   const supabase = createClient();

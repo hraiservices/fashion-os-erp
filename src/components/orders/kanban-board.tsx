@@ -104,6 +104,7 @@ export function KanbanBoard({
               shop={shop}
               onRecordPayment={onRecordPayment}
               trackUrl={trackUrlByMobile?.get(o.mobile)}
+              groupSize={o.groupId ? orders.filter((sib) => sib.groupId === o.groupId).length : undefined}
               draggable={dndEnabled}
               dragging={draggingId === o.id}
               onDragStart={(e) => {

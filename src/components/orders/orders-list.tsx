@@ -34,6 +34,10 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
   }
 
   const isVisible = (key: string) => !columnTable || columnTable.isVisible(key);
+  // Best-effort — only counts siblings visible on this same filtered/paginated list, not every
+  // order sharing the group_id across the whole system. Good enough for "at a glance", not
+  // meant as an authoritative count (the order detail page's own linked-orders list is that).
+  const groupSizeOf = (o: Order) => (o.groupId ? orders.filter((sib) => sib.groupId === o.groupId).length : undefined);
 
   return (
     <div className="space-y-2.5">
@@ -50,6 +54,7 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
             onRecordPayment={onRecordPayment}
             tailorName={tailorName}
             trackUrl={trackUrlByMobile?.get(o.mobile)}
+            groupSize={groupSizeOf(o)}
           />
         ))}
       </div>
@@ -99,6 +104,7 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
                   profit={profitByOrderId?.get(o.id)}
                   tailorName={tailorName}
                   trackUrl={trackUrlByMobile?.get(o.mobile)}
+                  groupSize={groupSizeOf(o)}
                 />
               ))}
             </tbody>

@@ -15,6 +15,7 @@ import { CustomerPicker } from "@/components/sales/customer-picker";
 import { SearchSelect } from "@/components/ui/search-select";
 import { useCustomers } from "@/hooks/use-customers";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useActiveTailors } from "@/hooks/use-employees";
@@ -38,6 +39,7 @@ import {
   type TailorRateCard,
 } from "@/lib/business-rules";
 import { computeOrderProfit } from "@/lib/order-profit";
+import { apportionAmount } from "@/lib/order-split";
 import { hydrateMeasurements, compactMeasurements, type MeasureLang } from "@/lib/measurements";
 import { inr, fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -278,6 +280,11 @@ function OrderFormFields({
   }
   const [usePoints, setUsePoints] = useState(false);
   const [couponCode, setCouponCode] = useState("");
+  // New orders only (splitting an already-created order isn't supported) — on by default per
+  // the agreed design, so a multi-garment order is one board card per garment unless someone
+  // deliberately turns it off. A no-op for the common single-garment order regardless of this
+  // setting (see totalPieceCount below), so it never changes anything for the typical case.
+  const [splitOrders, setSplitOrders] = useState(true);
   const [prefilled, setPrefilled] = useState(false);
   const [measureOpen, setMeasureOpen] = useState(false);
   const [costsOpen, setCostsOpen] = useState(false);
@@ -506,6 +513,85 @@ function OrderFormFields({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const totalPieceCount = garments.reduce((s, g) => s + (g.no || 1), 0);
+
+  /**
+   * "Create a separate order for each garment" path — one createOrder call per physical piece
+   * (a garment line with no=3 becomes 3 single-piece orders, not 3 lines on one order), all
+   * sharing a client-generated group_id so staff can still find them together. Sequential, not
+   * parallel: keeps sequential order numbering simple and avoids many concurrent inserts for the
+   * same customer racing each other.
+   *
+   * Money is deliberately NOT linked across the group (per design decision): total/advance are
+   * apportioned per piece by that piece's own share of the order's total value, rounded to the
+   * nearest rupee with any leftover absorbed into the LAST piece so the sum always reconciles
+   * exactly to what was entered. Loyalty-point redemption, the referral coupon, fabric/other
+   * cost and stitching expenses are NOT divided — they're one-time, order-level things that
+   * don't cleanly map to "per garment", so they're attached to the first order in the group only
+   * (never duplicated, never invented from nothing).
+   */
+  async function submitSplitOrders(values: Omit<FormValues, "paymentMethod">, paymentMethod: string, measurementPayload: Record<string, unknown>) {
+    const groupId = newLineId();
+    const pieces: { type: string; lining: string; amount: number; tailor?: string }[] = [];
+    values.garments.forEach((g) => {
+      const qty = g.no || 1;
+      for (let i = 0; i < qty; i++) pieces.push({ type: g.type, lining: g.lining, amount: g.amount, tailor: g.tailor });
+    });
+
+    const advanceByPiece = apportionAmount(
+      values.advance,
+      pieces.map((p) => p.amount)
+    );
+    const created: Order[] = [];
+
+    for (let i = 0; i < pieces.length; i++) {
+      const piece = pieces[i];
+      // apportionAmount's own invariant (the pieces sum back to the entered advance exactly) can
+      // only be broken by this cap, and only when one garment's price is wildly out of line with
+      // the rest of the order — the cap still guarantees no single order's advance ever exceeds
+      // its own total, which the server enforces anyway.
+      const cappedAdvance = Math.min(advanceByPiece[i], piece.amount);
+
+      try {
+        const res = await createOrder.mutateAsync({
+          name: values.name,
+          mobile: values.mobile,
+          inDate: values.inDate,
+          inTime: values.inTime,
+          deliveryDate: values.deliveryDate,
+          deliveryTime: values.deliveryTime,
+          tailor: piece.tailor || values.tailor,
+          special: values.special,
+          advance: cappedAdvance,
+          garments: [{ type: piece.type, lining: piece.lining, no: 1, amount: piece.amount, tailor: piece.tailor }],
+          total: piece.amount,
+          measurements: measurementPayload,
+          images, audios, videos,
+          usePoints: i === 0 ? usePoints : false,
+          orderType,
+          paymentMethod: cappedAdvance > 0 ? paymentMethod : undefined,
+          bookingSource: values.bookingSource,
+          fabricCost: i === 0 ? values.fabricCost : 0,
+          otherCost: i === 0 ? values.otherCost : 0,
+          couponCode: i === 0 ? couponCode.trim() || undefined : undefined,
+          expenses: i === 0 ? values.expenses : undefined,
+          groupId,
+        });
+        created.push(res.order);
+      } catch (e) {
+        const createdList = created.map((o) => o.id).join(", ");
+        throw new Error(
+          created.length > 0
+            ? `Created ${created.length} of ${pieces.length} orders (${createdList}) before this failed: ${e instanceof Error ? e.message : "Unknown error"}. The customer's remaining garment(s) were NOT ordered — check ${createdList} and add the rest manually if needed.`
+            : e instanceof Error
+              ? e.message
+              : "Failed to save order"
+        );
+      }
+    }
+    return created;
+  }
+
   async function onSubmit({ paymentMethod, ...values }: FormValues) {
     const measurementPayload = compactMeasurements(measurements);
     try {
@@ -531,6 +617,10 @@ function OrderFormFields({
         });
         toast.success("Order updated");
         router.push(`/orders/${existingOrder.id}`);
+      } else if (splitOrders && totalPieceCount > 1) {
+        const createdOrders = await submitSplitOrders(values, paymentMethod, measurementPayload);
+        toast.success(`Created ${createdOrders.length} orders — one per garment: ${createdOrders.map((o) => o.id).join(", ")}`);
+        router.push("/orders");
       } else {
         const res = await createOrder.mutateAsync({
           ...values,
@@ -550,7 +640,7 @@ function OrderFormFields({
         router.push("/orders");
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save order");
+      toast.error(e instanceof Error ? e.message : "Failed to save order", { duration: 15_000 });
     }
   }
 
@@ -583,6 +673,19 @@ function OrderFormFields({
 
       <form onSubmit={handleSubmit(onSubmit)} className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
         <div className="lg:col-span-2 space-y-5">
+          {!isEdit && (
+            <label className="flex cursor-pointer items-start gap-2 rounded-xl border bg-white dark:bg-card shadow-sm p-4">
+              <Checkbox checked={splitOrders} onChange={(e) => setSplitOrders(e.target.checked)} className="mt-0.5" />
+              <span>
+                <span className="block text-sm font-medium">Create a separate order for each garment</span>
+                <span className="block text-xs text-muted-foreground">
+                  {totalPieceCount > 1
+                    ? `This order has ${totalPieceCount} garments — with this on, you'll get ${totalPieceCount} separate orders (e.g. so a tailor can move one suit to Cutting without the others following). Payment and delivery date are split across them; recommended for most multi-garment orders.`
+                    : "Only matters once this order has more than one garment — add another garment line or increase a quantity to see it apply."}
+                </span>
+              </span>
+            </label>
+          )}
           {/* Customer & dates */}
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
             <SectionHeading icon={User2} label="Customer & dates" />

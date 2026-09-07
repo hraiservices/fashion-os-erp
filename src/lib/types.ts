@@ -129,6 +129,11 @@ export interface Order {
    *  against the real column value. */
   rawStatus: string;
   createdAt: string;
+  /** Shared across every order created from the same "split into one order per garment"
+   *  submission (see the New Order form's split checkbox) — null for every order created the
+   *  normal way. Purely a grouping label for staff to see related orders together; it carries
+   *  no other meaning (no shared money, no shared stage). */
+  groupId: string | null;
 }
 
 export type OrderType = "new" | "alteration";
@@ -185,6 +190,7 @@ export function mapOrderRow(r: OrderRowForMapping): Order {
     pieceRatePaidAt: r.piece_rate_paid_at ?? null,
     rawStatus: r.status || "received",
     createdAt: r.created_at || "",
+    groupId: r.group_id ?? null,
   };
 }
 

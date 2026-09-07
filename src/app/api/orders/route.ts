@@ -61,6 +61,10 @@ const bodySchema = z.object({
   /** Manual override for the order's id/number — leave unset for the usual auto-generated or
    *  sequential (Document Numbering) behavior. Only meaningful on create. */
   orderNumber: z.string().optional(),
+  /** Links this order to sibling orders from the same "split into one order per garment"
+   *  submission (see the New Order form's split checkbox) — client-generated, shared across
+   *  every order in that one submission. Absent for a normal, non-split order. */
+  groupId: z.string().optional(),
   expenses: z
     .array(
       z.object({
@@ -243,6 +247,7 @@ export async function POST(request: Request) {
       booking_source: fd.bookingSource,
       fabric_cost: fd.fabricCost,
       other_cost: fd.otherCost,
+      group_id: fd.groupId || null,
     })
     .select("*")
     .single();

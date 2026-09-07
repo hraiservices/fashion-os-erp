@@ -135,14 +135,19 @@ export function ChecklistProgressBar({ order }: { order: Order }) {
  * The stage is implied by the column, so the card omits the stage badge and spends
  * that space on the details a tailor actually scans for: who, what, when, how much.
  */
-/** "3 linked" — a garment-split order's link to its siblings from the same customer visit (see
- *  the New Order form's split checkbox). Each sibling moves independently, but this reminds
- *  staff at a glance that there's more than one order for this visit. */
-export function GroupBadge({ size }: { size?: number }) {
+/** "3 linked · Total ₹3,000" — a garment-split order's link to its siblings from the same
+ *  customer visit (see the New Order form's split checkbox). Each sibling moves independently
+ *  and carries its own money (not linked/shared — see order-split.ts), so `groupTotal` here is
+ *  just the sum of every sibling's own total for a quick "what's this whole visit worth" read;
+ *  it is not a shared balance. */
+export function GroupBadge({ size, groupTotal }: { size?: number; groupTotal?: number }) {
   if (!size || size < 2) return null;
   return (
-    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-sky-500/30 bg-sky-50 px-1.5 py-0 text-[10px] font-medium text-sky-700 dark:bg-sky-950/40 dark:text-sky-400">
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-sky-500/30 bg-sky-50 px-1.5 py-0 text-[10px] font-medium text-sky-700 dark:bg-sky-950/40 dark:text-sky-400">
       <LinkIcon className="size-2.5" /> {size} linked
+      {groupTotal != null && (
+        <span className="text-emerald-600 dark:text-emerald-400">· Total {inr(groupTotal)}</span>
+      )}
     </span>
   );
 }
@@ -160,6 +165,7 @@ export function OrderCard({
   onRecordPayment,
   trackUrl,
   groupSize,
+  groupTotal,
 }: {
   order: Order;
   canChangeStage?: boolean;
@@ -176,6 +182,8 @@ export function OrderCard({
   /** Count of orders sharing this order's group_id (itself included) — omit/undefined when the
    *  caller isn't tracking groups, 1 or less hides the badge (not actually grouped). */
   groupSize?: number;
+  /** Sum of every sibling's own `total` (this order included) — see GroupBadge. */
+  groupTotal?: number;
 }) {
   const next = getNextStage(order.status);
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
@@ -201,7 +209,7 @@ export function OrderCard({
           {order.id}
           {order.orderType === "alteration" && <AlterationBadge />}
           {order.reworkFlag && <ReworkBadge />}
-          <GroupBadge size={groupSize} />
+          <GroupBadge size={groupSize} groupTotal={groupTotal} />
         </p>
 
         <p className="mt-2 truncate text-xs text-muted-foreground">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>

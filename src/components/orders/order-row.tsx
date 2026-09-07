@@ -37,6 +37,8 @@ interface RowProps {
   /** Count of orders sharing this order's group_id (itself included) — see order-card.tsx's
    *  GroupBadge. Omit/undefined when the caller isn't tracking groups. */
   groupSize?: number;
+  /** Sum of every sibling's own `total` (this order included) — see GroupBadge. */
+  groupTotal?: number;
 }
 
 interface TableRowProps extends RowProps {
@@ -142,7 +144,7 @@ function RecordPaymentButton({ order, onRecordPayment, compact }: { order: Order
  * every order becomes a tap-friendly card with its actions inline.
  */
 export function OrderCardRow(props: RowProps) {
-  const { order, canChangeStage, shop, onRecordPayment, tailorName, trackUrl, groupSize } = props;
+  const { order, canChangeStage, shop, onRecordPayment, tailorName, trackUrl, groupSize, groupTotal } = props;
   const style = STAGE_STYLE[order.status];
 
   return (
@@ -163,7 +165,7 @@ export function OrderCardRow(props: RowProps) {
           <StageBadge stage={order.status} size="sm" />
           {order.orderType === "alteration" && <AlterationBadge />}
           {order.reworkFlag && <ReworkBadge />}
-          <GroupBadge size={groupSize} />
+          <GroupBadge size={groupSize} groupTotal={groupTotal} />
           <DueBadge order={order} />
           <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums">{inr(order.total)}</span>
         </div>
@@ -197,7 +199,7 @@ export function OrderCardRow(props: RowProps) {
 
 /** Desktop table row. */
 export function OrderTableRow(props: TableRowProps) {
-  const { order, canChangeStage, shop, onRecordPayment, selection, profit, tailorName, trackUrl, groupSize } = props;
+  const { order, canChangeStage, shop, onRecordPayment, selection, profit, tailorName, trackUrl, groupSize, groupTotal } = props;
   const style = STAGE_STYLE[order.status];
   const isVisible = props.isVisible || (() => true);
 
@@ -235,7 +237,7 @@ export function OrderTableRow(props: TableRowProps) {
             <StageBadge stage={order.status} />
             {order.orderType === "alteration" && <AlterationBadge />}
             {order.reworkFlag && <ReworkBadge />}
-            <GroupBadge size={groupSize} />
+            <GroupBadge size={groupSize} groupTotal={groupTotal} />
           </div>
         </td>
       )}

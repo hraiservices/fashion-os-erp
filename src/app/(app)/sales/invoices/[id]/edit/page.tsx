@@ -13,7 +13,7 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
   const { data: invoice, isLoading } = useSalesInvoice(id);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+    <div className="mx-auto max-w-[1600px] space-y-4 p-4 sm:p-6">
       <Link href="/sales/invoices" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" /> Invoices
       </Link>

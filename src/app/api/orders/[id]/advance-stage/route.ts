@@ -109,12 +109,26 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   // (readyTemplateName), same restriction as the daily-briefing push.
   if (next === "ready") {
     try {
+      const updated = mapOrderRow(updatedRow);
+
+      // Split-order groups (one order per garment from the same visit — see the New Order
+      // form's split checkbox) share a group_id. The customer thinks of these as one order, so
+      // they get one "ready" message, not one per garment — sent only once every sibling in the
+      // group has itself reached ready-or-later (ready/delivered/payment). An order with no
+      // group_id (the overwhelming majority) always sends immediately, exactly as before.
+      let groupReady = true;
+      if (updated.groupId) {
+        const { data: siblingRows } = await db.from("orders").select("status").eq("group_id", updated.groupId).neq("id", id);
+        const DONE_STAGES = new Set(["ready", "delivered", "payment"]);
+        groupReady = (siblingRows || []).every((s) => DONE_STAGES.has(s.status));
+      }
+      if (!groupReady) return NextResponse.json({ order: updated });
+
       const [{ data: cloudApiSetting }, { data: customerRow }] = await Promise.all([
         db.from("app_settings").select("value").eq("key", "whatsappCloudApiConfig").maybeSingle(),
         db.from("customers").select("whatsapp_opt_out").eq("mobile", order.mobile).maybeSingle(),
       ]);
       const cloudApi = cloudApiSetting?.value as WhatsAppCloudApiConfig | null;
-      const updated = mapOrderRow(updatedRow);
       if (cloudApi?.phoneNumberId && cloudApi?.accessToken && cloudApi?.readyTemplateName && !customerRow?.whatsapp_opt_out) {
         const waMessageId = await sendWhatsAppTemplateText(cloudApi, updated.mobile, cloudApi.readyTemplateName, cloudApi.languageCode || "en_US", [
           updated.name,

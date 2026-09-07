@@ -57,6 +57,7 @@ export interface Database {
           payables_confirmed_at: string | null;
           payables_confirmed_by: string | null;
           piece_rate_paid_at: string | null;
+          group_id: string | null;
           created_at: string;
           updated_at: string;
         };

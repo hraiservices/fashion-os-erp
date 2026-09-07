@@ -11,7 +11,7 @@ import { inr, fmtDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { deliveryTarget, formatCountdownDHM, useCountdownNow } from "@/lib/delivery-countdown";
 import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
-import { AlterationBadge, ReworkBadge, DeleteOrderButton } from "@/components/orders/order-card";
+import { AlterationBadge, ReworkBadge, DeleteOrderButton, GroupBadge } from "@/components/orders/order-card";
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
@@ -34,6 +34,9 @@ interface RowProps {
   tailorName?: (id: string) => string;
   /** Customer's public order-status link, for the {track_link} WhatsApp variable. */
   trackUrl?: string;
+  /** Count of orders sharing this order's group_id (itself included) — see order-card.tsx's
+   *  GroupBadge. Omit/undefined when the caller isn't tracking groups. */
+  groupSize?: number;
 }
 
 interface TableRowProps extends RowProps {
@@ -139,7 +142,7 @@ function RecordPaymentButton({ order, onRecordPayment, compact }: { order: Order
  * every order becomes a tap-friendly card with its actions inline.
  */
 export function OrderCardRow(props: RowProps) {
-  const { order, canChangeStage, shop, onRecordPayment, tailorName, trackUrl } = props;
+  const { order, canChangeStage, shop, onRecordPayment, tailorName, trackUrl, groupSize } = props;
   const style = STAGE_STYLE[order.status];
 
   return (
@@ -160,6 +163,7 @@ export function OrderCardRow(props: RowProps) {
           <StageBadge stage={order.status} size="sm" />
           {order.orderType === "alteration" && <AlterationBadge />}
           {order.reworkFlag && <ReworkBadge />}
+          <GroupBadge size={groupSize} />
           <DueBadge order={order} />
           <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums">{inr(order.total)}</span>
         </div>
@@ -193,7 +197,7 @@ export function OrderCardRow(props: RowProps) {
 
 /** Desktop table row. */
 export function OrderTableRow(props: TableRowProps) {
-  const { order, canChangeStage, shop, onRecordPayment, selection, profit, tailorName, trackUrl } = props;
+  const { order, canChangeStage, shop, onRecordPayment, selection, profit, tailorName, trackUrl, groupSize } = props;
   const style = STAGE_STYLE[order.status];
   const isVisible = props.isVisible || (() => true);
 
@@ -231,6 +235,7 @@ export function OrderTableRow(props: TableRowProps) {
             <StageBadge stage={order.status} />
             {order.orderType === "alteration" && <AlterationBadge />}
             {order.reworkFlag && <ReworkBadge />}
+            <GroupBadge size={groupSize} />
           </div>
         </td>
       )}

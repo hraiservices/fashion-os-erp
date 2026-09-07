@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { ArrowLeft, ChevronLeft, ChevronRight, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt } from "lucide-react";
 import { useOrder } from "@/hooks/use-order";
 import { useOrders } from "@/hooks/use-orders";
+import { useOrderGroup } from "@/hooks/use-order-group";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useConfirmOrderPayables, useDeleteOrderPayment, useBackfillOrderPayment, useRenameOrder } from "@/hooks/use-order-mutations";
@@ -57,6 +58,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const router = useRouter();
   const { data: order, isLoading } = useOrder(id);
   const { data: customer } = useCustomerByMobile(order?.mobile || "");
+  // Other orders from the same "one order per garment" split submission (see the New Order
+  // form's split checkbox) — the authoritative list, unlike the approximate badges on the
+  // kanban/orders-list cards which only count what's already loaded on that screen.
+  const { data: orderGroup } = useOrderGroup(order?.groupId ?? null);
+  const groupSiblings = (orderGroup || []).filter((o) => o.id !== id);
   // Same list + ordering (newest-first by created_at) the notification bell and dashboard
   // widgets already query — reused here just to let the detail page step to the adjacent
   // order without forcing a round trip back through the list's own filters/search/sort.
@@ -494,6 +500,35 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         )}
       </section>
+
+      {/* Linked orders — this order came from a "one order per garment" split submission (see
+          the New Order form's split checkbox). Each sibling moves through stages on its own;
+          this is just so staff can find the rest of the same customer visit in one place. Money
+          is deliberately NOT shared across them (see order-form.tsx's submitSplitOrders). */}
+      {groupSiblings.length > 0 && (
+        <section className="rounded-xl border bg-card">
+          <div className="border-b px-4 py-3">
+            <h2 className="text-sm font-semibold">Linked orders</h2>
+            <p className="text-xs text-muted-foreground">Same customer visit, split into one order per garment — each moves independently.</p>
+          </div>
+          <ul className="divide-y">
+            {groupSiblings.map((sib) => (
+              <li key={sib.id}>
+                <Link href={`/orders/${sib.id}`} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-muted/40">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{sib.id}</p>
+                    <p className="truncate text-xs text-muted-foreground">{(sib.garments[0]?.type || "—")}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <StageBadge stage={sib.status} size="sm" />
+                    <span className="text-xs font-medium tabular-nums">{inr(sib.total)}</span>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Payments — itemized ledger; deleting a row reverses the order's advance/balance
           (and any redeemed loyalty points) via delete_order_payment(). */}

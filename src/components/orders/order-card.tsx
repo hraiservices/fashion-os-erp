@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Wallet, RotateCcw, Trash2 } from "lucide-react";
+import { Wallet, RotateCcw, Trash2, Link as LinkIcon } from "lucide-react";
 import { getNextStage, buildWhatsAppUrl, STAGE_META } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
@@ -135,6 +135,18 @@ export function ChecklistProgressBar({ order }: { order: Order }) {
  * The stage is implied by the column, so the card omits the stage badge and spends
  * that space on the details a tailor actually scans for: who, what, when, how much.
  */
+/** "3 linked" — a garment-split order's link to its siblings from the same customer visit (see
+ *  the New Order form's split checkbox). Each sibling moves independently, but this reminds
+ *  staff at a glance that there's more than one order for this visit. */
+export function GroupBadge({ size }: { size?: number }) {
+  if (!size || size < 2) return null;
+  return (
+    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-sky-500/30 bg-sky-50 px-1.5 py-0 text-[10px] font-medium text-sky-700 dark:bg-sky-950/40 dark:text-sky-400">
+      <LinkIcon className="size-2.5" /> {size} linked
+    </span>
+  );
+}
+
 export function OrderCard({
   order,
   canChangeStage,
@@ -147,6 +159,7 @@ export function OrderCard({
   dragging,
   onRecordPayment,
   trackUrl,
+  groupSize,
 }: {
   order: Order;
   canChangeStage?: boolean;
@@ -160,6 +173,9 @@ export function OrderCard({
   onRecordPayment?: (order: Order) => void;
   /** Customer's public order-status link, for the {track_link} WhatsApp variable. */
   trackUrl?: string;
+  /** Count of orders sharing this order's group_id (itself included) — omit/undefined when the
+   *  caller isn't tracking groups, 1 or less hides the badge (not actually grouped). */
+  groupSize?: number;
 }) {
   const next = getNextStage(order.status);
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
@@ -185,6 +201,7 @@ export function OrderCard({
           {order.id}
           {order.orderType === "alteration" && <AlterationBadge />}
           {order.reworkFlag && <ReworkBadge />}
+          <GroupBadge size={groupSize} />
         </p>
 
         <p className="mt-2 truncate text-xs text-muted-foreground">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>

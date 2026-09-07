@@ -83,6 +83,7 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
                 )}
                 {isVisible("order") && <th className="px-3 py-2.5 font-medium">Order</th>}
                 {isVisible("customer") && <th className="px-3 py-2.5 font-medium">Customer</th>}
+                {isVisible("garment") && <th className="px-3 py-2.5 font-medium">Garment</th>}
                 {isVisible("stage") && <th className="px-3 py-2.5 font-medium">Stage</th>}
                 {isVisible("tailor") && <th className="px-3 py-2.5 font-medium">Tailor</th>}
                 {isVisible("delivery") && <th className="px-3 py-2.5 font-medium">Delivery</th>}

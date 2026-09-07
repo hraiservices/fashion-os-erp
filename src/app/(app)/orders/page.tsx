@@ -64,6 +64,7 @@ interface OrdersViewFilters {
 const ORDER_COLUMNS = [
   { key: "order", label: "Order#", required: true },
   { key: "customer", label: "Customer", required: true },
+  { key: "garment", label: "Garment" },
   { key: "stage", label: "Stage" },
   { key: "tailor", label: "Tailor" },
   { key: "delivery", label: "Delivery" },

@@ -231,6 +231,11 @@ export function OrderTableRow(props: TableRowProps) {
           <p className="truncate text-xs text-muted-foreground">{order.mobile}</p>
         </td>
       )}
+      {isVisible("garment") && (
+        <td className="max-w-[12rem] px-3 py-3">
+          <p className="truncate text-sm">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>
+        </td>
+      )}
       {isVisible("stage") && (
         <td className="px-3 py-3">
           <div className="flex flex-wrap items-center gap-1.5">

@@ -1,9 +1,6 @@
 package app.fashionflow.mobile;
 
-import android.content.res.Configuration;
-import android.content.res.Resources;
 import android.os.Bundle;
-import android.util.DisplayMetrics;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -22,22 +19,11 @@ public class MainActivity extends BridgeActivity {
     getBridge().getWebView().getSettings().setTextZoom(100);
   }
 
-  // Deliberate, requested override: Android's system "Display size" (Settings > Display >
-  // Display size, sometimes "Screen zoom") works by changing the density every app is handed —
-  // unlike the font-scale/textZoom fix above, this one scales the whole layout, icons included,
-  // consistently with the rest of the OS, so it's expected behavior rather than a bug on its own.
-  // It's overridden here only because it was explicitly asked for: this pins the WebView to the
-  // device's native, physical density (DENSITY_DEVICE_STABLE — unaffected by that setting) rather
-  // than whatever value the user's chosen Display size maps to, so the app renders at one fixed
-  // physical size regardless of it, the same way the textZoom fix does for font scale.
-  @Override
-  public Resources getResources() {
-    Resources resources = super.getResources();
-    Configuration config = resources.getConfiguration();
-    if (config.densityDpi != DisplayMetrics.DENSITY_DEVICE_STABLE) {
-      config.densityDpi = DisplayMetrics.DENSITY_DEVICE_STABLE;
-      resources.updateConfiguration(config, resources.getDisplayMetrics());
-    }
-    return resources;
-  }
+  // A previous revision of this file also forced Resources' densityDpi to
+  // DisplayMetrics.DENSITY_DEVICE_STABLE, to override the system "Display size" setting the
+  // same way textZoom overrides font scale. Reverted: sizing was reported unresolved even with
+  // both overrides in place, which means that one wasn't fixing anything it was meant to — and
+  // it's actively wrong for a user who has deliberately set Display size *smaller* than default
+  // (a common way to fit more on screen), since forcing native/stable density would override
+  // that choice back up to a bigger rendered size than they asked for, in only this one app.
 }

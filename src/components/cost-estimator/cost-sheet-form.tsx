@@ -295,7 +295,7 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
         <Button
           variant="outline"
           size="lg"
-          className="h-12 px-5 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 px-4 text-sm sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
           onClick={print}
         >
           Print
@@ -303,7 +303,7 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
         <Button
           variant="outline"
           size="lg"
-          className="h-12 px-5 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 px-4 text-sm sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
           disabled={saveCostSheet.isPending}
           onClick={() => save("draft")}
         >
@@ -311,7 +311,7 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
         </Button>
         <Button
           size="lg"
-          className="h-12 flex-1 px-5 text-base sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 flex-1 px-4 text-sm sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
           disabled={saveCostSheet.isPending}
           onClick={() => save("final")}
         >

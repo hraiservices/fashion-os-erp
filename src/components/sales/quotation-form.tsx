@@ -260,7 +260,7 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
         <Button
           variant="outline"
           size="lg"
-          className="h-12 px-6 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 px-4 text-sm sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
           onClick={() => router.back()}
           disabled={saveQuotation.isPending}
         >
@@ -268,7 +268,7 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
         </Button>
         <Button
           size="lg"
-          className="h-12 flex-1 gap-1.5 bg-primary px-6 text-base text-primary-foreground sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 flex-1 gap-1.5 bg-primary px-4 text-sm text-primary-foreground sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
           onClick={handleSave}
           disabled={saveQuotation.isPending}
         >

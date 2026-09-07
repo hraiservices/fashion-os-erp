@@ -16,8 +16,17 @@ const garmentSchema = z.object({
   lining: z.string().optional(),
   no: z.number().optional(),
   amount: z.number().optional(),
-  /** Per-garment production checklist (cut/stitched/finished/pressed) — see src/lib/garment-checklist.ts. */
+  /** Per-garment production checklist (cutting/stitching/finishing/ready) — see src/lib/garment-checklist.ts. */
   checklist: z.record(z.string(), z.boolean()).optional(),
+  /** One entry per unit for a qty>1 line — see src/lib/garment-checklist.ts. */
+  pieces: z
+    .array(
+      z.object({
+        checklist: z.record(z.string(), z.boolean()).optional(),
+        label: z.string().optional(),
+      })
+    )
+    .optional(),
   /** Employee id of whoever will stitch this garment — drives tailor piece-rate pay. */
   tailor: z.string().optional(),
   /** Stable id used to reattach a frozen payableAmount to the right garment across edits. */

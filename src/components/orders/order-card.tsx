@@ -114,6 +114,22 @@ export function ChecklistProgressChip({ order }: { order: Order }) {
   return <span className="shrink-0 rounded-full bg-muted px-1.5 py-0 text-[10px] font-medium tabular-nums text-muted-foreground">{done}/{total}</span>;
 }
 
+/** Thin colored strip along a kanban card's top edge — the at-a-glance version of the "2/4"
+ *  chip. The card itself never leaves its column (that's still driven by the order's own single
+ *  status), but this makes it obvious some of an order's garments have moved ahead of the rest
+ *  without needing to open the card. Same hide conditions as the chip: nothing yet, or already
+ *  fully done, draws no attention. */
+export function ChecklistProgressBar({ order }: { order: Order }) {
+  const { done, total } = orderChecklistProgress(order.garments || []);
+  if (total === 0 || done === 0 || done === total) return null;
+  const pct = Math.round((done / total) * 100);
+  return (
+    <div className="h-1 w-full shrink-0 bg-muted" aria-hidden>
+      <div className="h-full bg-amber-500 transition-all" style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
 /**
  * Kanban board card. OrderCard(), Stitching_Manager_Pro_v16.html ~line 6033.
  * The stage is implied by the column, so the card omits the stage badge and spends
@@ -159,6 +175,7 @@ export function OrderCard({
         dragging && "opacity-40"
       )}
     >
+      <ChecklistProgressBar order={order} />
       <Link href={`/orders/${order.id}`} className="block p-3">
         <div className="flex items-start justify-between gap-2">
           <p className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">{order.name}</p>

@@ -87,6 +87,7 @@ export function CustomerPicker({
         notes: "", paymentTerms: "due_on_receipt", priceListId: null,
         gstin: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [],
         measurements: {}, tags: [], createdAt: new Date().toISOString(), whatsappOptOut: false, shareToken: "",
+        measurementProfiles: [],
       };
       cancelAdding();
       handleSelect(created);

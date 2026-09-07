@@ -46,7 +46,7 @@ function blankIfZero(n: number | null | undefined): string {
 }
 
 function placeholderCustomer(name: string, mobile: string, paymentTerms = "due_on_receipt"): Customer {
-  return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms, priceListId: null, tags: [], gstin: "", whatsappOptOut: false, shareToken: "" };
+  return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms, priceListId: null, tags: [], gstin: "", whatsappOptOut: false, shareToken: "", measurementProfiles: [] };
 }
 
 function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label: string }) {

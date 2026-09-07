@@ -8,6 +8,7 @@ import { logAction } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
 import type { Json } from "@/lib/supabase/database.types";
+import { getProfiles, upsertProfile, toJson } from "@/lib/measurement-profiles";
 
 const garmentSchema = z.object({
   type: z.string().min(1),
@@ -78,6 +79,11 @@ const patchSchema = z.object({
       })
     )
     .optional(),
+  /** See src/app/api/orders/route.ts — same "profile"/"flat"/"skip" mode, applies only when
+   *  `measurements` is also sent. Defaults to "flat" for backward compatibility. */
+  measurementProfileId: z.string().optional(),
+  measurementProfileName: z.string().optional(),
+  measurementSaveMode: z.enum(["profile", "flat", "skip"]).optional().default("flat"),
 });
 
 /**
@@ -183,6 +189,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   await logAction(supabase, user.email, `✏️ Order edited: ${updatedRow.name}`, id);
 
+  // edit_order()'s RPC signature predates this feature, so the profile label is written directly
+  // rather than threaded through it — only touched when the client actually sent one.
+  if (patch.measurementProfileId !== undefined || patch.measurementProfileName !== undefined) {
+    const { error } = await db
+      .from("orders")
+      .update({ measurement_profile_id: patch.measurementProfileId || null, measurement_profile_name: patch.measurementProfileName || null })
+      .eq("id", id);
+    if (error) await logAction(supabase, user.email, `⚠️ Measurement profile label not saved for order ${id}`, id, error.message);
+  }
+
   // Whole-array replace: delete then re-insert, mirroring how garments themselves are already
   // fully replaced on edit (COALESCE(p_garments, garments) inside edit_order). Skipped entirely
   // when the field wasn't sent, so an edit that doesn't touch the Costs section never touches
@@ -213,16 +229,31 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // below (and the legacy app's _handleSave, which ran this same upsert for both new AND
   // edited orders — line ~17070). Without this, editing an order's measurements silently
   // never reaches the customer record, and CRM measurements go stale after the first order.
-  if (patch.measurements !== undefined) {
+  if (patch.measurements !== undefined && patch.measurementSaveMode !== "skip") {
     const { data: existingCustomer, error: lookupError } = await db
       .from("customers")
-      .select("id")
+      .select("id, measurements, measurement_profiles, created_at")
       .eq("mobile", updatedRow.mobile)
       .maybeSingle();
     if (!lookupError) {
       if (existingCustomer) {
-        const { error } = await db.from("customers").update({ measurements: patch.measurements as Json }).eq("id", existingCustomer.id);
-        if (error) await logAction(supabase, user.email, `⚠️ Customer measurements not synced for order ${id}`, id, error.message);
+        if (patch.measurementSaveMode === "profile" && patch.measurementProfileName) {
+          const profiles = getProfiles({
+            measurements: (existingCustomer.measurements as Record<string, unknown>) || {},
+            measurementProfiles: Array.isArray(existingCustomer.measurement_profiles) ? (existingCustomer.measurement_profiles as never) : [],
+            createdAt: existingCustomer.created_at,
+          });
+          const nextProfiles = upsertProfile(profiles, {
+            id: patch.measurementProfileId,
+            name: patch.measurementProfileName,
+            values: patch.measurements as Record<string, string>,
+          });
+          const { error } = await db.from("customers").update({ measurement_profiles: toJson(nextProfiles) }).eq("id", existingCustomer.id);
+          if (error) await logAction(supabase, user.email, `⚠️ Customer measurement profile not synced for order ${id}`, id, error.message);
+        } else {
+          const { error } = await db.from("customers").update({ measurements: patch.measurements as Json }).eq("id", existingCustomer.id);
+          if (error) await logAction(supabase, user.email, `⚠️ Customer measurements not synced for order ${id}`, id, error.message);
+        }
       } else {
         const { error } = await db.from("customers").insert({
           id: customerIdFromMobile(updatedRow.mobile),

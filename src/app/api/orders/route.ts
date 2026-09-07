@@ -10,6 +10,7 @@ import { getLoyaltyConfig } from "@/lib/settings";
 import type { ModuleEntitlements } from "@/lib/entitlements";
 import type { Json } from "@/lib/supabase/database.types";
 import { DEFAULT_DOCUMENT_NUMBERING, formatDocNumber, periodKeyFor, type DocumentNumberingSettings } from "@/lib/document-numbering";
+import { getProfiles, upsertProfile, toJson } from "@/lib/measurement-profiles";
 
 const garmentSchema = z.object({
   type: z.string().min(1),
@@ -65,6 +66,17 @@ const bodySchema = z.object({
    *  submission (see the New Order form's split checkbox) — client-generated, shared across
    *  every order in that one submission. Absent for a normal, non-split order. */
   groupId: z.string().optional(),
+  /** Which of the customer's saved measurement profiles (if any) `measurements` above was
+   *  loaded from — see src/lib/measurement-profiles.ts. Both absent for a customer with no
+   *  profiles, or when staff didn't pick one. */
+  measurementProfileId: z.string().optional(),
+  measurementProfileName: z.string().optional(),
+  /** How to persist `measurements` back onto the customer: "profile" upserts it into the named
+   *  profile (measurementProfileId/Name required), "flat" keeps the legacy overwrite-only-field
+   *  behavior, "skip" saves the order's own measurements without touching the customer record at
+   *  all (a one-off). Defaults to "flat" so existing clients that don't send this keep working
+   *  exactly as before. */
+  measurementSaveMode: z.enum(["profile", "flat", "skip"]).optional().default("flat"),
   expenses: z
     .array(
       z.object({
@@ -248,6 +260,8 @@ export async function POST(request: Request) {
       fabric_cost: fd.fabricCost,
       other_cost: fd.otherCost,
       group_id: fd.groupId || null,
+      measurement_profile_id: fd.measurementProfileId || null,
+      measurement_profile_name: fd.measurementProfileName || null,
     })
     .select("*")
     .single();
@@ -359,15 +373,32 @@ export async function POST(request: Request) {
   // seed record can go missing with no trace. Logged to Activity Log so it's visible.
   const { data: existingCustomer, error: lookupError } = await db
     .from("customers")
-    .select("id, name")
+    .select("id, name, measurements, measurement_profiles, created_at")
     .eq("mobile", fd.mobile)
     .maybeSingle();
 
   let customerSyncError = lookupError?.message;
   if (!lookupError) {
     if (existingCustomer) {
-      const { error } = await db.from("customers").update({ measurements: fd.measurements as Json }).eq("id", existingCustomer.id);
-      customerSyncError = error?.message;
+      if (fd.measurementSaveMode === "skip") {
+        // One-off order — leave the customer's saved measurements/profiles untouched entirely.
+      } else if (fd.measurementSaveMode === "profile" && fd.measurementProfileName) {
+        const profiles = getProfiles({
+          measurements: (existingCustomer.measurements as Record<string, unknown>) || {},
+          measurementProfiles: Array.isArray(existingCustomer.measurement_profiles) ? (existingCustomer.measurement_profiles as never) : [],
+          createdAt: existingCustomer.created_at,
+        });
+        const nextProfiles = upsertProfile(profiles, {
+          id: fd.measurementProfileId,
+          name: fd.measurementProfileName,
+          values: fd.measurements as Record<string, string>,
+        });
+        const { error } = await db.from("customers").update({ measurement_profiles: toJson(nextProfiles) }).eq("id", existingCustomer.id);
+        customerSyncError = error?.message;
+      } else {
+        const { error } = await db.from("customers").update({ measurements: fd.measurements as Json }).eq("id", existingCustomer.id);
+        customerSyncError = error?.message;
+      }
     } else {
       const { error } = await db.from("customers").insert({
         id: customerIdFromMobile(fd.mobile),

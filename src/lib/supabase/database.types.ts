@@ -58,6 +58,8 @@ export interface Database {
           payables_confirmed_by: string | null;
           piece_rate_paid_at: string | null;
           group_id: string | null;
+          measurement_profile_id: string | null;
+          measurement_profile_name: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -108,6 +110,7 @@ export interface Database {
           gstin: string;
           whatsapp_opt_out: boolean;
           share_token: string;
+          measurement_profiles: Json;
           created_at: string;
           updated_at: string;
         };

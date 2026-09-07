@@ -1,5 +1,6 @@
 import type { Order, Customer } from "@/lib/types";
 import type { Json } from "@/lib/supabase/database.types";
+import type { MeasurementProfile } from "@/lib/measurement-profiles";
 
 export interface CustomerProfile {
   name: string;
@@ -21,6 +22,8 @@ export interface CustomerProfile {
   tags: string[];
   gstin: string;
   whatsappOptOut: boolean;
+  createdAt: string;
+  measurementProfiles: MeasurementProfile[];
 }
 
 /**
@@ -35,6 +38,7 @@ export function buildCustomerMap(orders: Order[], customers: Customer[]): Custom
     name, mobile, email: "", dob: "", anniversary: "", address: "",
     orders: [], spent: 0, measurements: {}, notes: "",
     loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms: "due_on_receipt", priceListId: null, tags: [], gstin: "", whatsappOptOut: false,
+    createdAt: "", measurementProfiles: [],
   });
 
   orders.forEach((o) => {
@@ -60,6 +64,8 @@ export function buildCustomerMap(orders: Order[], customers: Customer[]): Custom
     m[c.mobile].tags = c.tags || [];
     m[c.mobile].gstin = c.gstin || "";
     m[c.mobile].whatsappOptOut = c.whatsappOptOut || false;
+    m[c.mobile].createdAt = c.createdAt || "";
+    m[c.mobile].measurementProfiles = c.measurementProfiles || [];
   });
 
   return Object.values(m).sort((a, b) => {

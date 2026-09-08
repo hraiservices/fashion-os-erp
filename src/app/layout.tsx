@@ -45,6 +45,15 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  // Explicit, not left to Next's defaults: Next only emits the <meta name="viewport"> keys
+  // actually present on this object, so a version of this file that specified viewportFit/
+  // themeColor without width/initialScale rendered a viewport tag with NO width=device-width at
+  // all. Without it, some mobile browsers (Xiaomi/MIUI's Chrome-based browser in particular) fall
+  // back to laying the page out at a fixed desktop-ish viewport width and pillarboxing it — a
+  // narrow rendered column with blank space filling the rest of the actual screen, in both
+  // orientations, exactly matching the "distorted tablet dashboard" report.
+  width: "device-width",
+  initialScale: 1,
   // Lets the app draw under the notch/home-indicator area so env(safe-area-inset-*) resolves
   // to real values instead of 0 — required for the bottom tab bar and sheets to pad around them.
   viewportFit: "cover",

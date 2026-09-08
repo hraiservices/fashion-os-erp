@@ -172,9 +172,9 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
                 <MapPin className="mt-0.5 size-3.5 shrink-0" /> {cust.address}
               </p>
             )}
-            <p className="mt-2 text-xl font-bold text-emerald-600 dark:text-emerald-400">
+            <p className="mt-2 text-base font-bold text-emerald-600 dark:text-emerald-400">
               Lifetime value: {inr(combinedLifetime)}
-              <span className="ml-1"> (stitching {inr(cust.spent)} + product sales {inr(salesSpent)})</span>
+              <span className="ml-1 text-xs font-normal"> (stitching {inr(cust.spent)} + product sales {inr(salesSpent)})</span>
             </p>
           </div>
         </div>

@@ -31,7 +31,19 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   }
 
   const { error } = await serviceClient.from("employees").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // 23503 = foreign_key_violation. Surfaced here (rather than only fixed at the schema level
+    // with ON DELETE CASCADE/SET NULL for every known reference) so a reference nobody's added
+    // cascade/set-null handling for yet fails with an explanation instead of a raw Postgres
+    // error dumped straight onto the screen.
+    if (error.code === "23503") {
+      return NextResponse.json(
+        { error: `${employee.name} still has records elsewhere in the system that reference them, so they can't be deleted yet. (${error.message})` },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   await logAction(supabase, user.email, `Employee deleted: ${employee.name}`);
   return NextResponse.json({ ok: true });

@@ -172,9 +172,9 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
                 <MapPin className="mt-0.5 size-3.5 shrink-0" /> {cust.address}
               </p>
             )}
-            <p className="mt-1 text-xs text-muted-foreground">
-              Lifetime value: <span className="font-medium text-foreground">{inr(combinedLifetime)}</span>
-              <span className="text-muted-foreground"> (stitching {inr(cust.spent)} + product sales {inr(salesSpent)})</span>
+            <p className="mt-2 text-xl font-bold text-emerald-600 dark:text-emerald-400">
+              Lifetime value: {inr(combinedLifetime)}
+              <span className="ml-1"> (stitching {inr(cust.spent)} + product sales {inr(salesSpent)})</span>
             </p>
           </div>
         </div>
@@ -190,7 +190,9 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           </div>
           <div className="bg-card p-3 text-center">
             <BalanceDue amount={salesDue} paidLabel={inr(salesDue)} className="text-lg" />
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Product Sales Due</p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              Product Sales Due <span className="lowercase">({custInvoices.length} invoice{custInvoices.length === 1 ? "" : "s"})</span>
+            </p>
           </div>
           <div className="bg-card p-3 text-center">
             <BalanceDue amount={combinedDue} paidLabel={inr(combinedDue)} className="text-lg" />
@@ -198,17 +200,17 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}`} />} className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]">
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
+          <Button nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}`} />} className="h-12 w-full text-base sm:h-10 sm:text-sm">
             <Plus className="size-4" /> New order
           </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}&type=alteration`} />} className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]">
+          <Button variant="outline" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}&type=alteration`} />} className="h-12 w-full text-base sm:h-10 sm:text-sm">
             <Scissors className="size-4" /> New alteration
           </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]">
+          <Button variant="outline" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="h-12 w-full text-base sm:h-10 sm:text-sm">
             <Receipt className="size-4" /> New invoice
           </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />} className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]">
+          <Button variant="outline" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />} className="h-12 w-full text-base sm:h-10 sm:text-sm">
             <FileText className="size-4" /> Statement
           </Button>
           {combinedDue > 0 && (
@@ -220,7 +222,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
                   <span className="hidden sm:inline">Payment Reminder</span>
                 </>
               }
-              className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]"
+              className="h-12 w-full text-base sm:h-10 sm:text-sm"
             />
           )}
           {custOrders.length > 0 && (
@@ -232,16 +234,16 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
                   <span className="hidden sm:inline">Send wardrobe summary</span>
                 </>
               }
-              className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]"
+              className="h-12 w-full text-base sm:h-10 sm:text-sm"
             />
           )}
           {user?.perms.manageCustomers && (
-            <Button variant="outline" onClick={handleGiveCoupon} disabled={issueCoupon.isPending} className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]">
+            <Button variant="outline" onClick={handleGiveCoupon} disabled={issueCoupon.isPending} className="h-12 w-full text-base sm:h-10 sm:text-sm">
               <Ticket className="size-4" /> Give referral coupon
             </Button>
           )}
           {user?.perms.manageCustomers && (
-            <Button variant="outline" onClick={() => setEditOpen(true)} className="flex-1 sm:flex-none h-12 text-base sm:h-7 sm:text-[0.8rem]">
+            <Button variant="outline" onClick={() => setEditOpen(true)} className="h-12 w-full text-base sm:h-10 sm:text-sm">
               <Pencil className="size-4" /> Edit
             </Button>
           )}
@@ -249,7 +251,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             <AlertDialog>
               <AlertDialogTrigger
                 render={
-                  <Button variant="destructive" aria-label="Delete customer" className="size-12 sm:size-7">
+                  <Button variant="destructive" aria-label="Delete customer" className="h-12 w-full sm:h-10">
                     <Trash2 className="size-4" />
                   </Button>
                 }

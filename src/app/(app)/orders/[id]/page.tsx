@@ -346,13 +346,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       <div className="space-y-2 print:hidden">
         <div className="flex flex-wrap gap-2">
           {user?.perms.changeStage && next && (
-            <Button className={cn("h-12 flex-1 text-base sm:h-8 sm:flex-none sm:text-sm", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
-              <ArrowRight className="size-4" /> Move to {STAGE_META[next].label}
+            <Button className={cn("h-12 min-w-0 flex-1 text-base sm:h-8 sm:flex-none sm:text-sm", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
+              <ArrowRight className="size-4 shrink-0" /> <span className="truncate">Move to {STAGE_META[next].label}</span>
             </Button>
           )}
           {user?.perms.managePayments && order.balance > 0 && (
-            <Button variant="outline" className="h-12 flex-1 text-base sm:h-8 sm:flex-none sm:text-sm" onClick={() => setPaymentOpen(true)}>
-              <Wallet className="size-4" /> Collect payment
+            <Button variant="outline" className="h-12 min-w-0 flex-1 text-base sm:h-8 sm:flex-none sm:text-sm" onClick={() => setPaymentOpen(true)}>
+              <Wallet className="size-4 shrink-0" /> <span className="truncate">Collect payment</span>
             </Button>
           )}
         </div>

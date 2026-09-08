@@ -201,17 +201,25 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
-          <Button nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}`} />} className="h-12 w-full text-base sm:h-10 sm:text-sm">
-            <Plus className="size-4" /> New order
+          <Button nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}`} />} className="h-12 w-full min-w-0 text-base sm:h-10 sm:text-sm">
+            <Plus className="size-4 shrink-0" /> <span className="truncate">New order</span>
           </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}&type=alteration`} />} className="h-12 w-full text-base sm:h-10 sm:text-sm">
-            <Scissors className="size-4" /> New alteration
+          <Button variant="outline" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}&type=alteration`} />} className="h-12 w-full min-w-0 text-base sm:h-10 sm:text-sm">
+            <Scissors className="size-4 shrink-0" />
+            <span className="truncate">
+              <span className="sm:hidden">Alteration</span>
+              <span className="hidden sm:inline">New alteration</span>
+            </span>
           </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="h-12 w-full text-base sm:h-10 sm:text-sm">
-            <Receipt className="size-4" /> New invoice
+          <Button variant="outline" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="h-12 w-full min-w-0 text-base sm:h-10 sm:text-sm">
+            <Receipt className="size-4 shrink-0" />
+            <span className="truncate">
+              <span className="sm:hidden">Invoice</span>
+              <span className="hidden sm:inline">New invoice</span>
+            </span>
           </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />} className="h-12 w-full text-base sm:h-10 sm:text-sm">
-            <FileText className="size-4" /> Statement
+          <Button variant="outline" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />} className="h-12 w-full min-w-0 text-base sm:h-10 sm:text-sm">
+            <FileText className="size-4 shrink-0" /> <span className="truncate">Statement</span>
           </Button>
           {combinedDue > 0 && (
             <WhatsAppButton
@@ -222,7 +230,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
                   <span className="hidden sm:inline">Payment Reminder</span>
                 </>
               }
-              className="h-12 w-full text-base sm:h-10 sm:text-sm"
+              className="h-12 w-full min-w-0 text-base sm:h-10 sm:text-sm"
             />
           )}
           {custOrders.length > 0 && (
@@ -234,17 +242,21 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
                   <span className="hidden sm:inline">Send wardrobe summary</span>
                 </>
               }
-              className="h-12 w-full text-base sm:h-10 sm:text-sm"
+              className="h-12 w-full min-w-0 text-base sm:h-10 sm:text-sm"
             />
           )}
           {user?.perms.manageCustomers && (
-            <Button variant="outline" onClick={handleGiveCoupon} disabled={issueCoupon.isPending} className="h-12 w-full text-base sm:h-10 sm:text-sm">
-              <Ticket className="size-4" /> Give referral coupon
+            <Button variant="outline" onClick={handleGiveCoupon} disabled={issueCoupon.isPending} className="h-12 w-full min-w-0 text-base sm:h-10 sm:text-sm">
+              <Ticket className="size-4 shrink-0" />
+              <span className="truncate">
+                <span className="sm:hidden">Coupon</span>
+                <span className="hidden sm:inline">Give referral coupon</span>
+              </span>
             </Button>
           )}
           {user?.perms.manageCustomers && (
-            <Button variant="outline" onClick={() => setEditOpen(true)} className="h-12 w-full text-base sm:h-10 sm:text-sm">
-              <Pencil className="size-4" /> Edit
+            <Button variant="outline" onClick={() => setEditOpen(true)} className="h-12 w-full min-w-0 text-base sm:h-10 sm:text-sm">
+              <Pencil className="size-4 shrink-0" /> <span className="truncate">Edit</span>
             </Button>
           )}
           {user?.perms.deleteCustomers && (

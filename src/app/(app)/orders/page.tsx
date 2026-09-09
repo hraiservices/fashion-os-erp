@@ -15,7 +15,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useActiveTailors, useTailorName } from "@/hooks/use-employees";
 import { useAdvanceStage, useSetStage, useDeleteOrder } from "@/hooks/use-order-mutations";
 import { useShopSettings } from "@/hooks/use-shop-settings";
-import { useAppSetting } from "@/hooks/use-app-setting";
+import { useCurrentTailorRates } from "@/hooks/use-current-tailor-rates";
 import { useOrderExpensesByOrderId } from "@/hooks/use-order-expenses";
 import { computeOrderProfit, type OrderProfitBreakdown } from "@/lib/order-profit";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
@@ -44,7 +44,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Suspense } from "react";
-import { daysLeft, getNextStage, STAGE_META, DEFAULT_TAILOR_RATES, type Stage, type TailorRateCard } from "@/lib/business-rules";
+import { daysLeft, getNextStage, STAGE_META, DEFAULT_TAILOR_RATES, type Stage } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
 
 interface PendingStageChange {
@@ -135,7 +135,7 @@ function OrdersContent() {
   const advanceStage = useAdvanceStage();
   const setStage = useSetStage();
   const deleteOrder = useDeleteOrder();
-  const { data: tailorRates } = useAppSetting<TailorRateCard>("tailorRates", DEFAULT_TAILOR_RATES);
+  const { data: tailorRates } = useCurrentTailorRates(DEFAULT_TAILOR_RATES);
   const { data: expensesByOrderId } = useOrderExpensesByOrderId();
 
   // Same computeOrderProfit() the New Order form, Order Details, and Order Profitability

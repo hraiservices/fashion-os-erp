@@ -205,8 +205,8 @@ export function OrderCard({
           <p className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">{order.name}</p>
           <span className="shrink-0 text-sm font-semibold tabular-nums">{inr(order.total)}</span>
         </div>
-        <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-muted-foreground">
-          {order.id}
+        <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="min-w-0 shrink truncate">{order.id}</span>
           {order.orderType === "alteration" && <AlterationBadge />}
           {order.reworkFlag && <ReworkBadge />}
           <GroupBadge size={groupSize} groupTotal={groupTotal} />

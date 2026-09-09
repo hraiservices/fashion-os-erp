@@ -4,10 +4,10 @@ import { useMemo, useState } from "react";
 import { Wallet, Search } from "lucide-react";
 import { useExpenses } from "@/hooks/use-expenses";
 import { inr, fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
 import { Input } from "@/components/ui/input";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -43,12 +43,12 @@ export default function ExpenseDetailsPage() {
       title="Expense Details"
       description="Every expense logged, with category, method, and who recorded it."
       actions={
-        rows.length > 0 && (
-          <ExportMenu
-            rows={rows.map((e) => ({ Date: e.date, Category: e.category, Description: e.description, Amount: e.amount, Method: e.payMethod, "Recorded By": e.createdBy || "" }))}
-            filename="expense_details"
-          />
-        )
+        <ReportActionsMenu
+          rows={rows.map((e) => ({ Date: e.date, Category: e.category, Description: e.description, Amount: e.amount, Method: e.payMethod, "Recorded By": e.createdBy || "" }))}
+          filename="expense-details"
+          title="Expense Details"
+          summaryLines={[`Expenses: ${rows.length}`, `Total: ${inr(total)}`]}
+        />
       }
     >
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -100,6 +100,10 @@ export default function ExpenseDetailsPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={5}>Total</Td>
+              <Td align="right">{inr(total)}</Td>
+            </ReportTotalsRow>
             {rows.map((e) => (
               <tr key={e.id} className="hover:bg-muted/30">
                 <Td className="text-muted-foreground">{fmtDate(e.date)}</Td>

@@ -4,8 +4,8 @@ import { useMemo } from "react";
 import { Users } from "lucide-react";
 import { useExpenses } from "@/hooks/use-expenses";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -35,9 +35,12 @@ export default function ExpensesByEmployeePage() {
       title="Expenses by Employee"
       description="Expense totals grouped by the user who recorded each one."
       actions={
-        rows.length > 0 && (
-          <ExportMenu rows={rows.map((r) => ({ User: r.user, "Expense Count": r.count, Total: r.total }))} filename="expenses_by_employee" />
-        )
+        <ReportActionsMenu
+          rows={rows.map((r) => ({ User: r.user, "Expense Count": r.count, Total: r.total }))}
+          filename="expenses-by-employee"
+          title="Expenses by Employee"
+          summaryLines={[`Users: ${rows.length}`, `Total: ${inr(rows.reduce((s, r) => s + r.total, 0))}`]}
+        />
       }
     >
       <ReportFilterBar
@@ -62,6 +65,11 @@ export default function ExpensesByEmployeePage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{rows.reduce((s, r) => s + r.count, 0)}</Td>
+              <Td align="right">{inr(rows.reduce((s, r) => s + r.total, 0))}</Td>
+            </ReportTotalsRow>
             {rows.map((r) => (
               <tr key={r.user} className="hover:bg-muted/30">
                 <Td className="font-medium">{r.user}</Td>

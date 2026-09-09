@@ -1,15 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
-import { Printer, Wallet, FileDown } from "lucide-react";
+import { Wallet, FileDown } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
 import { usePayrollRuns, useAllPayslips } from "@/hooks/use-payroll";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { printReport } from "@/lib/export";
 import { inr, fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -57,25 +56,19 @@ export default function PayrollSummaryReportPage() {
       title="Salary Report"
       description={`${rows.length} payslips across ${runs?.length || 0} payroll runs · Total net paid ${inr(totals.net)}`}
       actions={
-        rows.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              printReport(
-                "Salary Report",
-                `<table><thead><tr><th>Period</th><th>Employee</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th></tr></thead><tbody>${rows
-                  .map(
-                    (r) =>
-                      `<tr><td>${fmtDate(r.run!.periodStart)} – ${fmtDate(r.run!.periodEnd)}</td><td>${employeeName(r.payslip.employeeId)}</td><td>${inr(r.payslip.grossPay)}</td><td>${inr(r.payslip.deductions)}</td><td>${inr(r.payslip.netPay)}</td><td>${r.payslip.status}</td></tr>`
-                  )
-                  .join("")}</tbody></table>`
-              )
-            }
-          >
-            <Printer className="size-4" /> Print
-          </Button>
-        )
+        <ReportActionsMenu
+          rows={rows.map((r) => ({
+            Period: `${fmtDate(r.run!.periodStart)} – ${fmtDate(r.run!.periodEnd)}`,
+            Employee: employeeName(r.payslip.employeeId),
+            Gross: r.payslip.grossPay,
+            Deductions: r.payslip.deductions,
+            "Net Pay": r.payslip.netPay,
+            Status: r.payslip.status,
+          }))}
+          filename="salary-report"
+          title="Salary Report"
+          summaryLines={[`Payslips: ${rows.length}`, `Total net paid: ${inr(totals.net)}`]}
+        />
       }
     >
       <ReportFilterBar
@@ -104,6 +97,15 @@ export default function PayrollSummaryReportPage() {
             </tr>
           </thead>
           <tbody>
+            <ReportTotalsRow>
+              <Td colSpan={2}>Total</Td>
+              <Td align="right">{inr(totals.gross)}</Td>
+              <Td align="right">—</Td>
+              <Td align="right">{inr(totals.deductions)}</Td>
+              <Td align="right">{inr(totals.net)}</Td>
+              <Td align="right">—</Td>
+              <Td />
+            </ReportTotalsRow>
             {rows.map((r) => (
               <tr key={r.payslip.id} className="border-b last:border-0">
                 <Td>

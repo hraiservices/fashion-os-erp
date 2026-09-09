@@ -4,7 +4,8 @@ import { useMemo } from "react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { getMonthly } from "@/lib/analytics";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportCard, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportCard, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
@@ -21,8 +22,21 @@ export default function MonthlyPnlPage() {
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-80 w-full" /></div>;
 
+  const totals = monthly.reduce((acc, m) => ({ count: acc.count + m.count, billed: acc.billed + m.billed, collected: acc.collected + m.collected, pending: acc.pending + m.pending }), { count: 0, billed: 0, collected: 0, pending: 0 });
+
   return (
-    <ReportShell title="Stitching Monthly P&L" description="Stitching orders only — billed vs collected over the last 6 months. For both revenue streams combined, see Combined P&L.">
+    <ReportShell
+      title="Stitching Monthly P&L"
+      description="Stitching orders only — billed vs collected over the last 6 months. For both revenue streams combined, see Combined P&L."
+      actions={
+        <ReportActionsMenu
+          rows={monthly.map((m) => ({ Month: m.label, Orders: m.count, Billed: m.billed, Collected: m.collected, Pending: m.pending }))}
+          filename="stitching-monthly-pl"
+          title="Stitching Monthly P&L"
+          summaryLines={[`Total billed: ${inr(totals.billed)}`, `Total collected: ${inr(totals.collected)}`]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}
@@ -62,6 +76,13 @@ export default function MonthlyPnlPage() {
           </tr>
         </thead>
         <tbody className="divide-y">
+          <ReportTotalsRow>
+            <Td>Total</Td>
+            <Td align="right">{totals.count}</Td>
+            <Td align="right">{inr(totals.billed)}</Td>
+            <Td align="right">{inr(totals.collected)}</Td>
+            <Td align="right">{inr(totals.pending)}</Td>
+          </ReportTotalsRow>
           {monthly.map((m) => (
             <tr key={m.month} className="hover:bg-muted/30">
               <Td className="font-medium">{m.label}</Td>

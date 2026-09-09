@@ -5,7 +5,8 @@ import { Factory, Wallet, TrendingDown, Layers } from "lucide-react";
 import { useWorkOrders } from "@/hooks/use-work-orders";
 import { WO_STATUS_LABELS, WO_STAGES } from "@/lib/manufacturing";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -48,7 +49,18 @@ export default function ManufacturingReportPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
-    <ReportShell title="Manufacturing" description="Work order status, production cost and wastage">
+    <ReportShell
+      title="Manufacturing"
+      description="Work order status, production cost and wastage"
+      actions={
+        <ReportActionsMenu
+          rows={byProduct.map((p) => ({ Product: p.productName, "Work orders": p.woCount, "Qty produced": p.qtyProduced, "Total cost": p.totalCost, "Avg cost/unit": p.avgCostPerUnit }))}
+          filename="manufacturing"
+          title="Manufacturing"
+          summaryLines={[`Production cost: ${inr(totalProductionCost)}`, `Wastage cost: ${inr(totalWastageCost)} (${wastagePct}%)`]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}
@@ -92,6 +104,13 @@ export default function ManufacturingReportPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
+              <ReportTotalsRow>
+                <Td>Total</Td>
+                <Td align="right">{byProduct.reduce((s, p) => s + p.woCount, 0)}</Td>
+                <Td align="right">{byProduct.reduce((s, p) => s + p.qtyProduced, 0)}</Td>
+                <Td align="right">{inr(byProduct.reduce((s, p) => s + p.totalCost, 0))}</Td>
+                <Td align="right">—</Td>
+              </ReportTotalsRow>
               {byProduct.map((p) => (
                 <tr key={p.productName} className="hover:bg-muted/30">
                   <Td className="font-medium">{p.productName}</Td>

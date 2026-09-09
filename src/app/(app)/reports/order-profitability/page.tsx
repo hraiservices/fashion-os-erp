@@ -5,7 +5,8 @@ import { TrendingUp } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr, fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -44,6 +45,14 @@ export default function OrderProfitabilityPage() {
           ? `${withCosts.length} order(s) with cost data · Total profit ${inr(totalProfit)}`
           : "No orders have cost data yet — assign a tailor with a configured rate, or fill in Fabric/Other cost on the order form, to populate this report."
       }
+      actions={
+        <ReportActionsMenu
+          rows={withCosts.map((o) => ({ Order: o.id, Customer: o.name, Price: o.total, Cost: o.cost, Profit: o.profit, "Margin %": `${o.marginPct}%` }))}
+          filename="order-profitability"
+          title="Order Profitability"
+          summaryLines={[`Orders: ${withCosts.length}`, `Total profit: ${inr(totalProfit)}`]}
+        />
+      }
     >
       <ReportFilterBar
         preset={preset}
@@ -70,6 +79,13 @@ export default function OrderProfitabilityPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={2}>Total</Td>
+              <Td align="right">{inr(withCosts.reduce((s, o) => s + o.total, 0))}</Td>
+              <Td align="right">{inr(withCosts.reduce((s, o) => s + o.cost, 0))}</Td>
+              <Td align="right">{inr(totalProfit)}</Td>
+              <Td align="right">—</Td>
+            </ReportTotalsRow>
             {withCosts.map((o) => (
               <tr key={o.id} className="hover:bg-muted/30">
                 <Td>

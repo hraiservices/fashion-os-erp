@@ -384,7 +384,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <span>Rework</span>
             </Button>
           )}
-          {user?.perms.managePayroll && order.readyAt && !order.payablesConfirmedAt && order.garments.some((g) => g.payableAmount) && (
+          {user?.perms.managePayroll && !order.payablesConfirmedAt && order.garments.some((g) => g.payableAmount) && (
             <Button
               variant="outline"
               className="h-12 w-full sm:h-8 sm:w-auto"

@@ -8,7 +8,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { DATE_RANGE_PRESET_LABELS, type DateRangePreset } from "@/lib/report-date-range";
 import { cn } from "@/lib/utils";
 
-const PRESET_ORDER: DateRangePreset[] = ["all", "this-month", "last-month", "this-quarter", "this-year", "custom"];
+const PRESET_ORDER: DateRangePreset[] = ["all", "today", "this-month", "last-month", "this-quarter", "this-year", "custom"];
 
 /**
  * Shared filter bar every report page renders at its top — the date-range half of "add filters

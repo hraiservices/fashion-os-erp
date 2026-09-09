@@ -5,7 +5,8 @@ import { Users } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useTailorName } from "@/hooks/use-employees";
 import { getTailorWorkload } from "@/lib/analytics";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -28,7 +29,18 @@ export default function TailorWorkloadPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   return (
-    <ReportShell title="Tailor Workload" description="Who has capacity and who is overloaded right now">
+    <ReportShell
+      title="Tailor Workload"
+      description="Who has capacity and who is overloaded right now"
+      actions={
+        <ReportActionsMenu
+          rows={workload.map((t) => ({ Tailor: tailorName(t.tailor), "Active orders": t.active, Overdue: t.overdue, Capacity: t.capacity }))}
+          filename="tailor-workload"
+          title="Tailor Workload"
+          summaryLines={[`Tailors: ${workload.length}`, `Total active orders: ${workload.reduce((s, t) => s + t.active, 0)}`]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}
@@ -51,6 +63,12 @@ export default function TailorWorkloadPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{workload.reduce((s, t) => s + t.active, 0)}</Td>
+              <Td align="right">{workload.reduce((s, t) => s + t.overdue, 0)}</Td>
+              <Td>—</Td>
+            </ReportTotalsRow>
             {workload.map((t) => (
               <tr key={t.tailor} className="hover:bg-muted/30">
                 <Td className="font-medium">{tailorName(t.tailor)}</Td>

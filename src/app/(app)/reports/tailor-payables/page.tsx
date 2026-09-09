@@ -7,18 +7,19 @@ import { useOrders } from "@/hooks/use-orders";
 import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useEmployees } from "@/hooks/use-employees";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { istDateString, istDayBoundsUtc } from "@/lib/ist-date";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
+import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface TailorPayableRow {
   id: string;
   name: string;
-  weekPayable: number;
-  monthPayable: number;
-  totalPayable: number;
+  rangePayable: number;
+  allTimePayable: number;
 }
 
 /** A garment carrying a payable whose `tailor` resolves to no employee — money that is owed to
@@ -42,15 +43,10 @@ export default function TailorPayablesPage() {
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const { data: workOrders, isLoading: woLoading } = useWorkOrders();
   const isLoading = employeesLoading || ordersLoading || woLoading;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const { rows, unattributed, zeroRatedCount } = useMemo(() => {
     const tailors = (employees || []).filter((e) => e.pieceRateEligible);
-
-    const today = istDateString();
-    const sixDaysAgo = new Date(`${today}T00:00:00Z`);
-    sixDaysAgo.setUTCDate(sixDaysAgo.getUTCDate() - 6);
-    const weekStartUtc = istDayBoundsUtc(sixDaysAgo.toISOString().slice(0, 10)).startUtc;
-    const monthStartUtc = istDayBoundsUtc(`${today.slice(0, 7)}-01`).startUtc;
 
     // Every garment payable whose tailor doesn't resolve to a real employee record.
     const employeeIds = new Set((employees || []).map((e) => e.id));
@@ -72,42 +68,34 @@ export default function TailorPayablesPage() {
 
     const rows = tailors
       .map((t): TailorPayableRow => {
-        let weekPayable = 0;
-        let monthPayable = 0;
-        let totalPayable = 0;
+        let rangePayable = 0;
+        let allTimePayable = 0;
         for (const o of orders || []) {
           // Counted the moment the order was received, not when the garment reaches Ready —
-          // in_date is the business date the shop treats as "received". It's a free-form text
-          // column (legacy), so guard against anything that isn't a clean yyyy-mm-dd before
-          // computing a window boundary from it; the garment still counts toward the total
-          // either way, it just can't be dated into a week/month bucket.
-          const receivedUtc = /^\d{4}-\d{2}-\d{2}$/.test(o.inDate || "") ? istDayBoundsUtc(o.inDate).startUtc : null;
+          // in_date is the business date the shop treats as "received".
+          const inRange = isWithinDateRange(o.inDate, range);
           for (const g of o.garments) {
             if (g.tailor !== t.id || !g.payableAmount) continue;
-            totalPayable += g.payableAmount;
-            if (receivedUtc && receivedUtc >= weekStartUtc) weekPayable += g.payableAmount;
-            if (receivedUtc && receivedUtc >= monthStartUtc) monthPayable += g.payableAmount;
+            allTimePayable += g.payableAmount;
+            if (inRange) rangePayable += g.payableAmount;
           }
         }
         for (const w of workOrders || []) {
           if (w.tailor !== t.id || !w.laborCost) continue;
-          totalPayable += w.laborCost;
-          const startedUtc = w.completedAt || null;
-          if (startedUtc && startedUtc >= weekStartUtc) weekPayable += w.laborCost;
-          if (startedUtc && startedUtc >= monthStartUtc) monthPayable += w.laborCost;
+          allTimePayable += w.laborCost;
+          if (isWithinDateRange(w.completedAt, range)) rangePayable += w.laborCost;
         }
         return {
           id: t.id,
           name: t.name,
-          weekPayable: Math.round(weekPayable * 100) / 100,
-          monthPayable: Math.round(monthPayable * 100) / 100,
-          totalPayable: Math.round(totalPayable * 100) / 100,
+          rangePayable: Math.round(rangePayable * 100) / 100,
+          allTimePayable: Math.round(allTimePayable * 100) / 100,
         };
       })
-      .sort((a, b) => b.totalPayable - a.totalPayable);
+      .sort((a, b) => b.allTimePayable - a.allTimePayable);
 
     return { rows, unattributed, zeroRatedCount };
-  }, [employees, orders, workOrders]);
+  }, [employees, orders, workOrders, range]);
 
   if (!user?.perms.managePayroll) {
     return (
@@ -120,9 +108,25 @@ export default function TailorPayablesPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   const unattributedTotal = unattributed.reduce((s, u) => s + u.amount, 0);
+  const rangeTotal = rows.reduce((s, r) => s + r.rangePayable, 0);
+  const allTimeTotal = rows.reduce((s, r) => s + r.allTimePayable, 0);
+  const exportRows = rows.map((r) => ({ Tailor: r.name, [`Payable (${DATE_RANGE_PRESET_LABELS[preset]})`]: r.rangePayable, "All-time total": r.allTimePayable }));
 
   return (
-    <ReportShell title="Tailor Payables" description="What each tailor is owed — counted from the moment their order is received, not just once it's finished.">
+    <ReportShell
+      title="Tailor Payables"
+      description="What each tailor is owed — counted from the moment their order is received, not just once it's finished."
+      actions={
+        <ReportActionsMenu
+          rows={exportRows}
+          filename="tailor-payables"
+          title="Tailor Payables"
+          summaryLines={[`Range: ${DATE_RANGE_PRESET_LABELS[preset]}`, `Total in range: ${inr(rangeTotal)}`, `All-time total: ${inr(allTimeTotal)}`]}
+        />
+      }
+    >
+      <ReportFilterBar preset={preset} onPresetChange={setPreset} customFrom={customFrom} onCustomFromChange={setCustomFrom} customTo={customTo} onCustomToChange={setCustomTo} />
+
       {rows.length === 0 ? (
         <EmptyState icon={Wallet} title="No piece-rate tailors yet" description="Mark a tailor 'Piece-rate eligible' on their employee record to see them here." />
       ) : (
@@ -130,29 +134,24 @@ export default function TailorPayablesPage() {
           <thead className="border-b bg-muted/40">
             <tr>
               <Th>Tailor</Th>
-              <Th align="right">This week</Th>
-              <Th align="right">This month</Th>
-              <Th align="right">Total payable</Th>
+              <Th align="right">Payable ({DATE_RANGE_PRESET_LABELS[preset]})</Th>
+              <Th align="right">All-time total</Th>
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{inr(rangeTotal)}</Td>
+              <Td align="right">{inr(allTimeTotal)}</Td>
+            </ReportTotalsRow>
             {rows.map((r) => (
               <tr key={r.id} className="hover:bg-muted/30">
                 <Td className="font-medium">{r.name}</Td>
-                <Td align="right">{inr(r.weekPayable)}</Td>
-                <Td align="right">{inr(r.monthPayable)}</Td>
-                <Td align="right" className="font-semibold">{inr(r.totalPayable)}</Td>
+                <Td align="right">{inr(r.rangePayable)}</Td>
+                <Td align="right" className="font-semibold">{inr(r.allTimePayable)}</Td>
               </tr>
             ))}
           </tbody>
-          <tfoot>
-            <tr className="border-t bg-muted/30 font-semibold">
-              <td className="px-3 py-2.5">Total</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.weekPayable, 0))}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.monthPayable, 0))}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.totalPayable, 0))}</td>
-            </tr>
-          </tfoot>
         </ReportTable>
       )}
 

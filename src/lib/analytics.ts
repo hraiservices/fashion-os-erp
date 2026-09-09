@@ -98,23 +98,75 @@ export interface GarmentStat {
   type: string;
   count: number;
   rev: number;
+  /** Distinct orders carrying at least one garment of this type — different from `count`
+   *  (garment quantity) since one order can hold several of the same type. */
+  orders: number;
 }
 
 /** getGarmentStats(), line ~2459. */
 export function getGarmentStats(orders: Order[]): GarmentStat[] {
-  const m: Record<string, { count: number; rev: number }> = {};
+  const m: Record<string, { count: number; rev: number; orders: number }> = {};
   orders.forEach((o) => {
+    const seenTypes = new Set<string>();
     (o.garments || []).forEach((g) => {
       if (g.type) {
-        m[g.type] = m[g.type] || { count: 0, rev: 0 };
+        m[g.type] = m[g.type] || { count: 0, rev: 0, orders: 0 };
         m[g.type].count += (g.no as number) || 1;
         m[g.type].rev += (g.amount as number) || 0;
+        if (!seenTypes.has(g.type)) {
+          m[g.type].orders += 1;
+          seenTypes.add(g.type);
+        }
       }
     });
   });
   return Object.entries(m)
     .map(([type, v]) => ({ type, ...v }))
     .sort((a, b) => b.count - a.count);
+}
+
+export interface TailorTurnaroundStat {
+  tailor: string;
+  ordersCompleted: number;
+  /** Actual calendar days from in_date to ready_at, averaged — unlike getTailorStats().avg,
+   *  which is the PROMISED turnaround (delivery_date − in_date) and says nothing about how
+   *  long the tailor actually took. */
+  avgDays: number;
+  minDays: number;
+  maxDays: number;
+  /** % of completed orders where ready_at fell on or before the promised delivery_date. */
+  onTimePct: number;
+}
+
+/** Actual turnaround time per tailor — how many days it really took from an order being
+ *  received to the tailor marking it Ready, not the promised delivery window. Only orders with
+ *  both in_date and ready_at set count (an order still in progress has no turnaround yet). */
+export function getTailorTurnaround(orders: Order[]): TailorTurnaroundStat[] {
+  const byTailor = new Map<string, { days: number[]; onTime: number; withPromise: number }>();
+  for (const o of orders) {
+    if (!o.tailor || !o.inDate || !o.readyAt) continue;
+    const inMs = new Date(o.inDate).getTime();
+    const readyMs = new Date(o.readyAt).getTime();
+    if (!Number.isFinite(inMs) || !Number.isFinite(readyMs)) continue;
+    const days = Math.max(0, Math.round((readyMs - inMs) / 86400000));
+    const bucket = byTailor.get(o.tailor) || { days: [], onTime: 0, withPromise: 0 };
+    bucket.days.push(days);
+    if (o.deliveryDate) {
+      bucket.withPromise += 1;
+      if (o.readyAt.slice(0, 10) <= o.deliveryDate) bucket.onTime += 1;
+    }
+    byTailor.set(o.tailor, bucket);
+  }
+  return Array.from(byTailor.entries())
+    .map(([tailor, b]) => ({
+      tailor,
+      ordersCompleted: b.days.length,
+      avgDays: Math.round((b.days.reduce((s, d) => s + d, 0) / b.days.length) * 10) / 10,
+      minDays: Math.min(...b.days),
+      maxDays: Math.max(...b.days),
+      onTimePct: b.withPromise > 0 ? Math.round((b.onTime / b.withPromise) * 100) : 0,
+    }))
+    .sort((a, b) => a.avgDays - b.avgDays);
 }
 
 export interface CustomerAgg {

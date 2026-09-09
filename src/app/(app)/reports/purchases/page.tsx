@@ -7,6 +7,7 @@ import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { daysLeft } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
 import { ReportShell } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -39,7 +40,18 @@ export default function PayableSummaryPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
-    <ReportShell title="Payable Summary" description="Vendor spend, payables and bill aging, at a glance">
+    <ReportShell
+      title="Payable Summary"
+      description="Vendor spend, payables and bill aging, at a glance"
+      actions={
+        <ReportActionsMenu
+          rows={[{ "Total Billed": totalBilled, "Total Payable": totalPayable, "GST Paid": totalGst, "Overdue Bills": overdueCount }]}
+          filename="payable-summary"
+          title="Payable Summary"
+          summaryLines={[`Total billed: ${inr(totalBilled)}`, `Total payable: ${inr(totalPayable)}`, `Overdue bills: ${overdueCount}`]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}

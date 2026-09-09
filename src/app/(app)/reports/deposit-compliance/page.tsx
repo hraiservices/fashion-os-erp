@@ -6,7 +6,8 @@ import { ShieldAlert } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { getDepositCompliance } from "@/lib/analytics";
 import { inr, fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StageBadge } from "@/components/orders/stage-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,8 +26,29 @@ export default function DepositCompliancePage() {
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
+  const totalAmount = depositCompliance.reduce((s, o) => s + o.total, 0);
+  const totalAdvance = depositCompliance.reduce((s, o) => s + o.advance, 0);
+
   return (
-    <ReportShell title="Deposit Compliance" description={`${depositCompliance.length} open order(s) with little or no deposit collected`}>
+    <ReportShell
+      title="Deposit Compliance"
+      description={`${depositCompliance.length} open order(s) with little or no deposit collected`}
+      actions={
+        <ReportActionsMenu
+          rows={depositCompliance.map((o) => ({
+            Order: o.id,
+            Customer: o.name,
+            Stage: o.status,
+            Total: o.total,
+            Advance: o.advance,
+            "Deposit %": o.total ? `${Math.round((o.advance / o.total) * 100)}%` : "0%",
+          }))}
+          filename="deposit-compliance"
+          title="Deposit Compliance"
+          summaryLines={[`Orders flagged: ${depositCompliance.length}`, `Total value: ${inr(totalAmount)}`]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}
@@ -51,6 +73,12 @@ export default function DepositCompliancePage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={3}>Total</Td>
+              <Td align="right">{inr(totalAmount)}</Td>
+              <Td align="right">{inr(totalAdvance)}</Td>
+              <Td align="right">{totalAmount ? `${Math.round((totalAdvance / totalAmount) * 100)}%` : "0%"}</Td>
+            </ReportTotalsRow>
             {depositCompliance.map((o) => (
               <tr key={o.id} className="hover:bg-muted/30">
                 <Td>

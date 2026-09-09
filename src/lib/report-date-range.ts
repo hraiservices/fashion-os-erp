@@ -6,10 +6,11 @@ import { istDateString } from "@/lib/ist-date";
 /** Shared date-range filter for every report page — quick presets plus a custom range, always
  *  computed against the shop's local (IST) "today" so a report run right after midnight doesn't
  *  silently use the previous day's boundary (same reasoning as istDateString itself). */
-export type DateRangePreset = "all" | "this-month" | "last-month" | "this-quarter" | "this-year" | "custom";
+export type DateRangePreset = "all" | "today" | "this-month" | "last-month" | "this-quarter" | "this-year" | "custom";
 
 export const DATE_RANGE_PRESET_LABELS: Record<DateRangePreset, string> = {
   all: "All time",
+  today: "Today",
   "this-month": "This month",
   "last-month": "Last month",
   "this-quarter": "This quarter",
@@ -47,6 +48,8 @@ export function resolveDateRange(preset: DateRangePreset, customFrom: string, cu
   const [y, m] = today.split("-").map(Number);
 
   switch (preset) {
+    case "today":
+      return { from: today, to: today };
     case "this-month":
       return { from: ymd(y, m, 1), to: ymd(y, m, daysInMonth(y, m)) };
     case "last-month": {

@@ -9,8 +9,9 @@ import { useAppSetting } from "@/hooks/use-app-setting";
 import { buildWhatsAppUrl } from "@/lib/business-rules";
 import { getReadyUncollected } from "@/lib/analytics";
 import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
-import { fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { fmtDate, inr } from "@/lib/format";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
@@ -31,8 +32,21 @@ export default function ReadyUncollectedPage() {
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
+  const totalBalance = readyUncollected.reduce((s, o) => s + o.balance, 0);
+
   return (
-    <ReportShell title="Ready & Uncollected" description={`${readyUncollected.length} order(s) ready for pickup, longest-waiting first`}>
+    <ReportShell
+      title="Ready & Uncollected"
+      description={`${readyUncollected.length} order(s) ready for pickup, longest-waiting first`}
+      actions={
+        <ReportActionsMenu
+          rows={readyUncollected.map((o) => ({ Order: o.id, Customer: o.name, "Days Waiting": o.daysWaiting, Balance: o.balance }))}
+          filename="ready-uncollected"
+          title="Ready & Uncollected"
+          summaryLines={[`Orders: ${readyUncollected.length}`, `Total balance: ${inr(totalBalance)}`]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}
@@ -56,6 +70,11 @@ export default function ReadyUncollectedPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={3}>Total</Td>
+              <Td align="right">{inr(totalBalance)}</Td>
+              <Td align="right">—</Td>
+            </ReportTotalsRow>
             {readyUncollected.map((o) => (
               <tr key={o.id} className="hover:bg-muted/30">
                 <Td>

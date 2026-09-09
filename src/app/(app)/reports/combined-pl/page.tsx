@@ -4,7 +4,8 @@ import { useMemo } from "react";
 import { useCombinedPl } from "@/hooks/use-combined-pl";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportCard, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportCard, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -38,8 +39,43 @@ export default function CombinedPlPage() {
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
+  const columnTotals = monthly.reduce(
+    (acc, m) => ({
+      stitchingRevenue: acc.stitchingRevenue + m.stitchingRevenue,
+      salesRevenue: acc.salesRevenue + m.salesRevenue,
+      purchaseCost: acc.purchaseCost + m.purchaseCost,
+      stitchingCost: acc.stitchingCost + m.stitchingCost,
+      laborCost: acc.laborCost + m.laborCost,
+      expenseCost: acc.expenseCost + m.expenseCost,
+      payrollCost: acc.payrollCost + m.payrollCost,
+      netProfit: acc.netProfit + m.netProfit,
+    }),
+    { stitchingRevenue: 0, salesRevenue: 0, purchaseCost: 0, stitchingCost: 0, laborCost: 0, expenseCost: 0, payrollCost: 0, netProfit: 0 }
+  );
+
   return (
-    <ReportShell title="Combined P&L" description="All revenue (stitching + product sales) against all costs — purchases, stitching job costs, manufacturing labour, company expenses and salaries — last 6 months">
+    <ReportShell
+      title="Combined P&L"
+      description="All revenue (stitching + product sales) against all costs — purchases, stitching job costs, manufacturing labour, company expenses and salaries — last 6 months"
+      actions={
+        <ReportActionsMenu
+          rows={monthly.map((m) => ({
+            Month: m.label,
+            "Stitching Rev": m.stitchingRevenue,
+            "Product Sales Rev": m.salesRevenue,
+            Purchases: m.purchaseCost,
+            "Stitching Cost": m.stitchingCost,
+            "Mfg Labor": m.laborCost,
+            Expenses: m.expenseCost,
+            Salaries: m.payrollCost,
+            "Net Profit": m.netProfit,
+          }))}
+          filename="combined-pl"
+          title="Combined P&L"
+          summaryLines={[`Total revenue: ${inr(totals.revenue)}`, `Total cost: ${inr(totals.cost)}`, `Net profit: ${inr(totals.net)}`]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}
@@ -91,6 +127,17 @@ export default function CombinedPlPage() {
           </tr>
         </thead>
         <tbody className="divide-y">
+          <ReportTotalsRow>
+            <Td>Total</Td>
+            <Td align="right">{inr(columnTotals.stitchingRevenue)}</Td>
+            <Td align="right">{inr(columnTotals.salesRevenue)}</Td>
+            <Td align="right">{inr(columnTotals.purchaseCost)}</Td>
+            <Td align="right">{inr(columnTotals.stitchingCost)}</Td>
+            <Td align="right">{inr(columnTotals.laborCost)}</Td>
+            <Td align="right">{inr(columnTotals.expenseCost)}</Td>
+            <Td align="right">{inr(columnTotals.payrollCost)}</Td>
+            <Td align="right">{inr(columnTotals.netProfit)}</Td>
+          </ReportTotalsRow>
           {monthly.map((m) => (
             <tr key={m.month} className="hover:bg-muted/30">
               <Td className="font-medium">{m.label}</Td>

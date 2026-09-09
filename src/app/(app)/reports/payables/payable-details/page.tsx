@@ -6,8 +6,8 @@ import { Wallet } from "lucide-react";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
 import { inr, fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -40,12 +40,12 @@ export default function PayableDetailsPage() {
       title="Payable Details"
       description="Every bill with an outstanding balance, ranked by amount owed."
       actions={
-        rows.length > 0 && (
-          <ExportMenu
-            rows={rows.map((b) => ({ Bill: b.billNumber, Vendor: vendorNameById.get(b.vendorId) || "", "Bill Date": b.billDate, "Due Date": b.dueDate || "", Total: b.total, Balance: b.balance }))}
-            filename="payable_details"
-          />
-        )
+        <ReportActionsMenu
+          rows={rows.map((b) => ({ Bill: b.billNumber, Vendor: vendorNameById.get(b.vendorId) || "", "Bill Date": b.billDate, "Due Date": b.dueDate || "", Total: b.total, Balance: b.balance }))}
+          filename="payable-details"
+          title="Payable Details"
+          summaryLines={[`Bills: ${rows.length}`, `Total balance: ${inr(rows.reduce((s, b) => s + b.balance, 0))}`]}
+        />
       }
     >
       <ReportFilterBar
@@ -87,6 +87,11 @@ export default function PayableDetailsPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={4}>Total</Td>
+              <Td align="right">{inr(rows.reduce((s, b) => s + b.total, 0))}</Td>
+              <Td align="right">{inr(rows.reduce((s, b) => s + b.balance, 0))}</Td>
+            </ReportTotalsRow>
             {rows.map((b) => (
               <tr key={b.id} className="hover:bg-muted/30">
                 <Td className="font-medium">

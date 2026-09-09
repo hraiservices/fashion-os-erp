@@ -6,9 +6,9 @@ import { FileMinus } from "lucide-react";
 import { useSalesCreditNotes } from "@/hooks/use-sales-credit-notes";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { inr, fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -31,19 +31,19 @@ export default function CreditNoteDetailsPage() {
       title="Credit Note Details"
       description="Every credit note issued against a Product Sales invoice — used to reduce a customer's balance without a cash refund."
       actions={
-        rows.length > 0 && (
-          <ExportMenu
-            rows={rows.map((c) => ({
-              "Credit#": c.creditNumber,
-              Date: c.date,
-              Customer: invoiceById.get(c.invoiceId)?.customerName || "",
-              Invoice: invoiceById.get(c.invoiceId)?.invoiceNumber || "",
-              Amount: c.total,
-              Reason: c.reason,
-            }))}
-            filename="credit_note_details"
-          />
-        )
+        <ReportActionsMenu
+          rows={rows.map((c) => ({
+            "Credit#": c.creditNumber,
+            Date: c.date,
+            Customer: invoiceById.get(c.invoiceId)?.customerName || "",
+            Invoice: invoiceById.get(c.invoiceId)?.invoiceNumber || "",
+            Amount: c.total,
+            Reason: c.reason,
+          }))}
+          filename="credit-note-details"
+          title="Credit Note Details"
+          summaryLines={[`Credit notes: ${rows.length}`, `Total credited: ${inr(total)}`]}
+        />
       }
     >
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -76,6 +76,10 @@ export default function CreditNoteDetailsPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={5}>Total</Td>
+              <Td align="right">{inr(total)}</Td>
+            </ReportTotalsRow>
             {rows.map((c) => {
               const inv = invoiceById.get(c.invoiceId);
               return (

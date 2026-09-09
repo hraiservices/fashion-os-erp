@@ -5,9 +5,9 @@ import { Wallet } from "lucide-react";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { daysLeft } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -55,12 +55,12 @@ export default function ApAgingSummaryPage() {
       title="AP Aging Summary"
       description="Outstanding payables grouped by how overdue they are."
       actions={
-        totalPayable > 0 && (
-          <ExportMenu
-            rows={BANDS.map((b) => ({ Band: b.label, Bills: buckets.get(b.key)!.count, Total: buckets.get(b.key)!.total }))}
-            filename="ap_aging_summary"
-          />
-        )
+        <ReportActionsMenu
+          rows={BANDS.map((b) => ({ Band: b.label, Bills: buckets.get(b.key)!.count, Amount: buckets.get(b.key)!.total }))}
+          filename="ap-aging-summary"
+          title="AP Aging Summary"
+          summaryLines={[`Total payable: ${inr(totalPayable)}`]}
+        />
       }
     >
       <ReportFilterBar
@@ -89,6 +89,12 @@ export default function ApAgingSummaryPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{Array.from(buckets.values()).reduce((s, b) => s + b.count, 0)}</Td>
+              <Td align="right">{inr(totalPayable)}</Td>
+              <Td align="right">100%</Td>
+            </ReportTotalsRow>
             {BANDS.map((b) => {
               const bucket = buckets.get(b.key)!;
               const pct = totalPayable > 0 ? (bucket.total / totalPayable) * 100 : 0;

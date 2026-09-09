@@ -7,7 +7,8 @@ import { useShopSettings } from "@/hooks/use-shop-settings";
 import { buildReorderReminderUrl } from "@/lib/business-rules";
 import { getReorderCandidates } from "@/lib/analytics";
 import { fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
@@ -31,7 +32,18 @@ export default function ReorderCandidatesPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   return (
-    <ReportShell title="Reorder Candidates" description={`${reorderCandidates.length} customer(s) with no order in ${MONTHS_THRESHOLD}+ months`}>
+    <ReportShell
+      title="Reorder Candidates"
+      description={`${reorderCandidates.length} customer(s) with no order in ${MONTHS_THRESHOLD}+ months`}
+      actions={
+        <ReportActionsMenu
+          rows={reorderCandidates.map((c) => ({ Customer: c.name, Mobile: c.mobile, "Last Order": fmtDate(c.lastOrderDate), "Months Since": c.monthsSince, "Total Orders": c.orders.length }))}
+          filename="reorder-candidates"
+          title="Reorder Candidates"
+          summaryLines={[`Customers: ${reorderCandidates.length}`]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}
@@ -55,6 +67,11 @@ export default function ReorderCandidatesPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={3}>{reorderCandidates.length} customer{reorderCandidates.length === 1 ? "" : "s"}</Td>
+              <Td align="right">{reorderCandidates.reduce((s, c) => s + c.orders.length, 0)}</Td>
+              <Td align="right">—</Td>
+            </ReportTotalsRow>
             {reorderCandidates.map((c) => (
               <tr key={c.mobile} className="hover:bg-muted/30">
                 <Td>

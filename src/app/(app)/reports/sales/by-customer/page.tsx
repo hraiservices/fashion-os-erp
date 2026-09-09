@@ -7,9 +7,9 @@ import { useOrders } from "@/hooks/use-orders";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { inr } from "@/lib/format";
 import { buildUnifiedSales, filterByType, type SaleTypeFilter } from "@/lib/unified-sales";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { SalesTypeFilter } from "@/components/reports/sales-type-filter";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BalanceDue } from "@/components/ui/money-text";
@@ -44,12 +44,12 @@ export default function SalesByCustomerPage() {
       title="Sales by Customer"
       description="Revenue ranked by customer, combining Stitching Orders and Product Sales."
       actions={
-        rows.length > 0 && (
-          <ExportMenu
-            rows={rows.map((r) => ({ Customer: r.customerName, Mobile: r.customerMobile, Transactions: r.count, Billed: r.billed, Paid: r.paid, Balance: r.balance }))}
-            filename="sales_by_customer"
-          />
-        )
+        <ReportActionsMenu
+          rows={rows.map((r) => ({ Customer: r.customerName, Mobile: r.customerMobile, Transactions: r.count, Billed: r.billed, Paid: r.paid, Balance: r.balance }))}
+          filename="sales-by-customer"
+          title="Sales by Customer"
+          summaryLines={[`Customers: ${rows.length}`, `Total billed: ${inr(rows.reduce((s, r) => s + r.billed, 0))}`]}
+        />
       }
     >
       <ReportFilterBar
@@ -77,6 +77,14 @@ export default function SalesByCustomerPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{rows.reduce((s, r) => s + r.count, 0)}</Td>
+              <Td align="right">{inr(rows.reduce((s, r) => s + r.billed, 0))}</Td>
+              <Td align="right">{inr(rows.reduce((s, r) => s + r.paid, 0))}</Td>
+              <Td align="right">{inr(rows.reduce((s, r) => s + r.balance, 0))}</Td>
+              <Td align="right">—</Td>
+            </ReportTotalsRow>
             {rows.map((r) => (
               <tr key={r.customerMobile} className="hover:bg-muted/30">
                 <Td className="font-medium">{r.customerName}</Td>

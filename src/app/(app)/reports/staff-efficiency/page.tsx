@@ -6,7 +6,8 @@ import { useReportsData } from "@/hooks/use-reports-data";
 import { useTailorName } from "@/hooks/use-employees";
 import { getStaffEfficiency } from "@/lib/analytics";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -21,8 +22,22 @@ export default function StaffEfficiencyPage() {
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
+  const totalOrders = staffEff.reduce((s, t) => s + t.total, 0);
+  const totalRevenue = staffEff.reduce((s, t) => s + t.revenue, 0);
+
   return (
-    <ReportShell title="Staff Efficiency" description="Revenue per order and on-time delivery rate">
+    <ReportShell
+      title="Staff Efficiency"
+      description="Revenue per order and on-time delivery rate"
+      actions={
+        <ReportActionsMenu
+          rows={staffEff.map((t) => ({ Tailor: tailorName(t.tailor), Orders: t.total, Revenue: t.revenue, "Per order": t.revPerOrder, "Efficiency %": `${t.efficiency}%` }))}
+          filename="staff-efficiency"
+          title="Staff Efficiency"
+          summaryLines={[`Orders: ${totalOrders}`, `Total revenue: ${inr(totalRevenue)}`]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}
@@ -46,6 +61,13 @@ export default function StaffEfficiencyPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{totalOrders}</Td>
+              <Td align="right">{inr(totalRevenue)}</Td>
+              <Td align="right">{totalOrders > 0 ? inr(Math.round(totalRevenue / totalOrders)) : "—"}</Td>
+              <Td>—</Td>
+            </ReportTotalsRow>
             {staffEff.map((t) => (
               <tr key={t.tailor} className="hover:bg-muted/30">
                 <Td className="font-medium">{tailorName(t.tailor)}</Td>

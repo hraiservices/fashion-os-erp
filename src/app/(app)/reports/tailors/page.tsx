@@ -1,17 +1,16 @@
 "use client";
 
 import { useMemo } from "react";
-import { Printer, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useTailorName } from "@/hooks/use-employees";
 import { getManufacturingTailorStats } from "@/lib/manufacturing";
 import { getTailorStats } from "@/lib/analytics";
-import { printReport } from "@/lib/export";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
@@ -37,22 +36,12 @@ export default function TailorPerformancePage() {
       title="Tailor Performance"
       description="Workload, turnaround and revenue per tailor"
       actions={
-        tailorStats.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              printReport(
-                "Tailor Performance",
-                `<table><thead><tr><th>Tailor</th><th>Active</th><th>Done</th><th>Overdue</th><th>Avg Days</th><th>Revenue</th></tr></thead><tbody>${tailorStats
-                  .map((t) => `<tr><td>${tailorName(t.tailor)}</td><td>${t.active}</td><td>${t.done}</td><td>${t.overdue}</td><td>${t.avg}</td><td>${inr(t.revenue)}</td></tr>`)
-                  .join("")}</tbody></table>`
-              )
-            }
-          >
-            <Printer className="size-4" /> Print
-          </Button>
-        )
+        <ReportActionsMenu
+          rows={tailorStats.map((t) => ({ Tailor: tailorName(t.tailor), Active: t.active, Done: t.done, Overdue: t.overdue, "Promised Days": t.avg, Revenue: t.revenue }))}
+          filename="tailor-performance"
+          title="Tailor Performance"
+          summaryLines={[`Tailors: ${tailorStats.length}`, `Total revenue: ${inr(tailorStats.reduce((s, t) => s + t.revenue, 0))}`]}
+        />
       }
     >
       <ReportFilterBar
@@ -82,6 +71,17 @@ export default function TailorPerformancePage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{tailorStats.reduce((s, t) => s + t.active, 0)}</Td>
+              <Td align="right">{tailorStats.reduce((s, t) => s + t.done, 0)}</Td>
+              <Td align="right">{tailorStats.reduce((s, t) => s + t.overdue, 0)}</Td>
+              <Td align="right">—</Td>
+              <Td align="right">{inr(tailorStats.reduce((s, t) => s + t.revenue, 0))}</Td>
+              <Td align="right">—</Td>
+              <Td align="right">—</Td>
+              <Td align="right">—</Td>
+            </ReportTotalsRow>
             {tailorStats.map((t) => {
               const mfg = mfgByTailor.get(t.tailor);
               return (

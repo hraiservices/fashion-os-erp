@@ -10,7 +10,8 @@ import { buildCustomerLedger } from "@/lib/customer-ledger";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { normalizeIndianMobile } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -70,7 +71,26 @@ export default function CustomerBalancesPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
-    <ReportShell title="Customer Balances" description="Stitching order dues and product sales dues, shown separately, per customer">
+    <ReportShell
+      title="Customer Balances"
+      description="Stitching order dues and product sales dues, shown separately, per customer"
+      actions={
+        <ReportActionsMenu
+          rows={filtered.map((r) => ({
+            Customer: r.name || r.mobile,
+            Orders: r.orderCount,
+            Invoices: r.invoiceCount,
+            "Stitch Due": r.stitchDue,
+            "Product Sales Due": r.salesDue,
+            "Total Due": r.totalDue,
+            Lifetime: r.lifetime,
+          }))}
+          filename="customer-balances"
+          title="Customer Balances"
+          summaryLines={[`Customers: ${filtered.length}`, `Total due: ${inr(totals.totalDue)}`]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}
@@ -118,6 +138,14 @@ export default function CustomerBalancesPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={3}>Total</Td>
+              <Td align="right">{inr(totals.stitchDue)}</Td>
+              <Td align="right">{inr(totals.salesDue)}</Td>
+              <Td align="right">{inr(totals.totalDue)}</Td>
+              <Td align="right">—</Td>
+              <Td />
+            </ReportTotalsRow>
             {filtered.map((r) => (
               <tr key={r.mobile} className="hover:bg-muted/30">
                 <Td className="font-medium">
@@ -141,17 +169,6 @@ export default function CustomerBalancesPage() {
               </tr>
             ))}
           </tbody>
-          <tfoot>
-            <tr className="border-t bg-muted/30 font-semibold">
-              <td className="px-3 py-2.5" colSpan={3}>
-                Total
-              </td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(totals.stitchDue)}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(totals.salesDue)}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(totals.totalDue)}</td>
-              <td className="px-3 py-2.5" />
-            </tr>
-          </tfoot>
         </ReportTable>
       )}
     </ReportShell>

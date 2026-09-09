@@ -7,8 +7,8 @@ import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
 import { avgDaysToPayVendor } from "@/lib/purchases";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BalanceDue } from "@/components/ui/money-text";
@@ -47,19 +47,19 @@ export default function VendorBalanceSummaryPage() {
       title="Vendor Balance Summary"
       description="Total billed, paid, outstanding balance, and average days to pay per vendor."
       actions={
-        rows.length > 0 && (
-          <ExportMenu
-            rows={rows.map((r) => ({
-              Vendor: vendorNameById.get(r.vendorId) || "Unknown",
-              Bills: r.billCount,
-              Total: r.total,
-              Paid: r.paid,
-              Balance: r.balance,
-              "Avg Days to Pay": r.avgDaysToPay ?? "",
-            }))}
-            filename="vendor_balance_summary"
-          />
-        )
+        <ReportActionsMenu
+          rows={rows.map((r) => ({
+            Vendor: vendorNameById.get(r.vendorId) || "Unknown",
+            Bills: r.billCount,
+            Total: r.total,
+            Paid: r.paid,
+            Balance: r.balance,
+            "Avg Days to Pay": r.avgDaysToPay ?? "",
+          }))}
+          filename="vendor-balance-summary"
+          title="Vendor Balance Summary"
+          summaryLines={[`Vendors: ${rows.length}`, `Total balance: ${inr(rows.reduce((s, r) => s + r.balance, 0))}`]}
+        />
       }
     >
       <ReportFilterBar
@@ -87,6 +87,15 @@ export default function VendorBalanceSummaryPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{rows.reduce((s, r) => s + r.billCount, 0)}</Td>
+              <Td align="right">{inr(rows.reduce((s, r) => s + r.total, 0))}</Td>
+              <Td align="right">{inr(rows.reduce((s, r) => s + r.paid, 0))}</Td>
+              <Td align="right">{inr(rows.reduce((s, r) => s + r.balance, 0))}</Td>
+              <Td align="right">—</Td>
+              <Td align="right">—</Td>
+            </ReportTotalsRow>
             {rows.map((r) => (
               <tr key={r.vendorId} className="hover:bg-muted/30">
                 <Td className="font-medium">{vendorNameById.get(r.vendorId) || "Unknown vendor"}</Td>

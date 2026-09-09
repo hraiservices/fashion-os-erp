@@ -5,7 +5,8 @@ import { Megaphone } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { getBookingSourceBreakdown } from "@/lib/analytics";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -27,8 +28,26 @@ export default function BookingSourcesPage() {
 
   const totalOrders = bookingSourceBreakdown.reduce((s, r) => s + r.count, 0);
 
+  const totalRevenue = bookingSourceBreakdown.reduce((s, r) => s + r.revenue, 0);
+
   return (
-    <ReportShell title="Booking Sources" description={`${totalOrders} order(s), by how the customer found the company`}>
+    <ReportShell
+      title="Booking Sources"
+      description={`${totalOrders} order(s), by how the customer found the company`}
+      actions={
+        <ReportActionsMenu
+          rows={bookingSourceBreakdown.map((r) => ({
+            Source: r.source,
+            Orders: r.count,
+            Share: totalOrders ? `${Math.round((r.count / totalOrders) * 100)}%` : "0%",
+            Revenue: r.revenue,
+          }))}
+          filename="booking-sources"
+          title="Booking Sources"
+          summaryLines={[`Orders: ${totalOrders}`, `Total revenue: ${inr(totalRevenue)}`]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}
@@ -51,6 +70,12 @@ export default function BookingSourcesPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{totalOrders}</Td>
+              <Td align="right">100%</Td>
+              <Td align="right">{inr(totalRevenue)}</Td>
+            </ReportTotalsRow>
             {bookingSourceBreakdown.map((r) => (
               <tr key={r.source} className="hover:bg-muted/30">
                 <Td className={r.source === "Not recorded" ? "text-muted-foreground italic" : "font-medium"}>{r.source}</Td>

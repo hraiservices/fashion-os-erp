@@ -7,8 +7,9 @@ import { useReportsData } from "@/hooks/use-reports-data";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { buildWhatsAppUrl } from "@/lib/business-rules";
 import { getPendingOrders } from "@/lib/analytics";
-import { fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { fmtDate, inr } from "@/lib/format";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,8 +27,21 @@ export default function PendingOrdersPage() {
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
+  const totalBalance = pending.reduce((s, o) => s + o.balance, 0);
+
   return (
-    <ReportShell title="Pending Orders" description={`${pending.length} orders still in progress, soonest delivery first`}>
+    <ReportShell
+      title="Pending Orders"
+      description={`${pending.length} orders still in progress, soonest delivery first`}
+      actions={
+        <ReportActionsMenu
+          rows={pending.map((o) => ({ Order: o.id, Customer: o.name, Stage: o.status, Delivery: fmtDate(o.deliveryDate), Balance: o.balance }))}
+          filename="pending-orders"
+          title="Pending Orders"
+          summaryLines={[`Orders: ${pending.length}`, `Total balance due: ${inr(totalBalance)}`]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}
@@ -52,6 +66,11 @@ export default function PendingOrdersPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={4}>Total</Td>
+              <Td align="right">{inr(totalBalance)}</Td>
+              <Td align="right">—</Td>
+            </ReportTotalsRow>
             {pending.map((o) => (
               <tr key={o.id} className="hover:bg-muted/30">
                 <Td>

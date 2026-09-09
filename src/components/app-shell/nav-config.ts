@@ -98,6 +98,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/garments", label: "Garment Analysis" },
     { href: "/reports/seasonal-trends", label: "Seasonal Trends" },
     { href: "/reports/tailors", label: "Tailor Performance" },
+    { href: "/reports/tailor-turnaround", label: "Tailor Turnaround Time" },
     { href: "/reports/staff-efficiency", label: "Staff Efficiency" },
     { href: "/reports/tailor-workload", label: "Tailor Workload" },
     { href: "/reports/tailor-worksheet", label: "Daily Tailor Worksheet" },

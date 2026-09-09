@@ -6,6 +6,7 @@ import { useReportsData } from "@/hooks/use-reports-data";
 import { getLoyaltyImpact } from "@/lib/analytics";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportCard } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -43,7 +44,23 @@ export default function LoyaltyImpactPage() {
   const totalTiers = Object.values(loyaltyImpact.tierCounts).reduce((s, n) => s + n, 0) || 1;
 
   return (
-    <ReportShell title="Loyalty Impact" description="What your points programme is costing and earning">
+    <ReportShell
+      title="Loyalty Impact"
+      description="What your points programme is costing and earning"
+      actions={
+        <ReportActionsMenu
+          rows={Object.entries(loyaltyImpact.tierCounts).map(([tier, count]) => ({ Tier: tier, Customers: count }))}
+          filename="loyalty-impact"
+          title="Loyalty Impact"
+          summaryLines={[
+            `Points outstanding: ${loyaltyImpact.totalPointsOutstanding}`,
+            `Lifetime earned: ${loyaltyImpact.totalPointsEverEarned}`,
+            `Discount given: ${inr(loyaltyImpact.totalDiscountGiven)}`,
+            `Redeeming customers: ${loyaltyImpact.redeemingCustomers}/${loyaltyImpact.totalCustomers}`,
+          ]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}

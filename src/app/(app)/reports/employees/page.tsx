@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Printer, UserCog } from "lucide-react";
+import { UserCog } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { printReport } from "@/lib/export";
 import { fmtDate, inr } from "@/lib/format";
 import { SALARY_TYPE_LABELS } from "@/lib/payroll";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,22 +42,19 @@ export default function EmployeeDirectoryReportPage() {
           <Button variant="outline" size="sm" onClick={() => setShowInactive((v) => !v)}>
             {showInactive ? "Hide inactive" : "Show inactive"}
           </Button>
-          {rows.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                printReport(
-                  "Employee Directory",
-                  `<table><thead><tr><th>Name</th><th>Role</th><th>Mobile</th><th>Employment</th><th>Joined</th><th>Status</th></tr></thead><tbody>${rows
-                    .map((e) => `<tr><td>${e.name}</td><td>${e.role || "—"}</td><td>${e.mobile || "—"}</td><td>${e.employmentType}</td><td>${e.joinedDate ? fmtDate(e.joinedDate) : "—"}</td><td>${e.active ? "Active" : "Inactive"}</td></tr>`)
-                    .join("")}</tbody></table>`
-                )
-              }
-            >
-              <Printer className="size-4" /> Print
-            </Button>
-          )}
+          <ReportActionsMenu
+            rows={rows.map((e) => ({
+              Name: e.name,
+              Role: e.role || "—",
+              Mobile: e.mobile || "—",
+              Employment: e.employmentType,
+              Joined: e.joinedDate ? fmtDate(e.joinedDate) : "—",
+              Status: e.active ? "Active" : "Inactive",
+            }))}
+            filename="employee-directory"
+            title="Employee Directory"
+            summaryLines={[`Employees: ${rows.length}`, `Active: ${rows.filter((e) => e.active).length}`]}
+          />
         </>
       }
     >
@@ -86,6 +83,13 @@ export default function EmployeeDirectoryReportPage() {
             </tr>
           </thead>
           <tbody>
+            <ReportTotalsRow>
+              <Td colSpan={canSeeSalary ? 5 : 4}>Total</Td>
+              {/* Salary rates mix monthly/daily/hourly units — summing them would produce a
+                  meaningless figure, so this column stays blank in the totals row. */}
+              {canSeeSalary && <Td align="right">—</Td>}
+              <Td align="right">{rows.filter((e) => e.active).length} active</Td>
+            </ReportTotalsRow>
             {rows.map((e) => (
               <tr key={e.id} className="border-b last:border-0">
                 <Td>{e.name}</Td>

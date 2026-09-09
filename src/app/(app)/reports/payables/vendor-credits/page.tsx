@@ -7,9 +7,9 @@ import { useVendorCredits } from "@/hooks/use-vendor-credits";
 import { useVendors } from "@/hooks/use-vendors";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { inr, fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,19 +39,19 @@ export default function VendorCreditDetailsPage() {
       title="Vendor Credit Details"
       description="Every credit note issued by a vendor against a purchase bill."
       actions={
-        rows.length > 0 && (
-          <ExportMenu
-            rows={rows.map((c) => ({
-              "Credit#": c.creditNumber,
-              Date: c.date,
-              Vendor: vendorNameById.get(c.vendorId) || "",
-              Bill: c.billId ? billById.get(c.billId)?.billNumber || "" : "",
-              Amount: c.total,
-              Reason: c.reason,
-            }))}
-            filename="vendor_credit_details"
-          />
-        )
+        <ReportActionsMenu
+          rows={rows.map((c) => ({
+            "Credit#": c.creditNumber,
+            Date: c.date,
+            Vendor: vendorNameById.get(c.vendorId) || "",
+            Bill: c.billId ? billById.get(c.billId)?.billNumber || "" : "",
+            Amount: c.total,
+            Reason: c.reason,
+          }))}
+          filename="vendor-credit-details"
+          title="Vendor Credit Details"
+          summaryLines={[`Credit notes: ${rows.length}`, `Total credited: ${inr(total)}`]}
+        />
       }
     >
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -99,6 +99,10 @@ export default function VendorCreditDetailsPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={5}>Total</Td>
+              <Td align="right">{inr(total)}</Td>
+            </ReportTotalsRow>
             {rows.map((c) => {
               const bill = c.billId ? billById.get(c.billId) : undefined;
               return (

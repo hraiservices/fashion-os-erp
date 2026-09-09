@@ -5,7 +5,8 @@ import { Shirt } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { getCustomGarmentRevenue } from "@/lib/analytics";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -23,8 +24,22 @@ export default function CustomGarmentRevPage() {
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
+  const totalCount = customGarRev.reduce((s, g) => s + g.count, 0);
+  const totalRevenue = customGarRev.reduce((s, g) => s + g.revenue, 0);
+
   return (
-    <ReportShell title="Custom Garment Revenue" description="Revenue split between custom-named garments and standard rate-card types">
+    <ReportShell
+      title="Custom Garment Revenue"
+      description="Revenue split between custom-named garments and standard rate-card types"
+      actions={
+        <ReportActionsMenu
+          rows={customGarRev.map((g) => ({ Garment: g.label, Type: g.isCustom ? "Custom" : "Standard", Count: g.count, Revenue: g.revenue }))}
+          filename="custom-garment-revenue"
+          title="Custom Garment Revenue"
+          summaryLines={[`Total revenue: ${inr(totalRevenue)}`]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}
@@ -47,6 +62,11 @@ export default function CustomGarmentRevPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={2}>Total</Td>
+              <Td align="right">{totalCount}</Td>
+              <Td align="right">{inr(totalRevenue)}</Td>
+            </ReportTotalsRow>
             {customGarRev.map((g) => (
               <tr key={g.label} className="hover:bg-muted/30">
                 <Td className="font-medium">{g.label}</Td>

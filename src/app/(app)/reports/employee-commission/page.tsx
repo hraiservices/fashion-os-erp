@@ -1,15 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
-import { Printer, UserCog } from "lucide-react";
+import { UserCog } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
 import { useOrders } from "@/hooks/use-orders";
 import { computeCommission } from "@/lib/commission";
-import { printReport } from "@/lib/export";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
@@ -36,22 +35,12 @@ export default function EmployeeCommissionReportPage() {
       title="Employee Commission"
       description="All-time attributed orders and commission per employee — matched by tailor name"
       actions={
-        rows.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              printReport(
-                "Employee Commission",
-                `<table><thead><tr><th>Employee</th><th>Orders</th><th>Attributed Value</th><th>Commission</th></tr></thead><tbody>${rows
-                  .map((r) => `<tr><td>${r.employee.name}</td><td>${r.attributedOrders}</td><td>${inr(r.attributedValue)}</td><td>${inr(r.commission)}</td></tr>`)
-                  .join("")}</tbody></table>`
-              )
-            }
-          >
-            <Printer className="size-4" /> Print
-          </Button>
-        )
+        <ReportActionsMenu
+          rows={rows.map((r) => ({ Employee: r.employee.name, Orders: r.attributedOrders, "Attributed Value": r.attributedValue, Commission: r.commission }))}
+          filename="employee-commission"
+          title="Employee Commission"
+          summaryLines={[`Employees: ${rows.length}`, `Total commission: ${inr(rows.reduce((s, r) => s + r.commission, 0))}`]}
+        />
       }
     >
       <ReportFilterBar
@@ -76,6 +65,12 @@ export default function EmployeeCommissionReportPage() {
             </tr>
           </thead>
           <tbody>
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{rows.reduce((s, r) => s + r.attributedOrders, 0)}</Td>
+              <Td align="right">{inr(rows.reduce((s, r) => s + r.attributedValue, 0))}</Td>
+              <Td align="right">{inr(rows.reduce((s, r) => s + r.commission, 0))}</Td>
+            </ReportTotalsRow>
             {rows.map((r) => (
               <tr key={r.employee.id} className="border-b last:border-0">
                 <Td>{r.employee.name}</Td>

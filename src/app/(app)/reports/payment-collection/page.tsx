@@ -4,7 +4,8 @@ import { useMemo } from "react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { getPaymentStats } from "@/lib/analytics";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
@@ -17,8 +18,32 @@ export default function PaymentCollectionPage() {
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
+  const totals = paymentStats.reduce(
+    (acc, m) => ({
+      count: acc.count + m.count,
+      billed: acc.billed + m.billed,
+      collected: acc.collected + m.collected,
+      fullyPaid: acc.fullyPaid + m.fullyPaid,
+      partPaid: acc.partPaid + m.partPaid,
+      unpaid: acc.unpaid + m.unpaid,
+    }),
+    { count: 0, billed: 0, collected: 0, fullyPaid: 0, partPaid: 0, unpaid: 0 }
+  );
+  const collectionPct = totals.billed > 0 ? Math.round((totals.collected / totals.billed) * 100) : 0;
+
   return (
-    <ReportShell title="Stitching Payment Collection" description="Stitching orders only — how much of what you billed actually came in, month by month. For both revenue streams combined, see Combined P&L.">
+    <ReportShell
+      title="Stitching Payment Collection"
+      description="Stitching orders only — how much of what you billed actually came in, month by month. For both revenue streams combined, see Combined P&L."
+      actions={
+        <ReportActionsMenu
+          rows={paymentStats.map((m) => ({ Month: m.label, Orders: m.count, Billed: m.billed, Collected: m.collected, "Collection %": `${m.collectionPct}%`, Paid: m.fullyPaid, Partial: m.partPaid, Unpaid: m.unpaid }))}
+          filename="payment-collection"
+          title="Stitching Payment Collection"
+          summaryLines={[`Total billed: ${inr(totals.billed)}`, `Total collected: ${inr(totals.collected)} (${collectionPct}%)`]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}
@@ -42,6 +67,16 @@ export default function PaymentCollectionPage() {
           </tr>
         </thead>
         <tbody className="divide-y">
+          <ReportTotalsRow>
+            <Td>Total</Td>
+            <Td align="right">{totals.count}</Td>
+            <Td align="right">{inr(totals.billed)}</Td>
+            <Td align="right">{inr(totals.collected)}</Td>
+            <Td>{collectionPct}%</Td>
+            <Td align="right">{totals.fullyPaid}</Td>
+            <Td align="right">{totals.partPaid}</Td>
+            <Td align="right">{totals.unpaid}</Td>
+          </ReportTotalsRow>
           {paymentStats.map((m) => (
             <tr key={m.month} className="hover:bg-muted/30">
               <Td className="font-medium">{m.label}</Td>

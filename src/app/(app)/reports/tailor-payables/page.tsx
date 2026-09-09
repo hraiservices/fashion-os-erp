@@ -20,6 +20,7 @@ interface TailorPayableRow {
   name: string;
   weekEarned: number;
   monthEarned: number;
+  notYetReady: number;
   pending: number;
   unpaid: number;
   allTimeEarned: number;
@@ -63,6 +64,13 @@ export default function TailorPayablesPage() {
 
     const confirmedOrders = (orders || []).filter((o) => o.payablesConfirmedAt);
     const unconfirmedOrders = (orders || []).filter((o) => o.readyAt && !o.payablesConfirmedAt);
+    // Not yet "ready" and not yet confirmed — a garment here still has a LIVE payableAmount
+    // (recalculated on every edit from the current tailor rate card, see
+    // add_early_tailor_payables.sql / add_tailor_rate_versions.sql), not a frozen one. Shown
+    // separately from "Awaiting confirmation" because it can still change; omitting it entirely
+    // (as this report used to) silently undercounted every tailor's real workload-in-progress,
+    // since payables have been visible from "Received" — not just "Ready" — since that migration.
+    const openOrders = (orders || []).filter((o) => !o.readyAt && !o.payablesConfirmedAt);
     // Still genuinely owed: confirmed but no payroll run has paid it out yet. This is the
     // number a payables report exists to show — "earned all-time" is NOT what you owe.
     const unpaidOrders = confirmedOrders.filter((o) => !o.pieceRatePaidAt);
@@ -102,6 +110,7 @@ export default function TailorPayablesPage() {
             computeOrderPieceRatePay(t.id, inWindow(confirmedOrders, weekStartUtc)) + computeWorkOrderPieceRatePay(t.id, woInWindow(confirmedWo, weekStartUtc)),
           monthEarned:
             computeOrderPieceRatePay(t.id, inWindow(confirmedOrders, monthStartUtc)) + computeWorkOrderPieceRatePay(t.id, woInWindow(confirmedWo, monthStartUtc)),
+          notYetReady: computeOrderPieceRatePay(t.id, openOrders),
           pending: Math.round((pendingOrders + pendingWo) * 100) / 100,
           unpaid: computeOrderPieceRatePay(t.id, unpaidOrders) + computeWorkOrderPieceRatePay(t.id, unpaidWo),
           allTimeEarned: computeOrderPieceRatePay(t.id, confirmedOrders) + computeWorkOrderPieceRatePay(t.id, confirmedWo),
@@ -128,7 +137,7 @@ export default function TailorPayablesPage() {
   return (
     <ReportShell
       title="Tailor Payables"
-      description="Piece-rate earnings per tailor. 'Still owed' is what you actually have to pay — it excludes anything already paid out by a payroll run."
+      description="Piece-rate earnings per tailor. 'Not yet ready' is a live estimate that can still change (garment/tailor/rate edits) — it isn't owed until the order reaches Ready or you confirm it. 'Still owed' is what you actually have to pay — it excludes anything already paid out by a payroll run."
     >
       {rows.length === 0 ? (
         <EmptyState icon={Wallet} title="No piece-rate tailors yet" description="Mark a tailor 'Piece-rate eligible' on their employee record to see them here." />
@@ -139,6 +148,7 @@ export default function TailorPayablesPage() {
               <Th>Tailor</Th>
               <Th align="right">This week</Th>
               <Th align="right">This month</Th>
+              <Th align="right">Not yet ready (estimate)</Th>
               <Th align="right">Awaiting confirmation</Th>
               <Th align="right">Still owed</Th>
               <Th align="right">Earned, all-time</Th>
@@ -160,6 +170,7 @@ export default function TailorPayablesPage() {
                 </Td>
                 <Td align="right">{inr(r.weekEarned)}</Td>
                 <Td align="right">{inr(r.monthEarned)}</Td>
+                <Td align="right" className="text-muted-foreground italic">{inr(r.notYetReady)}</Td>
                 <Td align="right" className={r.pending > 0 ? "font-medium text-amber-600 dark:text-amber-400" : undefined}>
                   {inr(r.pending)}
                 </Td>
@@ -175,6 +186,7 @@ export default function TailorPayablesPage() {
               <td className="px-3 py-2.5">Total</td>
               <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.weekEarned, 0))}</td>
               <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.monthEarned, 0))}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{inr(rows.reduce((s, r) => s + r.notYetReady, 0))}</td>
               <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.pending, 0))}</td>
               <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.unpaid, 0))}</td>
               <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{inr(rows.reduce((s, r) => s + r.allTimeEarned, 0))}</td>

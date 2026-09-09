@@ -5,8 +5,8 @@ import { Truck } from "lucide-react";
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders";
 import { useVendors } from "@/hooks/use-vendors";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -38,9 +38,12 @@ export default function PurchaseOrdersByVendorPage() {
       title="Purchase Orders by Vendor"
       description="Purchase order count and value per vendor."
       actions={
-        rows.length > 0 && (
-          <ExportMenu rows={rows.map((r) => ({ Vendor: vendorNameById.get(r.vendorId) || "", "PO Count": r.count, Total: r.total }))} filename="po_by_vendor" />
-        )
+        <ReportActionsMenu
+          rows={rows.map((r) => ({ Vendor: vendorNameById.get(r.vendorId) || "", "PO Count": r.count, Total: r.total }))}
+          filename="po-by-vendor"
+          title="Purchase Orders by Vendor"
+          summaryLines={[`Vendors: ${rows.length}`, `Total value: ${inr(rows.reduce((s, r) => s + r.total, 0))}`]}
+        />
       }
     >
       <ReportFilterBar
@@ -64,6 +67,11 @@ export default function PurchaseOrdersByVendorPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{rows.reduce((s, r) => s + r.count, 0)}</Td>
+              <Td align="right">{inr(rows.reduce((s, r) => s + r.total, 0))}</Td>
+            </ReportTotalsRow>
             {rows.map((r) => (
               <tr key={r.vendorId} className="hover:bg-muted/30">
                 <Td className="font-medium">{vendorNameById.get(r.vendorId) || "Unknown vendor"}</Td>

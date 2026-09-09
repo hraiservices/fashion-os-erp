@@ -10,10 +10,11 @@ import { inr } from "@/lib/format";
 import { buildUnifiedSales, filterByType, type SaleTypeFilter } from "@/lib/unified-sales";
 import { ReportShell } from "@/components/reports/report-shell";
 import { SalesTypeFilter } from "@/components/reports/sales-type-filter";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
-import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
 
 const DESCRIPTIONS: Record<SaleTypeFilter, string> = {
   all: "Total revenue across Stitching Orders and Product Sales, combined.",
@@ -61,7 +62,18 @@ export default function SalesSummaryPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
-    <ReportShell title="Sales Summary" description={DESCRIPTIONS[filter]}>
+    <ReportShell
+      title="Sales Summary"
+      description={DESCRIPTIONS[filter]}
+      actions={
+        <ReportActionsMenu
+          rows={[{ "Total Billed": totalBilled, Collected: totalCollected, Receivable: totalReceivable, "GST Collected": totalGst }]}
+          filename="sales-summary"
+          title="Sales Summary"
+          summaryLines={[`Range: ${DATE_RANGE_PRESET_LABELS[preset]}`, `Total billed: ${inr(totalBilled)}`, `Collected: ${inr(totalCollected)} (${collectionPct}%)`, `Receivable: ${inr(totalReceivable)}`]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}

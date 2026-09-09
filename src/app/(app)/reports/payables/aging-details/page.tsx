@@ -7,8 +7,8 @@ import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
 import { daysLeft } from "@/lib/business-rules";
 import { inr, fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -38,18 +38,18 @@ export default function ApAgingDetailsPage() {
       title="AP Aging Details"
       description="Every outstanding bill, ranked by how overdue it is."
       actions={
-        rows.length > 0 && (
-          <ExportMenu
-            rows={rows.map((b) => ({
-              Bill: b.billNumber,
-              Vendor: vendorNameById.get(b.vendorId) || "",
-              "Due Date": b.dueDate || "",
-              Balance: b.balance,
-              "Days Overdue": b.daysOverdue,
-            }))}
-            filename="ap_aging_details"
-          />
-        )
+        <ReportActionsMenu
+          rows={rows.map((b) => ({
+            Bill: b.billNumber,
+            Vendor: vendorNameById.get(b.vendorId) || "",
+            "Due Date": b.dueDate || "",
+            Balance: b.balance,
+            "Days Overdue": b.daysOverdue,
+          }))}
+          filename="ap-aging-details"
+          title="AP Aging Details"
+          summaryLines={[`Bills: ${rows.length}`, `Total balance: ${inr(rows.reduce((s, b) => s + b.balance, 0))}`]}
+        />
       }
     >
       <ReportFilterBar
@@ -75,6 +75,11 @@ export default function ApAgingDetailsPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={3}>Total</Td>
+              <Td align="right">{inr(rows.reduce((s, b) => s + b.balance, 0))}</Td>
+              <Td align="right">—</Td>
+            </ReportTotalsRow>
             {rows.map((b) => (
               <tr key={b.id} className="hover:bg-muted/30">
                 <Td className="font-medium">

@@ -6,9 +6,9 @@ import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useProducts } from "@/hooks/use-products";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -61,12 +61,12 @@ export default function ProfitByItemPage() {
       title="Profit by Item"
       description="Revenue, cost, and margin per product — from Product Sales invoices, using each product's cost price."
       actions={
-        rows.length > 0 && (
-          <ExportMenu
-            rows={rows.map((r) => ({ Product: r.productName, "Qty sold": r.qty, Revenue: r.revenue, Cost: r.cost, Margin: r.margin, "Margin %": r.marginPct.toFixed(1) }))}
-            filename="profit_by_item"
-          />
-        )
+        <ReportActionsMenu
+          rows={rows.map((r) => ({ Product: r.productName, "Qty sold": r.qty, Revenue: r.revenue, Cost: r.cost, Margin: r.margin, "Margin %": r.marginPct.toFixed(1) }))}
+          filename="profit-by-item"
+          title="Profit by Item"
+          summaryLines={[`Revenue: ${inr(totals.revenue)}`, `Cost: ${inr(totals.cost)}`, `Margin: ${inr(totals.margin)}`]}
+        />
       }
     >
       <ReportFilterBar
@@ -105,6 +105,14 @@ export default function ProfitByItemPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{rows.reduce((s, r) => s + r.qty, 0)}</Td>
+              <Td align="right">{inr(totals.revenue)}</Td>
+              <Td align="right">{inr(totals.cost)}</Td>
+              <Td align="right">{inr(totals.margin)}</Td>
+              <Td align="right">{totals.revenue > 0 ? `${Math.round((totals.margin / totals.revenue) * 100)}%` : "0%"}</Td>
+            </ReportTotalsRow>
             {rows.map((r) => (
               <tr key={r.productId || r.productName} className="hover:bg-muted/30">
                 <Td className="font-medium">{r.productName}</Td>

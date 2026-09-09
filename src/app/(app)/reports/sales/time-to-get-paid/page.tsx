@@ -6,9 +6,9 @@ import { Clock } from "lucide-react";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { avgDaysToGetPaid } from "@/lib/sales";
 import { fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -48,12 +48,12 @@ export default function TimeToGetPaidPage() {
       title="Time to Get Paid"
       description="Days between invoice date and the payment that fully settled it."
       actions={
-        rows.length > 0 && (
-          <ExportMenu
-            rows={rows.map((r) => ({ Invoice: r.invoiceNumber, Customer: r.customerName, "Invoice Date": r.invoiceDate, "Last Payment": r.lastPaymentDate, "Days to Pay": r.days }))}
-            filename="time_to_get_paid"
-          />
-        )
+        <ReportActionsMenu
+          rows={rows.map((r) => ({ Invoice: r.invoiceNumber, Customer: r.customerName, "Invoice Date": r.invoiceDate, "Last Payment": r.lastPaymentDate, "Days to Pay": r.days }))}
+          filename="time-to-get-paid"
+          title="Time to Get Paid"
+          summaryLines={[`Invoices: ${rows.length}`, `Avg days to get paid: ${avgDays != null ? `${avgDays}d` : "—"}`]}
+        />
       }
     >
       <ReportFilterBar
@@ -83,6 +83,10 @@ export default function TimeToGetPaidPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={4}>Average ({rows.length} invoice{rows.length === 1 ? "" : "s"})</Td>
+              <Td align="right">{avgDays != null ? `${avgDays}d` : "—"}</Td>
+            </ReportTotalsRow>
             {rows.map((r) => (
               <tr key={r.id} className="hover:bg-muted/30">
                 <Td className="font-medium">

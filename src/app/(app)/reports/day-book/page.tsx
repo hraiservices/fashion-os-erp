@@ -25,11 +25,11 @@ import { useDayBook } from "@/hooks/use-day-book";
 import { DAY_BOOK_MODULE_ICONS, DAY_BOOK_MODULE_LABELS, fmtTime, type DayBookModule } from "@/lib/day-book";
 import { inr, fmtDate } from "@/lib/format";
 import { toISODate } from "@/components/ui/date-picker";
-import { ReportShell, ReportCard, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportCard, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExportMenu } from "@/components/ui/export-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -146,7 +146,12 @@ export default function DayBookPage() {
           <Button variant="outline" size="sm" onClick={() => setDate(todayISO())}>
             Today
           </Button>
-          <ExportMenu rows={exportRows} filename={`day-book-${date}`} sheetName="Day Book" disabled={filtered.length === 0} />
+          <ReportActionsMenu
+            rows={exportRows}
+            filename={`day-book-${date}`}
+            title={`Day Book — ${fmtDate(date)}`}
+            summaryLines={[`Date: ${fmtDate(date)}`, `Sales: ${inr(data?.totals.sales ?? 0)}`, `Payments: ${inr(data?.totals.payments ?? 0)}`, `Expenses: ${inr(data?.totals.expenses ?? 0)}`]}
+          />
         </div>
       }
     >
@@ -279,6 +284,11 @@ export default function DayBookPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td colSpan={4}>{filtered.length} {filtered.length === 1 ? "entry" : "entries"}</Td>
+                  <Td align="right">{inr(filtered.reduce((s, e) => s + (e.amount || 0), 0))}</Td>
+                  <Td />
+                </ReportTotalsRow>
                 {filtered.map((e) => {
                   const Icon = DAY_BOOK_MODULE_ICONS[e.module];
                   return (

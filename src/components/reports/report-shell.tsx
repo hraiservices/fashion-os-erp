@@ -69,6 +69,17 @@ export function Th({ children, align = "left" }: { children?: React.ReactNode; a
   );
 }
 
-export function Td({ children, align = "left", className }: { children?: React.ReactNode; align?: "left" | "right"; className?: string }) {
-  return <td className={`px-3 py-2.5 ${align === "right" ? "text-right tabular-nums" : ""} ${className ?? ""}`}>{children}</td>;
+export function Td({ children, align = "left", className, colSpan }: { children?: React.ReactNode; align?: "left" | "right"; className?: string; colSpan?: number }) {
+  return (
+    <td colSpan={colSpan} className={`px-3 py-2.5 ${align === "right" ? "text-right tabular-nums" : ""} ${className ?? ""}`}>
+      {children}
+    </td>
+  );
+}
+
+/** The "Total" row every report table needs — rendered as the FIRST row of `<tbody>`, right
+ *  under the header, not tucked away at the bottom where it's easy to miss on a long table.
+ *  Use plain `<Td>` cells inside (first one usually just says "Total"). */
+export function ReportTotalsRow({ children }: { children: React.ReactNode }) {
+  return <tr className="border-b-2 bg-muted/40 font-semibold">{children}</tr>;
 }

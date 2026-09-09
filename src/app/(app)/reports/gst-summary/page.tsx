@@ -1,15 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Receipt, FileWarning } from "lucide-react";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
-import { istDateString } from "@/lib/ist-date";
 import { GST_TYPE_LABELS, type GstType } from "@/lib/gst";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
+import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
 import { StatCard } from "@/components/ui/stat-card";
-import { Input } from "@/components/ui/input";
-import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -26,14 +26,14 @@ interface RateGroup {
 
 export default function GstSummaryReportPage() {
   const { data: invoices, isLoading } = useSalesInvoices();
-  const [month, setMonth] = useState(() => istDateString().slice(0, 7));
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange("this-month");
 
   // Drafts are not issued documents and carry no tax liability; credit notes reverse tax on a
   // sale that was refunded. Including drafts and ignoring credits overstated output tax on the
   // report used to file GSTR-1. Matches getCombinedMonthly's treatment (src/lib/combined-reports.ts).
   const monthInvoices = useMemo(
-    () => (invoices || []).filter((i) => i.invoiceDate.startsWith(month) && i.docStatus !== "draft"),
-    [invoices, month]
+    () => (invoices || []).filter((i) => isWithinDateRange(i.invoiceDate, range) && i.docStatus !== "draft"),
+    [invoices, range]
   );
 
   const groups = useMemo(() => {
@@ -74,25 +74,24 @@ export default function GstSummaryReportPage() {
       title="GST Summary"
       description="Outward-supply totals by tax rate, for your accountant — not a GSTR-1 filing artifact"
       actions={
-        <div className="flex items-center gap-2">
-          <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="h-9 w-40" />
-          {groups.length > 0 && (
-            <ExportMenu
-              rows={groups.map((g) => ({
-                "GST Type": GST_TYPE_LABELS[g.gstType],
-                "Tax Rate %": g.taxRate,
-                Invoices: g.invoiceCount,
-                "Taxable Value": g.taxableValue,
-                CGST: g.cgst,
-                SGST: g.sgst,
-                IGST: g.igst,
-              }))}
-              filename={`gst_summary_${month}`}
-            />
-          )}
-        </div>
+        <ReportActionsMenu
+          rows={groups.map((g) => ({
+            "GST Type": GST_TYPE_LABELS[g.gstType],
+            "Tax Rate %": g.taxRate,
+            Invoices: g.invoiceCount,
+            "Taxable Value": g.taxableValue,
+            CGST: g.cgst,
+            SGST: g.sgst,
+            IGST: g.igst,
+          }))}
+          filename={`gst-summary-${DATE_RANGE_PRESET_LABELS[preset]}`}
+          title="GST Summary"
+          summaryLines={[`Range: ${DATE_RANGE_PRESET_LABELS[preset]}`, `Total GST: ${inr(totalTax)}`, `Taxable value: ${inr(totals.taxableValue)}`]}
+        />
       }
     >
+      <ReportFilterBar preset={preset} onPresetChange={setPreset} customFrom={customFrom} onCustomFromChange={setCustomFrom} customTo={customTo} onCustomToChange={setCustomTo} />
+
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
         <div className="flex gap-2">
           <FileWarning className="size-4 shrink-0" />
@@ -127,6 +126,15 @@ export default function GstSummaryReportPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={2}>Total</Td>
+              <Td align="right">{totals.invoiceCount}</Td>
+              <Td align="right">{inr(totals.taxableValue)}</Td>
+              <Td align="right">{inr(totals.cgst)}</Td>
+              <Td align="right">{inr(totals.sgst)}</Td>
+              <Td align="right">{inr(totals.igst)}</Td>
+              <Td align="right">{inr(totalTax)}</Td>
+            </ReportTotalsRow>
             {groups.map((g) => (
               <tr key={g.key} className="hover:bg-muted/30">
                 <Td className="font-medium">{GST_TYPE_LABELS[g.gstType]}</Td>
@@ -140,17 +148,6 @@ export default function GstSummaryReportPage() {
               </tr>
             ))}
           </tbody>
-          <tfoot>
-            <tr className="border-t bg-muted/30 font-semibold">
-              <td className="px-3 py-2.5" colSpan={2}>Total</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{totals.invoiceCount}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(totals.taxableValue)}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(totals.cgst)}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(totals.sgst)}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(totals.igst)}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(totalTax)}</td>
-            </tr>
-          </tfoot>
         </ReportTable>
       )}
     </ReportShell>

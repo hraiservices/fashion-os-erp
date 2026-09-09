@@ -18,6 +18,7 @@ import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useCurrentTailorRates } from "@/hooks/use-current-tailor-rates";
 import { useActiveTailors } from "@/hooks/use-employees";
 import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { useCustomerByMobile } from "@/hooks/use-customer";
@@ -169,7 +170,7 @@ function FieldGroup({ label, required, error, children, hint, className }: { lab
  */
 export function OrderForm({ existingOrder, prefillMobile, initialOrderType }: { existingOrder?: Order; prefillMobile?: string; initialOrderType?: OrderType }) {
   const { data: rates, isLoading: ratesLoading } = useAppSetting<RateCard>("rates", DEFAULT_RATES);
-  const { data: tailorRates, isLoading: tailorRatesLoading } = useAppSetting<TailorRateCard>("tailorRates", DEFAULT_TAILOR_RATES);
+  const { data: tailorRates, isLoading: tailorRatesLoading } = useCurrentTailorRates(DEFAULT_TAILOR_RATES);
   const { data: expenseCategories, isLoading: categoriesLoading } = useAppSetting<string[]>("stitchingExpenseCategories", DEFAULT_EXPENSE_CATEGORIES);
   const { data: tailors, isLoading: tailorsLoading } = useActiveTailors();
   const { data: measureFields, isLoading: fieldsLoading } = useMeasureFields();

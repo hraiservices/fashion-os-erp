@@ -45,9 +45,12 @@ export const DEFAULT_RATES: Record<string, Record<Lining, number>> = {
 
 /** Tailor payable rate card — same garment-type × lining shape as DEFAULT_RATES (the customer
  *  price list), but each cell carries two payable amounts: what a tailor is paid for a NEW
- *  garment of that type/lining vs. an ALTERATION, since alterations pay less. Stored under
- *  app_settings key "tailorRates". Snapshotted onto each garment (frozen) the moment its order
- *  first reaches "ready" — see snapshot_tailor_payables() in the DB. */
+ *  garment of that type/lining vs. an ALTERATION, since alterations pay less. Versioned with a
+ *  full history and an effective-from date in tailor_rate_versions (add_tailor_rate_versions.sql)
+ *  — current_tailor_rates() resolves whichever version is active as of today, and that's what
+ *  every not-yet-frozen garment's payableAmount is live-recalculated from. A garment's
+ *  payableAmount freezes permanently the moment its order reaches "ready" or a payroll manager
+ *  confirms it, whichever happens first — see add_early_tailor_payables.sql. */
 export interface TailorRate {
   new: number;
   alteration: number;

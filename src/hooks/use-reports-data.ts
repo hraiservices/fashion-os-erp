@@ -5,9 +5,9 @@ import { useOrders } from "@/hooks/use-orders";
 import { useCustomers } from "@/hooks/use-customers";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useReferralCoupons } from "@/hooks/use-referral-coupons";
-import { useAppSetting } from "@/hooks/use-app-setting";
+import { useCurrentTailorRates } from "@/hooks/use-current-tailor-rates";
 import { useOrderExpensesByOrderId } from "@/hooks/use-order-expenses";
-import { DEFAULT_TAILOR_RATES, type TailorRateCard } from "@/lib/business-rules";
+import { DEFAULT_TAILOR_RATES } from "@/lib/business-rules";
 import {
   getMonthly,
   getTailorStats,
@@ -37,7 +37,7 @@ export function useReportsData() {
   const { data: customers, isLoading: customersLoading } = useCustomers();
   const { data: loyaltyCfg } = useLoyaltyConfig();
   const { data: coupons } = useReferralCoupons();
-  const { data: tailorRates } = useAppSetting<TailorRateCard>("tailorRates", DEFAULT_TAILOR_RATES);
+  const { data: tailorRates } = useCurrentTailorRates(DEFAULT_TAILOR_RATES);
   const { data: expensesByOrderId } = useOrderExpensesByOrderId();
 
   const list = useMemo(() => orders || [], [orders]);

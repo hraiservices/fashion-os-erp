@@ -185,6 +185,21 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["app_settings"]["Row"]>;
         Relationships: [];
       };
+      tailor_rate_versions: {
+        Row: {
+          id: string;
+          rates: Json;
+          effective_from: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["tailor_rate_versions"]["Row"]> & {
+          rates: Json;
+          effective_from: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["tailor_rate_versions"]["Row"]>;
+        Relationships: [];
+      };
       push_subscriptions: {
         Row: {
           id: string;
@@ -1262,6 +1277,14 @@ export interface Database {
       set_tailor_rates: {
         Args: { p_value: Json };
         Returns: undefined;
+      };
+      set_tailor_rates_versioned: {
+        Args: { p_rates: Json; p_effective_from: string; p_created_by: string | null };
+        Returns: undefined;
+      };
+      current_tailor_rates: {
+        Args: Record<string, never>;
+        Returns: Json;
       };
       confirm_order_payables: {
         Args: { p_order_id: string; p_user_email: string };

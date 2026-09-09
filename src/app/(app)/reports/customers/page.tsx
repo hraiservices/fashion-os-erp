@@ -5,9 +5,9 @@ import { Users } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { getCustomerLifetime } from "@/lib/analytics";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
@@ -28,20 +28,20 @@ export default function CustomerLifetimePage() {
       title="Customer Lifetime"
       description="Ranked by lifetime value (repeat customers weighted higher)"
       actions={
-        clvData.length > 0 && (
-          <ExportMenu
-            rows={clvData.map((c) => ({
-              Name: c.name,
-              Mobile: c.mobile,
-              Orders: c.totalOrders,
-              Spent: c.totalSpent,
-              AvgOrder: c.avgOrder,
-              MonthsActive: c.monthsActive,
-              CLVScore: c.clvScore,
-            }))}
-            filename="customer_lifetime"
-          />
-        )
+        <ReportActionsMenu
+          rows={clvData.map((c) => ({
+            Name: c.name,
+            Mobile: c.mobile,
+            Orders: c.totalOrders,
+            Spent: c.totalSpent,
+            AvgOrder: c.avgOrder,
+            MonthsActive: c.monthsActive,
+            CLVScore: c.clvScore,
+          }))}
+          filename="customer-lifetime"
+          title="Customer Lifetime"
+          summaryLines={[`Customers: ${clvData.length}`, `Total spent: ${inr(clvData.reduce((s, c) => s + c.totalSpent, 0))}`]}
+        />
       }
     >
       <ReportFilterBar
@@ -68,6 +68,14 @@ export default function CustomerLifetimePage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{clvData.reduce((s, c) => s + c.totalOrders, 0)}</Td>
+              <Td align="right">{inr(clvData.reduce((s, c) => s + c.totalSpent, 0))}</Td>
+              <Td align="right">—</Td>
+              <Td align="right">—</Td>
+              <Td align="right">—</Td>
+            </ReportTotalsRow>
             {clvData.map((c) => (
               <tr key={c.mobile} className="hover:bg-muted/30">
                 <Td>

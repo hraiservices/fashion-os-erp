@@ -10,9 +10,9 @@ import { buildWhatsAppUrl } from "@/lib/business-rules";
 import { getAgingList } from "@/lib/analytics";
 import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
@@ -42,12 +42,12 @@ export default function BalanceAgingPage() {
       title="Balance Aging"
       description={aging.length > 0 ? `${inr(totalDue)} outstanding across ${aging.length} orders` : undefined}
       actions={
-        aging.length > 0 && (
-          <ExportMenu
-            rows={aging.map((o) => ({ Order: o.id, Name: o.name, Mobile: o.mobile, Balance: o.balance, Band: o.agingBand, DaysOverdue: o.daysOver }))}
-            filename="balance_aging"
-          />
-        )
+        <ReportActionsMenu
+          rows={aging.map((o) => ({ Order: o.id, Name: o.name, Mobile: o.mobile, Balance: o.balance, Band: o.agingBand, DaysOverdue: o.daysOver }))}
+          filename="balance-aging"
+          title="Balance Aging"
+          summaryLines={[`Orders: ${aging.length}`, `Total outstanding: ${inr(totalDue)}`]}
+        />
       }
     >
       <ReportFilterBar
@@ -73,6 +73,11 @@ export default function BalanceAgingPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={3}>Total</Td>
+              <Td align="right">{inr(totalDue)}</Td>
+              <Td align="right">—</Td>
+            </ReportTotalsRow>
             {aging.map((o) => (
               <tr key={o.id} className="hover:bg-muted/30">
                 <Td>

@@ -4,12 +4,17 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 
 /**
- * Confirms the tailor payables snapshotted onto an order's garments (see
- * snapshot_tailor_payables() / set_order_stage) so they count toward payroll. Deliberately
+ * Confirms the tailor payables on an order's garments so they count toward payroll. Deliberately
  * gated on managePayroll, not changeStage — a tailor already holds changeStage and can move
- * their own order to "ready" (which is what triggers the snapshot), so letting that same
- * action also finalize their own pay would be a self-dealing gap. This is the second checkpoint
- * a payroll manager must clear before a piece-rate figure becomes real money owed.
+ * their own order to "ready", so letting that same action also finalize their own pay would be
+ * a self-dealing gap. This is the second checkpoint a payroll manager must clear before a
+ * piece-rate figure becomes real money owed.
+ *
+ * Confirmable at any stage, not just "ready" (see add_early_tailor_payables.sql) — a garment's
+ * payableAmount is now live-recalculated from the rate card as soon as a tailor is assigned,
+ * not just once it's finished, so a manager can confirm as early as Received. Confirming is
+ * itself the freeze point: the recalc trigger stops touching garments the instant
+ * payables_confirmed_at is set, exactly like reaching "ready" already did.
  */
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,13 +30,14 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   const { data: row, error: fetchError } = await db
     .from("orders")
-    .select("id, name, ready_at, payables_confirmed_at")
+    .select("id, name, garments, payables_confirmed_at")
     .eq("id", id)
     .maybeSingle();
   if (fetchError || !row) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-  if (!row.ready_at) {
-    return NextResponse.json({ error: "This order hasn't reached the ready stage yet — no tailor payables to confirm." }, { status: 409 });
+  const hasPayable = Array.isArray(row.garments) && row.garments.some((g) => (g as { payableAmount?: number })?.payableAmount != null);
+  if (!hasPayable) {
+    return NextResponse.json({ error: "No tailor is assigned to this order yet — nothing to confirm." }, { status: 409 });
   }
 
   // Idempotent — re-confirming an already-confirmed order is a no-op, not an error.

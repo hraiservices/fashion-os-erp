@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ensureUserRole } from "@/lib/supabase/role-bootstrap";
 import { isValidEmail, mapAuthError, normalizePhone } from "@/lib/auth-errors";
 import { useShopSettings } from "@/hooks/use-shop-settings";
+import { SignInProgressOverlay } from "@/components/auth/sign-in-progress-overlay";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +70,23 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
+  // Shown from the moment auth succeeds until the dashboard route has actually loaded — covers
+  // the gap between router.push() firing and the new page/data being ready, which otherwise
+  // reads as the screen silently hanging (see SignInProgressOverlay's own comment).
+  const [redirecting, setRedirecting] = useState(false);
+  const [redirectDone, setRedirectDone] = useState(false);
+
+  useEffect(() => {
+    if (!redirecting) return;
+    const climb = setTimeout(() => setRedirectDone(true), 900);
+    return () => clearTimeout(climb);
+  }, [redirecting]);
+
+  useEffect(() => {
+    if (!redirectDone) return;
+    const nav = setTimeout(() => router.push("/dashboard"), 300);
+    return () => clearTimeout(nav);
+  }, [redirectDone, router]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.location.hash.includes("type=recovery")) return;
@@ -122,7 +140,7 @@ export default function LoginPage() {
       const data = await res.json();
       setLoading(false);
       if (!res.ok) return setErr(data.error || "Sign in failed.");
-      router.push("/dashboard");
+      setRedirecting(true);
       return;
     }
 
@@ -141,7 +159,7 @@ export default function LoginPage() {
       }
       await ensureUserRole(supabase, cleanEmail);
       setLoading(false);
-      router.push("/dashboard");
+      setRedirecting(true);
     } else {
       const { error } = await supabase.auth.signUp({
         email: cleanEmail,
@@ -157,6 +175,10 @@ export default function LoginPage() {
 
   const isMobileFlow = mode === "login" && method === "mobile";
   const isEmailFlow = (mode === "login" || mode === "signup") && method === "email";
+
+  if (redirecting) {
+    return <SignInProgressOverlay shopName={shop?.name} logoDataUrl={shop?.logoDataUrl} done={redirectDone} />;
+  }
 
   return (
     <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100 p-5 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950">

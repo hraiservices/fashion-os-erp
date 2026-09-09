@@ -6,7 +6,8 @@ import { useAllSalesPayments } from "@/hooks/use-sales-payments";
 import { useAllVendorPayments } from "@/hooks/use-vendor-payments";
 import { useAllOrderPayments } from "@/hooks/use-order-payments";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -43,6 +44,12 @@ function MethodTable({ rows, total, emptyLabel }: { rows: MethodRow[]; total: nu
         </tr>
       </thead>
       <tbody className="divide-y">
+        <ReportTotalsRow>
+          <Td>Total</Td>
+          <Td align="right">{rows.reduce((s, r) => s + r.count, 0)}</Td>
+          <Td align="right">{inr(total)}</Td>
+          <Td align="right">100%</Td>
+        </ReportTotalsRow>
         {rows.map((r) => (
           <tr key={r.method} className="hover:bg-muted/30">
             <Td className="font-medium">{r.method}</Td>
@@ -54,14 +61,6 @@ function MethodTable({ rows, total, emptyLabel }: { rows: MethodRow[]; total: nu
           </tr>
         ))}
       </tbody>
-      <tfoot>
-        <tr className="border-t bg-muted/30 font-semibold">
-          <td className="px-3 py-2.5">Total</td>
-          <td className="px-3 py-2.5 text-right tabular-nums">{rows.reduce((s, r) => s + r.count, 0)}</td>
-          <td className="px-3 py-2.5 text-right tabular-nums">{inr(total)}</td>
-          <td className="px-3 py-2.5" />
-        </tr>
-      </tfoot>
     </ReportTable>
   );
 }
@@ -91,7 +90,21 @@ export default function PaymentMethodsReportPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
-    <ReportShell title="Payment Methods" description="Cash, UPI, bank transfer and card totals across stitching orders and product sales — useful for daily reconciliation against your bank deposits">
+    <ReportShell
+      title="Payment Methods"
+      description="Cash, UPI, bank transfer and card totals across stitching orders and product sales — useful for daily reconciliation against your bank deposits"
+      actions={
+        <ReportActionsMenu
+          rows={[
+            ...receivedByMethod.map((r) => ({ Type: "Received", Method: r.method, Transactions: r.count, Amount: r.amount })),
+            ...madeByMethod.map((r) => ({ Type: "Made", Method: r.method, Transactions: r.count, Amount: r.amount })),
+          ]}
+          filename="payment-methods"
+          title="Payment Methods"
+          summaryLines={[`Received: ${inr(totalReceived)}`, `Made: ${inr(totalMade)}`, `Net: ${inr(totalReceived - totalMade)}`]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}

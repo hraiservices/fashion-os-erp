@@ -9,7 +9,8 @@ import { useAllOrderPayments } from "@/hooks/use-order-payments";
 import { useOrders } from "@/hooks/use-orders";
 import { buildInvoicePaymentRows, buildOrderPaymentRows, sortPaymentRows, type PaymentSource } from "@/lib/payments-received";
 import { inr, fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -69,7 +70,18 @@ export default function PaymentsReceivedReportPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
-    <ReportShell title="Payments Received" description="Every payment collected across both stitching orders and product sales, in one list">
+    <ReportShell
+      title="Payments Received"
+      description="Every payment collected across both stitching orders and product sales, in one list"
+      actions={
+        <ReportActionsMenu
+          rows={filtered.map((r) => ({ Date: fmtDate(r.date), Customer: r.customerName || "—", Mobile: r.customerMobile || "—", Mode: r.method, Source: SOURCE_BADGE[r.source].label, Reference: r.reference, Amount: r.amount }))}
+          filename="payments-received"
+          title="Payments Received"
+          summaryLines={[`Payments: ${filtered.length}`, `Total: ${inr(totalFiltered)}`]}
+        />
+      }
+    >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard label="Total Payments" value={inr(totalAll)} icon={Wallet} />
         <StatCard label="Invoice Payments" value={inr(totalInvoice)} icon={Receipt} />
@@ -121,6 +133,10 @@ export default function PaymentsReceivedReportPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={6}>Total{source !== "all" || search ? " (filtered)" : ""}</Td>
+              <Td align="right">{inr(totalFiltered)}</Td>
+            </ReportTotalsRow>
             {filtered.map((r) => {
               const badge = SOURCE_BADGE[r.source];
               return (
@@ -145,12 +161,6 @@ export default function PaymentsReceivedReportPage() {
               );
             })}
           </tbody>
-          <tfoot>
-            <tr className="border-t bg-muted/30 font-semibold">
-              <td className="px-3 py-2.5" colSpan={6}>Total{source !== "all" || search ? " (filtered)" : ""}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(totalFiltered)}</td>
-            </tr>
-          </tfoot>
         </ReportTable>
       )}
     </ReportShell>

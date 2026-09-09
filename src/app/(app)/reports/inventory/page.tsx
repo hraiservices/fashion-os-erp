@@ -6,7 +6,8 @@ import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useProducts } from "@/hooks/use-products";
 import { isLowStock } from "@/lib/inventory";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -37,7 +38,21 @@ export default function InventoryReportPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
-    <ReportShell title="Inventory Valuation" description="Stock on hand valued at cost (accounting basis) and at retail, across raw materials and finished goods">
+    <ReportShell
+      title="Inventory Valuation"
+      description="Stock on hand valued at cost (accounting basis) and at retail, across raw materials and finished goods"
+      actions={
+        <ReportActionsMenu
+          rows={[
+            ...(rawMaterials || []).map((m) => ({ Type: "Raw Material", Name: m.name, Category: m.category || "—", Stock: `${m.stockQty} ${m.unitName}`, "Cost/unit": m.costPerUnit, Value: m.stockQty * m.costPerUnit })),
+            ...(products || []).map((p) => ({ Type: "Product", Name: p.name, Category: p.sku, Stock: `${p.stockQty} pcs`, "Cost/unit": p.costPrice, Value: p.stockQty * p.costPrice })),
+          ]}
+          filename="inventory-valuation"
+          title="Inventory Valuation"
+          summaryLines={[`Inventory value (cost): ${inr(rawValue + finishedCostValue)}`, `Retail value: ${inr(finishedRetailValue)}`, `Low stock items: ${lowStockCount}`]}
+        />
+      }
+    >
       <ReportFilterBar
         preset={preset}
         onPresetChange={setPreset}
@@ -71,6 +86,10 @@ export default function InventoryReportPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
+              <ReportTotalsRow>
+                <Td colSpan={4}>Total raw material value</Td>
+                <Td align="right">{inr(rawValue)}</Td>
+              </ReportTotalsRow>
               {rawMaterials.map((m) => (
                 <tr key={m.id} className="hover:bg-muted/30">
                   <Td className="font-medium">{m.name}</Td>
@@ -83,14 +102,6 @@ export default function InventoryReportPage() {
                 </tr>
               ))}
             </tbody>
-            <tfoot>
-              <tr className="border-t bg-muted/30 font-semibold">
-                <td className="px-3 py-2.5" colSpan={4}>
-                  Total raw material value
-                </td>
-                <td className="px-3 py-2.5 text-right tabular-nums">{inr(rawValue)}</td>
-              </tr>
-            </tfoot>
           </ReportTable>
         )}
       </div>
@@ -113,6 +124,12 @@ export default function InventoryReportPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
+              <ReportTotalsRow>
+                <Td colSpan={4}>Total finished-goods value</Td>
+                <Td align="right">{inr(finishedCostValue)}</Td>
+                <Td />
+                <Td align="right">{inr(finishedRetailValue)}</Td>
+              </ReportTotalsRow>
               {products.map((p) => (
                 <tr key={p.id} className="hover:bg-muted/30">
                   <Td className="font-medium">{p.name}</Td>
@@ -127,16 +144,6 @@ export default function InventoryReportPage() {
                 </tr>
               ))}
             </tbody>
-            <tfoot>
-              <tr className="border-t bg-muted/30 font-semibold">
-                <td className="px-3 py-2.5" colSpan={4}>
-                  Total finished-goods value
-                </td>
-                <td className="px-3 py-2.5 text-right tabular-nums">{inr(finishedCostValue)}</td>
-                <td className="px-3 py-2.5" />
-                <td className="px-3 py-2.5 text-right tabular-nums">{inr(finishedRetailValue)}</td>
-              </tr>
-            </tfoot>
           </ReportTable>
         )}
       </div>

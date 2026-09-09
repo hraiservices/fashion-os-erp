@@ -6,6 +6,7 @@ import { Sparkles, Send, CheckCircle2, TrendingUp } from "lucide-react";
 import { useCustomerRecommendations } from "@/hooks/use-customer-recommendations";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { ReportShell, ReportCard } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -56,7 +57,27 @@ export default function RecommendationsReportPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   return (
-    <ReportShell title="Recommendation Performance" description="Product recommendations sent to customers, and whether they led to a sale">
+    <ReportShell
+      title="Recommendation Performance"
+      description="Product recommendations sent to customers, and whether they led to a sale"
+      actions={
+        rows.length > 0 && (
+          <ReportActionsMenu
+            rows={rows.map(({ rec, converted, convertedDate }) => ({
+              Customer: rec.customerName,
+              Product: rec.productName,
+              "Match %": rec.score,
+              Channel: rec.channel === "whatsapp_api" ? "API" : "wa.me",
+              Sent: fmtDate(rec.createdAt),
+              Outcome: converted ? `Bought ${convertedDate ? fmtDate(convertedDate) : ""}` : "—",
+            }))}
+            filename="recommendation-performance"
+            title="Recommendation Performance"
+            summaryLines={[`Sent: ${totalSent}`, `Converted: ${converted} (${conversionRate}%)`]}
+          />
+        )
+      }
+    >
       {(recommendations || []).length === 0 ? (
         <EmptyState
           icon={Sparkles}
@@ -108,6 +129,11 @@ export default function RecommendationsReportPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  <TableRow className="border-b-2 bg-muted/40 font-semibold">
+                    <TableCell colSpan={4}>Total</TableCell>
+                    <TableCell>{totalSent} sent</TableCell>
+                    <TableCell>{converted} converted ({conversionRate}%)</TableCell>
+                  </TableRow>
                   {rows.slice(0, 100).map(({ rec, converted, convertedDate }) => (
                     <TableRow key={rec.id}>
                       <TableCell>

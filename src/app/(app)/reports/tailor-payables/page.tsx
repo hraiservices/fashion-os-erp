@@ -7,28 +7,18 @@ import { useOrders } from "@/hooks/use-orders";
 import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useEmployees } from "@/hooks/use-employees";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { computeOrderPieceRatePay, computeWorkOrderPieceRatePay } from "@/lib/piece-rate";
 import { istDateString, istDayBoundsUtc } from "@/lib/ist-date";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Order, WorkOrder } from "@/lib/types";
 
 interface TailorPayableRow {
   id: string;
   name: string;
-  weekEarned: number;
-  monthEarned: number;
-  notYetReady: number;
-  pending: number;
-  unpaid: number;
-  allTimeEarned: number;
-  /** A deactivated employee is excluded from every future payroll run (it only ever fetches
-   *  active employees), so any "unpaid" money for them can never be settled through the normal
-   *  payroll flow — it needs manual settlement instead. Flagged distinctly so it doesn't look
-   *  like ordinary pending money that'll clear on the next run. */
-  isActive: boolean;
+  weekPayable: number;
+  monthPayable: number;
+  totalPayable: number;
 }
 
 /** A garment carrying a payable whose `tailor` resolves to no employee — money that is owed to
@@ -40,9 +30,12 @@ interface UnattributedRow {
   amount: number;
 }
 
-/** Per-tailor rollup of piece-rate payables — read-mostly, mirrors the self-service portal's
- *  own earnings figures (src/app/api/attendance/earnings) but across every piece-rate-eligible
- *  employee at once. Confirming a payable happens on the order/work-order detail page, not here. */
+/** Per-tailor rollup of what each piece-rate tailor is owed — a garment counts the moment its
+ *  order is received and a tailor is assigned (payableAmount is live-recalculated from the
+ *  current tailor rate card on every edit, see add_early_tailor_payables.sql /
+ *  add_tailor_rate_versions.sql) and keeps counting straight through to Ready and payroll
+ *  confirmation — no separate "pending" vs "confirmed" split to read. Confirming a payable
+ *  happens on the order/work-order detail page, not here. */
 export default function TailorPayablesPage() {
   const { data: user } = useCurrentUser();
   const { data: employees, isLoading: employeesLoading } = useEmployees();
@@ -53,33 +46,11 @@ export default function TailorPayablesPage() {
   const { rows, unattributed, zeroRatedCount } = useMemo(() => {
     const tailors = (employees || []).filter((e) => e.pieceRateEligible);
 
-    // ready_at / completed_at are timestamptz (UTC instants); a plain "YYYY-MM-DD" string
-    // compare would put anything finished between 00:00–05:30 IST into the previous
-    // day/month. Compare against the real UTC instant that starts the IST day instead.
     const today = istDateString();
     const sixDaysAgo = new Date(`${today}T00:00:00Z`);
     sixDaysAgo.setUTCDate(sixDaysAgo.getUTCDate() - 6);
     const weekStartUtc = istDayBoundsUtc(sixDaysAgo.toISOString().slice(0, 10)).startUtc;
     const monthStartUtc = istDayBoundsUtc(`${today.slice(0, 7)}-01`).startUtc;
-
-    const confirmedOrders = (orders || []).filter((o) => o.payablesConfirmedAt);
-    const unconfirmedOrders = (orders || []).filter((o) => o.readyAt && !o.payablesConfirmedAt);
-    // Not yet "ready" and not yet confirmed — a garment here still has a LIVE payableAmount
-    // (recalculated on every edit from the current tailor rate card, see
-    // add_early_tailor_payables.sql / add_tailor_rate_versions.sql), not a frozen one. Shown
-    // separately from "Awaiting confirmation" because it can still change; omitting it entirely
-    // (as this report used to) silently undercounted every tailor's real workload-in-progress,
-    // since payables have been visible from "Received" — not just "Ready" — since that migration.
-    const openOrders = (orders || []).filter((o) => !o.readyAt && !o.payablesConfirmedAt);
-    // Still genuinely owed: confirmed but no payroll run has paid it out yet. This is the
-    // number a payables report exists to show — "earned all-time" is NOT what you owe.
-    const unpaidOrders = confirmedOrders.filter((o) => !o.pieceRatePaidAt);
-    const confirmedWo = (workOrders || []).filter((w) => w.laborPayableConfirmedAt);
-    const unconfirmedWo = (workOrders || []).filter((w) => w.completedAt && !w.laborPayableConfirmedAt);
-    const unpaidWo = confirmedWo.filter((w) => !w.pieceRatePaidAt);
-
-    const inWindow = (list: Order[], startUtc: string) => list.filter((o) => o.readyAt && o.readyAt >= startUtc);
-    const woInWindow = (wos: WorkOrder[], startUtc: string) => wos.filter((w) => w.completedAt && w.completedAt >= startUtc);
 
     // Every garment payable whose tailor doesn't resolve to a real employee record.
     const employeeIds = new Set((employees || []).map((e) => e.id));
@@ -101,23 +72,39 @@ export default function TailorPayablesPage() {
 
     const rows = tailors
       .map((t): TailorPayableRow => {
-        const pendingOrders = unconfirmedOrders.reduce((s, o) => s + o.garments.filter((g) => g.tailor === t.id).reduce((s2, g) => s2 + (g.payableAmount || 0), 0), 0);
-        const pendingWo = unconfirmedWo.filter((w) => w.tailor === t.id).reduce((s, w) => s + (w.laborCost || 0), 0);
+        let weekPayable = 0;
+        let monthPayable = 0;
+        let totalPayable = 0;
+        for (const o of orders || []) {
+          // Counted the moment the order was received, not when the garment reaches Ready —
+          // in_date is the business date the shop treats as "received". It's a free-form text
+          // column (legacy), so guard against anything that isn't a clean yyyy-mm-dd before
+          // computing a window boundary from it; the garment still counts toward the total
+          // either way, it just can't be dated into a week/month bucket.
+          const receivedUtc = /^\d{4}-\d{2}-\d{2}$/.test(o.inDate || "") ? istDayBoundsUtc(o.inDate).startUtc : null;
+          for (const g of o.garments) {
+            if (g.tailor !== t.id || !g.payableAmount) continue;
+            totalPayable += g.payableAmount;
+            if (receivedUtc && receivedUtc >= weekStartUtc) weekPayable += g.payableAmount;
+            if (receivedUtc && receivedUtc >= monthStartUtc) monthPayable += g.payableAmount;
+          }
+        }
+        for (const w of workOrders || []) {
+          if (w.tailor !== t.id || !w.laborCost) continue;
+          totalPayable += w.laborCost;
+          const startedUtc = w.completedAt || null;
+          if (startedUtc && startedUtc >= weekStartUtc) weekPayable += w.laborCost;
+          if (startedUtc && startedUtc >= monthStartUtc) monthPayable += w.laborCost;
+        }
         return {
           id: t.id,
           name: t.name,
-          weekEarned:
-            computeOrderPieceRatePay(t.id, inWindow(confirmedOrders, weekStartUtc)) + computeWorkOrderPieceRatePay(t.id, woInWindow(confirmedWo, weekStartUtc)),
-          monthEarned:
-            computeOrderPieceRatePay(t.id, inWindow(confirmedOrders, monthStartUtc)) + computeWorkOrderPieceRatePay(t.id, woInWindow(confirmedWo, monthStartUtc)),
-          notYetReady: computeOrderPieceRatePay(t.id, openOrders),
-          pending: Math.round((pendingOrders + pendingWo) * 100) / 100,
-          unpaid: computeOrderPieceRatePay(t.id, unpaidOrders) + computeWorkOrderPieceRatePay(t.id, unpaidWo),
-          allTimeEarned: computeOrderPieceRatePay(t.id, confirmedOrders) + computeWorkOrderPieceRatePay(t.id, confirmedWo),
-          isActive: t.active,
+          weekPayable: Math.round(weekPayable * 100) / 100,
+          monthPayable: Math.round(monthPayable * 100) / 100,
+          totalPayable: Math.round(totalPayable * 100) / 100,
         };
       })
-      .sort((a, b) => b.unpaid - a.unpaid);
+      .sort((a, b) => b.totalPayable - a.totalPayable);
 
     return { rows, unattributed, zeroRatedCount };
   }, [employees, orders, workOrders]);
@@ -135,10 +122,7 @@ export default function TailorPayablesPage() {
   const unattributedTotal = unattributed.reduce((s, u) => s + u.amount, 0);
 
   return (
-    <ReportShell
-      title="Tailor Payables"
-      description="Piece-rate earnings per tailor. 'Not yet ready' is a live estimate that can still change (garment/tailor/rate edits) — it isn't owed until the order reaches Ready or you confirm it. 'Still owed' is what you actually have to pay — it excludes anything already paid out by a payroll run."
-    >
+    <ReportShell title="Tailor Payables" description="What each tailor is owed — counted from the moment their order is received, not just once it's finished.">
       {rows.length === 0 ? (
         <EmptyState icon={Wallet} title="No piece-rate tailors yet" description="Mark a tailor 'Piece-rate eligible' on their employee record to see them here." />
       ) : (
@@ -148,48 +132,25 @@ export default function TailorPayablesPage() {
               <Th>Tailor</Th>
               <Th align="right">This week</Th>
               <Th align="right">This month</Th>
-              <Th align="right">Not yet ready (estimate)</Th>
-              <Th align="right">Awaiting confirmation</Th>
-              <Th align="right">Still owed</Th>
-              <Th align="right">Earned, all-time</Th>
+              <Th align="right">Total payable</Th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {rows.map((r) => (
               <tr key={r.id} className="hover:bg-muted/30">
-                <Td className="font-medium">
-                  {r.name}
-                  {!r.isActive && r.unpaid > 0 && (
-                    <span
-                      className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-red-500/10 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:text-red-400"
-                      title="This employee is inactive — payroll only ever runs for active employees, so this money can never be paid out through a normal run. Reactivate them or settle it manually."
-                    >
-                      <AlertTriangle className="size-2.5" /> Inactive — needs manual settlement
-                    </span>
-                  )}
-                </Td>
-                <Td align="right">{inr(r.weekEarned)}</Td>
-                <Td align="right">{inr(r.monthEarned)}</Td>
-                <Td align="right" className="text-muted-foreground italic">{inr(r.notYetReady)}</Td>
-                <Td align="right" className={r.pending > 0 ? "font-medium text-amber-600 dark:text-amber-400" : undefined}>
-                  {inr(r.pending)}
-                </Td>
-                <Td align="right" className={r.unpaid > 0 ? "font-semibold text-red-600 dark:text-red-400" : "font-semibold"}>
-                  {inr(r.unpaid)}
-                </Td>
-                <Td align="right" className="text-muted-foreground">{inr(r.allTimeEarned)}</Td>
+                <Td className="font-medium">{r.name}</Td>
+                <Td align="right">{inr(r.weekPayable)}</Td>
+                <Td align="right">{inr(r.monthPayable)}</Td>
+                <Td align="right" className="font-semibold">{inr(r.totalPayable)}</Td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr className="border-t bg-muted/30 font-semibold">
               <td className="px-3 py-2.5">Total</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.weekEarned, 0))}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.monthEarned, 0))}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{inr(rows.reduce((s, r) => s + r.notYetReady, 0))}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.pending, 0))}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.unpaid, 0))}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{inr(rows.reduce((s, r) => s + r.allTimeEarned, 0))}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.weekPayable, 0))}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.monthPayable, 0))}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.totalPayable, 0))}</td>
             </tr>
           </tfoot>
         </ReportTable>

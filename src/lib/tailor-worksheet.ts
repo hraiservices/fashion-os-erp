@@ -38,7 +38,7 @@ interface OrderForWorksheet {
   garments: Garment[];
 }
 
-const LINING_LABELS: Record<string, string> = { s: "Simple", h: "Half Lining", f: "Full Lining" };
+const LINING_LABELS: Record<string, string> = { s: "No Lining", h: "Half Lining", f: "Full Lining" };
 
 /** Stable per-garment key — falls back to positional index for garments predating `lineId`,
  *  same fallback preserve_garment_payables() already uses. */

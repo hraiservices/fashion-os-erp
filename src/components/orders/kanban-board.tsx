@@ -175,10 +175,31 @@ export function KanbanBoard({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-3">
+        {/* Board-scroll arrows — desktop-only (matches the board's own sm:block below), always
+            present in this row rather than appearing/disappearing, so the row's width/layout
+            stays put; disabled and dimmed at whichever end there's nothing more to scroll to. */}
+        <button
+          type="button"
+          aria-label="Scroll to previous stage"
+          disabled={scrollState.atStart}
+          onClick={() => scrollByColumn(-1)}
+          className="hidden size-6 shrink-0 items-center justify-center rounded-full border bg-background text-foreground transition-colors hover:bg-muted disabled:opacity-30 disabled:hover:bg-background disabled:cursor-not-allowed sm:flex"
+        >
+          <ChevronLeft className="size-3.5" />
+        </button>
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
           <div className="h-full rounded-full bg-gradient-to-r from-teal-400 to-emerald-500 transition-all duration-500" style={{ width: `${progressPct}%` }} />
         </div>
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{progressPct}% complete</span>
+        <button
+          type="button"
+          aria-label="Scroll to next stage"
+          disabled={scrollState.atEnd}
+          onClick={() => scrollByColumn(1)}
+          className="hidden size-6 shrink-0 items-center justify-center rounded-full border bg-background text-foreground transition-colors hover:bg-muted disabled:opacity-30 disabled:hover:bg-background disabled:cursor-not-allowed sm:flex"
+        >
+          <ChevronRight className="size-3.5" />
+        </button>
       </div>
 
       {/* Mobile: one stage at a time, picked via tab pills — all stages visible at once in an
@@ -208,36 +229,11 @@ export function KanbanBoard({
         {renderColumn(mobileStage)}
       </div>
 
-      {/* Desktop: full multi-column board, horizontal scroll expected here. Round chevron
-          buttons float over the board's left/right edges (Trello/Zoho-style) to step one
-          column at a time — replaces the earlier red hint-bar/custom-scrollbar attempts, which
-          only ever came down to a colored strip with a contrast problem one way or another.
-          Each button only renders while there's actually a column in that direction to reveal;
-          native scroll (wheel/trackpad/scrollbar/drag) still works underneath regardless. */}
-      <div className="relative hidden sm:block">
-        {!scrollState.atStart && (
-          <button
-            type="button"
-            aria-label="Scroll to previous stage"
-            onClick={() => scrollByColumn(-1)}
-            className="absolute left-1 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border bg-background text-foreground shadow-md transition-colors hover:bg-muted"
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-        )}
-        <div id="kanban-board-scroll" ref={boardScrollRef} className="flex gap-3 overflow-x-auto pb-4">
-          {STAGES.map((stage) => renderColumn(stage, "w-72 shrink-0"))}
-        </div>
-        {!scrollState.atEnd && (
-          <button
-            type="button"
-            aria-label="Scroll to next stage"
-            onClick={() => scrollByColumn(1)}
-            className="absolute right-1 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border bg-background text-foreground shadow-md transition-colors hover:bg-muted"
-          >
-            <ChevronRight className="size-4" />
-          </button>
-        )}
+      {/* Desktop: full multi-column board, horizontal scroll expected here — the arrow buttons
+          that step through it live up in the progress-bar row above, not floating over the
+          board itself. Native scroll (wheel/trackpad/scrollbar/drag) still works regardless. */}
+      <div id="kanban-board-scroll" ref={boardScrollRef} className="hidden gap-3 overflow-x-auto pb-4 sm:flex">
+        {STAGES.map((stage) => renderColumn(stage, "w-72 shrink-0"))}
       </div>
     </div>
   );

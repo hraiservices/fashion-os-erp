@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { STAGES, STAGE_META, type Stage } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { OrderCard } from "@/components/orders/order-card";
@@ -43,6 +43,30 @@ export function KanbanBoard({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<Stage | null>(null);
   const [mobileStage, setMobileStage] = useState<Stage>(STAGES[0]);
+  const boardScrollRef = useRef<HTMLDivElement>(null);
+  // Whether the desktop board has more columns to the right than currently visible — drives the
+  // red "Scroll to see next stage" hint strip below. Recomputed on mount, on every scroll of the
+  // board itself, and on window resize (narrowing the window can newly reveal overflow that
+  // wasn't there before, and vice versa).
+  const [canScrollMore, setCanScrollMore] = useState(false);
+
+  useEffect(() => {
+    const el = boardScrollRef.current;
+    if (!el) return;
+    function update() {
+      if (!el) return;
+      // 4px slack — some browsers report scrollWidth a hair larger than clientWidth even when
+      // fully scrolled, which would otherwise leave the hint stuck on forever.
+      setCanScrollMore(el.scrollWidth - el.clientWidth - el.scrollLeft > 4);
+    }
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      el.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [orders]);
   // The state above drives rendering, but dragover can fire before React has flushed the
   // dragstart update — so the handlers read the id from this ref, which is set synchronously.
   const draggingRef = useRef<string | null>(null);
@@ -172,8 +196,18 @@ export function KanbanBoard({
         {renderColumn(mobileStage)}
       </div>
 
+      {/* Red hint strip — thicker than the progress bar above it, and its own color so it reads
+          as an instruction, not another progress indicator. Desktop-only (matches the board's
+          own sm:flex) and only shown while there's actually more board to the right; disappears
+          once scrolled all the way, rather than nagging when there's nothing left to see. */}
+      {canScrollMore && (
+        <div className="hidden h-7 items-center justify-center gap-1 rounded-full bg-red-600 text-xs font-semibold text-white sm:flex">
+          Scroll to see next stage <span aria-hidden>›</span>
+        </div>
+      )}
+
       {/* Desktop: full multi-column board, horizontal scroll expected here. */}
-      <div className="hidden gap-3 overflow-x-auto pb-4 sm:flex">
+      <div ref={boardScrollRef} className="hidden gap-3 overflow-x-auto pb-4 sm:flex">
         {STAGES.map((stage) => renderColumn(stage, "w-72 shrink-0"))}
       </div>
     </div>

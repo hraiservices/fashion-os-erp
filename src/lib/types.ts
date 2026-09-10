@@ -1427,3 +1427,24 @@ export function mapMiniSheetRow(r: MiniSheetRow): MiniSheet {
     updatedAt: r.updated_at,
   };
 }
+
+/** Desktop utility rail's To-do icon — a personal checklist per account. */
+export type TodoRow = Database["public"]["Tables"]["user_todos"]["Row"];
+
+export interface Todo {
+  id: string;
+  text: string;
+  done: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function mapTodoRow(r: TodoRow): Todo {
+  return {
+    id: r.id,
+    text: r.text || "",
+    done: !!r.done,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}

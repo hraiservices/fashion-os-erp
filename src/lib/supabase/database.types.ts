@@ -298,6 +298,21 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["user_scratch_notes"]["Row"]>;
         Relationships: [];
       };
+      user_mini_sheets: {
+        Row: {
+          id: string;
+          user_email: string;
+          name: string;
+          cells: Record<string, string>;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["user_mini_sheets"]["Row"]> & {
+          user_email: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["user_mini_sheets"]["Row"]>;
+        Relationships: [];
+      };
       admin_notifications: {
         Row: {
           id: number;

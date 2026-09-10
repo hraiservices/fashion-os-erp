@@ -87,7 +87,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
+      <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-40 w-full" />
       </div>
@@ -103,11 +103,13 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
+    <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
       <Link href="/employees" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" /> Employees
       </Link>
 
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
+      <div className="space-y-4 lg:col-span-4">
       <div className="rounded-xl border bg-card p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -196,7 +198,9 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
           )}
         </section>
       )}
+      </div>
 
+      <div className="space-y-4 lg:col-span-8">
       <EmployeeLeaveSection employeeId={id} />
 
       <section className="rounded-xl border bg-card">
@@ -218,6 +222,8 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
           </ul>
         )}
       </section>
+      </div>
+      </div>
     </div>
   );
 }

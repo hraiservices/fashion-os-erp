@@ -25,7 +25,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
+      <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-40 w-full" />
       </div>
@@ -41,11 +41,13 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
+    <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
       <Link href="/purchases/vendors" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" /> Vendors
       </Link>
 
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
+      <div className="space-y-4 lg:col-span-4">
       <div className="rounded-xl border bg-card p-4 sm:p-5">
         <h1 className="text-xl font-semibold tracking-tight">{vendor.name}</h1>
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -86,7 +88,9 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
           </div>
         </div>
       </div>
+      </div>
 
+      <div className="space-y-4 lg:col-span-8">
       <section className="rounded-xl border bg-card">
         <div className="border-b px-4 py-3">
           <h2 className="text-sm font-semibold">Bills ({bills.length})</h2>
@@ -143,6 +147,8 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
           </ul>
         )}
       </section>
+      </div>
+      </div>
     </div>
   );
 }

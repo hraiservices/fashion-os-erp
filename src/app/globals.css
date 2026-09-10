@@ -605,6 +605,73 @@
   }
 }
 
+/* Sign-in progress overlay — dark "AI processing" aesthetic, deliberately distinct from the
+   light login card behind it: drifting mesh blobs, a spinning dual conic-gradient ring with
+   orbiting particles around the logo, shimmering gradient text, and a shimmer sweep on the
+   progress bar. Scoped to their own classes for the same reason as the login-* set above. */
+@keyframes ai-mesh-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-4%, 5%) scale(1.15); }
+}
+@keyframes ai-ring-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes ai-ring-spin-reverse {
+  to { transform: rotate(-360deg); }
+}
+@keyframes ai-core-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.06); opacity: 0.85; }
+}
+@keyframes ai-orbit-dot {
+  from { transform: rotate(0deg) translateX(var(--orbit-radius, 48px)) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(var(--orbit-radius, 48px)) rotate(-360deg); }
+}
+@keyframes ai-text-shimmer {
+  to { background-position: 200% 50%; }
+}
+@keyframes ai-bar-shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(350%); }
+}
+.animate-ai-mesh {
+  animation: ai-mesh-drift 10s ease-in-out infinite;
+}
+.animate-ai-mesh-slow {
+  animation: ai-mesh-drift 14s ease-in-out infinite reverse;
+}
+.animate-ai-ring-spin {
+  animation: ai-ring-spin 3s linear infinite;
+}
+.animate-ai-ring-spin-reverse {
+  animation: ai-ring-spin-reverse 4.5s linear infinite;
+}
+.animate-ai-core-pulse {
+  animation: ai-core-pulse 2s ease-in-out infinite;
+}
+.animate-ai-orbit-dot {
+  animation: ai-orbit-dot 3.2s linear infinite;
+}
+.animate-ai-text-shimmer {
+  background-size: 200% auto;
+  animation: ai-text-shimmer 2.4s linear infinite;
+}
+.animate-ai-bar-shimmer {
+  animation: ai-bar-shimmer 1.3s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-ai-mesh,
+  .animate-ai-mesh-slow,
+  .animate-ai-ring-spin,
+  .animate-ai-ring-spin-reverse,
+  .animate-ai-core-pulse,
+  .animate-ai-orbit-dot,
+  .animate-ai-text-shimmer,
+  .animate-ai-bar-shimmer {
+    animation: none;
+  }
+}
+
 /* App-wide slim scrollbar — replaces the browser's default (which can render as a bulky
    classic Windows-style scrollbar with arrow buttons in some embedded webviews) with a
    minimal themed one everywhere, not just the elements that opt into scrollbar-hide below. */

@@ -98,7 +98,7 @@ export function RatesSection() {
 
         <div className="grid grid-cols-12 items-center gap-2 pt-2">
           <Input className="col-span-4" placeholder="New garment type" value={newType} onChange={(e) => setNewType(e.target.value)} />
-          <NumberInput className="col-span-2" placeholder="Simple" value={newS} onChange={setNewS} />
+          <NumberInput className="col-span-2" placeholder="No Lining" value={newS} onChange={setNewS} />
           <NumberInput className="col-span-2" placeholder="Half" value={newH} onChange={setNewH} />
           <NumberInput className="col-span-2" placeholder="Full" value={newF} onChange={setNewF} />
           <Button className="col-span-2" onClick={addGarment}>

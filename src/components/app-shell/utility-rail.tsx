@@ -2,19 +2,52 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { Sparkles, StickyNote, Settings, Calculator as CalculatorIcon, History, Keyboard, ChevronLeft, ChevronRight, Delete, Plus, MoreVertical, Copy, Trash2, Check, Table2, Pencil } from "lucide-react";
+import {
+  Sparkles,
+  StickyNote,
+  Settings,
+  Calculator as CalculatorIcon,
+  History,
+  Keyboard,
+  ChevronLeft,
+  ChevronRight,
+  Delete,
+  Plus,
+  MoreVertical,
+  Copy,
+  Trash2,
+  Check,
+  Table2,
+  Pencil,
+  Ruler,
+  CalendarClock,
+  LayoutDashboard,
+  ListChecks,
+  QrCode,
+  Loader2,
+} from "lucide-react";
+import QRCode from "qrcode";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { isModuleEnabled, DEFAULT_ENTITLEMENTS } from "@/lib/entitlements";
 import { useNotes } from "@/hooks/use-notes";
 import { useMiniSheets } from "@/hooks/use-mini-sheets";
-import { NOTE_COLORS, type Note, type NoteColor, type MiniSheet } from "@/lib/types";
+import { useTodos } from "@/hooks/use-todos";
+import { useOrders } from "@/hooks/use-orders";
+import { useAllOrderPayments } from "@/hooks/use-order-payments";
+import { useAllSalesPayments } from "@/hooks/use-sales-payments";
+import { NOTE_COLORS, type Note, type NoteColor, type MiniSheet, type Todo } from "@/lib/types";
 import { COLS, ROWS, cellId, evalSheet, normalizeCells, autoRangeAbove, type CellData } from "@/lib/mini-sheet";
+import { LENGTH_UNITS, LENGTH_UNIT_LABELS, convertLength, type LengthUnit } from "@/lib/unit-convert";
+import { computeTodaySnapshot } from "@/lib/today-snapshot";
+import { toISODate } from "@/components/ui/date-picker";
+import { inr, fmtDate } from "@/lib/format";
 import { useCopilotOpen } from "@/components/app-shell/copilot-context";
 import { buildSupportWhatsAppHref } from "@/components/app-shell/copilot-bubble";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -33,6 +66,11 @@ const TINTS = {
   indigo: "text-indigo-500 hover:bg-indigo-500/10",
   rose: "text-rose-500 hover:bg-rose-500/10",
   emerald: "text-emerald-500 hover:bg-emerald-500/10",
+  cyan: "text-cyan-500 hover:bg-cyan-500/10",
+  orange: "text-orange-500 hover:bg-orange-500/10",
+  red: "text-red-500 hover:bg-red-500/10",
+  fuchsia: "text-fuchsia-500 hover:bg-fuchsia-500/10",
+  slate: "text-slate-500 hover:bg-slate-500/10",
 } as const;
 type Tint = keyof typeof TINTS;
 
@@ -731,6 +769,285 @@ function SheetsPopover() {
   );
 }
 
+/** Unit converter — tailoring measurements are almost always inches/cm, so this shows one value
+ *  converted into every supported unit at once rather than a single from/to pair; pick which
+ *  unit the typed number is IN via the small selector above the input. */
+function UnitConverterWidget() {
+  const [from, setFrom] = useState<LengthUnit>("in");
+  const [raw, setRaw] = useState("1");
+  const value = parseFloat(raw);
+  const converted = Number.isFinite(value) ? convertLength(value, from) : null;
+
+  return (
+    <div className="w-64 space-y-3 p-1">
+      <div className="flex items-center gap-1.5">
+        {LENGTH_UNITS.map((u) => (
+          <Button key={u} type="button" variant={from === u ? "default" : "outline"} size="sm" className="h-7 flex-1 px-1 text-xs" onClick={() => setFrom(u)}>
+            {u}
+          </Button>
+        ))}
+      </div>
+      <Input
+        type="number"
+        inputMode="decimal"
+        value={raw}
+        onChange={(e) => setRaw(e.target.value)}
+        placeholder={`Value in ${LENGTH_UNIT_LABELS[from].toLowerCase()}`}
+        className="text-right tabular-nums"
+      />
+      <div className="space-y-1 rounded-lg border bg-muted/30 p-2">
+        {LENGTH_UNITS.map((u) => (
+          <div key={u} className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">{LENGTH_UNIT_LABELS[u]}</span>
+            <span className={cn("tabular-nums", u === from && "font-semibold")}>{converted ? converted[u].toFixed(3).replace(/\.?0+$/, "") || "0" : "—"}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Delivery date estimator — pick a start date + turnaround days, get the promised delivery
+ *  date. Deliberately the same "start date + N days" model the New Order form already uses,
+ *  not a per-garment-type lookup (no such settings table exists). */
+function DeliveryEstimatorWidget() {
+  const [startDate, setStartDate] = useState(() => toISODate(new Date()));
+  const [days, setDays] = useState("3");
+  const n = parseInt(days, 10);
+  const result = Number.isFinite(n) && n >= 0 ? toISODate(new Date(new Date(startDate).getTime() + n * 86_400_000)) : null;
+
+  return (
+    <div className="w-64 space-y-3 p-1">
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Order date</label>
+        <input
+          type="date"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        />
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Turnaround (days)</label>
+        <Input type="number" inputMode="numeric" min={0} value={days} onChange={(e) => setDays(e.target.value)} />
+      </div>
+      <div className="rounded-lg border bg-muted/30 p-3 text-center">
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Promised delivery</p>
+        <p className="mt-0.5 text-lg font-semibold">{result ? fmtDate(result) : "—"}</p>
+      </div>
+    </div>
+  );
+}
+
+/** Today's snapshot — orders due today, orders with money still owed as of today (including
+ *  overdue), and what's been collected today across both stitching-order and sales payments.
+ *  Reads off the same cached useOrders()/useAllOrderPayments()/useAllSalesPayments() queries
+ *  already used elsewhere in the app, so opening this doesn't fire any extra requests beyond
+ *  the first time those queries load. Visible to anyone (same as Notes/Calculator/Sheets) — the
+ *  figures here are operational (due dates, balances), not the admin-only profit numbers. */
+function TodaySnapshotPopover() {
+  const { data: orders, isLoading: ordersLoading } = useOrders();
+  const { data: orderPayments, isLoading: opLoading } = useAllOrderPayments();
+  const { data: salesPayments, isLoading: spLoading } = useAllSalesPayments();
+  const loading = ordersLoading || opLoading || spLoading;
+
+  const snapshot = useMemo(
+    () => computeTodaySnapshot(orders || [], orderPayments || [], salesPayments || []),
+    [orders, orderPayments, salesPayments],
+  );
+
+  return (
+    <div className="w-72 space-y-2.5 p-1">
+      <p className="px-1 text-xs font-semibold text-muted-foreground">Today&apos;s snapshot</p>
+      {loading ? (
+        <p className="px-2 py-6 text-center text-xs text-muted-foreground">Loading…</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-1.5">
+            <div className="rounded-lg border bg-muted/30 p-2 text-center">
+              <p className="text-lg font-semibold tabular-nums">{snapshot.dueToday.length}</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Due today</p>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-2 text-center">
+              <p className="text-lg font-semibold tabular-nums text-amber-600 dark:text-amber-400">{snapshot.pendingCount}</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Balance due</p>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-2 text-center">
+              <p className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{inr(snapshot.collectedToday)}</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Collected</p>
+            </div>
+          </div>
+          {snapshot.pendingCount > 0 && (
+            <p className="px-1 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">{inr(snapshot.pendingTotal)}</span> owed across {snapshot.pendingCount} order{snapshot.pendingCount === 1 ? "" : "s"} due today or overdue.
+            </p>
+          )}
+          {snapshot.dueToday.length > 0 ? (
+            <ul className="max-h-56 space-y-1 overflow-y-auto">
+              {snapshot.dueToday.map((o) => (
+                <li key={o.id}>
+                  <Link
+                    href={`/orders/${o.id}`}
+                    className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-muted/60"
+                  >
+                    <span className="truncate">{o.name}</span>
+                    {o.balance > 0 && <span className="shrink-0 text-xs tabular-nums text-amber-600 dark:text-amber-400">{inr(o.balance)}</span>}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="px-2 py-4 text-center text-xs text-muted-foreground">Nothing due today.</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/** To-do popover — a small personal checklist, same rail-slot pattern as Notes (one account,
+ *  saved server-side, follows the user across devices). Toggling/adding/deleting all save
+ *  immediately — there's no free-text debounce to wait on since these are short items, not
+ *  paragraphs. */
+function TodoPopover() {
+  const { data: todos, isLoading, create, update, remove } = useTodos();
+  const [draft, setDraft] = useState("");
+
+  function addTodo() {
+    const text = draft.trim();
+    if (!text) return;
+    create.mutate(text);
+    setDraft("");
+  }
+
+  const pending = (todos || []).filter((t) => !t.done);
+  const done = (todos || []).filter((t) => t.done);
+
+  return (
+    <div className="flex max-h-[70vh] w-80 flex-col p-1">
+      <div className="flex items-center gap-1.5 pb-2">
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addTodo()}
+          placeholder="Add a to-do…"
+          className="h-8"
+        />
+        <Button type="button" variant="outline" size="icon-sm" aria-label="Add to-do" disabled={create.isPending || !draft.trim()} onClick={addTodo}>
+          <Plus className="size-3.5" />
+        </Button>
+      </div>
+      <div className="space-y-0.5 overflow-y-auto">
+        {isLoading && <p className="px-2 py-6 text-center text-xs text-muted-foreground">Loading…</p>}
+        {!isLoading && !todos?.length && <p className="px-2 py-6 text-center text-xs text-muted-foreground">Nothing to do — add one above.</p>}
+        {pending.map((t) => (
+          <TodoRow key={t.id} todo={t} onToggle={() => update.mutate({ id: t.id, done: true })} onDelete={() => remove.mutate(t.id)} />
+        ))}
+        {done.length > 0 && (
+          <>
+            <p className="px-2 pt-2 text-[10px] uppercase tracking-wide text-muted-foreground">Done</p>
+            {done.map((t) => (
+              <TodoRow key={t.id} todo={t} onToggle={() => update.mutate({ id: t.id, done: false })} onDelete={() => remove.mutate(t.id)} />
+            ))}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TodoRow({ todo, onToggle, onDelete }: { todo: Todo; onToggle: () => void; onDelete: () => void }) {
+  return (
+    <div className="group flex items-center gap-2 rounded-lg px-1.5 py-1.5 hover:bg-muted/50">
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={todo.done}
+        aria-label={todo.done ? "Mark not done" : "Mark done"}
+        onClick={onToggle}
+        className={cn(
+          "flex size-4 shrink-0 items-center justify-center rounded border",
+          todo.done ? "border-primary bg-primary text-primary-foreground" : "border-input",
+        )}
+      >
+        {todo.done && <Check className="size-3" />}
+      </button>
+      <span className={cn("min-w-0 flex-1 truncate text-sm", todo.done && "text-muted-foreground line-through")}>{todo.text}</span>
+      <button
+        type="button"
+        aria-label="Delete to-do"
+        onClick={onDelete}
+        className="shrink-0 rounded p-0.5 text-muted-foreground opacity-0 hover:bg-black/10 hover:text-destructive group-hover:opacity-100"
+      >
+        <Trash2 className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
+/** QR quick-share — paste any text/link (a track link, a UPI link, anything) and get a QR code
+ *  someone else can scan with their own phone. Deliberately generate-only: the app has nowhere
+ *  yet that a printed/displayed code needs scanning back in, so a camera-scanning mode would be
+ *  built with no real destination. */
+function QrSharePopover() {
+  const [text, setText] = useState("");
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const genIdRef = useRef(0);
+
+  // Debounced from the textarea's own onChange (same pattern as NoteCard's autosave), not a
+  // useEffect keyed on `text` — kicking off the async QRCode.toDataURL() call from inside an
+  // effect body means the "generating" flag it sets would be a synchronous setState call in
+  // that effect, which cascades an extra render for every keystroke.
+  function onChangeText(value: string) {
+    setText(value);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setDataUrl(null);
+      setGenerating(false);
+      return;
+    }
+    setGenerating(true);
+    const myGenId = ++genIdRef.current;
+    timerRef.current = setTimeout(() => {
+      QRCode.toDataURL(trimmed, { margin: 1, width: 220 })
+        .then((url) => {
+          if (genIdRef.current === myGenId) setDataUrl(url);
+        })
+        .catch(() => {
+          if (genIdRef.current === myGenId) setDataUrl(null);
+        })
+        .finally(() => {
+          if (genIdRef.current === myGenId) setGenerating(false);
+        });
+    }, 300);
+  }
+
+  return (
+    <div className="w-64 space-y-3 p-1">
+      <textarea
+        value={text}
+        onChange={(e) => onChangeText(e.target.value)}
+        placeholder="Paste a link or type any text…"
+        rows={2}
+        className="w-full resize-none rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+      />
+      <div className="flex aspect-square items-center justify-center rounded-lg border bg-muted/30 p-3">
+        {generating ? (
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        ) : dataUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- a generated data: URL, not an optimizable remote image
+          <img src={dataUrl} alt="QR code" className="size-full object-contain" />
+        ) : (
+          <p className="px-4 text-center text-xs text-muted-foreground">Type or paste something above to generate a QR code.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function HelpPopover({ waHref }: { waHref: string }) {
   return (
     <div className="w-72 space-y-2.5 p-1">
@@ -797,6 +1114,26 @@ export function UtilityRail({ collapsed, onToggleCollapsed }: { collapsed: boole
 
           <RailPopoverButton label="Sheets" tint="emerald" icon={<Table2 className="size-[18px]" />}>
             <SheetsPopover />
+          </RailPopoverButton>
+
+          <RailPopoverButton label="Today's snapshot" tint="red" icon={<LayoutDashboard className="size-[18px]" />}>
+            <TodaySnapshotPopover />
+          </RailPopoverButton>
+
+          <RailPopoverButton label="To-do" tint="fuchsia" icon={<ListChecks className="size-[18px]" />}>
+            <TodoPopover />
+          </RailPopoverButton>
+
+          <RailPopoverButton label="Unit converter" tint="cyan" icon={<Ruler className="size-[18px]" />}>
+            <UnitConverterWidget />
+          </RailPopoverButton>
+
+          <RailPopoverButton label="Delivery estimator" tint="orange" icon={<CalendarClock className="size-[18px]" />}>
+            <DeliveryEstimatorWidget />
+          </RailPopoverButton>
+
+          <RailPopoverButton label="Quick-share QR" tint="slate" icon={<QrCode className="size-[18px]" />}>
+            <QrSharePopover />
           </RailPopoverButton>
 
           <RailButton label="Activity log" tint="teal" href="/activity-log">

@@ -313,6 +313,21 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["user_mini_sheets"]["Row"]>;
         Relationships: [];
       };
+      user_todos: {
+        Row: {
+          id: string;
+          user_email: string;
+          text: string;
+          done: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["user_todos"]["Row"]> & {
+          user_email: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["user_todos"]["Row"]>;
+        Relationships: [];
+      };
       admin_notifications: {
         Row: {
           id: number;

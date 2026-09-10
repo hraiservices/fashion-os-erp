@@ -245,10 +245,10 @@ export function KanbanBoard({
       {metrics.maxScroll > 0 && (
         <div
           ref={trackRef}
-          className="relative hidden h-7 touch-none rounded-full bg-red-600 transition-opacity duration-200 sm:block"
+          className="relative hidden h-3.5 touch-none rounded-full bg-red-600 transition-opacity duration-200 sm:block"
           style={{ opacity: barOpacity }}
         >
-          <p className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1 text-xs font-semibold text-white">
+          <p className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1 text-[10px] font-normal leading-none text-black">
             Scroll to see next stage <span aria-hidden>›</span>
           </p>
           <div

@@ -137,7 +137,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
+      <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
         <Skeleton className="h-28 w-full" />
         <Skeleton className="h-48 w-full" />
       </div>
@@ -207,7 +207,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
+    <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <Link href="/orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" /> Orders
@@ -238,6 +238,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
+      <div className="space-y-4 lg:col-span-4">
       {/* Header */}
       <div className="overflow-hidden rounded-xl border bg-card">
         <div className={cn("h-1", STAGE_STYLE[order.status].accent)} />
@@ -439,7 +441,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           )}
         </div>
       </div>
+      </div>
 
+      <div className="space-y-4 lg:col-span-8">
       <AlertDialog open={confirmAdvanceOpen} onOpenChange={setConfirmAdvanceOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -680,6 +684,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </ol>
         )}
       </section>
+
+      </div>
+      </div>
 
       <PaymentModal order={order} open={paymentOpen} onOpenChange={setPaymentOpen} />
       <ReworkDialog orderId={id} open={reworkDialogOpen} onOpenChange={setReworkDialogOpen} />

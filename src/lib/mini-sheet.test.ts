@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { evalSheet } from "@/lib/mini-sheet";
+import { evalSheet, normalizeCell, normalizeCells, autoRangeAbove } from "@/lib/mini-sheet";
 
 describe("evalSheet", () => {
   it("passes literal text/numbers through unchanged", () => {
@@ -50,5 +50,57 @@ describe("evalSheet", () => {
   it("treats an empty cell reference as zero", () => {
     const out = evalSheet({ A1: "=A2+5" });
     expect(out.A1).toBe("5");
+  });
+
+  it("evaluates PRODUCT over a range", () => {
+    const out = evalSheet({ A1: "2", A2: "3", A3: "4", B1: "=PRODUCT(A1:A3)" });
+    expect(out.B1).toBe("24");
+  });
+});
+
+describe("normalizeCell / normalizeCells", () => {
+  it("upgrades a legacy plain-string cell to CellData", () => {
+    expect(normalizeCell("=A1+1")).toEqual({ value: "=A1+1" });
+  });
+
+  it("passes through an already-structured cell, coercing bad fields away", () => {
+    expect(normalizeCell({ value: "5", bold: true, color: "#ff0000", junk: 123 })).toEqual({
+      value: "5",
+      bold: true,
+      italic: false,
+      color: "#ff0000",
+      bg: undefined,
+    });
+  });
+
+  it("treats garbage as an empty cell", () => {
+    expect(normalizeCell(42)).toEqual({ value: "" });
+    expect(normalizeCell(null)).toEqual({ value: "" });
+  });
+
+  it("normalizes a whole mixed legacy/structured sheet", () => {
+    const out = normalizeCells({ A1: "10", B1: { value: "20", italic: true } });
+    expect(out.A1).toEqual({ value: "10" });
+    expect(out.B1.italic).toBe(true);
+  });
+});
+
+describe("autoRangeAbove", () => {
+  it("returns null for row 1 (nothing above)", () => {
+    expect(autoRangeAbove("A1", {})).toBeNull();
+  });
+
+  it("returns null when the cell directly above is blank", () => {
+    expect(autoRangeAbove("A3", { A1: { value: "5" } })).toBeNull();
+  });
+
+  it("finds the contiguous run of filled cells directly above, stopping at the first blank", () => {
+    const cells = { A1: { value: "1" }, A2: { value: "2" }, A3: { value: "3" }, A5: { value: "9" } };
+    expect(autoRangeAbove("A4", cells)).toBe("A1:A3");
+  });
+
+  it("stops at the first blank going up, not the whole column", () => {
+    const cells = { A1: { value: "1" }, A3: { value: "3" } };
+    expect(autoRangeAbove("A4", cells)).toBe("A3:A3");
   });
 });

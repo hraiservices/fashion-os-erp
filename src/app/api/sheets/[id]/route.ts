@@ -4,9 +4,19 @@ import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { mapMiniSheetRow } from "@/lib/types";
 
+const cellDataSchema = z.object({
+  value: z.string().max(2000),
+  bold: z.boolean().optional(),
+  italic: z.boolean().optional(),
+  color: z.string().max(20).optional(),
+  bg: z.string().max(20).optional(),
+});
+
 const patchSchema = z.object({
   name: z.string().trim().min(1).max(60).optional(),
-  cells: z.record(z.string(), z.string().max(2000)).optional(),
+  // A cell is either a legacy plain string (unformatted) or a structured {value,...} object once
+  // formatting has been applied — see lib/mini-sheet.ts's normalizeCell.
+  cells: z.record(z.string(), z.union([z.string().max(2000), cellDataSchema])).optional(),
 });
 
 /** PATCH/DELETE always scoped to `user_email = current user` — never trusts the id alone, so

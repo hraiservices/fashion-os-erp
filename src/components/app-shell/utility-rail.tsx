@@ -10,7 +10,7 @@ import { isModuleEnabled, DEFAULT_ENTITLEMENTS } from "@/lib/entitlements";
 import { useNotes } from "@/hooks/use-notes";
 import { useMiniSheets } from "@/hooks/use-mini-sheets";
 import { NOTE_COLORS, type Note, type NoteColor, type MiniSheet } from "@/lib/types";
-import { COLS, ROWS, cellId, evalSheet } from "@/lib/mini-sheet";
+import { COLS, ROWS, cellId, evalSheet, normalizeCells, autoRangeAbove, type CellData } from "@/lib/mini-sheet";
 import { useCopilotOpen } from "@/components/app-shell/copilot-context";
 import { buildSupportWhatsAppHref } from "@/components/app-shell/copilot-bubble";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
@@ -350,23 +350,25 @@ function CalculatorWidget() {
  *  behavior for Tab, Enter handled here), matching how a real spreadsheet feels to move through. */
 function SheetCell({
   id,
-  raw,
+  data,
   display,
   isError,
-  onCommit,
+  onCommitValue,
+  onSelect,
 }: {
   id: string;
-  raw: string;
+  data: CellData;
   display: string;
   isError: boolean;
-  onCommit: (value: string) => void;
+  onCommitValue: (value: string) => void;
+  onSelect: () => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(raw);
+  const [value, setValue] = useState(data.value);
 
   function commitIfChanged() {
     setEditing(false);
-    if (value !== raw) onCommit(value);
+    if (value !== data.value) onCommitValue(value);
   }
 
   function focusCell(targetId: string) {
@@ -379,8 +381,9 @@ function SheetCell({
       id={`sheet-cell-${id}`}
       value={editing ? value : display}
       onFocus={() => {
-        setValue(raw);
+        setValue(data.value);
         setEditing(true);
+        onSelect();
       }}
       onChange={(e) => setValue(e.target.value)}
       onBlur={commitIfChanged}
@@ -391,9 +394,15 @@ function SheetCell({
           const m = /^([A-H])([0-9]+)$/.exec(id);
           if (m) focusCell(cellId(m[1], Math.min(ROWS, parseInt(m[2], 10) + 1)));
         } else if (e.key === "Escape") {
-          setValue(raw);
+          setValue(data.value);
           (e.target as HTMLInputElement).blur();
         }
+      }}
+      style={{
+        fontWeight: data.bold ? 700 : undefined,
+        fontStyle: data.italic ? "italic" : undefined,
+        color: !editing && !isError ? data.color : undefined,
+        backgroundColor: !editing ? data.bg : undefined,
       }}
       className={cn(
         "h-7 w-16 shrink-0 border border-border/60 bg-background px-1 text-right text-xs tabular-nums outline-none focus:relative focus:z-10 focus:border-primary focus:ring-1 focus:ring-primary",
@@ -403,23 +412,47 @@ function SheetCell({
   );
 }
 
+const SHEET_TEXT_COLORS = ["#0f172a", "#dc2626", "#16a34a", "#2563eb", "#9333ea", "#ea580c"];
+const SHEET_BG_COLORS = ["", "#fef9c3", "#dcfce7", "#dbeafe", "#fce7f3", "#fed7aa"];
+
 /** Sheets popover — a small multi-sheet spreadsheet (8 columns × 15 rows, basic arithmetic with
- *  cell refs and SUM/AVERAGE/MIN/MAX over a range) for quick tallies that need more structure
- *  than a sticky note but don't warrant leaving the app. Each sheet autosaves 600ms after the
- *  last edit, same debounce convention as NoteCard. */
+ *  cell refs and SUM/PRODUCT/AVERAGE/MIN/MAX over a range) for quick tallies that need more
+ *  structure than a sticky note but don't warrant leaving the app.
+ *
+ *  Cell edits apply to local `cells` state immediately (so the grid never waits on a network
+ *  round trip to show what was just typed) and are pushed to the server 600ms after the last
+ *  edit, same debounce convention as NoteCard — the earlier version skipped the local state and
+ *  read straight from the last server response, which both delayed the display by a full
+ *  save+refetch cycle AND could drop a rapid second edit: two edits within the debounce window
+ *  each rebuilt their "next cells" from the same stale server snapshot, so the later save
+ *  silently overwrote the earlier one. */
 function SheetsPopover() {
   const { data: sheets, isLoading, create, update, remove } = useMiniSheets();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
+  const [selectedCell, setSelectedCell] = useState<string | null>(null);
+  const [cells, setCells] = useState<Record<string, CellData>>({});
+  const [loadedSheetId, setLoadedSheetId] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingCellsRef = useRef<Record<string, string> | null>(null);
+  const pendingCellsRef = useRef<Record<string, CellData> | null>(null);
 
   const active = sheets?.find((s) => s.id === activeId) ?? sheets?.[0] ?? null;
-  const computed = useMemo(() => (active ? evalSheet(active.cells) : {}), [active]);
 
-  function scheduleSave(sheet: MiniSheet, cells: Record<string, string>) {
-    pendingCellsRef.current = cells;
+  // Reload local `cells` from the server only when switching to a different sheet — never on a
+  // background refetch of the sheet currently being edited, which would stomp the local
+  // authoritative copy with a slightly stale server echo. Adjusting state during render (rather
+  // than in an effect) on a prop/id change is the pattern React itself recommends for this.
+  if (active && active.id !== loadedSheetId) {
+    setLoadedSheetId(active.id);
+    setCells(normalizeCells(active.cells));
+  }
+
+  const rawValues = useMemo(() => Object.fromEntries(Object.entries(cells).map(([k, c]) => [k, c.value])), [cells]);
+  const computed = useMemo(() => evalSheet(rawValues), [rawValues]);
+
+  function scheduleSave(sheet: MiniSheet, nextCells: Record<string, CellData>) {
+    pendingCellsRef.current = nextCells;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       if (pendingCellsRef.current) update.mutate({ id: sheet.id, cells: pendingCellsRef.current });
@@ -427,11 +460,32 @@ function SheetsPopover() {
     }, 600);
   }
 
-  function onCellCommit(sheet: MiniSheet, ref: string, value: string) {
-    const nextCells = { ...sheet.cells };
-    if (value.trim() === "") delete nextCells[ref];
-    else nextCells[ref] = value;
-    scheduleSave(sheet, nextCells);
+  function patchCell(ref: string, patch: Partial<CellData>) {
+    if (!active) return;
+    setCells((prev) => {
+      const merged: CellData = { ...(prev[ref] || { value: "" }), ...patch };
+      const next = { ...prev };
+      if (!merged.value.trim() && !merged.bold && !merged.italic && !merged.color && !merged.bg) delete next[ref];
+      else next[ref] = merged;
+      scheduleSave(active, next);
+      return next;
+    });
+  }
+
+  function toggleSelectedFormat(key: "bold" | "italic") {
+    if (!selectedCell) return;
+    patchCell(selectedCell, { [key]: !cells[selectedCell]?.[key] });
+  }
+
+  function setSelectedColor(key: "color" | "bg", value: string) {
+    if (!selectedCell) return;
+    patchCell(selectedCell, { [key]: value || undefined });
+  }
+
+  function insertAutoFormula(fn: "SUM" | "PRODUCT") {
+    if (!selectedCell) return;
+    const range = autoRangeAbove(selectedCell, cells);
+    patchCell(selectedCell, { value: range ? `=${fn}(${range})` : `=${fn}()` });
   }
 
   async function addSheet() {
@@ -452,8 +506,10 @@ function SheetsPopover() {
     }
   }
 
+  const selectedData = selectedCell ? cells[selectedCell] : undefined;
+
   return (
-    <div className="w-[540px] space-y-2 p-1">
+    <div className="w-[560px] space-y-2 p-1">
       <div className="flex items-center gap-1.5">
         {renaming ? (
           <input
@@ -507,6 +563,125 @@ function SheetsPopover() {
         )}
       </div>
 
+      {active && (
+        <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-muted/30 p-1">
+          <Button
+            type="button"
+            variant={selectedData?.bold ? "default" : "outline"}
+            size="icon-sm"
+            aria-label="Bold"
+            disabled={!selectedCell}
+            onClick={() => toggleSelectedFormat("bold")}
+            className="font-bold"
+          >
+            B
+          </Button>
+          <Button
+            type="button"
+            variant={selectedData?.italic ? "default" : "outline"}
+            size="icon-sm"
+            aria-label="Italic"
+            disabled={!selectedCell}
+            onClick={() => toggleSelectedFormat("italic")}
+            className="italic"
+          >
+            I
+          </Button>
+
+          <div className="mx-1 h-5 w-px bg-border" />
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button type="button" variant="outline" size="icon-sm" aria-label="Text color" disabled={!selectedCell} className="relative">
+                  <span className="text-xs font-semibold">A</span>
+                  <span className="absolute inset-x-1.5 bottom-1 h-0.5 rounded-full" style={{ backgroundColor: selectedData?.color || "currentColor" }} />
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="start">
+              <div className="flex items-center gap-1.5 px-1.5 py-1.5">
+                <button
+                  type="button"
+                  aria-label="Default text color"
+                  onClick={() => setSelectedColor("color", "")}
+                  className="flex size-5 items-center justify-center rounded-full border border-border/60 text-[10px] text-muted-foreground"
+                >
+                  ×
+                </button>
+                {SHEET_TEXT_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    aria-label={`Text color ${c}`}
+                    onClick={() => setSelectedColor("color", c)}
+                    style={{ backgroundColor: c }}
+                    className={cn("size-5 rounded-full ring-1 ring-black/10", selectedData?.color === c && "ring-2 ring-offset-1 ring-foreground")}
+                  />
+                ))}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button type="button" variant="outline" size="icon-sm" aria-label="Cell background color" disabled={!selectedCell} className="relative">
+                  <span
+                    className="size-3.5 rounded-sm border border-border/60"
+                    style={{ backgroundColor: selectedData?.bg || "transparent" }}
+                  />
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="start">
+              <div className="flex items-center gap-1.5 px-1.5 py-1.5">
+                {SHEET_BG_COLORS.map((c) => (
+                  <button
+                    key={c || "none"}
+                    type="button"
+                    aria-label={c ? `Background ${c}` : "No background"}
+                    onClick={() => setSelectedColor("bg", c)}
+                    style={{ backgroundColor: c || "transparent" }}
+                    className={cn(
+                      "flex size-5 items-center justify-center rounded-full border border-border/60 ring-1 ring-black/10",
+                      (selectedData?.bg || "") === c && "ring-2 ring-offset-1 ring-foreground",
+                    )}
+                  >
+                    {!c && <span className="text-[10px] text-muted-foreground">×</span>}
+                  </button>
+                ))}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <div className="mx-1 h-5 w-px bg-border" />
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1 px-2 text-xs"
+            disabled={!selectedCell}
+            title="Sum the filled cells directly above the selected cell"
+            onClick={() => insertAutoFormula("SUM")}
+          >
+            <span className="font-serif italic">Σ</span> SUM
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1 px-2 text-xs"
+            disabled={!selectedCell}
+            title="Multiply the filled cells directly above the selected cell"
+            onClick={() => insertAutoFormula("PRODUCT")}
+          >
+            <span className="font-serif italic">Π</span> PRODUCT
+          </Button>
+        </div>
+      )}
+
       {isLoading && <p className="px-2 py-6 text-center text-xs text-muted-foreground">Loading…</p>}
       {!isLoading && !sheets?.length && (
         <p className="px-2 py-6 text-center text-xs text-muted-foreground">No sheets yet — tap + to add one.</p>
@@ -530,16 +705,17 @@ function SheetsPopover() {
                   <th className="sticky left-0 z-10 h-7 w-8 border border-border/60 bg-muted text-[10px] font-medium text-muted-foreground">{row}</th>
                   {COLS.map((col) => {
                     const id = cellId(col, row);
-                    const raw = active.cells[id] || "";
-                    const display = computed[id] ?? raw;
+                    const data = cells[id] || { value: "" };
+                    const display = computed[id] ?? data.value;
                     return (
                       <td key={id} className="p-0">
                         <SheetCell
                           id={id}
-                          raw={raw}
+                          data={data}
                           display={display}
                           isError={display.startsWith("#")}
-                          onCommit={(value) => onCellCommit(active, id, value)}
+                          onCommitValue={(value) => patchCell(id, { value })}
+                          onSelect={() => setSelectedCell(id)}
                         />
                       </td>
                     );

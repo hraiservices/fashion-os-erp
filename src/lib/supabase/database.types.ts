@@ -303,7 +303,7 @@ export interface Database {
           id: string;
           user_email: string;
           name: string;
-          cells: Record<string, string>;
+          cells: Record<string, unknown>;
           created_at: string;
           updated_at: string;
         };

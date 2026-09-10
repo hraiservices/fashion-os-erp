@@ -1,14 +1,16 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { Sparkles, StickyNote, Settings, Calculator as CalculatorIcon, History, Keyboard, ChevronLeft, ChevronRight, Delete, Plus, MoreVertical, Copy, Trash2, Check } from "lucide-react";
+import { Sparkles, StickyNote, Settings, Calculator as CalculatorIcon, History, Keyboard, ChevronLeft, ChevronRight, Delete, Plus, MoreVertical, Copy, Trash2, Check, Table2, Pencil } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { isModuleEnabled, DEFAULT_ENTITLEMENTS } from "@/lib/entitlements";
 import { useNotes } from "@/hooks/use-notes";
-import { NOTE_COLORS, type Note, type NoteColor } from "@/lib/types";
+import { useMiniSheets } from "@/hooks/use-mini-sheets";
+import { NOTE_COLORS, type Note, type NoteColor, type MiniSheet } from "@/lib/types";
+import { COLS, ROWS, cellId, evalSheet } from "@/lib/mini-sheet";
 import { useCopilotOpen } from "@/components/app-shell/copilot-context";
 import { buildSupportWhatsAppHref } from "@/components/app-shell/copilot-bubble";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
@@ -30,6 +32,7 @@ const TINTS = {
   teal: "text-teal-500 hover:bg-teal-500/10",
   indigo: "text-indigo-500 hover:bg-indigo-500/10",
   rose: "text-rose-500 hover:bg-rose-500/10",
+  emerald: "text-emerald-500 hover:bg-emerald-500/10",
 } as const;
 type Tint = keyof typeof TINTS;
 
@@ -220,12 +223,21 @@ function NotesPopover() {
 }
 
 /** Basic four-function calculator — chained left-to-right (no operator precedence), same as any
- *  physical desk calculator; not meant to replace a spreadsheet formula. */
+ *  physical desk calculator; not meant to replace a spreadsheet formula. Also usable entirely
+ *  from a physical keyboard (digits, + - * /, Enter/= , Backspace, Escape/C to clear) once the
+ *  popover is open — see onKeyDown below. */
 function CalculatorWidget() {
   const [display, setDisplay] = useState("0");
   const [stored, setStored] = useState<number | null>(null);
   const [pendingOp, setPendingOp] = useState<"+" | "-" | "×" | "÷" | null>(null);
   const [freshEntry, setFreshEntry] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Grab focus as soon as the popover opens so keyboard input works immediately, without the
+  // user having to click a key first.
+  useEffect(() => {
+    containerRef.current?.focus();
+  }, []);
 
   function inputDigit(d: string) {
     if (freshEntry) {
@@ -279,8 +291,33 @@ function CalculatorWidget() {
 
   const keyClass = "h-10 rounded-lg text-sm font-medium hover:bg-muted";
 
+  const OP_KEYS: Record<string, "+" | "-" | "×" | "÷"> = { "+": "+", "-": "-", "*": "×", "/": "÷" };
+
+  // Physical keyboard support — digits, the four operators (+-*/), Enter/= to compute,
+  // Backspace, and Escape/C to clear. Scoped to this popover's own container (not window) so
+  // typing elsewhere on the page never gets hijacked by an open-but-unfocused calculator.
+  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    const { key } = e;
+    if (/^[0-9]$/.test(key) || key === ".") {
+      e.preventDefault();
+      inputDigit(key);
+    } else if (key in OP_KEYS) {
+      e.preventDefault();
+      chooseOp(OP_KEYS[key]);
+    } else if (key === "Enter" || key === "=") {
+      e.preventDefault();
+      equals();
+    } else if (key === "Backspace") {
+      e.preventDefault();
+      backspace();
+    } else if (key === "Escape" || key.toLowerCase() === "c") {
+      e.preventDefault();
+      clearAll();
+    }
+  }
+
   return (
-    <div className="w-64 space-y-2 p-1">
+    <div ref={containerRef} className="w-64 space-y-2 p-1 outline-none" tabIndex={0} onKeyDown={onKeyDown}>
       <div className="rounded-lg border bg-background px-3 py-2.5 text-right text-xl font-semibold tabular-nums">{display}</div>
       <div className="grid grid-cols-4 gap-1.5">
         <Button type="button" variant="outline" className={keyClass} onClick={clearAll}>C</Button>
@@ -304,6 +341,216 @@ function CalculatorWidget() {
         <Button type="button" variant="ghost" className={cn(keyClass, "col-span-2")} onClick={() => inputDigit("0")}>0</Button>
         <Button type="button" variant="ghost" className={keyClass} onClick={() => inputDigit(".")}>.</Button>
       </div>
+    </div>
+  );
+}
+
+/** One editable cell — shows the raw formula/text while focused, the computed value otherwise.
+ *  Enter moves focus to the cell below, Tab to the cell on the right (both native browser
+ *  behavior for Tab, Enter handled here), matching how a real spreadsheet feels to move through. */
+function SheetCell({
+  id,
+  raw,
+  display,
+  isError,
+  onCommit,
+}: {
+  id: string;
+  raw: string;
+  display: string;
+  isError: boolean;
+  onCommit: (value: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(raw);
+
+  function commitIfChanged() {
+    setEditing(false);
+    if (value !== raw) onCommit(value);
+  }
+
+  function focusCell(targetId: string) {
+    const el = document.getElementById(`sheet-cell-${targetId}`);
+    if (el instanceof HTMLInputElement) el.focus();
+  }
+
+  return (
+    <input
+      id={`sheet-cell-${id}`}
+      value={editing ? value : display}
+      onFocus={() => {
+        setValue(raw);
+        setEditing(true);
+      }}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={commitIfChanged}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          (e.target as HTMLInputElement).blur();
+          const m = /^([A-H])([0-9]+)$/.exec(id);
+          if (m) focusCell(cellId(m[1], Math.min(ROWS, parseInt(m[2], 10) + 1)));
+        } else if (e.key === "Escape") {
+          setValue(raw);
+          (e.target as HTMLInputElement).blur();
+        }
+      }}
+      className={cn(
+        "h-7 w-16 shrink-0 border border-border/60 bg-background px-1 text-right text-xs tabular-nums outline-none focus:relative focus:z-10 focus:border-primary focus:ring-1 focus:ring-primary",
+        !editing && isError && "text-destructive",
+      )}
+    />
+  );
+}
+
+/** Sheets popover — a small multi-sheet spreadsheet (8 columns × 15 rows, basic arithmetic with
+ *  cell refs and SUM/AVERAGE/MIN/MAX over a range) for quick tallies that need more structure
+ *  than a sticky note but don't warrant leaving the app. Each sheet autosaves 600ms after the
+ *  last edit, same debounce convention as NoteCard. */
+function SheetsPopover() {
+  const { data: sheets, isLoading, create, update, remove } = useMiniSheets();
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingCellsRef = useRef<Record<string, string> | null>(null);
+
+  const active = sheets?.find((s) => s.id === activeId) ?? sheets?.[0] ?? null;
+  const computed = useMemo(() => (active ? evalSheet(active.cells) : {}), [active]);
+
+  function scheduleSave(sheet: MiniSheet, cells: Record<string, string>) {
+    pendingCellsRef.current = cells;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      if (pendingCellsRef.current) update.mutate({ id: sheet.id, cells: pendingCellsRef.current });
+      pendingCellsRef.current = null;
+    }, 600);
+  }
+
+  function onCellCommit(sheet: MiniSheet, ref: string, value: string) {
+    const nextCells = { ...sheet.cells };
+    if (value.trim() === "") delete nextCells[ref];
+    else nextCells[ref] = value;
+    scheduleSave(sheet, nextCells);
+  }
+
+  async function addSheet() {
+    const res = await create.mutateAsync(`Sheet ${(sheets?.length || 0) + 1}`);
+    setActiveId(res.id);
+  }
+
+  function startRename() {
+    if (!active) return;
+    setNameDraft(active.name);
+    setRenaming(true);
+  }
+
+  function commitRename() {
+    setRenaming(false);
+    if (active && nameDraft.trim() && nameDraft.trim() !== active.name) {
+      update.mutate({ id: active.id, name: nameDraft.trim() });
+    }
+  }
+
+  return (
+    <div className="w-[540px] space-y-2 p-1">
+      <div className="flex items-center gap-1.5">
+        {renaming ? (
+          <input
+            autoFocus
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => e.key === "Enter" && commitRename()}
+            className="h-7 min-w-0 flex-1 rounded border bg-background px-2 text-xs font-medium outline-none focus:border-primary"
+          />
+        ) : (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button type="button" variant="outline" size="sm" className="h-7 min-w-0 flex-1 justify-start text-xs font-medium">
+                  <span className="truncate">{active?.name || "No sheets"}</span>
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="start">
+              {sheets?.map((s) => (
+                <DropdownMenuItem key={s.id} onClick={() => setActiveId(s.id)}>
+                  <span className="truncate">{s.name}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {active && !renaming && (
+          <Button type="button" variant="outline" size="icon-sm" aria-label="Rename sheet" onClick={startRename}>
+            <Pencil className="size-3.5" />
+          </Button>
+        )}
+        <Button type="button" variant="outline" size="icon-sm" aria-label="Add sheet" disabled={create.isPending} onClick={addSheet}>
+          <Plus className="size-3.5" />
+        </Button>
+        {active && (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label="Delete sheet"
+            disabled={remove.isPending}
+            onClick={() => {
+              remove.mutate(active.id);
+              setActiveId(null);
+            }}
+          >
+            <Trash2 className="size-3.5" />
+          </Button>
+        )}
+      </div>
+
+      {isLoading && <p className="px-2 py-6 text-center text-xs text-muted-foreground">Loading…</p>}
+      {!isLoading && !sheets?.length && (
+        <p className="px-2 py-6 text-center text-xs text-muted-foreground">No sheets yet — tap + to add one.</p>
+      )}
+      {!isLoading && active && (
+        <div className="max-h-[70vh] overflow-auto rounded-lg border">
+          <table className="border-collapse">
+            <thead>
+              <tr>
+                <th className="sticky left-0 top-0 z-20 h-6 w-8 border border-border/60 bg-muted text-[10px] font-medium text-muted-foreground" />
+                {COLS.map((c) => (
+                  <th key={c} className="sticky top-0 z-10 h-6 w-16 border border-border/60 bg-muted text-[10px] font-medium text-muted-foreground">
+                    {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: ROWS }, (_, i) => i + 1).map((row) => (
+                <tr key={row}>
+                  <th className="sticky left-0 z-10 h-7 w-8 border border-border/60 bg-muted text-[10px] font-medium text-muted-foreground">{row}</th>
+                  {COLS.map((col) => {
+                    const id = cellId(col, row);
+                    const raw = active.cells[id] || "";
+                    const display = computed[id] ?? raw;
+                    return (
+                      <td key={id} className="p-0">
+                        <SheetCell
+                          id={id}
+                          raw={raw}
+                          display={display}
+                          isError={display.startsWith("#")}
+                          onCommit={(value) => onCellCommit(active, id, value)}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="px-1 text-[11px] text-muted-foreground">Start a cell with &quot;=&quot; for a formula, e.g. =A1+B2 or =SUM(A1:A5).</p>
     </div>
   );
 }
@@ -370,6 +617,10 @@ export function UtilityRail({ collapsed, onToggleCollapsed }: { collapsed: boole
 
           <RailPopoverButton label="Calculator" tint="blue" icon={<CalculatorIcon className="size-[18px]" />}>
             <CalculatorWidget />
+          </RailPopoverButton>
+
+          <RailPopoverButton label="Sheets" tint="emerald" icon={<Table2 className="size-[18px]" />}>
+            <SheetsPopover />
           </RailPopoverButton>
 
           <RailButton label="Activity log" tint="teal" href="/activity-log">

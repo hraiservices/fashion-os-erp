@@ -1403,3 +1403,25 @@ export function mapNoteRow(r: NoteRow): Note {
     updatedAt: r.updated_at,
   };
 }
+
+/** Desktop utility rail's mini spreadsheet — several named sheets per account, each a sparse
+ *  cell map ("A1" -> raw text or "=" formula), evaluated client-side (see lib/mini-sheet.ts). */
+export type MiniSheetRow = Database["public"]["Tables"]["user_mini_sheets"]["Row"];
+
+export interface MiniSheet {
+  id: string;
+  name: string;
+  cells: Record<string, string>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function mapMiniSheetRow(r: MiniSheetRow): MiniSheet {
+  return {
+    id: r.id,
+    name: r.name || "Sheet",
+    cells: r.cells || {},
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}

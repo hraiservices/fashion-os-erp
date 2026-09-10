@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { STAGES, STAGE_META, type Stage } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { OrderCard } from "@/components/orders/order-card";
@@ -44,20 +44,27 @@ export function KanbanBoard({
   const [dropTarget, setDropTarget] = useState<Stage | null>(null);
   const [mobileStage, setMobileStage] = useState<Stage>(STAGES[0]);
   const boardScrollRef = useRef<HTMLDivElement>(null);
-  // Whether the desktop board has more columns to the right than currently visible — drives the
-  // red "Scroll to see next stage" hint strip below. Recomputed on mount, on every scroll of the
-  // board itself, and on window resize (narrowing the window can newly reveal overflow that
-  // wasn't there before, and vice versa).
-  const [canScrollMore, setCanScrollMore] = useState(false);
+  const trackRef = useRef<HTMLDivElement>(null);
+  // Raw scroll metrics the custom red scrollbar below is derived from — kept as plain numbers
+  // (not a pre-computed thumb%/opacity) so both the render math and the drag math work off the
+  // same source of truth. Recomputed on mount, on every scroll of the board itself, and on
+  // window resize (narrowing the window can newly reveal overflow that wasn't there before, and
+  // vice versa).
+  const [metrics, setMetrics] = useState({ scrollLeft: 0, maxScroll: 0, ratio: 1 });
+  const draggingScrollRef = useRef<{ startX: number; startScrollLeft: number; scrollPerPx: number } | null>(null);
 
   useEffect(() => {
     const el = boardScrollRef.current;
     if (!el) return;
     function update() {
       if (!el) return;
-      // 4px slack — some browsers report scrollWidth a hair larger than clientWidth even when
-      // fully scrolled, which would otherwise leave the hint stuck on forever.
-      setCanScrollMore(el.scrollWidth - el.clientWidth - el.scrollLeft > 4);
+      setMetrics({
+        scrollLeft: el.scrollLeft,
+        // 4px slack — some browsers report scrollWidth a hair larger than clientWidth even when
+        // fully scrolled, which would otherwise leave the bar at not-quite-full opacity forever.
+        maxScroll: Math.max(0, el.scrollWidth - el.clientWidth - 4),
+        ratio: el.scrollWidth > 0 ? el.clientWidth / el.scrollWidth : 1,
+      });
     }
     update();
     el.addEventListener("scroll", update, { passive: true });
@@ -67,6 +74,37 @@ export function KanbanBoard({
       window.removeEventListener("resize", update);
     };
   }, [orders]);
+
+  const scrollProgress = metrics.maxScroll > 0 ? Math.min(1, metrics.scrollLeft / metrics.maxScroll) : 0;
+  // Fades toward (but not all the way to) transparent as the board nears its last column, and
+  // back to fully opaque scrolling back toward the first — floors at 0.25 rather than 0 so the
+  // thumb stays visible/grabbable to scroll back even once you're all the way at the end.
+  const barOpacity = 1 - scrollProgress * 0.75;
+  const thumbWidthPct = Math.max(12, Math.min(100, metrics.ratio * 100));
+
+  function onThumbPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    const track = trackRef.current;
+    const board = boardScrollRef.current;
+    if (!track || !board || metrics.maxScroll <= 0) return;
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    const trackWidth = track.clientWidth;
+    const thumbWidthPx = (thumbWidthPct / 100) * trackWidth;
+    const travelPx = Math.max(1, trackWidth - thumbWidthPx);
+    draggingScrollRef.current = { startX: e.clientX, startScrollLeft: board.scrollLeft, scrollPerPx: metrics.maxScroll / travelPx };
+  }
+
+  function onThumbPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    const drag = draggingScrollRef.current;
+    const board = boardScrollRef.current;
+    if (!drag || !board) return;
+    const dx = e.clientX - drag.startX;
+    board.scrollLeft = Math.max(0, Math.min(metrics.maxScroll, drag.startScrollLeft + dx * drag.scrollPerPx));
+  }
+
+  function onThumbPointerUp() {
+    draggingScrollRef.current = null;
+  }
   // The state above drives rendering, but dragover can fire before React has flushed the
   // dragstart update — so the handlers read the id from this ref, which is set synchronously.
   const draggingRef = useRef<string | null>(null);
@@ -196,18 +234,41 @@ export function KanbanBoard({
         {renderColumn(mobileStage)}
       </div>
 
-      {/* Red hint strip — thicker than the progress bar above it, and its own color so it reads
-          as an instruction, not another progress indicator. Desktop-only (matches the board's
-          own sm:flex) and only shown while there's actually more board to the right; disappears
-          once scrolled all the way, rather than nagging when there's nothing left to see. */}
-      {canScrollMore && (
-        <div className="hidden h-7 items-center justify-center gap-1 rounded-full bg-red-600 text-xs font-semibold text-white sm:flex">
-          Scroll to see next stage <span aria-hidden>›</span>
+      {/* Red custom scrollbar — thicker than the progress bar above it, its own color so it reads
+          as an instruction rather than another progress indicator, and an actual draggable
+          control (not just a hint): the lighter thumb is sized to how much of the board is
+          visible and moves as you scroll, and you can drag it directly to scroll the board.
+          Fades toward (not all the way to) transparent as you approach the last column, and
+          back to full opacity scrolling back toward the first. Sits alongside the native
+          scrollbar below the board, not in place of it. Desktop-only (matches the board's own
+          sm:flex) and only rendered while there's actually more board than fits on screen. */}
+      {metrics.maxScroll > 0 && (
+        <div
+          ref={trackRef}
+          className="relative hidden h-7 touch-none rounded-full bg-red-600 transition-opacity duration-200 sm:block"
+          style={{ opacity: barOpacity }}
+        >
+          <p className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1 text-xs font-semibold text-white">
+            Scroll to see next stage <span aria-hidden>›</span>
+          </p>
+          <div
+            role="scrollbar"
+            aria-controls="kanban-board-scroll"
+            aria-orientation="horizontal"
+            aria-valuenow={Math.round(scrollProgress * 100)}
+            tabIndex={-1}
+            onPointerDown={onThumbPointerDown}
+            onPointerMove={onThumbPointerMove}
+            onPointerUp={onThumbPointerUp}
+            onPointerCancel={onThumbPointerUp}
+            className="absolute inset-y-0.5 cursor-grab rounded-full bg-white/70 shadow-sm ring-1 ring-black/5 active:cursor-grabbing"
+            style={{ width: `${thumbWidthPct}%`, left: `${scrollProgress * (100 - thumbWidthPct)}%` }}
+          />
         </div>
       )}
 
       {/* Desktop: full multi-column board, horizontal scroll expected here. */}
-      <div ref={boardScrollRef} className="hidden gap-3 overflow-x-auto pb-4 sm:flex">
+      <div id="kanban-board-scroll" ref={boardScrollRef} className="hidden gap-3 overflow-x-auto pb-4 sm:flex">
         {STAGES.map((stage) => renderColumn(stage, "w-72 shrink-0"))}
       </div>
     </div>

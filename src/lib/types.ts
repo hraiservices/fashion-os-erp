@@ -1405,13 +1405,15 @@ export function mapNoteRow(r: NoteRow): Note {
 }
 
 /** Desktop utility rail's mini spreadsheet — several named sheets per account, each a sparse
- *  cell map ("A1" -> raw text or "=" formula), evaluated client-side (see lib/mini-sheet.ts). */
+ *  cell map ("A1" -> raw text/formula, or a {value,bold,italic,color,bg} object once formatting
+ *  is applied — see lib/mini-sheet.ts's normalizeCells for upgrading either shape uniformly),
+ *  evaluated client-side. */
 export type MiniSheetRow = Database["public"]["Tables"]["user_mini_sheets"]["Row"];
 
 export interface MiniSheet {
   id: string;
   name: string;
-  cells: Record<string, string>;
+  cells: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }

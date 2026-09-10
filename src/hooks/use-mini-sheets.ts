@@ -30,7 +30,7 @@ export function useMiniSheets() {
   });
 
   const update = useMutation({
-    mutationFn: async ({ id, ...patch }: { id: string; name?: string; cells?: Record<string, string> }) => {
+    mutationFn: async ({ id, ...patch }: { id: string; name?: string; cells?: Record<string, unknown> }) => {
       const res = await fetch(`/api/sheets/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || "Could not save sheet");

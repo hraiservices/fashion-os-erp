@@ -1,7 +1,8 @@
 /**
  * Formula engine for the utility rail's mini spreadsheet. Small on purpose — cell refs (A1),
- * ranges (A1:A5) inside SUM/AVERAGE, +-* /, parentheses, unary minus, and number literals. Not a
- * general expression language: no strings, no comparisons, no other functions.
+ * ranges (A1:A5) inside SUM/PRODUCT/AVERAGE/MIN/MAX, arithmetic operators, parentheses, unary
+ * minus, and number literals. Not a general expression language: no strings, no comparisons, no
+ * other functions.
  *
  * A cell's raw text starting with "=" is a formula; anything else is a literal (numbers render
  * right-aligned/tabular, text renders as-is). Formulas resolve other cells recursively, with a
@@ -13,6 +14,53 @@ export const ROWS = 15;
 
 export function cellId(col: string, row: number): string {
   return `${col}${row}`;
+}
+
+/** A cell's value plus optional formatting — stored as one JSON object per non-empty cell. A
+ *  legacy sheet (saved before formatting existed) has plain strings instead; normalizeCell
+ *  upgrades either shape to this one so the rest of the app only ever deals with CellData. */
+export interface CellData {
+  value: string;
+  bold?: boolean;
+  italic?: boolean;
+  color?: string;
+  bg?: string;
+}
+
+export function normalizeCell(raw: unknown): CellData {
+  if (typeof raw === "string") return { value: raw };
+  if (raw && typeof raw === "object") {
+    const r = raw as Record<string, unknown>;
+    return {
+      value: typeof r.value === "string" ? r.value : "",
+      bold: r.bold === true,
+      italic: r.italic === true,
+      color: typeof r.color === "string" ? r.color : undefined,
+      bg: typeof r.bg === "string" ? r.bg : undefined,
+    };
+  }
+  return { value: "" };
+}
+
+export function normalizeCells(raw: Record<string, unknown> | null | undefined): Record<string, CellData> {
+  const out: Record<string, CellData> = {};
+  for (const [ref, v] of Object.entries(raw || {})) out[ref] = normalizeCell(v);
+  return out;
+}
+
+/** Excel-style AutoSum/AutoProduct range: the contiguous run of non-empty cells directly above
+ *  `ref` in the same column, stopping at the first blank. Returns null when the cell right above
+ *  is itself blank (nothing sensible to sum) or `ref` is in row 1. */
+export function autoRangeAbove(ref: string, cells: Record<string, CellData>): string | null {
+  const m = /^([A-H])([0-9]+)$/.exec(ref);
+  if (!m) return null;
+  const col = m[1];
+  const row = parseInt(m[2], 10);
+  if (row <= 1) return null;
+  if (!(cells[cellId(col, row - 1)]?.value || "").trim()) return null;
+  let top = row - 1;
+  while (top > 1 && (cells[cellId(col, top - 1)]?.value || "").trim()) top--;
+  return `${cellId(col, top)}:${cellId(col, row - 1)}`;
 }
 
 function parseRef(ref: string): { col: string; row: number } | null {
@@ -174,6 +222,7 @@ function evalFormula(expr: string, resolve: (ref: string) => number): number {
 
   function applyFunction(name: string, args: number[]): number {
     if (name === "SUM") return args.reduce((s, v) => s + v, 0);
+    if (name === "PRODUCT") return args.length ? args.reduce((s, v) => s * v, 1) : 0;
     if (name === "AVERAGE") return args.length ? args.reduce((s, v) => s + v, 0) / args.length : 0;
     if (name === "MIN") return args.length ? Math.min(...args) : 0;
     if (name === "MAX") return args.length ? Math.max(...args) : 0;

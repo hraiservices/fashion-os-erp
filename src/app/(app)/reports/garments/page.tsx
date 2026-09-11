@@ -8,6 +8,7 @@ import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
@@ -59,6 +60,28 @@ export default function GarmentAnalysisPage() {
       {garStats.length === 0 ? (
         <EmptyState icon={Shirt} title="No garment data yet" />
       ) : (
+        <>
+        <MobileRecordList>
+          <MobileRecordCard className="bg-muted/40">
+            <MobileRecordHeader title="Total" value={inr(totalRev)} showChevron={false} />
+            <MobileRecordRow label="Orders" value={totalOrders} />
+            <MobileRecordRow label="Qty" value={totalCount} />
+            <MobileRecordRow label="% of revenue" value="100%" />
+          </MobileRecordCard>
+          {garStats.map((g) => (
+            <MobileRecordCard key={g.type}>
+              <MobileRecordHeader
+                title={g.type}
+                value={inr(g.rev)}
+                showChevron={false}
+              />
+              <MobileRecordRow label="Orders" value={g.orders} />
+              <MobileRecordRow label="Qty" value={g.count} />
+              <MobileRecordRow label="% of revenue" value={totalRev > 0 ? `${Math.round((g.rev / totalRev) * 100)}%` : "0%"} />
+            </MobileRecordCard>
+          ))}
+        </MobileRecordList>
+        <div className="hidden sm:block">
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
@@ -95,6 +118,8 @@ export default function GarmentAnalysisPage() {
             ))}
           </tbody>
         </ReportTable>
+        </div>
+        </>
       )}
     </ReportShell>
   );

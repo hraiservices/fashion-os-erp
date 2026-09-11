@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 
 const SOURCE_FILTERS: { key: "all" | PaymentSource; label: string }[] = [
   { key: "all", label: "All" },
@@ -120,48 +121,78 @@ export default function PaymentsReceivedReportPage() {
       {filtered.length === 0 ? (
         <EmptyState icon={Wallet} title={search ? "No payments match your search" : "No payments recorded yet"} className="border-0" />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Date</Th>
-              <Th>Customer</Th>
-              <Th>Mobile</Th>
-              <Th>Mode</Th>
-              <Th>Source</Th>
-              <Th>Reference</Th>
-              <Th align="right">Amount</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <ReportTotalsRow>
-              <Td colSpan={6}>Total{source !== "all" || search ? " (filtered)" : ""}</Td>
-              <Td align="right">{inr(totalFiltered)}</Td>
-            </ReportTotalsRow>
+        <>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title={`Total${source !== "all" || search ? " (filtered)" : ""}`} value={inr(totalFiltered)} showChevron={false} />
+            </MobileRecordCard>
             {filtered.map((r) => {
               const badge = SOURCE_BADGE[r.source];
               return (
-                <tr key={r.id} className="hover:bg-muted/30">
-                  <Td className="text-muted-foreground">{fmtDate(r.date)}</Td>
-                  <Td className="font-medium">{r.customerName || "—"}</Td>
-                  <Td className="text-muted-foreground">{r.customerMobile || "—"}</Td>
-                  <Td>{r.method}</Td>
-                  <Td>
-                    <Badge variant="outline" className={cn("gap-1", badge.className)}>
-                      <badge.icon className="size-3" />
-                      {badge.label}
-                    </Badge>
-                  </Td>
-                  <Td>
-                    <Link href={r.referenceHref} className="text-primary hover:underline">
-                      {r.reference}
-                    </Link>
-                  </Td>
-                  <Td align="right" className="tabular-nums">{inr(r.amount)}</Td>
-                </tr>
+                <MobileRecordCard key={r.id} href={r.referenceHref}>
+                  <MobileRecordHeader title={r.customerName || "—"} subtitle={r.customerMobile || "—"} value={inr(r.amount)} />
+                  <MobileRecordRow label="Date" value={fmtDate(r.date)} />
+                  <MobileRecordRow label="Mode" value={r.method} />
+                  <MobileRecordRow
+                    label="Source"
+                    value={
+                      <Badge variant="outline" className={cn("gap-1", badge.className)}>
+                        <badge.icon className="size-3" />
+                        {badge.label}
+                      </Badge>
+                    }
+                  />
+                  <MobileRecordRow label="Reference" value={r.reference} />
+                </MobileRecordCard>
               );
             })}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Date</Th>
+                  <Th>Customer</Th>
+                  <Th>Mobile</Th>
+                  <Th>Mode</Th>
+                  <Th>Source</Th>
+                  <Th>Reference</Th>
+                  <Th align="right">Amount</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td colSpan={6}>Total{source !== "all" || search ? " (filtered)" : ""}</Td>
+                  <Td align="right">{inr(totalFiltered)}</Td>
+                </ReportTotalsRow>
+                {filtered.map((r) => {
+                  const badge = SOURCE_BADGE[r.source];
+                  return (
+                    <tr key={r.id} className="hover:bg-muted/30">
+                      <Td className="text-muted-foreground">{fmtDate(r.date)}</Td>
+                      <Td className="font-medium">{r.customerName || "—"}</Td>
+                      <Td className="text-muted-foreground">{r.customerMobile || "—"}</Td>
+                      <Td>{r.method}</Td>
+                      <Td>
+                        <Badge variant="outline" className={cn("gap-1", badge.className)}>
+                          <badge.icon className="size-3" />
+                          {badge.label}
+                        </Badge>
+                      </Td>
+                      <Td>
+                        <Link href={r.referenceHref} className="text-primary hover:underline">
+                          {r.reference}
+                        </Link>
+                      </Td>
+                      <Td align="right" className="tabular-nums">{inr(r.amount)}</Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </ReportTable>
+          </div>
+        </>
       )}
     </ReportShell>
   );

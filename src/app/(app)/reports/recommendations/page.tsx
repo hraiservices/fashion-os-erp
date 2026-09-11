@@ -16,6 +16,7 @@ import { fmtDate } from "@/lib/format";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 
 /**
  * Phase 8: "is this feature actually generating sales?" — cross-references every logged
@@ -115,7 +116,49 @@ export default function RecommendationsReportPage() {
             <StatCard label="Conversion rate" value={`${conversionRate}%`} icon={TrendingUp} tone={conversionRate > 0 ? "success" : "default"} />
           </div>
 
-          <ReportCard>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={`${totalSent} sent`} showChevron={false} />
+              <MobileRecordRow label="Converted" value={`${converted} (${conversionRate}%)`} />
+            </MobileRecordCard>
+            {rows.slice(0, 100).map(({ rec, converted, convertedDate }) => (
+              <MobileRecordCard key={rec.id}>
+                <MobileRecordHeader
+                  title={
+                    <Link href={`/crm/${rec.customerMobile}`} className="hover:underline">
+                      {rec.customerName}
+                    </Link>
+                  }
+                  value={`${rec.score}%`}
+                  showChevron={false}
+                />
+                <MobileRecordRow
+                  label="Product"
+                  value={
+                    <Link href={`/inventory/products/${rec.productId}/edit`} className="hover:underline">
+                      {rec.productName}
+                    </Link>
+                  }
+                />
+                <MobileRecordRow label="Channel" value={<Badge variant={rec.channel === "whatsapp_api" ? "secondary" : "outline"}>{rec.channel === "whatsapp_api" ? "API" : "wa.me"}</Badge>} />
+                <MobileRecordRow label="Sent" value={fmtDate(rec.createdAt)} />
+                <MobileRecordRow
+                  label="Outcome"
+                  value={
+                    converted ? (
+                      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle2 className="size-3.5" /> Bought {convertedDate ? fmtDate(convertedDate) : ""}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )
+                  }
+                />
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
+
+          <ReportCard className="hidden sm:block">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>

@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 
 /** Product-only — stitching orders aren't broken down by product/item, only by garment type (see Garment Analysis). */
 export default function SalesByItemPage() {
@@ -70,32 +71,51 @@ export default function SalesByItemPage() {
       {rows.length === 0 ? (
         <EmptyState icon={ShoppingBag} title="No product sales yet" />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Product</Th>
-              <Th align="right">Qty sold</Th>
-              <Th align="right">Invoices</Th>
-              <Th align="right">Revenue</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <ReportTotalsRow>
-              <Td>Total</Td>
-              <Td align="right">{rows.reduce((s, r) => s + r.qty, 0)}</Td>
-              <Td align="right">{rows.reduce((s, r) => s + r.orders, 0)}</Td>
-              <Td align="right">{inr(rows.reduce((s, r) => s + r.revenue, 0))}</Td>
-            </ReportTotalsRow>
+        <>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.revenue, 0))} showChevron={false} />
+              <MobileRecordRow label="Qty sold" value={rows.reduce((s, r) => s + r.qty, 0)} />
+              <MobileRecordRow label="Invoices" value={rows.reduce((s, r) => s + r.orders, 0)} />
+            </MobileRecordCard>
             {rows.map((r) => (
-              <tr key={r.productId || r.productName} className="hover:bg-muted/30">
-                <Td className="font-medium">{r.productName}</Td>
-                <Td align="right">{r.qty}</Td>
-                <Td align="right">{r.orders}</Td>
-                <Td align="right">{inr(r.revenue)}</Td>
-              </tr>
+              <MobileRecordCard key={r.productId || r.productName}>
+                <MobileRecordHeader title={r.productName} value={inr(r.revenue)} showChevron={false} />
+                <MobileRecordRow label="Qty sold" value={r.qty} />
+                <MobileRecordRow label="Invoices" value={r.orders} />
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Product</Th>
+                  <Th align="right">Qty sold</Th>
+                  <Th align="right">Invoices</Th>
+                  <Th align="right">Revenue</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td>Total</Td>
+                  <Td align="right">{rows.reduce((s, r) => s + r.qty, 0)}</Td>
+                  <Td align="right">{rows.reduce((s, r) => s + r.orders, 0)}</Td>
+                  <Td align="right">{inr(rows.reduce((s, r) => s + r.revenue, 0))}</Td>
+                </ReportTotalsRow>
+                {rows.map((r) => (
+                  <tr key={r.productId || r.productName} className="hover:bg-muted/30">
+                    <Td className="font-medium">{r.productName}</Td>
+                    <Td align="right">{r.qty}</Td>
+                    <Td align="right">{r.orders}</Td>
+                    <Td align="right">{inr(r.revenue)}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+        </>
       )}
     </ReportShell>
   );

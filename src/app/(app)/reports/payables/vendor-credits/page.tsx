@@ -12,6 +12,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
@@ -87,6 +88,40 @@ export default function VendorCreditDetailsPage() {
       {rows.length === 0 ? (
         <EmptyState icon={FileMinus} title="No vendor credits yet" />
       ) : (
+        <>
+        <MobileRecordList>
+          <MobileRecordCard className="bg-muted/40">
+            <MobileRecordHeader title="Total" value={inr(total)} showChevron={false} />
+          </MobileRecordCard>
+          {rows.map((c) => {
+            const bill = c.billId ? billById.get(c.billId) : undefined;
+            return (
+              <MobileRecordCard key={c.id}>
+                <MobileRecordHeader
+                  title={c.creditNumber}
+                  subtitle={fmtDate(c.date)}
+                  value={inr(c.total)}
+                  showChevron={false}
+                />
+                <MobileRecordRow label="Vendor" value={vendorNameById.get(c.vendorId) || "Unknown vendor"} />
+                <MobileRecordRow
+                  label="Bill"
+                  value={
+                    bill ? (
+                      <Link href={`/purchases/bills/${bill.id}`} className="text-primary hover:underline">
+                        {bill.billNumber}
+                      </Link>
+                    ) : (
+                      "—"
+                    )
+                  }
+                />
+                <MobileRecordRow label="Reason" value={c.reason || "—"} />
+              </MobileRecordCard>
+            );
+          })}
+        </MobileRecordList>
+        <div className="hidden sm:block">
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
@@ -126,6 +161,8 @@ export default function VendorCreditDetailsPage() {
             })}
           </tbody>
         </ReportTable>
+        </div>
+        </>
       )}
     </ReportShell>
   );

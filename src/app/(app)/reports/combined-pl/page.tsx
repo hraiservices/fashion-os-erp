@@ -5,6 +5,7 @@ import { useCombinedPl } from "@/hooks/use-combined-pl";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportCard, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -112,59 +113,104 @@ export default function CombinedPlPage() {
         </div>
       </ReportCard>
 
-      <ReportTable>
-        <thead className="border-b bg-muted/40">
-          <tr>
-            <Th>Month</Th>
-            <Th align="right">Stitching Rev</Th>
-            <Th align="right">Product Sales Rev</Th>
-            <Th align="right">Purchases</Th>
-            <Th align="right">Stitching Cost</Th>
-            <Th align="right">Mfg Labor</Th>
-            <Th align="right">Expenses</Th>
-            <Th align="right">Salaries</Th>
-            <Th align="right">Net Profit</Th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          <ReportTotalsRow>
-            <Td>Total</Td>
-            <Td align="right">{inr(columnTotals.stitchingRevenue)}</Td>
-            <Td align="right">{inr(columnTotals.salesRevenue)}</Td>
-            <Td align="right">{inr(columnTotals.purchaseCost)}</Td>
-            <Td align="right">{inr(columnTotals.stitchingCost)}</Td>
-            <Td align="right">{inr(columnTotals.laborCost)}</Td>
-            <Td align="right">{inr(columnTotals.expenseCost)}</Td>
-            <Td align="right">{inr(columnTotals.payrollCost)}</Td>
-            <Td align="right">{inr(columnTotals.netProfit)}</Td>
-          </ReportTotalsRow>
-          {monthly.map((m) => (
-            <tr key={m.month} className="hover:bg-muted/30">
-              <Td className="font-medium">{m.label}</Td>
-              <Td align="right">{inr(m.stitchingRevenue)}</Td>
-              <Td align="right">{inr(m.salesRevenue)}</Td>
-              <Td align="right" className="text-muted-foreground">
-                {inr(m.purchaseCost)}
-              </Td>
-              <Td align="right" className="text-muted-foreground">
-                {inr(m.stitchingCost)}
-              </Td>
-              <Td align="right" className="text-muted-foreground">
-                {inr(m.laborCost)}
-              </Td>
-              <Td align="right" className="text-muted-foreground">
-                {inr(m.expenseCost)}
-              </Td>
-              <Td align="right" className="text-muted-foreground">
-                {inr(m.payrollCost)}
-              </Td>
-              <Td align="right" className={`font-semibold ${m.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
-                {inr(m.netProfit)}
-              </Td>
+      <div className="hidden sm:block">
+        <ReportTable>
+          <thead className="border-b bg-muted/40">
+            <tr>
+              <Th>Month</Th>
+              <Th align="right">Stitching Rev</Th>
+              <Th align="right">Product Sales Rev</Th>
+              <Th align="right">Purchases</Th>
+              <Th align="right">Stitching Cost</Th>
+              <Th align="right">Mfg Labor</Th>
+              <Th align="right">Expenses</Th>
+              <Th align="right">Salaries</Th>
+              <Th align="right">Net Profit</Th>
             </tr>
-          ))}
-        </tbody>
-      </ReportTable>
+          </thead>
+          <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{inr(columnTotals.stitchingRevenue)}</Td>
+              <Td align="right">{inr(columnTotals.salesRevenue)}</Td>
+              <Td align="right">{inr(columnTotals.purchaseCost)}</Td>
+              <Td align="right">{inr(columnTotals.stitchingCost)}</Td>
+              <Td align="right">{inr(columnTotals.laborCost)}</Td>
+              <Td align="right">{inr(columnTotals.expenseCost)}</Td>
+              <Td align="right">{inr(columnTotals.payrollCost)}</Td>
+              <Td align="right">{inr(columnTotals.netProfit)}</Td>
+            </ReportTotalsRow>
+            {monthly.map((m) => (
+              <tr key={m.month} className="hover:bg-muted/30">
+                <Td className="font-medium">{m.label}</Td>
+                <Td align="right">{inr(m.stitchingRevenue)}</Td>
+                <Td align="right">{inr(m.salesRevenue)}</Td>
+                <Td align="right" className="text-muted-foreground">
+                  {inr(m.purchaseCost)}
+                </Td>
+                <Td align="right" className="text-muted-foreground">
+                  {inr(m.stitchingCost)}
+                </Td>
+                <Td align="right" className="text-muted-foreground">
+                  {inr(m.laborCost)}
+                </Td>
+                <Td align="right" className="text-muted-foreground">
+                  {inr(m.expenseCost)}
+                </Td>
+                <Td align="right" className="text-muted-foreground">
+                  {inr(m.payrollCost)}
+                </Td>
+                <Td align="right" className={`font-semibold ${m.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+                  {inr(m.netProfit)}
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </ReportTable>
+      </div>
+
+      <MobileRecordList>
+        <MobileRecordCard className="bg-muted/40">
+          <MobileRecordHeader
+            title="Total"
+            value={inr(columnTotals.netProfit)}
+            valueClassName={columnTotals.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
+            showChevron={false}
+          />
+          <MobileRecordGrid
+            items={[
+              { label: "Stitching Rev", value: inr(columnTotals.stitchingRevenue) },
+              { label: "Product Sales Rev", value: inr(columnTotals.salesRevenue) },
+              { label: "Purchases", value: inr(columnTotals.purchaseCost) },
+              { label: "Stitching Cost", value: inr(columnTotals.stitchingCost) },
+              { label: "Mfg Labor", value: inr(columnTotals.laborCost) },
+              { label: "Expenses", value: inr(columnTotals.expenseCost) },
+              { label: "Salaries", value: inr(columnTotals.payrollCost) },
+            ]}
+          />
+        </MobileRecordCard>
+        {monthly.map((m) => (
+          <MobileRecordCard key={m.month}>
+            <MobileRecordHeader
+              title={m.label}
+              value={inr(m.netProfit)}
+              valueClassName={m.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
+              showChevron={false}
+            />
+            <MobileRecordGrid
+              items={[
+                { label: "Stitching Rev", value: inr(m.stitchingRevenue) },
+                { label: "Product Sales Rev", value: inr(m.salesRevenue) },
+                { label: "Purchases", value: inr(m.purchaseCost), valueClassName: "text-muted-foreground" },
+                { label: "Stitching Cost", value: inr(m.stitchingCost), valueClassName: "text-muted-foreground" },
+                { label: "Mfg Labor", value: inr(m.laborCost), valueClassName: "text-muted-foreground" },
+                { label: "Expenses", value: inr(m.expenseCost), valueClassName: "text-muted-foreground" },
+                { label: "Salaries", value: inr(m.payrollCost), valueClassName: "text-muted-foreground" },
+              ]}
+            />
+          </MobileRecordCard>
+        ))}
+      </MobileRecordList>
       <p className="text-xs text-muted-foreground">
         Stitching Cost is booked by each order&apos;s intake date, but Salaries is booked by when a payslip was actually paid — a garment taken in one month whose tailor is paid via a
         later payroll run shows its cost in the earlier month and the matching salary reduction in the later one. Totals across the full period are still correct either way; a single

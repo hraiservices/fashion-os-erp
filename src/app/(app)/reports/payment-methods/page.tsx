@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 
 interface MethodRow {
   method: string;
@@ -34,34 +35,53 @@ function byMethod(payments: { method: string; amount: number }[]): MethodRow[] {
 function MethodTable({ rows, total, emptyLabel }: { rows: MethodRow[]; total: number; emptyLabel: string }) {
   if (rows.length === 0) return <EmptyState icon={Wallet} title={emptyLabel} className="border-0" />;
   return (
-    <ReportTable>
-      <thead className="border-b bg-muted/40">
-        <tr>
-          <Th>Method</Th>
-          <Th align="right">Transactions</Th>
-          <Th align="right">Amount</Th>
-          <Th align="right">% of Total</Th>
-        </tr>
-      </thead>
-      <tbody className="divide-y">
-        <ReportTotalsRow>
-          <Td>Total</Td>
-          <Td align="right">{rows.reduce((s, r) => s + r.count, 0)}</Td>
-          <Td align="right">{inr(total)}</Td>
-          <Td align="right">100%</Td>
-        </ReportTotalsRow>
+    <>
+      <MobileRecordList>
+        <MobileRecordCard className="bg-muted/40">
+          <MobileRecordHeader title="Total" value={inr(total)} showChevron={false} />
+          <MobileRecordRow label="Transactions" value={rows.reduce((s, r) => s + r.count, 0)} />
+          <MobileRecordRow label="% of Total" value="100%" />
+        </MobileRecordCard>
         {rows.map((r) => (
-          <tr key={r.method} className="hover:bg-muted/30">
-            <Td className="font-medium">{r.method}</Td>
-            <Td align="right">{r.count}</Td>
-            <Td align="right">{inr(r.amount)}</Td>
-            <Td align="right" className="text-muted-foreground">
-              {total > 0 ? ((r.amount / total) * 100).toFixed(1) : "0.0"}%
-            </Td>
-          </tr>
+          <MobileRecordCard key={r.method}>
+            <MobileRecordHeader title={r.method} value={inr(r.amount)} showChevron={false} />
+            <MobileRecordRow label="Transactions" value={r.count} />
+            <MobileRecordRow label="% of Total" value={`${total > 0 ? ((r.amount / total) * 100).toFixed(1) : "0.0"}%`} />
+          </MobileRecordCard>
         ))}
-      </tbody>
-    </ReportTable>
+      </MobileRecordList>
+
+      <div className="hidden sm:block">
+        <ReportTable>
+          <thead className="border-b bg-muted/40">
+            <tr>
+              <Th>Method</Th>
+              <Th align="right">Transactions</Th>
+              <Th align="right">Amount</Th>
+              <Th align="right">% of Total</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{rows.reduce((s, r) => s + r.count, 0)}</Td>
+              <Td align="right">{inr(total)}</Td>
+              <Td align="right">100%</Td>
+            </ReportTotalsRow>
+            {rows.map((r) => (
+              <tr key={r.method} className="hover:bg-muted/30">
+                <Td className="font-medium">{r.method}</Td>
+                <Td align="right">{r.count}</Td>
+                <Td align="right">{inr(r.amount)}</Td>
+                <Td align="right" className="text-muted-foreground">
+                  {total > 0 ? ((r.amount / total) * 100).toFixed(1) : "0.0"}%
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </ReportTable>
+      </div>
+    </>
   );
 }
 

@@ -17,6 +17,7 @@ import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 
 export default function PendingOrdersPage() {
   const { orders, isLoading } = useReportsData();
@@ -54,6 +55,42 @@ export default function PendingOrdersPage() {
       {pending.length === 0 ? (
         <EmptyState icon={CheckCircle2} title="Nothing pending" description="Every order has been delivered and paid." />
       ) : (
+        <>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(totalBalance)} showChevron={false} />
+            </MobileRecordCard>
+            {pending.map((o) => (
+              <MobileRecordCard key={o.id}>
+                <MobileRecordHeader
+                  title={
+                    <Link href={`/orders/${o.id}`} className="hover:underline">
+                      {o.id}
+                    </Link>
+                  }
+                  subtitle={`${o.name} · ${o.mobile}`}
+                  value={o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}
+                  showChevron={false}
+                />
+                <MobileRecordRow label="Stage" value={<StageBadge stage={o.status} size="sm" />} />
+                <MobileRecordRow
+                  label="Delivery"
+                  value={
+                    <span className="flex items-center gap-1.5">
+                      {fmtDate(o.deliveryDate)} <DueBadge order={o} />
+                    </span>
+                  }
+                />
+                {o.balance > 0 && (
+                  <div className="flex justify-end border-t pt-1.5">
+                    <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop)} label={`Payment reminder to ${o.name}`} />
+                  </div>
+                )}
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
+
+          <div className="hidden sm:block">
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
@@ -99,6 +136,8 @@ export default function PendingOrdersPage() {
             ))}
           </tbody>
         </ReportTable>
+          </div>
+        </>
       )}
     </ReportShell>
   );

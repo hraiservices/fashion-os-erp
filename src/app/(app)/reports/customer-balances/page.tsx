@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Search, Users } from "lucide-react";
 import { useOrders } from "@/hooks/use-orders";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
@@ -11,6 +12,7 @@ import { useShopSettings } from "@/hooks/use-shop-settings";
 import { normalizeIndianMobile } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,6 +34,7 @@ const FILTERS: { value: Filter; label: string }[] = [
  *  and invoices (by inDate/invoiceDate) feeding each customer's ledger, per the earlier decision
  *  to apply the range everywhere for consistency. */
 export default function CustomerBalancesPage() {
+  const router = useRouter();
   const { data: orders, isLoading: l1 } = useOrders();
   const { data: invoices, isLoading: l2 } = useSalesInvoices();
   const { data: customers, isLoading: l3 } = useCustomers();
@@ -124,52 +127,94 @@ export default function CustomerBalancesPage() {
       {filtered.length === 0 ? (
         <EmptyState icon={Users} title="No customers found" />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Customer</Th>
-              <Th align="right">Orders</Th>
-              <Th align="right">Invoices</Th>
-              <Th align="right">Stitch Due</Th>
-              <Th align="right">Product Sales Due</Th>
-              <Th align="right">Total Due</Th>
-              <Th align="right">Lifetime</Th>
-              <Th align="right">Actions</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <ReportTotalsRow>
-              <Td colSpan={3}>Total</Td>
-              <Td align="right">{inr(totals.stitchDue)}</Td>
-              <Td align="right">{inr(totals.salesDue)}</Td>
-              <Td align="right">{inr(totals.totalDue)}</Td>
-              <Td align="right">—</Td>
-              <Td />
-            </ReportTotalsRow>
+        <>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Customer</Th>
+                  <Th align="right">Orders</Th>
+                  <Th align="right">Invoices</Th>
+                  <Th align="right">Stitch Due</Th>
+                  <Th align="right">Product Sales Due</Th>
+                  <Th align="right">Total Due</Th>
+                  <Th align="right">Lifetime</Th>
+                  <Th align="right">Actions</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td colSpan={3}>Total</Td>
+                  <Td align="right">{inr(totals.stitchDue)}</Td>
+                  <Td align="right">{inr(totals.salesDue)}</Td>
+                  <Td align="right">{inr(totals.totalDue)}</Td>
+                  <Td align="right">—</Td>
+                  <Td />
+                </ReportTotalsRow>
+                {filtered.map((r) => (
+                  <tr key={r.mobile} className="hover:bg-muted/30">
+                    <Td className="font-medium">
+                      <Link href={`/crm/${r.mobile}`} className="hover:underline">
+                        {r.name || r.mobile}
+                      </Link>
+                    </Td>
+                    <Td align="right">{r.orderCount}</Td>
+                    <Td align="right">{r.invoiceCount}</Td>
+                    <Td align="right">{r.stitchDue > 0 ? <BalanceDue amount={r.stitchDue} /> : "—"}</Td>
+                    <Td align="right">{r.salesDue > 0 ? <BalanceDue amount={r.salesDue} /> : "—"}</Td>
+                    <Td align="right" className="font-semibold">
+                      {r.totalDue > 0 ? <BalanceDue amount={r.totalDue} /> : "—"}
+                    </Td>
+                    <Td align="right" className="text-muted-foreground">
+                      {inr(r.lifetime)}
+                    </Td>
+                    <Td align="right">
+                      {r.totalDue > 0 && <WhatsAppIconButton href={reminderUrl(r.name, r.mobile, r.totalDue)} label={`Payment reminder to ${r.name || r.mobile}`} />}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(totals.totalDue)} showChevron={false} />
+              <MobileRecordGrid
+                items={[
+                  { label: "Stitch Due", value: inr(totals.stitchDue) },
+                  { label: "Product Sales Due", value: inr(totals.salesDue) },
+                ]}
+              />
+            </MobileRecordCard>
             {filtered.map((r) => (
-              <tr key={r.mobile} className="hover:bg-muted/30">
-                <Td className="font-medium">
-                  <Link href={`/crm/${r.mobile}`} className="hover:underline">
-                    {r.name || r.mobile}
-                  </Link>
-                </Td>
-                <Td align="right">{r.orderCount}</Td>
-                <Td align="right">{r.invoiceCount}</Td>
-                <Td align="right">{r.stitchDue > 0 ? <BalanceDue amount={r.stitchDue} /> : "—"}</Td>
-                <Td align="right">{r.salesDue > 0 ? <BalanceDue amount={r.salesDue} /> : "—"}</Td>
-                <Td align="right" className="font-semibold">
-                  {r.totalDue > 0 ? <BalanceDue amount={r.totalDue} /> : "—"}
-                </Td>
-                <Td align="right" className="text-muted-foreground">
-                  {inr(r.lifetime)}
-                </Td>
-                <Td align="right">
-                  {r.totalDue > 0 && <WhatsAppIconButton href={reminderUrl(r.name, r.mobile, r.totalDue)} label={`Payment reminder to ${r.name || r.mobile}`} />}
-                </Td>
-              </tr>
+              // onClick (not href) — the WhatsApp button below renders its own <a>, which can't
+              // nest inside this card's anchor.
+              <MobileRecordCard key={r.mobile} onClick={() => router.push(`/crm/${r.mobile}`)}>
+                <MobileRecordHeader
+                  title={r.name || r.mobile}
+                  value={r.totalDue > 0 ? <BalanceDue amount={r.totalDue} /> : "—"}
+                  valueClassName="font-semibold"
+                />
+                <MobileRecordGrid
+                  items={[
+                    { label: "Orders", value: r.orderCount },
+                    { label: "Invoices", value: r.invoiceCount },
+                    { label: "Stitch Due", value: r.stitchDue > 0 ? inr(r.stitchDue) : "—" },
+                    { label: "Product Sales Due", value: r.salesDue > 0 ? inr(r.salesDue) : "—" },
+                    { label: "Lifetime", value: inr(r.lifetime), valueClassName: "text-muted-foreground" },
+                  ]}
+                />
+                {r.totalDue > 0 && (
+                  <div className="flex items-center justify-between border-t pt-1.5 text-xs" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-muted-foreground">Actions</span>
+                    <WhatsAppIconButton href={reminderUrl(r.name, r.mobile, r.totalDue)} label={`Payment reminder to ${r.name || r.mobile}`} />
+                  </div>
+                )}
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+        </>
       )}
     </ReportShell>
   );

@@ -26,6 +26,7 @@ import { DAY_BOOK_MODULE_ICONS, DAY_BOOK_MODULE_LABELS, fmtTime, type DayBookMod
 import { inr, fmtDate } from "@/lib/format";
 import { toISODate } from "@/components/ui/date-picker";
 import { ReportShell, ReportCard, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -272,54 +273,92 @@ export default function DayBookPage() {
           {filtered.length === 0 ? (
             <EmptyState icon={CalendarDays} title="No activity" description="Nothing matches the current filters for this date." />
           ) : (
-            <ReportTable>
-              <thead className="border-b bg-muted/40">
-                <tr>
-                  <Th>Time</Th>
-                  <Th>Module</Th>
-                  <Th>Activity</Th>
-                  <Th>Details</Th>
-                  <Th align="right">Amount</Th>
-                  <Th>User</Th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                <ReportTotalsRow>
-                  <Td colSpan={4}>{filtered.length} {filtered.length === 1 ? "entry" : "entries"}</Td>
-                  <Td align="right">{inr(filtered.reduce((s, e) => s + (e.amount || 0), 0))}</Td>
-                  <Td />
-                </ReportTotalsRow>
+            <>
+              <div className="hidden sm:block">
+                <ReportTable>
+                  <thead className="border-b bg-muted/40">
+                    <tr>
+                      <Th>Time</Th>
+                      <Th>Module</Th>
+                      <Th>Activity</Th>
+                      <Th>Details</Th>
+                      <Th align="right">Amount</Th>
+                      <Th>User</Th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    <ReportTotalsRow>
+                      <Td colSpan={4}>{filtered.length} {filtered.length === 1 ? "entry" : "entries"}</Td>
+                      <Td align="right">{inr(filtered.reduce((s, e) => s + (e.amount || 0), 0))}</Td>
+                      <Td />
+                    </ReportTotalsRow>
+                    {filtered.map((e) => {
+                      const Icon = DAY_BOOK_MODULE_ICONS[e.module];
+                      return (
+                        <tr key={e.id} className="hover:bg-muted/30">
+                          <Td className="whitespace-nowrap font-medium tabular-nums">{fmtTime(e.time)}</Td>
+                          <Td>
+                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium">
+                              <Icon className="size-3.5" />
+                              {DAY_BOOK_MODULE_LABELS[e.module]}
+                            </span>
+                          </Td>
+                          <Td className="whitespace-nowrap">{e.activity}</Td>
+                          <Td className="max-w-md">
+                            {e.referenceHref ? (
+                              <Link href={e.referenceHref} className="font-medium text-primary hover:underline">
+                                {e.reference ? `${e.reference} — ` : ""}
+                                {e.description}
+                              </Link>
+                            ) : (
+                              <span>{e.description}</span>
+                            )}
+                          </Td>
+                          <Td align="right" className={cn("whitespace-nowrap", e.amount != null && "font-medium")}>
+                            {e.amount != null ? inr(e.amount) : "—"}
+                          </Td>
+                          <Td className="whitespace-nowrap text-muted-foreground">{e.user}</Td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </ReportTable>
+              </div>
+
+              <MobileRecordList>
+                <MobileRecordCard className="bg-muted/40">
+                  <MobileRecordHeader
+                    title={`${filtered.length} ${filtered.length === 1 ? "entry" : "entries"}`}
+                    value={inr(filtered.reduce((s, e) => s + (e.amount || 0), 0))}
+                    showChevron={false}
+                  />
+                </MobileRecordCard>
                 {filtered.map((e) => {
                   const Icon = DAY_BOOK_MODULE_ICONS[e.module];
                   return (
-                    <tr key={e.id} className="hover:bg-muted/30">
-                      <Td className="whitespace-nowrap font-medium tabular-nums">{fmtTime(e.time)}</Td>
-                      <Td>
-                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium">
-                          <Icon className="size-3.5" />
-                          {DAY_BOOK_MODULE_LABELS[e.module]}
-                        </span>
-                      </Td>
-                      <Td className="whitespace-nowrap">{e.activity}</Td>
-                      <Td className="max-w-md">
-                        {e.referenceHref ? (
-                          <Link href={e.referenceHref} className="font-medium text-primary hover:underline">
-                            {e.reference ? `${e.reference} — ` : ""}
-                            {e.description}
-                          </Link>
-                        ) : (
-                          <span>{e.description}</span>
-                        )}
-                      </Td>
-                      <Td align="right" className={cn("whitespace-nowrap", e.amount != null && "font-medium")}>
-                        {e.amount != null ? inr(e.amount) : "—"}
-                      </Td>
-                      <Td className="whitespace-nowrap text-muted-foreground">{e.user}</Td>
-                    </tr>
+                    <MobileRecordCard key={e.id} href={e.referenceHref || undefined}>
+                      <MobileRecordHeader
+                        title={e.activity}
+                        subtitle={fmtTime(e.time)}
+                        value={e.amount != null ? inr(e.amount) : "—"}
+                        showChevron={!!e.referenceHref}
+                      />
+                      <MobileRecordRow
+                        label="Module"
+                        value={
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium">
+                            <Icon className="size-3.5" />
+                            {DAY_BOOK_MODULE_LABELS[e.module]}
+                          </span>
+                        }
+                      />
+                      <MobileRecordRow label="Details" value={<span className="text-right">{e.reference ? `${e.reference} — ` : ""}{e.description}</span>} />
+                      <MobileRecordRow label="User" value={e.user} />
+                    </MobileRecordCard>
                   );
                 })}
-              </tbody>
-            </ReportTable>
+              </MobileRecordList>
+            </>
           )}
         </>
       )}

@@ -11,6 +11,7 @@ import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange } from "@/lib/report-date-range";
 
@@ -75,6 +76,29 @@ export default function InventoryReportPage() {
         {!rawMaterials || rawMaterials.length === 0 ? (
           <EmptyState icon={Package} title="No raw materials yet" />
         ) : (
+          <>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total raw material value" value={inr(rawValue)} showChevron={false} />
+            </MobileRecordCard>
+            {rawMaterials.map((m) => (
+              <MobileRecordCard key={m.id}>
+                <MobileRecordHeader
+                  title={m.name}
+                  subtitle={m.category || "—"}
+                  value={inr(m.stockQty * m.costPerUnit)}
+                  showChevron={false}
+                />
+                <MobileRecordRow
+                  label="Stock"
+                  value={`${m.stockQty} ${m.unitName}`}
+                  valueClassName={isLowStock(m.stockQty, m.lowStockAlert) ? "font-medium text-amber-700 dark:text-amber-400" : undefined}
+                />
+                <MobileRecordRow label="Cost/unit" value={inr(m.costPerUnit)} />
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
+          <div className="hidden sm:block">
           <ReportTable>
             <thead className="border-b bg-muted/40">
               <tr>
@@ -103,6 +127,8 @@ export default function InventoryReportPage() {
               ))}
             </tbody>
           </ReportTable>
+          </div>
+          </>
         )}
       </div>
 
@@ -111,6 +137,32 @@ export default function InventoryReportPage() {
         {!products || products.length === 0 ? (
           <EmptyState icon={ShoppingBag} title="No products yet" />
         ) : (
+          <>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total finished-goods value" value={inr(finishedCostValue)} showChevron={false} />
+              <MobileRecordRow label="Retail value" value={inr(finishedRetailValue)} />
+            </MobileRecordCard>
+            {products.map((p) => (
+              <MobileRecordCard key={p.id}>
+                <MobileRecordHeader
+                  title={p.name}
+                  subtitle={p.sku}
+                  value={inr(p.stockQty * p.costPrice)}
+                  showChevron={false}
+                />
+                <MobileRecordRow
+                  label="Stock"
+                  value={`${p.stockQty} pcs`}
+                  valueClassName={isLowStock(p.stockQty, p.lowStockAlert) ? "font-medium text-amber-700 dark:text-amber-400" : undefined}
+                />
+                <MobileRecordRow label="Cost price" value={inr(p.costPrice)} />
+                <MobileRecordRow label="Selling price" value={inr(p.sellingPrice)} />
+                <MobileRecordRow label="Retail value" value={inr(p.stockQty * p.sellingPrice)} />
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
+          <div className="hidden sm:block">
           <ReportTable>
             <thead className="border-b bg-muted/40">
               <tr>
@@ -145,6 +197,8 @@ export default function InventoryReportPage() {
               ))}
             </tbody>
           </ReportTable>
+          </div>
+          </>
         )}
       </div>
     </ReportShell>

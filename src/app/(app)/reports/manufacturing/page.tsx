@@ -10,6 +10,7 @@ import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Badge } from "@/components/ui/badge";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
@@ -93,6 +94,23 @@ export default function ManufacturingReportPage() {
         {byProduct.length === 0 ? (
           <EmptyState icon={Factory} title="No completed work orders yet" description="Cost breakdowns appear once a work order is completed." />
         ) : (
+          <>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(byProduct.reduce((s, p) => s + p.totalCost, 0))} showChevron={false} />
+              <MobileRecordRow label="Work orders" value={byProduct.reduce((s, p) => s + p.woCount, 0)} />
+              <MobileRecordRow label="Qty produced" value={byProduct.reduce((s, p) => s + p.qtyProduced, 0)} />
+            </MobileRecordCard>
+            {byProduct.map((p) => (
+              <MobileRecordCard key={p.productName}>
+                <MobileRecordHeader title={p.productName} value={inr(p.totalCost)} showChevron={false} />
+                <MobileRecordRow label="Work orders" value={p.woCount} />
+                <MobileRecordRow label="Qty produced" value={p.qtyProduced} />
+                <MobileRecordRow label="Avg cost/unit" value={inr(p.avgCostPerUnit)} />
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
+          <div className="hidden sm:block">
           <ReportTable>
             <thead className="border-b bg-muted/40">
               <tr>
@@ -122,6 +140,8 @@ export default function ManufacturingReportPage() {
               ))}
             </tbody>
           </ReportTable>
+          </div>
+          </>
         )}
       </div>
     </ReportShell>

@@ -11,6 +11,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
@@ -72,38 +73,59 @@ export default function TimeToGetPaidPage() {
       {rows.length === 0 ? (
         <EmptyState icon={Clock} title="No fully-paid invoices yet" description="Invoices that have been paid in full will appear here." />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Invoice</Th>
-              <Th>Customer</Th>
-              <Th>Invoice Date</Th>
-              <Th>Last Payment</Th>
-              <Th align="right">Days to Pay</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <ReportTotalsRow>
-              <Td colSpan={4}>Average ({rows.length} invoice{rows.length === 1 ? "" : "s"})</Td>
-              <Td align="right">{avgDays != null ? `${avgDays}d` : "—"}</Td>
-            </ReportTotalsRow>
+        <>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Invoice</Th>
+                  <Th>Customer</Th>
+                  <Th>Invoice Date</Th>
+                  <Th>Last Payment</Th>
+                  <Th align="right">Days to Pay</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td colSpan={4}>Average ({rows.length} invoice{rows.length === 1 ? "" : "s"})</Td>
+                  <Td align="right">{avgDays != null ? `${avgDays}d` : "—"}</Td>
+                </ReportTotalsRow>
+                {rows.map((r) => (
+                  <tr key={r.id} className="hover:bg-muted/30">
+                    <Td className="font-medium">
+                      <Link href={`/sales/invoices/${r.id}`} className="text-primary hover:underline">
+                        {r.invoiceNumber}
+                      </Link>
+                    </Td>
+                    <Td>{r.customerName}</Td>
+                    <Td className="text-muted-foreground">{fmtDate(r.invoiceDate)}</Td>
+                    <Td className="text-muted-foreground">{fmtDate(r.lastPaymentDate)}</Td>
+                    <Td align="right" className={r.days <= 7 ? "text-emerald-600 dark:text-emerald-400" : r.days <= 30 ? "" : "text-red-600 dark:text-red-400"}>
+                      {r.days}d
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title={`Average (${rows.length} invoice${rows.length === 1 ? "" : "s"})`} value={avgDays != null ? `${avgDays}d` : "—"} showChevron={false} />
+            </MobileRecordCard>
             {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-muted/30">
-                <Td className="font-medium">
-                  <Link href={`/sales/invoices/${r.id}`} className="text-primary hover:underline">
-                    {r.invoiceNumber}
-                  </Link>
-                </Td>
-                <Td>{r.customerName}</Td>
-                <Td className="text-muted-foreground">{fmtDate(r.invoiceDate)}</Td>
-                <Td className="text-muted-foreground">{fmtDate(r.lastPaymentDate)}</Td>
-                <Td align="right" className={r.days <= 7 ? "text-emerald-600 dark:text-emerald-400" : r.days <= 30 ? "" : "text-red-600 dark:text-red-400"}>
-                  {r.days}d
-                </Td>
-              </tr>
+              <MobileRecordCard key={r.id} href={`/sales/invoices/${r.id}`}>
+                <MobileRecordHeader
+                  title={r.invoiceNumber}
+                  subtitle={r.customerName}
+                  value={`${r.days}d`}
+                  valueClassName={r.days <= 7 ? "text-emerald-600 dark:text-emerald-400" : r.days <= 30 ? "" : "text-red-600 dark:text-red-400"}
+                />
+                <MobileRecordRow label="Invoice Date" value={fmtDate(r.invoiceDate)} />
+                <MobileRecordRow label="Last Payment" value={fmtDate(r.lastPaymentDate)} />
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+        </>
       )}
     </ReportShell>
   );

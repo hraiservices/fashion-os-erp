@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 
 export default function CreditNoteDetailsPage() {
   const { data: creditNotes, isLoading: l1 } = useSalesCreditNotes();
@@ -64,45 +65,77 @@ export default function CreditNoteDetailsPage() {
       {rows.length === 0 ? (
         <EmptyState icon={FileMinus} title="No credit notes yet" description="Credit notes issued against sales invoices will appear here." />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Credit#</Th>
-              <Th>Date</Th>
-              <Th>Customer</Th>
-              <Th>Invoice</Th>
-              <Th>Reason</Th>
-              <Th align="right">Amount</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <ReportTotalsRow>
-              <Td colSpan={5}>Total</Td>
-              <Td align="right">{inr(total)}</Td>
-            </ReportTotalsRow>
+        <>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(total)} showChevron={false} />
+            </MobileRecordCard>
             {rows.map((c) => {
               const inv = invoiceById.get(c.invoiceId);
               return (
-                <tr key={c.id} className="hover:bg-muted/30">
-                  <Td className="font-medium">{c.creditNumber}</Td>
-                  <Td className="text-muted-foreground">{fmtDate(c.date)}</Td>
-                  <Td>{inv?.customerName || "—"}</Td>
-                  <Td>
-                    {inv ? (
-                      <Link href={`/sales/invoices/${inv.id}`} className="text-primary hover:underline">
-                        {inv.invoiceNumber}
-                      </Link>
-                    ) : (
-                      "—"
-                    )}
-                  </Td>
-                  <Td className="max-w-40 truncate text-muted-foreground">{c.reason || "—"}</Td>
-                  <Td align="right" className="font-medium">{inr(c.total)}</Td>
-                </tr>
+                <MobileRecordCard key={c.id}>
+                  <MobileRecordHeader title={c.creditNumber} subtitle={fmtDate(c.date)} value={inr(c.total)} showChevron={false} />
+                  <MobileRecordRow label="Customer" value={inv?.customerName || "—"} />
+                  <MobileRecordRow
+                    label="Invoice"
+                    value={
+                      inv ? (
+                        <Link href={`/sales/invoices/${inv.id}`} className="text-primary hover:underline">
+                          {inv.invoiceNumber}
+                        </Link>
+                      ) : (
+                        "—"
+                      )
+                    }
+                  />
+                  <MobileRecordRow label="Reason" value={c.reason || "—"} />
+                </MobileRecordCard>
               );
             })}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Credit#</Th>
+                  <Th>Date</Th>
+                  <Th>Customer</Th>
+                  <Th>Invoice</Th>
+                  <Th>Reason</Th>
+                  <Th align="right">Amount</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td colSpan={5}>Total</Td>
+                  <Td align="right">{inr(total)}</Td>
+                </ReportTotalsRow>
+                {rows.map((c) => {
+                  const inv = invoiceById.get(c.invoiceId);
+                  return (
+                    <tr key={c.id} className="hover:bg-muted/30">
+                      <Td className="font-medium">{c.creditNumber}</Td>
+                      <Td className="text-muted-foreground">{fmtDate(c.date)}</Td>
+                      <Td>{inv?.customerName || "—"}</Td>
+                      <Td>
+                        {inv ? (
+                          <Link href={`/sales/invoices/${inv.id}`} className="text-primary hover:underline">
+                            {inv.invoiceNumber}
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
+                      </Td>
+                      <Td className="max-w-40 truncate text-muted-foreground">{c.reason || "—"}</Td>
+                      <Td align="right" className="font-medium">{inr(c.total)}</Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </ReportTable>
+          </div>
+        </>
       )}
     </ReportShell>
   );

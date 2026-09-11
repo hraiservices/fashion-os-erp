@@ -17,6 +17,7 @@ import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange } from "@/lib/report-date-range";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import type { Order } from "@/lib/types";
 
 /** What's actually promised for today (or whichever range is selected) — the flip side of
@@ -59,6 +60,27 @@ export default function TodayDeliverablesPage() {
     );
   }
 
+  function renderMobileCard(o: Order) {
+    return (
+      <MobileRecordCard key={o.id} href={`/orders/${o.id}`}>
+        <MobileRecordHeader
+          title={o.name}
+          subtitle={o.mobile}
+          value={o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}
+        />
+        <MobileRecordRow label="Order" value={o.id} />
+        <MobileRecordRow label="Stage" value={<StageBadge stage={o.status} size="sm" />} />
+        <MobileRecordRow label="Delivery" value={fmtDate(o.deliveryDate)} />
+        {o.balance > 0 && (
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Actions</span>
+            <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop)} label={`Payment reminder to ${o.name}`} />
+          </div>
+        )}
+      </MobileRecordCard>
+    );
+  }
+
   return (
     <ReportShell
       title="Today Deliverables"
@@ -84,26 +106,34 @@ export default function TodayDeliverablesPage() {
       {overdue.length > 0 && (
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-destructive">Overdue ({overdue.length})</h2>
-          <ReportTable>
-            <thead className="border-b bg-muted/40">
-              <tr>
-                <Th>Order</Th>
-                <Th>Customer</Th>
-                <Th>Stage</Th>
-                <Th>Delivery</Th>
-                <Th align="right">Balance</Th>
-                <Th align="right">Actions</Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              <ReportTotalsRow>
-                <Td colSpan={4}>Total</Td>
-                <Td align="right">{inr(overdueBalance)}</Td>
-                <Td align="right">—</Td>
-              </ReportTotalsRow>
-              {overdue.map(renderRow)}
-            </tbody>
-          </ReportTable>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Order</Th>
+                  <Th>Customer</Th>
+                  <Th>Stage</Th>
+                  <Th>Delivery</Th>
+                  <Th align="right">Balance</Th>
+                  <Th align="right">Actions</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td colSpan={4}>Total</Td>
+                  <Td align="right">{inr(overdueBalance)}</Td>
+                  <Td align="right">—</Td>
+                </ReportTotalsRow>
+                {overdue.map(renderRow)}
+              </tbody>
+            </ReportTable>
+          </div>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(overdueBalance)} showChevron={false} />
+            </MobileRecordCard>
+            {overdue.map(renderMobileCard)}
+          </MobileRecordList>
         </div>
       )}
 
@@ -112,26 +142,36 @@ export default function TodayDeliverablesPage() {
         {due.length === 0 ? (
           <EmptyState icon={CalendarCheck2} title="Nothing due" description="No pending orders are due in this range." />
         ) : (
-          <ReportTable>
-            <thead className="border-b bg-muted/40">
-              <tr>
-                <Th>Order</Th>
-                <Th>Customer</Th>
-                <Th>Stage</Th>
-                <Th>Delivery</Th>
-                <Th align="right">Balance</Th>
-                <Th align="right">Actions</Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              <ReportTotalsRow>
-                <Td colSpan={4}>Total</Td>
-                <Td align="right">{inr(dueBalance)}</Td>
-                <Td align="right">—</Td>
-              </ReportTotalsRow>
-              {due.map(renderRow)}
-            </tbody>
-          </ReportTable>
+          <>
+            <div className="hidden sm:block">
+              <ReportTable>
+                <thead className="border-b bg-muted/40">
+                  <tr>
+                    <Th>Order</Th>
+                    <Th>Customer</Th>
+                    <Th>Stage</Th>
+                    <Th>Delivery</Th>
+                    <Th align="right">Balance</Th>
+                    <Th align="right">Actions</Th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  <ReportTotalsRow>
+                    <Td colSpan={4}>Total</Td>
+                    <Td align="right">{inr(dueBalance)}</Td>
+                    <Td align="right">—</Td>
+                  </ReportTotalsRow>
+                  {due.map(renderRow)}
+                </tbody>
+              </ReportTable>
+            </div>
+            <MobileRecordList>
+              <MobileRecordCard className="bg-muted/40">
+                <MobileRecordHeader title="Total" value={inr(dueBalance)} showChevron={false} />
+              </MobileRecordCard>
+              {due.map(renderMobileCard)}
+            </MobileRecordList>
+          </>
         )}
       </div>
     </ReportShell>

@@ -9,6 +9,7 @@ import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
@@ -59,6 +60,22 @@ export default function PurchaseOrderByItemPage() {
       {rows.length === 0 ? (
         <EmptyState icon={Package} title="No purchase orders yet" />
       ) : (
+        <>
+        <MobileRecordList>
+          <MobileRecordCard className="bg-muted/40">
+            <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.amount, 0))} showChevron={false} />
+            <MobileRecordRow label="Qty Ordered" value={rows.reduce((s, r) => s + r.qty, 0)} />
+            <MobileRecordRow label="Purchase Orders" value={rows.reduce((s, r) => s + r.poCount, 0)} />
+          </MobileRecordCard>
+          {rows.map((r) => (
+            <MobileRecordCard key={r.itemName}>
+              <MobileRecordHeader title={r.itemName} value={inr(r.amount)} showChevron={false} />
+              <MobileRecordRow label="Qty Ordered" value={`${r.qty} ${r.unitName}`} />
+              <MobileRecordRow label="Purchase Orders" value={r.poCount} />
+            </MobileRecordCard>
+          ))}
+        </MobileRecordList>
+        <div className="hidden sm:block">
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
@@ -87,6 +104,8 @@ export default function PurchaseOrderByItemPage() {
             ))}
           </tbody>
         </ReportTable>
+        </div>
+        </>
       )}
     </ReportShell>
   );

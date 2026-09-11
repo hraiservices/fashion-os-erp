@@ -18,6 +18,7 @@ import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 
 /** Orders sitting in "ready" the longest without being picked up — distinct from Balance Aging,
  *  which tracks the delivery-date promise, not physical pickup. Excludes orders that reached
@@ -59,45 +60,74 @@ export default function ReadyUncollectedPage() {
       {readyUncollected.length === 0 ? (
         <EmptyState icon={PackageCheck} title="Nothing waiting" description="Every ready order has been picked up." />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Order</Th>
-              <Th>Customer</Th>
-              <Th align="right">Days waiting</Th>
-              <Th align="right">Balance</Th>
-              <Th align="right">Actions</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <ReportTotalsRow>
-              <Td colSpan={3}>Total</Td>
-              <Td align="right">{inr(totalBalance)}</Td>
-              <Td align="right">—</Td>
-            </ReportTotalsRow>
+        <>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(totalBalance)} showChevron={false} />
+            </MobileRecordCard>
             {readyUncollected.map((o) => (
-              <tr key={o.id} className="hover:bg-muted/30">
-                <Td>
-                  <Link href={`/orders/${o.id}`} className="font-medium hover:underline">
-                    {o.id}
-                  </Link>
-                  <p className="text-xs text-muted-foreground">Ready since {fmtDate(o.readyAt!.slice(0, 10))}</p>
-                </Td>
-                <Td>
-                  <p className="truncate">{o.name}</p>
-                  <p className="text-xs text-muted-foreground">{o.mobile}</p>
-                </Td>
-                <Td align="right" className={o.daysWaiting >= 7 ? "font-medium text-destructive" : undefined}>
-                  {o.daysWaiting}d
-                </Td>
-                <Td align="right">{o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}</Td>
-                <Td align="right">
+              <MobileRecordCard key={o.id}>
+                <MobileRecordHeader
+                  title={
+                    <Link href={`/orders/${o.id}`} className="hover:underline">
+                      {o.id}
+                    </Link>
+                  }
+                  subtitle={`${o.name} · ${o.mobile}`}
+                  value={o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}
+                  showChevron={false}
+                />
+                <MobileRecordRow label="Ready since" value={fmtDate(o.readyAt!.slice(0, 10))} />
+                <MobileRecordRow label="Days waiting" value={`${o.daysWaiting}d`} valueClassName={o.daysWaiting >= 7 ? "font-medium text-destructive" : undefined} />
+                <div className="flex justify-end border-t pt-1.5">
                   <WhatsAppIconButton href={buildWhatsAppUrl(o, o.balance > 0 ? "paymentDue" : "ready", shop, waTemplates)} label={`Pickup reminder to ${o.name}`} />
-                </Td>
-              </tr>
+                </div>
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Order</Th>
+                  <Th>Customer</Th>
+                  <Th align="right">Days waiting</Th>
+                  <Th align="right">Balance</Th>
+                  <Th align="right">Actions</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td colSpan={3}>Total</Td>
+                  <Td align="right">{inr(totalBalance)}</Td>
+                  <Td align="right">—</Td>
+                </ReportTotalsRow>
+                {readyUncollected.map((o) => (
+                  <tr key={o.id} className="hover:bg-muted/30">
+                    <Td>
+                      <Link href={`/orders/${o.id}`} className="font-medium hover:underline">
+                        {o.id}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">Ready since {fmtDate(o.readyAt!.slice(0, 10))}</p>
+                    </Td>
+                    <Td>
+                      <p className="truncate">{o.name}</p>
+                      <p className="text-xs text-muted-foreground">{o.mobile}</p>
+                    </Td>
+                    <Td align="right" className={o.daysWaiting >= 7 ? "font-medium text-destructive" : undefined}>
+                      {o.daysWaiting}d
+                    </Td>
+                    <Td align="right">{o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}</Td>
+                    <Td align="right">
+                      <WhatsAppIconButton href={buildWhatsAppUrl(o, o.balance > 0 ? "paymentDue" : "ready", shop, waTemplates)} label={`Pickup reminder to ${o.name}`} />
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+        </>
       )}
     </ReportShell>
   );

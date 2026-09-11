@@ -7,6 +7,7 @@ import { useOrders } from "@/hooks/use-orders";
 import { computeCommission } from "@/lib/commission";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -55,32 +56,51 @@ export default function EmployeeCommissionReportPage() {
       {rows.length === 0 ? (
         <EmptyState icon={UserCog} title="No commission-eligible employees" description="Set a commission type on an employee in Employees to see them here." />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Employee</Th>
-              <Th align="right">Orders</Th>
-              <Th align="right">Attributed Value</Th>
-              <Th align="right">Commission</Th>
-            </tr>
-          </thead>
-          <tbody>
-            <ReportTotalsRow>
-              <Td>Total</Td>
-              <Td align="right">{rows.reduce((s, r) => s + r.attributedOrders, 0)}</Td>
-              <Td align="right">{inr(rows.reduce((s, r) => s + r.attributedValue, 0))}</Td>
-              <Td align="right">{inr(rows.reduce((s, r) => s + r.commission, 0))}</Td>
-            </ReportTotalsRow>
+        <>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Employee</Th>
+                  <Th align="right">Orders</Th>
+                  <Th align="right">Attributed Value</Th>
+                  <Th align="right">Commission</Th>
+                </tr>
+              </thead>
+              <tbody>
+                <ReportTotalsRow>
+                  <Td>Total</Td>
+                  <Td align="right">{rows.reduce((s, r) => s + r.attributedOrders, 0)}</Td>
+                  <Td align="right">{inr(rows.reduce((s, r) => s + r.attributedValue, 0))}</Td>
+                  <Td align="right">{inr(rows.reduce((s, r) => s + r.commission, 0))}</Td>
+                </ReportTotalsRow>
+                {rows.map((r) => (
+                  <tr key={r.employee.id} className="border-b last:border-0">
+                    <Td>{r.employee.name}</Td>
+                    <Td align="right">{r.attributedOrders}</Td>
+                    <Td align="right">{inr(r.attributedValue)}</Td>
+                    <Td align="right">{inr(r.commission)}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.commission, 0))} showChevron={false} />
+              <MobileRecordRow label="Orders" value={rows.reduce((s, r) => s + r.attributedOrders, 0)} />
+              <MobileRecordRow label="Attributed Value" value={inr(rows.reduce((s, r) => s + r.attributedValue, 0))} />
+            </MobileRecordCard>
             {rows.map((r) => (
-              <tr key={r.employee.id} className="border-b last:border-0">
-                <Td>{r.employee.name}</Td>
-                <Td align="right">{r.attributedOrders}</Td>
-                <Td align="right">{inr(r.attributedValue)}</Td>
-                <Td align="right">{inr(r.commission)}</Td>
-              </tr>
+              <MobileRecordCard key={r.employee.id}>
+                <MobileRecordHeader title={r.employee.name} value={inr(r.commission)} showChevron={false} />
+                <MobileRecordRow label="Orders" value={r.attributedOrders} />
+                <MobileRecordRow label="Attributed Value" value={inr(r.attributedValue)} />
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+        </>
       )}
     </ReportShell>
   );

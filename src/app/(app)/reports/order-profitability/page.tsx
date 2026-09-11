@@ -8,6 +8,7 @@ import { inr, fmtDate } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
@@ -67,6 +68,34 @@ export default function OrderProfitabilityPage() {
       {withCosts.length === 0 ? (
         <EmptyState icon={TrendingUp} title="No cost data yet" description="Add fabric/other cost on an order to see its profitability here." />
       ) : (
+        <>
+        <MobileRecordList>
+          <MobileRecordCard className="bg-muted/40">
+            <MobileRecordHeader title="Total" value={inr(totalProfit)} showChevron={false} />
+            <MobileRecordRow label="Price" value={inr(withCosts.reduce((s, o) => s + o.total, 0))} />
+            <MobileRecordRow label="Cost" value={inr(withCosts.reduce((s, o) => s + o.cost, 0))} />
+          </MobileRecordCard>
+          {withCosts.map((o) => (
+            <MobileRecordCard key={o.id} href={`/orders/${o.id}`}>
+              <MobileRecordHeader
+                title={o.id}
+                subtitle={fmtDate(o.inDate)}
+                value={
+                  <>
+                    {inr(o.profit)}
+                    {o.tailorCostIsEstimate && <span className="ml-1 text-[10px] font-normal text-muted-foreground">Est.</span>}
+                  </>
+                }
+                valueClassName={o.profit < 0 ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}
+              />
+              <MobileRecordRow label="Customer" value={o.name} />
+              <MobileRecordRow label="Price" value={inr(o.total)} />
+              <MobileRecordRow label="Cost" value={inr(o.cost)} />
+              <MobileRecordRow label="Margin" value={`${o.marginPct}%`} />
+            </MobileRecordCard>
+          ))}
+        </MobileRecordList>
+        <div className="hidden sm:block">
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
@@ -106,6 +135,8 @@ export default function OrderProfitabilityPage() {
             ))}
           </tbody>
         </ReportTable>
+        </div>
+        </>
       )}
     </ReportShell>
   );

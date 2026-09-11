@@ -21,7 +21,7 @@ export function getNextStage(status: string): Stage | null {
 export type Lining = "s" | "h" | "f";
 
 /** LINING, line ~1817. */
-export const LINING_LABELS: Record<Lining, string> = { s: "Simple", h: "Half Lining", f: "Full Lining" };
+export const LINING_LABELS: Record<Lining, string> = { s: "No Lining", h: "Half Lining", f: "Full Lining" };
 
 /** Shared with the stitching-order payment route (validation) and Day Book/Payment Methods
  *  reports (regex extraction of the method from activity_log's action text, since order

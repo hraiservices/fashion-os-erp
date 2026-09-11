@@ -200,25 +200,28 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
-          <Button nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}`} />} className="h-12 w-full min-w-0 text-base sm:h-10 sm:text-sm">
+        {/* flex-1 (not a fixed-column grid) so leftover buttons on a wrapped row still stretch to
+            fill it — a grid's column count comes from container width alone, so a trailing row
+            with fewer buttons than that count left a gap instead of filling out. */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
             <Plus className="size-4 shrink-0" /> <span className="truncate">New order</span>
           </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}&type=alteration`} />} className="h-12 w-full min-w-0 text-base sm:h-10 sm:text-sm">
+          <Button variant="outline" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}&type=alteration`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
             <Scissors className="size-4 shrink-0" />
             <span className="truncate">
               <span className="sm:hidden">Alteration</span>
               <span className="hidden sm:inline">New alteration</span>
             </span>
           </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="h-12 w-full min-w-0 text-base sm:h-10 sm:text-sm">
+          <Button variant="outline" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
             <Receipt className="size-4 shrink-0" />
             <span className="truncate">
               <span className="sm:hidden">Invoice</span>
               <span className="hidden sm:inline">New invoice</span>
             </span>
           </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />} className="h-12 w-full min-w-0 text-base sm:h-10 sm:text-sm">
+          <Button variant="outline" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
             <FileText className="size-4 shrink-0" /> <span className="truncate">Statement</span>
           </Button>
           {combinedDue > 0 && (
@@ -230,7 +233,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
                   <span className="hidden sm:inline">Payment Reminder</span>
                 </>
               }
-              className="h-12 w-full min-w-0 text-base sm:h-10 sm:text-sm"
+              className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm"
             />
           )}
           {custOrders.length > 0 && (
@@ -242,11 +245,11 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
                   <span className="hidden sm:inline">Send wardrobe summary</span>
                 </>
               }
-              className="h-12 w-full min-w-0 text-base sm:h-10 sm:text-sm"
+              className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm"
             />
           )}
           {user?.perms.manageCustomers && (
-            <Button variant="outline" onClick={handleGiveCoupon} disabled={issueCoupon.isPending} className="h-12 w-full min-w-0 text-base sm:h-10 sm:text-sm">
+            <Button variant="outline" onClick={handleGiveCoupon} disabled={issueCoupon.isPending} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
               <Ticket className="size-4 shrink-0" />
               <span className="truncate">
                 <span className="sm:hidden">Coupon</span>
@@ -255,7 +258,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             </Button>
           )}
           {user?.perms.manageCustomers && (
-            <Button variant="outline" onClick={() => setEditOpen(true)} className="h-12 w-full min-w-0 text-base sm:h-10 sm:text-sm">
+            <Button variant="outline" onClick={() => setEditOpen(true)} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
               <Pencil className="size-4 shrink-0" /> <span className="truncate">Edit</span>
             </Button>
           )}
@@ -263,7 +266,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             <AlertDialog>
               <AlertDialogTrigger
                 render={
-                  <Button variant="destructive" aria-label="Delete customer" className="h-12 w-full sm:h-10">
+                  <Button variant="destructive" aria-label="Delete customer" className="h-12 shrink-0 sm:h-10">
                     <Trash2 className="size-4" />
                   </Button>
                 }

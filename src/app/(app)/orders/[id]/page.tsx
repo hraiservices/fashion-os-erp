@@ -337,30 +337,30 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      {/* Actions — a plain wrapping/grid layout in normal document flow, not a fixed/sticky bar.
+      {/* Actions — a plain wrapping/flex layout in normal document flow, not a fixed/sticky bar.
           A fixed bottom bar fought for the same screen corner as the app-wide WhatsApp-support/
           AI-Copilot bubbles (no amount of horizontal clearance fully avoided it) and forced a
           horizontally scrollable row to fit its buttons, which is worse than just wrapping them.
-          The two primary actions (stage/payment) stay a prominent, naturally-sized row; the rest
-          (up to 6: WhatsApp/edit/rework/payables/tag/print/delete) go in a 3-column grid on
-          mobile so they fill the row evenly instead of wrapping into ragged, differently-sized
-          groups — back to plain inline flex-wrap on desktop, where there's room to lay out
-          naturally. */}
+          Every button is `flex-1` with a `basis` floor, not a fixed-column grid — a grid's column
+          count is set by container width alone, so whenever the trailing row had fewer buttons
+          than that column count (e.g. 2 buttons in a 3-column grid), the leftover column just sat
+          empty instead of the row filling out. flex-1 lets each wrapped row's items share exactly
+          that row's width, however many end up on it. */}
       <div className="space-y-2 print:hidden">
         <div className="flex flex-wrap gap-2">
           {user?.perms.changeStage && next && (
-            <Button className={cn("h-12 min-w-0 flex-1 text-base sm:h-8 sm:flex-none sm:text-sm", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
+            <Button className={cn("h-12 min-w-0 flex-1 basis-36 text-base sm:h-10 sm:text-sm", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
               <ArrowRight className="size-4 shrink-0" /> <span className="truncate">Move to {STAGE_META[next].label}</span>
             </Button>
           )}
           {user?.perms.managePayments && order.balance > 0 && (
-            <Button variant="outline" className="h-12 min-w-0 flex-1 text-base sm:h-8 sm:flex-none sm:text-sm" onClick={() => setPaymentOpen(true)}>
+            <Button variant="outline" className="h-12 min-w-0 flex-1 basis-36 text-base sm:h-10 sm:text-sm" onClick={() => setPaymentOpen(true)}>
               <Wallet className="size-4 shrink-0" /> <span className="truncate">Collect payment</span>
             </Button>
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+        <div className="flex flex-wrap gap-2">
           {order.balance > 0 ? (
             <WhatsAppButton
               href={paymentReminderUrl}
@@ -370,19 +370,19 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   <span className="hidden sm:inline">Payment Reminder</span>
                 </>
               }
-              className="h-12 w-full justify-center sm:h-8 sm:w-auto sm:justify-start"
+              className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm"
             />
           ) : (
-            <WhatsAppButton href={waUrl} label="WhatsApp" className="h-12 w-full justify-center sm:h-8 sm:w-auto sm:justify-start" />
+            <WhatsAppButton href={waUrl} label="WhatsApp" className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm" />
           )}
           {user?.perms.editOrder && (
-            <Button variant="outline" className="h-12 w-full sm:h-8 sm:w-auto" nativeButton={false} render={<Link href={`/orders/${id}/edit`} />} aria-label="Edit order">
+            <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" nativeButton={false} render={<Link href={`/orders/${id}/edit`} />} aria-label="Edit order">
               <Pencil className="size-4" />
               <span>Edit</span>
             </Button>
           )}
           {user?.perms.changeStage && !order.reworkFlag && (
-            <Button variant="outline" className="h-12 w-full sm:h-8 sm:w-auto" aria-label="Flag for rework" onClick={() => setReworkDialogOpen(true)}>
+            <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Flag for rework" onClick={() => setReworkDialogOpen(true)}>
               <RotateCcw className="size-4" />
               <span>Rework</span>
             </Button>
@@ -390,7 +390,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           {user?.perms.managePayroll && !order.payablesConfirmedAt && order.garments.some((g) => g.payableAmount) && (
             <Button
               variant="outline"
-              className="h-12 w-full sm:h-8 sm:w-auto"
+              className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm"
               aria-label="Confirm tailor payables"
               disabled={confirmPayables.isPending}
               onClick={async () => {
@@ -408,16 +408,16 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <span className="hidden lg:inline">{confirmPayables.isPending ? "Confirming…" : "Confirm tailor payables"}</span>
             </Button>
           )}
-          <Button variant="outline" className="h-12 w-full sm:h-8 sm:w-auto" aria-label="Print order tag" onClick={() => printOrderTag(order, shop, tailorName(order.tailor))}>
+          <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print order tag" onClick={() => printOrderTag(order, shop, tailorName(order.tailor))}>
             <TagIcon className="size-4" />
             <span>Print tag</span>
           </Button>
-          <PrintButton className="h-12 w-full justify-center sm:h-8 sm:w-auto sm:justify-start" />
+          <PrintButton className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm" />
           {user?.perms.deleteOrder && (
             <AlertDialog>
               <AlertDialogTrigger
                 render={
-                  <Button variant="destructive" className="h-12 w-full sm:h-8 sm:w-auto" aria-label="Delete order">
+                  <Button variant="destructive" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Delete order">
                     <Trash2 className="size-4" />
                     <span>Delete</span>
                   </Button>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { STAGES, STAGE_META, type Stage } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { OrderCard } from "@/components/orders/order-card";
@@ -43,6 +44,41 @@ export function KanbanBoard({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<Stage | null>(null);
   const [mobileStage, setMobileStage] = useState<Stage>(STAGES[0]);
+  const boardScrollRef = useRef<HTMLDivElement>(null);
+  // Whether there's more board to the left/right than currently visible — drives the arrow
+  // buttons below. Recomputed on mount, on every scroll of the board itself, and on window
+  // resize (narrowing the window can newly reveal overflow that wasn't there before, and vice
+  // versa).
+  const [scrollState, setScrollState] = useState({ atStart: true, atEnd: true });
+
+  useEffect(() => {
+    const el = boardScrollRef.current;
+    if (!el) return;
+    function update() {
+      if (!el) return;
+      // 4px slack — some browsers report scrollWidth a hair larger than clientWidth even when
+      // fully scrolled, which would otherwise leave the "next" arrow stuck on forever.
+      setScrollState({
+        atStart: el.scrollLeft <= 4,
+        atEnd: el.scrollWidth - el.clientWidth - el.scrollLeft <= 4,
+      });
+    }
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      el.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [orders]);
+
+  // One stage-column's width (w-72 = 288px) plus the board's own gap-3 (12px) — scrolling by
+  // this amount lands the next/previous column flush against the edge instead of leaving it
+  // awkwardly half-visible.
+  const COLUMN_SCROLL_STEP = 300;
+  function scrollByColumn(direction: -1 | 1) {
+    boardScrollRef.current?.scrollBy({ left: direction * COLUMN_SCROLL_STEP, behavior: "smooth" });
+  }
   // The state above drives rendering, but dragover can fire before React has flushed the
   // dragstart update — so the handlers read the id from this ref, which is set synchronously.
   const draggingRef = useRef<string | null>(null);
@@ -139,10 +175,31 @@ export function KanbanBoard({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-3">
+        {/* Board-scroll arrows — desktop-only (matches the board's own sm:block below), always
+            present in this row rather than appearing/disappearing, so the row's width/layout
+            stays put; disabled and dimmed at whichever end there's nothing more to scroll to. */}
+        <button
+          type="button"
+          aria-label="Scroll to previous stage"
+          disabled={scrollState.atStart}
+          onClick={() => scrollByColumn(-1)}
+          className="hidden size-6 shrink-0 items-center justify-center rounded-full border bg-background text-foreground transition-colors hover:bg-muted disabled:opacity-30 disabled:hover:bg-background disabled:cursor-not-allowed sm:flex"
+        >
+          <ChevronLeft className="size-3.5" />
+        </button>
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
           <div className="h-full rounded-full bg-gradient-to-r from-teal-400 to-emerald-500 transition-all duration-500" style={{ width: `${progressPct}%` }} />
         </div>
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{progressPct}% complete</span>
+        <button
+          type="button"
+          aria-label="Scroll to next stage"
+          disabled={scrollState.atEnd}
+          onClick={() => scrollByColumn(1)}
+          className="hidden size-6 shrink-0 items-center justify-center rounded-full border bg-background text-foreground transition-colors hover:bg-muted disabled:opacity-30 disabled:hover:bg-background disabled:cursor-not-allowed sm:flex"
+        >
+          <ChevronRight className="size-3.5" />
+        </button>
       </div>
 
       {/* Mobile: one stage at a time, picked via tab pills — all stages visible at once in an
@@ -172,8 +229,10 @@ export function KanbanBoard({
         {renderColumn(mobileStage)}
       </div>
 
-      {/* Desktop: full multi-column board, horizontal scroll expected here. */}
-      <div className="hidden gap-3 overflow-x-auto pb-4 sm:flex">
+      {/* Desktop: full multi-column board, horizontal scroll expected here — the arrow buttons
+          that step through it live up in the progress-bar row above, not floating over the
+          board itself. Native scroll (wheel/trackpad/scrollbar/drag) still works regardless. */}
+      <div id="kanban-board-scroll" ref={boardScrollRef} className="hidden gap-3 overflow-x-auto pb-4 sm:flex">
         {STAGES.map((stage) => renderColumn(stage, "w-72 shrink-0"))}
       </div>
     </div>

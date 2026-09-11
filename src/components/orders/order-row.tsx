@@ -100,10 +100,30 @@ function OrderWhatsAppButton({ order, shop, compact, trackUrl }: { order: Order;
 }
 
 /** Balance-due orders get a one-tap payment-reminder WhatsApp link next to the plain WhatsApp
- *  button, so staff don't have to open the order just to nudge a customer for the balance. */
-function PaymentReminderButton({ order, shop, compact, trackUrl }: { order: Order; shop?: Shop; compact?: boolean; trackUrl?: string }) {
+ *  button, so staff don't have to open the order just to nudge a customer for the balance.
+ *  Icon-only on the desktop table (iconOnly) — the visible "Reminder" label was the single
+ *  widest thing in an already-crowded actions cell (Advance/Record/WhatsApp/Reminder/Delete all
+ *  in one row), and was what actually got clipped on a 14" laptop screen; the mobile card row
+ *  has a full-width action bar to spare, so it keeps the text label. */
+function PaymentReminderButton({ order, shop, compact, iconOnly, trackUrl }: { order: Order; shop?: Shop; compact?: boolean; iconOnly?: boolean; trackUrl?: string }) {
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   if (order.balance <= 0) return null;
+  const href = buildWhatsAppUrl({ ...order, trackUrl }, "paymentDue", shop, waTemplates);
+  if (iconOnly) {
+    return (
+      <Button
+        variant="outline"
+        size="icon-sm"
+        className={cn("size-9 shrink-0", !compact && "sm:size-8")}
+        aria-label={`Payment reminder to ${order.name}`}
+        title="Payment reminder"
+        nativeButton={false}
+        render={<a href={href} target="_blank" rel="noopener noreferrer" />}
+      >
+        <WhatsAppIcon className="size-3.5 text-[#25D366]" />
+      </Button>
+    );
+  }
   return (
     <Button
       variant="outline"
@@ -112,7 +132,7 @@ function PaymentReminderButton({ order, shop, compact, trackUrl }: { order: Orde
       aria-label={`Payment reminder to ${order.name}`}
       title="Payment reminder"
       nativeButton={false}
-      render={<a href={buildWhatsAppUrl({ ...order, trackUrl }, "paymentDue", shop, waTemplates)} target="_blank" rel="noopener noreferrer" />}
+      render={<a href={href} target="_blank" rel="noopener noreferrer" />}
     >
       <WhatsAppIcon className="size-3.5 text-[#25D366]" /> Reminder
     </Button>
@@ -209,7 +229,7 @@ export function OrderTableRow(props: TableRowProps) {
         <div className={cn("h-full w-1", style.accent)} aria-hidden />
       </td>
       {selection && (
-        <td className="px-3 py-3">
+        <td className="px-2.5 py-2.5">
           <Checkbox
             checked={selection.selected.has(order.id)}
             onChange={() => selection.toggle(order.id)}
@@ -218,7 +238,7 @@ export function OrderTableRow(props: TableRowProps) {
         </td>
       )}
       {isVisible("order") && (
-        <td className="px-3 py-3">
+        <td className="px-2.5 py-2.5">
           <Link href={`/orders/${order.id}`} className="font-medium hover:underline">
             {order.id}
           </Link>
@@ -226,18 +246,18 @@ export function OrderTableRow(props: TableRowProps) {
         </td>
       )}
       {isVisible("customer") && (
-        <td className="px-3 py-3">
+        <td className="px-2.5 py-2.5">
           <p className="truncate font-medium">{order.name}</p>
           <p className="truncate text-xs text-muted-foreground">{order.mobile}</p>
         </td>
       )}
       {isVisible("garment") && (
-        <td className="max-w-[12rem] px-3 py-3">
+        <td className="max-w-[9rem] px-2.5 py-2.5">
           <p className="truncate text-sm">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>
         </td>
       )}
       {isVisible("stage") && (
-        <td className="px-3 py-3">
+        <td className="px-2.5 py-2.5">
           <div className="flex flex-wrap items-center gap-1.5">
             <StageBadge stage={order.status} />
             {order.orderType === "alteration" && <AlterationBadge />}
@@ -247,12 +267,12 @@ export function OrderTableRow(props: TableRowProps) {
         </td>
       )}
       {isVisible("tailor") && (
-        <td className="px-3 py-3">
+        <td className="px-2.5 py-2.5">
           <span className="text-sm">{order.tailor ? tailorName?.(order.tailor) || order.tailor : "—"}</span>
         </td>
       )}
       {isVisible("delivery") && (
-        <td className="px-3 py-3">
+        <td className="px-2.5 py-2.5">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-sm">{fmtDateShort(order.deliveryDate)}</span>
             <DueBadge order={order} />
@@ -260,24 +280,24 @@ export function OrderTableRow(props: TableRowProps) {
           <DeliveryCountdown order={order} />
         </td>
       )}
-      {isVisible("total") && <td className="px-3 py-3 text-right tabular-nums">{inr(order.total)}</td>}
+      {isVisible("total") && <td className="px-2.5 py-2.5 text-right tabular-nums">{inr(order.total)}</td>}
       {isVisible("balance") && (
-        <td className="px-3 py-3 text-right tabular-nums">
+        <td className="px-2.5 py-2.5 text-right tabular-nums">
           <BalanceDue amount={order.balance} paidLabel="Paid" />
         </td>
       )}
       {isVisible("profit") && profit && (
-        <td className="px-3 py-3 text-right tabular-nums">
+        <td className="px-2.5 py-2.5 text-right tabular-nums">
           <span className={cn("font-medium", profit.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>{inr(profit.profit)}</span>
           {profit.tailorCostIsEstimate && <span className="ml-1 text-[10px] font-normal text-muted-foreground">Est.</span>}
         </td>
       )}
-      <td className="px-3 py-3">
-        <div className="flex items-center justify-end gap-1.5">
+      <td className="px-2.5 py-2.5">
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
           {canChangeStage && <AdvanceButton {...props} />}
           <RecordPaymentButton order={order} onRecordPayment={onRecordPayment} />
           <OrderWhatsAppButton order={order} shop={shop} trackUrl={trackUrl} />
-          <PaymentReminderButton order={order} shop={shop} trackUrl={trackUrl} />
+          <PaymentReminderButton order={order} shop={shop} iconOnly trackUrl={trackUrl} />
           <DeleteOrderButton order={order} />
         </div>
       </td>

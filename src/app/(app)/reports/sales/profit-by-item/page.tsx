@@ -11,6 +11,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
@@ -93,40 +94,67 @@ export default function ProfitByItemPage() {
       {rows.length === 0 ? (
         <EmptyState icon={TrendingUp} title="No product sales yet" />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Product</Th>
-              <Th align="right">Qty sold</Th>
-              <Th align="right">Revenue</Th>
-              <Th align="right">Cost</Th>
-              <Th align="right">Margin</Th>
-              <Th align="right">Margin %</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <ReportTotalsRow>
-              <Td>Total</Td>
-              <Td align="right">{rows.reduce((s, r) => s + r.qty, 0)}</Td>
-              <Td align="right">{inr(totals.revenue)}</Td>
-              <Td align="right">{inr(totals.cost)}</Td>
-              <Td align="right">{inr(totals.margin)}</Td>
-              <Td align="right">{totals.revenue > 0 ? `${Math.round((totals.margin / totals.revenue) * 100)}%` : "0%"}</Td>
-            </ReportTotalsRow>
+        <>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Product</Th>
+                  <Th align="right">Qty sold</Th>
+                  <Th align="right">Revenue</Th>
+                  <Th align="right">Cost</Th>
+                  <Th align="right">Margin</Th>
+                  <Th align="right">Margin %</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td>Total</Td>
+                  <Td align="right">{rows.reduce((s, r) => s + r.qty, 0)}</Td>
+                  <Td align="right">{inr(totals.revenue)}</Td>
+                  <Td align="right">{inr(totals.cost)}</Td>
+                  <Td align="right">{inr(totals.margin)}</Td>
+                  <Td align="right">{totals.revenue > 0 ? `${Math.round((totals.margin / totals.revenue) * 100)}%` : "0%"}</Td>
+                </ReportTotalsRow>
+                {rows.map((r) => (
+                  <tr key={r.productId || r.productName} className="hover:bg-muted/30">
+                    <Td className="font-medium">{r.productName}</Td>
+                    <Td align="right">{r.qty}</Td>
+                    <Td align="right">{inr(r.revenue)}</Td>
+                    <Td align="right" className="text-muted-foreground">{inr(r.cost)}</Td>
+                    <Td align="right" className={r.margin >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
+                      {inr(r.margin)}
+                    </Td>
+                    <Td align="right" className="text-muted-foreground">{r.marginPct.toFixed(1)}%</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(totals.margin)} valueClassName={totals.margin >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"} showChevron={false} />
+              <MobileRecordRow label="Qty sold" value={rows.reduce((s, r) => s + r.qty, 0)} />
+              <MobileRecordRow label="Revenue" value={inr(totals.revenue)} />
+              <MobileRecordRow label="Cost" value={inr(totals.cost)} />
+              <MobileRecordRow label="Margin %" value={totals.revenue > 0 ? `${Math.round((totals.margin / totals.revenue) * 100)}%` : "0%"} />
+            </MobileRecordCard>
             {rows.map((r) => (
-              <tr key={r.productId || r.productName} className="hover:bg-muted/30">
-                <Td className="font-medium">{r.productName}</Td>
-                <Td align="right">{r.qty}</Td>
-                <Td align="right">{inr(r.revenue)}</Td>
-                <Td align="right" className="text-muted-foreground">{inr(r.cost)}</Td>
-                <Td align="right" className={r.margin >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
-                  {inr(r.margin)}
-                </Td>
-                <Td align="right" className="text-muted-foreground">{r.marginPct.toFixed(1)}%</Td>
-              </tr>
+              <MobileRecordCard key={r.productId || r.productName}>
+                <MobileRecordHeader
+                  title={r.productName}
+                  value={inr(r.margin)}
+                  valueClassName={r.margin >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
+                  showChevron={false}
+                />
+                <MobileRecordRow label="Qty sold" value={r.qty} />
+                <MobileRecordRow label="Revenue" value={inr(r.revenue)} />
+                <MobileRecordRow label="Cost" value={inr(r.cost)} valueClassName="text-muted-foreground" />
+                <MobileRecordRow label="Margin %" value={`${r.marginPct.toFixed(1)}%`} valueClassName="text-muted-foreground" />
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+        </>
       )}
     </ReportShell>
   );

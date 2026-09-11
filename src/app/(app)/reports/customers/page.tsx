@@ -6,6 +6,7 @@ import { useReportsData } from "@/hooks/use-reports-data";
 import { getCustomerLifetime } from "@/lib/analytics";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -56,43 +57,72 @@ export default function CustomerLifetimePage() {
       {clvData.length === 0 ? (
         <EmptyState icon={Users} title="No customer data yet" />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Customer</Th>
-              <Th align="right">Orders</Th>
-              <Th align="right">Spent</Th>
-              <Th align="right">Avg order</Th>
-              <Th align="right">Months</Th>
-              <Th align="right">CLV score</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <ReportTotalsRow>
-              <Td>Total</Td>
-              <Td align="right">{clvData.reduce((s, c) => s + c.totalOrders, 0)}</Td>
-              <Td align="right">{inr(clvData.reduce((s, c) => s + c.totalSpent, 0))}</Td>
-              <Td align="right">—</Td>
-              <Td align="right">—</Td>
-              <Td align="right">—</Td>
-            </ReportTotalsRow>
+        <>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Customer</Th>
+                  <Th align="right">Orders</Th>
+                  <Th align="right">Spent</Th>
+                  <Th align="right">Avg order</Th>
+                  <Th align="right">Months</Th>
+                  <Th align="right">CLV score</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td>Total</Td>
+                  <Td align="right">{clvData.reduce((s, c) => s + c.totalOrders, 0)}</Td>
+                  <Td align="right">{inr(clvData.reduce((s, c) => s + c.totalSpent, 0))}</Td>
+                  <Td align="right">—</Td>
+                  <Td align="right">—</Td>
+                  <Td align="right">—</Td>
+                </ReportTotalsRow>
+                {clvData.map((c) => (
+                  <tr key={c.mobile} className="hover:bg-muted/30">
+                    <Td>
+                      <p className="truncate font-medium">{c.name}</p>
+                      <p className="text-xs text-muted-foreground">{c.mobile}</p>
+                    </Td>
+                    <Td align="right">{c.totalOrders}</Td>
+                    <Td align="right">{inr(c.totalSpent)}</Td>
+                    <Td align="right">{inr(c.avgOrder)}</Td>
+                    <Td align="right">{c.monthsActive}</Td>
+                    <Td align="right" className="font-semibold">
+                      {c.clvScore}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" showChevron={false} />
+              <MobileRecordGrid
+                items={[
+                  { label: "Orders", value: clvData.reduce((s, c) => s + c.totalOrders, 0) },
+                  { label: "Spent", value: inr(clvData.reduce((s, c) => s + c.totalSpent, 0)) },
+                ]}
+              />
+            </MobileRecordCard>
             {clvData.map((c) => (
-              <tr key={c.mobile} className="hover:bg-muted/30">
-                <Td>
-                  <p className="truncate font-medium">{c.name}</p>
-                  <p className="text-xs text-muted-foreground">{c.mobile}</p>
-                </Td>
-                <Td align="right">{c.totalOrders}</Td>
-                <Td align="right">{inr(c.totalSpent)}</Td>
-                <Td align="right">{inr(c.avgOrder)}</Td>
-                <Td align="right">{c.monthsActive}</Td>
-                <Td align="right" className="font-semibold">
-                  {c.clvScore}
-                </Td>
-              </tr>
+              <MobileRecordCard key={c.mobile}>
+                <MobileRecordHeader title={c.name} subtitle={c.mobile} value={c.clvScore} showChevron={false} />
+                <MobileRecordGrid
+                  items={[
+                    { label: "Orders", value: c.totalOrders },
+                    { label: "Spent", value: inr(c.totalSpent) },
+                    { label: "Avg order", value: inr(c.avgOrder) },
+                    { label: "Months", value: c.monthsActive },
+                  ]}
+                />
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+        </>
       )}
     </ReportShell>
   );

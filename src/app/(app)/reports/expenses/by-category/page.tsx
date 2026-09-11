@@ -5,6 +5,7 @@ import { PieChart } from "lucide-react";
 import { useExpenses } from "@/hooks/use-expenses";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -57,32 +58,51 @@ export default function ExpensesByCategoryPage() {
       {rows.length === 0 ? (
         <EmptyState icon={PieChart} title="No expenses yet" />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Category</Th>
-              <Th align="right">Expenses</Th>
-              <Th align="right">Total</Th>
-              <Th align="right">% of Total</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <ReportTotalsRow>
-              <Td>Total</Td>
-              <Td align="right">{rows.reduce((s, r) => s + r.count, 0)}</Td>
-              <Td align="right">{inr(rows.reduce((s, r) => s + r.total, 0))}</Td>
-              <Td align="right">100%</Td>
-            </ReportTotalsRow>
+        <>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Category</Th>
+                  <Th align="right">Expenses</Th>
+                  <Th align="right">Total</Th>
+                  <Th align="right">% of Total</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td>Total</Td>
+                  <Td align="right">{rows.reduce((s, r) => s + r.count, 0)}</Td>
+                  <Td align="right">{inr(rows.reduce((s, r) => s + r.total, 0))}</Td>
+                  <Td align="right">100%</Td>
+                </ReportTotalsRow>
+                {rows.map((r) => (
+                  <tr key={r.category} className="hover:bg-muted/30">
+                    <Td className="font-medium">{r.category}</Td>
+                    <Td align="right">{r.count}</Td>
+                    <Td align="right">{inr(r.total)}</Td>
+                    <Td align="right" className="text-muted-foreground">{r.pct.toFixed(1)}%</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.total, 0))} showChevron={false} />
+              <MobileRecordRow label="Expenses" value={rows.reduce((s, r) => s + r.count, 0)} />
+              <MobileRecordRow label="% of Total" value="100%" />
+            </MobileRecordCard>
             {rows.map((r) => (
-              <tr key={r.category} className="hover:bg-muted/30">
-                <Td className="font-medium">{r.category}</Td>
-                <Td align="right">{r.count}</Td>
-                <Td align="right">{inr(r.total)}</Td>
-                <Td align="right" className="text-muted-foreground">{r.pct.toFixed(1)}%</Td>
-              </tr>
+              <MobileRecordCard key={r.category}>
+                <MobileRecordHeader title={r.category} value={inr(r.total)} showChevron={false} />
+                <MobileRecordRow label="Expenses" value={r.count} />
+                <MobileRecordRow label="% of Total" value={`${r.pct.toFixed(1)}%`} valueClassName="text-muted-foreground" />
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+        </>
       )}
     </ReportShell>
   );

@@ -10,6 +10,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
@@ -79,6 +80,31 @@ export default function ApAgingSummaryPage() {
       {totalPayable === 0 ? (
         <EmptyState icon={Wallet} title="No outstanding bills" description="Everything is paid up." />
       ) : (
+        <>
+        <MobileRecordList>
+          <MobileRecordCard className="bg-muted/40">
+            <MobileRecordHeader title="Total" value={inr(totalPayable)} showChevron={false} />
+            <MobileRecordRow label="Bills" value={Array.from(buckets.values()).reduce((s, b) => s + b.count, 0)} />
+            <MobileRecordRow label="% of Payable" value="100%" />
+          </MobileRecordCard>
+          {BANDS.map((b) => {
+            const bucket = buckets.get(b.key)!;
+            const pct = totalPayable > 0 ? (bucket.total / totalPayable) * 100 : 0;
+            return (
+              <MobileRecordCard key={b.key}>
+                <MobileRecordHeader
+                  title={b.label}
+                  value={inr(bucket.total)}
+                  valueClassName={b.key !== "current" && bucket.total > 0 ? "text-red-600 dark:text-red-400" : undefined}
+                  showChevron={false}
+                />
+                <MobileRecordRow label="Bills" value={bucket.count} />
+                <MobileRecordRow label="% of Payable" value={`${pct.toFixed(1)}%`} />
+              </MobileRecordCard>
+            );
+          })}
+        </MobileRecordList>
+        <div className="hidden sm:block">
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
@@ -111,6 +137,8 @@ export default function ApAgingSummaryPage() {
             })}
           </tbody>
         </ReportTable>
+        </div>
+        </>
       )}
     </ReportShell>
   );

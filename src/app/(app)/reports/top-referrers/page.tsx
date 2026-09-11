@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 
 /** Which customers' referral coupons actually convert — see src/lib/analytics.ts getTopReferrers. */
 export default function TopReferrersPage() {
@@ -51,35 +52,53 @@ export default function TopReferrersPage() {
       {topReferrers.length === 0 ? (
         <EmptyState icon={Ticket} title="No coupons issued yet" description="Give a referral coupon from a customer's CRM page to start tracking this." />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Referrer</Th>
-              <Th align="right">Issued</Th>
-              <Th align="right">Redeemed</Th>
-              <Th align="right">Redemption rate</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <ReportTotalsRow>
-              <Td>Total</Td>
-              <Td align="right">{totalIssued}</Td>
-              <Td align="right">{totalRedeemed}</Td>
-              <Td align="right">{totalIssued > 0 ? Math.round((totalRedeemed / totalIssued) * 100) : 0}%</Td>
-            </ReportTotalsRow>
+        <>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Referrer</Th>
+                  <Th align="right">Issued</Th>
+                  <Th align="right">Redeemed</Th>
+                  <Th align="right">Redemption rate</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td>Total</Td>
+                  <Td align="right">{totalIssued}</Td>
+                  <Td align="right">{totalRedeemed}</Td>
+                  <Td align="right">{totalIssued > 0 ? Math.round((totalRedeemed / totalIssued) * 100) : 0}%</Td>
+                </ReportTotalsRow>
+                {topReferrers.map((r) => (
+                  <tr key={r.referrerMobile} className="hover:bg-muted/30">
+                    <Td>
+                      <p className="truncate font-medium">{r.referrerName || "—"}</p>
+                      <p className="text-xs text-muted-foreground">{r.referrerMobile}</p>
+                    </Td>
+                    <Td align="right">{r.issued}</Td>
+                    <Td align="right">{r.redeemed}</Td>
+                    <Td align="right">{r.redemptionRate}%</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={`${totalIssued > 0 ? Math.round((totalRedeemed / totalIssued) * 100) : 0}%`} showChevron={false} />
+              <MobileRecordRow label="Issued" value={totalIssued} />
+              <MobileRecordRow label="Redeemed" value={totalRedeemed} />
+            </MobileRecordCard>
             {topReferrers.map((r) => (
-              <tr key={r.referrerMobile} className="hover:bg-muted/30">
-                <Td>
-                  <p className="truncate font-medium">{r.referrerName || "—"}</p>
-                  <p className="text-xs text-muted-foreground">{r.referrerMobile}</p>
-                </Td>
-                <Td align="right">{r.issued}</Td>
-                <Td align="right">{r.redeemed}</Td>
-                <Td align="right">{r.redemptionRate}%</Td>
-              </tr>
+              <MobileRecordCard key={r.referrerMobile}>
+                <MobileRecordHeader title={r.referrerName || "—"} subtitle={r.referrerMobile} value={`${r.redemptionRate}%`} showChevron={false} />
+                <MobileRecordRow label="Issued" value={r.issued} />
+                <MobileRecordRow label="Redeemed" value={r.redeemed} />
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+        </>
       )}
     </ReportShell>
   );

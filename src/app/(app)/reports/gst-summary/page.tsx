@@ -12,6 +12,7 @@ import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from 
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
 
 interface RateGroup {
   key: string;
@@ -112,6 +113,42 @@ export default function GstSummaryReportPage() {
       {groups.length === 0 ? (
         <EmptyState icon={Receipt} title="No invoices in this period" description="Pick a different month above." />
       ) : (
+        <>
+        <MobileRecordList>
+          <MobileRecordCard className="bg-muted/40">
+            <MobileRecordHeader title="Total" value={inr(totalTax)} showChevron={false} />
+            <MobileRecordGrid
+              items={[
+                { label: "Invoices", value: totals.invoiceCount },
+                { label: "Taxable Value", value: inr(totals.taxableValue) },
+                { label: "CGST", value: inr(totals.cgst) },
+                { label: "SGST", value: inr(totals.sgst) },
+                { label: "IGST", value: inr(totals.igst) },
+                { label: "Total Tax", value: inr(totalTax) },
+              ]}
+            />
+          </MobileRecordCard>
+          {groups.map((g) => (
+            <MobileRecordCard key={g.key}>
+              <MobileRecordHeader
+                title={GST_TYPE_LABELS[g.gstType]}
+                subtitle={`${g.taxRate}%`}
+                value={inr(g.cgst + g.sgst + g.igst)}
+                showChevron={false}
+              />
+              <MobileRecordGrid
+                items={[
+                  { label: "Invoices", value: g.invoiceCount },
+                  { label: "Taxable Value", value: inr(g.taxableValue) },
+                  { label: "CGST", value: g.cgst > 0 ? inr(g.cgst) : "—" },
+                  { label: "SGST", value: g.sgst > 0 ? inr(g.sgst) : "—" },
+                  { label: "IGST", value: g.igst > 0 ? inr(g.igst) : "—" },
+                ]}
+              />
+            </MobileRecordCard>
+          ))}
+        </MobileRecordList>
+        <div className="hidden sm:block">
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
@@ -149,6 +186,8 @@ export default function GstSummaryReportPage() {
             ))}
           </tbody>
         </ReportTable>
+        </div>
+        </>
       )}
     </ReportShell>
   );

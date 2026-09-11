@@ -14,6 +14,7 @@ import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 
 interface TailorPayableRow {
   id: string;
@@ -130,29 +131,45 @@ export default function TailorPayablesPage() {
       {rows.length === 0 ? (
         <EmptyState icon={Wallet} title="No piece-rate tailors yet" description="Mark a tailor 'Piece-rate eligible' on their employee record to see them here." />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Tailor</Th>
-              <Th align="right">Payable ({DATE_RANGE_PRESET_LABELS[preset]})</Th>
-              <Th align="right">All-time total</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <ReportTotalsRow>
-              <Td>Total</Td>
-              <Td align="right">{inr(rangeTotal)}</Td>
-              <Td align="right">{inr(allTimeTotal)}</Td>
-            </ReportTotalsRow>
+        <>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Tailor</Th>
+                  <Th align="right">Payable ({DATE_RANGE_PRESET_LABELS[preset]})</Th>
+                  <Th align="right">All-time total</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td>Total</Td>
+                  <Td align="right">{inr(rangeTotal)}</Td>
+                  <Td align="right">{inr(allTimeTotal)}</Td>
+                </ReportTotalsRow>
+                {rows.map((r) => (
+                  <tr key={r.id} className="hover:bg-muted/30">
+                    <Td className="font-medium">{r.name}</Td>
+                    <Td align="right">{inr(r.rangePayable)}</Td>
+                    <Td align="right" className="font-semibold">{inr(r.allTimePayable)}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(allTimeTotal)} showChevron={false} />
+              <MobileRecordRow label={`Payable (${DATE_RANGE_PRESET_LABELS[preset]})`} value={inr(rangeTotal)} />
+            </MobileRecordCard>
             {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-muted/30">
-                <Td className="font-medium">{r.name}</Td>
-                <Td align="right">{inr(r.rangePayable)}</Td>
-                <Td align="right" className="font-semibold">{inr(r.allTimePayable)}</Td>
-              </tr>
+              <MobileRecordCard key={r.id}>
+                <MobileRecordHeader title={r.name} value={inr(r.allTimePayable)} valueClassName="font-semibold" showChevron={false} />
+                <MobileRecordRow label={`Payable (${DATE_RANGE_PRESET_LABELS[preset]})`} value={inr(r.rangePayable)} />
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+        </>
       )}
 
       {zeroRatedCount > 0 && (
@@ -175,28 +192,38 @@ export default function TailorPayablesPage() {
               an employee record, so they belong to nobody and are missing from every total above. Open each order and re-select the tailor from the dropdown to fix it.
             </p>
           </div>
-          <ReportTable>
-            <thead className="border-b bg-muted/40">
-              <tr>
-                <Th>Order</Th>
-                <Th>Stored tailor</Th>
-                <Th align="right">Payable</Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {unattributed.map((u, i) => (
-                <tr key={`${u.orderId}-${i}`} className="hover:bg-muted/30">
-                  <Td>
-                    <Link href={`/orders/${u.orderId}`} className="text-primary hover:underline">
-                      {u.orderId}
-                    </Link>
-                  </Td>
-                  <Td className="font-mono text-xs text-muted-foreground">{u.rawTailor}</Td>
-                  <Td align="right" className="tabular-nums">{inr(u.amount)}</Td>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Order</Th>
+                  <Th>Stored tailor</Th>
+                  <Th align="right">Payable</Th>
                 </tr>
-              ))}
-            </tbody>
-          </ReportTable>
+              </thead>
+              <tbody className="divide-y">
+                {unattributed.map((u, i) => (
+                  <tr key={`${u.orderId}-${i}`} className="hover:bg-muted/30">
+                    <Td>
+                      <Link href={`/orders/${u.orderId}`} className="text-primary hover:underline">
+                        {u.orderId}
+                      </Link>
+                    </Td>
+                    <Td className="font-mono text-xs text-muted-foreground">{u.rawTailor}</Td>
+                    <Td align="right" className="tabular-nums">{inr(u.amount)}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+          <MobileRecordList>
+            {unattributed.map((u, i) => (
+              <MobileRecordCard key={`${u.orderId}-${i}`} href={`/orders/${u.orderId}`}>
+                <MobileRecordHeader title={u.orderId} value={inr(u.amount)} />
+                <MobileRecordRow label="Stored tailor" value={<span className="font-mono">{u.rawTailor}</span>} />
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
         </div>
       )}
     </ReportShell>

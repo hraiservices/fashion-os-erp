@@ -11,6 +11,7 @@ import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
@@ -64,6 +65,28 @@ export default function ApAgingDetailsPage() {
       {rows.length === 0 ? (
         <EmptyState icon={Wallet} title="No outstanding bills" description="Everything is paid up." />
       ) : (
+        <>
+        <MobileRecordList>
+          <MobileRecordCard className="bg-muted/40">
+            <MobileRecordHeader title="Total" value={inr(rows.reduce((s, b) => s + b.balance, 0))} showChevron={false} />
+          </MobileRecordCard>
+          {rows.map((b) => (
+            <MobileRecordCard key={b.id} href={`/purchases/bills/${b.id}`}>
+              <MobileRecordHeader
+                title={b.billNumber}
+                subtitle={vendorNameById.get(b.vendorId) || "Unknown vendor"}
+                value={inr(b.balance)}
+              />
+              <MobileRecordRow label="Due Date" value={b.dueDate ? fmtDate(b.dueDate) : "—"} />
+              <MobileRecordRow
+                label="Days Overdue"
+                value={b.daysOverdue > 0 ? `${b.daysOverdue}d` : "Not due"}
+                valueClassName={b.daysOverdue > 0 ? "text-red-600 dark:text-red-400" : undefined}
+              />
+            </MobileRecordCard>
+          ))}
+        </MobileRecordList>
+        <div className="hidden sm:block">
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
@@ -97,6 +120,8 @@ export default function ApAgingDetailsPage() {
             ))}
           </tbody>
         </ReportTable>
+        </div>
+        </>
       )}
     </ReportShell>
   );

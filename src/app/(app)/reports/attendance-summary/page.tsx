@@ -6,6 +6,7 @@ import { useEmployees } from "@/hooks/use-employees";
 import { useAttendanceInRange } from "@/hooks/use-attendance";
 import { countAttendance } from "@/lib/payroll";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { useReportDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
@@ -81,54 +82,102 @@ export default function AttendanceSummaryReportPage() {
       {rows.length === 0 ? (
         <EmptyState icon={CalendarCheck} title="No active employees" description="Add employees in Employees to see attendance here." />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Employee</Th>
-              <Th align="right">Present</Th>
-              <Th align="right">Absent</Th>
-              <Th align="right">Half Day</Th>
-              <Th align="right">Leave</Th>
-              <Th align="right">Days Marked</Th>
-              <Th align="right">Attendance %</Th>
-              <Th align="right">Hours Worked</Th>
-              <Th align="right">Overtime</Th>
-              <Th align="right">Flagged</Th>
-            </tr>
-          </thead>
-          <tbody>
-            <ReportTotalsRow>
-              <Td>Total</Td>
-              <Td align="right">{totals.presentDays}</Td>
-              <Td align="right">{totals.absentDays}</Td>
-              <Td align="right">{totals.halfDays}</Td>
-              <Td align="right">{totals.leaveDays}</Td>
-              <Td align="right">{totals.markedDays}</Td>
-              <Td align="right">—</Td>
-              <Td align="right">{totals.hoursWorked > 0 ? `${totals.hoursWorked}h` : "—"}</Td>
-              <Td align="right">{totals.overtimeHours > 0 ? `${totals.overtimeHours}h` : "—"}</Td>
-              <Td align="right">{totals.flaggedDays}</Td>
-            </ReportTotalsRow>
+        <>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Employee</Th>
+                  <Th align="right">Present</Th>
+                  <Th align="right">Absent</Th>
+                  <Th align="right">Half Day</Th>
+                  <Th align="right">Leave</Th>
+                  <Th align="right">Days Marked</Th>
+                  <Th align="right">Attendance %</Th>
+                  <Th align="right">Hours Worked</Th>
+                  <Th align="right">Overtime</Th>
+                  <Th align="right">Flagged</Th>
+                </tr>
+              </thead>
+              <tbody>
+                <ReportTotalsRow>
+                  <Td>Total</Td>
+                  <Td align="right">{totals.presentDays}</Td>
+                  <Td align="right">{totals.absentDays}</Td>
+                  <Td align="right">{totals.halfDays}</Td>
+                  <Td align="right">{totals.leaveDays}</Td>
+                  <Td align="right">{totals.markedDays}</Td>
+                  <Td align="right">—</Td>
+                  <Td align="right">{totals.hoursWorked > 0 ? `${totals.hoursWorked}h` : "—"}</Td>
+                  <Td align="right">{totals.overtimeHours > 0 ? `${totals.overtimeHours}h` : "—"}</Td>
+                  <Td align="right">{totals.flaggedDays}</Td>
+                </ReportTotalsRow>
+                {rows.map((r) => (
+                  <tr key={r.employee.id} className="border-b last:border-0">
+                    <Td>{r.employee.name}</Td>
+                    <Td align="right">{r.presentDays}</Td>
+                    <Td align="right">{r.absentDays}</Td>
+                    <Td align="right">{r.halfDays}</Td>
+                    <Td align="right">{r.leaveDays}</Td>
+                    <Td align="right">{r.markedDays}</Td>
+                    <Td align="right">
+                      <span className={r.attendancePct < 75 ? "font-medium text-red-600 dark:text-red-400" : ""}>{r.attendancePct}%</span>
+                    </Td>
+                    <Td align="right">{r.hoursWorked > 0 ? `${r.hoursWorked}h` : "—"}</Td>
+                    <Td align="right">{r.overtimeHours > 0 ? `${r.overtimeHours}h` : "—"}</Td>
+                    <Td align="right">
+                      {r.flaggedDays > 0 ? <span className="font-medium text-red-600 dark:text-red-400">{r.flaggedDays}</span> : "—"}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" showChevron={false} />
+              <MobileRecordGrid
+                items={[
+                  { label: "Present", value: totals.presentDays },
+                  { label: "Absent", value: totals.absentDays },
+                  { label: "Half Day", value: totals.halfDays },
+                  { label: "Leave", value: totals.leaveDays },
+                  { label: "Days Marked", value: totals.markedDays },
+                  { label: "Hours Worked", value: totals.hoursWorked > 0 ? `${totals.hoursWorked}h` : "—" },
+                  { label: "Overtime", value: totals.overtimeHours > 0 ? `${totals.overtimeHours}h` : "—" },
+                  { label: "Flagged", value: totals.flaggedDays },
+                ]}
+              />
+            </MobileRecordCard>
             {rows.map((r) => (
-              <tr key={r.employee.id} className="border-b last:border-0">
-                <Td>{r.employee.name}</Td>
-                <Td align="right">{r.presentDays}</Td>
-                <Td align="right">{r.absentDays}</Td>
-                <Td align="right">{r.halfDays}</Td>
-                <Td align="right">{r.leaveDays}</Td>
-                <Td align="right">{r.markedDays}</Td>
-                <Td align="right">
-                  <span className={r.attendancePct < 75 ? "font-medium text-red-600 dark:text-red-400" : ""}>{r.attendancePct}%</span>
-                </Td>
-                <Td align="right">{r.hoursWorked > 0 ? `${r.hoursWorked}h` : "—"}</Td>
-                <Td align="right">{r.overtimeHours > 0 ? `${r.overtimeHours}h` : "—"}</Td>
-                <Td align="right">
-                  {r.flaggedDays > 0 ? <span className="font-medium text-red-600 dark:text-red-400">{r.flaggedDays}</span> : "—"}
-                </Td>
-              </tr>
+              <MobileRecordCard key={r.employee.id}>
+                <MobileRecordHeader
+                  title={r.employee.name}
+                  value={`${r.attendancePct}%`}
+                  valueClassName={r.attendancePct < 75 ? "text-red-600 dark:text-red-400" : undefined}
+                  showChevron={false}
+                />
+                <MobileRecordGrid
+                  items={[
+                    { label: "Present", value: r.presentDays },
+                    { label: "Absent", value: r.absentDays },
+                    { label: "Half Day", value: r.halfDays },
+                    { label: "Leave", value: r.leaveDays },
+                    { label: "Days Marked", value: r.markedDays },
+                    { label: "Hours Worked", value: r.hoursWorked > 0 ? `${r.hoursWorked}h` : "—" },
+                    { label: "Overtime", value: r.overtimeHours > 0 ? `${r.overtimeHours}h` : "—" },
+                    {
+                      label: "Flagged",
+                      value: r.flaggedDays > 0 ? r.flaggedDays : "—",
+                      valueClassName: r.flaggedDays > 0 ? "text-red-600 dark:text-red-400" : undefined,
+                    },
+                  ]}
+                />
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+        </>
       )}
     </ReportShell>
   );

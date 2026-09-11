@@ -96,3 +96,22 @@ export function MobileRecordRow({ label, value, valueClassName }: { label: React
     </div>
   );
 }
+
+/**
+ * Compact 2-column label/value grid for cards with many numeric fields (dense reports —
+ * GST Summary, Payroll Summary, Combined P&L — where 8-12 `MobileRecordRow` lines would make
+ * a card unreasonably tall). Each item stacks its label above its value instead of side by
+ * side, so two fit per row. Use instead of (not alongside) a run of `MobileRecordRow`s.
+ */
+export function MobileRecordGrid({ items }: { items: { label: React.ReactNode; value: React.ReactNode; valueClassName?: string }[] }) {
+  return (
+    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t pt-1.5 text-xs">
+      {items.map((it, i) => (
+        <div key={i}>
+          <p className="text-muted-foreground">{it.label}</p>
+          <p className={cn("font-medium tabular-nums", it.valueClassName)}>{it.value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}

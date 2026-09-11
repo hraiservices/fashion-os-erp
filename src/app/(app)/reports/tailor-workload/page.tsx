@@ -9,6 +9,7 @@ import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
@@ -53,34 +54,57 @@ export default function TailorWorkloadPage() {
       {workload.length === 0 ? (
         <EmptyState icon={Users} title="No workload data yet" description="Assign tailors to orders to see capacity here." />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Tailor</Th>
-              <Th align="right">Active orders</Th>
-              <Th align="right">Overdue</Th>
-              <Th>Capacity</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <ReportTotalsRow>
-              <Td>Total</Td>
-              <Td align="right">{workload.reduce((s, t) => s + t.active, 0)}</Td>
-              <Td align="right">{workload.reduce((s, t) => s + t.overdue, 0)}</Td>
-              <Td>—</Td>
-            </ReportTotalsRow>
+        <>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Tailor</Th>
+                  <Th align="right">Active orders</Th>
+                  <Th align="right">Overdue</Th>
+                  <Th>Capacity</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td>Total</Td>
+                  <Td align="right">{workload.reduce((s, t) => s + t.active, 0)}</Td>
+                  <Td align="right">{workload.reduce((s, t) => s + t.overdue, 0)}</Td>
+                  <Td>—</Td>
+                </ReportTotalsRow>
+                {workload.map((t) => (
+                  <tr key={t.tailor} className="hover:bg-muted/30">
+                    <Td className="font-medium">{tailorName(t.tailor)}</Td>
+                    <Td align="right">{t.active}</Td>
+                    <Td align="right">{t.overdue > 0 ? <span className="font-medium text-red-600 dark:text-red-400">{t.overdue}</span> : "0"}</Td>
+                    <Td>
+                      <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${CAPACITY_STYLE[t.capacity]}`}>{t.capacity}</span>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={workload.reduce((s, t) => s + t.active, 0)} showChevron={false} />
+              <MobileRecordRow label="Overdue" value={workload.reduce((s, t) => s + t.overdue, 0)} />
+            </MobileRecordCard>
             {workload.map((t) => (
-              <tr key={t.tailor} className="hover:bg-muted/30">
-                <Td className="font-medium">{tailorName(t.tailor)}</Td>
-                <Td align="right">{t.active}</Td>
-                <Td align="right">{t.overdue > 0 ? <span className="font-medium text-red-600 dark:text-red-400">{t.overdue}</span> : "0"}</Td>
-                <Td>
-                  <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${CAPACITY_STYLE[t.capacity]}`}>{t.capacity}</span>
-                </Td>
-              </tr>
+              <MobileRecordCard key={t.tailor}>
+                <MobileRecordHeader title={tailorName(t.tailor)} value={t.active} showChevron={false} />
+                <MobileRecordRow
+                  label="Overdue"
+                  value={t.overdue > 0 ? <span className="font-medium text-red-600 dark:text-red-400">{t.overdue}</span> : "0"}
+                />
+                <MobileRecordRow
+                  label="Capacity"
+                  value={<span className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${CAPACITY_STYLE[t.capacity]}`}>{t.capacity}</span>}
+                />
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+        </>
       )}
     </ReportShell>
   );

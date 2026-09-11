@@ -9,6 +9,7 @@ import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
 
 export default function PaymentCollectionPage() {
   const { orders, isLoading } = useReportsData();
@@ -53,60 +54,93 @@ export default function PaymentCollectionPage() {
         onCustomToChange={setCustomTo}
       />
 
-      <ReportTable>
-        <thead className="border-b bg-muted/40">
-          <tr>
-            <Th>Month</Th>
-            <Th align="right">Orders</Th>
-            <Th align="right">Billed</Th>
-            <Th align="right">Collected</Th>
-            <Th>Collection</Th>
-            <Th align="right">Paid</Th>
-            <Th align="right">Partial</Th>
-            <Th align="right">Unpaid</Th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          <ReportTotalsRow>
-            <Td>Total</Td>
-            <Td align="right">{totals.count}</Td>
-            <Td align="right">{inr(totals.billed)}</Td>
-            <Td align="right">{inr(totals.collected)}</Td>
-            <Td>{collectionPct}%</Td>
-            <Td align="right">{totals.fullyPaid}</Td>
-            <Td align="right">{totals.partPaid}</Td>
-            <Td align="right">{totals.unpaid}</Td>
-          </ReportTotalsRow>
-          {paymentStats.map((m) => (
-            <tr key={m.month} className="hover:bg-muted/30">
-              <Td className="font-medium">{m.label}</Td>
-              <Td align="right">{m.count}</Td>
-              <Td align="right">{inr(m.billed)}</Td>
-              <Td align="right">{inr(m.collected)}</Td>
-              <Td>
-                <div className="flex min-w-24 items-center gap-2">
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className={`h-full rounded-full ${m.collectionPct >= 90 ? "bg-emerald-500" : m.collectionPct >= 50 ? "bg-amber-500" : "bg-red-500"}`}
-                      style={{ width: `${m.collectionPct}%` }}
-                    />
-                  </div>
-                  <span className="w-9 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{m.collectionPct}%</span>
-                </div>
-              </Td>
-              <Td align="right" className="text-emerald-600 dark:text-emerald-400">
-                {m.fullyPaid}
-              </Td>
-              <Td align="right" className="text-amber-600 dark:text-amber-400">
-                {m.partPaid}
-              </Td>
-              <Td align="right" className="text-red-600 dark:text-red-400">
-                {m.unpaid}
-              </Td>
+      <MobileRecordList>
+        <MobileRecordCard className="bg-muted/40">
+          <MobileRecordHeader title="Total" value={inr(totals.billed)} showChevron={false} />
+          <MobileRecordGrid
+            items={[
+              { label: "Orders", value: totals.count },
+              { label: "Collected", value: inr(totals.collected) },
+              { label: "Collection", value: `${collectionPct}%` },
+              { label: "Paid", value: totals.fullyPaid, valueClassName: "text-emerald-600 dark:text-emerald-400" },
+              { label: "Partial", value: totals.partPaid, valueClassName: "text-amber-600 dark:text-amber-400" },
+              { label: "Unpaid", value: totals.unpaid, valueClassName: "text-red-600 dark:text-red-400" },
+            ]}
+          />
+        </MobileRecordCard>
+        {paymentStats.map((m) => (
+          <MobileRecordCard key={m.month}>
+            <MobileRecordHeader title={m.label} value={inr(m.billed)} showChevron={false} />
+            <MobileRecordGrid
+              items={[
+                { label: "Orders", value: m.count },
+                { label: "Collected", value: inr(m.collected) },
+                { label: "Collection", value: `${m.collectionPct}%` },
+                { label: "Paid", value: m.fullyPaid, valueClassName: "text-emerald-600 dark:text-emerald-400" },
+                { label: "Partial", value: m.partPaid, valueClassName: "text-amber-600 dark:text-amber-400" },
+                { label: "Unpaid", value: m.unpaid, valueClassName: "text-red-600 dark:text-red-400" },
+              ]}
+            />
+          </MobileRecordCard>
+        ))}
+      </MobileRecordList>
+
+      <div className="hidden sm:block">
+        <ReportTable>
+          <thead className="border-b bg-muted/40">
+            <tr>
+              <Th>Month</Th>
+              <Th align="right">Orders</Th>
+              <Th align="right">Billed</Th>
+              <Th align="right">Collected</Th>
+              <Th>Collection</Th>
+              <Th align="right">Paid</Th>
+              <Th align="right">Partial</Th>
+              <Th align="right">Unpaid</Th>
             </tr>
-          ))}
-        </tbody>
-      </ReportTable>
+          </thead>
+          <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{totals.count}</Td>
+              <Td align="right">{inr(totals.billed)}</Td>
+              <Td align="right">{inr(totals.collected)}</Td>
+              <Td>{collectionPct}%</Td>
+              <Td align="right">{totals.fullyPaid}</Td>
+              <Td align="right">{totals.partPaid}</Td>
+              <Td align="right">{totals.unpaid}</Td>
+            </ReportTotalsRow>
+            {paymentStats.map((m) => (
+              <tr key={m.month} className="hover:bg-muted/30">
+                <Td className="font-medium">{m.label}</Td>
+                <Td align="right">{m.count}</Td>
+                <Td align="right">{inr(m.billed)}</Td>
+                <Td align="right">{inr(m.collected)}</Td>
+                <Td>
+                  <div className="flex min-w-24 items-center gap-2">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={`h-full rounded-full ${m.collectionPct >= 90 ? "bg-emerald-500" : m.collectionPct >= 50 ? "bg-amber-500" : "bg-red-500"}`}
+                        style={{ width: `${m.collectionPct}%` }}
+                      />
+                    </div>
+                    <span className="w-9 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{m.collectionPct}%</span>
+                  </div>
+                </Td>
+                <Td align="right" className="text-emerald-600 dark:text-emerald-400">
+                  {m.fullyPaid}
+                </Td>
+                <Td align="right" className="text-amber-600 dark:text-amber-400">
+                  {m.partPaid}
+                </Td>
+                <Td align="right" className="text-red-600 dark:text-red-400">
+                  {m.unpaid}
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </ReportTable>
+      </div>
     </ReportShell>
   );
 }

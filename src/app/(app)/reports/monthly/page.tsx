@@ -8,6 +8,7 @@ import { ReportShell, ReportCard, ReportTable, ReportTotalsRow, Th, Td } from "@
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
@@ -65,6 +66,23 @@ export default function MonthlyPnlPage() {
         </div>
       </ReportCard>
 
+      <MobileRecordList>
+        <MobileRecordCard className="bg-muted/40">
+          <MobileRecordHeader title="Total" value={inr(totals.billed)} showChevron={false} />
+          <MobileRecordRow label="Orders" value={totals.count} />
+          <MobileRecordRow label="Collected" value={inr(totals.collected)} valueClassName="text-emerald-600 dark:text-emerald-400" />
+          <MobileRecordRow label="Pending" value={inr(totals.pending)} />
+        </MobileRecordCard>
+        {monthly.map((m) => (
+          <MobileRecordCard key={m.month}>
+            <MobileRecordHeader title={m.label} value={inr(m.billed)} showChevron={false} />
+            <MobileRecordRow label="Orders" value={m.count} />
+            <MobileRecordRow label="Collected" value={inr(m.collected)} valueClassName="text-emerald-600 dark:text-emerald-400" />
+            <MobileRecordRow label="Pending" value={m.pending > 0 ? <BalanceDue amount={m.pending} /> : "—"} />
+          </MobileRecordCard>
+        ))}
+      </MobileRecordList>
+      <div className="hidden sm:block">
       <ReportTable>
         <thead className="border-b bg-muted/40">
           <tr>
@@ -96,6 +114,7 @@ export default function MonthlyPnlPage() {
           ))}
         </tbody>
       </ReportTable>
+      </div>
     </ReportShell>
   );
 }

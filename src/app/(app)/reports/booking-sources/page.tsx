@@ -6,6 +6,7 @@ import { useReportsData } from "@/hooks/use-reports-data";
 import { getBookingSourceBreakdown } from "@/lib/analytics";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -60,32 +61,55 @@ export default function BookingSourcesPage() {
       {bookingSourceBreakdown.length === 0 ? (
         <EmptyState icon={Megaphone} title="No orders yet" />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Source</Th>
-              <Th align="right">Orders</Th>
-              <Th align="right">Share</Th>
-              <Th align="right">Revenue</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <ReportTotalsRow>
-              <Td>Total</Td>
-              <Td align="right">{totalOrders}</Td>
-              <Td align="right">100%</Td>
-              <Td align="right">{inr(totalRevenue)}</Td>
-            </ReportTotalsRow>
+        <>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Source</Th>
+                  <Th align="right">Orders</Th>
+                  <Th align="right">Share</Th>
+                  <Th align="right">Revenue</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td>Total</Td>
+                  <Td align="right">{totalOrders}</Td>
+                  <Td align="right">100%</Td>
+                  <Td align="right">{inr(totalRevenue)}</Td>
+                </ReportTotalsRow>
+                {bookingSourceBreakdown.map((r) => (
+                  <tr key={r.source} className="hover:bg-muted/30">
+                    <Td className={r.source === "Not recorded" ? "text-muted-foreground italic" : "font-medium"}>{r.source}</Td>
+                    <Td align="right">{r.count}</Td>
+                    <Td align="right">{totalOrders ? Math.round((r.count / totalOrders) * 100) : 0}%</Td>
+                    <Td align="right">{inr(r.revenue)}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(totalRevenue)} showChevron={false} />
+              <MobileRecordRow label="Orders" value={totalOrders} />
+              <MobileRecordRow label="Share" value="100%" />
+            </MobileRecordCard>
             {bookingSourceBreakdown.map((r) => (
-              <tr key={r.source} className="hover:bg-muted/30">
-                <Td className={r.source === "Not recorded" ? "text-muted-foreground italic" : "font-medium"}>{r.source}</Td>
-                <Td align="right">{r.count}</Td>
-                <Td align="right">{totalOrders ? Math.round((r.count / totalOrders) * 100) : 0}%</Td>
-                <Td align="right">{inr(r.revenue)}</Td>
-              </tr>
+              <MobileRecordCard key={r.source}>
+                <MobileRecordHeader
+                  title={<span className={r.source === "Not recorded" ? "text-muted-foreground italic" : undefined}>{r.source}</span>}
+                  value={inr(r.revenue)}
+                  showChevron={false}
+                />
+                <MobileRecordRow label="Orders" value={r.count} />
+                <MobileRecordRow label="Share" value={`${totalOrders ? Math.round((r.count / totalOrders) * 100) : 0}%`} />
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+        </>
       )}
     </ReportShell>
   );

@@ -5,6 +5,7 @@ import { Users } from "lucide-react";
 import { useExpenses } from "@/hooks/use-expenses";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -56,29 +57,46 @@ export default function ExpensesByEmployeePage() {
       {rows.length === 0 ? (
         <EmptyState icon={Users} title="No expenses yet" />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>User</Th>
-              <Th align="right">Expenses</Th>
-              <Th align="right">Total</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <ReportTotalsRow>
-              <Td>Total</Td>
-              <Td align="right">{rows.reduce((s, r) => s + r.count, 0)}</Td>
-              <Td align="right">{inr(rows.reduce((s, r) => s + r.total, 0))}</Td>
-            </ReportTotalsRow>
+        <>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>User</Th>
+                  <Th align="right">Expenses</Th>
+                  <Th align="right">Total</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td>Total</Td>
+                  <Td align="right">{rows.reduce((s, r) => s + r.count, 0)}</Td>
+                  <Td align="right">{inr(rows.reduce((s, r) => s + r.total, 0))}</Td>
+                </ReportTotalsRow>
+                {rows.map((r) => (
+                  <tr key={r.user} className="hover:bg-muted/30">
+                    <Td className="font-medium">{r.user}</Td>
+                    <Td align="right">{r.count}</Td>
+                    <Td align="right">{inr(r.total)}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.total, 0))} showChevron={false} />
+              <MobileRecordRow label="Expenses" value={rows.reduce((s, r) => s + r.count, 0)} />
+            </MobileRecordCard>
             {rows.map((r) => (
-              <tr key={r.user} className="hover:bg-muted/30">
-                <Td className="font-medium">{r.user}</Td>
-                <Td align="right">{r.count}</Td>
-                <Td align="right">{inr(r.total)}</Td>
-              </tr>
+              <MobileRecordCard key={r.user}>
+                <MobileRecordHeader title={r.user} value={inr(r.total)} showChevron={false} />
+                <MobileRecordRow label="Expenses" value={r.count} />
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+        </>
       )}
     </ReportShell>
   );

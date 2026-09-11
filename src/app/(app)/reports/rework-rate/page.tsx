@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 
 /** Rework rate per tailor — driven entirely by the manually-set rework flag (order detail
  *  page's "Flag for rework" action), not an automatic quality signal. */
@@ -51,34 +52,58 @@ export default function ReworkRatePage() {
       {reworkRate.length === 0 ? (
         <EmptyState icon={RotateCcw} title="No data yet" description="Assign orders to tailors to see this breakdown." />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Tailor</Th>
-              <Th align="right">Total orders</Th>
-              <Th align="right">Rework count</Th>
-              <Th align="right">Rework rate</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <ReportTotalsRow>
-              <Td>Total</Td>
-              <Td align="right">{totalOrders}</Td>
-              <Td align="right">{totalRework}</Td>
-              <Td align="right">{totalOrders ? Math.round((totalRework / totalOrders) * 100) : 0}%</Td>
-            </ReportTotalsRow>
+        <>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={`${totalOrders ? Math.round((totalRework / totalOrders) * 100) : 0}%`} showChevron={false} />
+              <MobileRecordRow label="Total orders" value={totalOrders} />
+              <MobileRecordRow label="Rework count" value={totalRework} />
+            </MobileRecordCard>
             {reworkRate.map((r) => (
-              <tr key={r.tailor} className="hover:bg-muted/30">
-                <Td className="font-medium">{tailorName(r.tailor)}</Td>
-                <Td align="right">{r.totalOrders}</Td>
-                <Td align="right">{r.reworkCount}</Td>
-                <Td align="right" className={r.reworkRate >= 15 ? "font-medium text-destructive" : undefined}>
-                  {r.reworkRate}%
-                </Td>
-              </tr>
+              <MobileRecordCard key={r.tailor}>
+                <MobileRecordHeader
+                  title={tailorName(r.tailor)}
+                  value={`${r.reworkRate}%`}
+                  valueClassName={r.reworkRate >= 15 ? "font-medium text-destructive" : undefined}
+                  showChevron={false}
+                />
+                <MobileRecordRow label="Total orders" value={r.totalOrders} />
+                <MobileRecordRow label="Rework count" value={r.reworkCount} />
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Tailor</Th>
+                  <Th align="right">Total orders</Th>
+                  <Th align="right">Rework count</Th>
+                  <Th align="right">Rework rate</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td>Total</Td>
+                  <Td align="right">{totalOrders}</Td>
+                  <Td align="right">{totalRework}</Td>
+                  <Td align="right">{totalOrders ? Math.round((totalRework / totalOrders) * 100) : 0}%</Td>
+                </ReportTotalsRow>
+                {reworkRate.map((r) => (
+                  <tr key={r.tailor} className="hover:bg-muted/30">
+                    <Td className="font-medium">{tailorName(r.tailor)}</Td>
+                    <Td align="right">{r.totalOrders}</Td>
+                    <Td align="right">{r.reworkCount}</Td>
+                    <Td align="right" className={r.reworkRate >= 15 ? "font-medium text-destructive" : undefined}>
+                      {r.reworkRate}%
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+        </>
       )}
     </ReportShell>
   );

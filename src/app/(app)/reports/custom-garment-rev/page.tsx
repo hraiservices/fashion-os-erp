@@ -6,6 +6,7 @@ import { useReportsData } from "@/hooks/use-reports-data";
 import { getCustomGarmentRevenue } from "@/lib/analytics";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -52,39 +53,68 @@ export default function CustomGarmentRevPage() {
       {customGarRev.length === 0 ? (
         <EmptyState icon={Shirt} title="No garment revenue yet" />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Garment</Th>
-              <Th>Type</Th>
-              <Th align="right">Count</Th>
-              <Th align="right">Revenue</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <ReportTotalsRow>
-              <Td colSpan={2}>Total</Td>
-              <Td align="right">{totalCount}</Td>
-              <Td align="right">{inr(totalRevenue)}</Td>
-            </ReportTotalsRow>
+        <>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Garment</Th>
+                  <Th>Type</Th>
+                  <Th align="right">Count</Th>
+                  <Th align="right">Revenue</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td colSpan={2}>Total</Td>
+                  <Td align="right">{totalCount}</Td>
+                  <Td align="right">{inr(totalRevenue)}</Td>
+                </ReportTotalsRow>
+                {customGarRev.map((g) => (
+                  <tr key={g.label} className="hover:bg-muted/30">
+                    <Td className="font-medium">{g.label}</Td>
+                    <Td>
+                      <span
+                        className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                          g.isCustom ? "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300" : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {g.isCustom ? "Custom" : "Standard"}
+                      </span>
+                    </Td>
+                    <Td align="right">{g.count}</Td>
+                    <Td align="right">{inr(g.revenue)}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(totalRevenue)} showChevron={false} />
+              <MobileRecordRow label="Count" value={totalCount} />
+            </MobileRecordCard>
             {customGarRev.map((g) => (
-              <tr key={g.label} className="hover:bg-muted/30">
-                <Td className="font-medium">{g.label}</Td>
-                <Td>
-                  <span
-                    className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                      g.isCustom ? "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300" : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {g.isCustom ? "Custom" : "Standard"}
-                  </span>
-                </Td>
-                <Td align="right">{g.count}</Td>
-                <Td align="right">{inr(g.revenue)}</Td>
-              </tr>
+              <MobileRecordCard key={g.label}>
+                <MobileRecordHeader title={g.label} value={inr(g.revenue)} showChevron={false} />
+                <MobileRecordRow
+                  label="Type"
+                  value={
+                    <span
+                      className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        g.isCustom ? "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300" : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {g.isCustom ? "Custom" : "Standard"}
+                    </span>
+                  }
+                />
+                <MobileRecordRow label="Count" value={g.count} />
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+        </>
       )}
     </ReportShell>
   );

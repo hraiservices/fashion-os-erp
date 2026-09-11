@@ -11,6 +11,7 @@ import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
 import { BalanceDue } from "@/components/ui/money-text";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
@@ -74,6 +75,37 @@ export default function VendorBalanceSummaryPage() {
       {rows.length === 0 ? (
         <EmptyState icon={Truck} title="No purchases yet" />
       ) : (
+        <>
+        <MobileRecordList>
+          <MobileRecordCard className="bg-muted/40">
+            <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.balance, 0))} showChevron={false} />
+            <MobileRecordGrid
+              items={[
+                { label: "Bills", value: rows.reduce((s, r) => s + r.billCount, 0) },
+                { label: "Total Billed", value: inr(rows.reduce((s, r) => s + r.total, 0)) },
+                { label: "Paid", value: inr(rows.reduce((s, r) => s + r.paid, 0)) },
+              ]}
+            />
+          </MobileRecordCard>
+          {rows.map((r) => (
+            <MobileRecordCard key={r.vendorId} href={`/purchases/vendors/${r.vendorId}`}>
+              <MobileRecordHeader
+                title={vendorNameById.get(r.vendorId) || "Unknown vendor"}
+                value={r.balance > 0 ? inr(r.balance) : "—"}
+                valueClassName={r.balance > 0 ? "text-red-600 dark:text-red-400" : undefined}
+              />
+              <MobileRecordGrid
+                items={[
+                  { label: "Bills", value: r.billCount },
+                  { label: "Total Billed", value: inr(r.total) },
+                  { label: "Paid", value: inr(r.paid), valueClassName: "text-emerald-600 dark:text-emerald-400" },
+                  { label: "Avg Days to Pay", value: r.avgDaysToPay != null ? `${r.avgDaysToPay}d` : "—" },
+                ]}
+              />
+            </MobileRecordCard>
+          ))}
+        </MobileRecordList>
+        <div className="hidden sm:block">
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
@@ -113,6 +145,8 @@ export default function VendorBalanceSummaryPage() {
             ))}
           </tbody>
         </ReportTable>
+        </div>
+        </>
       )}
     </ReportShell>
   );

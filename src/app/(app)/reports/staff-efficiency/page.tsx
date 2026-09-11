@@ -10,6 +10,7 @@ import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
@@ -50,45 +51,77 @@ export default function StaffEfficiencyPage() {
       {staffEff.length === 0 ? (
         <EmptyState icon={Users} title="No staff data yet" description="Assign tailors to orders to see efficiency here." />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Tailor</Th>
-              <Th align="right">Orders</Th>
-              <Th align="right">Revenue</Th>
-              <Th align="right">Per order</Th>
-              <Th>Efficiency</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            <ReportTotalsRow>
-              <Td>Total</Td>
-              <Td align="right">{totalOrders}</Td>
-              <Td align="right">{inr(totalRevenue)}</Td>
-              <Td align="right">{totalOrders > 0 ? inr(Math.round(totalRevenue / totalOrders)) : "—"}</Td>
-              <Td>—</Td>
-            </ReportTotalsRow>
+        <>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Tailor</Th>
+                  <Th align="right">Orders</Th>
+                  <Th align="right">Revenue</Th>
+                  <Th align="right">Per order</Th>
+                  <Th>Efficiency</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td>Total</Td>
+                  <Td align="right">{totalOrders}</Td>
+                  <Td align="right">{inr(totalRevenue)}</Td>
+                  <Td align="right">{totalOrders > 0 ? inr(Math.round(totalRevenue / totalOrders)) : "—"}</Td>
+                  <Td>—</Td>
+                </ReportTotalsRow>
+                {staffEff.map((t) => (
+                  <tr key={t.tailor} className="hover:bg-muted/30">
+                    <Td className="font-medium">{tailorName(t.tailor)}</Td>
+                    <Td align="right">{t.total}</Td>
+                    <Td align="right">{inr(t.revenue)}</Td>
+                    <Td align="right">{inr(t.revPerOrder)}</Td>
+                    <Td>
+                      <div className="flex min-w-24 items-center gap-2">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className={`h-full rounded-full ${t.efficiency >= 90 ? "bg-emerald-500" : t.efficiency >= 70 ? "bg-amber-500" : "bg-red-500"}`}
+                            style={{ width: `${t.efficiency}%` }}
+                          />
+                        </div>
+                        <span className="w-9 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{t.efficiency}%</span>
+                      </div>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(totalRevenue)} showChevron={false} />
+              <MobileRecordRow label="Orders" value={totalOrders} />
+              <MobileRecordRow label="Per order" value={totalOrders > 0 ? inr(Math.round(totalRevenue / totalOrders)) : "—"} />
+            </MobileRecordCard>
             {staffEff.map((t) => (
-              <tr key={t.tailor} className="hover:bg-muted/30">
-                <Td className="font-medium">{tailorName(t.tailor)}</Td>
-                <Td align="right">{t.total}</Td>
-                <Td align="right">{inr(t.revenue)}</Td>
-                <Td align="right">{inr(t.revPerOrder)}</Td>
-                <Td>
-                  <div className="flex min-w-24 items-center gap-2">
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={`h-full rounded-full ${t.efficiency >= 90 ? "bg-emerald-500" : t.efficiency >= 70 ? "bg-amber-500" : "bg-red-500"}`}
-                        style={{ width: `${t.efficiency}%` }}
-                      />
+              <MobileRecordCard key={t.tailor}>
+                <MobileRecordHeader title={tailorName(t.tailor)} value={inr(t.revenue)} showChevron={false} />
+                <MobileRecordRow label="Orders" value={t.total} />
+                <MobileRecordRow label="Per order" value={inr(t.revPerOrder)} />
+                <MobileRecordRow
+                  label="Efficiency"
+                  value={
+                    <div className="flex min-w-20 items-center gap-2">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={`h-full rounded-full ${t.efficiency >= 90 ? "bg-emerald-500" : t.efficiency >= 70 ? "bg-amber-500" : "bg-red-500"}`}
+                          style={{ width: `${t.efficiency}%` }}
+                        />
+                      </div>
+                      <span className="w-9 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{t.efficiency}%</span>
                     </div>
-                    <span className="w-9 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{t.efficiency}%</span>
-                  </div>
-                </Td>
-              </tr>
+                  }
+                />
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+        </>
       )}
     </ReportShell>
   );

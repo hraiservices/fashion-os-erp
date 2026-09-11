@@ -9,6 +9,7 @@ import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
@@ -58,6 +59,20 @@ export default function PurchaseOrdersByVendorPage() {
       {rows.length === 0 ? (
         <EmptyState icon={Truck} title="No purchase orders yet" />
       ) : (
+        <>
+        <MobileRecordList>
+          <MobileRecordCard className="bg-muted/40">
+            <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.total, 0))} showChevron={false} />
+            <MobileRecordRow label="Purchase Orders" value={rows.reduce((s, r) => s + r.count, 0)} />
+          </MobileRecordCard>
+          {rows.map((r) => (
+            <MobileRecordCard key={r.vendorId}>
+              <MobileRecordHeader title={vendorNameById.get(r.vendorId) || "Unknown vendor"} value={inr(r.total)} showChevron={false} />
+              <MobileRecordRow label="Purchase Orders" value={r.count} />
+            </MobileRecordCard>
+          ))}
+        </MobileRecordList>
+        <div className="hidden sm:block">
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
@@ -81,6 +96,8 @@ export default function PurchaseOrdersByVendorPage() {
             ))}
           </tbody>
         </ReportTable>
+        </div>
+        </>
       )}
     </ReportShell>
   );

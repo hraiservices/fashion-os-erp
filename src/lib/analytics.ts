@@ -2,6 +2,7 @@
 import { daysLeft, loyaltyDiscountOf, couponDiscountOf, loyaltyTier, DEFAULT_LOYALTY_CONFIG, type LoyaltyConfig, type TailorRateCard } from "@/lib/business-rules";
 import { isOrderOutstanding } from "@/lib/balances";
 import { istDateString } from "@/lib/ist-date";
+import { isWithinDateRange, type DateRange } from "@/lib/report-date-range";
 import { computeOrderProfit } from "@/lib/order-profit";
 import type { Order, Customer, ReferralCoupon, OrderExpense } from "@/lib/types";
 
@@ -477,6 +478,27 @@ export function getPendingOrders(orders: Order[]): Order[] {
   return orders
     .filter((o) => o.status !== "delivered" && o.status !== "payment")
     .sort((a, b) => new Date(a.deliveryDate).getTime() - new Date(b.deliveryDate).getTime());
+}
+
+export interface TodayDeliverablesResult {
+  /** Still-pending orders whose delivery date falls in the selected range (today, by default) —
+   *  what still needs to go out for that day/range. */
+  due: Order[];
+  /** Still-pending orders whose delivery date has already passed — always relative to the real
+   *  calendar today, independent of whatever range is selected, since a backlog doesn't stop
+   *  being a backlog just because you're looking at a different day. */
+  overdue: Order[];
+}
+
+/** Today Deliverables — the flip side of Pending Orders: not "everything still in progress" but
+ *  specifically "what's promised for today (or the selected range)", split from the pre-existing
+ *  overdue backlog so staff can tell "due now" apart from "already late" at a glance. */
+export function getTodayDeliverables(orders: Order[], range: DateRange): TodayDeliverablesResult {
+  const today = istDateString();
+  const pending = getPendingOrders(orders);
+  const due = pending.filter((o) => isWithinDateRange(o.deliveryDate, range) && o.deliveryDate >= today);
+  const overdue = pending.filter((o) => o.deliveryDate && o.deliveryDate < today);
+  return { due, overdue };
 }
 
 export interface LoyaltyImpactStat {

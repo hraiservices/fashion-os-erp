@@ -105,6 +105,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/aging", label: "Balance Aging" },
     { href: "/reports/pending-orders", label: "Pending Orders" },
     { href: "/reports/ready-uncollected", label: "Ready & Uncollected" },
+    { href: "/reports/today-deliverables", label: "Today Deliverables" },
     { href: "/reports/rework-rate", label: "Rework Rate" },
     { href: "/reports/deposit-compliance", label: "Deposit Compliance" },
     { href: "/reports/order-profitability", label: "Order Profitability", adminOnly: true },

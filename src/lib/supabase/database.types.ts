@@ -1228,6 +1228,10 @@ export interface Database {
         Args: { p_token: string };
         Returns: Json;
       };
+      get_customer_statement: {
+        Args: { p_token: string };
+        Returns: Json;
+      };
       record_order_payment: {
         Args: {
           p_order_id: string;

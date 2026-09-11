@@ -7,9 +7,11 @@ import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { buildCustomerTransactions } from "@/lib/customer-ledger";
+import { normalizeIndianMobile } from "@/lib/business-rules";
 import { inr, fmtDate } from "@/lib/format";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
+import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -70,6 +72,17 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
     return { totalBilled, totalPaid, stitchBalance, retailBalance, totalBalance: stitchBalance + retailBalance };
   }, [filtered]);
 
+  // The link always points at the full, unfiltered statement (there's no per-view filter state
+  // to encode in a public URL) — so the WhatsApp message's balance figure uses the unfiltered
+  // total too, not whatever date-range/type filter happens to be active on screen right now.
+  const overallBalance = useMemo(() => allTransactions.reduce((s, t) => s + t.balance, 0), [allTransactions]);
+  const statementUrl = cust && typeof window !== "undefined" && cust.shareToken ? `${window.location.origin}/statement/view/${cust.shareToken}` : "";
+  const whatsappUrl = cust
+    ? `https://wa.me/91${normalizeIndianMobile(mobile)}?text=${encodeURIComponent(
+        `Dear *${cust.name}* 🙏\n\nHere is your account statement:\n${statementUrl}\n\n${overallBalance > 0 ? `Balance due: ₹${overallBalance}` : "Your account is fully settled."}`
+      )}`
+    : "";
+
   if (isLoading || invoicesLoading) {
     return (
       <div className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6">
@@ -93,9 +106,12 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
         <Link href={`/crm/${mobile}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" /> {cust.name || mobile}
         </Link>
-        <Button size="sm" onClick={() => window.print()}>
-          <Printer className="size-4" /> Print / Save PDF
-        </Button>
+        <div className="flex gap-2">
+          {whatsappUrl && <WhatsAppButton href={whatsappUrl} size="sm" label="Send on WhatsApp" />}
+          <Button size="sm" onClick={() => window.print()}>
+            <Printer className="size-4" /> Print / Save PDF
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/20 p-3 print:hidden">

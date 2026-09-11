@@ -24,6 +24,7 @@ export interface CustomerProfile {
   whatsappOptOut: boolean;
   createdAt: string;
   measurementProfiles: MeasurementProfile[];
+  shareToken: string;
 }
 
 /**
@@ -38,7 +39,7 @@ export function buildCustomerMap(orders: Order[], customers: Customer[]): Custom
     name, mobile, email: "", dob: "", anniversary: "", address: "",
     orders: [], spent: 0, measurements: {}, notes: "",
     loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms: "due_on_receipt", priceListId: null, tags: [], gstin: "", whatsappOptOut: false,
-    createdAt: "", measurementProfiles: [],
+    createdAt: "", measurementProfiles: [], shareToken: "",
   });
 
   orders.forEach((o) => {
@@ -66,6 +67,7 @@ export function buildCustomerMap(orders: Order[], customers: Customer[]): Custom
     m[c.mobile].whatsappOptOut = c.whatsappOptOut || false;
     m[c.mobile].createdAt = c.createdAt || "";
     m[c.mobile].measurementProfiles = c.measurementProfiles || [];
+    m[c.mobile].shareToken = c.shareToken || "";
   });
 
   return Object.values(m).sort((a, b) => {

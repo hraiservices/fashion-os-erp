@@ -55,12 +55,11 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   const commission = employee ? computeCommission(employee, orders || []) : null;
   const outstandingAdvances = (advances || []).filter((a) => !a.payslipId).reduce((s, a) => s + a.amount, 0);
 
-  // All-time confirmed piece-rate earnings — a status figure for this page, not what payroll
-  // actually pays out per period (that's computed fresh, period-scoped, in the payroll run).
-  const confirmedOrders = (orders || []).filter((o) => o.payablesConfirmedAt);
-  const confirmedWorkOrders = (workOrders || []).filter((w) => w.laborPayableConfirmedAt);
+  // All-time piece-rate earnings — a status figure for this page, not what payroll actually
+  // pays out per period (that's computed fresh, period-scoped, in the payroll run). No manager
+  // confirmation step — every order/work-order with a tailor payable counts.
   const pieceRateEarnings = employee?.pieceRateEligible
-    ? computeOrderPieceRatePay(employee.id, confirmedOrders) + computeWorkOrderPieceRatePay(employee.id, confirmedWorkOrders)
+    ? computeOrderPieceRatePay(employee.id, orders || []) + computeWorkOrderPieceRatePay(employee.id, workOrders || [])
     : 0;
 
   async function handleAddAdvance() {
@@ -155,7 +154,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
             {employee.pieceRateEligible && (
               <div className="bg-card p-3 text-center">
                 <p className="text-lg font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{inr(pieceRateEarnings)}</p>
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Piece-rate (confirmed, all-time)</p>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Piece-rate (all-time)</p>
               </div>
             )}
           </div>

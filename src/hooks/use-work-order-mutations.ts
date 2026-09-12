@@ -96,16 +96,6 @@ export function useCompleteWorkOrder() {
   });
 }
 
-/** Confirms a completed work order's laborCost as a real tailor payable — see the self-dealing
- *  note on /api/work-orders/[id]/confirm-payable. */
-export function useConfirmWoPayable() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => sendJson<{ ok: true; confirmedAt: string }>(`/api/work-orders/${id}/confirm-payable`, "POST"),
-    onSuccess: () => invalidateAll(qc),
-  });
-}
-
 export function useDeleteWorkOrder() {
   const qc = useQueryClient();
   return useMutation({

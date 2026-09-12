@@ -40,10 +40,9 @@ interface LeaveBalanceResponse {
 
 interface EarningsResponse {
   eligible: boolean;
-  weekConfirmed?: number;
-  monthConfirmed?: number;
-  pendingConfirmation?: number;
-  allTimeConfirmed?: number;
+  weekTotal?: number;
+  monthTotal?: number;
+  allTimeTotal?: number;
 }
 
 function inr(n: number): string {
@@ -526,24 +525,18 @@ export default function CheckInPage() {
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
                   <div className="rounded-lg border p-3 text-center">
-                    <p className="text-lg font-semibold tabular-nums">{inr(earnings.weekConfirmed || 0)}</p>
+                    <p className="text-lg font-semibold tabular-nums">{inr(earnings.weekTotal || 0)}</p>
                     <p className="text-[11px] text-muted-foreground">This week</p>
                   </div>
                   <div className="rounded-lg border p-3 text-center">
-                    <p className="text-lg font-semibold tabular-nums">{inr(earnings.monthConfirmed || 0)}</p>
+                    <p className="text-lg font-semibold tabular-nums">{inr(earnings.monthTotal || 0)}</p>
                     <p className="text-[11px] text-muted-foreground">This month</p>
                   </div>
                 </div>
                 <div className="rounded-lg border p-3 text-center">
-                  <p className="text-lg font-semibold tabular-nums">{inr(earnings.allTimeConfirmed || 0)}</p>
-                  <p className="text-[11px] text-muted-foreground">Confirmed, all-time</p>
+                  <p className="text-lg font-semibold tabular-nums">{inr(earnings.allTimeTotal || 0)}</p>
+                  <p className="text-[11px] text-muted-foreground">All-time</p>
                 </div>
-                {(earnings.pendingConfirmation || 0) > 0 && (
-                  <div className="rounded-lg bg-amber-50 p-3 text-center dark:bg-amber-950/40">
-                    <p className="text-sm font-semibold tabular-nums text-amber-700 dark:text-amber-400">{inr(earnings.pendingConfirmation || 0)}</p>
-                    <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80">Awaiting manager confirmation — not yet final</p>
-                  </div>
-                )}
               </div>
             )}
 

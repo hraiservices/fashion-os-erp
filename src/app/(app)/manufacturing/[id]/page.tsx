@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, Factory, ArrowRight, CheckCircle2, Trash2, Pencil } from "lucide-react";
 import { useWorkOrder } from "@/hooks/use-work-orders";
-import { useAdvanceWoStatus, useDeleteWorkOrder, useConfirmWoPayable } from "@/hooks/use-work-order-mutations";
+import { useAdvanceWoStatus, useDeleteWorkOrder } from "@/hooks/use-work-order-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useTailorName } from "@/hooks/use-employees";
 import { fmtDate, inr } from "@/lib/format";
@@ -35,22 +35,11 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
   const { data: user } = useCurrentUser();
   const advanceStatus = useAdvanceWoStatus();
   const deleteWo = useDeleteWorkOrder();
-  const confirmPayable = useConfirmWoPayable();
   const tailorName = useTailorName();
 
   const [completeOpen, setCompleteOpen] = useState(false);
 
   const canManage = !!user?.perms.manageManufacturing;
-
-  async function handleConfirmPayable() {
-    if (!wo) return;
-    try {
-      await confirmPayable.mutateAsync(wo.id);
-      toast.success("Tailor payable confirmed");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to confirm payable");
-    }
-  }
 
   async function handleAdvance() {
     if (!wo) return;
@@ -187,15 +176,9 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
                   <div>
                     <p className="font-medium">Tailor payable</p>
                     <p className="text-xs text-muted-foreground">
-                      {tailorName(wo.tailor)} · {inr(wo.laborCost || 0)} ·{" "}
-                      {wo.laborPayableConfirmedAt ? "confirmed" : "awaiting confirmation"}
+                      {tailorName(wo.tailor)} · {inr(wo.laborCost || 0)}
                     </p>
                   </div>
-                  {user?.perms.managePayroll && !wo.laborPayableConfirmedAt && (
-                    <Button size="sm" variant="outline" onClick={handleConfirmPayable} disabled={confirmPayable.isPending}>
-                      {confirmPayable.isPending ? "Confirming…" : "Confirm"}
-                    </Button>
-                  )}
                 </div>
               )}
             </div>

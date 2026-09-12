@@ -288,33 +288,37 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   // Fetch enough columns for guards + loyalty refund; avoid mapOrderRow on a partial row (M2).
   const { data: row, error: fetchError } = await db
     .from("orders")
-    .select("id, name, status, mobile, history, advance, garments, payables_confirmed_at, piece_rate_paid_at")
+    .select("id, name, status, mobile, history, advance, garments, piece_rate_paid_at")
     .eq("id", id)
     .maybeSingle();
   if (fetchError || !row) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+
+  // A garment's payable is live and real money owed to a tailor from the moment a tailor is
+  // assigned (no manager-confirmation step — see remove_tailor_payable_confirm_step.sql), so
+  // deleting the order would silently write it off the moment it exists, not just once frozen.
+  const hasActivePayable = (Array.isArray(row.garments) ? row.garments : []).some((g) => ((g as { payableAmount?: number })?.payableAmount || 0) > 0);
 
   // Admin override: an admin can always delete an order, bypassing every guard below. Every
   // other role still goes through them. Since order_payments.order_id has no ON DELETE CASCADE
   // (unlike order_expenses), an admin deleting an order with payment rows still needs those
   // rows removed first below, or the delete would fail on the foreign key instead of the guard.
   const isAdmin = user.role === "admin";
-  const guardWouldHaveBlocked = !!row.piece_rate_paid_at || !!row.payables_confirmed_at || (row.advance || 0) > 0;
+  const guardWouldHaveBlocked = !!row.piece_rate_paid_at || hasActivePayable || (row.advance || 0) > 0;
   const isAdminOverride = isAdmin && guardWouldHaveBlocked;
 
   if (!isAdmin) {
-    // Confirming payables freezes them for payroll to pick up; deleting the order after that
-    // (with no equivalent guard to the advance>0 check below) would silently destroy the only
-    // record that the payable was confirmed/paid — a real gap once a payroll run has already
-    // paid the tailor for it. Mirrors the identical guard added to work-orders/[id]/route.ts.
+    // Deleting the order (with no equivalent guard to the advance>0 check below) would silently
+    // destroy the only record that a tailor payable was owed or paid. Mirrors the identical
+    // guard added to work-orders/[id]/route.ts.
     if (row.piece_rate_paid_at) {
       return NextResponse.json(
         { error: "This order's tailor payable has already been paid out in a payroll run and cannot be deleted." },
         { status: 409 }
       );
     }
-    if (row.payables_confirmed_at) {
+    if (hasActivePayable) {
       return NextResponse.json(
-        { error: "This order's tailor payable has been confirmed for payroll and cannot be deleted." },
+        { error: "This order has a tailor payable still owed and cannot be deleted. Unassign the tailor first, or move the order to a closed stage instead." },
         { status: 409 }
       );
     }
@@ -347,15 +351,15 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     if (deletePaymentsError) return NextResponse.json({ error: deletePaymentsError.message }, { status: 500 });
   }
 
-  // The order is the only place a garment's frozen payableAmount lives — deleting it destroys
-  // that number outright. If it was already paid out (piece_rate_paid_at set), that's harmless:
-  // the payslip snapshot the run created holds the tailor's total independently. But a payable
-  // that's confirmed and NOT yet paid is still counted live off this exact row by every future
-  // payroll run (see /api/payroll/run's confirmedOrders query) — deleting it here with no trace
-  // would silently write off money genuinely owed to the tailor, with no payslip ever created
-  // for it. Surface exactly what's being lost, per tailor, so accounting can settle it by hand.
+  // The order is the only place a garment's payableAmount lives — deleting it destroys that
+  // number outright. If it was already paid out (piece_rate_paid_at set), that's harmless: the
+  // payslip snapshot the run created holds the tailor's total independently. But a still-unpaid
+  // payable is counted live off this exact row by every future payroll run (see
+  // /api/payroll/run's unpaidOrders query) — deleting it here with no trace would silently write
+  // off money genuinely owed to the tailor, with no payslip ever created for it. Surface exactly
+  // what's being lost, per tailor, so accounting can settle it by hand.
   let lostPayableNote: string | null = null;
-  if (isAdmin && row.payables_confirmed_at && !row.piece_rate_paid_at) {
+  if (isAdmin && hasActivePayable && !row.piece_rate_paid_at) {
     const garments = (Array.isArray(row.garments) ? row.garments : []) as { tailor?: string; payableAmount?: number }[];
     const byTailor = new Map<string, number>();
     for (const g of garments) {
@@ -365,7 +369,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       const { data: tailorRows } = await db.from("employees").select("id, name").in("id", Array.from(byTailor.keys()));
       const nameById = new Map((tailorRows || []).map((t) => [t.id, t.name]));
       const parts = Array.from(byTailor.entries()).map(([tailorId, amount]) => `${nameById.get(tailorId) || tailorId}: ₹${amount}`);
-      lostPayableNote = `⚠️ Confirmed-but-unpaid tailor payable(s) lost on delete — ${parts.join(", ")}. Settle manually if owed.`;
+      lostPayableNote = `⚠️ Unpaid tailor payable(s) lost on delete — ${parts.join(", ")}. Settle manually if owed.`;
     }
   }
 

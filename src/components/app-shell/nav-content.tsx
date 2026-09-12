@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronRight, ChevronDown, Plus, Scissors } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, resolveReportSection, MANUFACTURING_NAV_ITEM, COPILOT_NAV_ITEM, POS_NAV_ITEM, PAYMENTS_RECEIVED_NAV_ITEM, settingsLeafVisible, employeesLeafVisible, ordersLeafVisible, type NavGroup, type NavLeaf, type NavFlatItem } from "@/components/app-shell/nav-config";
 import { resolveNavLayout, DEFAULT_NAV_LAYOUT, type NavLayoutSetting } from "@/lib/nav-layout";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -48,7 +49,7 @@ function NewLink({ href, onNavigate, label }: { href: string; onNavigate?: () =>
   );
 }
 
-function FlatLink({ item, active, onNavigate }: { item: NavFlatItem; active: boolean; onNavigate?: () => void }) {
+function FlatLink({ item, active, onNavigate, collapsed }: { item: NavFlatItem; active: boolean; onNavigate?: () => void; collapsed?: boolean }) {
   const Icon = item.icon;
   return (
     <div className="flex items-center gap-0.5">
@@ -56,21 +57,23 @@ function FlatLink({ item, active, onNavigate }: { item: NavFlatItem; active: boo
         href={item.href}
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
+        title={collapsed ? item.label : undefined}
         className={cn(
           "flex flex-1 items-center gap-3 rounded-lg px-3 py-3.5 text-[17px] font-medium transition-colors sm:py-2 sm:text-sm",
+          collapsed && "justify-center px-0",
           active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
         )}
       >
         <Icon className="size-[22px] shrink-0 sm:size-4" />
-        <span className="truncate">{item.label}</span>
+        {!collapsed && <span className="truncate">{item.label}</span>}
       </Link>
-      {item.newHref && <NewLink href={item.newHref} onNavigate={onNavigate} label={item.label} />}
+      {!collapsed && item.newHref && <NewLink href={item.newHref} onNavigate={onNavigate} label={item.label} />}
     </div>
   );
 }
 
 /** Groups whose index page already is the full browsing UI (category rail + searchable table) — no need to duplicate that structure as a sidebar dropdown too. Clicking just navigates straight there. */
-function GroupIndexLink({ group, pathname, onNavigate }: { group: NavGroup; pathname: string; onNavigate?: () => void }) {
+function GroupIndexLink({ group, pathname, onNavigate, collapsed }: { group: NavGroup; pathname: string; onNavigate?: () => void; collapsed?: boolean }) {
   const Icon = group.icon;
   const active = pathname.startsWith(`/${group.id}`);
   return (
@@ -78,14 +81,87 @@ function GroupIndexLink({ group, pathname, onNavigate }: { group: NavGroup; path
       href={group.indexHref!}
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
+      title={collapsed ? group.label : undefined}
       className={cn(
         "flex items-center gap-3 rounded-lg px-3 py-3.5 text-[17px] font-medium transition-colors sm:py-2 sm:text-sm",
+        collapsed && "justify-center px-0",
         active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
       )}
     >
       <Icon className="size-[22px] shrink-0 sm:size-4" />
-      <span className="truncate">{group.label}</span>
+      {!collapsed && <span className="truncate">{group.label}</span>}
     </Link>
+  );
+}
+
+/**
+ * Collapsed-sidebar stand-in for GroupNav's inline dropdown — a hover flyout (portaled via
+ * base-ui Menu, so it isn't clipped by the sidebar's own scroll container) listing the same
+ * sections/leaves GroupNav would show inline when expanded. Opens on hover for mouse users
+ * and on click/focus for keyboard and touch, since a collapsed icon rail is desktop-only but
+ * still needs to be operable without a mouse.
+ */
+function CollapsedGroupFlyout({
+  group,
+  childrenOverride,
+  pathname,
+  searchParams,
+  filterLeaf,
+  onNavigate,
+}: {
+  group: NavGroup;
+  childrenOverride?: NavLeaf[];
+  pathname: string;
+  searchParams: URLSearchParams;
+  filterLeaf?: (href: string) => boolean;
+  onNavigate?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const Icon = group.icon;
+  const groupActive = pathname.startsWith(`/${group.id}`);
+  const children = (childrenOverride ?? group.children).filter((l) => (filterLeaf ? filterLeaf(l.href) : true));
+  if (children.length === 0) return null;
+
+  const showPinnedOverview = !!group.indexHref && !children.some((l) => l.href === group.indexHref);
+
+  return (
+    <div onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenuTrigger
+          render={
+            <button
+              type="button"
+              title={group.label}
+              aria-label={group.label}
+              className={cn(
+                "flex w-full items-center justify-center rounded-lg px-0 py-3.5 transition-colors sm:py-2",
+                groupActive ? "text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+              )}
+            >
+              <Icon className="size-[22px] shrink-0 sm:size-4" />
+            </button>
+          }
+        />
+        <DropdownMenuContent side="right" align="start" sideOffset={8} className="w-56">
+          <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {showPinnedOverview && (
+            <DropdownMenuItem key={group.indexHref} render={<Link href={group.indexHref!} onClick={onNavigate} />}>
+              Overview
+            </DropdownMenuItem>
+          )}
+          {children.map((leaf) => {
+            const [leafPath, leafQuery] = leaf.href.split("?");
+            const active = pathname === leafPath && (leafQuery ?? "") === searchParams.toString();
+            return (
+              <DropdownMenuItem key={leaf.href} render={<Link href={leaf.href} onClick={onNavigate} />} className={active ? "bg-accent text-accent-foreground" : undefined}>
+                {leaf.label}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 
@@ -217,7 +293,7 @@ const NAV_SKELETON = (
  * — without this, every page rendered inside the (app) layout would be forced to bail out
  * of static prerendering just because the sidebar exists.
  */
-export function NavContent(props: { onNavigate?: () => void }) {
+export function NavContent(props: { onNavigate?: () => void; collapsed?: boolean }) {
   return (
     <Suspense fallback={NAV_SKELETON}>
       <NavContentInner {...props} />
@@ -227,7 +303,7 @@ export function NavContent(props: { onNavigate?: () => void }) {
 
 const ALL_FLAT_ITEMS: NavFlatItem[] = [...PRIMARY_NAV, ...SECONDARY_NAV, MANUFACTURING_NAV_ITEM, COPILOT_NAV_ITEM, POS_NAV_ITEM, PAYMENTS_RECEIVED_NAV_ITEM];
 
-function NavContentInner({ onNavigate }: { onNavigate?: () => void }) {
+function NavContentInner({ onNavigate, collapsed }: { onNavigate?: () => void; collapsed?: boolean }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { data: user, isLoading } = useCurrentUser();
@@ -284,40 +360,44 @@ function NavContentInner({ onNavigate }: { onNavigate?: () => void }) {
   }
 
   return (
-    <nav className="flex flex-1 flex-col gap-0.5 px-3 pb-4">
-      {roots.filter(rootVisible).map((node) =>
-        node.kind === "flat" ? (
-          <FlatLink key={node.item.href} item={node.item} active={node.item.href === activeHref} onNavigate={onNavigate} />
-        ) : node.group.id === "reports" ? (
-          <GroupIndexLink key={node.group.id} group={node.group} pathname={pathname} onNavigate={onNavigate} />
-        ) : (
-          <GroupNav
+    <nav className={cn("flex flex-1 flex-col gap-0.5 pb-4", collapsed ? "px-2" : "px-3")}>
+      {roots.filter(rootVisible).map((node) => {
+        if (node.kind === "flat") {
+          return <FlatLink key={node.item.href} item={node.item} active={node.item.href === activeHref} onNavigate={onNavigate} collapsed={collapsed} />;
+        }
+        if (node.group.id === "reports") {
+          return <GroupIndexLink key={node.group.id} group={node.group} pathname={pathname} onNavigate={onNavigate} collapsed={collapsed} />;
+        }
+        const filterLeaf =
+          node.group.id === "settings"
+            ? (href: string) => settingsLeafVisible(href, isAdmin, canManageShop, isSuperAdmin) && (isSuperAdmin || isSettingEnabled(entitlements!, href))
+            : node.group.id === "employees"
+              ? (href: string) => employeesLeafVisible(href, isAdmin) && (isSuperAdmin || isSettingEnabled(entitlements!, href))
+              : node.group.id === "orders"
+                ? (href: string) => ordersLeafVisible(href, canManageShop) && (isSuperAdmin || isSettingEnabled(entitlements!, href))
+                : undefined;
+        return collapsed ? (
+          <CollapsedGroupFlyout
             key={node.group.id}
             group={node.group}
             childrenOverride={node.children}
             pathname={pathname}
             searchParams={searchParams}
-            filterLeaf={
-              node.group.id === "settings"
-                ? (href) => settingsLeafVisible(href, isAdmin, canManageShop, isSuperAdmin) && (isSuperAdmin || isSettingEnabled(entitlements!, href))
-                : node.group.id === "employees"
-                  ? (href) => employeesLeafVisible(href, isAdmin) && (isSuperAdmin || isSettingEnabled(entitlements!, href))
-                  : node.group.id === "orders"
-                    ? (href) => ordersLeafVisible(href, canManageShop) && (isSuperAdmin || isSettingEnabled(entitlements!, href))
-                    : undefined
-            }
+            filterLeaf={filterLeaf}
             onNavigate={onNavigate}
           />
-        )
-      )}
+        ) : (
+          <GroupNav key={node.group.id} group={node.group} childrenOverride={node.children} pathname={pathname} searchParams={searchParams} filterLeaf={filterLeaf} onNavigate={onNavigate} />
+        );
+      })}
     </nav>
   );
 }
 
-export function NavBrand() {
+export function NavBrand({ collapsed }: { collapsed?: boolean } = {}) {
   const { data: shop } = useShopSettings();
   return (
-    <div className="flex items-center gap-2.5 px-5 py-4">
+    <div className={cn("flex items-center gap-2.5 py-4", collapsed ? "justify-center px-2" : "px-5")}>
       {shop?.logoDataUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={shop.logoDataUrl} alt={shop.name || "Company logo"} className="size-10 shrink-0 rounded-lg border bg-white object-contain sm:size-8" />
@@ -326,7 +406,7 @@ export function NavBrand() {
           <Scissors className="size-[22px] sm:size-4" />
         </span>
       )}
-      <span className="truncate text-[18px] font-semibold tracking-tight sm:text-[15px]">{shop?.name || "Fashion Flow"}</span>
+      {!collapsed && <span className="truncate text-[18px] font-semibold tracking-tight sm:text-[15px]">{shop?.name || "Fashion Flow"}</span>}
     </div>
   );
 }

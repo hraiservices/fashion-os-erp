@@ -390,13 +390,13 @@ function OrderFormFields({
   // Live profit — the exact same computeOrderProfit() used by Order Details, the Stitching
   // Orders list, and the Order Profitability report (see src/lib/order-profit.ts), fed with
   // this form's current in-progress values so it updates as the user types. A new order is
-  // always pre-"ready" (tailorCostIsEstimate always true here); an existing order uses its
-  // real current status so an already-ready order shows its real, frozen tailor cost.
+  // never confirmed yet (tailorCostIsEstimate always true here); an existing order uses its
+  // real payablesConfirmedAt so an already-confirmed order shows its real, frozen tailor cost.
   const profit = computeOrderProfit(
     {
       total,
       garments: garments as Order["garments"],
-      status: existingOrder?.status || "received",
+      payablesConfirmedAt: existingOrder?.payablesConfirmedAt || null,
       orderType,
       fabricCost,
       otherCost,

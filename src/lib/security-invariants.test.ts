@@ -46,16 +46,20 @@ const WRITE_LOCKED_TABLES = [
  * SECURITY INVOKER RPCs — they run with the caller's privileges, so RLS applies to them. That
  * is what stops a browser calling them directly once the tables are locked, and equally what
  * requires the API routes to invoke them with the service-role client.
- * (The SECURITY DEFINER ones — approve_leave_request, confirm_order_payables,
- * confirm_wo_payable, record_vendor_payment, set_module_entitlements, get_public_invoice —
- * bypass RLS by design and are deliberately not listed.)
+ * (The SECURITY DEFINER ones — confirm_order_payables, confirm_wo_payable, record_vendor_payment,
+ * set_module_entitlements, get_public_invoice — bypass RLS by design and are deliberately not
+ * listed. approve_leave_request is NOT SECURITY DEFINER despite once being miscategorized here —
+ * see lockdown_confirm_payable_rpcs.sql — which is exactly why it belongs in this list: it's
+ * what would have caught its route calling it on the caller's own session instead of the
+ * service client, silently no-oping every leave approval once leave_requests writes were locked
+ * down (lockdown_operational_writes.sql).)
  */
 const INVOKER_RPCS = [
   "delete_customer_cascade", "change_customer_mobile", "set_order_stage", "backfill_order_payment",
   "reserve_loyalty_discount", "record_order_payment", "refund_loyalty_discount", "delete_order_payment",
   "release_referral_coupon", "rename_order_id", "set_order_rework", "edit_order", "next_document_number",
   "redeem_referral_coupon", "replace_inventory_ledger", "record_sales_credit_note", "record_sales_payment",
-  "complete_work_order", "award_loyalty_points",
+  "complete_work_order", "award_loyalty_points", "approve_leave_request",
 ];
 
 /** Columns `authenticated` has no SELECT grant on at all. */
@@ -278,6 +282,24 @@ describe("DB lockdown invariants", () => {
     const literal = sql.match(/SELECT\s+'(\{[\s\S]*?\})'::jsonb;/)?.[1];
     expect(literal, "rls_role_defaults() jsonb literal not found").toBeTruthy();
     expect(JSON.parse(literal!)).toEqual(ROLE_DEFAULTS);
+  });
+
+  it("keeps the SECURITY DEFINER confirm/approve RPCs off the authenticated grant", () => {
+    // confirm_order_payables/confirm_wo_payable are SECURITY DEFINER — they bypass RLS by
+    // design, so a `GRANT ... TO authenticated` on them is not "the API route can call this",
+    // it's "any logged-in browser can call this directly", skipping the managePayroll check
+    // both routes enforce and the audit log entry they write. approve_leave_request doesn't
+    // bypass RLS, but the grant was equally pointless and confusing once its route uses the
+    // service client (above) — see lockdown_confirm_payable_rpcs.sql.
+    const sql = readFileSync(join(process.cwd(), "supabase", "migrations", "lockdown_confirm_payable_rpcs.sql"), "utf8");
+    for (const fn of [
+      "confirm_order_payables(TEXT, TEXT)",
+      "confirm_wo_payable(TEXT, TEXT)",
+      "approve_leave_request(UUID, TEXT)",
+    ]) {
+      expect(sql, `${fn} should be revoked from authenticated`).toContain(`REVOKE ALL ON FUNCTION ${fn} FROM authenticated`);
+      expect(sql, `${fn} should be granted to service_role`).toContain(`GRANT EXECUTE ON FUNCTION ${fn} TO service_role`);
+    }
   });
 
   it("derives actor and cash-reconciliation figures on the server, not from the request", () => {

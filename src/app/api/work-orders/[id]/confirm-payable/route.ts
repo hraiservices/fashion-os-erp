@@ -39,7 +39,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   // Routed through the SECURITY DEFINER RPC — the confirmation columns are trigger-guarded
   // (add_piece_rate_p0_fixes.sql) against direct writes, so this is the only path that works.
-  const { data: updatedRows, error: updateError } = await supabase.rpc("confirm_wo_payable", {
+  // Called via the service client — the RPC is service_role-only (lockdown_confirm_payable_rpcs.sql),
+  // so this route's managePayroll check above is the only gate, not a client-reachable RPC grant.
+  const { data: updatedRows, error: updateError } = await db.rpc("confirm_wo_payable", {
     p_wo_id: id,
     p_user_email: user.email,
   });

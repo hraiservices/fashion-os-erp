@@ -318,17 +318,6 @@ function OrdersContent() {
         description={`${filtered.length} of ${orders?.length ?? 0} orders`}
         actions={
           <>
-            <div className="hidden sm:block">
-              <SegmentedToggle
-                ariaLabel="View mode"
-                value={view}
-                onChange={setView}
-                options={[
-                  { value: "list", label: "List", icon: LayoutList },
-                  { value: "board", label: "Board", icon: KanbanSquare },
-                ]}
-              />
-            </div>
             {user?.perms.addOrder && (
               <Button variant="outline" nativeButton={false} render={<Link href="/orders/import" />} className="hidden sm:inline-flex">
                 <Upload className="size-4" /> Import
@@ -402,6 +391,17 @@ function OrdersContent() {
                 <KanbanSquare className="size-4" />
               </Button>
             </div>
+          }
+          desktopLeading={
+            <SegmentedToggle
+              ariaLabel="View mode"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: "list", label: "List", icon: LayoutList },
+                { value: "board", label: "Board", icon: KanbanSquare },
+              ]}
+            />
           }
           views={savedViews.views}
           onApplyView={applyView}

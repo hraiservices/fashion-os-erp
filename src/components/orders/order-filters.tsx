@@ -210,6 +210,7 @@ export function OrderFilters<F>({
   onRemoveView,
   currentViewFilters,
   mobileLeading,
+  desktopLeading,
 }: {
   value: FilterState;
   onChange: (f: FilterState) => void;
@@ -225,6 +226,8 @@ export function OrderFilters<F>({
   currentViewFilters: F;
   /** Extra control (e.g. a view-mode toggle) rendered before the Filters button on mobile, to share its row. */
   mobileLeading?: React.ReactNode;
+  /** Extra control (e.g. a view-mode toggle) rendered at the start of the desktop inline bar, alongside "Newest first". */
+  desktopLeading?: React.ReactNode;
 }) {
   const count = activeFilterCount(value);
   const set = (patch: Partial<FilterState>) => onChange({ ...value, ...patch });
@@ -289,6 +292,7 @@ export function OrderFilters<F>({
         )}
 
         <div className="ml-auto flex items-center gap-2">
+          {desktopLeading}
           {count > 0 && (
             <Button variant="ghost" size="sm" onClick={() => onChange({ ...EMPTY_FILTERS, sort: value.sort })}>
               <X className="size-3.5" /> Clear

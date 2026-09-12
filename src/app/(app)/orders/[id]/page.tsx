@@ -370,21 +370,22 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   <span className="hidden sm:inline">Payment Reminder</span>
                 </>
               }
+              labelClassName="min-w-0 truncate"
               className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm"
             />
           ) : (
-            <WhatsAppButton href={waUrl} label="WhatsApp" className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm" />
+            <WhatsAppButton href={waUrl} label="WhatsApp" labelClassName="min-w-0 truncate" className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm" />
           )}
           {user?.perms.editOrder && (
             <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" nativeButton={false} render={<Link href={`/orders/${id}/edit`} />} aria-label="Edit order">
               <Pencil className="size-4" />
-              <span>Edit</span>
+              <span className="min-w-0 truncate">Edit</span>
             </Button>
           )}
           {user?.perms.changeStage && !order.reworkFlag && (
             <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Flag for rework" onClick={() => setReworkDialogOpen(true)}>
               <RotateCcw className="size-4" />
-              <span>Rework</span>
+              <span className="min-w-0 truncate">Rework</span>
             </Button>
           )}
           {user?.perms.managePayroll && !order.payablesConfirmedAt && order.garments.some((g) => g.payableAmount) && (
@@ -403,23 +404,23 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               }}
             >
               <Wallet className="size-4" />
-              <span className="sm:hidden">{confirmPayables.isPending ? "…" : "Confirm"}</span>
-              <span className="hidden sm:inline lg:hidden">{confirmPayables.isPending ? "Confirming…" : "Confirm payables"}</span>
-              <span className="hidden lg:inline">{confirmPayables.isPending ? "Confirming…" : "Confirm tailor payables"}</span>
+              <span className="min-w-0 truncate sm:hidden">{confirmPayables.isPending ? "…" : "Confirm"}</span>
+              <span className="hidden min-w-0 truncate sm:inline lg:hidden">{confirmPayables.isPending ? "Confirming…" : "Confirm payables"}</span>
+              <span className="hidden min-w-0 truncate lg:inline">{confirmPayables.isPending ? "Confirming…" : "Confirm tailor payables"}</span>
             </Button>
           )}
           <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print order tag" onClick={() => printOrderTag(order, shop, tailorName(order.tailor))}>
             <TagIcon className="size-4" />
-            <span>Print tag</span>
+            <span className="min-w-0 truncate">Print tag</span>
           </Button>
-          <PrintButton className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm" />
+          <PrintButton labelClassName="min-w-0 truncate" className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm" />
           {user?.perms.deleteOrder && (
             <AlertDialog>
               <AlertDialogTrigger
                 render={
                   <Button variant="destructive" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Delete order">
                     <Trash2 className="size-4" />
-                    <span>Delete</span>
+                    <span className="min-w-0 truncate">Delete</span>
                   </Button>
                 }
               />

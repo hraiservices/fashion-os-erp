@@ -19,7 +19,7 @@ import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 export function NewPaymentButton({
   customerMobile,
   label = "New Payment",
-  variant = "outline",
+  variant = "default",
   className,
 }: {
   customerMobile?: string;

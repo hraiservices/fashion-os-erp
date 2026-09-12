@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
+import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { EditCustomerModal } from "@/components/crm/edit-customer-modal";
 import { CustomerMeasurements } from "@/components/crm/customer-measurements";
 import { CustomerMeasurementProfiles } from "@/components/crm/customer-measurement-profiles";
@@ -245,6 +246,9 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           <Button variant="outline" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
             <FileText className="size-4 shrink-0" /> <span className="truncate">Statement</span>
           </Button>
+          {user?.perms.managePayments && combinedDue > 0 && (
+            <NewPaymentButton customerMobile={cust.mobile} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" />
+          )}
           {combinedDue > 0 && (
             <WhatsAppButton
               href={reminderUrl}

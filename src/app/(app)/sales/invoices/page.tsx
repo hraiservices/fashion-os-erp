@@ -21,6 +21,7 @@ import { DEFAULT_SALES_WHATSAPP_TEMPLATES, buildSalesWhatsAppUrl, type SalesWhat
 import { ExportMenu } from "@/components/ui/export-menu";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
+import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { Input } from "@/components/ui/input";
 import { Skeleton, SkeletonListItem } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -239,14 +240,19 @@ export default function SalesInvoicesPage() {
         title="Invoices"
         description={`${invoices?.length ?? 0} invoices`}
         actions={
-          canManage && (
+          (canManage || user?.perms.managePayments) && (
             <div className="flex gap-2">
-              <Button variant="outline" nativeButton={false} render={<Link href="/sales/invoices/import" />}>
-                <Upload className="size-4" /> Import
-              </Button>
-              <Button nativeButton={false} render={<Link href="/sales/invoices/new" />}>
-                <Plus className="size-4" /> New invoice
-              </Button>
+              {canManage && (
+                <>
+                  <Button variant="outline" nativeButton={false} render={<Link href="/sales/invoices/import" />}>
+                    <Upload className="size-4" /> Import
+                  </Button>
+                  <Button nativeButton={false} render={<Link href="/sales/invoices/new" />}>
+                    <Plus className="size-4" /> New invoice
+                  </Button>
+                </>
+              )}
+              {user?.perms.managePayments && <NewPaymentButton />}
             </div>
           )
         }

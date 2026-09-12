@@ -4,12 +4,15 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ArrowLeft, ChevronRight, Mail, MapPin, Cake, Heart, ShoppingBag, FileText, Ticket, Shirt, Scissors } from "lucide-react";
+import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ArrowLeft, ChevronRight, Mail, MapPin, Cake, Heart, ShoppingBag, FileText, Ticket, Shirt, Scissors, Wallet } from "lucide-react";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDeleteCustomerAndOrders, useGiveLoyaltyBonus } from "@/hooks/use-customer-mutations";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
+import { useAllOrderPayments } from "@/hooks/use-order-payments";
+import { useAllSalesPayments } from "@/hooks/use-sales-payments";
+import { buildOrderPaymentRows, buildInvoicePaymentRows, sortPaymentRows, type PaymentSource } from "@/lib/payments-received";
 import { useIssueReferralCoupon } from "@/hooks/use-referral-coupons";
 import { printCoupon } from "@/lib/order-coupon";
 import { loyaltyTier, normalizeIndianMobile, buildWardrobeSummaryUrl } from "@/lib/business-rules";
@@ -43,6 +46,11 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+const PAYMENT_SOURCE_BADGE: Record<PaymentSource, { label: string; className: string }> = {
+  invoice: { label: "Invoice", className: "bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400" },
+  stitching: { label: "Stitching", className: "bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400" },
+};
+
 /** CustProfile(), Stitching_Manager_Pro_v16.html ~line 7443. */
 export default function CustomerProfilePage({ params }: { params: Promise<{ mobile: string }> }) {
   const { mobile } = use(params);
@@ -53,6 +61,8 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   const deleteCustomer = useDeleteCustomerAndOrders();
   const giveBonus = useGiveLoyaltyBonus();
   const { data: allInvoices } = useSalesInvoices();
+  const { data: allOrderPayments } = useAllOrderPayments();
+  const { data: allSalesPayments } = useAllSalesPayments();
   const { data: shop } = useShopSettings();
   const issueCoupon = useIssueReferralCoupon();
 
@@ -89,6 +99,17 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
     .sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime());
   const salesDue = custInvoices.reduce((s, i) => s + i.balance, 0);
   const salesSpent = custInvoices.reduce((s, i) => s + i.total, 0);
+
+  // Every payment this customer has made, across stitching orders and product-sale invoices —
+  // same row-building helpers as the Payments Received report, just pre-filtered to this
+  // customer's own orders/invoices instead of the whole shop's ledger.
+  const custOrderIds = new Set(custOrders.map((o) => o.id));
+  const orderIdentityMap = new Map(custOrders.map((o) => [o.id, { name: o.name, mobile: o.mobile }]));
+  const invoiceIdentityMap = new Map(custInvoices.map((i) => [i.id, { invoiceNumber: i.invoiceNumber, customerName: i.customerName }]));
+  const custOrderPayments = buildOrderPaymentRows((allOrderPayments || []).filter((p) => custOrderIds.has(p.orderId)), orderIdentityMap);
+  const custInvoicePayments = buildInvoicePaymentRows((allSalesPayments || []).filter((p) => p.customerMobile === mobile), invoiceIdentityMap);
+  const paymentRows = sortPaymentRows([...custOrderPayments, ...custInvoicePayments], "desc");
+  const totalPaid = paymentRows.reduce((s, r) => s + r.amount, 0);
   const combinedDue = outstanding + salesDue;
   const combinedLifetime = cust.spent + salesSpent;
   const tel = `tel:+91${mobile.replace(/\D/g, "").replace(/^91/, "").slice(-10)}`;
@@ -233,6 +254,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
                   <span className="hidden sm:inline">Payment Reminder</span>
                 </>
               }
+              labelClassName="min-w-0 truncate"
               className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm"
             />
           )}
@@ -245,6 +267,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
                   <span className="hidden sm:inline">Send wardrobe summary</span>
                 </>
               }
+              labelClassName="min-w-0 truncate"
               className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm"
             />
           )}
@@ -363,6 +386,40 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
 
       <CustomerMeasurements cust={cust} />
       <CustomerMeasurementProfiles cust={cust} />
+
+      <section className="rounded-xl border bg-card">
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <Wallet className="size-4" /> Payments ({paymentRows.length})
+          </h2>
+          {totalPaid > 0 && <span className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{inr(totalPaid)}</span>}
+        </div>
+        {paymentRows.length === 0 ? (
+          <EmptyState icon={Wallet} title="No payments recorded yet" className="border-0" />
+        ) : (
+          <ul className="divide-y">
+            {paymentRows.map((p) => (
+              <li key={p.id}>
+                <Link href={p.referenceHref} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant="outline" className={PAYMENT_SOURCE_BADGE[p.source].className}>
+                        {PAYMENT_SOURCE_BADGE[p.source].label}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{p.method}</span>
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {p.reference} · {fmtDate(p.date)}
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{inr(p.amount)}</p>
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="rounded-xl border bg-card">
         <div className="border-b px-4 py-3">

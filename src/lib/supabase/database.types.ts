@@ -1320,6 +1320,10 @@ export interface Database {
         Args: Record<string, never>;
         Returns: Json;
       };
+      rename_garment_type: {
+        Args: { p_old: string; p_new: string };
+        Returns: number;
+      };
       confirm_order_payables: {
         Args: { p_order_id: string; p_user_email: string };
         Returns: Database["public"]["Tables"]["orders"]["Row"][];

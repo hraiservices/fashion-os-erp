@@ -3,8 +3,8 @@ import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 
-const rateSchema = z.object({ new: z.number().min(0), alteration: z.number().min(0) });
-const ratesSchema = z.record(z.string(), z.record(z.enum(["s", "h", "f"]), rateSchema));
+const garmentRateSchema = z.object({ s: z.number().min(0), h: z.number().min(0), f: z.number().min(0), alteration: z.number().min(0) });
+const ratesSchema = z.record(z.string(), garmentRateSchema);
 const bodySchema = z.object({
   rates: ratesSchema,
   // YYYY-MM-DD — the date the payroll manager picked in the "Select the date from which these

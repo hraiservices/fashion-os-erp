@@ -30,10 +30,9 @@ export function computeOrderTailorCost(
     const amount = order.garments.reduce((s, g) => s + (g.payableAmount || 0), 0);
     return { amount, isEstimate: false };
   }
-  const column: "new" | "alteration" = order.orderType === "alteration" ? "alteration" : "new";
+  const isAlteration = order.orderType === "alteration";
   const amount = order.garments.reduce((s, g) => {
-    const lining = (g.lining as Lining) || "s";
-    const rate = rates[g.type]?.[lining]?.[column] || 0;
+    const rate = isAlteration ? rates[g.type]?.alteration || 0 : rates[g.type]?.[((g.lining as Lining) || "s")] || 0;
     return s + rate * (g.no || 1);
   }, 0);
   return { amount, isEstimate: true };

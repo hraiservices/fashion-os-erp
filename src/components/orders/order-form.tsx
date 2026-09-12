@@ -38,6 +38,7 @@ import {
   isValidManualOrderNumber,
   type Lining,
   type TailorRateCard,
+  type RateCard,
 } from "@/lib/business-rules";
 import { computeOrderProfit } from "@/lib/order-profit";
 import { apportionAmount } from "@/lib/order-split";
@@ -116,7 +117,6 @@ const formSchema = z.object({
 const PAYMENT_METHODS = ["Cash", "UPI", "Card", "Bank Transfer"];
 
 type FormValues = z.infer<typeof formSchema>;
-type RateCard = Record<string, Record<Lining, number>>;
 
 const LININGS = Object.keys(LINING_LABELS) as Lining[];
 

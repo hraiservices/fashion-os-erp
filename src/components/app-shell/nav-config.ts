@@ -218,7 +218,6 @@ export const EMPLOYEES_GROUP: NavGroup = {
     { href: "/employees/advances", label: "Advances" },
     { href: "/settings/attendance-payroll", label: "Attendance & Payroll Settings" },
     { href: "/settings/leave-policy", label: "Leave Policy" },
-    { href: "/settings/tailor-rates", label: "Tailor Payable Rates" },
     { href: "/settings/users", label: "Users & Roles" },
   ],
 };
@@ -273,13 +272,7 @@ export const SETTINGS_GROUP: NavGroup = {
  *  only an admin should see the policy config links and Users & Roles (the pages themselves
  *  also enforce this via SettingsGuard). */
 export function employeesLeafVisible(href: string, isAdmin: boolean): boolean {
-  if (
-    href === "/settings/attendance-payroll" ||
-    href === "/settings/leave-policy" ||
-    href === "/settings/tailor-rates" ||
-    href === "/settings/users"
-  )
-    return isAdmin;
+  if (href === "/settings/attendance-payroll" || href === "/settings/leave-policy" || href === "/settings/users") return isAdmin;
   return true;
 }
 

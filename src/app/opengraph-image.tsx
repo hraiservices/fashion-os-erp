@@ -24,10 +24,29 @@ export const revalidate = 3600;
 // root layout automatically via the opengraph-image file convention — no metadata export needed.
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Fashion Flow";
 
+/**
+ * Best-effort shop lookup — returns null (never throws) when the Supabase env vars aren't
+ * configured for this deployment, or the query itself fails. Next tries to statically
+ * prerender this route at build time (see `revalidate` above): an unhandled throw here doesn't
+ * just fall back to a plain OG image, it takes down the ENTIRE production build (a real
+ * incident this comment documents), so a missing/misconfigured Supabase env must degrade to
+ * the generic Fashion Flow branding below, not crash `next build`.
+ */
+async function fetchShopBranding(): Promise<{ name?: string; logoDataUrl?: string | null } | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  try {
+    const supabase = createSupabaseClient<Database>(url, key);
+    const { data } = await supabase.from("app_settings").select("value").eq("key", "shop").maybeSingle();
+    return (data?.value as { name?: string; logoDataUrl?: string | null } | null) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function Image() {
-  const supabase = createSupabaseClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
-  const { data } = await supabase.from("app_settings").select("value").eq("key", "shop").maybeSingle();
-  const shop = data?.value as { name?: string; logoDataUrl?: string | null } | null;
+  const shop = await fetchShopBranding();
   const shopName = shop?.name || APP_NAME;
   const logoDataUrl = shop?.logoDataUrl;
 

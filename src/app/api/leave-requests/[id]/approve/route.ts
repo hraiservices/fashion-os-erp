@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { mapLeaveRequestRow } from "@/lib/types";
 import { logAction } from "@/lib/logging";
 
@@ -15,6 +16,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageEmployees) return NextResponse.json({ error: "No permission to manage employees" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const { data: reqRow } = await supabase.from("leave_requests").select("employee_id, from_date, to_date").eq("id", id).maybeSingle();
   if (!reqRow) return NextResponse.json({ error: "Leave request not found" }, { status: 404 });
 
@@ -29,7 +33,11 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     .neq("status", "leave")
     .not("check_in_at", "is", null);
 
-  const { data: updatedRows, error } = await supabase.rpc("approve_leave_request", {
+  // Routed through the service client, not the caller's own session client — approve_leave_request
+  // is SECURITY INVOKER, and leave_requests/employee_attendance writes are RLS-locked for
+  // `authenticated` (lockdown_operational_writes.sql / lockdown_hr_payroll_writes.sql), so calling
+  // it as the caller silently updates 0 rows. This route's manageEmployees check above is the gate.
+  const { data: updatedRows, error } = await db.rpc("approve_leave_request", {
     p_leave_request_id: id,
     p_decided_by: user.email,
   });

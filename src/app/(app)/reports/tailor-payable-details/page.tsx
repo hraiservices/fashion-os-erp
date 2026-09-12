@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Wallet } from "lucide-react";
 import { useOrders } from "@/hooks/use-orders";
+import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useActiveTailors, useTailorName } from "@/hooks/use-employees";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { LINING_LABELS, type Lining } from "@/lib/business-rules";
@@ -20,6 +21,7 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow
 interface PayableRow {
   key: string;
   orderId: string;
+  orderHref: string;
   inDate: string;
   customerName: string;
   tailorId: string;
@@ -33,17 +35,21 @@ interface PayableRow {
 /** Per-garment breakdown of what each tailor is owed, one row per garment — the order/customer-
  *  level detail behind the Tailor Payables summary page's per-tailor totals. Same inclusion rule
  *  and same numbers as that page (a garment counts the moment its order is received and a tailor
- *  is assigned; payableAmount is live-recalculated until the order reaches Ready, then frozen —
- *  see add_early_tailor_payables.sql / add_tailor_rate_versions.sql), just exploded down to the
- *  individual garment so a manager can see exactly which order and customer each payable came
- *  from, not only the per-tailor sum. Filtered on inDate (order received), matching the summary
- *  page's "range" column. */
+ *  is assigned; payableAmount is live-recalculated until it's confirmed — see
+ *  add_early_tailor_payables.sql / unfreeze_tailor_payables_at_ready.sql), just exploded down to
+ *  the individual garment so a manager can see exactly which order and customer each payable
+ *  came from, not only the per-tailor sum. Also includes manufacturing Work Orders' laborCost —
+ *  omitting those would make this report's per-tailor totals silently disagree with the Tailor
+ *  Payables summary page for any tailor who does both stitching and manufacturing work. Filtered
+ *  on inDate for orders / completedAt for work orders, matching the summary page's "range"
+ *  column for each. */
 export default function TailorPayableDetailsPage() {
   const { data: user } = useCurrentUser();
   const { data: tailors, isLoading: tailorsLoading } = useActiveTailors();
   const { data: orders, isLoading: ordersLoading } = useOrders();
+  const { data: workOrders, isLoading: woLoading } = useWorkOrders();
   const tailorName = useTailorName();
-  const isLoading = tailorsLoading || ordersLoading;
+  const isLoading = tailorsLoading || ordersLoading || woLoading;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
   const [tailorFilter, setTailorFilter] = useState("all");
 
@@ -57,6 +63,7 @@ export default function TailorPayableDetailsPage() {
         out.push({
           key: g.lineId || `${o.id}-${i}`,
           orderId: o.id,
+          orderHref: `/orders/${o.id}`,
           inDate: o.inDate,
           customerName: o.name,
           tailorId: tid,
@@ -68,10 +75,26 @@ export default function TailorPayableDetailsPage() {
         });
       });
     }
+    for (const w of workOrders || []) {
+      if (!w.tailor || !w.laborCost || !isWithinDateRange(w.completedAt, range)) continue;
+      out.push({
+        key: `wo-${w.id}`,
+        orderId: w.woNumber || w.id,
+        orderHref: `/manufacturing/${w.id}`,
+        inDate: w.completedAt || "",
+        customerName: "— (Manufacturing)",
+        tailorId: w.tailor,
+        tailorName: tailorName(w.tailor),
+        garmentType: w.productName,
+        lining: "—",
+        qty: w.qtyToProduce,
+        amount: w.laborCost,
+      });
+    }
     return out
       .filter((r) => tailorFilter === "all" || r.tailorId === tailorFilter)
       .sort((a, b) => (a.inDate < b.inDate ? 1 : a.inDate > b.inDate ? -1 : 0));
-  }, [orders, range, tailorFilter, tailorName]);
+  }, [orders, workOrders, range, tailorFilter, tailorName]);
 
   const byTailor = useMemo(() => {
     const map = new Map<string, { tailorName: string; total: number; count: number }>();
@@ -188,7 +211,7 @@ export default function TailorPayableDetailsPage() {
                 {rows.map((r) => (
                   <tr key={r.key} className="hover:bg-muted/30">
                     <Td>
-                      <Link href={`/orders/${r.orderId}`} className="text-primary hover:underline">
+                      <Link href={r.orderHref} className="text-primary hover:underline">
                         {r.orderId}
                       </Link>
                     </Td>
@@ -209,7 +232,7 @@ export default function TailorPayableDetailsPage() {
               <MobileRecordHeader title="Total" value={inr(grandTotal)} showChevron={false} />
             </MobileRecordCard>
             {rows.map((r) => (
-              <MobileRecordCard key={r.key} href={`/orders/${r.orderId}`}>
+              <MobileRecordCard key={r.key} href={r.orderHref}>
                 <MobileRecordHeader title={r.tailorName} subtitle={`${r.orderId} · ${r.customerName}`} value={inr(r.amount)} />
                 <MobileRecordRow label="Order Date" value={fmtDate(r.inDate)} />
                 <MobileRecordRow label="Garment" value={`${r.garmentType}${r.lining !== "—" ? ` (${r.lining})` : ""}`} />

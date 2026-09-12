@@ -29,38 +29,50 @@ export const LINING_LABELS: Record<Lining, string> = { s: "No Lining", h: "Half 
 export const ORDER_PAYMENT_METHODS = ["Cash", "UPI", "Card", "Bank Transfer"] as const;
 export type OrderPaymentMethod = (typeof ORDER_PAYMENT_METHODS)[number];
 
-/** DEF_RATES, line ~1765 — default per-garment rate card by lining tier. */
-export const DEFAULT_RATES: Record<string, Record<Lining, number>> = {
-  "Pant Suit": { s: 700, h: 1000, f: 1400 },
-  "Pallazo Suit": { s: 600, h: 1000, f: 1400 },
-  "Simple Suit": { s: 600, h: 1000, f: 1300 },
-  "Simple Kurti": { s: 400, h: 600, f: 900 },
-  Pant: { s: 350, h: 600, f: 900 },
-  Pallazo: { s: 400, h: 500, f: 700 },
-  "Simple Blouse": { s: 800, h: 850, f: 1500 },
-  "Designer Blouse": { s: 1000, h: 1800, f: 2500 },
-  Lehenga: { s: 1200, h: 1800, f: 2500 },
-  "Saree Fall/Piko": { s: 120, h: 120, f: 120 },
+/** One garment type's rate card row — a price per lining tier for new stitching, plus a single
+ *  alteration price that (unlike new stitching) does NOT vary by lining: an alteration is priced
+ *  by the work done, not by how the original garment was lined. Shared shape for both the
+ *  customer-facing rate card (DEFAULT_RATES) and the tailor payable rate card
+ *  (DEFAULT_TAILOR_RATES) — same fields, different numbers. */
+export interface GarmentRate {
+  s: number;
+  h: number;
+  f: number;
+  alteration: number;
+}
+
+export type RateCard = Record<string, GarmentRate>;
+
+/** DEF_RATES, line ~1765 — default per-garment rate card by lining tier, plus an alteration
+ *  price per garment type. */
+export const DEFAULT_RATES: RateCard = {
+  "Pant Suit": { s: 700, h: 1000, f: 1400, alteration: 0 },
+  "Pallazo Suit": { s: 600, h: 1000, f: 1400, alteration: 0 },
+  "Simple Suit": { s: 600, h: 1000, f: 1300, alteration: 0 },
+  "Simple Kurti": { s: 400, h: 600, f: 900, alteration: 0 },
+  Pant: { s: 350, h: 600, f: 900, alteration: 0 },
+  Pallazo: { s: 400, h: 500, f: 700, alteration: 0 },
+  "Simple Blouse": { s: 800, h: 850, f: 1500, alteration: 0 },
+  "Designer Blouse": { s: 1000, h: 1800, f: 2500, alteration: 0 },
+  Lehenga: { s: 1200, h: 1800, f: 2500, alteration: 0 },
+  "Saree Fall/Piko": { s: 120, h: 120, f: 120, alteration: 0 },
 };
 
 /** Tailor payable rate card — same garment-type × lining shape as DEFAULT_RATES (the customer
- *  price list), but each cell carries two payable amounts: what a tailor is paid for a NEW
- *  garment of that type/lining vs. an ALTERATION, since alterations pay less. Versioned with a
- *  full history and an effective-from date in tailor_rate_versions (add_tailor_rate_versions.sql)
- *  — current_tailor_rates() resolves whichever version is active as of today, and that's what
- *  every not-yet-frozen garment's payableAmount is live-recalculated from. A garment's
- *  payableAmount freezes permanently the moment its order reaches "ready" or a payroll manager
- *  confirms it, whichever happens first — see add_early_tailor_payables.sql. */
-export interface TailorRate {
-  new: number;
-  alteration: number;
-}
-export type TailorRateCard = Record<string, Record<Lining, TailorRate>>;
+ *  price list): what a tailor is paid per lining for a NEW garment of that type, plus one
+ *  alteration payout per garment type (lining-independent, same reasoning as the customer side).
+ *  Versioned with a full history and an effective-from date in tailor_rate_versions
+ *  (add_tailor_rate_versions.sql) — current_tailor_rates() resolves whichever version is active
+ *  as of today, and that's what every not-yet-frozen garment's payableAmount is
+ *  live-recalculated from. A garment's payableAmount freezes permanently the moment its order
+ *  reaches "ready" or a payroll manager confirms it, whichever happens first — see
+ *  add_early_tailor_payables.sql. */
+export type TailorRateCard = Record<string, GarmentRate>;
 
 /** Zero by default for every garment type in DEFAULT_RATES — the shop enters real payable
  *  rates in Settings once this ships; there's no sensible default to guess at. */
 export const DEFAULT_TAILOR_RATES: TailorRateCard = Object.fromEntries(
-  Object.keys(DEFAULT_RATES).map((type) => [type, { s: { new: 0, alteration: 0 }, h: { new: 0, alteration: 0 }, f: { new: 0, alteration: 0 } }])
+  Object.keys(DEFAULT_RATES).map((type) => [type, { s: 0, h: 0, f: 0, alteration: 0 }])
 );
 
 /** Shop-configurable list of stitching-expense categories (Settings > Stitching Expense

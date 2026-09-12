@@ -116,8 +116,9 @@ export interface Order {
   reworkFlaggedAt: string | null;
   /** Set once, the first time the order reaches "ready" — powers the ready-but-uncollected aging report. Null for orders that haven't reached ready yet, or that reached it before this column existed. */
   readyAt: string | null;
-  /** Set by a payroll manager to confirm this order's snapshotted tailor payables as real —
-   *  see /api/orders/[id]/confirm-payables. Only confirmed payables count toward payroll. */
+  /** Retired — no longer set (there is no manager-confirmation step; a garment's payable counts
+   *  toward payroll from the moment it exists, see remove_tailor_payable_confirm_step.sql).
+   *  Column kept, unread, as a historical record of what used to be confirmed under the old flow. */
   payablesConfirmedAt: string | null;
   payablesConfirmedBy: string | null;
   /** Stamped by a payroll run once this order's payables have actually been paid out on a
@@ -642,9 +643,9 @@ export interface WorkOrder {
   costPerUnit: number | null;
   notes: string;
   completedAt: string | null;
-  /** Set once a payroll manager confirms this WO's laborCost as a real tailor payable — see
-   *  the split-gate note on the /complete and /confirm-payable routes. Null until confirmed,
-   *  even after the WO itself is completed. */
+  /** Retired — no longer set (there is no manager-confirmation step; a completed WO's laborCost
+   *  counts toward payroll immediately, see remove_tailor_payable_confirm_step.sql). Column
+   *  kept, unread, as a historical record of what used to be confirmed under the old flow. */
   laborPayableConfirmedAt: string | null;
   laborPayableConfirmedBy: string | null;
   /** Stamped by a payroll run once this WO's labour payable has actually been paid out on a

@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableHeader, TableBody, TableRow, TableHead } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -190,6 +191,7 @@ function CrmContent() {
                 <UserPlus className="size-4" /> Add customer
               </Button>
             )}
+            {user?.perms.managePayments && <NewPaymentButton />}
           </>
         }
       />

@@ -12,6 +12,7 @@ import { isWidgetEnabled } from "@/lib/entitlements";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
+import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardGrid } from "@/components/dashboard/dashboard-grid";
 import { CustomizePanel } from "@/components/dashboard/customize-panel";
@@ -86,6 +87,7 @@ export default function DashboardPage() {
             <Button nativeButton={false} render={<Link href="/expenses/new" />} className="hidden sm:inline-flex">
               <Wallet className="size-4" /> New Expense
             </Button>
+            {user?.perms.managePayments && <NewPaymentButton className="hidden sm:inline-flex" />}
             {(user?.perms.manageCustomers || user?.role === "admin" || user?.role === "manager") && (
               <Button nativeButton={false} render={<Link href="/crm/new" />} className="hidden sm:inline-flex">
                 <UserPlus className="size-4" /> New Customer

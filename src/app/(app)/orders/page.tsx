@@ -28,6 +28,7 @@ import { PaymentModal } from "@/components/orders/payment-modal";
 import type { Order } from "@/lib/types";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
+import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { Input } from "@/components/ui/input";
 import { Skeleton, SkeletonListItem } from "@/components/ui/skeleton";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
@@ -338,6 +339,7 @@ function OrdersContent() {
                 <Plus className="size-4" /> New order
               </Button>
             )}
+            {user?.perms.managePayments && <NewPaymentButton className="hidden sm:inline-flex" />}
           </>
         }
       />

@@ -18,7 +18,7 @@ import { DashboardGrid } from "@/components/dashboard/dashboard-grid";
 import { CustomizePanel } from "@/components/dashboard/customize-panel";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { DigitalClock } from "@/components/dashboard/digital-clock";
-import type { WidgetInstance } from "@/lib/dashboard-widgets";
+import { isWidgetVisibleForRole, type WidgetInstance } from "@/lib/dashboard-widgets";
 
 export default function DashboardPage() {
   const { data: user } = useCurrentUser();
@@ -44,6 +44,11 @@ export default function DashboardPage() {
     setWidgets(next);
     save.mutate(next, { onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to save layout") });
   }
+
+  // Role-restricted builtins (e.g. Profit Overview — admin/manager only) are filtered out here
+  // rather than baked into the saved layout itself, so a role change takes effect immediately
+  // without needing to touch anyone's stored widget list.
+  const roleVisibleWidgets = widgets.filter((w) => w.kind === "custom" || isWidgetVisibleForRole(w.builtinKey, user?.role));
 
   return (
     <div className="space-y-5 p-4 sm:p-6">
@@ -108,10 +113,10 @@ export default function DashboardPage() {
           ))}
         </div>
       ) : (
-        <DashboardGrid widgets={widgets} editing={panelOpen} onChange={handleChange} />
+        <DashboardGrid widgets={roleVisibleWidgets} editing={panelOpen} onChange={handleChange} />
       )}
 
-      <CustomizePanel open={panelOpen} onOpenChange={setPanelOpen} widgets={widgets} onChange={handleChange} />
+      <CustomizePanel open={panelOpen} onOpenChange={setPanelOpen} widgets={roleVisibleWidgets} onChange={handleChange} />
     </div>
   );
 }

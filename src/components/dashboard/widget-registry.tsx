@@ -10,6 +10,7 @@ import { NeedsAttentionWidget } from "@/components/dashboard/widgets/needs-atten
 import { RecentOrdersWidget } from "@/components/dashboard/widgets/recent-orders-widget";
 import { TailorLoadWidget } from "@/components/dashboard/widgets/tailor-load-widget";
 import { SalesOpportunitiesWidget } from "@/components/dashboard/widgets/sales-opportunities-widget";
+import { ProfitOverviewWidget } from "@/components/dashboard/widgets/profit-overview-widget";
 import {
   StitchingDuesWidget,
   SalesDuesWidget,
@@ -44,4 +45,5 @@ export const WIDGET_COMPONENTS: Record<string, React.ComponentType> = {
   "recent-orders": RecentOrdersWidget,
   "tailor-load": TailorLoadWidget,
   "sales-opportunities": SalesOpportunitiesWidget,
+  "profit-overview": ProfitOverviewWidget,
 };

@@ -8,7 +8,7 @@ import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 
 /** Fulfillment stages only — "payment" is a financial state layered on top of "delivered",
  *  not a step in this timeline (mirrors how STAGE_META itself treats it). */
-const TIMELINE_STAGES: Stage[] = ["received", "cutting", "stitching", "ready", "delivered"];
+const TIMELINE_STAGES: Stage[] = ["received", "cutting", "stitching", "finishing", "ready", "delivered"];
 
 function timelineFor(order: PublicOrderStatusOrder) {
   const parsed = order.history.map(parseHistoryLine);

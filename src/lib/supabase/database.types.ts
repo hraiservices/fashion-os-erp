@@ -53,6 +53,7 @@ export interface Database {
           rework_reason: string;
           rework_flagged_by: string | null;
           rework_flagged_at: string | null;
+          rework_count: number;
           ready_at: string | null;
           payables_confirmed_at: string | null;
           payables_confirmed_by: string | null;

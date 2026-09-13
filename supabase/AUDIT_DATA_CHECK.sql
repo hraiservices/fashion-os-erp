@@ -83,12 +83,12 @@ ORDER BY o.piece_rate_paid_at DESC;
 --    advance larger than the total.
 SELECT '6. BROKEN ORDER RECORDS' AS check_name, id, name, status, total, advance,
        CASE
-         WHEN status NOT IN ('received','cutting','stitching','ready','delivered','payment')
+         WHEN status NOT IN ('received','cutting','stitching','finishing','ready','delivered','payment')
            THEN 'unknown stage: ' || status
          WHEN advance > total THEN 'overpaid (advance > total)'
        END AS problem
 FROM orders
-WHERE status NOT IN ('received','cutting','stitching','ready','delivered','payment')
+WHERE status NOT IN ('received','cutting','stitching','finishing','ready','delivered','payment')
    OR advance > total
 ORDER BY id;
 

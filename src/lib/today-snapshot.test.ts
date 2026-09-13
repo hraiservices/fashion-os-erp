@@ -38,6 +38,7 @@ function makeOrder(overrides: Partial<Order>): Order {
     reworkReason: "",
     reworkFlaggedBy: null,
     reworkFlaggedAt: null,
+    reworkCount: 0,
     readyAt: null,
     payablesConfirmedAt: null,
     payablesConfirmedBy: null,

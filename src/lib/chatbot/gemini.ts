@@ -70,7 +70,7 @@ TABLE v_chatbot_orders (custom tailoring orders):
   total integer, advance integer, balance integer, status text, tailor text,
   is_overdue boolean, days_overdue integer, created_at timestamptz
 
-  - status is one of: 'received', 'cutting', 'stitching', 'ready', 'delivered', 'payment'.
+  - status is one of: 'received', 'cutting', 'stitching', 'finishing', 'ready', 'delivered', 'payment'.
     'payment' means delivered and fully paid; 'delivered' means delivered but balance may
     still be owed.
   - balance is already the correct amount owed — never recompute it as total - advance

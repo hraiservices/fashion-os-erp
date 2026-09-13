@@ -70,12 +70,15 @@ const garmentSchema = z.object({
   no: z.number().min(1),
   amount: z.number().min(0),
   tailor: z.string().optional(),
-  // Generated once (below) and echoed back unchanged on every edit — lets preserve_garment_payables
-  // reattach a frozen payableAmount to the correct garment even if lines are reordered/deleted.
+  // Generated once (below) and echoed back unchanged on every edit — carries a garment's
+  // identity across reorders/deletes for anything that needs to match lines up (e.g. the
+  // production checklist).
   lineId: z.string().optional(),
-  // Echoed back unchanged on edit so it isn't lost — the server ignores/re-derives this value
-  // regardless (see preserve_garment_payables), so it's never actually trusted from here.
-  payableAmount: z.number().optional(),
+  // What the tailor is paid for this garment — auto-filled from the Tailor Payable Rate card
+  // as a starting suggestion (applyRate below), then a plain editable number from there, same
+  // as `amount` above. Hidden from the tailor role in the UI (see canEditPayable) and stripped
+  // server-side for that role regardless, so a tailor can never set their own pay.
+  payableAmount: z.number().min(0).optional(),
 });
 
 function newLineId(): string {
@@ -229,6 +232,9 @@ function OrderFormFields({
 
   const [orderType, setOrderType] = useState<OrderType>(existingOrder?.orderType || initialOrderType || "new");
   const isAlteration = orderType === "alteration";
+  // Tailor payable is compensation data — a tailor must never see or set their own pay.
+  // Everyone else who can reach this form (sales/manager/admin) can.
+  const canEditPayable = user?.role !== "tailor";
 
   const [measurements, setMeasurements] = useState<Record<string, string>>(() =>
     hydrateMeasurements(measureFields, existingOrder?.measurements)
@@ -397,11 +403,9 @@ function OrderFormFields({
       total,
       garments: garments as Order["garments"],
       pieceRatePaidAt: existingOrder?.pieceRatePaidAt || null,
-      orderType,
       fabricCost,
       otherCost,
     },
-    tailorRates,
     expenses
   );
 
@@ -535,6 +539,18 @@ function OrderFormFields({
   function applyRate(index: number, type: string, lining: string) {
     const rate = rates[type]?.[lining as Lining];
     if (rate != null) setValue(`garments.${index}.amount`, rate);
+    applyPayableRate(index, type, lining);
+  }
+
+  /** Suggests a starting Tailor Payable for this line from the rate card — an alteration order
+   *  reads the garment type's lining-independent Alteration rate, a new-stitching order reads
+   *  the lining-based rate. Only ever a suggestion: the field is a plain editable number from
+   *  here (see canEditPayable), same as the customer Rate field already is — computeOrderProfit
+   *  just sums whatever ends up stored, it doesn't re-derive it from the rate card. */
+  function applyPayableRate(index: number, type: string, lining: string) {
+    if (!canEditPayable) return;
+    const rate = isAlteration ? tailorRates[type]?.alteration : tailorRates[type]?.[lining as Lining];
+    if (rate != null) setValue(`garments.${index}.payableAmount`, rate);
   }
 
   function selectCustomer(c: Customer) {
@@ -570,10 +586,10 @@ function OrderFormFields({
    */
   async function submitSplitOrders(values: Omit<FormValues, "paymentMethod">, paymentMethod: string, measurementPayload: Record<string, unknown>) {
     const groupId = newLineId();
-    const pieces: { type: string; lining: string; amount: number; tailor?: string }[] = [];
+    const pieces: { type: string; lining: string; amount: number; tailor?: string; payableAmount?: number }[] = [];
     values.garments.forEach((g) => {
       const qty = g.no || 1;
-      for (let i = 0; i < qty; i++) pieces.push({ type: g.type, lining: g.lining, amount: g.amount, tailor: g.tailor });
+      for (let i = 0; i < qty; i++) pieces.push({ type: g.type, lining: g.lining, amount: g.amount, tailor: g.tailor, payableAmount: g.payableAmount });
     });
 
     const advanceByPiece = apportionAmount(
@@ -601,7 +617,7 @@ function OrderFormFields({
           tailor: piece.tailor || values.tailor,
           special: values.special,
           advance: cappedAdvance,
-          garments: [{ type: piece.type, lining: piece.lining, no: 1, amount: piece.amount, tailor: piece.tailor }],
+          garments: [{ type: piece.type, lining: piece.lining, no: 1, amount: piece.amount, tailor: piece.tailor, payableAmount: piece.payableAmount }],
           total: piece.amount,
           measurements: measurementPayload,
           ...(i === 0 ? measurementProfileFields : { measurementSaveMode: "skip" as const }),
@@ -954,7 +970,7 @@ function OrderFormFields({
               {fields.map((field, index) => (
                 <div key={field.id} className="rounded-lg border p-3">
                   <div className="grid gap-3 sm:grid-cols-12">
-                    <FieldGroup label="Type" className="sm:col-span-3">
+                    <FieldGroup label="Type" className="sm:col-span-2">
                       <Controller
                         control={control}
                         name={`garments.${index}.type`}
@@ -1030,12 +1046,17 @@ function OrderFormFields({
                         )}
                       />
                     </FieldGroup>
-                    <FieldGroup label="Qty" className="sm:col-span-2">
+                    <FieldGroup label="Qty" className="sm:col-span-1">
                       <Input type="number" min={1} inputMode="numeric" className="h-10" {...register(`garments.${index}.no`, { valueAsNumber: true })} />
                     </FieldGroup>
                     <FieldGroup label="Rate" className="sm:col-span-2">
                       <Input type="number" min={0} inputMode="numeric" className="h-10" {...register(`garments.${index}.amount`, { valueAsNumber: true })} />
                     </FieldGroup>
+                    {canEditPayable && (
+                      <FieldGroup label="Tailor Payable" className="sm:col-span-2" hint="What the tailor is paid">
+                        <Input type="number" min={0} inputMode="numeric" className="h-10" {...register(`garments.${index}.payableAmount`, { valueAsNumber: true })} />
+                      </FieldGroup>
+                    )}
                     <div className="flex items-end sm:col-span-1">
                       <Button
                         type="button"
@@ -1060,7 +1081,17 @@ function OrderFormFields({
                 type="button"
                 variant="outline"
                 className="w-full"
-                onClick={() => append({ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0, tailor: selectedTailor || "", lineId: newLineId() })}
+                onClick={() =>
+                  append({
+                    type: defaultGarmentType,
+                    lining: "s",
+                    no: 1,
+                    amount: rates[defaultGarmentType]?.s || 0,
+                    payableAmount: canEditPayable ? (isAlteration ? tailorRates[defaultGarmentType]?.alteration : tailorRates[defaultGarmentType]?.s) || 0 : undefined,
+                    tailor: selectedTailor || "",
+                    lineId: newLineId(),
+                  })
+                }
               >
                 <Plus className="size-4" /> Add garment
               </Button>

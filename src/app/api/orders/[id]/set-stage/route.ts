@@ -37,8 +37,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // This mirrors a check that only ever existed client-side (handleSetStage in
   // orders/page.tsx) — a direct POST here with an arbitrary target skipped every
   // intermediate stage (and, since tailors hold changeStage, could be done by a tailor
-  // account), including "ready", the exact transition snapshot_tailor_payables fires on —
-  // skipping it silently voided piece-rate pay tracking for that order.
+  // account).
   if (getNextStage(order.status) !== target) {
     return NextResponse.json({ error: "Change stage step by step — you can only move to the next stage." }, { status: 400 });
   }

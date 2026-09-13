@@ -20,7 +20,7 @@ interface CreateOrderInput {
   deliveryDate: string;
   inTime?: string;
   deliveryTime?: string;
-  garments: { type: string; lining?: string; no?: number; amount?: number; tailor?: string }[];
+  garments: { type: string; lining?: string; no?: number; amount?: number; tailor?: string; payableAmount?: number }[];
   total: number;
   advance: number;
   tailor: string;

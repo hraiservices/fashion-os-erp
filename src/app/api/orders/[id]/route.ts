@@ -28,16 +28,13 @@ const garmentSchema = z.object({
     )
     .optional(),
   tailor: z.string().optional(),
-  // Stable id preserve_garment_payables() matches on to reattach a frozen payableAmount to the
-  // right garment even if lines are reordered/deleted during this edit.
+  // Stable id carrying a garment's identity across edits (e.g. for the production checklist,
+  // and below, to preserve a tailor-role caller's existing payable when their edit is stripped).
   lineId: z.string().optional(),
-  // Accepted here only so TS/zod don't choke on the order-form echoing back a garment's
-  // existing payableAmount — the value itself is never trusted. edit_order's
-  // preserve_garment_payables() strips whatever the client sends and re-attaches the row's
-  // own prior value (matched by lineId, falling back to position for legacy garments), so
-  // this field can only ever really be set by snapshot_tailor_payables() inside
-  // set_order_stage, never by an edit.
-  payableAmount: z.number().optional(),
+  // What the tailor is paid for this garment — a plain figure entered on the order (see the
+  // order form's Tailor Payable field), stored verbatim by edit_order(). Stripped/preserved
+  // below for the tailor role regardless of what's sent.
+  payableAmount: z.number().min(0).optional(),
 });
 
 const patchSchema = z.object({
@@ -112,6 +109,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     patch.fabricCost = undefined;
     patch.otherCost = undefined;
     patch.expenses = undefined;
+  }
+
+  // Tailor payable is compensation data — a tailor role must never change their own pay, even
+  // by crafting a request directly. Preserve each garment's current stored payableAmount
+  // (matched by lineId) instead of trusting whatever this edit submits for it.
+  if (user.role === "tailor" && patch.garments) {
+    const { data: cur } = await db.from("orders").select("garments").eq("id", id).maybeSingle();
+    const curGarments = (Array.isArray(cur?.garments) ? cur.garments : []) as { lineId?: string; payableAmount?: number }[];
+    const payableByLineId = new Map(curGarments.filter((g) => g.lineId).map((g) => [g.lineId, g.payableAmount]));
+    patch.garments = patch.garments.map((g) => ({ ...g, payableAmount: g.lineId ? payableByLineId.get(g.lineId) : undefined }));
   }
 
   const financialSubmitted = patch.total !== undefined || patch.advance !== undefined;

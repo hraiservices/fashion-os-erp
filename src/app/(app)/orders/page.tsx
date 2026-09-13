@@ -15,7 +15,6 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useActiveTailors, useTailorName } from "@/hooks/use-employees";
 import { useAdvanceStage, useSetStage, useDeleteOrder } from "@/hooks/use-order-mutations";
 import { useShopSettings } from "@/hooks/use-shop-settings";
-import { useCurrentTailorRates } from "@/hooks/use-current-tailor-rates";
 import { useOrderExpensesByOrderId } from "@/hooks/use-order-expenses";
 import { computeOrderProfit, type OrderProfitBreakdown } from "@/lib/order-profit";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
@@ -45,7 +44,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Suspense } from "react";
-import { daysLeft, getNextStage, STAGE_META, DEFAULT_TAILOR_RATES, type Stage } from "@/lib/business-rules";
+import { daysLeft, getNextStage, STAGE_META, type Stage } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
 
 interface PendingStageChange {
@@ -136,7 +135,6 @@ function OrdersContent() {
   const advanceStage = useAdvanceStage();
   const setStage = useSetStage();
   const deleteOrder = useDeleteOrder();
-  const { data: tailorRates } = useCurrentTailorRates(DEFAULT_TAILOR_RATES);
   const { data: expensesByOrderId } = useOrderExpensesByOrderId();
 
   // Same computeOrderProfit() the New Order form, Order Details, and Order Profitability
@@ -146,10 +144,10 @@ function OrdersContent() {
     if (user?.role !== "admin" || !orders) return undefined;
     const map = new Map<string, OrderProfitBreakdown>();
     for (const o of orders) {
-      map.set(o.id, computeOrderProfit(o, tailorRates || DEFAULT_TAILOR_RATES, expensesByOrderId.get(o.id) || []));
+      map.set(o.id, computeOrderProfit(o, expensesByOrderId.get(o.id) || []));
     }
     return map;
-  }, [orders, user?.role, tailorRates, expensesByOrderId]);
+  }, [orders, user?.role, expensesByOrderId]);
 
   // The Profit column toggle itself is hidden from the picker for non-admins, not just its data.
   const orderColumns = useMemo(() => (user?.role === "admin" ? ORDER_COLUMNS : ORDER_COLUMNS.filter((c) => c.key !== "profit")), [user?.role]);

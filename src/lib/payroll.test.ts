@@ -37,6 +37,22 @@ describe("computeGrossPay — monthly salary", () => {
     expect(gross).toBeCloseTo((30000 / 30) * 2.5, 2);
   });
 
+  it("treats a day with no attendance record at all as unpaid, not silently paid", () => {
+    // Regression for a real bug: only EXPLICIT absent/half/leave marks counted as unpaid, so a
+    // day nobody recorded anything for (not absent, not present, nothing) was silently paid in
+    // full as long as the period had at least one attendance row somewhere in it. A 12-day
+    // period with only 7 present days and zero explicit absences previously paid all 12 days.
+    const gross = computeGrossPay(
+      { salaryType: "monthly", salaryRate: 60000 },
+      "2026-09-01",
+      "2026-09-12",
+      { presentDays: 7, absentDays: 0, halfDays: 0, leaveDays: 0 } // 5 of the 12 days have no record at all
+    );
+    // 5 unrecorded days count as unpaid alongside the 0 explicit absences → 7 paid days, not 12.
+    expect(gross).toBeCloseTo((60000 / 30) * 7, 2);
+    expect(gross).toBeLessThan((60000 / 30) * 12);
+  });
+
   it("never goes negative when unpaid days exceed the period length", () => {
     const gross = computeGrossPay(
       { salaryType: "monthly", salaryRate: 30000 },

@@ -57,6 +57,7 @@ export interface Database {
           payables_confirmed_at: string | null;
           payables_confirmed_by: string | null;
           piece_rate_paid_at: string | null;
+          paid_by_payroll_run_id: string | null;
           group_id: string | null;
           measurement_profile_id: string | null;
           measurement_profile_name: string | null;
@@ -889,6 +890,7 @@ export interface Database {
           labor_payable_confirmed_at: string | null;
           labor_payable_confirmed_by: string | null;
           piece_rate_paid_at: string | null;
+          paid_by_payroll_run_id: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;

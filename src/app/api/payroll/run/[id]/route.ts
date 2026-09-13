@@ -28,6 +28,13 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Finalized payroll runs cannot be deleted." }, { status: 409 });
   }
 
+  // Undo the "paid" mark this run put on any tailor's orders/work-orders — otherwise deleting a
+  // still-draft run would leave their earnings permanently stamped piece_rate_paid_at with no
+  // payslip left to show for it, silently writing off money genuinely still owed to them (every
+  // future payroll run filters on piece_rate_paid_at IS NULL, so it would never resurface).
+  await db.from("orders").update({ piece_rate_paid_at: null, paid_by_payroll_run_id: null }).eq("paid_by_payroll_run_id", id);
+  await db.from("work_orders").update({ piece_rate_paid_at: null, paid_by_payroll_run_id: null }).eq("paid_by_payroll_run_id", id);
+
   // Cascades to payslips (FK ON DELETE CASCADE), which un-links advances (ON DELETE SET NULL).
   const { error } = await db.from("payroll_runs").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

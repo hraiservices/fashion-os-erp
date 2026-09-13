@@ -34,10 +34,12 @@ const bodySchema = z.object({
  * so a mid-run failure leaves behind only the payroll_run header (which the
  * admin can delete as a draft), not a mix of some payslips and some missing.
  *
- * C-5: Monthly-salary employees with zero attendance records were paid their
- * full monthly salary (computeGrossPay with all-zero counts returns the full
- * rate for monthly employees). Now treated as fully absent (grossPay = 0) —
- * if attendance wasn't entered, payroll won't silently overpay.
+ * C-5: Monthly-salary employees with zero (or partially missing) attendance
+ * records were paid in full for those days — computeGrossPay only treated an
+ * EXPLICIT absent/half-day/leave mark as unpaid, so a day with no attendance
+ * record at all was silently paid. Fixed in computeGrossPay itself (see
+ * fix_payroll_bugs.sql) to treat any day in the period with no record as
+ * unpaid, same as an explicit absence.
  *
  * H-8: The original code passed userEmail from the browser body; this route
  * derives the actor's email from the server session cookie.
@@ -127,19 +129,20 @@ export async function POST(request: Request) {
     // IST has no DST and a fixed +5:30 offset — an explicit offset here (not a naive literal)
     // is what makes this compare correctly against ready_at/completed_at, which are UTC
     // timestamps. periodEnd's upper bound is inclusive through the end of that IST calendar
-    // day. There's deliberately no lower bound: piece_rate_paid_at IS NULL is what scopes this
-    // to "not yet paid" — a payable that reached ready/completed late (after its own period's
-    // run already happened) still surfaces in the next run instead of being lost, and nothing
-    // already marked paid can ever be summed again, however the chosen period overlaps a prior run.
-    const periodEndOfDay = `${periodEnd}T23:59:59.999+05:30`;
+    // Piece-rate pay does not depend on order stage — a tailor's payable is owed the moment
+    // it exists (see remove_tailor_payable_confirm_step.sql / tailor_payable_manual_entry.sql),
+    // so any not-yet-paid order/work-order counts here regardless of whether it has reached
+    // Ready/Completed yet. piece_rate_paid_at IS NULL is what scopes this to "not yet paid" —
+    // nothing already marked paid can ever be summed again, however the chosen period overlaps
+    // a prior run.
     const [{ data: allAttRows }, { data: allAdvanceRows }, { data: unpaidOrderRows }, { data: unpaidWoRows }] = await Promise.all([
       db.from("employee_attendance").select("*").in("employee_id", employeeIds).gte("date", periodStart).lte("date", periodEnd),
       db.from("employee_advances").select("*").in("employee_id", employeeIds).is("payslip_id", null).lte("date", periodEnd).order("date", { ascending: true }),
       hasPieceRateEmployees
-        ? db.from("orders").select("id, garments").is("piece_rate_paid_at", null).lte("ready_at", periodEndOfDay)
+        ? db.from("orders").select("id, garments").is("piece_rate_paid_at", null)
         : Promise.resolve({ data: [] as { id: string; garments: unknown }[] }),
       hasPieceRateEmployees
-        ? db.from("work_orders").select("id, tailor, labor_cost").is("piece_rate_paid_at", null).lte("completed_at", periodEndOfDay)
+        ? db.from("work_orders").select("id, tailor, labor_cost").is("piece_rate_paid_at", null)
         : Promise.resolve({ data: [] as { id: string; tailor: string; labor_cost: number | null }[] }),
     ]);
     const unpaidOrders = (unpaidOrderRows || []) as (Pick<Order, "garments"> & { id: string })[];
@@ -166,18 +169,12 @@ export async function POST(request: Request) {
       const attRows = attByEmployee.get(employee.id) || [];
       const attendance = attRows.map(mapAttendanceRow);
 
-      // C-5: Monthly employees with no attendance data would receive full salary
-      // since computeGrossPay(monthly, 0 absences, 0 present) = full rate.
-      // Treat zero records as fully absent — don't silently overpay.
-      let grossPay: number;
-      if (attRows && attRows.length === 0 && employee.salaryType === "monthly") {
-        grossPay = 0;
-      } else {
-        const counts = countAttendance(attendance);
-        grossPay = computeGrossPay(employee, periodStart, periodEnd, counts);
-      }
-
+      // C-5: a monthly employee with no attendance data (or gaps in it) must not be paid for
+      // days nobody recorded anything for — computeGrossPay itself now treats any day in the
+      // period with no attendance record as unpaid, the all-missing case included, so no
+      // special-case is needed here anymore.
       const counts = countAttendance(attendance);
+      const grossPay = computeGrossPay(employee, periodStart, periodEnd, counts);
 
       // Hours/overtime are only ever populated by self-service checkout (Phase 2) — manual
       // attendance rows have hours_worked=null and overtime_hours=0, so they simply contribute
@@ -257,12 +254,16 @@ export async function POST(request: Request) {
       .filter((o) => (o.garments || []).some((g) => g.tailor && paidEmployeeIds.has(g.tailor) && (g.payableAmount || 0) > 0))
       .map((o) => o.id);
     const paidWoIds = unpaidWorkOrders.filter((w) => w.tailor && paidEmployeeIds.has(w.tailor)).map((w) => w.id);
+    // paid_by_payroll_run_id records exactly which run paid each row, so deleting a still-draft
+    // run (see DELETE /api/payroll/run/[id]) can find and revert exactly these rows — otherwise
+    // a deleted draft would leave every included tailor's earnings permanently marked "paid"
+    // with no payslip left to show for it, silently writing off real money owed to them.
     const nowIso = new Date().toISOString();
     if (paidOrderIds.length > 0) {
-      await db.from("orders").update({ piece_rate_paid_at: nowIso }).in("id", paidOrderIds);
+      await db.from("orders").update({ piece_rate_paid_at: nowIso, paid_by_payroll_run_id: runId }).in("id", paidOrderIds);
     }
     if (paidWoIds.length > 0) {
-      await db.from("work_orders").update({ piece_rate_paid_at: nowIso }).in("id", paidWoIds);
+      await db.from("work_orders").update({ piece_rate_paid_at: nowIso, paid_by_payroll_run_id: runId }).in("id", paidWoIds);
     }
   } catch (err) {
     // Clean up the run header so the admin gets a clean slate.

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, Users, UserPlus, LayoutGrid, LayoutList, ArrowUpDown, Upload, MessageSquare } from "lucide-react";
+import { Search, Users, UserPlus, LayoutGrid, LayoutList, ArrowUpDown, Upload, MessageSquare, MoreVertical } from "lucide-react";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableHeader, TableBody, TableRow, TableHead } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { CustomerCard } from "@/components/crm/customer-card";
@@ -158,45 +159,77 @@ function CrmContent() {
         description={`${filtered.length} of ${profiles.length} customers`}
         actions={
           <>
-            <div className="inline-flex rounded-lg border p-0.5" role="group" aria-label="View mode">
-              <button
-                type="button"
-                onClick={() => setView("cards")}
-                aria-pressed={view === "cards"}
-                className={cn("flex min-h-9 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors sm:min-h-8", view === "cards" ? "bg-muted" : "text-muted-foreground")}
-              >
-                <LayoutGrid className="size-4" /> Cards
-              </button>
-              <button
-                type="button"
-                onClick={() => setView("list")}
-                aria-pressed={view === "list"}
-                className={cn("flex min-h-9 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors sm:min-h-8", view === "list" ? "bg-muted" : "text-muted-foreground")}
-              >
-                <LayoutList className="size-4" /> List
-              </button>
+            {/* Primary + overflow actions: one tidy row on mobile instead of buttons wrapping
+                across three lines. Full set reappears inline once there's room (sm+). */}
+            <div className="flex w-full items-center gap-2 sm:hidden">
+              {canAdd && (
+                <Button className="flex-1" nativeButton={false} render={<Link href="/crm/new" />}>
+                  <UserPlus className="size-4" /> Add customer
+                </Button>
+              )}
+              {user?.perms.managePayments && <NewPaymentButton variant="outline" label="" className="shrink-0 px-3" />}
+              {canAdd && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button variant="outline" className="shrink-0 px-3" aria-label="More actions">
+                        <MoreVertical className="size-4" />
+                      </Button>
+                    }
+                  />
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem render={<Link href="/crm/broadcast" />}>
+                      <MessageSquare className="size-4" /> Broadcast
+                    </DropdownMenuItem>
+                    <DropdownMenuItem render={<Link href="/crm/import" />}>
+                      <Upload className="size-4" /> Import
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
-            {canAdd && (
-              <Button variant="outline" nativeButton={false} render={<Link href="/crm/broadcast" />}>
-                <MessageSquare className="size-4" /> Broadcast
-              </Button>
-            )}
-            {canAdd && (
-              <Button variant="outline" nativeButton={false} render={<Link href="/crm/import" />}>
-                <Upload className="size-4" /> Import
-              </Button>
-            )}
-            {canAdd && (
-              <Button nativeButton={false} render={<Link href="/crm/new" />}>
-                <UserPlus className="size-4" /> Add customer
-              </Button>
-            )}
-            {user?.perms.managePayments && <NewPaymentButton />}
+
+            <div className="hidden items-center gap-2 sm:flex">
+              {canAdd && (
+                <Button variant="outline" nativeButton={false} render={<Link href="/crm/broadcast" />}>
+                  <MessageSquare className="size-4" /> Broadcast
+                </Button>
+              )}
+              {canAdd && (
+                <Button variant="outline" nativeButton={false} render={<Link href="/crm/import" />}>
+                  <Upload className="size-4" /> Import
+                </Button>
+              )}
+              {canAdd && (
+                <Button nativeButton={false} render={<Link href="/crm/new" />}>
+                  <UserPlus className="size-4" /> Add customer
+                </Button>
+              )}
+              {user?.perms.managePayments && <NewPaymentButton />}
+            </div>
           </>
         }
       />
 
       <div className="flex flex-wrap items-center gap-2">
+        <div className="inline-flex rounded-lg border p-0.5" role="group" aria-label="View mode">
+          <button
+            type="button"
+            onClick={() => setView("cards")}
+            aria-pressed={view === "cards"}
+            className={cn("flex min-h-9 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors sm:min-h-8", view === "cards" ? "bg-muted" : "text-muted-foreground")}
+          >
+            <LayoutGrid className="size-4" /> Cards
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("list")}
+            aria-pressed={view === "list"}
+            className={cn("flex min-h-9 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors sm:min-h-8", view === "list" ? "bg-muted" : "text-muted-foreground")}
+          >
+            <LayoutList className="size-4" /> List
+          </button>
+        </div>
         <div className="relative max-w-md flex-1 min-w-48">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input

@@ -131,11 +131,11 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
           ))}
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">From</Label>
+          <Label className="text-sm font-bold text-muted-foreground">From</Label>
           <DatePicker className="w-36" value={from} onChange={setFrom} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">To</Label>
+          <Label className="text-sm font-bold text-muted-foreground">To</Label>
           <DatePicker className="w-36" value={to} onChange={setTo} />
         </div>
         {(from || to) && (
@@ -247,13 +247,13 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
               <table className="w-full text-sm">
                 <thead className="border-b text-left text-xs text-muted-foreground">
                   <tr>
-                    <th className="py-2 pr-2 font-medium">Date</th>
-                    <th className="py-2 pr-2 font-medium">Type</th>
-                    <th className="py-2 pr-2 font-medium">Reference</th>
-                    <th className="py-2 pr-2 font-medium">Description</th>
-                    <th className="py-2 pr-2 text-right font-medium">Billed</th>
-                    <th className="py-2 pr-2 text-right font-medium">Paid</th>
-                    <th className="py-2 text-right font-medium">Balance</th>
+                    <th className="py-2 pr-2 font-bold">Date</th>
+                    <th className="py-2 pr-2 font-bold">Type</th>
+                    <th className="py-2 pr-2 font-bold">Reference</th>
+                    <th className="py-2 pr-2 font-bold">Description</th>
+                    <th className="py-2 pr-2 text-right font-bold">Billed</th>
+                    <th className="py-2 pr-2 text-right font-bold">Paid</th>
+                    <th className="py-2 text-right font-bold">Balance</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">

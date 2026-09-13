@@ -74,7 +74,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
 
       <div className="overflow-hidden rounded-lg border">
         <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+          <thead className="bg-muted/50 text-sm font-bold uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="p-3 text-left">Product</th>
               <th className="p-3 text-right">Qty</th>

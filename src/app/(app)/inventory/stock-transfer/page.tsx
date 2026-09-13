@@ -85,7 +85,7 @@ export default function StockTransferPage() {
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Item type</Label>
+                <Label className="text-sm font-bold">Item type</Label>
                 <Select
                   value={itemType}
                   onValueChange={(v) => {
@@ -104,7 +104,7 @@ export default function StockTransferPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Item</Label>
+                <Label className="text-sm font-bold">Item</Label>
                 <Select value={itemId} onValueChange={(v) => v && setItemId(v)}>
                   <SelectTrigger className="h-10 w-full">
                     <SelectValue placeholder="Select item…">{itemLabel}</SelectValue>
@@ -122,7 +122,7 @@ export default function StockTransferPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">From warehouse</Label>
+                <Label className="text-sm font-bold">From warehouse</Label>
                 <Select value={fromWarehouseId} onValueChange={(v) => v && setFromWarehouseId(v)}>
                   <SelectTrigger className="h-10 w-full">
                     <SelectValue>{warehouseLabel}</SelectValue>
@@ -138,7 +138,7 @@ export default function StockTransferPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">To warehouse</Label>
+                <Label className="text-sm font-bold">To warehouse</Label>
                 <Select value={toWarehouseId} onValueChange={(v) => v && setToWarehouseId(v)}>
                   <SelectTrigger className="h-10 w-full">
                     <SelectValue placeholder="Select destination…">{warehouseLabel}</SelectValue>
@@ -156,12 +156,12 @@ export default function StockTransferPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Quantity</Label>
+              <Label className="text-sm font-bold">Quantity</Label>
               <Input type="number" inputMode="decimal" step="0.001" placeholder="e.g. 10" value={qty} onChange={(e) => setQty(e.target.value)} />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Note</Label>
+              <Label className="text-sm font-bold">Note</Label>
               <Textarea placeholder="Optional" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
 

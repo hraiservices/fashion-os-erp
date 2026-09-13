@@ -178,7 +178,7 @@ export function RatesSection() {
               </div>
               {RATE_COLUMNS.map((c) => (
                 <div key={c.key} className="space-y-1 sm:col-span-2">
-                  <Label className="text-[10px] text-muted-foreground sm:hidden">{c.label}</Label>
+                  <Label className="text-xs font-bold text-muted-foreground sm:hidden">{c.label}</Label>
                   <NumberInput min={0} value={rate[c.key]} onChange={(v) => updateRate(type, c.key, v)} onBlur={commit} />
                 </div>
               ))}
@@ -193,12 +193,12 @@ export function RatesSection() {
 
         <div className="grid grid-cols-2 gap-2 border-t pt-4 sm:grid-cols-12 sm:items-end">
           <div className="col-span-2 space-y-1 sm:col-span-3">
-            <Label className="text-[10px] text-muted-foreground">New garment type</Label>
+            <Label className="text-xs font-bold text-muted-foreground">New garment type</Label>
             <Input placeholder="e.g. Kurta" value={newType} onChange={(e) => setNewType(e.target.value)} />
           </div>
           {RATE_COLUMNS.map((c) => (
             <div key={c.key} className="space-y-1 sm:col-span-2">
-              <Label className="text-[10px] text-muted-foreground">{c.label}</Label>
+              <Label className="text-xs font-bold text-muted-foreground">{c.label}</Label>
               <NumberInput min={0} value={newRate[c.key]} onChange={(v) => setNewRate((r) => ({ ...r, [c.key]: v }))} />
             </div>
           ))}

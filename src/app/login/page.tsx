@@ -28,7 +28,7 @@ function IconField({
   const isPassword = type === "password";
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+      <Label className="text-sm font-bold text-muted-foreground">{label}</Label>
       <div className="relative">
         <Icon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input {...inputProps} type={isPassword && reveal ? "text" : type} className={cn("h-11 rounded-xl pl-10", isPassword && "pr-10")} />

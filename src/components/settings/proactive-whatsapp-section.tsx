@@ -142,7 +142,7 @@ export function ProactiveWhatsAppSection() {
         </p>
 
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Approved briefing template name</Label>
+          <Label className="text-sm font-bold">Approved briefing template name</Label>
           <div className="flex gap-2">
             <div className="flex-1">
               <WhatsAppTemplateField value={templateName} onChange={setTemplateName} expectedParamCount={1} templatesEnabled={templatesEnabled} placeholder="e.g. daily_briefing" />
@@ -154,7 +154,7 @@ export function ProactiveWhatsAppSection() {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Recipients ({list.length})</Label>
+          <Label className="text-sm font-bold">Recipients ({list.length})</Label>
           <div className="flex gap-2">
             <Input
               value={newMobile}
@@ -203,7 +203,7 @@ export function ProactiveWhatsAppSection() {
           customer. Needs a separate Meta-approved template with exactly 3 body parameters, in order: customer name, order id, balance due.
         </p>
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Approved template name</Label>
+          <Label className="text-sm font-bold">Approved template name</Label>
           <div className="flex gap-2">
             <div className="flex-1">
               <WhatsAppTemplateField
@@ -234,7 +234,7 @@ export function ProactiveWhatsAppSection() {
           amount due.
         </p>
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Approved template name</Label>
+          <Label className="text-sm font-bold">Approved template name</Label>
           <WhatsAppTemplateField
             value={paymentReminderTemplateName}
             onChange={setPaymentReminderTemplateName}
@@ -245,11 +245,11 @@ export function ProactiveWhatsAppSection() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Min days overdue</Label>
+            <Label className="text-sm font-bold">Min days overdue</Label>
             <NumberInput min={1} value={draftMinDays} onChange={setDraftMinDays} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Cooldown (days)</Label>
+            <Label className="text-sm font-bold">Cooldown (days)</Label>
             <NumberInput min={1} value={draftCooldown} onChange={setDraftCooldown} />
           </div>
         </div>
@@ -269,7 +269,7 @@ export function ProactiveWhatsAppSection() {
           each one. Needs a separate Meta-approved template with exactly 2 body parameters, in order: customer name, message text.
         </p>
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Approved template name</Label>
+          <Label className="text-sm font-bold">Approved template name</Label>
           <div className="flex gap-2">
             <div className="flex-1">
               <WhatsAppTemplateField

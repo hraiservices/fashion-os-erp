@@ -94,13 +94,13 @@ export function CustomCardForm({
 
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Title *</Label>
+            <Label className="text-sm font-bold">Title *</Label>
             <Input placeholder="e.g. Big orders this month" value={config.title} onChange={(e) => setConfig({ ...config, title: e.target.value })} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Data source</Label>
+              <Label className="text-sm font-bold">Data source</Label>
               <Select value={config.dataSource} onValueChange={(v) => v && changeDataSource(v as CustomDataSourceKey)}>
                 <SelectTrigger className="h-10 w-full">
                   <SelectValue>{dataSourceLabel}</SelectValue>
@@ -115,7 +115,7 @@ export function CustomCardForm({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Aggregation</Label>
+              <Label className="text-sm font-bold">Aggregation</Label>
               <Select value={config.aggregation} onValueChange={(v) => v && setConfig({ ...config, aggregation: v as Aggregation })}>
                 <SelectTrigger className="h-10 w-full">
                   <SelectValue>{aggregationLabel}</SelectValue>
@@ -134,7 +134,7 @@ export function CustomCardForm({
           {config.aggregation !== "count" && (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Field</Label>
+                <Label className="text-sm font-bold">Field</Label>
                 <Select value={config.field || ""} onValueChange={(v) => v && setConfig({ ...config, field: v })}>
                   <SelectTrigger className="h-10 w-full">
                     <SelectValue placeholder="Select field…" />
@@ -149,7 +149,7 @@ export function CustomCardForm({
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Display as</Label>
+                <Label className="text-sm font-bold">Display as</Label>
                 <Select value={config.format} onValueChange={(v) => v && setConfig({ ...config, format: v as "number" | "currency" })}>
                   <SelectTrigger className="h-10 w-full">
                     <SelectValue>{formatLabel}</SelectValue>
@@ -165,7 +165,7 @@ export function CustomCardForm({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium">Filters (optional, up to 3)</Label>
+              <Label className="text-sm font-bold">Filters (optional, up to 3)</Label>
               {config.filters.length < 3 && (
                 <Button type="button" variant="outline" size="sm" onClick={addFilter}>
                   <Plus className="size-3.5" /> Add filter
@@ -207,7 +207,7 @@ export function CustomCardForm({
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Preview</Label>
+            <Label className="text-sm font-bold">Preview</Label>
             <Preview config={config} />
           </div>
         </div>

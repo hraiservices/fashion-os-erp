@@ -85,7 +85,7 @@ export function DashboardAccessManager({ employeeId, employeeMobile }: { employe
     <div className="space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <Label className="text-xs font-medium text-foreground/80">Dashboard access</Label>
+          <Label className="text-sm font-bold text-foreground/80">Dashboard access</Label>
           <p className="text-[11px] text-muted-foreground">
             Lets this employee log into the app itself (not just self check-in) using their own mobile number
             {employeeMobile ? ` (${employeeMobile})` : ""} and the PIN above.
@@ -104,7 +104,7 @@ export function DashboardAccessManager({ employeeId, employeeMobile }: { employe
       {state.enabled && (
         <div className="space-y-3 rounded-lg border p-3">
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-foreground/80">Role</Label>
+            <Label className="text-sm font-bold text-foreground/80">Role</Label>
             <Select value={state.role} onValueChange={(v) => v && save({ ...state, role: v as Role })}>
               <SelectTrigger className="h-9 w-full sm:w-48" disabled={saving}>
                 <SelectValue>{roleLabel}</SelectValue>

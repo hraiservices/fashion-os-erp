@@ -67,7 +67,7 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
-              <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <tr className="border-b text-left text-sm font-bold uppercase tracking-wide text-muted-foreground">
                 <th className="w-1 p-0" />
                 {selection && (
                   <th className="w-8 px-2.5 py-2.5">
@@ -81,15 +81,15 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
                     />
                   </th>
                 )}
-                {isVisible("order") && <th className="px-2.5 py-2.5 font-medium">Order</th>}
-                {isVisible("customer") && <th className="px-2.5 py-2.5 font-medium">Customer</th>}
-                {isVisible("garment") && <th className="px-2.5 py-2.5 font-medium">Garment</th>}
-                {isVisible("stage") && <th className="px-2.5 py-2.5 font-medium">Stage</th>}
-                {isVisible("tailor") && <th className="px-2.5 py-2.5 font-medium">Tailor</th>}
-                {isVisible("delivery") && <th className="px-2.5 py-2.5 font-medium">Delivery</th>}
-                {isVisible("total") && <th className="px-2.5 py-2.5 text-right font-medium">Total</th>}
-                {isVisible("balance") && <th className="px-2.5 py-2.5 text-right font-medium">Balance</th>}
-                {profitByOrderId && isVisible("profit") && <th className="px-2.5 py-2.5 text-right font-medium">Profit</th>}
+                {isVisible("order") && <th className="px-2.5 py-2.5 font-bold">Order</th>}
+                {isVisible("customer") && <th className="px-2.5 py-2.5 font-bold">Customer</th>}
+                {isVisible("garment") && <th className="px-2.5 py-2.5 font-bold">Garment</th>}
+                {isVisible("stage") && <th className="px-2.5 py-2.5 font-bold">Stage</th>}
+                {isVisible("tailor") && <th className="px-2.5 py-2.5 font-bold">Tailor</th>}
+                {isVisible("delivery") && <th className="px-2.5 py-2.5 font-bold">Delivery</th>}
+                {isVisible("total") && <th className="px-2.5 py-2.5 text-right font-bold">Total</th>}
+                {isVisible("balance") && <th className="px-2.5 py-2.5 text-right font-bold">Balance</th>}
+                {profitByOrderId && isVisible("profit") && <th className="px-2.5 py-2.5 text-right font-bold">Profit</th>}
                 <th className="px-2.5 py-2.5" />
               </tr>
             </thead>

@@ -91,9 +91,9 @@ function RoleReferenceCard() {
         <table className="w-full min-w-[520px] border-collapse text-sm">
           <thead>
             <tr className="border-b text-xs text-muted-foreground">
-              <th className="py-1.5 pr-2 text-left font-medium">Permission</th>
+              <th className="py-1.5 pr-2 text-left font-bold">Permission</th>
               {ROLE_OPTIONS.map(([v, l]) => (
-                <th key={v} className="px-2 py-1.5 text-center font-medium">
+                <th key={v} className="px-2 py-1.5 text-center font-bold">
                   {l}
                 </th>
               ))}

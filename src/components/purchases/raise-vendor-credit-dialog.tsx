@@ -74,19 +74,19 @@ export function RaiseVendorCreditDialog({
         </DialogHeader>
         <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Returned items</Label>
+            <Label className="text-sm font-bold">Returned items</Label>
             <LineItemsEditor lines={lines} onChange={setLines} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Return date</Label>
+            <Label className="text-sm font-bold">Return date</Label>
             <DatePicker value={date} onChange={setDate} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Reason *</Label>
+            <Label className="text-sm font-bold">Reason *</Label>
             <Input placeholder="e.g. Defective fabric roll" value={reason} onChange={(e) => setReason(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Notes</Label>
+            <Label className="text-sm font-bold">Notes</Label>
             <Textarea rows={2} placeholder="Optional…" value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </div>

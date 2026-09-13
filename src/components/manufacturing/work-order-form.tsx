@@ -38,7 +38,7 @@ function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label:
 function FieldGroup({ label, required, children, hint }: { label: string; required?: boolean; children: React.ReactNode; hint?: string }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-foreground/80">
+      <Label className="text-sm font-bold text-foreground/80">
         {label}{required && <span className="ml-0.5 text-red-500">*</span>}
       </Label>
       {children}
@@ -254,8 +254,8 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
                         <table className="w-full text-sm">
                           <thead className="border-b bg-muted/40">
                             <tr>
-                              <th className="p-2 text-left font-medium">Material</th>
-                              <th className="p-2 text-right font-medium">Planned qty</th>
+                              <th className="p-2 text-left font-bold">Material</th>
+                              <th className="p-2 text-right font-bold">Planned qty</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y">

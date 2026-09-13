@@ -176,11 +176,11 @@ export default function WarehousesPage() {
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Name *</Label>
+              <Label className="text-sm font-bold">Name *</Label>
               <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Main Warehouse, Andheri Store" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Address</Label>
+              <Label className="text-sm font-bold">Address</Label>
               <Input value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} placeholder="Optional" />
             </div>
             <label className="flex items-center justify-between rounded-lg border p-3">

@@ -144,7 +144,7 @@ function ExpensesPageContent() {
           <div className="hidden overflow-x-auto sm:block">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
-                <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr className="border-b text-left text-sm font-bold uppercase tracking-wide text-muted-foreground">
                   {canAdd && (
                     <th className="w-8 px-4 py-2.5">
                       <Checkbox

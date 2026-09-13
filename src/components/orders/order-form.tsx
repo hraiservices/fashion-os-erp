@@ -155,7 +155,7 @@ function SectionHeading({ icon: Icon, label, action }: { icon: React.ElementType
 function FieldGroup({ label, required, error, children, hint, className }: { label: string; required?: boolean; error?: string; children: React.ReactNode; hint?: string; className?: string }) {
   return (
     <div className={cn("space-y-1.5", className)}>
-      <Label className="text-xs font-medium text-foreground/80">
+      <Label className="text-sm font-bold text-foreground/80">
         {label}
         {required && <span className="ml-0.5 text-red-500">*</span>}
       </Label>
@@ -1151,7 +1151,7 @@ function OrderFormFields({
                       seeing exactly the old, simpler single-measurements form. */}
                   {measureProfiles.length >= 2 && (
                     <div className="mb-3">
-                      <Label className="mb-1 block text-xs font-medium">Load measurements</Label>
+                      <Label className="mb-1 block text-sm font-bold">Load measurements</Label>
                       <Select value={measureProfileId ?? "__blank__"} onValueChange={(v) => v && handlePickProfile(v)}>
                         <SelectTrigger className="w-full sm:w-72">
                           <SelectValue placeholder="Choose a saved profile…" />

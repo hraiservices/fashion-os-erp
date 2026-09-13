@@ -166,11 +166,11 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <th className="p-2 text-left font-medium">Product</th>
-                  <th className="p-2 text-right font-medium">Qty</th>
-                  <th className="p-2 text-right font-medium">Price</th>
-                  <th className="p-2 text-right font-medium">Disc %</th>
-                  <th className="p-2 text-right font-medium">Amount</th>
+                  <th className="p-2 text-left font-bold">Product</th>
+                  <th className="p-2 text-right font-bold">Qty</th>
+                  <th className="p-2 text-right font-bold">Price</th>
+                  <th className="p-2 text-right font-bold">Disc %</th>
+                  <th className="p-2 text-right font-bold">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y">

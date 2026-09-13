@@ -45,7 +45,7 @@ export function ReportFilterBar({
   return (
     <div className={cn("flex flex-wrap items-end gap-x-3 gap-y-2 rounded-xl border bg-card p-3 print:hidden", className)}>
       <div>
-        <Label className="mb-1.5 block text-xs text-muted-foreground">Date range</Label>
+        <Label className="mb-1.5 block text-sm font-bold text-muted-foreground">Date range</Label>
         <div className="flex flex-wrap gap-1.5">
           {PRESET_ORDER.map((p) => (
             <Button key={p} type="button" variant={preset === p ? "default" : "outline"} size="sm" onClick={() => onPresetChange(p)}>

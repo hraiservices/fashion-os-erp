@@ -163,7 +163,7 @@ function SavedViewsSection<F>({ views, onApply, onSave, onRemove, currentFilters
   }
   return (
     <div className="space-y-2">
-      <Label className="text-xs">Saved views</Label>
+      <Label className="text-sm font-bold">Saved views</Label>
       {views.length === 0 ? (
         <p className="text-xs text-muted-foreground">No saved views yet — set your filters, then save one below.</p>
       ) : (
@@ -264,23 +264,23 @@ export function OrderFilters<F>({
       {/* Desktop inline bar */}
       <div className="hidden flex-wrap items-end gap-x-3 gap-y-2 rounded-xl border bg-card p-3 md:flex">
         <div className="w-40">
-          <Label className="mb-1.5 block text-xs text-muted-foreground">Tailor</Label>
+          <Label className="mb-1.5 block text-sm font-bold text-muted-foreground">Tailor</Label>
           <TailorSelect value={value.tailor} onChange={(v) => set({ tailor: v })} tailors={tailors} />
         </div>
         <div className="w-40">
-          <Label className="mb-1.5 block text-xs text-muted-foreground">Stage</Label>
+          <Label className="mb-1.5 block text-sm font-bold text-muted-foreground">Stage</Label>
           <StageSelect value={value.stage} onChange={(v) => set({ stage: v })} />
         </div>
         <div className="w-36">
-          <Label className="mb-1.5 block text-xs text-muted-foreground">Priority</Label>
+          <Label className="mb-1.5 block text-sm font-bold text-muted-foreground">Priority</Label>
           <PrioritySelect value={value.priority} onChange={(v) => set({ priority: v })} />
         </div>
         <div className="w-36">
-          <Label className="mb-1.5 block text-xs text-muted-foreground">Order type</Label>
+          <Label className="mb-1.5 block text-sm font-bold text-muted-foreground">Order type</Label>
           <OrderTypeSelect value={value.orderType} onChange={(v) => set({ orderType: v })} />
         </div>
         <div>
-          <Label className="mb-1.5 block text-xs text-muted-foreground">Order date</Label>
+          <Label className="mb-1.5 block text-sm font-bold text-muted-foreground">Order date</Label>
           <DatePresetButtons value={value.datePreset} onChange={(v) => set({ datePreset: v })} />
         </div>
         {value.datePreset === "custom" && (
@@ -324,23 +324,23 @@ export function OrderFilters<F>({
               currentFilters={currentViewFilters}
             />
             <div className="space-y-1.5 border-t pt-4">
-              <Label className="text-xs">Tailor</Label>
+              <Label className="text-sm font-bold">Tailor</Label>
               <TailorSelect value={value.tailor} onChange={(v) => set({ tailor: v })} tailors={tailors} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Stage</Label>
+              <Label className="text-sm font-bold">Stage</Label>
               <StageSelect value={value.stage} onChange={(v) => set({ stage: v })} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Priority</Label>
+              <Label className="text-sm font-bold">Priority</Label>
               <PrioritySelect value={value.priority} onChange={(v) => set({ priority: v })} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Order type</Label>
+              <Label className="text-sm font-bold">Order type</Label>
               <OrderTypeSelect value={value.orderType} onChange={(v) => set({ orderType: v })} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Order date</Label>
+              <Label className="text-sm font-bold">Order date</Label>
               <DatePresetButtons value={value.datePreset} onChange={(v) => set({ datePreset: v })} />
               {value.datePreset === "custom" && (
                 <div className="mt-2 flex items-center gap-2">

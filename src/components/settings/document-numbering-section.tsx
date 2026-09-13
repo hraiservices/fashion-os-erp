@@ -53,11 +53,11 @@ function FormatEditor({
 
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Prefix</Label>
+                <Label className="text-sm font-bold">Prefix</Label>
                 <Input className="h-10" value={fmt.prefix} onChange={(e) => onChange({ ...fmt, prefix: e.target.value.toUpperCase() })} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Separator</Label>
+                <Label className="text-sm font-bold">Separator</Label>
                 <Input
                   className="h-10"
                   maxLength={1}
@@ -72,11 +72,11 @@ function FormatEditor({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Digits</Label>
+                <Label className="text-sm font-bold">Digits</Label>
                 <NumberInput min={1} max={8} className="h-10" value={fmt.padding} onChange={(v) => onChange({ ...fmt, padding: v || 4 })} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Starts at</Label>
+                <Label className="text-sm font-bold">Starts at</Label>
                 <NumberInput min={1} className="h-10" value={fmt.startNumber} onChange={(v) => onChange({ ...fmt, startNumber: v || 1 })} />
               </div>
             </div>

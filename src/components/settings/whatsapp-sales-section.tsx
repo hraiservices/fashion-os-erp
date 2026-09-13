@@ -49,7 +49,7 @@ export function WhatsAppSalesSection() {
 
         {TYPES.map((type) => (
           <div key={type} className="space-y-1.5">
-            <Label className="text-xs font-medium">{SALES_WHATSAPP_LABELS[type]}</Label>
+            <Label className="text-sm font-bold">{SALES_WHATSAPP_LABELS[type]}</Label>
             <Textarea
               rows={4}
               className="font-mono text-xs"

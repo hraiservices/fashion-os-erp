@@ -117,12 +117,12 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <th className="p-2 text-left font-medium">Material</th>
-                  <th className="p-2 text-right font-medium">Planned</th>
+                  <th className="p-2 text-left font-bold">Material</th>
+                  <th className="p-2 text-right font-bold">Planned</th>
                   {wo.status === "completed" && (
                     <>
-                      <th className="p-2 text-right font-medium">Used</th>
-                      <th className="p-2 text-right font-medium">Wasted</th>
+                      <th className="p-2 text-right font-bold">Used</th>
+                      <th className="p-2 text-right font-bold">Wasted</th>
                     </>
                   )}
                 </tr>

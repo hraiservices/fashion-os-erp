@@ -86,7 +86,7 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
           {order.garments.length > 0 && (
             <div className="overflow-hidden rounded-lg border">
               <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+                <thead className="bg-muted/50 text-sm font-bold uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="p-2 text-left">Garment</th>
                     <th className="p-2 text-right">Qty</th>

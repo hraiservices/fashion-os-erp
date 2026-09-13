@@ -170,6 +170,93 @@ export function getTailorTurnaround(orders: Order[]): TailorTurnaroundStat[] {
     .sort((a, b) => a.avgDays - b.avgDays);
 }
 
+export interface PipelineVelocityBucket {
+  key: string;
+  label: string;
+  /** Orders received in this bucket that have reached Ready — an order still in progress
+   *  contributes nothing yet, same convention as getTailorTurnaround. */
+  completedCount: number;
+  /** Average calendar days from in_date to ready_at, null if nothing in the bucket has
+   *  reached Ready yet. */
+  avgDaysToReady: number | null;
+  /** % of that bucket's completed orders where ready_at fell on or before the promised
+   *  delivery_date — null (not 0) when there's nothing with a promised date to judge against,
+   *  so a chart can tell "no data" apart from "0% on time". */
+  onTimePct: number | null;
+}
+
+/** Buckets orders by in_date (the same PeriodBucket[] as bucketsForRange/last6MonthBuckets/
+ *  lastNDayBuckets) and reports how fast each bucket's orders actually moved: average
+ *  days-to-ready and on-time %. This is a time TREND of getTailorTurnaround's own metric,
+ *  not per-tailor — how the whole shop's pipeline speed is moving, bucket to bucket. */
+export function getPipelineVelocity(orders: Order[], buckets: { key: string; label: string }[]): PipelineVelocityBucket[] {
+  return buckets.map(({ key, label }) => {
+    const bucketOrders = orders.filter((o) => o.inDate?.startsWith(key));
+    const days: number[] = [];
+    let onTime = 0;
+    let withPromise = 0;
+    for (const o of bucketOrders) {
+      if (!o.readyAt) continue;
+      const inMs = new Date(o.inDate).getTime();
+      const readyMs = new Date(o.readyAt).getTime();
+      if (Number.isFinite(inMs) && Number.isFinite(readyMs)) days.push(Math.max(0, Math.round((readyMs - inMs) / 86400000)));
+      if (o.deliveryDate) {
+        withPromise += 1;
+        if (o.readyAt.slice(0, 10) <= o.deliveryDate) onTime += 1;
+      }
+    }
+    return {
+      key,
+      label,
+      completedCount: days.length,
+      avgDaysToReady: days.length ? Math.round((days.reduce((s, d) => s + d, 0) / days.length) * 10) / 10 : null,
+      onTimePct: withPromise > 0 ? Math.round((onTime / withPromise) * 100) : null,
+    };
+  });
+}
+
+export interface TailorPerformanceStat {
+  tailor: string;
+  ordersCount: number;
+  revenue: number;
+  /** Same definition as getTailorTurnaround's avgDays — null if none of this tailor's orders
+   *  in range have reached Ready yet. */
+  avgTurnaroundDays: number | null;
+  /** Lifetime rework_count summed across this tailor's orders in range — see
+   *  add_finishing_stage_and_rework_count.sql for what that column tracks. */
+  reworkCount: number;
+}
+
+/** Per-tailor leaderboard for whatever slice of orders is passed in (the dashboard card filters
+ *  by in_date >= a range cutoff before calling this) — revenue, order count, actual turnaround,
+ *  and total rework count. Order-level tailor assignment only (o.tailor), same as
+ *  getTailorTurnaround; a per-garment tailor override isn't split out here. */
+export function getTailorPerformance(orders: Order[]): TailorPerformanceStat[] {
+  const byTailor = new Map<string, { count: number; revenue: number; days: number[]; reworkCount: number }>();
+  for (const o of orders) {
+    if (!o.tailor) continue;
+    const b = byTailor.get(o.tailor) || { count: 0, revenue: 0, days: [], reworkCount: 0 };
+    b.count += 1;
+    b.revenue += o.total || 0;
+    b.reworkCount += o.reworkCount || 0;
+    if (o.inDate && o.readyAt) {
+      const inMs = new Date(o.inDate).getTime();
+      const readyMs = new Date(o.readyAt).getTime();
+      if (Number.isFinite(inMs) && Number.isFinite(readyMs)) b.days.push(Math.max(0, Math.round((readyMs - inMs) / 86400000)));
+    }
+    byTailor.set(o.tailor, b);
+  }
+  return Array.from(byTailor.entries())
+    .map(([tailor, b]) => ({
+      tailor,
+      ordersCount: b.count,
+      revenue: b.revenue,
+      avgTurnaroundDays: b.days.length ? Math.round((b.days.reduce((s, d) => s + d, 0) / b.days.length) * 10) / 10 : null,
+      reworkCount: b.reworkCount,
+    }))
+    .sort((a, b) => b.revenue - a.revenue);
+}
+
 export interface CustomerAgg {
   name: string;
   mobile: string;

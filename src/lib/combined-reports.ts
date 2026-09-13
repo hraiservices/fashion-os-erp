@@ -1,47 +1,11 @@
 // Combined P&L — every revenue stream (stitching + retail sales) against every cost stream
 // (purchases, manufacturing labor, shop expenses). Kept as its own module rather than folded
 // into lib/analytics.ts since it spans modules that evolved independently.
-import { istDateString } from "@/lib/ist-date";
 import type { Order, Expense, OrderExpense, Payslip } from "@/lib/types";
 import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import type { PurchaseBillWithBalance } from "@/hooks/use-purchase-bills";
 import type { WorkOrder } from "@/lib/types";
-
-function fmtMon(yyyyMm: string): string {
-  const [y, m] = yyyyMm.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
-}
-
-function getLast6Months(): string[] {
-  const months: string[] = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(1);
-    d.setMonth(d.getMonth() - i);
-    // istDateString, NOT toISOString: setDate(1) keeps the current time-of-day, so between
-    // 00:00 and 05:30 IST toISOString() rolls back to the last day of the PREVIOUS month and
-    // every bucket key silently shifts a month (the current month vanishes from the report).
-    months.push(istDateString(d).substring(0, 7));
-  }
-  return months;
-}
-
-function fmtDay(yyyyMmDd: string): string {
-  const [y, m, d] = yyyyMmDd.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
-}
-
-/** Last `days` calendar days, oldest first, ending today — same IST-safe construction as
- *  getLast6Months (see its comment: setDate/setMonth then istDateString, never toISOString). */
-function getLastNDays(days: number): string[] {
-  const out: string[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    out.push(istDateString(d));
-  }
-  return out;
-}
+import { last6MonthBuckets, lastNDayBuckets } from "@/lib/period-buckets";
 
 export interface CombinedMonthStat {
   month: string;
@@ -144,8 +108,8 @@ export function getCombinedMonthly(
     orderExpenseByOrderId.set(e.orderId, (orderExpenseByOrderId.get(e.orderId) || 0) + (e.amount || 0));
   }
 
-  return getLast6Months().map((month) =>
-    computeBucket(month, fmtMon(month), orders, invoices, bills, workOrders, expenses, orderExpenseByOrderId, payslips)
+  return last6MonthBuckets().map(({ key, label }) =>
+    computeBucket(key, label, orders, invoices, bills, workOrders, expenses, orderExpenseByOrderId, payslips)
   );
 }
 
@@ -166,7 +130,7 @@ export function getCombinedDaily(
     orderExpenseByOrderId.set(e.orderId, (orderExpenseByOrderId.get(e.orderId) || 0) + (e.amount || 0));
   }
 
-  return getLastNDays(days).map((day) =>
-    computeBucket(day, fmtDay(day), orders, invoices, bills, workOrders, expenses, orderExpenseByOrderId, payslips)
+  return lastNDayBuckets(days).map(({ key, label }) =>
+    computeBucket(key, label, orders, invoices, bills, workOrders, expenses, orderExpenseByOrderId, payslips)
   );
 }

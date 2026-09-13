@@ -38,6 +38,8 @@ export const BUILTIN_WIDGETS: BuiltinWidgetMeta[] = [
   { key: "tailor-load",                 title: "Tailor Load",          size: "lg",   href: "/orders?view=board",     description: "Active orders per tailor" },
   { key: "sales-opportunities",         title: "Sales Opportunities",  size: "lg",   href: "/inventory/products",    description: "Customers who may want current stock, based on purchase history" },
   { key: "profit-overview",             title: "Profit Overview",      size: "full", href: "/reports/combined-pl",   description: "Live stitching revenue, sales revenue, costs and profit — Week/Month/6 Months. Admin & manager only." },
+  { key: "pipeline-velocity",           title: "Pipeline Velocity",    size: "full", href: "/reports/tailor-workload", description: "Live average days-to-Ready and on-time % trend — Week/Month/6 Months. Admin & manager only." },
+  { key: "tailor-performance",          title: "Tailor Performance",   size: "full", href: "/reports/tailor-workload", description: "Live per-tailor revenue, order count and rework count leaderboard — Week/Month/6 Months. Admin & manager only." },
 ];
 
 export const BUILTIN_WIDGET_BY_KEY = new Map(BUILTIN_WIDGETS.map((w) => [w.key, w]));
@@ -48,6 +50,8 @@ export const BUILTIN_WIDGET_BY_KEY = new Map(BUILTIN_WIDGETS.map((w) => [w.key, 
  *  BUILTIN_WIDGETS itself, so a role change takes effect without touching anyone's saved layout. */
 const WIDGET_ROLE_RESTRICTIONS: Record<string, Role[]> = {
   "profit-overview": ["admin", "manager"],
+  "pipeline-velocity": ["admin", "manager"],
+  "tailor-performance": ["admin", "manager"],
 };
 
 export function isWidgetVisibleForRole(builtinKey: string | undefined, role: string | undefined): boolean {

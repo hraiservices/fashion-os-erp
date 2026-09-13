@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, BarChart3, LineChart as LineChartIcon, Radio } from "lucide-react";
@@ -13,17 +13,18 @@ import { useExpenses } from "@/hooks/use-expenses";
 import { useOrderExpenses } from "@/hooks/use-order-expenses";
 import { useAllPayslips } from "@/hooks/use-payroll";
 import { getCombinedDaily, getCombinedMonthly, type CombinedMonthStat } from "@/lib/combined-reports";
+import type { ChartRange } from "@/lib/period-buckets";
 import { inr, inrCompact } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
+import { LegendDot, MoneyStat, useLiveRefresh } from "@/components/dashboard/widgets/chart-widget-kit";
 import {
   ComposedChart, Bar, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
 
-type Range = "week" | "month" | "6m";
 type ChartKind = "bar" | "line";
 
-const RANGE_OPTIONS: { value: Range; label: string }[] = [
+const RANGE_OPTIONS: { value: ChartRange; label: string }[] = [
   { value: "week", label: "Week" },
   { value: "month", label: "Month" },
   { value: "6m", label: "6 Months" },
@@ -34,58 +35,14 @@ const CHART_OPTIONS: { value: ChartKind; label: string; icon: typeof BarChart3 }
   { value: "line", label: "Line", icon: LineChartIcon },
 ];
 
-const LIVE_REFRESH_MS = 30_000;
-
-/** Animates a number counting from its previous value to the new one whenever it changes —
- *  the "LIVE" refresh (see the polling effect below) would otherwise just snap the total, which
- *  reads as a flicker rather than something updating in front of you. */
-function useCountUp(value: number, durationMs = 700): number {
-  const [display, setDisplay] = useState(value);
-  const fromRef = useRef(value);
-
-  useEffect(() => {
-    const from = fromRef.current;
-    const to = value;
-    if (from === to) return;
-    let raf = 0;
-    const start = performance.now();
-    function tick(now: number) {
-      const t = Math.min(1, (now - start) / durationMs);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setDisplay(Math.round(from + (to - from) * eased));
-      if (t < 1) raf = requestAnimationFrame(tick);
-      else fromRef.current = to;
-    }
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [value, durationMs]);
-
-  return display;
-}
-
-function LegendDot({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-      <span className="inline-block size-2.5 shrink-0 rounded-full" style={{ background: color }} />
-      {label}
-    </span>
-  );
-}
-
-function Stat({ label, value, color }: { label: string; value: number; color: string }) {
-  const animated = useCountUp(value);
-  return (
-    <div className="min-w-[6rem]">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-lg font-bold tabular-nums" style={{ color }}>{inr(animated)}</p>
-    </div>
-  );
-}
+const LIVE_QUERY_KEYS = [
+  ["orders"], ["sales-invoices"], ["purchase-bills"], ["work-orders"], ["expenses"], ["order-expenses"], ["payslips", "all"],
+];
 
 export function ProfitOverviewWidget() {
   const { data: user } = useCurrentUser();
   const qc = useQueryClient();
-  const [range, setRange] = useState<Range>("month");
+  const [range, setRange] = useState<ChartRange>("month");
   const [chartKind, setChartKind] = useState<ChartKind>("bar");
 
   const { data: orders, isLoading: l1 } = useOrders();
@@ -97,23 +54,7 @@ export function ProfitOverviewWidget() {
   const { data: payslips, isLoading: l7 } = useAllPayslips();
   const isLoading = l1 || l2 || l3 || l4 || l5 || l6 || l7;
 
-  // LIVE: re-pull every underlying data source on an interval while this card is on screen, so
-  // a stitching order/invoice/expense entered on another screen or device shows up here without
-  // the user needing to refresh. Scoped to just this widget's mount, not a global polling
-  // interval — the shared 30s staleTime + refetch-on-focus/mount (app/providers.tsx) already
-  // covers every other screen; this just adds "keeps ticking while you're looking at it".
-  useEffect(() => {
-    const id = setInterval(() => {
-      qc.invalidateQueries({ queryKey: ["orders"] });
-      qc.invalidateQueries({ queryKey: ["sales-invoices"] });
-      qc.invalidateQueries({ queryKey: ["purchase-bills"] });
-      qc.invalidateQueries({ queryKey: ["work-orders"] });
-      qc.invalidateQueries({ queryKey: ["expenses"] });
-      qc.invalidateQueries({ queryKey: ["order-expenses"] });
-      qc.invalidateQueries({ queryKey: ["payslips", "all"] });
-    }, LIVE_REFRESH_MS);
-    return () => clearInterval(id);
-  }, [qc]);
+  useLiveRefresh(qc, LIVE_QUERY_KEYS);
 
   const data: CombinedMonthStat[] = useMemo(() => {
     if (!orders || !invoices || !bills || !workOrders || !expenses) return [];
@@ -163,10 +104,10 @@ export function ProfitOverviewWidget() {
       </div>
 
       <div className="flex flex-wrap gap-x-6 gap-y-3">
-        <Stat label="Stitching Revenue" value={stitchingRevenueTotal} color="var(--color-foreground)" />
-        <Stat label="Sales Revenue" value={salesRevenueTotal} color="var(--color-foreground)" />
-        <Stat label="Expenses" value={totals.cost} color="#f97316" />
-        <Stat label="Profit" value={totals.profit} color={totals.profit >= 0 ? "#10b981" : "#ef4444"} />
+        <MoneyStat label="Stitching Revenue" value={stitchingRevenueTotal} color="var(--color-foreground)" />
+        <MoneyStat label="Sales Revenue" value={salesRevenueTotal} color="var(--color-foreground)" />
+        <MoneyStat label="Expenses" value={totals.cost} color="#f97316" />
+        <MoneyStat label="Profit" value={totals.profit} color={totals.profit >= 0 ? "#10b981" : "#ef4444"} />
       </div>
 
       <div className="mb-1 flex flex-wrap items-center gap-4">

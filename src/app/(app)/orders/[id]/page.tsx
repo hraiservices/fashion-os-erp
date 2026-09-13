@@ -10,15 +10,14 @@ import { useOrders } from "@/hooks/use-orders";
 import { useOrderGroup } from "@/hooks/use-order-group";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useConfirmOrderPayables, useDeleteOrderPayment, useBackfillOrderPayment, useRenameOrder } from "@/hooks/use-order-mutations";
+import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useDeleteOrderPayment, useBackfillOrderPayment, useRenameOrder } from "@/hooks/use-order-mutations";
 import { useOrderPayments } from "@/hooks/use-order-payments";
 import { useTailorName } from "@/hooks/use-employees";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useAppSetting } from "@/hooks/use-app-setting";
-import { useCurrentTailorRates } from "@/hooks/use-current-tailor-rates";
 import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
 import { computeOrderProfit } from "@/lib/order-profit";
-import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppUrl, DEFAULT_TAILOR_RATES, isValidManualOrderNumber, type Lining } from "@/lib/business-rules";
+import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppUrl, isValidManualOrderNumber, type Lining } from "@/lib/business-rules";
 import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
@@ -82,10 +81,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const renameError = newOrderNumber && !isValidManualOrderNumber(newOrderNumber.trim()) ? "Only letters, numbers, dots, dashes and underscores (no spaces or slashes)" : null;
   const updateOrder = useUpdateOrder();
   const setRework = useSetOrderRework();
-  const confirmPayables = useConfirmOrderPayables();
   const tailorName = useTailorName();
   const { data: measureFields } = useMeasureFields();
-  const { data: tailorRates } = useCurrentTailorRates(DEFAULT_TAILOR_RATES);
   const { data: orderExpenses } = useOrderExpensesFor(id);
   const { data: orderPayments, isError: paymentsError } = useOrderPayments(id);
   const deletePayment = useDeleteOrderPayment();
@@ -159,7 +156,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const paidPct = order.total > 0 ? Math.round((order.advance / order.total) * 100) : 0;
 
   const orderBalance = order.balance;
-  const profit = computeOrderProfit(order, tailorRates || DEFAULT_TAILOR_RATES, orderExpenses || []);
+  const profit = computeOrderProfit(order, orderExpenses || []);
   function requestAdvance() {
     if (next === "payment" && orderBalance > 0) {
       toast.error(`Clear balance of ${inr(orderBalance)} before marking as paid`);
@@ -386,27 +383,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Flag for rework" onClick={() => setReworkDialogOpen(true)}>
               <RotateCcw className="size-4" />
               <span className="min-w-0 truncate">Rework</span>
-            </Button>
-          )}
-          {user?.perms.managePayroll && !order.payablesConfirmedAt && order.garments.some((g) => g.payableAmount) && (
-            <Button
-              variant="outline"
-              className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm"
-              aria-label="Confirm tailor payables"
-              disabled={confirmPayables.isPending}
-              onClick={async () => {
-                try {
-                  await confirmPayables.mutateAsync(id);
-                  toast.success("Tailor payables confirmed");
-                } catch (e) {
-                  toast.error(e instanceof Error ? e.message : "Failed to confirm payables");
-                }
-              }}
-            >
-              <Wallet className="size-4" />
-              <span className="min-w-0 truncate sm:hidden">{confirmPayables.isPending ? "…" : "Confirm"}</span>
-              <span className="hidden min-w-0 truncate sm:inline lg:hidden">{confirmPayables.isPending ? "Confirming…" : "Confirm payables"}</span>
-              <span className="hidden min-w-0 truncate lg:inline">{confirmPayables.isPending ? "Confirming…" : "Confirm tailor payables"}</span>
             </Button>
           )}
           <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print order tag" onClick={() => printOrderTag(order, shop, tailorName(order.tailor))}>

@@ -128,22 +128,22 @@ export async function POST(request: Request) {
     // is what makes this compare correctly against ready_at/completed_at, which are UTC
     // timestamps. periodEnd's upper bound is inclusive through the end of that IST calendar
     // day. There's deliberately no lower bound: piece_rate_paid_at IS NULL is what scopes this
-    // to "not yet paid" — a payable confirmed late (after its own period's run already
-    // happened) still surfaces in the next run instead of being lost, and nothing already
-    // marked paid can ever be summed again, however the chosen period overlaps a prior run.
+    // to "not yet paid" — a payable that reached ready/completed late (after its own period's
+    // run already happened) still surfaces in the next run instead of being lost, and nothing
+    // already marked paid can ever be summed again, however the chosen period overlaps a prior run.
     const periodEndOfDay = `${periodEnd}T23:59:59.999+05:30`;
-    const [{ data: allAttRows }, { data: allAdvanceRows }, { data: confirmedOrderRows }, { data: confirmedWoRows }] = await Promise.all([
+    const [{ data: allAttRows }, { data: allAdvanceRows }, { data: unpaidOrderRows }, { data: unpaidWoRows }] = await Promise.all([
       db.from("employee_attendance").select("*").in("employee_id", employeeIds).gte("date", periodStart).lte("date", periodEnd),
       db.from("employee_advances").select("*").in("employee_id", employeeIds).is("payslip_id", null).lte("date", periodEnd).order("date", { ascending: true }),
       hasPieceRateEmployees
-        ? db.from("orders").select("id, garments").not("payables_confirmed_at", "is", null).is("piece_rate_paid_at", null).lte("ready_at", periodEndOfDay)
+        ? db.from("orders").select("id, garments").is("piece_rate_paid_at", null).lte("ready_at", periodEndOfDay)
         : Promise.resolve({ data: [] as { id: string; garments: unknown }[] }),
       hasPieceRateEmployees
-        ? db.from("work_orders").select("id, tailor, labor_cost").not("labor_payable_confirmed_at", "is", null).is("piece_rate_paid_at", null).lte("completed_at", periodEndOfDay)
+        ? db.from("work_orders").select("id, tailor, labor_cost").is("piece_rate_paid_at", null).lte("completed_at", periodEndOfDay)
         : Promise.resolve({ data: [] as { id: string; tailor: string; labor_cost: number | null }[] }),
     ]);
-    const confirmedOrders = (confirmedOrderRows || []) as (Pick<Order, "garments"> & { id: string })[];
-    const confirmedWorkOrders = (confirmedWoRows || []).map((w) => ({ id: w.id, tailor: w.tailor, laborCost: w.labor_cost })) as (Pick<
+    const unpaidOrders = (unpaidOrderRows || []) as (Pick<Order, "garments"> & { id: string })[];
+    const unpaidWorkOrders = (unpaidWoRows || []).map((w) => ({ id: w.id, tailor: w.tailor, laborCost: w.labor_cost })) as (Pick<
       WorkOrder,
       "tailor" | "laborCost"
     > & { id: string })[];
@@ -190,7 +190,7 @@ export async function POST(request: Request) {
 
       // Piece-rate pay is additive to salary, not a replacement — a hybrid tailor's own
       // salaryRate can be ₹0 (pure piece-rate) or nonzero (base + piece-rate on top).
-      const piecePay = employee.pieceRateEligible ? computePieceRatePay(employee.id, confirmedOrders, confirmedWorkOrders) : 0;
+      const piecePay = employee.pieceRateEligible ? computePieceRatePay(employee.id, unpaidOrders, unpaidWorkOrders) : 0;
 
       // C-3: Only link advances that fit within the gross pay + overtime + piece-rate budget.
       // Excess advances roll forward to the next payroll run instead of
@@ -253,10 +253,10 @@ export async function POST(request: Request) {
     // marked absent tailors' earnings as paid; because every future run filters on
     // piece_rate_paid_at IS NULL, that money became unrecoverable and unpayable.
     const paidEmployeeIds = new Set(employees.filter((e) => e.pieceRateEligible).map((e) => e.id));
-    const paidOrderIds = confirmedOrders
+    const paidOrderIds = unpaidOrders
       .filter((o) => (o.garments || []).some((g) => g.tailor && paidEmployeeIds.has(g.tailor) && (g.payableAmount || 0) > 0))
       .map((o) => o.id);
-    const paidWoIds = confirmedWorkOrders.filter((w) => w.tailor && paidEmployeeIds.has(w.tailor)).map((w) => w.id);
+    const paidWoIds = unpaidWorkOrders.filter((w) => w.tailor && paidEmployeeIds.has(w.tailor)).map((w) => w.id);
     const nowIso = new Date().toISOString();
     if (paidOrderIds.length > 0) {
       await db.from("orders").update({ piece_rate_paid_at: nowIso }).in("id", paidOrderIds);

@@ -1,12 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { getPieceRateAdvanceCap, isSelfConfirmedPayable } from "@/lib/piece-rate";
-import type { Garment } from "@/lib/types";
+import { getPieceRateAdvanceCap } from "@/lib/piece-rate";
 
 /**
- * Regression test for a real, confirmed-live bug: getPieceRateAdvanceCap always computed ₹0
- * for every piece-rate tailor's advance cap, no matter how much they'd actually confirmed and
- * were owed. Traced to a live case — an employee with a genuinely confirmed, unpaid ₹300
- * garment and zero advances drawn against it still showed a ₹0 cap.
+ * Regression test for a real, live bug: getPieceRateAdvanceCap always computed ₹0 for every
+ * piece-rate tailor's advance cap, no matter how much they were actually owed. Traced to a live
+ * case — an employee with a genuinely unpaid ₹300 garment and zero advances drawn against it
+ * still showed a ₹0 cap.
  *
  * Root cause: `.contains("garments", [{ tailor: employeeId }])` — supabase-js's .contains()
  * branches on typeof value, and an ARRAY value (which this is) hits the native-Postgres-array
@@ -65,7 +64,7 @@ function fakeSupabase(seededOrder: { garments: unknown } | null, employeeId: str
 describe("getPieceRateAdvanceCap", () => {
   const employeeId = "f868385c-3118-4227-9454-dfa4ea9a9aeb";
 
-  it("counts a confirmed garment's payableAmount toward the cap (the live case this was reported against)", async () => {
+  it("counts an unpaid garment's payableAmount toward the cap (the live case this was reported against)", async () => {
     const seededOrder = { garments: [{ tailor: employeeId, payableAmount: 300 }] };
     const cap = await getPieceRateAdvanceCap(fakeSupabase(seededOrder, employeeId) as never, employeeId);
     expect(cap).toBe(300);
@@ -83,33 +82,11 @@ describe("getPieceRateAdvanceCap", () => {
       then: (resolve: (v: unknown) => void) => resolve({ data: [], error: null }),
     };
     const broken = { from: (table: string) => (table === "orders" ? brokenChain : fakeSupabase(null, employeeId).from(table)) };
-    await expect(getPieceRateAdvanceCap(broken as never, employeeId)).rejects.toThrow(/confirmed orders/i);
+    await expect(getPieceRateAdvanceCap(broken as never, employeeId)).rejects.toThrow(/unpaid orders/i);
   });
 
-  it("returns ₹0, not an error, when there's genuinely no confirmed order for this employee", async () => {
+  it("returns ₹0, not an error, when there's genuinely no unpaid order for this employee", async () => {
     const cap = await getPieceRateAdvanceCap(fakeSupabase(null, employeeId) as never, employeeId);
     expect(cap).toBe(0);
-  });
-});
-
-describe("isSelfConfirmedPayable", () => {
-  const tailorId = "f868385c-3118-4227-9454-dfa4ea9a9aeb";
-  const garment = (overrides: Partial<Garment> = {}): Garment => ({ type: "Simple Suit", ...overrides });
-
-  it("is false when nobody's logged in as a linked employee (most admin/manager accounts)", () => {
-    expect(isSelfConfirmedPayable(null, { tailor: tailorId, garments: [garment({ tailor: tailorId })] })).toBe(false);
-    expect(isSelfConfirmedPayable(undefined, { tailor: tailorId, garments: [] })).toBe(false);
-  });
-
-  it("is true when the actor is the order-level tailor", () => {
-    expect(isSelfConfirmedPayable(tailorId, { tailor: tailorId, garments: [] })).toBe(true);
-  });
-
-  it("is true when the actor matches a garment's own tailor, even if the order-level tailor differs", () => {
-    expect(isSelfConfirmedPayable(tailorId, { tailor: "someone-else", garments: [garment({ tailor: tailorId })] })).toBe(true);
-  });
-
-  it("is false when the actor matches neither the order nor any garment", () => {
-    expect(isSelfConfirmedPayable(tailorId, { tailor: "someone-else", garments: [garment({ tailor: "another-one" })] })).toBe(false);
   });
 });

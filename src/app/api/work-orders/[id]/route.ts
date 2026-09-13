@@ -80,18 +80,14 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const db = createServiceClient();
   if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
 
-  const { data: row } = await db.from("work_orders").select("wo_number, status, labor_payable_confirmed_at, piece_rate_paid_at").eq("id", id).maybeSingle();
+  const { data: row } = await db.from("work_orders").select("wo_number, status, piece_rate_paid_at").eq("id", id).maybeSingle();
   if (!row) return NextResponse.json({ error: "Work order not found" }, { status: 404 });
 
-  // Confirming the labor payable freezes it for payroll to pick up; deleting the work order
-  // after that had no guard at all, silently destroying the only record that the payable was
-  // confirmed/paid — a real gap once a payroll run has already paid the tailor for it. Mirrors
-  // the identical guard added to orders/[id]/route.ts.
+  // Once a payroll run has paid out this work order's labor payable, deleting the work order
+  // must not silently destroy the only record that it was paid. Mirrors the identical guard
+  // added to orders/[id]/route.ts.
   if (row.piece_rate_paid_at) {
     return NextResponse.json({ error: "This work order's labor payable has already been paid out in a payroll run and cannot be deleted." }, { status: 409 });
-  }
-  if (row.labor_payable_confirmed_at) {
-    return NextResponse.json({ error: "This work order's labor payable has been confirmed for payroll and cannot be deleted." }, { status: 409 });
   }
 
   await db.from("inventory_ledger").delete().eq("ref_id", id).in("ref_type", ["work_order_consume", "work_order_produce"]);

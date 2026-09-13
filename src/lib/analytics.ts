@@ -1,5 +1,5 @@
 // Ported from Stitching_Manager_Pro_v16.html ~lines 2373-2524 (Analytics helpers).
-import { daysLeft, loyaltyDiscountOf, couponDiscountOf, loyaltyTier, DEFAULT_LOYALTY_CONFIG, type LoyaltyConfig, type TailorRateCard } from "@/lib/business-rules";
+import { daysLeft, loyaltyDiscountOf, couponDiscountOf, loyaltyTier, DEFAULT_LOYALTY_CONFIG, type LoyaltyConfig } from "@/lib/business-rules";
 import { isOrderOutstanding } from "@/lib/balances";
 import { istDateString } from "@/lib/ist-date";
 import { isWithinDateRange, type DateRange } from "@/lib/report-date-range";
@@ -700,11 +700,12 @@ export interface OrderProfitabilityRow extends Order {
   tailorCostIsEstimate: boolean;
 }
 
-/** Profit = customer price − tailor cost (real once the order reaches ready, estimated from
- *  the tailor rate card before that) − stitching expenses − manually-entered fabric/other
- *  cost. Same computeOrderProfit() used by the New Order form, Order Details, and the
- *  Stitching Orders list — see src/lib/order-profit.ts. Only as accurate as whoever fills in
- *  fabric/other cost and the tailor rate card. */
+/** Profit = customer price − tailor cost (the sum of each garment's payableAmount, whatever
+ *  was entered on the order — real once a payroll run pays it out, an editable working figure
+ *  before that) − stitching expenses − manually-entered fabric/other cost. Same
+ *  computeOrderProfit() used by the New Order form, Order Details, and the Stitching Orders
+ *  list — see src/lib/order-profit.ts. Only as accurate as whoever fills in fabric/other cost
+ *  and each garment's tailor payable. */
 export interface ReorderCandidateRow {
   name: string;
   mobile: string;
@@ -765,12 +766,11 @@ export function getTopReferrers(coupons: ReferralCoupon[]): TopReferrerRow[] {
 
 export function getOrderProfitability(
   orders: Order[],
-  rates: TailorRateCard,
   expensesByOrderId: Map<string, Pick<OrderExpense, "amount">[]>
 ): OrderProfitabilityRow[] {
   return orders
     .map((o) => {
-      const breakdown = computeOrderProfit(o, rates, expensesByOrderId.get(o.id) || []);
+      const breakdown = computeOrderProfit(o, expensesByOrderId.get(o.id) || []);
       const cost = breakdown.tailorCost + breakdown.stitchingExpenses + breakdown.fabricCost + breakdown.otherCost;
       return { ...o, cost, profit: breakdown.profit, marginPct: breakdown.marginPct ?? 0, tailorCostIsEstimate: breakdown.tailorCostIsEstimate };
     })

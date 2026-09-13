@@ -1,36 +1,22 @@
-// Tailor piece-rate pay — sums confirmed, snapshotted payables from stitching orders
-// (garments[].payableAmount) and manufacturing work orders (laborCost) into a figure that
-// plugs into payroll alongside an employee's normal attendance-based gross pay. "Confirmed"
-// (payablesConfirmedAt / laborPayableConfirmedAt set) is the enforcement point — a tailor can
-// move their own order to "ready" or complete their own work order, but that alone never
-// creates payable pay; a payroll manager has to confirm it first. See the confirm-payables /
-// confirm-payable routes.
+// Tailor piece-rate pay — sums live payables from stitching orders (garments[].payableAmount)
+// and manufacturing work orders (laborCost) into a figure that plugs into payroll alongside an
+// employee's normal attendance-based gross pay. There is no separate manager-confirmation step —
+// a garment/work-order payable counts as soon as an order is Received and a tailor is assigned
+// (the shop pays the tailor regardless of whether the customer has paid yet), and stays live
+// (tracking the current tailor rate card) until it's actually paid out by a payroll run, which
+// stamps piece_rate_paid_at — see unfreeze_tailor_payables_at_ready.sql /
+// remove_tailor_payable_confirm_step.sql.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import type { Order, WorkOrder } from "@/lib/types";
 
-/**
- * True when the person confirming an order's piece-rate payables is the same tailor who's
- * actually getting paid — either the order-level tailor or any garment's own tailor. Auto-
- * confirm-on-ready (advance-stage / set-stage) still fires either way, since gating it would
- * bring back the exact friction it exists to remove; this is what a manager reviews afterward
- * instead of what blocks the confirmation beforehand. `actorEmployeeId` is null for any login
- * with no linked employee record (most admin/manager accounts), which never counts as self.
- */
-export function isSelfConfirmedPayable(actorEmployeeId: string | null | undefined, order: Pick<Order, "tailor" | "garments">): boolean {
-  if (!actorEmployeeId) return false;
-  if (order.tailor === actorEmployeeId) return true;
-  return order.garments.some((g) => g.tailor === actorEmployeeId);
-}
-
-/** Sums payables for garments assigned to this employee, confirmed, in orders whose readyAt
- *  falls within [periodStart, periodEnd]. `orders` should already be pre-filtered to confirmed
- *  rows in the period by the caller (matches the batch-fetch-once pattern the payroll run
- *  route already uses for attendance/advances). */
-export function computeOrderPieceRatePay(employeeId: string, confirmedOrders: Pick<Order, "garments">[]): number {
+/** Sums payables for garments assigned to this employee, not yet paid out by a payroll run.
+ *  `orders` should already be pre-filtered by the caller (matches the batch-fetch-once pattern
+ *  the payroll run route already uses for attendance/advances). */
+export function computeOrderPieceRatePay(employeeId: string, unpaidOrders: Pick<Order, "garments">[]): number {
   let total = 0;
-  for (const order of confirmedOrders) {
+  for (const order of unpaidOrders) {
     for (const g of order.garments) {
       if (g.tailor === employeeId && g.payableAmount) total += g.payableAmount;
     }
@@ -38,38 +24,38 @@ export function computeOrderPieceRatePay(employeeId: string, confirmedOrders: Pi
   return Math.round(total * 100) / 100;
 }
 
-/** Sums laborCost for confirmed work orders assigned to this employee. Same
+/** Sums laborCost for not-yet-paid work orders assigned to this employee. Same
  *  already-filtered-by-caller convention as computeOrderPieceRatePay. */
-export function computeWorkOrderPieceRatePay(employeeId: string, confirmedWorkOrders: Pick<WorkOrder, "tailor" | "laborCost">[]): number {
-  const total = confirmedWorkOrders.filter((w) => w.tailor === employeeId).reduce((s, w) => s + (w.laborCost || 0), 0);
+export function computeWorkOrderPieceRatePay(employeeId: string, unpaidWorkOrders: Pick<WorkOrder, "tailor" | "laborCost">[]): number {
+  const total = unpaidWorkOrders.filter((w) => w.tailor === employeeId).reduce((s, w) => s + (w.laborCost || 0), 0);
   return Math.round(total * 100) / 100;
 }
 
 /** The figure that plugs into payroll for one employee, one period. */
 export function computePieceRatePay(
   employeeId: string,
-  confirmedOrders: Pick<Order, "garments">[],
-  confirmedWorkOrders: Pick<WorkOrder, "tailor" | "laborCost">[]
+  unpaidOrders: Pick<Order, "garments">[],
+  unpaidWorkOrders: Pick<WorkOrder, "tailor" | "laborCost">[]
 ): number {
-  return Math.round((computeOrderPieceRatePay(employeeId, confirmedOrders) + computeWorkOrderPieceRatePay(employeeId, confirmedWorkOrders)) * 100) / 100;
+  return Math.round((computeOrderPieceRatePay(employeeId, unpaidOrders) + computeWorkOrderPieceRatePay(employeeId, unpaidWorkOrders)) * 100) / 100;
 }
 
 /**
  * How much more an employee can draw as an advance against piece-rate they've earned but not
- * yet been paid out for. Defined as: confirmed order/work-order payables not yet paid out by a
- * payroll run (piece_rate_paid_at IS NULL — the same marker the payroll run itself sets, see
+ * yet been paid out for. Defined as: order/work-order payables not yet paid out by a payroll run
+ * (piece_rate_paid_at IS NULL — the same marker the payroll run itself sets, see
  * add_piece_rate_p0_fixes.sql), minus advances already drawn and not yet linked to a payslip.
- * Scoping to piece_rate_paid_at IS NULL (rather than "everything ever confirmed") both keeps
- * this correct — nothing already paid out counts twice — and keeps the orders fetch bounded to
- * the genuinely-outstanding backlog instead of the company's entire confirmed-order history.
+ * Scoping to piece_rate_paid_at IS NULL both keeps this correct — nothing already paid out counts
+ * twice — and keeps the orders fetch bounded to the genuinely-outstanding backlog instead of the
+ * company's entire order history.
  */
 export async function getPieceRateAdvanceCap(supabase: SupabaseClient<Database>, employeeId: string): Promise<number> {
   const [ordersRes, workOrdersRes, advancesRes] = await Promise.all([
     // Scoped server-side to garments actually assigned to this employee via a JSONB
-    // containment filter — previously fetched every confirmed-unpaid order company-wide
-    // (full garments payload, no employee filter at all) and did the per-employee match in JS.
-    // Harmless at today's order volume but pure waste that scales with total company order
-    // count instead of this one employee's, on every single advance request.
+    // containment filter — previously fetched every unpaid order company-wide (full garments
+    // payload, no employee filter at all) and did the per-employee match in JS. Harmless at
+    // today's order volume but pure waste that scales with total company order count instead of
+    // this one employee's, on every single advance request.
     //
     // .filter(..., "cs", ...) rather than .contains(): supabase-js's .contains() branches on
     // typeof value, and for an ARRAY value (which [{ tailor: employeeId }] is) it serializes
@@ -84,14 +70,12 @@ export async function getPieceRateAdvanceCap(supabase: SupabaseClient<Database>,
     supabase
       .from("orders")
       .select("garments")
-      .not("payables_confirmed_at", "is", null)
       .is("piece_rate_paid_at", null)
       .filter("garments", "cs", JSON.stringify([{ tailor: employeeId }])),
     supabase
       .from("work_orders")
       .select("labor_cost")
       .eq("tailor", employeeId)
-      .not("labor_payable_confirmed_at", "is", null)
       .is("piece_rate_paid_at", null),
     supabase.from("employee_advances").select("amount").eq("employee_id", employeeId).is("payslip_id", null),
   ]);
@@ -99,8 +83,8 @@ export async function getPieceRateAdvanceCap(supabase: SupabaseClient<Database>,
   // A failed query here must not be swallowed into "this employee earned/owes nothing" — that's
   // exactly the failure mode the broken .contains() call above produced for as long as it went
   // unchecked: a silent ₹0 cap that looked like a legitimate business rule instead of a bug.
-  if (ordersRes.error) throw new Error(`Could not load confirmed orders for the piece-rate cap: ${ordersRes.error.message}`);
-  if (workOrdersRes.error) throw new Error(`Could not load confirmed work orders for the piece-rate cap: ${workOrdersRes.error.message}`);
+  if (ordersRes.error) throw new Error(`Could not load unpaid orders for the piece-rate cap: ${ordersRes.error.message}`);
+  if (workOrdersRes.error) throw new Error(`Could not load unpaid work orders for the piece-rate cap: ${workOrdersRes.error.message}`);
   if (advancesRes.error) throw new Error(`Could not load existing advances for the piece-rate cap: ${advancesRes.error.message}`);
 
   const orders = (ordersRes.data || []) as { garments: unknown }[];

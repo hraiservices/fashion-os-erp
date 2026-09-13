@@ -30,8 +30,12 @@ const garmentSchema = z.object({
     .optional(),
   /** Employee id of whoever will stitch this garment — drives tailor piece-rate pay. */
   tailor: z.string().optional(),
-  /** Stable id used to reattach a frozen payableAmount to the right garment across edits. */
+  /** Stable id carrying a garment's identity across edits (e.g. for the production checklist). */
   lineId: z.string().optional(),
+  /** What the tailor is paid for this garment — a plain figure entered on the order (see the
+   *  order form's Tailor Payable field), not server-computed. Stripped below for the tailor
+   *  role regardless of what's sent. */
+  payableAmount: z.number().min(0).optional(),
 });
 
 const bodySchema = z.object({
@@ -116,6 +120,13 @@ export async function POST(request: Request) {
     fd.fabricCost = 0;
     fd.otherCost = 0;
     fd.expenses = [];
+  }
+
+  // Tailor payable is compensation data — a tailor role must never set their own pay, even by
+  // crafting a request directly (the field is hidden in the order form's UI for that role, but
+  // that alone is not enforcement). Everyone else (sales/manager/admin) may set it.
+  if (user.role === "tailor") {
+    fd.garments = fd.garments.map((g) => ({ ...g, payableAmount: undefined }));
   }
 
   // Sequential numbering (Settings > Document Numbering) — falls back to the random SOR-xxxxx

@@ -67,16 +67,19 @@ export interface Garment {
   lining?: "s" | "h" | "f" | string;
   no?: number;
   amount?: number;
-  /** Stable per-garment id, generated client-side once and carried through every edit —
-   *  what preserve_garment_payables() matches on to keep a frozen payableAmount attached to
-   *  the correct garment even if lines are reordered or one is deleted. Absent on garments
-   *  created before this existed (the SQL falls back to positional matching for those). */
+  /** Stable per-garment id, generated client-side once and carried through every edit — lets
+   *  the production checklist (and a tailor-role edit's payable-preserving guard, see
+   *  /api/orders/[id] PATCH) match this garment across reorders/deletes. Absent on garments
+   *  created before this existed (callers fall back to positional matching for those). */
   lineId?: string;
   /** Employee id of whoever stitches this garment — drives tailor piece-rate pay. */
   tailor?: string;
-  /** Snapshotted from the tailor rate card the moment this garment's order first reaches
-   *  "ready", then frozen forever — never recalculated, even if the rate card or the order
-   *  changes afterward. Undefined until snapshotted (no tailor assigned, or not ready yet). */
+  /** What the tailor is paid for this garment — a plain figure entered on the order (the order
+   *  form's Tailor Payable field), pre-filled from the Tailor Payable Rate card as a starting
+   *  suggestion, then freely editable, same as `amount` above. No server-side recomputation —
+   *  whatever is stored is the value, until a payroll run pays it out (Order.pieceRatePaidAt /
+   *  WorkOrder.pieceRatePaidAt), which is the only remaining freeze point. See
+   *  tailor_payable_manual_entry.sql. Undefined when no tailor is assigned. */
   payableAmount?: number;
   [key: string]: Json | undefined;
 }
@@ -116,8 +119,9 @@ export interface Order {
   reworkFlaggedAt: string | null;
   /** Set once, the first time the order reaches "ready" — powers the ready-but-uncollected aging report. Null for orders that haven't reached ready yet, or that reached it before this column existed. */
   readyAt: string | null;
-  /** Set by a payroll manager to confirm this order's snapshotted tailor payables as real —
-   *  see /api/orders/[id]/confirm-payables. Only confirmed payables count toward payroll. */
+  /** Retired — no longer set (there is no manager-confirmation step; a garment's payable counts
+   *  toward payroll from the moment it exists, see remove_tailor_payable_confirm_step.sql).
+   *  Column kept, unread, as a historical record of what used to be confirmed under the old flow. */
   payablesConfirmedAt: string | null;
   payablesConfirmedBy: string | null;
   /** Stamped by a payroll run once this order's payables have actually been paid out on a
@@ -642,9 +646,9 @@ export interface WorkOrder {
   costPerUnit: number | null;
   notes: string;
   completedAt: string | null;
-  /** Set once a payroll manager confirms this WO's laborCost as a real tailor payable — see
-   *  the split-gate note on the /complete and /confirm-payable routes. Null until confirmed,
-   *  even after the WO itself is completed. */
+  /** Retired — no longer set (there is no manager-confirmation step; a completed WO's laborCost
+   *  counts toward payroll immediately, see remove_tailor_payable_confirm_step.sql). Column
+   *  kept, unread, as a historical record of what used to be confirmed under the old flow. */
   laborPayableConfirmedAt: string | null;
   laborPayableConfirmedBy: string | null;
   /** Stamped by a payroll run once this WO's labour payable has actually been paid out on a

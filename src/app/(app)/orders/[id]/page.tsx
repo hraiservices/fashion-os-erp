@@ -309,12 +309,18 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <div className="mt-3 rounded-lg border border-red-500/30 bg-red-50 p-3 text-sm dark:bg-red-950/40">
               <p className="font-medium text-red-700 dark:text-red-400">Flagged for rework</p>
               <p className="mt-0.5 text-xs text-red-700/80 dark:text-red-400/80">{order.reworkReason}</p>
+              {order.reworkCount > 1 && (
+                <p className="mt-0.5 text-xs text-red-700/80 dark:text-red-400/80">Sent back {order.reworkCount} times total</p>
+              )}
               {user?.perms.changeStage && (
                 <Button variant="outline" size="sm" className="mt-2" disabled={setRework.isPending} onClick={clearRework}>
                   Clear rework flag
                 </Button>
               )}
             </div>
+          )}
+          {!order.reworkFlag && order.reworkCount > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">Previously sent back for rework {order.reworkCount} {order.reworkCount === 1 ? "time" : "times"}.</p>
           )}
 
           {/* Payment progress — the number the shop cares about most */}

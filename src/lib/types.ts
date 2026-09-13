@@ -117,6 +117,10 @@ export interface Order {
   reworkReason: string;
   reworkFlaggedBy: string | null;
   reworkFlaggedAt: string | null;
+  /** Lifetime count of times this order has been flagged for rework — unlike the fields above
+   *  (which describe only the current/most-recent flag and reset on clear), this never resets,
+   *  so it's the one place "how many times has this been sent back, total" survives. */
+  reworkCount: number;
   /** Set once, the first time the order reaches "ready" — powers the ready-but-uncollected aging report. Null for orders that haven't reached ready yet, or that reached it before this column existed. */
   readyAt: string | null;
   /** Retired — no longer set (there is no manager-confirmation step; a garment's payable counts
@@ -194,6 +198,7 @@ export function mapOrderRow(r: OrderRowForMapping): Order {
     reworkReason: r.rework_reason || "",
     reworkFlaggedBy: r.rework_flagged_by ?? null,
     reworkFlaggedAt: r.rework_flagged_at ?? null,
+    reworkCount: r.rework_count || 0,
     readyAt: r.ready_at ?? null,
     payablesConfirmedAt: r.payables_confirmed_at ?? null,
     payablesConfirmedBy: r.payables_confirmed_by ?? null,

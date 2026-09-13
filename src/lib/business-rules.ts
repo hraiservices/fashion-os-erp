@@ -9,7 +9,7 @@ import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
  *  value is fine, this just drives the order-form dropdown and the booking-source report). */
 export const BOOKING_SOURCES = ["Walk-in", "Referral", "Repeat Customer", "Instagram", "Other"] as const;
 
-export const STAGES = ["received", "cutting", "stitching", "ready", "delivered", "payment"] as const;
+export const STAGES = ["received", "cutting", "stitching", "finishing", "ready", "delivered", "payment"] as const;
 export type Stage = (typeof STAGES)[number];
 
 /** getNext(), line ~2196. Returns null once at the last stage. */
@@ -137,6 +137,7 @@ export const STAGE_META: Record<Stage, StageMeta> = {
   received: { id: "received", label: "Received", emoji: "📥", color: "#18181B", bg: "#FAFAFA", border: "#E4E4E7" },
   cutting: { id: "cutting", label: "Cutting", emoji: "✂️", color: "#D97706", bg: "#FFFBEB", border: "#FDE68A" },
   stitching: { id: "stitching", label: "Stitching", emoji: "🧵", color: "#374151", bg: "#FAFAFA", border: "#E4E4E7" },
+  finishing: { id: "finishing", label: "Finishing", emoji: "🧷", color: "#7C3AED", bg: "#F5F3FF", border: "#DDD6FE" },
   ready: { id: "ready", label: "Ready", emoji: "✅", color: "#059669", bg: "#ECFDF5", border: "#A7F3D0" },
   delivered: { id: "delivered", label: "Delivered", emoji: "🚚", color: "#0891B2", bg: "#ECFEFF", border: "#A5F3FC" },
   payment: { id: "payment", label: "Paid ✓", emoji: "💰", color: "#065F46", bg: "#D1FAE5", border: "#6EE7B7" },

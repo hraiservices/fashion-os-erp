@@ -61,7 +61,16 @@ export function computeGrossPay(employee: Pick<Employee, "salaryType" | "salaryR
     // those 4 days, because a 0 "unpaid day equivalent" times ANY per-day rate is still 0, so
     // gross = salaryRate - 0 regardless of how short the period was.
     const perDayRate = salaryRate / daysInMonthOf(periodStart);
-    const unpaidDayEquivalent = absentDays + leaveDays + 0.5 * halfDays;
+    // A day with NO attendance record at all (nobody marked present/absent/half/leave for it)
+    // must count as unpaid too, not just an explicit absence — otherwise a gap in attendance
+    // marking (rather than an all-zero period, which the payroll run route already catches
+    // separately) silently pays the employee in full for days nobody ever recorded anything
+    // for. recordedDays can exceed totalDaysInPeriod if attendance rows exist outside the
+    // period's own bounds (shouldn't happen given the caller's own date-scoped query, but
+    // clamped at 0 regardless so it can never manufacture negative "missing" days).
+    const recordedDays = presentDays + absentDays + halfDays + leaveDays;
+    const missingDays = Math.max(0, totalDaysInPeriod - recordedDays);
+    const unpaidDayEquivalent = absentDays + leaveDays + 0.5 * halfDays + missingDays;
     const paidDays = Math.max(0, totalDaysInPeriod - unpaidDayEquivalent);
     return Math.round(perDayRate * paidDays * 100) / 100;
   }

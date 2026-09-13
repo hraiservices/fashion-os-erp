@@ -180,7 +180,9 @@ export async function POST(request: Request) {
       // attendance rows have hours_worked=null and overtime_hours=0, so they simply contribute
       // nothing here rather than needing separate handling.
       const totalHoursWorked = Math.round(attendance.reduce((s, a) => s + (a.hoursWorked || 0), 0) * 100) / 100;
-      const totalOvertimeHours = Math.round(attendance.reduce((s, a) => s + (a.overtimeHours || 0), 0) * 100) / 100;
+      // Overtime doesn't apply to piece-rate tailors — they're paid per garment/work-order, not
+      // per hour, so there's no hourly rate for an "extra hour" to be worth anything against.
+      const totalOvertimeHours = employee.pieceRateEligible ? 0 : Math.round(attendance.reduce((s, a) => s + (a.overtimeHours || 0), 0) * 100) / 100;
       const overtimePay = Math.round(totalOvertimeHours * attendanceSettings.otRatePerHour * 100) / 100;
 
       const advanceRows = advancesByEmployee.get(employee.id) || [];

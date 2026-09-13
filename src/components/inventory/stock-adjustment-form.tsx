@@ -59,7 +59,7 @@ export function StockAdjustmentForm() {
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Item type</Label>
+            <Label className="text-sm font-bold">Item type</Label>
             <Select
               value={itemType}
               onValueChange={(v) => {
@@ -78,7 +78,7 @@ export function StockAdjustmentForm() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Item</Label>
+            <Label className="text-sm font-bold">Item</Label>
             <Select value={itemId} onValueChange={(v) => v && setItemId(v)}>
               <SelectTrigger className="h-10 w-full">
                 <SelectValue placeholder="Select item…">{itemLabel}</SelectValue>
@@ -95,12 +95,12 @@ export function StockAdjustmentForm() {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Quantity change (use negative to reduce stock)</Label>
+          <Label className="text-sm font-bold">Quantity change (use negative to reduce stock)</Label>
           <Input type="number" inputMode="decimal" step="0.001" placeholder="e.g. 5 or -2.5" value={movement} onChange={(e) => setMovement(e.target.value)} />
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Reason *</Label>
+          <Label className="text-sm font-bold">Reason *</Label>
           <Textarea placeholder="e.g. Physical stock count correction" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
         </div>
 

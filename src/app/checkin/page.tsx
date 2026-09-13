@@ -302,11 +302,11 @@ export default function CheckInPage() {
         {step === "login" && (
           <form onSubmit={handleLogin} className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Mobile number</Label>
+              <Label className="text-sm font-bold">Mobile number</Label>
               <Input type="tel" inputMode="numeric" maxLength={10} placeholder="10-digit number" className="h-11" value={mobile} onChange={(e) => setMobile(e.target.value)} required />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">PIN</Label>
+              <Label className="text-sm font-bold">PIN</Label>
               <Input type="password" inputMode="numeric" maxLength={6} placeholder="4-6 digit PIN" className="h-11" value={pin} onChange={(e) => setPin(e.target.value)} required />
             </div>
             {loginError && <p className="text-xs text-destructive">{loginError}</p>}
@@ -445,7 +445,7 @@ export default function CheckInPage() {
                     ) : (
                       <div className="space-y-2.5 rounded-lg border p-3">
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-medium">Leave type</Label>
+                          <Label className="text-sm font-bold">Leave type</Label>
                           <Select value={leaveTypeId} onValueChange={(v) => v && setLeaveTypeId(v)}>
                             <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
                             <SelectContent>
@@ -455,11 +455,11 @@ export default function CheckInPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1.5">
-                            <Label className="text-xs font-medium">From</Label>
+                            <Label className="text-sm font-bold">From</Label>
                             <DatePicker value={fromDate} onChange={setFromDate} />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-xs font-medium">To</Label>
+                            <Label className="text-sm font-bold">To</Label>
                             <DatePicker value={toDate} onChange={setToDate} />
                           </div>
                         </div>
@@ -470,7 +470,7 @@ export default function CheckInPage() {
                           </label>
                         )}
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-medium">Reason (optional)</Label>
+                          <Label className="text-sm font-bold">Reason (optional)</Label>
                           <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} />
                         </div>
                         {leaveTypeId && (

@@ -84,12 +84,12 @@ export function ProductStockAdjustmentDialog({ product, open, onOpenChange }: { 
         />
 
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Quantity</Label>
+          <Label className="text-sm font-bold">Quantity</Label>
           <NumberInput min={0} step="1" value={qty} onChange={setQty} className="h-10" />
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Reason *</Label>
+          <Label className="text-sm font-bold">Reason *</Label>
           <Textarea rows={2} placeholder="e.g. New purchase received, damaged stock removed, physical count correction…" value={note} onChange={(e) => setNote(e.target.value)} />
         </div>
 

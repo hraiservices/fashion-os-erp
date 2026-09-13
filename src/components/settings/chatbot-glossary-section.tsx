@@ -97,11 +97,11 @@ export function ChatbotGlossarySection() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Term or phrase</Label>
+              <Label className="text-sm font-bold">Term or phrase</Label>
               <Input placeholder="e.g. VIP customer" value={term} onChange={(e) => setTerm(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">What it actually means</Label>
+              <Label className="text-sm font-bold">What it actually means</Label>
               <Textarea
                 rows={3}
                 placeholder="e.g. A customer with lifetime spend over ₹50,000 — there's no column for this, so treat it as SUM(total) per customer_mobile > 50000."

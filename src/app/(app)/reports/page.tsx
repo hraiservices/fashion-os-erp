@@ -215,7 +215,7 @@ export default function ReportsIndexPage() {
         <div className="overflow-hidden rounded-xl border">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="border-b bg-muted/40 text-left text-sm font-bold uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="w-10 px-4 py-2.5" />
                   <th className="px-4 py-2.5 font-medium">Report Name</th>

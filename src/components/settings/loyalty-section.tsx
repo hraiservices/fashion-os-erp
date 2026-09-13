@@ -90,15 +90,15 @@ export function LoyaltySection() {
               <div className="text-xs text-amber-700">0 pts onwards</div>
             </div>
             <div className="space-y-1 rounded-md bg-slate-50 p-3">
-              <Label className="text-xs">Silver from</Label>
+              <Label className="text-sm font-bold">Silver from</Label>
               <NumberInput min={1} {...field("tierSilver")} />
             </div>
             <div className="space-y-1 rounded-md bg-amber-50 p-3">
-              <Label className="text-xs">Gold from</Label>
+              <Label className="text-sm font-bold">Gold from</Label>
               <NumberInput min={1} {...field("tierGold")} />
             </div>
             <div className="col-span-3 space-y-1 rounded-md bg-zinc-100 p-3">
-              <Label className="text-xs">Platinum from</Label>
+              <Label className="text-sm font-bold">Platinum from</Label>
               <NumberInput min={1} className="max-w-40" {...field("tierPlatinum")} />
             </div>
           </CardContent>

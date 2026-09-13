@@ -75,12 +75,12 @@ export function RecordVendorPaymentDialog({
 
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Amount (₹)</Label>
+            <Label className="text-sm font-bold">Amount (₹)</Label>
             <Input type="number" inputMode="decimal" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Method</Label>
+              <Label className="text-sm font-bold">Method</Label>
               <Select value={method} onValueChange={(v) => v && setMethod(v)}>
                 <SelectTrigger className="h-10 w-full">
                   <SelectValue />
@@ -95,12 +95,12 @@ export function RecordVendorPaymentDialog({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Date</Label>
+              <Label className="text-sm font-bold">Date</Label>
               <DatePicker value={date} onChange={setDate} />
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Note</Label>
+            <Label className="text-sm font-bold">Note</Label>
             <Textarea rows={2} placeholder="Optional…" value={note} onChange={(e) => setNote(e.target.value)} />
           </div>
         </div>

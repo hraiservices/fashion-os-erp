@@ -146,7 +146,7 @@ export function TailorRatesSection() {
                   <div className="col-span-2 font-medium sm:col-span-4">{type}</div>
                   {RATE_COLUMNS.map((c) => (
                     <div key={c.key} className="space-y-1 sm:col-span-2">
-                      <Label className="text-[10px] text-muted-foreground sm:hidden">{c.label}</Label>
+                      <Label className="text-xs font-bold text-muted-foreground sm:hidden">{c.label}</Label>
                       <NumberInput min={0} value={row[c.key]} onChange={(v) => updateRate(type, c.key, v)} />
                     </div>
                   ))}

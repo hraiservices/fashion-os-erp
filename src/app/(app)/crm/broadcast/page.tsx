@@ -84,7 +84,7 @@ export default function BroadcastPage() {
       ) : (
         <div className="space-y-4 rounded-xl border bg-card p-5">
           <div className="space-y-2">
-            <Label className="text-xs font-medium">Segment (any customer with any of these tags)</Label>
+            <Label className="text-sm font-bold">Segment (any customer with any of these tags)</Label>
             <div className="flex flex-wrap gap-1.5">
               {allTags.map((tag) => (
                 <button
@@ -110,7 +110,7 @@ export default function BroadcastPage() {
           )}
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Message</Label>
+            <Label className="text-sm font-bold">Message</Label>
             <Textarea
               rows={4}
               value={message}

@@ -122,11 +122,11 @@ function LeaveTypesCard() {
           <div className="space-y-3 rounded-lg border p-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-1.5 sm:col-span-2">
-                <Label className="text-xs font-medium">Name</Label>
+                <Label className="text-sm font-bold">Name</Label>
                 <Input placeholder="e.g. Casual Leave" className="h-9" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Days per year</Label>
+                <Label className="text-sm font-bold">Days per year</Label>
                 <NumberInput min={0} step={0.5} className="h-9" value={draft.annualDays} onChange={(v) => setDraft({ ...draft, annualDays: v })} />
               </div>
             </div>
@@ -214,11 +214,11 @@ function HolidaysCard() {
 
         <div className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-end">
           <div className="flex-1 space-y-1.5">
-            <Label className="text-xs font-medium">Name</Label>
+            <Label className="text-sm font-bold">Name</Label>
             <Input placeholder="e.g. Diwali" className="h-9" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Date</Label>
+            <Label className="text-sm font-bold">Date</Label>
             <DatePicker value={date} onChange={setDate} />
           </div>
           <Button type="button" size="sm" className="gap-1.5" onClick={handleAdd} disabled={createHoliday.isPending}>

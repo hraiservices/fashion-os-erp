@@ -48,7 +48,7 @@ function AdjustBalanceForm({ employeeId, onDone }: { employeeId: string; onDone:
     <div className="space-y-3 rounded-lg border p-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Leave type</Label>
+          <Label className="text-sm font-bold">Leave type</Label>
           <Select value={leaveTypeId} onValueChange={(v) => v && setLeaveTypeId(v)}>
             <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
             <SelectContent>
@@ -57,12 +57,12 @@ function AdjustBalanceForm({ employeeId, onDone }: { employeeId: string; onDone:
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Days (+ to add, − to subtract)</Label>
+          <Label className="text-sm font-bold">Days (+ to add, − to subtract)</Label>
           <NumberInput step={0.5} className="h-9" value={days} onChange={setDays} />
         </div>
       </div>
       <div className="space-y-1.5">
-        <Label className="text-xs font-medium">Reason</Label>
+        <Label className="text-sm font-bold">Reason</Label>
         <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Why is this balance being adjusted?" />
       </div>
       <div className="flex justify-end gap-1.5">

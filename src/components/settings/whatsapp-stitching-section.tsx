@@ -55,7 +55,7 @@ export function WhatsAppStitchingSection() {
 
         {TYPES.map((type) => (
           <div key={type} className="space-y-1.5">
-            <Label className="text-xs font-medium">{STITCHING_WHATSAPP_LABELS[type]}</Label>
+            <Label className="text-sm font-bold">{STITCHING_WHATSAPP_LABELS[type]}</Label>
             <Textarea
               rows={4}
               className="font-mono text-xs"

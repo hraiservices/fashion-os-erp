@@ -73,7 +73,7 @@ export function ReportTable({ children }: { children: React.ReactNode }) {
 
 export function Th({ children, align = "left" }: { children?: React.ReactNode; align?: "left" | "right" }) {
   return (
-    <th className={`whitespace-nowrap px-3 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground ${align === "right" ? "text-right" : "text-left"}`}>
+    <th className={`whitespace-nowrap px-3 py-2.5 text-sm font-bold uppercase tracking-wide text-muted-foreground ${align === "right" ? "text-right" : "text-left"}`}>
       {children}
     </th>
   );

@@ -1221,7 +1221,7 @@ function OrderFormFields({
                     </span>
                   </AccordionTrigger>
                   <AccordionContent>
-              <p className="-mt-2 mb-4 text-xs text-muted-foreground">Powers the order-profitability report. Leave blank if unknown.</p>
+              <p className="mb-4 text-xs text-muted-foreground">Powers the order-profitability report. Leave blank if unknown.</p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FieldGroup label="Fabric cost">
                   <Controller

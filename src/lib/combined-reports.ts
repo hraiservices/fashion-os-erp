@@ -16,8 +16,13 @@ export interface CombinedMonthStat {
   purchaseCost: number;
   laborCost: number;
   expenseCost: number;
-  /** Stitching job costs: tailor piece-rate payables + fabric + other + per-order stitching
-   *  expense line items. Attributed to the order's own month so cost lands with its revenue. */
+  /** Stitching MATERIAL costs only — fabric + other + per-order stitching expense line items.
+   *  Deliberately excludes tailor payable: the shop pays tailors manually and logs it as an
+   *  Expense (Salaries category) instead of through payroll, so counting payableAmount here
+   *  too would double it up alongside that Expense entry. Per-order profit (order-profit.ts,
+   *  used by the order form/detail page/Orders list/Order Profitability report) still deducts
+   *  tailor cost from that specific order's margin — this exclusion is scoped to the
+   *  company-wide P&L only. Attributed to the order's own month so cost lands with its revenue. */
   stitchingCost: number;
   /** Salaries actually paid out (payslips marked paid), by the month they were paid. */
   payrollCost: number;
@@ -57,13 +62,12 @@ function computeBucket(
     .reduce((s, w) => s + (w.laborCost || 0), 0);
   const expenseCost = expenses.filter((e) => e.date?.startsWith(key)).reduce((s, e) => s + e.amount, 0);
 
-  // Every direct cost of fulfilling this bucket's stitching orders. Previously omitted
-  // entirely, so Net Profit counted the full order value as margin and overstated profit by
-  // the whole cost of actually making the garment. Mirrors computeOrderProfit's components
-  // (src/lib/order-profit.ts) so per-order and company-level profit agree.
+  // Material/incidental costs of fulfilling this bucket's stitching orders — fabric, other,
+  // and per-order expense line items. Tailor payable is intentionally NOT included: the shop
+  // pays tailors manually and logs it as an Expense (Salaries category, counted in expenseCost
+  // above) instead of running payroll, so adding payableAmount here too would double-count it.
   const stitchingCost = bucketOrders.reduce((s, o) => {
-    const tailorCost = (o.garments || []).reduce((g, garment) => g + (garment.payableAmount || 0), 0);
-    return s + tailorCost + (o.fabricCost || 0) + (o.otherCost || 0) + (orderExpenseByOrderId.get(o.id) || 0);
+    return s + (o.fabricCost || 0) + (o.otherCost || 0) + (orderExpenseByOrderId.get(o.id) || 0);
   }, 0);
 
   // Salary only — pieceRatePay is deliberately subtracted out because that exact money is

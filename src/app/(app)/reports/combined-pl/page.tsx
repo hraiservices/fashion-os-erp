@@ -57,7 +57,7 @@ export default function CombinedPlPage() {
   return (
     <ReportShell
       title="Combined P&L"
-      description="All revenue (stitching + product sales) against all costs — purchases, stitching job costs, manufacturing labour, company expenses and salaries — last 6 months"
+      description="All revenue (stitching + product sales) against all costs — purchases, stitching material costs, manufacturing labour, company expenses (including tailor payments logged under Salaries) and payroll salaries — last 6 months"
       actions={
         <ReportActionsMenu
           rows={monthly.map((m) => ({
@@ -212,9 +212,9 @@ export default function CombinedPlPage() {
         ))}
       </MobileRecordList>
       <p className="text-xs text-muted-foreground">
-        Stitching Cost is booked by each order&apos;s intake date, but Salaries is booked by when a payslip was actually paid — a garment taken in one month whose tailor is paid via a
-        later payroll run shows its cost in the earlier month and the matching salary reduction in the later one. Totals across the full period are still correct either way; a single
-        month&apos;s Net Profit can shift a little depending on payroll timing.
+        Stitching Cost here is materials only (fabric, other, per-order expenses) — it deliberately excludes tailor payable. Tailor payments are logged as an Expense under the
+        Salaries category instead of run through payroll, so counting the same payable again here would double it. Per-order profit (on the order form, order detail page, Orders
+        list, and Order Profitability report) still deducts tailor cost from that specific order&apos;s margin — only this company-wide P&amp;L excludes it.
       </p>
     </ReportShell>
   );

@@ -79,6 +79,12 @@ const ORDER_COLUMNS = [
 // restriction that already applied to the Profit column alone.
 const PROFIT_SENSITIVE_COLUMNS = new Set(["profit", "tailorPayable", "stitchingCost"]);
 
+// Below 1920px (a 14" laptop, typically 1536px effective) the full column set doesn't fit
+// without cramming — these are the least essential to have visible at a glance (still one click
+// away via the Columns menu), so they default to hidden there and reappear automatically on a
+// wider monitor. Doesn't touch a user's own explicit show/hide choice either way.
+const ORDERS_AUTO_HIDE = { belowWidth: 1920, keys: ["garment", "tailor", "profit", "tailorPayable", "stitchingCost"] };
+
 // Text columns sort A-Z on first click (like the Customers page); every other column (money,
 // dates) sorts largest/latest-first on first click.
 const TEXT_SORT_COLUMNS = new Set(["order", "customer", "garment", "stage", "tailor"]);
@@ -163,7 +169,7 @@ function OrdersContent() {
     () => (user?.role === "admin" ? ORDER_COLUMNS : ORDER_COLUMNS.filter((c) => !PROFIT_SENSITIVE_COLUMNS.has(c.key))),
     [user?.role]
   );
-  const columnTable = useColumnVisibility("orders", orderColumns);
+  const columnTable = useColumnVisibility("orders", orderColumns, ORDERS_AUTO_HIDE);
   const tailorName = useTailorName();
   const savedViews = useSavedViews<OrdersViewFilters>("orders");
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);

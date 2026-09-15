@@ -30,6 +30,11 @@ export interface PublicCustomerOrderStatus {
   orders: PublicOrderStatusOrder[];
   shopName: string;
   shopPhone: string;
+  shopLogoDataUrl: string | null;
+  /** Total outstanding balance across this customer's product-sales invoices (drafts and
+   *  credited amounts excluded) — the "Product Sale" half of the combined dues figure shown at
+   *  the top of the page. The "Stitching Orders" half is just the sum of orders[].balance. */
+  salesDue: number;
 }
 
 interface RawPublicOrderStatusOrder extends Omit<PublicOrderStatusOrder, "status"> {
@@ -43,6 +48,8 @@ interface GetCustomerOrderStatusResult {
   orders: RawPublicOrderStatusOrder[] | null;
   shopName: string;
   shopPhone: string;
+  shopLogoDataUrl: string | null;
+  salesDue: number | null;
 }
 
 /** Calls the security-definer `get_customer_order_status` RPC — the only anon-reachable entry
@@ -66,6 +73,8 @@ export async function fetchPublicOrderStatus(supabase: SupabaseClient<Database>,
     })),
     shopName: result.shopName || "",
     shopPhone: result.shopPhone || "",
+    shopLogoDataUrl: result.shopLogoDataUrl || null,
+    salesDue: result.salesDue || 0,
   };
 }
 

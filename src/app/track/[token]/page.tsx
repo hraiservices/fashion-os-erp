@@ -28,15 +28,33 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
   const data = await fetchPublicOrderStatus(supabase, token);
   if (!data) notFound();
 
-  const { customerName, loyaltyPoints, measurements, orders, shopName, shopPhone } = data;
+  const { customerName, loyaltyPoints, measurements, orders, shopName, shopPhone, shopLogoDataUrl, salesDue } = data;
   const measurementEntries = Object.entries(measurements).filter(([, v]) => typeof v === "string" && v.trim() !== "");
   const waHref = shopPhone ? `https://wa.me/91${normalizeIndianMobile(shopPhone)}` : "";
+  const stitchingDue = orders.reduce((s, o) => s + (o.balance > 0 ? o.balance : 0), 0);
+  const totalDue = stitchingDue + salesDue;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-4 py-8 sm:p-6">
-      <div>
-        <h1 className="text-lg font-semibold">{shopName || "Order Status"}</h1>
-        <p className="text-sm text-muted-foreground">Dear {customerName || "Customer"}, here&apos;s where your order{orders.length > 1 ? "s" : ""} stand.</p>
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          {shopLogoDataUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- data: URL from shop settings, not an optimizable remote image
+            <img src={shopLogoDataUrl} alt={shopName || "Shop logo"} className="size-11 shrink-0 rounded-lg border bg-white object-contain" />
+          )}
+          <h1 className="text-lg font-semibold">{shopName || "Order Status"}</h1>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Dear <span className="text-lg font-bold text-foreground">{customerName || "Customer"}</span>, here&apos;s where your order{orders.length > 1 ? "s" : ""} stand.
+        </p>
+        {totalDue > 0 && (
+          <p className="text-base font-bold text-red-600 dark:text-red-400">
+            Total Due: {inr(totalDue)}
+            <span className="ml-1.5 text-xs font-medium text-red-600/80 dark:text-red-400/80">
+              (Product Sale {inr(salesDue)} + Stitching Orders {inr(stitchingDue)})
+            </span>
+          </p>
+        )}
       </div>
 
       {loyaltyPoints > 0 && (

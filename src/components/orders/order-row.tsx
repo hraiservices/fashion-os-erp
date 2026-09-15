@@ -101,40 +101,25 @@ function OrderWhatsAppButton({ order, shop, compact, trackUrl }: { order: Order;
 
 /** Balance-due orders get a one-tap payment-reminder WhatsApp link next to the plain WhatsApp
  *  button, so staff don't have to open the order just to nudge a customer for the balance.
- *  Icon-only on the desktop table (iconOnly) — the visible "Reminder" label was the single
- *  widest thing in an already-crowded actions cell (Advance/Record/WhatsApp/Reminder/Delete all
- *  in one row), and was what actually got clipped on a 14" laptop screen; the mobile card row
- *  has a full-width action bar to spare, so it keeps the text label. */
-function PaymentReminderButton({ order, shop, compact, iconOnly, trackUrl }: { order: Order; shop?: Shop; compact?: boolean; iconOnly?: boolean; trackUrl?: string }) {
+ *  Icon-only everywhere (desktop table and mobile card) — the visible "Reminder" label was the
+ *  single widest thing in an already-crowded actions row (Advance/Record/WhatsApp/Reminder/Delete
+ *  all in one row), and on a real phone it's what forces the primary "Move to X" button down to
+ *  a few clipped letters. */
+function PaymentReminderButton({ order, shop, compact, trackUrl }: { order: Order; shop?: Shop; compact?: boolean; trackUrl?: string }) {
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   if (order.balance <= 0) return null;
   const href = buildWhatsAppUrl({ ...order, trackUrl }, "paymentDue", shop, waTemplates);
-  if (iconOnly) {
-    return (
-      <Button
-        variant="outline"
-        size="icon-sm"
-        className={cn("size-9 shrink-0", !compact && "sm:size-8")}
-        aria-label={`Payment reminder to ${order.name}`}
-        title="Payment reminder"
-        nativeButton={false}
-        render={<a href={href} target="_blank" rel="noopener noreferrer" />}
-      >
-        <WhatsAppIcon className="size-3.5 text-[#25D366]" />
-      </Button>
-    );
-  }
   return (
     <Button
       variant="outline"
-      size="sm"
-      className={cn("h-9 shrink-0 gap-1.5 px-2.5 text-xs", !compact && "sm:h-8")}
+      size="icon-sm"
+      className={cn("size-9 shrink-0", !compact && "sm:size-8")}
       aria-label={`Payment reminder to ${order.name}`}
       title="Payment reminder"
       nativeButton={false}
       render={<a href={href} target="_blank" rel="noopener noreferrer" />}
     >
-      <WhatsAppIcon className="size-3.5 text-[#25D366]" /> Reminder
+      <WhatsAppIcon className="size-3.5 text-orange-400" />
     </Button>
   );
 }
@@ -306,7 +291,7 @@ export function OrderTableRow(props: TableRowProps) {
           {canChangeStage && <AdvanceButton {...props} />}
           <RecordPaymentButton order={order} onRecordPayment={onRecordPayment} />
           <OrderWhatsAppButton order={order} shop={shop} trackUrl={trackUrl} />
-          <PaymentReminderButton order={order} shop={shop} iconOnly trackUrl={trackUrl} />
+          <PaymentReminderButton order={order} shop={shop} trackUrl={trackUrl} />
           <DeleteOrderButton order={order} />
         </div>
       </td>

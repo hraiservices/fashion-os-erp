@@ -80,7 +80,7 @@ export default function ReadyUncollectedPage() {
                 <MobileRecordRow label="Ready since" value={fmtDate(o.readyAt!.slice(0, 10))} />
                 <MobileRecordRow label="Days waiting" value={`${o.daysWaiting}d`} valueClassName={o.daysWaiting >= 7 ? "font-medium text-destructive" : undefined} />
                 <div className="flex justify-end border-t pt-1.5">
-                  <WhatsAppIconButton href={buildWhatsAppUrl(o, o.balance > 0 ? "paymentDue" : "ready", shop, waTemplates)} label={`Pickup reminder to ${o.name}`} />
+                  <WhatsAppIconButton href={buildWhatsAppUrl(o, o.balance > 0 ? "paymentDue" : "ready", shop, waTemplates)} label={`Pickup reminder to ${o.name}`} tone={o.balance > 0 ? "reminder" : "whatsapp"} />
                 </div>
               </MobileRecordCard>
             ))}
@@ -120,7 +120,7 @@ export default function ReadyUncollectedPage() {
                     </Td>
                     <Td align="right">{o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}</Td>
                     <Td align="right">
-                      <WhatsAppIconButton href={buildWhatsAppUrl(o, o.balance > 0 ? "paymentDue" : "ready", shop, waTemplates)} label={`Pickup reminder to ${o.name}`} />
+                      <WhatsAppIconButton href={buildWhatsAppUrl(o, o.balance > 0 ? "paymentDue" : "ready", shop, waTemplates)} label={`Pickup reminder to ${o.name}`} tone={o.balance > 0 ? "reminder" : "whatsapp"} />
                     </Td>
                   </tr>
                 ))}

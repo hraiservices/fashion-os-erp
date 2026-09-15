@@ -104,7 +104,7 @@ export default function BalanceAgingPage() {
                       <BalanceDue amount={o.balance} />
                     </Td>
                     <Td align="right">
-                      <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop, waTemplates)} label={`Payment reminder to ${o.name}`} />
+                      <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop, waTemplates)} label={`Payment reminder to ${o.name}`} tone="reminder" />
                     </Td>
                   </tr>
                 ))}
@@ -133,7 +133,7 @@ export default function BalanceAgingPage() {
                 />
                 <div className="flex items-center justify-between text-xs" onClick={(e) => e.stopPropagation()}>
                   <span className="text-muted-foreground">Actions</span>
-                  <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop, waTemplates)} label={`Payment reminder to ${o.name}`} />
+                  <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop, waTemplates)} label={`Payment reminder to ${o.name}`} tone="reminder" />
                 </div>
               </MobileRecordCard>
             ))}

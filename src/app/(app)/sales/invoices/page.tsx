@@ -419,7 +419,7 @@ export default function SalesInvoicesPage() {
                               <Wallet className="size-3.5" />
                             </Button>
                           )}
-                          {inv.balance > 0 && <WhatsAppIconButton href={reminderUrl(inv)} label={`WhatsApp reminder to ${inv.customerName}`} />}
+                          {inv.balance > 0 && <WhatsAppIconButton href={reminderUrl(inv)} label={`WhatsApp reminder to ${inv.customerName}`} tone="reminder" />}
                           <WhatsAppIconButton href={sendPdfUrl(inv)} label={`Send PDF link to ${inv.customerName}`} />
                           <Link
                             href={`/sales/invoices/new?cloneId=${inv.id}`}

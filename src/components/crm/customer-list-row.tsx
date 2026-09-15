@@ -121,7 +121,7 @@ export function CustomerListRow({
       </TableCell>
       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-end gap-1.5">
-          {outstanding > 0 && <WhatsAppIconButton href={reminderUrl} label={`Payment reminder for ${cust.name}`} />}
+          {outstanding > 0 && <WhatsAppIconButton href={reminderUrl} label={`Payment reminder for ${cust.name}`} tone="reminder" />}
           {onRecordPayment && payableOrder && (
             <Button
               variant="outline"

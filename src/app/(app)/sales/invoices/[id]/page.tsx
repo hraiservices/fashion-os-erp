@@ -363,6 +363,7 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
                 className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]"
                 href={waHref(invoice.balance > 0 ? "paymentReminder" : "invoiceSent")}
                 label={invoice.balance > 0 ? "Payment Reminder" : "Send Invoice"}
+                tone={invoice.balance > 0 ? "reminder" : "whatsapp"}
               />
               {(payments?.length || 0) > 0 && <WhatsAppButton className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" href={waHref("paymentReceived")} label="Send Receipt" />}
               <WhatsAppButton className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" href={waHref("sendPdfLink")} label="Send PDF on WhatsApp" />

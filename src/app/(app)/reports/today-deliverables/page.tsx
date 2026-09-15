@@ -54,7 +54,7 @@ export default function TodayDeliverablesPage() {
         <Td className="whitespace-nowrap">{fmtDate(o.deliveryDate)}</Td>
         <Td align="right">{o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}</Td>
         <Td align="right">
-          {o.balance > 0 && <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop)} label={`Payment reminder to ${o.name}`} />}
+          {o.balance > 0 && <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop)} label={`Payment reminder to ${o.name}`} tone="reminder" />}
         </Td>
       </tr>
     );
@@ -74,7 +74,7 @@ export default function TodayDeliverablesPage() {
         {o.balance > 0 && (
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">Actions</span>
-            <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop)} label={`Payment reminder to ${o.name}`} />
+            <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop)} label={`Payment reminder to ${o.name}`} tone="reminder" />
           </div>
         )}
       </MobileRecordCard>

@@ -7,6 +7,8 @@ import { inr } from "@/lib/format";
 import { ReportShell, ReportCard, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
+import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -15,6 +17,23 @@ import { TrendingUp, TrendingDown, Wallet, Receipt } from "lucide-react";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange } from "@/lib/report-date-range";
 
+const COMBINED_PL_COLUMNS = [
+  { key: "month", label: "Month", required: true },
+  { key: "stitchingRevenue", label: "Stitching Rev" },
+  { key: "salesRevenue", label: "Product Sales Rev" },
+  { key: "purchaseCost", label: "Purchases" },
+  { key: "stitchingCost", label: "Stitching Cost" },
+  { key: "laborCost", label: "Mfg Labor" },
+  { key: "expenseCost", label: "Expenses" },
+  { key: "payrollCost", label: "Salaries" },
+  { key: "netProfit", label: "Net Profit", required: true },
+];
+
+// Below 1920px (a 14" laptop) the full 9-column table feels cramped — Mfg Labor and Salaries
+// are the least commonly referenced of the cost lines, so they default to hidden there and
+// reappear automatically on a wider monitor (still one click away via the Columns menu).
+const COMBINED_PL_AUTO_HIDE = { belowWidth: 1920, keys: ["laborCost", "payrollCost"] };
+
 /** useCombinedPl() hardcodes a trailing-6-month window across purchases/expenses/payroll/orders/
  *  invoices with no date-range parameter of its own — properly honoring a custom range here needs
  *  that hook reworked to accept one. The bar is shown for consistency; it doesn't filter yet. */
@@ -22,6 +41,8 @@ export default function CombinedPlPage() {
   const { data: user } = useCurrentUser();
   const { monthly, isLoading } = useCombinedPl();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo } = useReportDateRange();
+  const columnTable = useColumnVisibility("combined-pl", COMBINED_PL_COLUMNS, COMBINED_PL_AUTO_HIDE);
+  const isVisible = columnTable.isVisible;
 
   const totals = useMemo(
     () => monthly.reduce((acc, m) => ({ revenue: acc.revenue + m.revenue, cost: acc.cost + m.totalCost, net: acc.net + m.netProfit }), { revenue: 0, cost: 0, net: 0 }),
@@ -113,6 +134,9 @@ export default function CombinedPlPage() {
         </div>
       </ReportCard>
 
+      <div className="hidden justify-end sm:flex">
+        <ColumnCustomizerMenu table={columnTable} />
+      </div>
       <div className="hidden sm:block">
         <ReportTable>
           <thead className="border-b bg-muted/40">
@@ -122,9 +146,9 @@ export default function CombinedPlPage() {
               <Th align="right">Product Sales Rev</Th>
               <Th align="right">Purchases</Th>
               <Th align="right">Stitching Cost</Th>
-              <Th align="right">Mfg Labor</Th>
+              {isVisible("laborCost") && <Th align="right">Mfg Labor</Th>}
               <Th align="right">Expenses</Th>
-              <Th align="right">Salaries</Th>
+              {isVisible("payrollCost") && <Th align="right">Salaries</Th>}
               <Th align="right">Net Profit</Th>
             </tr>
           </thead>
@@ -135,9 +159,9 @@ export default function CombinedPlPage() {
               <Td align="right">{inr(columnTotals.salesRevenue)}</Td>
               <Td align="right">{inr(columnTotals.purchaseCost)}</Td>
               <Td align="right">{inr(columnTotals.stitchingCost)}</Td>
-              <Td align="right">{inr(columnTotals.laborCost)}</Td>
+              {isVisible("laborCost") && <Td align="right">{inr(columnTotals.laborCost)}</Td>}
               <Td align="right">{inr(columnTotals.expenseCost)}</Td>
-              <Td align="right">{inr(columnTotals.payrollCost)}</Td>
+              {isVisible("payrollCost") && <Td align="right">{inr(columnTotals.payrollCost)}</Td>}
               <Td align="right">{inr(columnTotals.netProfit)}</Td>
             </ReportTotalsRow>
             {monthly.map((m) => (
@@ -151,15 +175,19 @@ export default function CombinedPlPage() {
                 <Td align="right" className="text-muted-foreground">
                   {inr(m.stitchingCost)}
                 </Td>
-                <Td align="right" className="text-muted-foreground">
-                  {inr(m.laborCost)}
-                </Td>
+                {isVisible("laborCost") && (
+                  <Td align="right" className="text-muted-foreground">
+                    {inr(m.laborCost)}
+                  </Td>
+                )}
                 <Td align="right" className="text-muted-foreground">
                   {inr(m.expenseCost)}
                 </Td>
-                <Td align="right" className="text-muted-foreground">
-                  {inr(m.payrollCost)}
-                </Td>
+                {isVisible("payrollCost") && (
+                  <Td align="right" className="text-muted-foreground">
+                    {inr(m.payrollCost)}
+                  </Td>
+                )}
                 <Td align="right" className={`font-semibold ${m.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
                   {inr(m.netProfit)}
                 </Td>

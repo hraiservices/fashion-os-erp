@@ -14,6 +14,8 @@ import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
+import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -30,6 +32,22 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "paid", label: "Fully paid" },
 ];
 
+const CUSTOMER_BALANCES_COLUMNS = [
+  { key: "customer", label: "Customer", required: true },
+  { key: "orders", label: "Orders" },
+  { key: "invoices", label: "Invoices" },
+  { key: "stitchDue", label: "Stitch Due", required: true },
+  { key: "salesDue", label: "Product Sales Due", required: true },
+  { key: "totalDue", label: "Total Due", required: true },
+  { key: "lifetime", label: "Lifetime" },
+  { key: "actions", label: "Actions", required: true },
+];
+
+// Below 1920px (a 14" laptop) the full 8-column table feels cramped — Invoices and Lifetime are
+// the least essential to have visible at a glance, so they default to hidden there and reappear
+// automatically on a wider monitor (still one click away via the Columns menu).
+const CUSTOMER_BALANCES_AUTO_HIDE = { belowWidth: 1920, keys: ["invoices", "lifetime"] };
+
 /** Point-in-time snapshot (current balances) — the date range filters the underlying orders
  *  and invoices (by inDate/invoiceDate) feeding each customer's ledger, per the earlier decision
  *  to apply the range everywhere for consistency. */
@@ -43,6 +61,8 @@ export default function CustomerBalancesPage() {
   const { data: shop } = useShopSettings();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const columnTable = useColumnVisibility("customer-balances", CUSTOMER_BALANCES_COLUMNS, CUSTOMER_BALANCES_AUTO_HIDE);
+  const isVisible = columnTable.isVisible;
 
   const rows = useMemo(
     () =>
@@ -122,6 +142,7 @@ export default function CustomerBalancesPage() {
             </button>
           ))}
         </div>
+        <ColumnCustomizerMenu table={columnTable} />
       </div>
 
       {filtered.length === 0 ? (
@@ -134,21 +155,21 @@ export default function CustomerBalancesPage() {
                 <tr>
                   <Th>Customer</Th>
                   <Th align="right">Orders</Th>
-                  <Th align="right">Invoices</Th>
+                  {isVisible("invoices") && <Th align="right">Invoices</Th>}
                   <Th align="right">Stitch Due</Th>
                   <Th align="right">Product Sales Due</Th>
                   <Th align="right">Total Due</Th>
-                  <Th align="right">Lifetime</Th>
+                  {isVisible("lifetime") && <Th align="right">Lifetime</Th>}
                   <Th align="right">Actions</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td colSpan={3}>Total</Td>
+                  <Td colSpan={isVisible("invoices") ? 3 : 2}>Total</Td>
                   <Td align="right">{inr(totals.stitchDue)}</Td>
                   <Td align="right">{inr(totals.salesDue)}</Td>
                   <Td align="right">{inr(totals.totalDue)}</Td>
-                  <Td align="right">—</Td>
+                  {isVisible("lifetime") && <Td align="right">—</Td>}
                   <Td />
                 </ReportTotalsRow>
                 {filtered.map((r) => (
@@ -159,15 +180,17 @@ export default function CustomerBalancesPage() {
                       </Link>
                     </Td>
                     <Td align="right">{r.orderCount}</Td>
-                    <Td align="right">{r.invoiceCount}</Td>
+                    {isVisible("invoices") && <Td align="right">{r.invoiceCount}</Td>}
                     <Td align="right">{r.stitchDue > 0 ? <BalanceDue amount={r.stitchDue} /> : "—"}</Td>
                     <Td align="right">{r.salesDue > 0 ? <BalanceDue amount={r.salesDue} /> : "—"}</Td>
                     <Td align="right" className="font-semibold">
                       {r.totalDue > 0 ? <BalanceDue amount={r.totalDue} /> : "—"}
                     </Td>
-                    <Td align="right" className="text-muted-foreground">
-                      {inr(r.lifetime)}
-                    </Td>
+                    {isVisible("lifetime") && (
+                      <Td align="right" className="text-muted-foreground">
+                        {inr(r.lifetime)}
+                      </Td>
+                    )}
                     <Td align="right">
                       {r.totalDue > 0 && <WhatsAppIconButton href={reminderUrl(r.name, r.mobile, r.totalDue)} label={`Payment reminder to ${r.name || r.mobile}`} tone="reminder" />}
                     </Td>

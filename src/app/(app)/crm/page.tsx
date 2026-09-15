@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableHeader, TableBody, TableRow, TableHead } from "@/components/ui/table";
+import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
@@ -38,6 +40,22 @@ const tagFilterLabel = (v: unknown) => (v === ALL_TAGS ? "All tags" : String(v ?
 
 type SortKey = "name" | "orders" | "spent" | "lastOrder" | "balance";
 
+const CUSTOMER_LIST_COLUMNS = [
+  { key: "customer", label: "Customer", required: true },
+  { key: "orders", label: "Orders" },
+  { key: "invoices", label: "Invoices" },
+  { key: "spent", label: "Spent" },
+  { key: "lastOrder", label: "Last order" },
+  { key: "tier", label: "Tier" },
+  { key: "balance", label: "Balance", required: true },
+  { key: "actions", label: "Actions", required: true },
+];
+
+// Below 1920px (a 14" laptop) the full 8-column table feels cramped — Invoices/Spent/Last
+// order/Tier are the least essential to have visible at a glance, so they default to hidden
+// there and reappear automatically on a wider monitor (still one click away via Columns).
+const CUSTOMER_LIST_AUTO_HIDE = { belowWidth: 1920, keys: ["invoices", "spent", "lastOrder", "tier"] };
+
 function CrmContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -53,6 +71,7 @@ function CrmContent() {
   const [paymentOrder, setPaymentOrder] = useState<Order | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("lastOrder");
   const [sortAsc, setSortAsc] = useState(false);
+  const columnTable = useColumnVisibility("crm-customers", CUSTOMER_LIST_COLUMNS, CUSTOMER_LIST_AUTO_HIDE);
 
   // Legacy deep link — the "Add customer" flow used to be a modal opened via ?new=1.
   useEffect(() => {
@@ -230,6 +249,7 @@ function CrmContent() {
             <LayoutList className="size-4" /> List
           </button>
         </div>
+        {view === "list" && <ColumnCustomizerMenu table={columnTable} />}
         <div className="relative max-w-md flex-1 min-w-48">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -308,18 +328,22 @@ function CrmContent() {
                       Orders <ArrowUpDown className="size-3" />
                     </button>
                   </TableHead>
-                  <TableHead>Invoices</TableHead>
-                  <TableHead className="text-right">
-                    <button type="button" onClick={() => toggleSort("spent")} className="inline-flex items-center gap-1 hover:text-foreground">
-                      Spent <ArrowUpDown className="size-3" />
-                    </button>
-                  </TableHead>
-                  <TableHead>
-                    <button type="button" onClick={() => toggleSort("lastOrder")} className="inline-flex items-center gap-1 hover:text-foreground">
-                      Last order <ArrowUpDown className="size-3" />
-                    </button>
-                  </TableHead>
-                  <TableHead>Tier</TableHead>
+                  {columnTable.isVisible("invoices") && <TableHead>Invoices</TableHead>}
+                  {columnTable.isVisible("spent") && (
+                    <TableHead className="text-right">
+                      <button type="button" onClick={() => toggleSort("spent")} className="inline-flex items-center gap-1 hover:text-foreground">
+                        Spent <ArrowUpDown className="size-3" />
+                      </button>
+                    </TableHead>
+                  )}
+                  {columnTable.isVisible("lastOrder") && (
+                    <TableHead>
+                      <button type="button" onClick={() => toggleSort("lastOrder")} className="inline-flex items-center gap-1 hover:text-foreground">
+                        Last order <ArrowUpDown className="size-3" />
+                      </button>
+                    </TableHead>
+                  )}
+                  {columnTable.isVisible("tier") && <TableHead>Tier</TableHead>}
                   <TableHead className="text-right">
                     <button type="button" onClick={() => toggleSort("balance")} className="inline-flex items-center gap-1 hover:text-foreground">
                       Balance <ArrowUpDown className="size-3" />
@@ -337,6 +361,7 @@ function CrmContent() {
                     shop={shop}
                     invoices={invoicesByMobile.get(c.mobile) || []}
                     onRecordPayment={user?.perms.managePayments ? (order: Order) => setPaymentOrder(order) : undefined}
+                    isVisible={columnTable.isVisible}
                   />
                 ))}
               </TableBody>

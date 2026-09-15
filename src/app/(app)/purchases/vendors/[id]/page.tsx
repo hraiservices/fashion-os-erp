@@ -74,16 +74,16 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
         )}
 
         <div className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-lg bg-border">
-          <div className="bg-card p-3 text-center">
-            <p className="text-lg font-semibold tabular-nums">{orders.length}</p>
+          <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+            <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{orders.length}</p>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Purchase Orders</p>
           </div>
-          <div className="bg-card p-3 text-center">
-            <p className="text-lg font-semibold tabular-nums">{bills.length}</p>
+          <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+            <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{bills.length}</p>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Bills</p>
           </div>
-          <div className="bg-card p-3 text-center">
-            <BalanceDue amount={totalPayable} paidLabel={inr(totalPayable)} className="text-lg" />
+          <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+            <BalanceDue amount={totalPayable} paidLabel={inr(totalPayable)} className="block truncate text-base sm:text-lg" />
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Payable</p>
           </div>
         </div>

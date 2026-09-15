@@ -292,6 +292,15 @@ export function OrderTableRow(props: TableRowProps) {
           {profit.tailorCostIsEstimate && <span className="ml-1 text-[10px] font-normal text-muted-foreground">Est.</span>}
         </td>
       )}
+      {isVisible("tailorPayable") && profit && (
+        <td className="px-2.5 py-2.5 text-right tabular-nums">
+          {inr(profit.tailorCost)}
+          {profit.tailorCostIsEstimate && <span className="ml-1 text-[10px] font-normal text-muted-foreground">Est.</span>}
+        </td>
+      )}
+      {isVisible("stitchingCost") && profit && (
+        <td className="px-2.5 py-2.5 text-right tabular-nums">{inr(profit.fabricCost + profit.otherCost + profit.stitchingExpenses)}</td>
+      )}
       <td className="px-2.5 py-2.5">
         <div className="flex flex-wrap items-center justify-end gap-1.5">
           {canChangeStage && <AdvanceButton {...props} />}

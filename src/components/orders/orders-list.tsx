@@ -90,6 +90,8 @@ export function OrdersList({ orders, canChangeStage, onAdvance, advancingId, sho
                 {isVisible("total") && <th className="px-2.5 py-2.5 text-right font-bold">Total</th>}
                 {isVisible("balance") && <th className="px-2.5 py-2.5 text-right font-bold">Balance</th>}
                 {profitByOrderId && isVisible("profit") && <th className="px-2.5 py-2.5 text-right font-bold">Profit</th>}
+                {profitByOrderId && isVisible("tailorPayable") && <th className="px-2.5 py-2.5 text-right font-bold">Tailor Payable</th>}
+                {profitByOrderId && isVisible("stitchingCost") && <th className="px-2.5 py-2.5 text-right font-bold">Stitching Cost</th>}
                 <th className="px-2.5 py-2.5" />
               </tr>
             </thead>

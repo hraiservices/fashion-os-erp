@@ -71,7 +71,13 @@ const ORDER_COLUMNS = [
   { key: "total", label: "Total" },
   { key: "balance", label: "Balance" },
   { key: "profit", label: "Profit" },
+  { key: "tailorPayable", label: "Tailor Payable" },
+  { key: "stitchingCost", label: "Stitching Cost" },
 ];
+
+// Hidden from the column picker for non-admins, not just their data — same profit-sensitive
+// restriction that already applied to the Profit column alone.
+const PROFIT_SENSITIVE_COLUMNS = new Set(["profit", "tailorPayable", "stitchingCost"]);
 
 export default function OrdersPage() {
   return (
@@ -149,8 +155,10 @@ function OrdersContent() {
     return map;
   }, [orders, user?.role, expensesByOrderId]);
 
-  // The Profit column toggle itself is hidden from the picker for non-admins, not just its data.
-  const orderColumns = useMemo(() => (user?.role === "admin" ? ORDER_COLUMNS : ORDER_COLUMNS.filter((c) => c.key !== "profit")), [user?.role]);
+  const orderColumns = useMemo(
+    () => (user?.role === "admin" ? ORDER_COLUMNS : ORDER_COLUMNS.filter((c) => !PROFIT_SENSITIVE_COLUMNS.has(c.key))),
+    [user?.role]
+  );
   const columnTable = useColumnVisibility("orders", orderColumns);
   const tailorName = useTailorName();
   const savedViews = useSavedViews<OrdersViewFilters>("orders");

@@ -5,6 +5,7 @@ import { fetchPublicOrderStatus, parseHistoryLine, type PublicOrderStatusOrder }
 import { STAGE_META, normalizeIndianMobile, type Stage } from "@/lib/business-rules";
 import { inr, fmtDate } from "@/lib/format";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
+import { OrderPhotoGallery } from "@/components/track/order-photo-gallery";
 
 /** Fulfillment stages only — "payment" is a financial state layered on top of "delivered",
  *  not a step in this timeline (mirrors how STAGE_META itself treats it). */
@@ -28,11 +29,15 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
   const data = await fetchPublicOrderStatus(supabase, token);
   if (!data) notFound();
 
-  const { customerName, loyaltyPoints, measurements, orders, shopName, shopPhone, shopLogoDataUrl, salesDue } = data;
+  const { customerName, loyaltyPoints, measurements, orders, shopName, shopPhone, shopLogoDataUrl, salesDue, canRedeemPoints, maxPointsDiscount } = data;
   const measurementEntries = Object.entries(measurements).filter(([, v]) => typeof v === "string" && v.trim() !== "");
   const waHref = shopPhone ? `https://wa.me/91${normalizeIndianMobile(shopPhone)}` : "";
   const stitchingDue = orders.reduce((s, o) => s + (o.balance > 0 ? o.balance : 0), 0);
   const totalDue = stitchingDue + salesDue;
+  const payNowHref = shopPhone
+    ? `https://wa.me/91${normalizeIndianMobile(shopPhone)}?text=${encodeURIComponent(`Hi, I'd like to pay ${inr(totalDue)} towards my dues.`)}`
+    : "";
+  const ordersWithDue = orders.filter((o) => o.balance > 0);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-4 py-8 sm:p-6">
@@ -48,18 +53,36 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
           Dear <span className="text-lg font-bold text-foreground">{customerName || "Customer"}</span>, here&apos;s where your order{orders.length > 1 ? "s" : ""} stand.
         </p>
         {totalDue > 0 && (
-          <p className="text-base font-bold text-red-600 dark:text-red-400">
-            Total Due: {inr(totalDue)}
-            <span className="ml-1.5 text-xs font-medium text-red-600/80 dark:text-red-400/80">
-              (Product Sale {inr(salesDue)} + Stitching Orders {inr(stitchingDue)})
-            </span>
-          </p>
+          <div className="space-y-1.5">
+            <p className="text-base font-bold text-red-600 dark:text-red-400">
+              Total Due: {inr(totalDue)}
+              <span className="ml-1.5 text-xs font-medium text-red-600/80 dark:text-red-400/80">
+                (Product Sale {inr(salesDue)} + Stitching Orders {inr(stitchingDue)})
+              </span>
+            </p>
+            {ordersWithDue.length > 0 && (
+              <ul className="space-y-0.5 text-xs text-muted-foreground">
+                {ordersWithDue.map((o) => (
+                  <li key={o.id} className="flex justify-between gap-2">
+                    <span>Order {o.id}</span>
+                    <span className="font-medium text-red-600/90 tabular-nums dark:text-red-400/90">{inr(o.balance)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {payNowHref && <WhatsAppButton href={payNowHref} label="Pay Now" size="sm" />}
+          </div>
         )}
       </div>
 
       {loyaltyPoints > 0 && (
         <div className="rounded-lg border bg-muted/30 px-4 py-2.5 text-sm">
           <span className="font-medium">🎁 {loyaltyPoints} loyalty points</span> <span className="text-muted-foreground">available on your next order</span>
+          {canRedeemPoints && maxPointsDiscount > 0 && (
+            <p className="mt-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              You can redeem these now for {inr(maxPointsDiscount)} off!
+            </p>
+          )}
         </div>
       )}
 
@@ -69,7 +92,12 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
         <div key={order.id} className="space-y-4 rounded-xl border bg-card p-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold">Order {order.id}</p>
+              <p className="flex items-center gap-1.5 text-sm font-semibold">
+                Order {order.id}
+                {order.reworkFlag && (
+                  <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">Rework</span>
+                )}
+              </p>
               <p className="text-xs text-muted-foreground">
                 Expected delivery: <span className="font-medium text-emerald-600 dark:text-emerald-400">{fmtDate(order.deliveryDate)}</span>
               </p>
@@ -125,11 +153,9 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
           )}
 
           {order.images.length > 0 && (
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {order.images.map((src, i) => (
-                // eslint-disable-next-line @next/next/no-img-element -- external order-photo URL, not an optimizable remote image
-                <img key={i} src={src} alt={`Order photo ${i + 1}`} className="aspect-square rounded-lg border object-cover" />
-              ))}
+            <div>
+              <p className="mb-1.5 text-xs uppercase tracking-wide text-muted-foreground">📷 {order.images.length} photo{order.images.length > 1 ? "s" : ""}</p>
+              <OrderPhotoGallery images={order.images} />
             </div>
           )}
 
@@ -142,7 +168,7 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
 
           <div className="flex justify-between border-t pt-3 text-sm font-semibold">
             <span>Balance due</span>
-            <span className="tabular-nums">{inr(order.balance)}</span>
+            <span className={`tabular-nums ${order.balance > 0 ? "text-red-600 dark:text-red-400" : ""}`}>{inr(order.balance)}</span>
           </div>
         </div>
       ))}

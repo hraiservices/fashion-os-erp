@@ -202,22 +202,22 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-border sm:grid-cols-4">
-          <div className="bg-card p-3 text-center">
-            <p className="text-lg font-semibold tabular-nums">{custOrders.length}</p>
+          <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+            <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{custOrders.length}</p>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Stitch Orders</p>
           </div>
-          <div className="bg-card p-3 text-center">
-            <BalanceDue amount={outstanding} paidLabel={inr(outstanding)} className="text-lg" />
+          <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+            <BalanceDue amount={outstanding} paidLabel={inr(outstanding)} className="block truncate text-base sm:text-lg" />
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Stitch Due</p>
           </div>
-          <div className="bg-card p-3 text-center">
-            <BalanceDue amount={salesDue} paidLabel={inr(salesDue)} className="text-lg" />
+          <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+            <BalanceDue amount={salesDue} paidLabel={inr(salesDue)} className="block truncate text-base sm:text-lg" />
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
               Product Sales Due <span className="lowercase">({custInvoices.length} invoice{custInvoices.length === 1 ? "" : "s"})</span>
             </p>
           </div>
-          <div className="bg-card p-3 text-center">
-            <BalanceDue amount={combinedDue} paidLabel={inr(combinedDue)} className="text-lg" />
+          <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+            <BalanceDue amount={combinedDue} paidLabel={inr(combinedDue)} className="block truncate text-base sm:text-lg" />
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Combined Due</p>
           </div>
         </div>

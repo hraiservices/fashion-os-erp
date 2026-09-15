@@ -147,7 +147,7 @@ export function CustomerCard({ cust, loyaltyCfg, invoices = [] }: { cust: Custom
 
 function Stat({ label, value, valueClassName }: { label: string; value: string; valueClassName?: string }) {
   return (
-    <div className="bg-card px-1 py-2">
+    <div className="min-w-0 bg-card px-1 py-2">
       <p className={`truncate text-[13px] font-semibold tabular-nums ${valueClassName ?? ""}`}>{value}</p>
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
     </div>

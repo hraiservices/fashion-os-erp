@@ -91,12 +91,12 @@ function CloseRegisterDialog({ open, onOpenChange, sessionId, openingCash }: { o
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-border">
-            <div className="bg-card p-3 text-center">
-              <p className="text-lg font-semibold tabular-nums">{inr(openingCash)}</p>
+            <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+              <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{inr(openingCash)}</p>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Opening cash</p>
             </div>
-            <div className="bg-card p-3 text-center">
-              <p className="text-lg font-semibold tabular-nums">{inr(expected)}</p>
+            <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+              <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{inr(expected)}</p>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Expected cash</p>
             </div>
           </div>

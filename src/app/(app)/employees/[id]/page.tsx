@@ -139,21 +139,21 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
 
         {canManagePayroll && (
           <div className={`mt-4 grid gap-px overflow-hidden rounded-lg bg-border ${employee.pieceRateEligible ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
-            <div className="bg-card p-3 text-center">
-              <p className="text-lg font-semibold tabular-nums">{inr(employee.salaryRate)}</p>
+            <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+              <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{inr(employee.salaryRate)}</p>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{SALARY_TYPE_LABELS[employee.salaryType]} rate</p>
             </div>
-            <div className="bg-card p-3 text-center">
-              <p className="text-lg font-semibold tabular-nums text-amber-700 dark:text-amber-400">{inr(outstandingAdvances)}</p>
+            <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+              <p className="truncate text-base font-semibold tabular-nums text-amber-700 dark:text-amber-400 sm:text-lg">{inr(outstandingAdvances)}</p>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Advances pending</p>
             </div>
-            <div className="bg-card p-3 text-center">
-              <p className="text-lg font-semibold tabular-nums">{commission ? inr(commission.commission) : "—"}</p>
+            <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+              <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{commission ? inr(commission.commission) : "—"}</p>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Commission (all-time)</p>
             </div>
             {employee.pieceRateEligible && (
-              <div className="bg-card p-3 text-center">
-                <p className="text-lg font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{inr(pieceRateEarnings)}</p>
+              <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+                <p className="truncate text-base font-semibold tabular-nums text-emerald-700 dark:text-emerald-400 sm:text-lg">{inr(pieceRateEarnings)}</p>
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Piece-rate (all-time)</p>
               </div>
             )}

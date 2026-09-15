@@ -12,11 +12,29 @@ import { inr, fmtDate } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
+import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+
+const PAYABLE_DETAILS_COLUMNS = [
+  { key: "order", label: "Order", required: true },
+  { key: "orderDate", label: "Order Date" },
+  { key: "customer", label: "Customer", required: true },
+  { key: "tailor", label: "Tailor", required: true },
+  { key: "garment", label: "Garment" },
+  { key: "lining", label: "Lining" },
+  { key: "qty", label: "Qty" },
+  { key: "payable", label: "Payable", required: true },
+];
+
+// Below 1920px (a 14" laptop) the full 8-column table feels cramped — Order Date/Garment/
+// Lining/Qty are the least essential to have visible at a glance, so they default to hidden
+// there and reappear automatically on a wider monitor (still one click away via Columns).
+const PAYABLE_DETAILS_AUTO_HIDE = { belowWidth: 1920, keys: ["orderDate", "garment", "lining", "qty"] };
 
 interface PayableRow {
   key: string;
@@ -52,6 +70,8 @@ export default function TailorPayableDetailsPage() {
   const isLoading = tailorsLoading || ordersLoading || woLoading;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
   const [tailorFilter, setTailorFilter] = useState("all");
+  const columnTable = useColumnVisibility("tailor-payable-details", PAYABLE_DETAILS_COLUMNS, PAYABLE_DETAILS_AUTO_HIDE);
+  const isVisible = columnTable.isVisible;
 
   const rows = useMemo(() => {
     const out: PayableRow[] = [];
@@ -189,23 +209,26 @@ export default function TailorPayableDetailsPage() {
         <EmptyState icon={Wallet} title="No payables in range" description="No garment with a tailor assigned falls in the selected date range/filter." />
       ) : (
         <>
+          <div className="hidden justify-end sm:flex">
+            <ColumnCustomizerMenu table={columnTable} />
+          </div>
           <div className="hidden sm:block">
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
                   <Th>Order</Th>
-                  <Th>Order Date</Th>
+                  {isVisible("orderDate") && <Th>Order Date</Th>}
                   <Th>Customer</Th>
                   <Th>Tailor</Th>
-                  <Th>Garment</Th>
-                  <Th>Lining</Th>
-                  <Th align="right">Qty</Th>
+                  {isVisible("garment") && <Th>Garment</Th>}
+                  {isVisible("lining") && <Th>Lining</Th>}
+                  {isVisible("qty") && <Th align="right">Qty</Th>}
                   <Th align="right">Payable</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td colSpan={7}>Total</Td>
+                  <Td colSpan={3 + ["orderDate", "garment", "lining", "qty"].filter(isVisible).length}>Total</Td>
                   <Td align="right">{inr(grandTotal)}</Td>
                 </ReportTotalsRow>
                 {rows.map((r) => (
@@ -215,12 +238,12 @@ export default function TailorPayableDetailsPage() {
                         {r.orderId}
                       </Link>
                     </Td>
-                    <Td className="text-muted-foreground">{fmtDate(r.inDate)}</Td>
+                    {isVisible("orderDate") && <Td className="text-muted-foreground">{fmtDate(r.inDate)}</Td>}
                     <Td>{r.customerName}</Td>
                     <Td className="font-medium">{r.tailorName}</Td>
-                    <Td>{r.garmentType}</Td>
-                    <Td className="text-muted-foreground">{r.lining}</Td>
-                    <Td align="right">{r.qty}</Td>
+                    {isVisible("garment") && <Td>{r.garmentType}</Td>}
+                    {isVisible("lining") && <Td className="text-muted-foreground">{r.lining}</Td>}
+                    {isVisible("qty") && <Td align="right">{r.qty}</Td>}
                     <Td align="right" className="font-medium">{inr(r.amount)}</Td>
                   </tr>
                 ))}

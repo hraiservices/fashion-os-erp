@@ -79,6 +79,10 @@ const ORDER_COLUMNS = [
 // restriction that already applied to the Profit column alone.
 const PROFIT_SENSITIVE_COLUMNS = new Set(["profit", "tailorPayable", "stitchingCost"]);
 
+// Text columns sort A-Z on first click (like the Customers page); every other column (money,
+// dates) sorts largest/latest-first on first click.
+const TEXT_SORT_COLUMNS = new Set(["order", "customer", "garment", "stage", "tailor"]);
+
 export default function OrdersPage() {
   return (
     <Suspense fallback={<div className="space-y-3 p-4 sm:p-6">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>}>
@@ -168,6 +172,13 @@ function OrdersContent() {
 
   const { data: tailors } = useActiveTailors();
 
+  // Column-header click-to-sort on the List view (see orders-list.tsx's SortableTh) — resets to
+  // the default newest/oldest-by-date sort (filters.sort) on every page load, never persisted.
+  const [colSort, setColSort] = useState<{ key: string; asc: boolean } | null>(null);
+  function toggleColumnSort(key: string) {
+    setColSort((prev) => (prev?.key === key ? { key, asc: !prev.asc } : { key, asc: TEXT_SORT_COLUMNS.has(key) }));
+  }
+
   const filtered = useMemo(() => {
     if (!orders) return [];
     const q = search.trim().toLowerCase();
@@ -194,11 +205,60 @@ function OrdersContent() {
       list = list.filter((o) => o.inDate >= filters.customFrom && o.inDate <= filters.customTo);
     }
 
+    if (colSort) {
+      const { key, asc } = colSort;
+      const sorted = [...list].sort((a, b) => {
+        let diff = 0;
+        switch (key) {
+          case "order":
+            diff = a.id.localeCompare(b.id);
+            break;
+          case "customer":
+            diff = a.name.localeCompare(b.name);
+            break;
+          case "garment":
+            diff = (a.garments[0]?.type || "").localeCompare(b.garments[0]?.type || "");
+            break;
+          case "stage":
+            diff = (STAGE_META[a.status]?.label || a.status).localeCompare(STAGE_META[b.status]?.label || b.status);
+            break;
+          case "tailor":
+            diff = tailorName(a.tailor).localeCompare(tailorName(b.tailor));
+            break;
+          case "delivery":
+            diff = new Date(a.deliveryDate || 0).getTime() - new Date(b.deliveryDate || 0).getTime();
+            break;
+          case "total":
+            diff = a.total - b.total;
+            break;
+          case "balance":
+            diff = a.balance - b.balance;
+            break;
+          case "profit":
+            diff = (profitByOrderId?.get(a.id)?.profit ?? 0) - (profitByOrderId?.get(b.id)?.profit ?? 0);
+            break;
+          case "tailorPayable":
+            diff = (profitByOrderId?.get(a.id)?.tailorCost ?? 0) - (profitByOrderId?.get(b.id)?.tailorCost ?? 0);
+            break;
+          case "stitchingCost": {
+            const costOf = (id: string) => {
+              const p = profitByOrderId?.get(id);
+              return p ? p.fabricCost + p.otherCost + p.stitchingExpenses : 0;
+            };
+            diff = costOf(a.id) - costOf(b.id);
+            break;
+          }
+        }
+        return asc ? diff : -diff;
+      });
+      return sorted;
+    }
+
     return [...list].sort((a, b) => {
       const diff = new Date(a.inDate || 0).getTime() - new Date(b.inDate || 0).getTime();
       return filters.sort === "newest" ? -diff : diff;
     });
-  }, [orders, search, filters]);
+  }, [orders, search, filters, colSort, tailorName, profitByOrderId]);
 
   const [pendingChange, setPendingChange] = useState<PendingStageChange | null>(null);
   const [paymentOrder, setPaymentOrder] = useState<Order | null>(null);
@@ -469,6 +529,9 @@ function OrdersContent() {
           profitByOrderId={profitByOrderId}
           tailorName={tailorName}
           trackUrlByMobile={trackUrlByMobile}
+          sortKey={colSort?.key ?? null}
+          sortAsc={colSort?.asc ?? false}
+          onSort={toggleColumnSort}
         />
       )}
 

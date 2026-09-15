@@ -83,7 +83,7 @@ export default function PendingOrdersPage() {
                 />
                 {o.balance > 0 && (
                   <div className="flex justify-end border-t pt-1.5">
-                    <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop)} label={`Payment reminder to ${o.name}`} />
+                    <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop)} label={`Payment reminder to ${o.name}`} tone="reminder" />
                   </div>
                 )}
               </MobileRecordCard>
@@ -130,7 +130,7 @@ export default function PendingOrdersPage() {
                 </Td>
                 <Td align="right">{o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}</Td>
                 <Td align="right">
-                  {o.balance > 0 && <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop)} label={`Payment reminder to ${o.name}`} />}
+                  {o.balance > 0 && <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop)} label={`Payment reminder to ${o.name}`} tone="reminder" />}
                 </Td>
               </tr>
             ))}

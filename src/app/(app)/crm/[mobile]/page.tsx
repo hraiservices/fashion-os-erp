@@ -260,6 +260,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
               }
               labelClassName="min-w-0 truncate"
               className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm"
+              tone="reminder"
             />
           )}
           {custOrders.length > 0 && (

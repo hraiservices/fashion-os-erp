@@ -119,7 +119,7 @@ function PaymentReminderButton({ order, shop, compact, trackUrl }: { order: Orde
       nativeButton={false}
       render={<a href={href} target="_blank" rel="noopener noreferrer" />}
     >
-      <WhatsAppIcon className="size-3.5 text-[#25D366]" />
+      <WhatsAppIcon className="size-3.5 text-orange-400" />
     </Button>
   );
 }

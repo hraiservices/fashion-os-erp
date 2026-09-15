@@ -48,7 +48,7 @@ export function BulkWhatsAppDialog({
                   <p className="truncate text-sm font-medium">{o.name}</p>
                   <p className="text-xs text-muted-foreground">{o.id} · {o.mobile}</p>
                 </div>
-                <WhatsAppButton href={buildWhatsAppUrl({ ...o, trackUrl: trackUrlByMobile?.get(o.mobile) }, type, shop, waTemplates)} label="Send" size="sm" />
+                <WhatsAppButton href={buildWhatsAppUrl({ ...o, trackUrl: trackUrlByMobile?.get(o.mobile) }, type, shop, waTemplates)} label="Send" size="sm" tone={type === "paymentDue" ? "reminder" : "whatsapp"} />
               </div>
             );
           })}

@@ -169,7 +169,7 @@ export default function CustomerBalancesPage() {
                       {inr(r.lifetime)}
                     </Td>
                     <Td align="right">
-                      {r.totalDue > 0 && <WhatsAppIconButton href={reminderUrl(r.name, r.mobile, r.totalDue)} label={`Payment reminder to ${r.name || r.mobile}`} />}
+                      {r.totalDue > 0 && <WhatsAppIconButton href={reminderUrl(r.name, r.mobile, r.totalDue)} label={`Payment reminder to ${r.name || r.mobile}`} tone="reminder" />}
                     </Td>
                   </tr>
                 ))}
@@ -208,7 +208,7 @@ export default function CustomerBalancesPage() {
                 {r.totalDue > 0 && (
                   <div className="flex items-center justify-between border-t pt-1.5 text-xs" onClick={(e) => e.stopPropagation()}>
                     <span className="text-muted-foreground">Actions</span>
-                    <WhatsAppIconButton href={reminderUrl(r.name, r.mobile, r.totalDue)} label={`Payment reminder to ${r.name || r.mobile}`} />
+                    <WhatsAppIconButton href={reminderUrl(r.name, r.mobile, r.totalDue)} label={`Payment reminder to ${r.name || r.mobile}`} tone="reminder" />
                   </div>
                 )}
               </MobileRecordCard>

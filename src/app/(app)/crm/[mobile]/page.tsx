@@ -201,7 +201,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-border sm:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-border md:grid-cols-4">
           <div className="min-w-0 bg-card p-2 text-center sm:p-3">
             <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{custOrders.length}</p>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Stitch Orders</p>

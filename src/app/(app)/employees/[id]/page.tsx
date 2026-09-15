@@ -138,7 +138,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         </div>
 
         {canManagePayroll && (
-          <div className={`mt-4 grid gap-px overflow-hidden rounded-lg bg-border ${employee.pieceRateEligible ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
+          <div className={`mt-4 grid gap-px overflow-hidden rounded-lg bg-border ${employee.pieceRateEligible ? "grid-cols-2 md:grid-cols-4" : "grid-cols-3"}`}>
             <div className="min-w-0 bg-card p-2 text-center sm:p-3">
               <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{inr(employee.salaryRate)}</p>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{SALARY_TYPE_LABELS[employee.salaryType]} rate</p>

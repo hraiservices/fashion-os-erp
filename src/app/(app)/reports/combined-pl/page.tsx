@@ -206,6 +206,7 @@ export default function CombinedPlPage() {
             showChevron={false}
           />
           <MobileRecordGrid
+            columns={3}
             items={[
               { label: "Stitching Rev", value: inr(columnTotals.stitchingRevenue) },
               { label: "Product Sales Rev", value: inr(columnTotals.salesRevenue) },
@@ -226,6 +227,7 @@ export default function CombinedPlPage() {
               showChevron={false}
             />
             <MobileRecordGrid
+              columns={3}
               items={[
                 { label: "Stitching Rev", value: inr(m.stitchingRevenue) },
                 { label: "Product Sales Rev", value: inr(m.salesRevenue) },

@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, LayoutList, KanbanSquare, ArrowRight, Trash2, Upload, MessageCircle } from "lucide-react";
+import { Plus, Search, LayoutList, KanbanSquare, CalendarDays, ArrowRight, Trash2, Upload, MessageCircle } from "lucide-react";
 import { BulkWhatsAppDialog } from "@/components/orders/bulk-whatsapp-dialog";
+import { CalendarView } from "@/components/orders/calendar-view";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { cn } from "@/lib/utils";
 import { useOrders } from "@/hooks/use-orders";
@@ -120,12 +121,12 @@ function OrdersContent() {
   // wait on the URL round-trip, so an explicit click is also mirrored into this local override;
   // it's dropped once the URL catches up.
   const viewParam = searchParams.get("view");
-  const viewFromUrl = viewParam === "board" ? "board" : viewParam === "list" ? "list" : defaultView;
-  const [viewOverride, setViewOverride] = useState<"board" | "list" | null>(null);
+  const viewFromUrl = viewParam === "board" ? "board" : viewParam === "list" ? "list" : viewParam === "calendar" ? "calendar" : defaultView;
+  const [viewOverride, setViewOverride] = useState<"board" | "list" | "calendar" | null>(null);
   const view = viewOverride ?? viewFromUrl;
   if (viewOverride && viewOverride === viewFromUrl) setViewOverride(null);
 
-  function setView(v: "board" | "list") {
+  function setView(v: "board" | "list" | "calendar") {
     setViewOverride(v);
     const params = new URLSearchParams(searchParams.toString());
     params.set("view", v);
@@ -265,6 +266,31 @@ function OrdersContent() {
       return filters.sort === "newest" ? -diff : diff;
     });
   }, [orders, search, filters, colSort, tailorName, profitByOrderId]);
+
+  // Same filters as `filtered` above, minus the date-range preset — the Calendar view owns its
+  // own time window (whichever month it's currently showing) instead of the shared date-range
+  // filter that List/Board use, so applying that filter here would just fight the month nav.
+  const calendarOrders = useMemo(() => {
+    if (!orders) return [];
+    const q = search.trim().toLowerCase();
+    let list = orders.filter((o) => !q || o.name.toLowerCase().includes(q) || o.mobile.includes(q) || o.id.toLowerCase().includes(q));
+
+    if (filters.tailor !== "all") list = list.filter((o) => o.tailor === filters.tailor);
+    if (filters.stage !== "all") list = list.filter((o) => o.status === filters.stage);
+    if (filters.orderType !== "all") list = list.filter((o) => o.orderType === filters.orderType);
+
+    if (filters.priority !== "all") {
+      list = list.filter((o) => {
+        if (o.status === "delivered" || o.status === "payment") return false;
+        const d = daysLeft(o.deliveryDate);
+        if (filters.priority === "overdue") return d < 0;
+        if (filters.priority === "soon") return d === 0 || d === 1;
+        return d > 1;
+      });
+    }
+
+    return list;
+  }, [orders, search, filters]);
 
   const [pendingChange, setPendingChange] = useState<PendingStageChange | null>(null);
   const [paymentOrder, setPaymentOrder] = useState<Order | null>(null);
@@ -462,6 +488,17 @@ function OrdersContent() {
               >
                 <KanbanSquare className="size-4" />
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setView("calendar")}
+                aria-pressed={view === "calendar"}
+                aria-label="Calendar view"
+                className={cn("h-10 w-10 shrink-0 px-0", view === "calendar" && "bg-muted")}
+              >
+                <CalendarDays className="size-4" />
+              </Button>
             </div>
           }
           desktopLeading={
@@ -472,6 +509,7 @@ function OrdersContent() {
               options={[
                 { value: "list", label: "List", icon: LayoutList },
                 { value: "board", label: "Board", icon: KanbanSquare },
+                { value: "calendar", label: "Calendar", icon: CalendarDays },
               ]}
             />
           }
@@ -520,6 +558,17 @@ function OrdersContent() {
           shop={shop}
           onSetStage={handleSetStage}
           onRecordPayment={user?.perms.managePayments ? setPaymentOrder : undefined}
+          trackUrlByMobile={trackUrlByMobile}
+        />
+      ) : view === "calendar" ? (
+        <CalendarView
+          orders={calendarOrders}
+          canChangeStage={user?.perms.changeStage}
+          onAdvance={handleAdvance}
+          advancingId={advancingId}
+          shop={shop}
+          onRecordPayment={user?.perms.managePayments ? setPaymentOrder : undefined}
+          tailorName={tailorName}
           trackUrlByMobile={trackUrlByMobile}
         />
       ) : (

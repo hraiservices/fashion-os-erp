@@ -14,6 +14,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
+import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+
+const PAYROLL_SUMMARY_COLUMNS = [
+  { key: "period", label: "Period", required: true },
+  { key: "employee", label: "Employee", required: true },
+  { key: "gross", label: "Gross" },
+  { key: "overtime", label: "Overtime" },
+  { key: "deductions", label: "Deductions" },
+  { key: "netPay", label: "Net Pay", required: true },
+  { key: "status", label: "Status" },
+  { key: "download", label: "Download" },
+];
+
+// Below 1920px (a 14" laptop) the full 8-column table feels cramped — Overtime is the widest
+// cell ("Xh · ₹Y") and the least essential to have visible at a glance, so it defaults to hidden
+// there and reappears automatically on a wider monitor (still one click away via Columns).
+const PAYROLL_SUMMARY_AUTO_HIDE = { belowWidth: 1920, keys: ["overtime"] };
 
 /** Salary/payroll report — every payslip ever generated, across all runs, with employee + period joined in client-side. Admin-only (managePayroll), same as the Payroll pages themselves.
  *  Each payslip covers a pay period rather than a single date — the date range matches it against
@@ -26,6 +44,8 @@ export default function PayrollSummaryReportPage() {
   const canManagePayroll = !!user?.perms.managePayroll;
   const isLoading = employeesLoading || runsLoading || payslipsLoading;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const columnTable = useColumnVisibility("payroll-summary", PAYROLL_SUMMARY_COLUMNS, PAYROLL_SUMMARY_AUTO_HIDE);
+  const isVisible = columnTable.isVisible;
 
   const employeeName = (id: string) => (employees || []).find((e) => e.id === id)?.name || "—";
   const runById = useMemo(() => new Map((runs || []).map((r) => [r.id, r])), [runs]);
@@ -120,6 +140,9 @@ export default function PayrollSummaryReportPage() {
             ))}
           </MobileRecordList>
 
+          <div className="hidden justify-end sm:flex">
+            <ColumnCustomizerMenu table={columnTable} />
+          </div>
           <div className="hidden sm:block">
             <ReportTable>
               <thead className="border-b bg-muted/40">
@@ -127,7 +150,7 @@ export default function PayrollSummaryReportPage() {
                   <Th>Period</Th>
                   <Th>Employee</Th>
                   <Th align="right">Gross</Th>
-                  <Th align="right">Overtime</Th>
+                  {isVisible("overtime") && <Th align="right">Overtime</Th>}
                   <Th align="right">Deductions</Th>
                   <Th align="right">Net Pay</Th>
                   <Th align="right">Status</Th>
@@ -138,7 +161,7 @@ export default function PayrollSummaryReportPage() {
                 <ReportTotalsRow>
                   <Td colSpan={2}>Total</Td>
                   <Td align="right">{inr(totals.gross)}</Td>
-                  <Td align="right">—</Td>
+                  {isVisible("overtime") && <Td align="right">—</Td>}
                   <Td align="right">{inr(totals.deductions)}</Td>
                   <Td align="right">{inr(totals.net)}</Td>
                   <Td align="right">—</Td>
@@ -151,7 +174,9 @@ export default function PayrollSummaryReportPage() {
                     </Td>
                     <Td>{employeeName(r.payslip.employeeId)}</Td>
                     <Td align="right">{inr(r.payslip.grossPay)}</Td>
-                    <Td align="right">{r.payslip.overtimeHours > 0 ? `${r.payslip.overtimeHours}h · ${inr(r.payslip.overtimePay)}` : "—"}</Td>
+                    {isVisible("overtime") && (
+                      <Td align="right">{r.payslip.overtimeHours > 0 ? `${r.payslip.overtimeHours}h · ${inr(r.payslip.overtimePay)}` : "—"}</Td>
+                    )}
                     <Td align="right">{r.payslip.deductions > 0 ? `− ${inr(r.payslip.deductions)}` : "—"}</Td>
                     <Td align="right" className="font-semibold">
                       {inr(r.payslip.netPay)}

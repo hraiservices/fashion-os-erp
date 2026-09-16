@@ -137,6 +137,7 @@ export default function GstSummaryReportPage() {
                 showChevron={false}
               />
               <MobileRecordGrid
+                columns={3}
                 items={[
                   { label: "Invoices", value: g.invoiceCount },
                   { label: "Taxable Value", value: inr(g.taxableValue) },

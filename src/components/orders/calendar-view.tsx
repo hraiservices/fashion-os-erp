@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Inbox, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { istDateString } from "@/lib/ist-date";
 import { OrderCardRow } from "@/components/orders/order-row";
@@ -118,17 +117,20 @@ export function CalendarView({ orders, canChangeStage, onAdvance, advancingId, s
     </div>
   );
 
-  const daysWithOrders = days.filter((e) => e.inMonth && (e.received.length > 0 || e.due.length > 0));
-
   return (
     <div className="space-y-3">
       {monthNav}
 
-      {/* Desktop month grid */}
-      <div className="hidden overflow-hidden rounded-xl border sm:block">
-        <div className="grid grid-cols-7 border-b bg-muted/40 text-center text-xs font-bold uppercase tracking-wide text-muted-foreground">
+      {/* Month grid — a real 7-column calendar at every width. Cells are compact on mobile (just
+          a date number + colored dots) and roomier on desktop (badges with counts); both tap
+          through to the same day-detail dialog. */}
+      <div className="overflow-hidden rounded-xl border">
+        <div className="grid grid-cols-7 border-b bg-muted/40 text-center text-[10px] font-bold uppercase tracking-wide text-muted-foreground sm:text-xs">
           {WEEKDAYS.map((w) => (
-            <div key={w} className="py-2">{w}</div>
+            <div key={w} className="py-1.5 sm:py-2">
+              <span className="sm:hidden">{w.slice(0, 1)}</span>
+              <span className="hidden sm:inline">{w}</span>
+            </div>
           ))}
         </div>
         <div className="grid grid-cols-7">
@@ -143,16 +145,26 @@ export function CalendarView({ orders, canChangeStage, onAdvance, advancingId, s
                 disabled={!hasAny}
                 onClick={() => setSelectedDate(e.date)}
                 className={cn(
-                  "flex min-h-24 flex-col items-start gap-1 border-b border-r p-1.5 text-left transition-colors last:border-r-0 [&:nth-child(7n)]:border-r-0",
+                  "flex min-h-12 flex-col items-center gap-0.5 border-b border-r p-0.5 text-left transition-colors last:border-r-0 [&:nth-child(7n)]:border-r-0 sm:min-h-24 sm:items-start sm:gap-1 sm:p-1.5",
                   !e.inMonth && "bg-muted/20 text-muted-foreground/50",
                   hasAny && "cursor-pointer hover:bg-muted/40",
                   overdue && "bg-red-50 dark:bg-red-950/20"
                 )}
               >
-                <span className={cn("flex size-6 items-center justify-center rounded-full text-xs font-medium", isToday && "bg-primary text-primary-foreground")}>
+                <span className={cn("flex size-5 items-center justify-center rounded-full text-[11px] font-medium sm:size-6 sm:text-xs", isToday && "bg-primary text-primary-foreground")}>
                   {e.day}
                 </span>
-                <div className="flex w-full flex-col gap-0.5">
+
+                {/* Mobile: dots only */}
+                {hasAny && (
+                  <div className="flex gap-0.5 sm:hidden">
+                    {e.received.length > 0 && <span className="size-1.5 rounded-full bg-blue-500" aria-label={`${e.received.length} received`} />}
+                    {e.due.length > 0 && <span className={cn("size-1.5 rounded-full", overdue ? "bg-red-500" : "bg-amber-500")} aria-label={`${e.due.length} delivery due`} />}
+                  </div>
+                )}
+
+                {/* Desktop: badges with counts */}
+                <div className="hidden w-full flex-col gap-0.5 sm:flex">
                   {e.received.length > 0 && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-1.5 py-0 text-[10px] font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
                       <Inbox className="size-2.5" /> {e.received.length}
@@ -177,37 +189,7 @@ export function CalendarView({ orders, canChangeStage, onAdvance, advancingId, s
         </div>
       </div>
 
-      {/* Mobile agenda */}
-      <div className="space-y-3 sm:hidden">
-        {daysWithOrders.length === 0 ? (
-          <EmptyState icon={Inbox} title="No orders this month" description="Try a different month or clear your filters." />
-        ) : (
-          daysWithOrders.map((e) => (
-            <div key={e.date} className="space-y-2">
-              <div className="flex items-center gap-2 px-1">
-                <span className={cn("text-sm font-semibold", e.date === today && "text-primary")}>
-                  {new Date(`${e.date}T00:00:00`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}
-                </span>
-                {isOverdueDay(e) && <span className="text-xs font-medium text-red-600 dark:text-red-400">Overdue</span>}
-              </div>
-              {e.received.length > 0 && (
-                <div className="space-y-2">
-                  <p className="px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Received ({e.received.length})</p>
-                  {e.received.map(renderOrderRow)}
-                </div>
-              )}
-              {e.due.length > 0 && (
-                <div className="space-y-2">
-                  <p className="px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Delivery due ({e.due.length})</p>
-                  {e.due.map(renderOrderRow)}
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Desktop day-detail dialog */}
+      {/* Day-detail dialog — every device taps through to this same list */}
       <Dialog open={!!selectedDate} onOpenChange={(open) => !open && setSelectedDate(null)}>
         <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>

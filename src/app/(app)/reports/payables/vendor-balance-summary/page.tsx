@@ -80,6 +80,7 @@ export default function VendorBalanceSummaryPage() {
           <MobileRecordCard className="bg-muted/40">
             <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.balance, 0))} showChevron={false} />
             <MobileRecordGrid
+              columns={3}
               items={[
                 { label: "Bills", value: rows.reduce((s, r) => s + r.billCount, 0) },
                 { label: "Total Billed", value: inr(rows.reduce((s, r) => s + r.total, 0)) },

@@ -220,6 +220,7 @@ export default function CustomerBalancesPage() {
                   valueClassName="font-semibold"
                 />
                 <MobileRecordGrid
+                  columns={3}
                   items={[
                     { label: "Orders", value: r.orderCount },
                     { label: "Invoices", value: r.invoiceCount },

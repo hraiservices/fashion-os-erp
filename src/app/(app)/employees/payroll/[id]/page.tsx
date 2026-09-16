@@ -23,6 +23,30 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+
+const PAYROLL_RUN_COLUMNS = [
+  { key: "employee", label: "Employee", required: true },
+  { key: "present", label: "Present" },
+  { key: "absent", label: "Absent" },
+  { key: "halfDay", label: "Half day" },
+  { key: "leave", label: "Leave" },
+  { key: "gross", label: "Gross" },
+  { key: "pieceRate", label: "Piece-rate" },
+  { key: "overtime", label: "Overtime" },
+  { key: "deductions", label: "Deductions" },
+  { key: "adjustment", label: "Adjustment" },
+  { key: "netPay", label: "Net Pay", required: true },
+  { key: "status", label: "Status", required: true },
+  { key: "actions", label: "Actions", required: true },
+];
+
+// Below 1920px (a 14" laptop) the full 12-column table feels cramped — the attendance
+// breakdown (Present/Absent/Half day/Leave) and the less-common pay lines (Piece-rate/
+// Overtime/Adjustment) are the least essential to see at a glance, so they default to hidden
+// there and reappear automatically on a wider monitor (still one click away via Columns).
+const PAYROLL_RUN_AUTO_HIDE = { belowWidth: 1920, keys: ["present", "absent", "halfDay", "leave", "pieceRate", "overtime", "adjustment"] };
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -52,6 +76,8 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
   const [adjusting, setAdjusting] = useState<Payslip | null>(null);
   const [adjustAmount, setAdjustAmount] = useState("");
   const [adjustNote, setAdjustNote] = useState("");
+  const columnTable = useColumnVisibility("payroll-run-detail", PAYROLL_RUN_COLUMNS, PAYROLL_RUN_AUTO_HIDE);
+  const isVisible = columnTable.isVisible;
 
   const employee = (empId: string) => (employees || []).find((e) => e.id === empId);
   const employeeName = (empId: string) => employee(empId)?.name || "—";
@@ -166,20 +192,23 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
         <EmptyState icon={Wallet} title="No payslips" description="No active employees at the time this run was generated." />
       ) : (
         <div className="overflow-hidden rounded-xl border">
+          <div className="hidden justify-end p-2 pb-0 sm:flex">
+            <ColumnCustomizerMenu table={columnTable} />
+          </div>
           <div className="hidden overflow-x-auto sm:block">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Employee</TableHead>
-                  <TableHead className="text-right">Present</TableHead>
-                  <TableHead className="text-right">Absent</TableHead>
-                  <TableHead className="text-right">Half day</TableHead>
-                  <TableHead className="text-right">Leave</TableHead>
+                  {isVisible("present") && <TableHead className="text-right">Present</TableHead>}
+                  {isVisible("absent") && <TableHead className="text-right">Absent</TableHead>}
+                  {isVisible("halfDay") && <TableHead className="text-right">Half day</TableHead>}
+                  {isVisible("leave") && <TableHead className="text-right">Leave</TableHead>}
                   <TableHead className="text-right">Gross</TableHead>
-                  <TableHead className="text-right">Piece-rate</TableHead>
-                  <TableHead className="text-right">Overtime</TableHead>
+                  {isVisible("pieceRate") && <TableHead className="text-right">Piece-rate</TableHead>}
+                  {isVisible("overtime") && <TableHead className="text-right">Overtime</TableHead>}
                   <TableHead className="text-right">Deductions</TableHead>
-                  <TableHead className="text-right">Adjustment</TableHead>
+                  {isVisible("adjustment") && <TableHead className="text-right">Adjustment</TableHead>}
                   <TableHead className="text-right">Net Pay</TableHead>
                   <TableHead className="text-right">Status</TableHead>
                   <TableHead className="w-24" />
@@ -189,17 +218,21 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
                 {payslips.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{employeeName(p.employeeId)}</TableCell>
-                    <TableCell className="text-right">{p.presentDays}</TableCell>
-                    <TableCell className="text-right">{p.absentDays}</TableCell>
-                    <TableCell className="text-right">{p.halfDays}</TableCell>
-                    <TableCell className="text-right">{p.leaveDays}</TableCell>
+                    {isVisible("present") && <TableCell className="text-right">{p.presentDays}</TableCell>}
+                    {isVisible("absent") && <TableCell className="text-right">{p.absentDays}</TableCell>}
+                    {isVisible("halfDay") && <TableCell className="text-right">{p.halfDays}</TableCell>}
+                    {isVisible("leave") && <TableCell className="text-right">{p.leaveDays}</TableCell>}
                     <TableCell className="text-right">{inr(p.grossPay)}</TableCell>
-                    <TableCell className="text-right">{p.pieceRatePay > 0 ? inr(p.pieceRatePay) : "—"}</TableCell>
-                    <TableCell className="text-right">{p.overtimeHours > 0 ? `${p.overtimeHours}h · ${inr(p.overtimePay)}` : "—"}</TableCell>
+                    {isVisible("pieceRate") && <TableCell className="text-right">{p.pieceRatePay > 0 ? inr(p.pieceRatePay) : "—"}</TableCell>}
+                    {isVisible("overtime") && (
+                      <TableCell className="text-right">{p.overtimeHours > 0 ? `${p.overtimeHours}h · ${inr(p.overtimePay)}` : "—"}</TableCell>
+                    )}
                     <TableCell className="text-right text-red-600 dark:text-red-400">{p.deductions > 0 ? `− ${inr(p.deductions)}` : "—"}</TableCell>
-                    <TableCell className={cn("text-right", p.adjustmentAmount > 0 ? "text-emerald-600 dark:text-emerald-400" : p.adjustmentAmount < 0 ? "text-red-600 dark:text-red-400" : undefined)}>
-                      {p.adjustmentAmount !== 0 ? `${p.adjustmentAmount > 0 ? "+" : "−"} ${inr(Math.abs(p.adjustmentAmount))}` : "—"}
-                    </TableCell>
+                    {isVisible("adjustment") && (
+                      <TableCell className={cn("text-right", p.adjustmentAmount > 0 ? "text-emerald-600 dark:text-emerald-400" : p.adjustmentAmount < 0 ? "text-red-600 dark:text-red-400" : undefined)}>
+                        {p.adjustmentAmount !== 0 ? `${p.adjustmentAmount > 0 ? "+" : "−"} ${inr(Math.abs(p.adjustmentAmount))}` : "—"}
+                      </TableCell>
+                    )}
                     <TableCell className="text-right font-semibold">{inr(p.netPay)}</TableCell>
                     <TableCell className="text-right">
                       {p.status === "paid" ? (

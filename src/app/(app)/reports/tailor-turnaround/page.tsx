@@ -96,6 +96,7 @@ export default function TailorTurnaroundPage() {
             <MobileRecordCard className="bg-muted/40">
               <MobileRecordHeader title="Total / overall avg" value={`${overallAvg} avg`} showChevron={false} />
               <MobileRecordGrid
+                columns={3}
                 items={[
                   { label: "Orders completed", value: totalCompleted },
                   { label: "Avg days", value: overallAvg },

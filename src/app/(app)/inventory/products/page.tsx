@@ -23,6 +23,22 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+
+const PRODUCT_LIST_COLUMNS = [
+  { key: "name", label: "Name", required: true },
+  { key: "sku", label: "SKU" },
+  { key: "stock", label: "Stock", required: true },
+  { key: "price", label: "Price", required: true },
+  { key: "margin", label: "Margin" },
+  { key: "bom", label: "BOM" },
+];
+
+// Below 1920px (a 14" laptop) the table feels cramped — Margin and BOM are the least essential
+// to see at a glance, so they default to hidden there and reappear automatically on a wider
+// monitor (still one click away via Columns).
+const PRODUCT_LIST_AUTO_HIDE = { belowWidth: 1920, keys: ["margin", "bom"] };
 import {
   AlertDialog,
   AlertDialogAction,
@@ -102,6 +118,8 @@ function ProductsPageContent() {
   const [search, setSearch] = useState("");
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const columnTable = useColumnVisibility("inventory-products", PRODUCT_LIST_COLUMNS, PRODUCT_LIST_AUTO_HIDE);
+  const isVisible = columnTable.isVisible;
 
   const canManage = !!user?.perms.manageInventory;
 
@@ -167,9 +185,12 @@ function ProductsPageContent() {
         }
       />
 
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input type="search" enterKeyHint="search" placeholder="Search name, SKU or category…" className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search products" />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-48 flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input type="search" enterKeyHint="search" placeholder="Search name, SKU or category…" className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search products" />
+        </div>
+        <ColumnCustomizerMenu table={columnTable} />
       </div>
 
       {canManage && selection.count > 0 && (
@@ -227,8 +248,8 @@ function ProductsPageContent() {
                 <TableHead>SKU</TableHead>
                 <TableHead className="text-right">Stock</TableHead>
                 <TableHead className="text-right">Price</TableHead>
-                <TableHead className="text-right">Margin</TableHead>
-                <TableHead className="text-right">BOM</TableHead>
+                {isVisible("margin") && <TableHead className="text-right">Margin</TableHead>}
+                {isVisible("bom") && <TableHead className="text-right">BOM</TableHead>}
                 {canManage && <TableHead className="w-20" />}
               </TableRow>
             </TableHeader>
@@ -274,18 +295,22 @@ function ProductsPageContent() {
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <EditablePrice product={p} canEdit={canManage} userEmail={user?.email} />
                     </TableCell>
-                    <TableCell className="text-right">
-                      {p.costPrice > 0 ? (
-                        <span className={p.sellingPrice - p.costPrice >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
-                          {inr(p.sellingPrice - p.costPrice)}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {p.bom.length > 0 ? <Badge variant="secondary">{p.bom.length} items</Badge> : <span className="text-xs text-muted-foreground">Not set</span>}
-                    </TableCell>
+                    {isVisible("margin") && (
+                      <TableCell className="text-right">
+                        {p.costPrice > 0 ? (
+                          <span className={p.sellingPrice - p.costPrice >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
+                            {inr(p.sellingPrice - p.costPrice)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    )}
+                    {isVisible("bom") && (
+                      <TableCell className="text-right">
+                        {p.bom.length > 0 ? <Badge variant="secondary">{p.bom.length} items</Badge> : <span className="text-xs text-muted-foreground">Not set</span>}
+                      </TableCell>
+                    )}
                     {canManage && (
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">

@@ -339,7 +339,7 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
                   key={p.id}
                   type="button"
                   onClick={() => addProduct(p)}
-                  className="rounded-lg border bg-card p-3 text-left transition-colors hover:bg-muted/50 active:bg-muted"
+                  className="min-w-0 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-muted/50 active:bg-muted"
                 >
                   <p className="truncate text-sm font-medium">{p.name}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">{p.sku}</p>

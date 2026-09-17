@@ -54,13 +54,42 @@ export interface DayBookEntry {
   userEmail?: string;
 }
 
+// Dashboard-access accounts (tailors/employees who log into the main app rather than just
+// punching the attendance PIN) are provisioned with a synthetic `emp-<id>@dashboard.local`
+// email (see /api/employees/[id]/dashboard-access) — the local part is a raw employee id, not
+// a human-readable name, so it must be resolved through the employees table instead of just
+// taking the text before "@" like a real email.
+export const DASHBOARD_ACCESS_EMAIL_RE = /^emp-(.+)@dashboard\.local$/i;
+
 /** The only "name" data this schema has for a user is their email — see AGENTS this session's
  *  audit: no display_name column exists anywhere. Matches the convention already duplicated
- *  across ~7 call sites in src/lib/logging.ts and the order-stage routes. */
-export function displayNameFromEmail(email: string | null | undefined): string {
+ *  across ~7 call sites in src/lib/logging.ts and the order-stage routes.
+ *  `employeeNameById`, when passed, resolves a synthetic dashboard-access email back to the
+ *  employee's real name instead of showing their raw id. */
+export function displayNameFromEmail(email: string | null | undefined, employeeNameById?: Map<string, string>): string {
   if (!email) return "System";
+  const dashboardMatch = email.match(DASHBOARD_ACCESS_EMAIL_RE);
+  if (dashboardMatch) {
+    const name = employeeNameById?.get(dashboardMatch[1]);
+    if (name) return name;
+  }
   const local = email.split("@")[0];
   return local || email;
+}
+
+/** activity_log.user_name is written at insert time (logAction()) by the same "email local
+ *  part" convention — for a dashboard-access account that's already the raw employee id baked
+ *  into a stored column, not something a fallback-when-null can fix. So this always re-resolves
+ *  from user_email through the employees table when it can, rather than trusting a possibly-bad
+ *  stored user_name; only when that doesn't resolve does it fall back to what's stored (or the
+ *  email's local part). */
+function resolveLoggedUser(userName: string | null, userEmail: string | null, employeeNameById?: Map<string, string>): string {
+  if (userEmail) {
+    const dashboardMatch = userEmail.match(DASHBOARD_ACCESS_EMAIL_RE);
+    const name = dashboardMatch && employeeNameById?.get(dashboardMatch[1]);
+    if (name) return name;
+  }
+  return userName || displayNameFromEmail(userEmail, employeeNameById);
 }
 
 function fmtTime(iso: string): string {
@@ -82,7 +111,7 @@ interface SalesInvoiceRow {
   created_at: string;
 }
 
-export function buildSalesInvoiceEntries(rows: SalesInvoiceRow[]): DayBookEntry[] {
+export function buildSalesInvoiceEntries(rows: SalesInvoiceRow[], employeeNameById?: Map<string, string>): DayBookEntry[] {
   return rows.map((r) => ({
     id: `inv-${r.id}`,
     time: r.created_at,
@@ -93,7 +122,7 @@ export function buildSalesInvoiceEntries(rows: SalesInvoiceRow[]): DayBookEntry[
     referenceHref: `/sales/invoices/${r.id}`,
     amount: r.total,
     customer: r.customer_name,
-    user: displayNameFromEmail(r.created_by),
+    user: displayNameFromEmail(r.created_by, employeeNameById),
     userEmail: r.created_by || undefined,
   }));
 }
@@ -108,7 +137,7 @@ interface SalesPaymentRow {
   created_at: string;
 }
 
-export function buildSalesPaymentEntries(rows: SalesPaymentRow[], invoiceByIdMap: Map<string, { invoiceNumber: string; customerName: string }>): DayBookEntry[] {
+export function buildSalesPaymentEntries(rows: SalesPaymentRow[], invoiceByIdMap: Map<string, { invoiceNumber: string; customerName: string }>, employeeNameById?: Map<string, string>): DayBookEntry[] {
   return rows.map((r) => {
     const inv = invoiceByIdMap.get(r.invoice_id);
     return {
@@ -121,7 +150,7 @@ export function buildSalesPaymentEntries(rows: SalesPaymentRow[], invoiceByIdMap
       referenceHref: inv ? `/sales/invoices/${r.invoice_id}` : undefined,
       amount: r.amount,
       customer: inv?.customerName,
-      user: displayNameFromEmail(r.created_by),
+      user: displayNameFromEmail(r.created_by, employeeNameById),
       userEmail: r.created_by || undefined,
     };
   });
@@ -137,7 +166,7 @@ interface SalesCreditNoteRow {
   created_at: string;
 }
 
-export function buildSalesCreditNoteEntries(rows: SalesCreditNoteRow[], invoiceByIdMap: Map<string, { invoiceNumber: string; customerName: string }>): DayBookEntry[] {
+export function buildSalesCreditNoteEntries(rows: SalesCreditNoteRow[], invoiceByIdMap: Map<string, { invoiceNumber: string; customerName: string }>, employeeNameById?: Map<string, string>): DayBookEntry[] {
   return rows.map((r) => {
     const inv = invoiceByIdMap.get(r.invoice_id);
     return {
@@ -150,7 +179,7 @@ export function buildSalesCreditNoteEntries(rows: SalesCreditNoteRow[], invoiceB
       referenceHref: inv ? `/sales/invoices/${r.invoice_id}` : undefined,
       amount: r.total,
       customer: inv?.customerName,
-      user: displayNameFromEmail(r.created_by),
+      user: displayNameFromEmail(r.created_by, employeeNameById),
       userEmail: r.created_by || undefined,
     };
   });
@@ -168,7 +197,7 @@ interface ExpenseRow {
   created_at: string;
 }
 
-export function buildExpenseEntries(rows: ExpenseRow[]): DayBookEntry[] {
+export function buildExpenseEntries(rows: ExpenseRow[], employeeNameById?: Map<string, string>): DayBookEntry[] {
   return rows.map((r) => ({
     id: `exp-${r.id}`,
     time: r.created_at,
@@ -177,7 +206,7 @@ export function buildExpenseEntries(rows: ExpenseRow[]): DayBookEntry[] {
     description: `${r.category}${r.description ? ` — ${r.description}` : ""} via ${r.pay_method}`,
     reference: r.id.slice(0, 8).toUpperCase(),
     amount: r.amount,
-    user: displayNameFromEmail(r.created_by),
+    user: displayNameFromEmail(r.created_by, employeeNameById),
     userEmail: r.created_by || undefined,
   }));
 }
@@ -193,7 +222,7 @@ interface PurchaseBillRow {
   created_at: string;
 }
 
-export function buildPurchaseBillEntries(rows: PurchaseBillRow[], vendorByIdMap: Map<string, string>): DayBookEntry[] {
+export function buildPurchaseBillEntries(rows: PurchaseBillRow[], vendorByIdMap: Map<string, string>, employeeNameById?: Map<string, string>): DayBookEntry[] {
   return rows.map((r) => ({
     id: `bill-${r.id}`,
     time: r.created_at,
@@ -204,7 +233,7 @@ export function buildPurchaseBillEntries(rows: PurchaseBillRow[], vendorByIdMap:
     referenceHref: `/purchases/bills/${r.id}`,
     amount: r.total,
     vendor: vendorByIdMap.get(r.vendor_id),
-    user: displayNameFromEmail(r.created_by),
+    user: displayNameFromEmail(r.created_by, employeeNameById),
     userEmail: r.created_by || undefined,
   }));
 }
@@ -219,7 +248,7 @@ interface VendorPaymentRow {
   created_at: string;
 }
 
-export function buildVendorPaymentEntries(rows: VendorPaymentRow[], vendorByIdMap: Map<string, string>, billByIdMap: Map<string, string>): DayBookEntry[] {
+export function buildVendorPaymentEntries(rows: VendorPaymentRow[], vendorByIdMap: Map<string, string>, billByIdMap: Map<string, string>, employeeNameById?: Map<string, string>): DayBookEntry[] {
   return rows.map((r) => ({
     id: `vpay-${r.id}`,
     time: r.created_at,
@@ -230,7 +259,7 @@ export function buildVendorPaymentEntries(rows: VendorPaymentRow[], vendorByIdMa
     referenceHref: `/purchases/bills/${r.bill_id}`,
     amount: r.amount,
     vendor: vendorByIdMap.get(r.vendor_id),
-    user: displayNameFromEmail(r.created_by),
+    user: displayNameFromEmail(r.created_by, employeeNameById),
     userEmail: r.created_by || undefined,
   }));
 }
@@ -246,7 +275,7 @@ interface VendorCreditRow {
   created_at: string;
 }
 
-export function buildVendorCreditEntries(rows: VendorCreditRow[], vendorByIdMap: Map<string, string>): DayBookEntry[] {
+export function buildVendorCreditEntries(rows: VendorCreditRow[], vendorByIdMap: Map<string, string>, employeeNameById?: Map<string, string>): DayBookEntry[] {
   return rows.map((r) => ({
     id: `vc-${r.id}`,
     time: r.created_at,
@@ -257,7 +286,7 @@ export function buildVendorCreditEntries(rows: VendorCreditRow[], vendorByIdMap:
     referenceHref: r.bill_id ? `/purchases/bills/${r.bill_id}` : undefined,
     amount: r.total,
     vendor: vendorByIdMap.get(r.vendor_id),
-    user: displayNameFromEmail(r.created_by),
+    user: displayNameFromEmail(r.created_by, employeeNameById),
     userEmail: r.created_by || undefined,
   }));
 }
@@ -274,7 +303,7 @@ interface OrderRow {
   created_at: string;
 }
 
-export function buildOrderCreatedEntries(rows: OrderRow[], creatorByOrderId: Map<string, string | null>): DayBookEntry[] {
+export function buildOrderCreatedEntries(rows: OrderRow[], creatorByOrderId: Map<string, string | null>, employeeNameById?: Map<string, string>): DayBookEntry[] {
   return rows.map((r) => {
     const creator = creatorByOrderId.get(r.id) ?? null;
     return {
@@ -287,7 +316,7 @@ export function buildOrderCreatedEntries(rows: OrderRow[], creatorByOrderId: Map
       referenceHref: `/orders/${r.id}`,
       amount: r.total,
       customer: r.name,
-      user: displayNameFromEmail(creator),
+      user: displayNameFromEmail(creator, employeeNameById),
       userEmail: creator || undefined,
     };
   });
@@ -324,7 +353,7 @@ interface OrderPaymentTableRow {
 
 /** Real order_payments rows, not text extraction — the single source of truth for both the
  *  timeline entries here and any report's totals, so the two can never disagree. */
-export function buildOrderPaymentEntries(rows: OrderPaymentTableRow[], orderByIdMap: Map<string, { name: string; mobile: string }>): DayBookEntry[] {
+export function buildOrderPaymentEntries(rows: OrderPaymentTableRow[], orderByIdMap: Map<string, { name: string; mobile: string }>, employeeNameById?: Map<string, string>): DayBookEntry[] {
   return rows.map((r) => {
     const order = orderByIdMap.get(r.order_id);
     return {
@@ -340,17 +369,17 @@ export function buildOrderPaymentEntries(rows: OrderPaymentTableRow[], orderById
       // description text instead), same convention the old text-extraction path used.
       amount: r.amount,
       customer: order?.name,
-      user: displayNameFromEmail(r.created_by),
+      user: displayNameFromEmail(r.created_by, employeeNameById),
       userEmail: r.created_by || undefined,
     };
   });
 }
 
-export function buildOrderActivityLogEntries(rows: ActivityLogRow[]): DayBookEntry[] {
+export function buildOrderActivityLogEntries(rows: ActivityLogRow[], employeeNameById?: Map<string, string>): DayBookEntry[] {
   const out: DayBookEntry[] = [];
   for (const r of rows) {
     if (!r.order_id) continue;
-    const user = r.user_name || displayNameFromEmail(r.user_email);
+    const user = resolveLoggedUser(r.user_name, r.user_email, employeeNameById);
     const base = { id: `al-${r.id}`, time: r.created_at, reference: r.order_id, referenceHref: `/orders/${r.order_id}`, user, userEmail: r.user_email || undefined };
     if (r.action.startsWith("💰 Payment ₹")) {
       // Covered by buildOrderPaymentEntries (real order_payments table) — skip to avoid a
@@ -397,10 +426,10 @@ export function buildCustomerCreatedEntries(rows: CustomerRow[]): DayBookEntry[]
   }));
 }
 
-export function buildCustomerActivityLogEntries(rows: ActivityLogRow[]): DayBookEntry[] {
+export function buildCustomerActivityLogEntries(rows: ActivityLogRow[], employeeNameById?: Map<string, string>): DayBookEntry[] {
   const out: DayBookEntry[] = [];
   for (const r of rows) {
-    const user = r.user_name || displayNameFromEmail(r.user_email);
+    const user = resolveLoggedUser(r.user_name, r.user_email, employeeNameById);
     if (r.action.startsWith("✏️ Customer profile updated")) {
       out.push({ id: `al-${r.id}`, time: r.created_at, module: "customers", activity: "Customer Updated", description: r.action, user, userEmail: r.user_email || undefined });
     } else if (r.action.startsWith("🗑️ Customer deleted")) {
@@ -439,7 +468,7 @@ export function buildAttendanceEntries(rows: AttendanceRow[], employeeNameById: 
         activity: "Check-in",
         description: `${name} checked in`,
         employee: name,
-        user: r.created_by ? displayNameFromEmail(r.created_by) : name,
+        user: r.created_by ? displayNameFromEmail(r.created_by, employeeNameById) : name,
       });
     }
     if (r.check_out_at) {
@@ -450,7 +479,7 @@ export function buildAttendanceEntries(rows: AttendanceRow[], employeeNameById: 
         activity: "Check-out",
         description: `${name} checked out${r.hours_worked != null ? ` — ${r.hours_worked}h worked` : ""}${r.overtime_hours > 0 ? ` (+${r.overtime_hours}h OT)` : ""}`,
         employee: name,
-        user: r.created_by ? displayNameFromEmail(r.created_by) : name,
+        user: r.created_by ? displayNameFromEmail(r.created_by, employeeNameById) : name,
       });
     }
     if (!r.check_in_at && !r.check_out_at) {
@@ -462,7 +491,7 @@ export function buildAttendanceEntries(rows: AttendanceRow[], employeeNameById: 
         activity: "Attendance Marked",
         description: `${name} marked ${r.status}`,
         employee: name,
-        user: displayNameFromEmail(r.created_by),
+        user: displayNameFromEmail(r.created_by, employeeNameById),
         userEmail: r.created_by || undefined,
       });
     }
@@ -493,7 +522,7 @@ export function buildLeaveAppliedEntries(rows: LeaveRequestRow[], employeeNameBy
     activity: "Leave Applied",
     description: `${employeeNameById.get(r.employee_id) || "Employee"} applied for ${r.days} day(s) leave (${r.from_date} to ${r.to_date})`,
     employee: employeeNameById.get(r.employee_id),
-    user: r.requested_by === "self-service" ? employeeNameById.get(r.employee_id) || "Employee" : displayNameFromEmail(r.requested_by),
+    user: r.requested_by === "self-service" ? employeeNameById.get(r.employee_id) || "Employee" : displayNameFromEmail(r.requested_by, employeeNameById),
   }));
 }
 
@@ -507,7 +536,7 @@ export function buildLeaveDecidedEntries(rows: LeaveRequestRow[], employeeNameBy
       activity: r.status === "approved" ? "Leave Approved" : "Leave Rejected",
       description: `${employeeNameById.get(r.employee_id) || "Employee"}'s leave (${r.from_date} to ${r.to_date}) ${r.status}`,
       employee: employeeNameById.get(r.employee_id),
-      user: displayNameFromEmail(r.decided_by),
+      user: displayNameFromEmail(r.decided_by, employeeNameById),
       userEmail: r.decided_by || undefined,
     }));
 }
@@ -557,14 +586,14 @@ export function buildAdvanceEntries(rows: EmployeeAdvanceRow[], employeeNameById
     employee: employeeNameById.get(r.employee_id),
     referenceHref: `/employees/${r.employee_id}`,
     amount: r.amount,
-    user: displayNameFromEmail(r.created_by),
+    user: displayNameFromEmail(r.created_by, employeeNameById),
     userEmail: r.created_by || undefined,
   }));
 }
 
 // ── Other (work orders, users/settings, catch-all) ──────────────────────
 
-export function buildOtherActivityLogEntries(rows: ActivityLogRow[]): DayBookEntry[] {
+export function buildOtherActivityLogEntries(rows: ActivityLogRow[], employeeNameById?: Map<string, string>): DayBookEntry[] {
   return rows
     .filter((r) => !r.order_id) // order-linked rows are handled by buildOrderActivityLogEntries
     .filter((r) => !r.action.startsWith("✏️ Customer profile updated") && !r.action.startsWith("🗑️ Customer deleted"))
@@ -574,7 +603,7 @@ export function buildOtherActivityLogEntries(rows: ActivityLogRow[]): DayBookEnt
       module: "other" as DayBookModule,
       activity: r.action.replace(/^[\p{Emoji_Presentation}‍️]+\s*/gu, "").split(":")[0].slice(0, 40) || "Activity",
       description: r.details ? `${r.action} — ${r.details}` : r.action,
-      user: r.user_name || displayNameFromEmail(r.user_email),
+      user: resolveLoggedUser(r.user_name, r.user_email, employeeNameById),
       userEmail: r.user_email || undefined,
     }));
 }

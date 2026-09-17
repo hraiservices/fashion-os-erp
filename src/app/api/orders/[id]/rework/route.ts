@@ -4,7 +4,7 @@ import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { mapOrderRow } from "@/lib/types";
 import { fmtNow } from "@/lib/business-rules";
-import { logAction } from "@/lib/logging";
+import { logAction, resolveActingUserName } from "@/lib/logging";
 
 const bodySchema = z.object({
   flag: z.boolean(),
@@ -36,7 +36,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { data: row, error: fetchError } = await db.from("orders").select("name").eq("id", id).maybeSingle();
   if (fetchError || !row) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-  const userName = user.email.split("@")[0] || "user";
+  const userName = await resolveActingUserName(db, user);
   const historyLine = flag
     ? `🔁 Flagged for rework — ${fmtNow()} by ${userName}: ${reason.trim()}`
     : `✅ Rework flag cleared — ${fmtNow()} by ${userName}`;

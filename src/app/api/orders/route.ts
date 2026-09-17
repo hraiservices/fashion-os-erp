@@ -4,7 +4,7 @@ import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { mapOrderRow } from "@/lib/types";
 import { newOrderId, customerIdFromMobile, deriveBalance, fmtNow, computeEarnPoints, computeRedemption, REFERRAL_BONUS_POINTS, isValidManualOrderNumber } from "@/lib/business-rules";
-import { logAction } from "@/lib/logging";
+import { logAction, resolveActingUserName } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
 import type { ModuleEntitlements } from "@/lib/entitlements";
@@ -162,7 +162,7 @@ export async function POST(request: Request) {
       id = formatDocNumber(orderNumberFmt, nextNumber, year);
     }
   }
-  const userName = user.email.split("@")[0] || "user";
+  const userName = await resolveActingUserName(db, user);
   const loyaltyCfg = await getLoyaltyConfig(supabase);
 
   // ── Loyalty redemption at creation ──────────────────────────────────────────

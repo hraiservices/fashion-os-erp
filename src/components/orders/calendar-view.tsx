@@ -191,7 +191,12 @@ export function CalendarView({ orders, canChangeStage, onAdvance, advancingId, s
 
       {/* Day-detail dialog — every device taps through to this same list */}
       <Dialog open={!!selectedDate} onOpenChange={(open) => !open && setSelectedDate(null)}>
-        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
+        {/* The default max-w-[calc(100%-2rem)] outer margin + p-4 inner padding leaves ~32px
+            less width than a normal page's own p-4 container — just enough to make the order
+            row's 5-button action bar (Move/Record/WhatsApp/Reminder/Delete) clip off the right
+            edge on a phone. Tightening both insets here restores the same width the row already
+            fits at everywhere else. */}
+        <DialogContent className="max-h-[85dvh] max-w-[calc(100%-1rem)] overflow-x-hidden overflow-y-auto p-2 sm:max-w-lg sm:p-4">
           <DialogHeader>
             <DialogTitle>
               {selectedEntry && new Date(`${selectedEntry.date}T00:00:00`).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}

@@ -4,7 +4,7 @@ import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { mapOrderRow } from "@/lib/types";
 import { STAGES, STAGE_META, fmtNow, deliveryBonusPoints, computeEarnPoints, loyaltyDiscountOf, couponDiscountOf, getNextStage, type Stage } from "@/lib/business-rules";
-import { logAction, sendAdminNotification } from "@/lib/logging";
+import { logAction, sendAdminNotification, resolveActingUserName } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
 
@@ -54,7 +54,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const curMeta  = STAGE_META[order.status];
   const nextMeta = STAGE_META[target];
-  const userName = user.email.split("@")[0] || "user";
+  const userName = await resolveActingUserName(db, user);
   const historyLine = `${nextMeta.emoji} ${nextMeta.label} — ${fmtNow()} by ${userName}`;
 
   // C2: optimistic-lock on current status prevents skipping stages under concurrency.
@@ -80,7 +80,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   );
   await sendAdminNotification(supabase, user.email, {
     orderId: id, customerName: order.name, fromStage: curMeta.label, toStage: nextMeta.label,
-  });
+  }, userName);
 
   // H7/M9: loyalty calls happen after stage is committed — wrap in try/catch so a loyalty
   // RPC failure doesn't return HTTP 500 with a stale Kanban cache (stage already changed in DB).

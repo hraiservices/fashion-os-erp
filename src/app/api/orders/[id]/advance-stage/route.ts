@@ -3,7 +3,7 @@ import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { mapOrderRow } from "@/lib/types";
 import { STAGE_META, getNextStage, fmtNow, deliveryBonusPoints } from "@/lib/business-rules";
-import { logAction, sendAdminNotification } from "@/lib/logging";
+import { logAction, sendAdminNotification, resolveActingUserName } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
 import { sendWhatsAppTemplateText, type WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
@@ -31,7 +31,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   const curMeta  = STAGE_META[order.status];
   const nextMeta = STAGE_META[next];
-  const userName = user.email.split("@")[0] || "user";
+  const userName = await resolveActingUserName(db, user);
   const historyLine = `${nextMeta.emoji} ${nextMeta.label} — ${fmtNow()} by ${userName}`;
 
   // C2: pass p_expected_status so a concurrent advance on the same order returns 0 rows
@@ -59,7 +59,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   );
   await sendAdminNotification(supabase, user.email, {
     orderId: id, customerName: order.name, fromStage: curMeta.label, toStage: nextMeta.label,
-  });
+  }, userName);
 
   // H7: loyalty side-effects run after the stage is committed. Any failure returns a warning
   // but must not cause HTTP 500 — the stage change already happened in the DB.

@@ -178,24 +178,24 @@ export async function GET(request: Request) {
   }
 
   const entries: DayBookEntry[] = [
-    ...buildSalesInvoiceEntries(invoicesRes.data || []),
-    ...buildSalesPaymentEntries(paymentsRes.data || [], invoiceByIdMap),
-    ...buildSalesCreditNoteEntries(creditNotesRes.data || [], invoiceByIdMap),
-    ...buildExpenseEntries(expensesRes.data || []),
-    ...buildPurchaseBillEntries(billsRes.data || [], vendorNameById),
-    ...buildVendorPaymentEntries(vendorPaymentsRes.data || [], vendorNameById, billNumberById),
-    ...buildVendorCreditEntries(vendorCreditsRes.data || [], vendorNameById),
-    ...buildOrderCreatedEntries(ordersRes.data || [], creatorByOrderId),
-    ...buildOrderActivityLogEntries(orderActivityRes.data || []),
-    ...buildOrderPaymentEntries(orderPaymentsRes.data || [], orderByIdMap),
+    ...buildSalesInvoiceEntries(invoicesRes.data || [], employeeNameById),
+    ...buildSalesPaymentEntries(paymentsRes.data || [], invoiceByIdMap, employeeNameById),
+    ...buildSalesCreditNoteEntries(creditNotesRes.data || [], invoiceByIdMap, employeeNameById),
+    ...buildExpenseEntries(expensesRes.data || [], employeeNameById),
+    ...buildPurchaseBillEntries(billsRes.data || [], vendorNameById, employeeNameById),
+    ...buildVendorPaymentEntries(vendorPaymentsRes.data || [], vendorNameById, billNumberById, employeeNameById),
+    ...buildVendorCreditEntries(vendorCreditsRes.data || [], vendorNameById, employeeNameById),
+    ...buildOrderCreatedEntries(ordersRes.data || [], creatorByOrderId, employeeNameById),
+    ...buildOrderActivityLogEntries(orderActivityRes.data || [], employeeNameById),
+    ...buildOrderPaymentEntries(orderPaymentsRes.data || [], orderByIdMap, employeeNameById),
     ...buildCustomerCreatedEntries(customersRes.data || []),
-    ...buildCustomerActivityLogEntries(unlinkedActivityRes.data || []),
+    ...buildCustomerActivityLogEntries(unlinkedActivityRes.data || [], employeeNameById),
     ...buildAttendanceEntries(attendanceRes.data || [], employeeNameById, startUtc),
     ...buildLeaveAppliedEntries(leaveAppliedRes.data || [], employeeNameById),
     ...buildLeaveDecidedEntries(leaveDecidedRes.data || [], employeeNameById),
     ...payslipEntries,
     ...advanceEntries,
-    ...buildOtherActivityLogEntries(unlinkedActivityRes.data || []),
+    ...buildOtherActivityLogEntries(unlinkedActivityRes.data || [], employeeNameById),
   ];
 
   // Reconciliation totals — summed directly from the raw rows above, independent of the

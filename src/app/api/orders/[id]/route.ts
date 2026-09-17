@@ -4,7 +4,7 @@ import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { mapOrderRow } from "@/lib/types";
 import { fmtNow, loyaltyDiscountOf, couponDiscountOf, customerIdFromMobile, REFERRAL_BONUS_POINTS } from "@/lib/business-rules";
-import { logAction } from "@/lib/logging";
+import { logAction, resolveActingUserName } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
 import type { Json } from "@/lib/supabase/database.types";
@@ -150,7 +150,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // total/advance on every save, so writing unconditionally would spam the audit trail
     // with "Total ₹2000→₹2000" entries on unrelated edits (e.g. fixing a name typo).
     if (newTotal !== curTotal || newAdvance !== curAdvance) {
-      const userName = user.email.split("@")[0] || "user";
+      const userName = await resolveActingUserName(db, user);
       historyLine = `✏️ Edited — Total ₹${curTotal}→₹${newTotal}, Advance ₹${curAdvance}→₹${newAdvance} by ${userName} — ${fmtNow()}`;
     }
   }

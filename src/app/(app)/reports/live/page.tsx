@@ -12,6 +12,9 @@ import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { fmtDate, inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
+import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { StageBadge } from "@/components/orders/stage-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
@@ -19,6 +22,25 @@ import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+
+/** "1 day" vs "5 days" — plain count, no abbreviation. */
+function daysLabel(n: number): string {
+  return `${n} day${n === 1 ? "" : "s"}`;
+}
+
+// Stage is `required` — shown per order in both sections regardless of the (otherwise obvious)
+// section it's under, per explicit request. Waiting/Delivery only render in their own section
+// (Ready has no delivery date column, Picked-up-not-paid has no days-waiting column) but share
+// one visibility toggle set so there's a single Columns menu for the whole page.
+const LIVE_REPORT_COLUMNS = [
+  { key: "order", label: "Order", required: true },
+  { key: "customer", label: "Customer", required: true },
+  { key: "stage", label: "Stage", required: true },
+  { key: "waiting", label: "Days Waiting" },
+  { key: "delivery", label: "Delivery Date" },
+  { key: "balance", label: "Balance", required: true },
+  { key: "actions", label: "Actions", required: true },
+];
 
 /** The two situations that most need a nudge, side by side on one screen instead of buried in
  *  separate reports: an order sitting "ready" that the customer hasn't come to collect, and an
@@ -30,6 +52,8 @@ export default function LiveReportPage() {
   const { data: shop } = useShopSettings();
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const columnTable = useColumnVisibility("live-report", LIVE_REPORT_COLUMNS);
+  const isVisible = columnTable.isVisible;
 
   const inRange = useMemo(() => orders.filter((o) => isWithinDateRange(o.inDate, range)), [orders, range]);
   const readyUncollected = useMemo(() => getReadyUncollected(inRange), [inRange]);
@@ -68,8 +92,11 @@ export default function LiveReportPage() {
         onCustomToChange={setCustomTo}
       />
 
-      <div className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-        <Radio className="size-3 animate-pulse" /> Live — reflects the current stage and balance of every order
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+          <Radio className="size-3 animate-pulse" /> Live — reflects the current stage and balance of every order
+        </div>
+        <ColumnCustomizerMenu table={columnTable} />
       </div>
 
       <div className="space-y-8">
@@ -99,8 +126,11 @@ export default function LiveReportPage() {
                       value={o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}
                       showChevron={false}
                     />
+                    <MobileRecordRow label="Stage" value={<StageBadge stage={o.status} size="sm" />} />
                     <MobileRecordRow label="Ready since" value={fmtDate(o.readyAt!.slice(0, 10))} />
-                    <MobileRecordRow label="Days waiting" value={`${o.daysWaiting}d`} valueClassName={o.daysWaiting >= 7 ? "font-medium text-destructive" : undefined} />
+                    {isVisible("waiting") && (
+                      <MobileRecordRow label="Days waiting" value={daysLabel(o.daysWaiting)} valueClassName={o.daysWaiting >= 7 ? "font-medium text-destructive" : undefined} />
+                    )}
                     <div className="flex justify-end border-t pt-1.5">
                       <WhatsAppIconButton
                         href={buildWhatsAppUrl(o, o.balance > 0 ? "paymentDue" : "ready", shop, waTemplates)}
@@ -118,14 +148,15 @@ export default function LiveReportPage() {
                     <tr>
                       <Th>Order</Th>
                       <Th>Customer</Th>
-                      <Th align="right">Days waiting</Th>
+                      <Th>Stage</Th>
+                      {isVisible("waiting") && <Th align="right">Days waiting</Th>}
                       <Th align="right">Balance</Th>
                       <Th align="right">Actions</Th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
                     <ReportTotalsRow>
-                      <Td colSpan={3}>Total</Td>
+                      <Td colSpan={isVisible("waiting") ? 4 : 3}>Total</Td>
                       <Td align="right">{inr(readyBalance)}</Td>
                       <Td align="right">—</Td>
                     </ReportTotalsRow>
@@ -141,9 +172,14 @@ export default function LiveReportPage() {
                           <p className="truncate">{o.name}</p>
                           <p className="text-xs text-muted-foreground">{o.mobile}</p>
                         </Td>
-                        <Td align="right" className={o.daysWaiting >= 7 ? "font-medium text-destructive" : undefined}>
-                          {o.daysWaiting}d
+                        <Td>
+                          <StageBadge stage={o.status} size="sm" />
                         </Td>
+                        {isVisible("waiting") && (
+                          <Td align="right" className={o.daysWaiting >= 7 ? "font-medium text-destructive" : undefined}>
+                            {daysLabel(o.daysWaiting)}
+                          </Td>
+                        )}
                         <Td align="right">{o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}</Td>
                         <Td align="right">
                           <WhatsAppIconButton
@@ -187,7 +223,8 @@ export default function LiveReportPage() {
                       value={<BalanceDue amount={o.balance} />}
                       showChevron={false}
                     />
-                    <MobileRecordRow label="Delivery date" value={fmtDate(o.deliveryDate)} />
+                    <MobileRecordRow label="Stage" value={<StageBadge stage={o.status} size="sm" />} />
+                    {isVisible("delivery") && <MobileRecordRow label="Delivery date" value={fmtDate(o.deliveryDate)} />}
                     <div className="flex justify-end border-t pt-1.5">
                       <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop, waTemplates)} label={`Payment reminder to ${o.name}`} tone="reminder" />
                     </div>
@@ -201,14 +238,15 @@ export default function LiveReportPage() {
                     <tr>
                       <Th>Order</Th>
                       <Th>Customer</Th>
-                      <Th>Delivery date</Th>
+                      <Th>Stage</Th>
+                      {isVisible("delivery") && <Th>Delivery date</Th>}
                       <Th align="right">Balance</Th>
                       <Th align="right">Actions</Th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
                     <ReportTotalsRow>
-                      <Td colSpan={3}>Total</Td>
+                      <Td colSpan={isVisible("delivery") ? 4 : 3}>Total</Td>
                       <Td align="right">{inr(unpaidBalance)}</Td>
                       <Td align="right">—</Td>
                     </ReportTotalsRow>
@@ -223,7 +261,10 @@ export default function LiveReportPage() {
                           <p className="truncate">{o.name}</p>
                           <p className="text-xs text-muted-foreground">{o.mobile}</p>
                         </Td>
-                        <Td>{fmtDate(o.deliveryDate)}</Td>
+                        <Td>
+                          <StageBadge stage={o.status} size="sm" />
+                        </Td>
+                        {isVisible("delivery") && <Td>{fmtDate(o.deliveryDate)}</Td>}
                         <Td align="right">
                           <BalanceDue amount={o.balance} />
                         </Td>

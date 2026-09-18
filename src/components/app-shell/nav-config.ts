@@ -88,7 +88,8 @@ export const REPORTS_GROUP: NavGroup = {
   icon: BarChart3,
   indexHref: "/reports",
   children: [
-    { href: "/reports/day-book", label: "Day Book", section: "Summary" },
+    { href: "/reports/live", label: "LIVE Report", section: "Summary" },
+    { href: "/reports/day-book", label: "Day Book" },
     { href: "/reports/combined-pl", label: "Combined P&L", adminOnly: true },
     { href: "/reports/payments-received", label: "Payments Received" },
 

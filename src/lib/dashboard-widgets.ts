@@ -40,6 +40,7 @@ export const BUILTIN_WIDGETS: BuiltinWidgetMeta[] = [
   { key: "profit-overview",             title: "Profit Overview",      size: "full", href: "/reports/combined-pl",   description: "Live stitching revenue, sales revenue, costs and profit — Week/Month/6 Months. Admin & manager only." },
   { key: "pipeline-velocity",           title: "Pipeline Velocity",    size: "full", href: "/reports/tailor-workload", description: "Live average days-to-Ready and on-time % trend — Week/Month/6 Months. Admin & manager only." },
   { key: "tailor-performance",          title: "Tailor Performance",   size: "full", href: "/reports/tailor-workload", description: "Live per-tailor revenue, order count and rework count leaderboard — Week/Month/6 Months. Admin & manager only." },
+  { key: "live-report",                 title: "LIVE Report",          size: "full", href: "/reports/live",          description: "Orders ready but not picked up, and orders picked up but not paid, with a one-tap WhatsApp reminder" },
 ];
 
 export const BUILTIN_WIDGET_BY_KEY = new Map(BUILTIN_WIDGETS.map((w) => [w.key, w]));

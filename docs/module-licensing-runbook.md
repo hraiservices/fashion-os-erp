@@ -96,15 +96,43 @@ even though you can see and click the checkboxes.
 5. **Dashboard Widgets** section — same pattern, one checkbox per widget tile.
 6. Click **Save changes**. Effective immediately — no redeploy needed.
 
-### Example: "Stitching Orders only" tier
-Uncheck every module (Inventory, Purchases, Product Sales, Employees, Expenses, POS, AI Copilot,
-Reports) and save. The customer is left with a lean tailoring-only app: orders, board,
-alterations, customers, manufacturing, cost estimator, activity log, and their own settings.
+## Standard pricing tiers
 
-### Example: fuller ERP tier
-Check whichever modules match what they paid for (e.g. Inventory + Purchases + Product Sales for
-a retail-plus-tailoring shop), then fine-tune individual reports/widgets if you're selling a
-mid-tier package that excludes a few premium reports.
+These are the default packages for new customers — decided for the initial 20-30-shop rollout,
+aimed mainly at mid-size shops (5-15 staff). Adjust per customer if a shop's needs don't fit
+cleanly; the tiers are a starting point, not a hard rule enforced anywhere in code.
+
+| Tier | Price | Modules on top of core |
+|---|---|---|
+| **Starter** | ₹1,499/mo (₹14,990/yr) | Employees, basic Reports |
+| **Growth** | ₹2,999/mo (₹29,990/yr) | + Product Sales, Expenses, full Reports |
+| **Pro** | ₹4,999/mo (₹49,990/yr) | + Inventory, Purchases, POS, AI Copilot |
+
+Annual price is 2 months free (~17% off) vs. paying monthly — offer it, don't force it.
+
+- **Starter** — a shop that just wants staff attendance/payroll and order tracking off paper.
+  Core (Orders, Board, Alterations, Customers/CRM, Manufacturing, Cost Estimator, Activity Log,
+  Settings) + Employees + basic Reports. Uncheck Inventory, Purchases, Product Sales, Expenses,
+  POS, AI Copilot.
+- **Growth** — a shop that's also billing customers formally and tracking money in/out, not just
+  stitching jobs. Starter + Product Sales + Expenses + every Reports category. Uncheck Inventory,
+  Purchases, POS, AI Copilot.
+- **Pro** — a shop that also stocks/sells fabric or retail goods alongside tailoring. Every
+  module checked on.
+
+Billing method (manual "Paid until" vs. Razorpay auto-billing, see below) is an independent
+per-customer choice, not tied to which tier they're on — default every new customer to manual at
+signup, and offer Razorpay auto-billing later once they're comfortable paying online.
+
+### Configuring a tier
+1. Log in to their deployment with your owner email.
+2. Go to **Settings → Module Licensing** (only visible to you).
+3. **Modules** section — check on whichever match their tier (table above), leave the rest
+   unchecked.
+4. **Reports** section — grouped by category, each report individually checkable. Reports whose
+   module is off appear greyed out (can't be turned on independently).
+5. **Dashboard Widgets** section — same pattern, one checkbox per widget tile.
+6. Click **Save changes**. Effective immediately — no redeploy needed.
 
 ---
 

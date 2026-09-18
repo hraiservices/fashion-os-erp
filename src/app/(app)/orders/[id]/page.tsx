@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, ChevronLeft, ChevronRight, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt, FileDown } from "lucide-react";
 import { useOrder } from "@/hooks/use-order";
 import { useOrders } from "@/hooks/use-orders";
 import { useOrderGroup } from "@/hooks/use-order-group";
@@ -19,6 +19,7 @@ import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
 import { computeOrderProfit } from "@/lib/order-profit";
 import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppUrl, isValidManualOrderNumber, type Lining } from "@/lib/business-rules";
 import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
+import { DEFAULT_ORDER_TAG_TEMPLATE, hydrateOrderTagTemplate, type OrderTagTemplateConfig } from "@/lib/order-tag-template";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
 import { inr, fmtDate } from "@/lib/format";
@@ -73,6 +74,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
+  const { data: rawTagTemplate } = useAppSetting<OrderTagTemplateConfig>("orderTagTemplate", DEFAULT_ORDER_TAG_TEMPLATE);
+  const tagTemplate = hydrateOrderTagTemplate(rawTagTemplate);
   const advanceStage = useAdvanceStage();
   const deleteOrder = useDeleteOrder();
   const renameOrder = useRenameOrder();
@@ -392,11 +395,21 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <span className="min-w-0 truncate">Rework</span>
             </Button>
           )}
-          <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print order tag" onClick={() => printOrderTag(order, shop, tailorName(order.tailor))}>
+          <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print order tag" onClick={() => printOrderTag(order, shop, tailorName(order.tailor), tagTemplate)}>
             <TagIcon className="size-4" />
             <span className="min-w-0 truncate">Print tag</span>
           </Button>
           <PrintButton labelClassName="min-w-0 truncate" className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm" />
+          <Button
+            variant="outline"
+            className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm"
+            aria-label="Download order receipt PDF"
+            nativeButton={false}
+            render={<a href={`/api/orders/${id}/pdf`} target="_blank" rel="noopener noreferrer" />}
+          >
+            <FileDown className="size-4" />
+            <span className="min-w-0 truncate">Download PDF</span>
+          </Button>
           {user?.perms.deleteOrder && (
             <AlertDialog>
               <AlertDialogTrigger

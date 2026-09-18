@@ -2,6 +2,7 @@ import JsBarcode from "jsbarcode";
 import { fmtDate } from "@/lib/format";
 import type { Order } from "@/lib/types";
 import type { Shop } from "@/lib/business-rules";
+import { DEFAULT_ORDER_TAG_TEMPLATE, type OrderTagTemplateConfig } from "@/lib/order-tag-template";
 
 /** Same off-screen-SVG approach as src/lib/barcode.ts's renderBarcodeSvg — no new dependency,
  *  the order ID is already a short alphanumeric string Code128 handles natively. */
@@ -21,20 +22,22 @@ function escapeHtml(s: string): string {
  * floor. Same window.open + document.write + @page pattern as printBarcodeLabel
  * (src/lib/barcode.ts) and printThermalReceipt, so it doesn't fight the main app's print CSS.
  */
-export function printOrderTag(order: Order, shop?: Shop, tailorName?: string) {
-  const svg = renderBarcodeSvg(order.id);
+export function printOrderTag(order: Order, shop?: Shop, tailorName?: string, template?: OrderTagTemplateConfig) {
+  const t = template || DEFAULT_ORDER_TAG_TEMPLATE;
   const win = window.open("", "_blank", "width=420,height=560");
   if (!win) return;
 
+  const svg = t.showBarcode ? renderBarcodeSvg(order.id) : "";
   const garmentLines = order.garments.map((g) => `${g.type}${g.no && g.no > 1 ? ` ×${g.no}` : ""}`).join(", ");
+  const accent = t.colorTheme || DEFAULT_ORDER_TAG_TEMPLATE.colorTheme;
 
   win.document.write(`<!doctype html>
 <html>
 <head>
 <title>${escapeHtml(order.id)} — Order Tag</title>
 <style>
-  @page { size: 80mm 120mm; margin: 4mm; }
-  body { font-family: sans-serif; padding: 10px; text-align: center; }
+  @page { size: ${t.paperWidthMm}mm ${t.paperHeightMm}mm; margin: 4mm; }
+  body { font-family: sans-serif; padding: 10px; text-align: center; color: ${accent}; }
   .shop { font-weight: 700; font-size: 14px; margin-bottom: 8px; }
   svg { max-width: 100%; margin: 6px 0; }
   .name { font-weight: 700; font-size: 18px; margin-top: 8px; }
@@ -45,13 +48,13 @@ export function printOrderTag(order: Order, shop?: Shop, tailorName?: string) {
 </style>
 </head>
 <body>
-  ${shop?.name ? `<div class="shop">${escapeHtml(shop.name)}</div>` : ""}
+  ${t.showShopName && shop?.name ? `<div class="shop">${escapeHtml(shop.name)}</div>` : ""}
   ${svg}
   <div class="name">${escapeHtml(order.name)}</div>
-  <div class="row"><div class="label">Garments</div><div class="value">${escapeHtml(garmentLines || "—")}</div></div>
-  <div class="row"><div class="label">Delivery</div><div class="value">${escapeHtml(fmtDate(order.deliveryDate))}</div></div>
-  <div class="row"><div class="label">Tailor</div><div class="value">${escapeHtml(tailorName || order.tailor || "—")}</div></div>
-  ${order.special ? `<div class="special"><div class="label">Special instructions</div>${escapeHtml(order.special)}</div>` : ""}
+  ${t.showGarments ? `<div class="row"><div class="label">Garments</div><div class="value">${escapeHtml(garmentLines || "—")}</div></div>` : ""}
+  ${t.showDelivery ? `<div class="row"><div class="label">Delivery</div><div class="value">${escapeHtml(fmtDate(order.deliveryDate))}</div></div>` : ""}
+  ${t.showTailor ? `<div class="row"><div class="label">Tailor</div><div class="value">${escapeHtml(tailorName || order.tailor || "—")}</div></div>` : ""}
+  ${t.showSpecialInstructions && order.special ? `<div class="special"><div class="label">Special instructions</div>${escapeHtml(order.special)}</div>` : ""}
   <script>window.onload = () => { window.print(); };</script>
 </body>
 </html>`);

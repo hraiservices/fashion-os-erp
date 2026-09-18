@@ -54,7 +54,7 @@ export function LiveReportWidget() {
         {readyUncollected.length === 0 ? (
           <p className="px-1 py-2 text-xs text-muted-foreground">Nothing waiting.</p>
         ) : (
-          <ul className="divide-y rounded-lg border">
+          <ul className="max-h-64 divide-y overflow-y-auto rounded-lg border">
             {readyUncollected.slice(0, MAX_ROWS).map((o) => (
               <li key={o.id} className="flex items-center gap-2 px-3 py-2">
                 <Link href={`/orders/${o.id}`} className="min-w-0 flex-1">
@@ -81,7 +81,7 @@ export function LiveReportWidget() {
         {deliveredUnpaid.length === 0 ? (
           <p className="px-1 py-2 text-xs text-muted-foreground">Nothing unpaid.</p>
         ) : (
-          <ul className="divide-y rounded-lg border">
+          <ul className="max-h-64 divide-y overflow-y-auto rounded-lg border">
             {deliveredUnpaid.slice(0, MAX_ROWS).map((o) => (
               <li key={o.id} className="flex items-center gap-2 px-3 py-2">
                 <Link href={`/orders/${o.id}`} className="min-w-0 flex-1">

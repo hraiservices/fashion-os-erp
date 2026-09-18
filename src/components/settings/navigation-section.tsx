@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowUp, ArrowDown, Eye, EyeOff, ChevronDown, RotateCcw } from "lucide-react";
+import { ArrowUp, ArrowDown, Eye, EyeOff, ChevronDown, RotateCcw, GripVertical } from "lucide-react";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
+import { useDragReorder } from "@/hooks/use-drag-reorder";
 import {
   DEFAULT_NAV_LAYOUT,
   MOVABLE_GROUPS,
@@ -37,7 +38,10 @@ function moveInArray<T>(arr: T[], index: number, dir: -1 | 1): T[] {
   return next;
 }
 
-/** Row shared by both the root-order list and each group's leaf list — reorder + hide, nothing else differs. */
+/** Row shared by both the root-order list and each group's leaf list — reorder + hide, nothing
+ *  else differs. `dragProps` (draggable/onDragStart/onDragOver/onDrop/onDragEnd, from
+ *  useDragReorder) is spread onto the row itself — a mouse/trackpad supplement to the arrow
+ *  buttons, which stay the only way to reorder on a touch screen. */
 function EditorRow({
   icon: Icon,
   label,
@@ -48,6 +52,9 @@ function EditorRow({
   disableUp,
   disableDown,
   extra,
+  dragProps,
+  isDragging,
+  isDropTarget,
 }: {
   icon?: React.ComponentType<{ className?: string }>;
   label: string;
@@ -58,9 +65,21 @@ function EditorRow({
   disableUp: boolean;
   disableDown: boolean;
   extra?: React.ReactNode;
+  dragProps?: React.HTMLAttributes<HTMLDivElement>;
+  isDragging?: boolean;
+  isDropTarget?: boolean;
 }) {
   return (
-    <div className={cn("flex items-center gap-2 rounded-lg border px-2.5 py-2 text-sm", hidden && "opacity-50")}>
+    <div
+      {...dragProps}
+      className={cn(
+        "flex items-center gap-2 rounded-lg border px-2.5 py-2 text-sm transition-colors",
+        hidden && "opacity-50",
+        isDragging && "opacity-40",
+        isDropTarget && !isDragging && "border-primary bg-primary/5"
+      )}
+    >
+      {dragProps && <GripVertical className="size-3.5 shrink-0 cursor-grab text-muted-foreground/50 active:cursor-grabbing" />}
       <div className="flex shrink-0 flex-col">
         <button type="button" onClick={onMoveUp} disabled={disableUp} className="rounded p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label={`Move ${label} up`}>
           <ArrowUp className="size-3" />
@@ -85,6 +104,86 @@ function EditorRow({
   );
 }
 
+/** One group's accordion body in the "Menu items" card — its own component (not inlined in the
+ *  MOVABLE_GROUPS.map() above) purely so useDragReorder can be called for each group's item
+ *  list; a hook can't be called inside a .map() callback directly. */
+function MenuItemsGroup({
+  group: g,
+  items,
+  hiddenLeaves,
+  isOpen,
+  onToggleOpen,
+  onMoveLeaf,
+  onReorderLeaves,
+  onToggleLeafHidden,
+  onMoveLeafToGroup,
+}: {
+  group: (typeof MOVABLE_GROUPS)[number];
+  items: string[];
+  hiddenLeaves: string[];
+  isOpen: boolean;
+  onToggleOpen: () => void;
+  onMoveLeaf: (href: string, dir: -1 | 1) => void;
+  onReorderLeaves: (next: string[]) => void;
+  onToggleLeafHidden: (href: string) => void;
+  onMoveLeafToGroup: (href: string, toGroupId: string) => void;
+}) {
+  const drag = useDragReorder(items, (href) => href, onReorderLeaves);
+
+  return (
+    <div className="overflow-hidden rounded-lg border">
+      <button
+        type="button"
+        onClick={onToggleOpen}
+        aria-expanded={isOpen}
+        className="flex w-full items-center gap-2 bg-muted/30 px-3 py-2.5 text-left text-sm font-medium hover:bg-muted/50"
+      >
+        <g.icon className="size-4 shrink-0 text-muted-foreground" />
+        <span className="flex-1">{g.label}</span>
+        <span className="text-xs text-muted-foreground">{items.length}</span>
+        <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", !isOpen && "-rotate-90")} />
+      </button>
+      {isOpen && (
+        <div className="space-y-1.5 p-3">
+          {items.map((href, i) => {
+            const leaf = findLeafAnywhere(href);
+            if (!leaf) return null;
+            return (
+              <EditorRow
+                key={href}
+                label={leaf.label}
+                hidden={hiddenLeaves.includes(href)}
+                onMoveUp={() => onMoveLeaf(href, -1)}
+                onMoveDown={() => onMoveLeaf(href, 1)}
+                onToggleHidden={() => onToggleLeafHidden(href)}
+                disableUp={i === 0}
+                disableDown={i === items.length - 1}
+                dragProps={{ ...drag.dragHandleProps(href), ...drag.dropTargetProps(href) }}
+                isDragging={drag.draggingId === href}
+                isDropTarget={drag.dropTargetId === href}
+                extra={
+                  <Select value={g.id} onValueChange={(v) => v && onMoveLeafToGroup(href, v)}>
+                    <SelectTrigger className="h-7 w-32 shrink-0 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MOVABLE_GROUPS.map((og) => (
+                        <SelectItem key={og.id} value={og.id}>
+                          {og.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                }
+              />
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Lets an admin hide, reorder, and re-group every sidebar entry — saved shop-wide so it applies to everyone. */
 export function NavigationSection() {
   const { data, isLoading, save } = useAppSetting<NavLayoutSetting>("navLayout", DEFAULT_NAV_LAYOUT);
@@ -95,6 +194,8 @@ export function NavigationSection() {
   useSyncFromSource(isLoading, (loading) => {
     if (!loading && !draft) setDraft(draftFrom(data));
   });
+
+  const rootDrag = useDragReorder(draft?.rootOrder || [], (id) => id, reorderRoot);
 
   if (isLoading || !draft) return <Skeleton className="h-96 w-full" />;
 
@@ -108,6 +209,10 @@ export function NavigationSection() {
     update({ rootOrder: moveInArray(draft!.rootOrder, idx, dir) });
   }
 
+  function reorderRoot(next: string[]) {
+    update({ rootOrder: next });
+  }
+
   function toggleRootHidden(id: string) {
     const hiddenRoot = draft!.hiddenRoot.includes(id) ? draft!.hiddenRoot.filter((x) => x !== id) : [...draft!.hiddenRoot, id];
     update({ hiddenRoot });
@@ -117,6 +222,10 @@ export function NavigationSection() {
     const list = draft!.groupChildren[groupId];
     const idx = list.indexOf(href);
     update({ groupChildren: { ...draft!.groupChildren, [groupId]: moveInArray(list, idx, dir) } });
+  }
+
+  function reorderLeaves(groupId: string, next: string[]) {
+    update({ groupChildren: { ...draft!.groupChildren, [groupId]: next } });
   }
 
   function toggleLeafHidden(href: string) {
@@ -171,6 +280,9 @@ export function NavigationSection() {
                   onToggleHidden={() => toggleRootHidden(id)}
                   disableUp={i === 0}
                   disableDown={i === draft.rootOrder.length - 1}
+                  dragProps={{ ...rootDrag.dragHandleProps(id), ...rootDrag.dropTargetProps(id) }}
+                  isDragging={rootDrag.draggingId === id}
+                  isDropTarget={rootDrag.dropTargetId === id}
                 />
               );
             })}
@@ -186,59 +298,20 @@ export function NavigationSection() {
           <p className="text-xs text-muted-foreground">
             Hide or reorder items inside each group, or move an item into a different group with &quot;Move to&quot;.
           </p>
-          {MOVABLE_GROUPS.map((g) => {
-            const isOpen = openGroup === g.id;
-            const items = draft.groupChildren[g.id];
-            return (
-              <div key={g.id} className="overflow-hidden rounded-lg border">
-                <button
-                  type="button"
-                  onClick={() => setOpenGroup(isOpen ? null : g.id)}
-                  aria-expanded={isOpen}
-                  className="flex w-full items-center gap-2 bg-muted/30 px-3 py-2.5 text-left text-sm font-medium hover:bg-muted/50"
-                >
-                  <g.icon className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="flex-1">{g.label}</span>
-                  <span className="text-xs text-muted-foreground">{items.length}</span>
-                  <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", !isOpen && "-rotate-90")} />
-                </button>
-                {isOpen && (
-                  <div className="space-y-1.5 p-3">
-                    {items.map((href, i) => {
-                      const leaf = findLeafAnywhere(href);
-                      if (!leaf) return null;
-                      return (
-                        <EditorRow
-                          key={href}
-                          label={leaf.label}
-                          hidden={draft.hiddenLeaves.includes(href)}
-                          onMoveUp={() => moveLeaf(g.id, href, -1)}
-                          onMoveDown={() => moveLeaf(g.id, href, 1)}
-                          onToggleHidden={() => toggleLeafHidden(href)}
-                          disableUp={i === 0}
-                          disableDown={i === items.length - 1}
-                          extra={
-                            <Select value={g.id} onValueChange={(v) => v && moveLeafToGroup(g.id, href, v)}>
-                              <SelectTrigger className="h-7 w-32 shrink-0 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {MOVABLE_GROUPS.map((og) => (
-                                  <SelectItem key={og.id} value={og.id}>
-                                    {og.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          }
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {MOVABLE_GROUPS.map((g) => (
+            <MenuItemsGroup
+              key={g.id}
+              group={g}
+              items={draft.groupChildren[g.id]}
+              hiddenLeaves={draft.hiddenLeaves}
+              isOpen={openGroup === g.id}
+              onToggleOpen={() => setOpenGroup(openGroup === g.id ? null : g.id)}
+              onMoveLeaf={(href, dir) => moveLeaf(g.id, href, dir)}
+              onReorderLeaves={(next) => reorderLeaves(g.id, next)}
+              onToggleLeafHidden={toggleLeafHidden}
+              onMoveLeafToGroup={(href, toGroupId) => moveLeafToGroup(g.id, href, toGroupId)}
+            />
+          ))}
         </CardContent>
       </Card>
 

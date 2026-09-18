@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { fmtNow, couponDiscountOf, REFERRAL_BONUS_POINTS } from "@/lib/business-rules";
-import { logAction } from "@/lib/logging";
+import { logAction, resolveActingUserName } from "@/lib/logging";
 import { mapOrderRow } from "@/lib/types";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 
@@ -31,7 +31,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const { data: orderRow } = await db.from("orders").select("mobile, name, history, balance").eq("id", id).maybeSingle();
   const wasFullyPaid = orderRow?.balance === 0;
 
-  const historyLine = `↩️ Payment reversed: ₹${payment.amount}${payment.pt_discount > 0 ? ` + ₹${payment.pt_discount} pts` : ""} — ${fmtNow()} by ${user.email}`;
+  const userName = await resolveActingUserName(supabase, user);
+  const historyLine = `↩️ Payment reversed: ₹${payment.amount}${payment.pt_discount > 0 ? ` + ₹${payment.pt_discount} pts` : ""} — ${fmtNow()} by ${userName}`;
 
   const { data: updatedRows, error } = await db.rpc("delete_order_payment", {
     p_payment_id: paymentId,

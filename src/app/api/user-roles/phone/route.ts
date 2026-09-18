@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { logAction } from "@/lib/logging";
+import { logAction, resolveActingUserName } from "@/lib/logging";
 
 const bodySchema = z.object({
   email: z.string().min(1),
@@ -29,8 +29,11 @@ export async function POST(request: Request) {
   // silently fails both of them (a Postgrest "multiple rows" error, swallowed as "not found").
   // Reject the collision here instead of letting it happen silently.
   if (phone) {
-    const { data: existing } = await serviceClient.from("user_roles").select("email").eq("phone", phone).neq("email", email).maybeSingle();
-    if (existing) return NextResponse.json({ error: `That number is already used by ${existing.email}` }, { status: 409 });
+    const { data: existing } = await serviceClient.from("user_roles").select("email, linked_employee_id").eq("phone", phone).neq("email", email).maybeSingle();
+    if (existing) {
+      const existingName = await resolveActingUserName(serviceClient, { email: existing.email, employeeId: existing.linked_employee_id });
+      return NextResponse.json({ error: `That number is already used by ${existingName}` }, { status: 409 });
+    }
   }
 
   const { error } = await serviceClient.from("user_roles").update({ phone }).eq("email", email);

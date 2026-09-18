@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { logAction } from "@/lib/logging";
+import { logAction, resolveActingUserName } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 
 /** Manual grants are real money (points convert to discounts) — bound them. */
@@ -36,7 +36,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ mob
   }
 
   try {
-    await awardLoyaltyPoints(db, mobile, name, pts, "manual", null, `Manual bonus by ${user.email}`);
+    const userName = await resolveActingUserName(db, user);
+    await awardLoyaltyPoints(db, mobile, name, pts, "manual", null, `Manual bonus by ${userName}`);
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to grant points" }, { status: 500 });
   }

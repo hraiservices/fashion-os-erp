@@ -262,6 +262,7 @@ export const SETTINGS_GROUP: NavGroup = {
     { href: "/settings/loyalty", label: "Loyalty" },
     { href: "/settings/invoice-terms", label: "Invoice Terms" },
     { href: "/settings/invoice-template", label: "Invoice Template" },
+    { href: "/settings/stitching-order-template", label: "Stitching Order Template" },
     { href: "/settings/price-lists", label: "Price Lists" },
     { href: "/settings/copilot", label: "AI Copilot" },
     { href: "/settings/navigation", label: "Sidebar Navigation" },
@@ -284,7 +285,7 @@ export function employeesLeafVisible(href: string, isAdmin: boolean): boolean {
 export function settingsLeafVisible(href: string, isAdmin: boolean, canManageShop: boolean, isSuperAdmin: boolean): boolean {
   if (href === "/settings/module-licensing" || href === "/settings/signup-requests" || href === "/settings/admin-console") return isSuperAdmin;
   if (
-    ["/settings/whatsapp", "/settings/loyalty", "/settings/invoice-terms", "/settings/invoice-template", "/settings/price-lists", "/settings/copilot", "/settings/navigation"].includes(
+    ["/settings/whatsapp", "/settings/loyalty", "/settings/invoice-terms", "/settings/invoice-template", "/settings/stitching-order-template", "/settings/price-lists", "/settings/copilot", "/settings/navigation"].includes(
       href,
     )
   )

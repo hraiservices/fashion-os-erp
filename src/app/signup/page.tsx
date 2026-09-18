@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Store, User, Mail, Phone, MessageSquare, Loader2, CheckCircle2, AlertCircle, Scissors } from "lucide-react";
+import { Store, User, Mail, Phone, MessageSquare, Loader2, CheckCircle2, AlertCircle, Scissors, PlayCircle, ArrowLeft, KeyRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isValidEmail } from "@/lib/auth-errors";
 import { useShopSettings } from "@/hooks/use-shop-settings";
@@ -9,6 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+
+// A separate, always-on demo deployment seeded with sample data — never this shop's own real
+// account, since that would hand out real customer/order data to any stranger who fills this
+// form. Falls back to the shop's actual demo instance if the env vars aren't set on this
+// deployment, so the card still works out of the box.
+const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL || "https://demo.fashionflow.app/login";
+const DEMO_USER = process.env.NEXT_PUBLIC_DEMO_USER || "9897504343";
+const DEMO_PASSWORD = process.env.NEXT_PUBLIC_DEMO_PASSWORD || "2026";
+const MARKETING_SITE_URL = process.env.NEXT_PUBLIC_MARKETING_SITE_URL || "https://fashionflow.app";
 
 /** Icon-prefixed labeled field, matching /login's IconField but local to this page — this is a
  *  public lead-capture form (see submit_signup_request in add_signup_requests.sql), NOT account
@@ -93,9 +102,40 @@ export default function SignupRequestPage() {
           className="space-y-4 rounded-3xl border border-black/5 bg-white/70 p-6 shadow-2xl shadow-zinc-900/10 backdrop-blur-xl sm:p-7 dark:border-white/10 dark:bg-zinc-900/70 dark:shadow-black/40"
         >
           {done ? (
-            <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400">
-              <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-              <span>Thanks, {name.split(" ")[0]}! We&apos;ve got your details and will reach out at {email} to set up {shopName}&apos;s own account shortly.</span>
+            <div className="space-y-4">
+              <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400">
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+                <span>Thanks, {name.split(" ")[0]}! We&apos;ve got your details and will reach out at {email} to set up {shopName}&apos;s own account shortly.</span>
+              </div>
+
+              <div className="space-y-3 rounded-xl border border-black/5 bg-muted/40 p-4 dark:border-white/10">
+                <p className="text-sm font-semibold text-foreground">Try demo till we get your personnel login details</p>
+                <div className="space-y-1.5 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="size-3.5 shrink-0" />
+                    <span>
+                      Mobile <span className="font-mono font-medium text-foreground">{DEMO_USER}</span> · PIN{" "}
+                      <span className="font-mono font-medium text-foreground">{DEMO_PASSWORD}</span>
+                    </span>
+                  </div>
+                </div>
+                <a href={DEMO_URL} target="_blank" rel="noopener noreferrer" className="block">
+                  <Button type="button" variant="outline" className="h-11 w-full gap-2 rounded-xl text-base font-medium">
+                    <PlayCircle className="size-4" />
+                    Open the demo
+                  </Button>
+                </a>
+                <p className="text-xs text-muted-foreground">
+                  This is a shared sample shop with fake data, just to explore the app — not your own account.
+                </p>
+              </div>
+
+              <a href={MARKETING_SITE_URL} className="block">
+                <Button type="button" variant="ghost" className="h-10 w-full gap-2 rounded-xl text-sm text-muted-foreground">
+                  <ArrowLeft className="size-4" />
+                  Back to fashionflow.app
+                </Button>
+              </a>
             </div>
           ) : (
             <>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Mail, Lock, Phone, Store, Scissors, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ensureUserRole } from "@/lib/supabase/role-bootstrap";
@@ -52,19 +52,26 @@ function IconField({
 // LoginScreen in Stitching_Manager_Pro_v16.html (~line 3435). Kept as local state
 // rather than react-hook-form/zod because the branching validation per mode doesn't
 // map cleanly to one schema — see business-rule comments inline for the exact ports.
+// Self-serve signup on THIS widget creates a login straight into this deployment's own live
+// database (see ensureUserRole) — correct for a brand-new customer's very first admin account
+// (see scripts/onboard-customer.mjs, which provisions the project/deployment but not that first
+// login), but a live safety gap on an already-populated shop's deployment, where any stranger
+// could otherwise self-register a "tailor" account with visibility into real business data. Off
+// by default; a fresh deployment sets this to "true" once, for its own first-run setup only.
+// Public prospects for OTHER shops go through the /signup lead-capture form instead (reviewed by
+// the platform owner in Settings → Signup Requests), never straight into a live shop's own auth.
+const SELF_SIGNUP_ENABLED = process.env.NEXT_PUBLIC_ENABLE_SELF_SIGNUP === "true";
+
 export default function LoginPage() {
   const router = useRouter();
-  const pathname = usePathname();
   const supabase = createClient();
   const { data: shop } = useShopSettings();
 
-  // /signup is just this same widget defaulted to signup mode (see src/app/signup/page.tsx) —
-  // one shared component instead of duplicating the whole card/form.
-  const [mode, setMode] = useState<Mode>(pathname === "/signup" ? "signup" : "login");
+  const [mode, setMode] = useState<Mode>("login");
   // Mobile+PIN is the default view (per the owner's request) — a mobile-provisioned dashboard
   // login is admin-only (see /api/user-roles/provision-phone), so this method never has a
   // signup/forgot flow of its own; switching to it always forces mode back to "login".
-  const [method, setMethod] = useState<Method>(pathname === "/signup" ? "email" : "mobile");
+  const [method, setMethod] = useState<Method>("mobile");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [shopName, setShopName] = useState("");
@@ -256,7 +263,7 @@ export default function LoginPage() {
             </Tabs>
           )}
 
-          {method === "email" && (mode === "login" || mode === "signup") && (
+          {SELF_SIGNUP_ENABLED && method === "email" && (mode === "login" || mode === "signup") && (
             <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
               <TabsList className="w-full">
                 <TabsTrigger value="login" className="flex-1">

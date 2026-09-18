@@ -7,6 +7,25 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export interface Database {
   public: {
     Tables: {
+      signup_requests: {
+        Row: {
+          id: string;
+          name: string;
+          shop_name: string;
+          email: string;
+          phone: string | null;
+          note: string | null;
+          status: string;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["signup_requests"]["Row"]> & {
+          name: string;
+          shop_name: string;
+          email: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["signup_requests"]["Row"]>;
+        Relationships: [];
+      };
       tailor_worksheet_snapshots: {
         Row: {
           id: string;
@@ -1238,6 +1257,10 @@ export interface Database {
       };
     };
     Functions: {
+      submit_signup_request: {
+        Args: { p_name: string; p_shop_name: string; p_email: string; p_phone?: string | null; p_note?: string | null };
+        Returns: undefined;
+      };
       next_document_number: {
         Args: { p_doc_type: string; p_period_key: string; p_start?: number };
         Returns: number;

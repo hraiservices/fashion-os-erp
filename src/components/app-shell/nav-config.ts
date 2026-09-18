@@ -265,6 +265,7 @@ export const SETTINGS_GROUP: NavGroup = {
     { href: "/settings/copilot", label: "AI Copilot" },
     { href: "/settings/navigation", label: "Sidebar Navigation" },
     { href: "/settings/module-licensing", label: "Module Licensing" },
+    { href: "/settings/signup-requests", label: "Signup Requests" },
   ],
 };
 
@@ -279,7 +280,7 @@ export function employeesLeafVisible(href: string, isAdmin: boolean): boolean {
 
 /** Per-section Settings gating, mirroring the old app's rules. Module Licensing is platform-owner-only — invisible to every shop's own admin, including "admin" role. Personalize merges Shop Profile/Account/Appearance/Document Numbering onto one page, so it stays visible to everyone the same way Account did — the page itself hides the admin/manager-only sections inline. */
 export function settingsLeafVisible(href: string, isAdmin: boolean, canManageShop: boolean, isSuperAdmin: boolean): boolean {
-  if (href === "/settings/module-licensing") return isSuperAdmin;
+  if (href === "/settings/module-licensing" || href === "/settings/signup-requests") return isSuperAdmin;
   if (
     ["/settings/whatsapp", "/settings/loyalty", "/settings/invoice-terms", "/settings/invoice-template", "/settings/price-lists", "/settings/copilot", "/settings/navigation"].includes(
       href,

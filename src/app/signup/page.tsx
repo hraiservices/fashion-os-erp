@@ -103,31 +103,34 @@ export default function SignupRequestPage() {
         >
           {done ? (
             <div className="space-y-4">
-              <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400">
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-                <span>Thanks, {name.split(" ")[0]}! We&apos;ve got your details and will reach out at {email} to set up {shopName}&apos;s own account shortly.</span>
-              </div>
-
-              <div className="space-y-3 rounded-xl border border-black/5 bg-muted/40 p-4 dark:border-white/10">
-                <p className="text-sm font-semibold text-foreground">Try demo till we get your personnel login details</p>
-                <div className="space-y-1.5 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <KeyRound className="size-3.5 shrink-0" />
-                    <span>
-                      Mobile <span className="font-mono font-medium text-foreground">{DEMO_USER}</span> · PIN{" "}
-                      <span className="font-mono font-medium text-foreground">{DEMO_PASSWORD}</span>
-                    </span>
-                  </div>
+              <div className="space-y-3 rounded-2xl border-2 border-emerald-400/60 bg-emerald-50 p-5 shadow-lg shadow-emerald-500/10 dark:border-emerald-500/40 dark:bg-emerald-950/30">
+                <div>
+                  <p className="text-base font-bold text-emerald-800 dark:text-emerald-300">Try FREE DEMO till we get your personnel login details</p>
+                </div>
+                <div className="flex items-center gap-2 rounded-xl bg-white/70 px-3 py-2 text-sm text-emerald-900 dark:bg-black/20 dark:text-emerald-200">
+                  <KeyRound className="size-3.5 shrink-0" />
+                  <span>
+                    Mobile <span className="font-mono font-semibold">{DEMO_USER}</span> · PIN{" "}
+                    <span className="font-mono font-semibold">{DEMO_PASSWORD}</span>
+                  </span>
                 </div>
                 <a href={DEMO_URL} target="_blank" rel="noopener noreferrer" className="block">
-                  <Button type="button" variant="outline" className="h-11 w-full gap-2 rounded-xl text-base font-medium">
-                    <PlayCircle className="size-4" />
-                    Open the demo
+                  <Button
+                    type="button"
+                    className="h-12 w-full gap-2 rounded-xl bg-emerald-600 text-base font-semibold text-white shadow-lg shadow-emerald-600/30 transition-transform hover:bg-emerald-700 active:scale-[0.98]"
+                  >
+                    <PlayCircle className="size-5" />
+                    Open FREE DEMO
                   </Button>
                 </a>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-emerald-800/80 dark:text-emerald-300/70">
                   This is a shared sample shop with fake data, just to explore the app — not your own account.
                 </p>
+              </div>
+
+              <div className="flex items-start gap-2 rounded-xl border border-black/5 bg-muted/40 px-3 py-3 text-sm text-muted-foreground dark:border-white/10">
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span>Thanks, {name.split(" ")[0]}! We&apos;ve got your details and will reach out at {email} to set up {shopName}&apos;s own account shortly.</span>
               </div>
 
               <a href={MARKETING_SITE_URL} className="block">

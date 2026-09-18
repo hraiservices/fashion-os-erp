@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Mail, Lock, Phone, Scissors, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
+import { Mail, Lock, Phone, Store, Scissors, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ensureUserRole } from "@/lib/supabase/role-bootstrap";
 import { isValidEmail, mapAuthError, normalizePhone } from "@/lib/auth-errors";
@@ -54,16 +54,20 @@ function IconField({
 // map cleanly to one schema — see business-rule comments inline for the exact ports.
 export default function LoginPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const supabase = createClient();
   const { data: shop } = useShopSettings();
 
-  const [mode, setMode] = useState<Mode>("login");
+  // /signup is just this same widget defaulted to signup mode (see src/app/signup/page.tsx) —
+  // one shared component instead of duplicating the whole card/form.
+  const [mode, setMode] = useState<Mode>(pathname === "/signup" ? "signup" : "login");
   // Mobile+PIN is the default view (per the owner's request) — a mobile-provisioned dashboard
   // login is admin-only (see /api/user-roles/provision-phone), so this method never has a
   // signup/forgot flow of its own; switching to it always forces mode back to "login".
-  const [method, setMethod] = useState<Method>("mobile");
+  const [method, setMethod] = useState<Method>(pathname === "/signup" ? "email" : "mobile");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [shopName, setShopName] = useState("");
   const [pass, setPass] = useState("");
   const [pin, setPin] = useState("");
   const [newPass, setNewPass] = useState("");
@@ -147,7 +151,10 @@ export default function LoginPage() {
     // Email login / signup
     if (!email || !pass) return setErr("Email & password required.");
     if (!isValidEmail(email)) return setErr("Enter a valid email address.");
-    if (mode === "signup" && pass.length < 6) return setErr("Password must be at least 6 characters.");
+    if (mode === "signup") {
+      if (pass.length < 6) return setErr("Password must be at least 6 characters.");
+      if (!shopName.trim()) return setErr("Enter your shop's name.");
+    }
     const cleanEmail = email.toLowerCase().trim();
     setLoading(true);
 
@@ -157,14 +164,18 @@ export default function LoginPage() {
         setLoading(false);
         return setErr(mapAuthError(error?.message));
       }
-      await ensureUserRole(supabase, cleanEmail);
+      // shop_name carried in this account's own signup metadata (set below) — read back here
+      // so the very first login after email confirmation is what actually creates the shop's
+      // `shop` app_settings row and starts its trial (ensureUserRole is a no-op for every
+      // login after the first, so this can never overwrite an existing shop's name).
+      await ensureUserRole(supabase, cleanEmail, undefined, { shopName: data.user?.user_metadata?.shop_name });
       setLoading(false);
       setRedirecting(true);
     } else {
       const { error } = await supabase.auth.signUp({
         email: cleanEmail,
         password: pass,
-        options: { emailRedirectTo: window.location.origin + window.location.pathname },
+        options: { emailRedirectTo: window.location.origin + window.location.pathname, data: { shop_name: shopName.trim() } },
       });
       setLoading(false);
       if (error) return setErr(error.message || "Sign up failed.");
@@ -211,7 +222,7 @@ export default function LoginPage() {
               : mode === "forgot"
                 ? "Reset your password"
                 : mode === "signup"
-                  ? "Create your account"
+                  ? "Start your 14-day free trial"
                   : "Sign in to continue"}
           </p>
         </div>
@@ -298,7 +309,10 @@ export default function LoginPage() {
 
           {isEmailFlow && (
             <>
-              <IconField icon={Mail} label="Email" type="email" autoComplete="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" />
+              {mode === "signup" && (
+                <IconField icon={Store} label="Shop name" type="text" autoComplete="organization" autoFocus value={shopName} onChange={(e) => setShopName(e.target.value)} placeholder="Your shop's name" />
+              )}
+              <IconField icon={Mail} label="Email" type="email" autoComplete="email" autoFocus={mode !== "signup"} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" />
               <IconField
                 icon={Lock}
                 label="Password"

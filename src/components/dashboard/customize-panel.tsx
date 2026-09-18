@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, RotateCcw, Sparkles, Check, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Trash2, RotateCcw, Sparkles, Check, ChevronUp, ChevronDown, GripVertical } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { BUILTIN_WIDGET_BY_KEY, defaultLayout, genCustomWidgetId, type WidgetInstance } from "@/lib/dashboard-widgets";
 import { CustomCardForm } from "@/components/dashboard/custom-card-form";
 import type { CustomCardConfig } from "@/lib/custom-card";
+import { useDragReorder } from "@/hooks/use-drag-reorder";
+import { cn } from "@/lib/utils";
 
 export function CustomizePanel({
   open,
@@ -22,6 +24,11 @@ export function CustomizePanel({
 }) {
   const [addOpen, setAddOpen] = useState(false);
   const sorted = [...widgets].sort((a, b) => a.order - b.order);
+  const { draggingId, dropTargetId, dragHandleProps, dropTargetProps } = useDragReorder(
+    sorted,
+    (w) => w.id,
+    (next) => onChange(next.map((w, i) => ({ ...w, order: i })))
+  );
 
   function toggleVisible(id: string) {
     onChange(widgets.map((w) => (w.id === id ? { ...w, visible: !w.visible } : w)));
@@ -69,10 +76,20 @@ export function CustomizePanel({
 
           <div className="space-y-1 px-4 py-2">
             <p className="mb-2 text-xs text-muted-foreground">
-              Show or hide cards. Drag cards directly on the dashboard to reorder them, or use the arrows here — the only way to reorder on a phone/touch screen.
+              Show or hide cards. Drag a row (or drag cards directly on the dashboard) to reorder, or use the arrows — the only way to reorder on a phone/touch screen.
             </p>
             {sorted.map((w, i) => (
-              <div key={w.id} className="flex items-center gap-2 rounded-lg border p-2.5 text-sm">
+              <div
+                key={w.id}
+                {...dragHandleProps(w.id)}
+                {...dropTargetProps(w.id)}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg border p-2.5 text-sm transition-colors",
+                  draggingId === w.id && "opacity-40",
+                  dropTargetId === w.id && draggingId !== w.id && "border-primary bg-primary/5"
+                )}
+              >
+                <GripVertical className="size-3.5 shrink-0 cursor-grab text-muted-foreground/50 active:cursor-grabbing" />
                 <button
                   type="button"
                   onClick={() => toggleVisible(w.id)}

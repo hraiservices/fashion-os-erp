@@ -1,21 +1,25 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { mapLeaveRequestRow, mapHolidayRow } from "@/lib/types";
 import { countLeaveDays } from "@/lib/leave";
 import { DEFAULT_ATTENDANCE_SETTINGS, type AttendanceSettings } from "@/lib/attendance-settings";
 import { logAction } from "@/lib/logging";
 
 export async function GET(request: Request) {
-  const { supabase, user } = await getServerUser();
+  const { user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageEmployees) return NextResponse.json({ error: "No permission to manage employees" }, { status: 403 });
+
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
 
   const params = new URL(request.url).searchParams;
   const employeeId = params.get("employeeId");
   const status = params.get("status");
 
-  let query = supabase.from("leave_requests").select("*").order("requested_at", { ascending: false });
+  let query = db.from("leave_requests").select("*").order("requested_at", { ascending: false });
   if (employeeId) query = query.eq("employee_id", employeeId);
   if (status) query = query.eq("status", status);
 
@@ -41,16 +45,24 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageEmployees) return NextResponse.json({ error: "No permission to manage employees" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
 
   if (fd.toDate < fd.fromDate) return NextResponse.json({ error: "To date must be on or after from date" }, { status: 400 });
 
-  const [{ data: holidayRows }, { data: attSettingRow }] = await Promise.all([
-    supabase.from("holidays").select("*").eq("active", true).gte("date", fd.fromDate).lte("date", fd.toDate),
-    supabase.from("app_settings").select("value").eq("key", "attendanceSettings").maybeSingle(),
+  const [{ data: holidayRows, error: holidayError }, { data: attSettingRow }] = await Promise.all([
+    db.from("holidays").select("*").eq("active", true).gte("date", fd.fromDate).lte("date", fd.toDate),
+    db.from("app_settings").select("value").eq("key", "attendanceSettings").maybeSingle(),
   ]);
+  // A failed lookup here must not silently read as "no holidays in this range" — that
+  // over-counts chargeable leave days (a real holiday gets deducted from the employee's
+  // balance) rather than under-counting, so it fails toward costing the employee leave they
+  // didn't use.
+  if (holidayError) return NextResponse.json({ error: `Could not check holidays for this range: ${holidayError.message}` }, { status: 500 });
   const attendanceSettings: AttendanceSettings = { ...DEFAULT_ATTENDANCE_SETTINGS, ...((attSettingRow?.value as Partial<AttendanceSettings>) || {}) };
   const holidayDates = new Set((holidayRows || []).map(mapHolidayRow).map((h) => h.date));
 
@@ -59,10 +71,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "The selected range has no chargeable leave days (all weekly-offs/holidays)" }, { status: 400 });
   }
 
-  const { data: employee } = await supabase.from("employees").select("id, name").eq("id", fd.employeeId).maybeSingle();
+  const { data: employee } = await db.from("employees").select("id, name").eq("id", fd.employeeId).maybeSingle();
   if (!employee) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("leave_requests")
     .insert({
       employee_id: fd.employeeId,

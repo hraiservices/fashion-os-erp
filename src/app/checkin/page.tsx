@@ -40,10 +40,9 @@ interface LeaveBalanceResponse {
 
 interface EarningsResponse {
   eligible: boolean;
-  weekConfirmed?: number;
-  monthConfirmed?: number;
-  pendingConfirmation?: number;
-  allTimeConfirmed?: number;
+  weekTotal?: number;
+  monthTotal?: number;
+  allTimeTotal?: number;
 }
 
 function inr(n: number): string {
@@ -56,7 +55,29 @@ function fmtDayShort(iso: string): string {
 
 type Step = "login" | "loading" | "ready";
 type Action = "checkin" | "checkout" | null;
-type MainTab = "attendance" | "leave" | "earnings";
+type MainTab = "attendance" | "leave" | "earnings" | "orders";
+
+interface OrderLookupGarment {
+  type: string;
+  lining?: string;
+  no: number;
+}
+
+interface OrderLookupResult {
+  id: string;
+  name: string;
+  mobile: string;
+  deliveryDate: string;
+  stage: string;
+  stageEmoji: string;
+  tailorName: string;
+  special: string;
+  garments: OrderLookupGarment[];
+  measurements: Record<string, string>;
+  images: string[];
+}
+
+const LINING_LOOKUP_LABEL: Record<string, string> = { s: "No Lining", h: "Half Lining", f: "Full Lining" };
 
 function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
@@ -106,6 +127,35 @@ export default function CheckInPage() {
   const [halfDay, setHalfDay] = useState(false);
   const [reason, setReason] = useState("");
   const [applying, setApplying] = useState(false);
+
+  const [orderQuery, setOrderQuery] = useState("");
+  const [orderResults, setOrderResults] = useState<OrderLookupResult[] | null>(null);
+  const [orderSearching, setOrderSearching] = useState(false);
+  const [orderSearchError, setOrderSearchError] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState<OrderLookupResult | null>(null);
+
+  async function handleOrderSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const q = orderQuery.trim();
+    if (q.length < 2) {
+      setOrderSearchError("Type at least 2 letters or digits");
+      return;
+    }
+    setOrderSearching(true);
+    setOrderSearchError("");
+    setSelectedOrder(null);
+    try {
+      const res = await fetch(`/api/attendance/order-lookup?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Search failed");
+      setOrderResults(data.orders);
+    } catch (err) {
+      setOrderSearchError(err instanceof Error ? err.message : "Search failed");
+      setOrderResults(null);
+    } finally {
+      setOrderSearching(false);
+    }
+  }
 
   async function loadMe() {
     const res = await fetch("/api/attendance/me");
@@ -291,7 +341,7 @@ export default function CheckInPage() {
   const selectedBalance = leaveData?.balances.find((b) => b.leaveTypeId === leaveTypeId);
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-muted/30 p-4">
+    <div className="flex min-h-screen min-h-dvh items-center justify-center bg-muted/30 p-4">
       <div className="w-full max-w-sm rounded-2xl border bg-card p-6 shadow-sm">
         <div className="mb-5 text-center">
           <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-full bg-primary/10">
@@ -303,11 +353,11 @@ export default function CheckInPage() {
         {step === "login" && (
           <form onSubmit={handleLogin} className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Mobile number</Label>
+              <Label className="text-sm font-bold">Mobile number</Label>
               <Input type="tel" inputMode="numeric" maxLength={10} placeholder="10-digit number" className="h-11" value={mobile} onChange={(e) => setMobile(e.target.value)} required />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">PIN</Label>
+              <Label className="text-sm font-bold">PIN</Label>
               <Input type="password" inputMode="numeric" maxLength={6} placeholder="4-6 digit PIN" className="h-11" value={pin} onChange={(e) => setPin(e.target.value)} required />
             </div>
             {loginError && <p className="text-xs text-destructive">{loginError}</p>}
@@ -343,6 +393,13 @@ export default function CheckInPage() {
                 className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-colors ${tab === "leave" ? "bg-background shadow-sm" : "text-muted-foreground"}`}
               >
                 Leave
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("orders")}
+                className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-colors ${tab === "orders" ? "bg-background shadow-sm" : "text-muted-foreground"}`}
+              >
+                Orders
               </button>
               {earnings?.eligible && (
                 <button
@@ -446,7 +503,7 @@ export default function CheckInPage() {
                     ) : (
                       <div className="space-y-2.5 rounded-lg border p-3">
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-medium">Leave type</Label>
+                          <Label className="text-sm font-bold">Leave type</Label>
                           <Select value={leaveTypeId} onValueChange={(v) => v && setLeaveTypeId(v)}>
                             <SelectTrigger className="h-10 w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
                             <SelectContent>
@@ -456,11 +513,11 @@ export default function CheckInPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1.5">
-                            <Label className="text-xs font-medium">From</Label>
+                            <Label className="text-sm font-bold">From</Label>
                             <DatePicker value={fromDate} onChange={setFromDate} />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-xs font-medium">To</Label>
+                            <Label className="text-sm font-bold">To</Label>
                             <DatePicker value={toDate} onChange={setToDate} />
                           </div>
                         </div>
@@ -471,7 +528,7 @@ export default function CheckInPage() {
                           </label>
                         )}
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-medium">Reason (optional)</Label>
+                          <Label className="text-sm font-bold">Reason (optional)</Label>
                           <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} />
                         </div>
                         {leaveTypeId && (
@@ -522,28 +579,136 @@ export default function CheckInPage() {
               </div>
             )}
 
+            {tab === "orders" && (
+              <div className="space-y-3">
+                {selectedOrder ? (
+                  <div className="space-y-3">
+                    <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setSelectedOrder(null)}>
+                      <X className="size-3.5" /> Back to results
+                    </Button>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-base font-bold">{selectedOrder.name}</p>
+                      <p className="text-sm text-muted-foreground">{selectedOrder.mobile}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+                          {selectedOrder.stageEmoji} {selectedOrder.stage}
+                        </span>
+                        {selectedOrder.deliveryDate && (
+                          <span className="text-xs text-muted-foreground">Delivery: {fmtDayShort(selectedOrder.deliveryDate)}</span>
+                        )}
+                      </div>
+                      {selectedOrder.tailorName && <p className="mt-1 text-xs text-muted-foreground">Tailor: {selectedOrder.tailorName}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-semibold text-muted-foreground">Garments</h3>
+                      {selectedOrder.garments.map((g, i) => (
+                        <div key={i} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
+                          <span className="font-medium">{g.type}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {g.lining && (LINING_LOOKUP_LABEL[g.lining] || g.lining)} · Qty {g.no}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {Object.keys(selectedOrder.measurements).length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="text-xs font-semibold text-muted-foreground">Measurements</h3>
+                        <div className="grid grid-cols-2 gap-2">
+                          {Object.entries(selectedOrder.measurements).map(([k, v]) => (
+                            <div key={k} className="rounded-lg border px-3 py-2 text-sm">
+                              <p className="text-[11px] text-muted-foreground">{k}</p>
+                              <p className="font-medium tabular-nums">{v}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedOrder.special && (
+                      <div className="space-y-1">
+                        <h3 className="text-xs font-semibold text-muted-foreground">Special instructions</h3>
+                        <p className="rounded-lg border p-3 text-sm">{selectedOrder.special}</p>
+                      </div>
+                    )}
+
+                    {selectedOrder.images.length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="text-xs font-semibold text-muted-foreground">Photos</h3>
+                        <div className="grid grid-cols-3 gap-2">
+                          {selectedOrder.images.map((src, i) => (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img key={i} src={src} alt={`Order photo ${i + 1}`} className="aspect-square w-full rounded-lg border object-cover" />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <form onSubmit={handleOrderSearch} className="space-y-2">
+                      <Label className="text-sm font-bold">Customer name or mobile number</Label>
+                      <Input
+                        type="search"
+                        enterKeyHint="search"
+                        inputMode="text"
+                        placeholder="Type name or number…"
+                        className="h-12 text-base"
+                        value={orderQuery}
+                        onChange={(e) => setOrderQuery(e.target.value)}
+                      />
+                      <Button type="submit" className="h-12 w-full text-base" disabled={orderSearching}>
+                        {orderSearching ? "Searching…" : "Search"}
+                      </Button>
+                      {orderSearchError && <p className="text-xs text-destructive">{orderSearchError}</p>}
+                    </form>
+
+                    {orderResults && orderResults.length === 0 && (
+                      <p className="py-6 text-center text-sm text-muted-foreground">No orders found for &quot;{orderQuery}&quot;</p>
+                    )}
+
+                    {orderResults && orderResults.length > 0 && (
+                      <div className="space-y-2">
+                        {orderResults.map((o) => (
+                          <button
+                            key={o.id}
+                            type="button"
+                            onClick={() => setSelectedOrder(o)}
+                            className="flex w-full items-center justify-between rounded-lg border px-3 py-3 text-left text-sm hover:bg-muted/50"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate font-medium">{o.name}</p>
+                              <p className="text-xs text-muted-foreground">{o.mobile}</p>
+                            </div>
+                            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+                              {o.stageEmoji} {o.stage}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
             {tab === "earnings" && earnings?.eligible && (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
                   <div className="rounded-lg border p-3 text-center">
-                    <p className="text-lg font-semibold tabular-nums">{inr(earnings.weekConfirmed || 0)}</p>
+                    <p className="text-lg font-semibold tabular-nums">{inr(earnings.weekTotal || 0)}</p>
                     <p className="text-[11px] text-muted-foreground">This week</p>
                   </div>
                   <div className="rounded-lg border p-3 text-center">
-                    <p className="text-lg font-semibold tabular-nums">{inr(earnings.monthConfirmed || 0)}</p>
+                    <p className="text-lg font-semibold tabular-nums">{inr(earnings.monthTotal || 0)}</p>
                     <p className="text-[11px] text-muted-foreground">This month</p>
                   </div>
                 </div>
                 <div className="rounded-lg border p-3 text-center">
-                  <p className="text-lg font-semibold tabular-nums">{inr(earnings.allTimeConfirmed || 0)}</p>
-                  <p className="text-[11px] text-muted-foreground">Confirmed, all-time</p>
+                  <p className="text-lg font-semibold tabular-nums">{inr(earnings.allTimeTotal || 0)}</p>
+                  <p className="text-[11px] text-muted-foreground">All-time</p>
                 </div>
-                {(earnings.pendingConfirmation || 0) > 0 && (
-                  <div className="rounded-lg bg-amber-50 p-3 text-center dark:bg-amber-950/40">
-                    <p className="text-sm font-semibold tabular-nums text-amber-700 dark:text-amber-400">{inr(earnings.pendingConfirmation || 0)}</p>
-                    <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80">Awaiting manager confirmation — not yet final</p>
-                  </div>
-                )}
               </div>
             )}
 

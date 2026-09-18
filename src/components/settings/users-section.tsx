@@ -1,7 +1,9 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useUserRoles,
   useSetUserRole,
@@ -15,32 +17,27 @@ import {
 } from "@/hooks/use-user-roles";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { useEmployees } from "@/hooks/use-employees";
+import { useAppSetting } from "@/hooks/use-app-setting";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { X, Check, ChevronDown, ChevronRight, Info, Link2, KeyRound } from "lucide-react";
+import { X, Check, ChevronDown, ChevronRight, Info, Link2, KeyRound, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { ROLE_DEFAULTS, PERMISSION_LABELS, type Permissions, type Role } from "@/lib/permissions";
-
-const ROLE_OPTIONS: [string, string][] = [
-  ["admin", "Admin"],
-  ["manager", "Manager"],
-  ["sales", "Sales Staff"],
-  ["tailor", "Tailor"],
-];
-
-/** Groups PERMISSION_LABELS keys for a readable checklist, in both the role-reference table and the per-user override panel. */
-const PERMISSION_GROUPS: { label: string; keys: (keyof Permissions)[] }[] = [
-  { label: "Orders", keys: ["addOrder", "editOrder", "deleteOrder", "changeStage", "managePayments", "editMeasurements"] },
-  { label: "Customers", keys: ["manageCustomers", "deleteCustomers"] },
-  { label: "Modules", keys: ["manageInventory", "managePurchases", "manageManufacturing", "manageSales"] },
-  { label: "Admin", keys: ["viewReports", "manageUsers", "useChatbot"] },
-];
+import {
+  ROLE_DEFAULTS,
+  ROLE_OPTIONS,
+  PERMISSION_GROUPS,
+  PERMISSION_LABELS,
+  DEFAULT_ROLE_DEFAULT_OVERRIDES,
+  type Permissions,
+  type Role,
+  type RoleDefaultOverrides,
+} from "@/lib/permissions";
 
 /** Base UI renders the raw value unless given a formatter (would show "admin", not "Admin"). */
 const roleLabel = (v: unknown) => ROLE_OPTIONS.find(([val]) => val === v)?.[1] ?? String(v ?? "");
@@ -53,9 +50,36 @@ function PermCheck({ on }: { on: boolean }) {
   );
 }
 
-/** "What can each role do?" reference table — shows the built-in default matrix so an admin knows
- *  what tailor/manager/sales start with, before layering a per-user override on top. */
+/** "What can each role do?" reference table — live-editable: clicking a cell changes that
+ *  role's shop-wide starting permission (stored in app_settings as roleDefaultOverrides), not
+ *  just one person's. Per-user overrides below still take precedence over whatever's set here. */
 function RoleReferenceCard() {
+  const qc = useQueryClient();
+  const { data: overrides, isLoading } = useAppSetting<RoleDefaultOverrides>("roleDefaultOverrides", DEFAULT_ROLE_DEFAULT_OVERRIDES);
+  const [saving, setSaving] = useState<string | null>(null);
+
+  async function toggle(role: Role, key: keyof Permissions) {
+    const current = overrides?.[role]?.[key] ?? ROLE_DEFAULTS[role][key];
+    const next: RoleDefaultOverrides = { ...overrides, [role]: { ...overrides?.[role], [key]: !current } };
+    setSaving(`${role}.${key}`);
+    try {
+      const res = await fetch("/api/settings/role-defaults", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save");
+      qc.setQueryData(["app-setting", "roleDefaultOverrides"], next);
+      qc.invalidateQueries({ queryKey: ["current-user"] });
+      toast.success(`${PERMISSION_LABELS[key]} ${!current ? "granted" : "revoked"} for ${roleLabel(role)} by default`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(null);
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -67,9 +91,9 @@ function RoleReferenceCard() {
         <table className="w-full min-w-[520px] border-collapse text-sm">
           <thead>
             <tr className="border-b text-xs text-muted-foreground">
-              <th className="py-1.5 pr-2 text-left font-medium">Permission</th>
+              <th className="py-1.5 pr-2 text-left font-bold">Permission</th>
               {ROLE_OPTIONS.map(([v, l]) => (
-                <th key={v} className="px-2 py-1.5 text-center font-medium">
+                <th key={v} className="px-2 py-1.5 text-center font-bold">
                   {l}
                 </th>
               ))}
@@ -86,11 +110,23 @@ function RoleReferenceCard() {
                 {group.keys.map((key) => (
                   <tr key={key} className="border-b last:border-0">
                     <td className="py-1.5 pr-2">{PERMISSION_LABELS[key]}</td>
-                    {ROLE_OPTIONS.map(([v]) => (
-                      <td key={v} className="px-2 py-1.5 text-center">
-                        <PermCheck on={ROLE_DEFAULTS[v as Role][key]} />
-                      </td>
-                    ))}
+                    {ROLE_OPTIONS.map(([v]) => {
+                      const on = overrides?.[v]?.[key] ?? ROLE_DEFAULTS[v][key];
+                      const isOverridden = overrides?.[v]?.[key] !== undefined;
+                      return (
+                        <td key={v} className="px-2 py-1.5 text-center">
+                          <button
+                            type="button"
+                            disabled={isLoading || saving === `${v}.${key}`}
+                            onClick={() => toggle(v, key)}
+                            title={isOverridden ? "Changed from the built-in default — click to toggle" : "Built-in default — click to toggle"}
+                            className="mx-auto block disabled:opacity-50"
+                          >
+                            <PermCheck on={on} />
+                          </button>
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </Fragment>
@@ -98,8 +134,92 @@ function RoleReferenceCard() {
           </tbody>
         </table>
         <p className="mt-3 text-xs text-muted-foreground">
-          These are starting points. Expand any user below to override individual permissions — e.g. a tailor who should only change order stage, or a manager who shouldn&apos;t delete orders.
+          Click any checkmark to change that role&apos;s starting permission shop-wide. Expand any user below to override just that one person instead —
+          e.g. a tailor who should only change order stage, or a manager who shouldn&apos;t delete orders.
         </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface PhoneCheckResult {
+  found: boolean;
+  collision?: boolean;
+  emails?: string[];
+  email?: string;
+  linkedEmployeeName?: string | null;
+  hasPin?: boolean;
+  locked?: boolean;
+}
+
+/** "Why can't this mobile number log in?" diagnostic — mirrors what /api/auth/phone-login
+ *  actually looks up (by phone, following the linked-employee PIN indirection) so an admin can
+ *  see the real stored state instead of guessing from the login page's necessarily generic
+ *  "Invalid mobile number or PIN" error. Never surfaces the PIN itself, only whether one is set. */
+function PhoneCheckCard() {
+  const [phone, setPhone] = useState("");
+  const [result, setResult] = useState<PhoneCheckResult | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  async function check() {
+    setChecking(true);
+    setResult(null);
+    try {
+      const res = await fetch(`/api/user-roles/phone-check?phone=${encodeURIComponent(phone)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Check failed");
+      setResult(data);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Check failed");
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-1.5 text-sm">
+          <Search className="size-4 text-muted-foreground" /> Why can&apos;t this number log in?
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          <Input
+            className="min-w-40 flex-1"
+            inputMode="numeric"
+            maxLength={10}
+            placeholder="10-digit mobile number"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+          />
+          <Button onClick={check} disabled={checking || phone.length !== 10}>
+            {checking ? "Checking…" : "Check"}
+          </Button>
+        </div>
+        {result && (
+          <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+            {!result.found ? (
+              <p className="text-destructive">No login has this phone number saved — mobile+PIN sign-in will always fail until one does.</p>
+            ) : result.collision ? (
+              <p className="text-destructive">
+                <strong>{result.emails?.length}</strong> different logins all have this exact phone number ({result.emails?.join(", ")}) — that
+                collision makes the login lookup ambiguous and fails for all of them. Clear the phone off every row but one.
+              </p>
+            ) : (
+              <ul className="space-y-1">
+                <li>
+                  Login: <strong>{result.email}</strong>
+                </li>
+                <li>Linked employee: {result.linkedEmployeeName ? <strong>{result.linkedEmployeeName}</strong> : "none (uses its own PIN)"}</li>
+                <li className={result.hasPin ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
+                  {result.hasPin ? "A PIN is set" : "No PIN is set — this is why sign-in fails"}
+                </li>
+                {result.locked && <li className="text-destructive">Currently locked out from too many failed attempts — wait or ask them to retry later.</li>}
+              </ul>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -138,7 +258,11 @@ function PinSection({
       <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Dashboard PIN login</p>
       {row.linked_employee_id ? (
         <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <KeyRound className="size-3.5" /> Uses {employeeName || "the linked employee"}&apos;s attendance PIN — change it from that employee&apos;s record.
+          <KeyRound className="size-3.5" /> Managed from{" "}
+          <Link href={`/employees/${row.linked_employee_id}/edit`} className="underline hover:text-foreground">
+            {employeeName || "the linked employee"}&apos;s
+          </Link>{" "}
+          record — see &quot;Dashboard access&quot; there.
         </p>
       ) : editing ? (
         <div className="flex max-w-xs gap-1">
@@ -172,6 +296,7 @@ export function UsersSection() {
   const { data: rows, isLoading } = useUserRoles();
   const { data: entitlements } = useModuleEntitlements();
   const { data: employees } = useEmployees();
+  const { data: roleDefaultOverrides } = useAppSetting<RoleDefaultOverrides>("roleDefaultOverrides", DEFAULT_ROLE_DEFAULT_OVERRIDES);
   const setRole = useSetUserRole();
   const renameEmail = useRenameUserEmail();
   const setPhone = useSetUserPhone();
@@ -247,7 +372,9 @@ export function UsersSection() {
   }
 
   function permValue(row: UserRoleRow, key: keyof Permissions): boolean {
-    return row.custom_permissions?.[key] ?? ROLE_DEFAULTS[row.role as Role]?.[key] ?? false;
+    const roleDefault = ROLE_DEFAULTS[row.role as Role]?.[key] ?? false;
+    const roleOverride = roleDefaultOverrides?.[row.role as Role]?.[key];
+    return row.custom_permissions?.[key] ?? roleOverride ?? roleDefault;
   }
 
   async function togglePerm(row: UserRoleRow, key: keyof Permissions) {
@@ -307,6 +434,7 @@ export function UsersSection() {
 
   return (
     <div className="space-y-4">
+      <PhoneCheckCard />
       <RoleReferenceCard />
 
       <Card>
@@ -416,12 +544,13 @@ export function UsersSection() {
                     ) : (
                       <button
                         className="text-left hover:underline"
+                        title={row.email}
                         onClick={() => {
                           setEditingEmail(row.email);
                           setEmailVal(row.email);
                         }}
                       >
-                        {row.email}
+                        {row.linked_employee_id ? employeesById.get(row.linked_employee_id)?.name || row.email : row.email}
                       </button>
                     )}
                   </div>
@@ -477,6 +606,10 @@ export function UsersSection() {
                   <div className="space-y-3 border-t bg-muted/20 p-3">
                     <div>
                       <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Linked employee</p>
+                      <p className="mb-1.5 text-[11px] text-muted-foreground">
+                        For an account that already exists on its own (e.g. an email/password login). To give a staff member dashboard access from
+                        scratch, use &quot;Dashboard access&quot; on their own employee record instead — no need to come here at all.
+                      </p>
                       <SearchSelect
                         className="max-w-xs"
                         inputClassName="h-9"

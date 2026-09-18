@@ -21,17 +21,17 @@ export function PendingPaymentsWidget() {
 
   return (
     <section className="rounded-xl border bg-card">
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <div className="flex items-center gap-2">
-          <CreditCard className="size-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold">Pending Payments</h2>
+      <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <CreditCard className="size-4 shrink-0 text-muted-foreground" />
+          <h2 className="truncate text-sm font-semibold">Pending Payments</h2>
           {stats.pendingPayments.length > 0 && (
-            <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-medium text-orange-700 dark:bg-orange-950 dark:text-orange-300">
+            <span className="shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-medium text-orange-700 dark:bg-orange-950 dark:text-orange-300">
               {stats.pendingPayments.length}
             </span>
           )}
         </div>
-        <Link href="/reports/aging" className="text-xs text-muted-foreground hover:text-foreground">
+        <Link href="/reports/aging" className="shrink-0 text-xs text-muted-foreground hover:text-foreground">
           View aging
         </Link>
       </div>

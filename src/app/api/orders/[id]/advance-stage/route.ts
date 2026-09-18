@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { mapOrderRow } from "@/lib/types";
 import { STAGE_META, getNextStage, fmtNow, deliveryBonusPoints } from "@/lib/business-rules";
-import { logAction, sendAdminNotification } from "@/lib/logging";
+import { logAction, sendAdminNotification, resolveActingUserName } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
 import { sendWhatsAppTemplateText, type WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
@@ -15,7 +16,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.changeStage) return NextResponse.json({ error: "No permission to change order stage" }, { status: 403 });
 
-  const { data: row, error: fetchError } = await supabase.from("orders").select("*").eq("id", id).maybeSingle();
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
+  const { data: row, error: fetchError } = await db.from("orders").select("*").eq("id", id).maybeSingle();
   if (fetchError || !row) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
   const order = mapOrderRow(row);
@@ -27,12 +31,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   const curMeta  = STAGE_META[order.status];
   const nextMeta = STAGE_META[next];
-  const userName = user.email.split("@")[0] || "user";
+  const userName = await resolveActingUserName(db, user);
   const historyLine = `${nextMeta.emoji} ${nextMeta.label} — ${fmtNow()} by ${userName}`;
 
   // C2: pass p_expected_status so a concurrent advance on the same order returns 0 rows
   // (both read "cutting", both try to advance to "stitching"; second one is a no-op).
-  const { data: updatedRows, error: updateError } = await supabase.rpc("set_order_stage", {
+  const { data: updatedRows, error: updateError } = await db.rpc("set_order_stage", {
     p_order_id:        id,
     p_new_status:      next,
     p_history_line:    historyLine,
@@ -44,7 +48,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const updatedRow = updatedRows?.[0];
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
   // 0 rows = another concurrent request already advanced the stage — treat as conflict.
-  if (!updatedRow) return NextResponse.json({ error: "Stage was already changed by another request. Please refresh." }, { status: 409 });
+  if (!updatedRow) return NextResponse.json({ error: "Someone else already updated this order — its card has been refreshed." }, { status: 409 });
 
   // order.tailor is now an employee id, not a name — dropped from this detail string (was
   // showing a raw UUID); the order's own detail page already shows the tailor's name.
@@ -55,7 +59,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   );
   await sendAdminNotification(supabase, user.email, {
     orderId: id, customerName: order.name, fromStage: curMeta.label, toStage: nextMeta.label,
-  });
+  }, userName);
 
   // H7: loyalty side-effects run after the stage is committed. Any failure returns a warning
   // but must not cause HTTP 500 — the stage change already happened in the DB.
@@ -63,7 +67,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     try {
       const loyaltyCfg = await getLoyaltyConfig(supabase);
       if (loyaltyCfg.enabled) {
-        await awardLoyaltyPoints(supabase, order.mobile, order.name, deliveryBonusPoints(loyaltyCfg), "delivery", id, "Order delivered");
+        await awardLoyaltyPoints(db, order.mobile, order.name, deliveryBonusPoints(loyaltyCfg), "delivery", id, "Order delivered");
       }
     } catch (loyaltyErr) {
       await logAction(supabase, user.email, `⚠️ Delivery bonus failed for ${id} — manual correction needed`, id, String(loyaltyErr));
@@ -76,12 +80,26 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   // (readyTemplateName), same restriction as the daily-briefing push.
   if (next === "ready") {
     try {
+      const updated = mapOrderRow(updatedRow);
+
+      // Split-order groups (one order per garment from the same visit — see the New Order
+      // form's split checkbox) share a group_id. The customer thinks of these as one order, so
+      // they get one "ready" message, not one per garment — sent only once every sibling in the
+      // group has itself reached ready-or-later (ready/delivered/payment). An order with no
+      // group_id (the overwhelming majority) always sends immediately, exactly as before.
+      let groupReady = true;
+      if (updated.groupId) {
+        const { data: siblingRows } = await db.from("orders").select("status").eq("group_id", updated.groupId).neq("id", id);
+        const DONE_STAGES = new Set(["ready", "delivered", "payment"]);
+        groupReady = (siblingRows || []).every((s) => DONE_STAGES.has(s.status));
+      }
+      if (!groupReady) return NextResponse.json({ order: updated });
+
       const [{ data: cloudApiSetting }, { data: customerRow }] = await Promise.all([
-        supabase.from("app_settings").select("value").eq("key", "whatsappCloudApiConfig").maybeSingle(),
-        supabase.from("customers").select("whatsapp_opt_out").eq("mobile", order.mobile).maybeSingle(),
+        db.from("app_settings").select("value").eq("key", "whatsappCloudApiConfig").maybeSingle(),
+        db.from("customers").select("whatsapp_opt_out").eq("mobile", order.mobile).maybeSingle(),
       ]);
       const cloudApi = cloudApiSetting?.value as WhatsAppCloudApiConfig | null;
-      const updated = mapOrderRow(updatedRow);
       if (cloudApi?.phoneNumberId && cloudApi?.accessToken && cloudApi?.readyTemplateName && !customerRow?.whatsapp_opt_out) {
         const waMessageId = await sendWhatsAppTemplateText(cloudApi, updated.mobile, cloudApi.readyTemplateName, cloudApi.languageCode || "en_US", [
           updated.name,

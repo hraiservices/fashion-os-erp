@@ -24,6 +24,7 @@ import {
   type ImportMappingPresetsSetting,
   type ImportRowResult,
 } from "@/lib/invoice-import";
+import { istDateString } from "@/lib/ist-date";
 import type { Product } from "@/lib/types";
 import { normalizeIndianMobile } from "@/lib/business-rules";
 import { Button } from "@/components/ui/button";
@@ -62,7 +63,7 @@ function validateRows(table: ParsedTable, mapping: ImportMapping, products: Prod
     const unitPrice = unitPriceRaw ? parseFloat(unitPriceRaw) : product?.sellingPrice || 0;
     const discountRaw = get("discountPercent");
     const discountPercent = discountRaw ? parseFloat(discountRaw) : 0;
-    const invoiceDate = get("invoiceDate") || new Date().toISOString().slice(0, 10);
+    const invoiceDate = get("invoiceDate") || istDateString();
     const paidAmountRaw = get("paidAmount");
     const paidAmount = paidAmountRaw ? parseFloat(paidAmountRaw) : 0;
 

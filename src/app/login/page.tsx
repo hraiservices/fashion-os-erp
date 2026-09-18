@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, Lock, Phone, Scissors, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Phone, Store, Scissors, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ensureUserRole } from "@/lib/supabase/role-bootstrap";
 import { isValidEmail, mapAuthError, normalizePhone } from "@/lib/auth-errors";
 import { useShopSettings } from "@/hooks/use-shop-settings";
+import { SignInProgressOverlay } from "@/components/auth/sign-in-progress-overlay";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,7 @@ function IconField({
   const isPassword = type === "password";
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+      <Label className="text-sm font-bold text-muted-foreground">{label}</Label>
       <div className="relative">
         <Icon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input {...inputProps} type={isPassword && reveal ? "text" : type} className={cn("h-11 rounded-xl pl-10", isPassword && "pr-10")} />
@@ -51,6 +52,16 @@ function IconField({
 // LoginScreen in Stitching_Manager_Pro_v16.html (~line 3435). Kept as local state
 // rather than react-hook-form/zod because the branching validation per mode doesn't
 // map cleanly to one schema — see business-rule comments inline for the exact ports.
+// Self-serve signup on THIS widget creates a login straight into this deployment's own live
+// database (see ensureUserRole) — correct for a brand-new customer's very first admin account
+// (see scripts/onboard-customer.mjs, which provisions the project/deployment but not that first
+// login), but a live safety gap on an already-populated shop's deployment, where any stranger
+// could otherwise self-register a "tailor" account with visibility into real business data. Off
+// by default; a fresh deployment sets this to "true" once, for its own first-run setup only.
+// Public prospects for OTHER shops go through the /signup lead-capture form instead (reviewed by
+// the platform owner in Settings → Signup Requests), never straight into a live shop's own auth.
+const SELF_SIGNUP_ENABLED = process.env.NEXT_PUBLIC_ENABLE_SELF_SIGNUP === "true";
+
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -63,12 +74,30 @@ export default function LoginPage() {
   const [method, setMethod] = useState<Method>("mobile");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [shopName, setShopName] = useState("");
   const [pass, setPass] = useState("");
   const [pin, setPin] = useState("");
   const [newPass, setNewPass] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
+  // Shown from the moment auth succeeds until the dashboard route has actually loaded — covers
+  // the gap between router.push() firing and the new page/data being ready, which otherwise
+  // reads as the screen silently hanging (see SignInProgressOverlay's own comment).
+  const [redirecting, setRedirecting] = useState(false);
+  const [redirectDone, setRedirectDone] = useState(false);
+
+  useEffect(() => {
+    if (!redirecting) return;
+    const climb = setTimeout(() => setRedirectDone(true), 900);
+    return () => clearTimeout(climb);
+  }, [redirecting]);
+
+  useEffect(() => {
+    if (!redirectDone) return;
+    const nav = setTimeout(() => router.push("/dashboard"), 300);
+    return () => clearTimeout(nav);
+  }, [redirectDone, router]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.location.hash.includes("type=recovery")) return;
@@ -122,14 +151,17 @@ export default function LoginPage() {
       const data = await res.json();
       setLoading(false);
       if (!res.ok) return setErr(data.error || "Sign in failed.");
-      router.push("/dashboard");
+      setRedirecting(true);
       return;
     }
 
     // Email login / signup
     if (!email || !pass) return setErr("Email & password required.");
     if (!isValidEmail(email)) return setErr("Enter a valid email address.");
-    if (mode === "signup" && pass.length < 6) return setErr("Password must be at least 6 characters.");
+    if (mode === "signup") {
+      if (pass.length < 6) return setErr("Password must be at least 6 characters.");
+      if (!shopName.trim()) return setErr("Enter your shop's name.");
+    }
     const cleanEmail = email.toLowerCase().trim();
     setLoading(true);
 
@@ -139,14 +171,18 @@ export default function LoginPage() {
         setLoading(false);
         return setErr(mapAuthError(error?.message));
       }
-      await ensureUserRole(supabase, cleanEmail);
+      // shop_name carried in this account's own signup metadata (set below) — read back here
+      // so the very first login after email confirmation is what actually creates the shop's
+      // `shop` app_settings row and starts its trial (ensureUserRole is a no-op for every
+      // login after the first, so this can never overwrite an existing shop's name).
+      await ensureUserRole(supabase, cleanEmail, undefined, { shopName: data.user?.user_metadata?.shop_name });
       setLoading(false);
-      router.push("/dashboard");
+      setRedirecting(true);
     } else {
       const { error } = await supabase.auth.signUp({
         email: cleanEmail,
         password: pass,
-        options: { emailRedirectTo: window.location.origin + window.location.pathname },
+        options: { emailRedirectTo: window.location.origin + window.location.pathname, data: { shop_name: shopName.trim() } },
       });
       setLoading(false);
       if (error) return setErr(error.message || "Sign up failed.");
@@ -158,14 +194,18 @@ export default function LoginPage() {
   const isMobileFlow = mode === "login" && method === "mobile";
   const isEmailFlow = (mode === "login" || mode === "signup") && method === "email";
 
+  if (redirecting) {
+    return <SignInProgressOverlay shopName={shop?.name} logoDataUrl={shop?.logoDataUrl} done={redirectDone} />;
+  }
+
   return (
-    <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100 p-5">
+    <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100 p-5 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950">
       {/* Animated aurora backdrop — purely decorative, sits behind everything. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="animate-login-blob absolute -top-32 -left-24 size-96 rounded-full bg-primary/25 blur-[110px]" />
-        <div className="animate-login-blob-slow absolute -bottom-32 -right-16 size-[28rem] rounded-full bg-indigo-300/35 blur-[120px]" />
-        <div className="animate-login-blob absolute top-1/3 right-1/4 size-72 rounded-full bg-fuchsia-300/30 blur-[100px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(255,255,255,0.55)_100%)]" />
+        <div className="animate-login-blob-slow absolute -bottom-32 -right-16 size-[28rem] rounded-full bg-indigo-300/35 blur-[120px] dark:bg-indigo-500/20" />
+        <div className="animate-login-blob absolute top-1/3 right-1/4 size-72 rounded-full bg-fuchsia-300/30 blur-[100px] dark:bg-fuchsia-500/15" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(255,255,255,0.55)_100%)] dark:bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(9,9,11,0.55)_100%)]" />
       </div>
 
       <div className="animate-login-card-in relative z-10 w-full max-w-md">
@@ -173,7 +213,7 @@ export default function LoginPage() {
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="relative mb-4 flex size-20 items-center justify-center">
             <div className="animate-login-logo-glow absolute inset-0 rounded-full bg-primary/40 blur-xl" />
-            <div className="animate-login-logo-float relative flex size-16 items-center justify-center rounded-2xl border border-black/5 bg-white shadow-lg shadow-zinc-900/10">
+            <div className="animate-login-logo-float relative flex size-16 items-center justify-center rounded-2xl border border-black/5 bg-white shadow-lg shadow-zinc-900/10 dark:border-white/10">
               {shop?.logoDataUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={shop.logoDataUrl} alt={shop.name || "Company logo"} className="size-full rounded-2xl object-contain p-1.5" />
@@ -189,7 +229,7 @@ export default function LoginPage() {
               : mode === "forgot"
                 ? "Reset your password"
                 : mode === "signup"
-                  ? "Create your account"
+                  ? "Start your 14-day free trial"
                   : "Sign in to continue"}
           </p>
         </div>
@@ -200,7 +240,7 @@ export default function LoginPage() {
             e.preventDefault();
             if (!loading) go();
           }}
-          className="space-y-4 rounded-3xl border border-black/5 bg-white/70 p-6 shadow-2xl shadow-zinc-900/10 backdrop-blur-xl sm:p-7"
+          className="space-y-4 rounded-3xl border border-black/5 bg-white/70 p-6 shadow-2xl shadow-zinc-900/10 backdrop-blur-xl sm:p-7 dark:border-white/10 dark:bg-zinc-900/70 dark:shadow-black/40"
         >
           {mode !== "reset" && (
             <Tabs
@@ -223,7 +263,7 @@ export default function LoginPage() {
             </Tabs>
           )}
 
-          {method === "email" && (mode === "login" || mode === "signup") && (
+          {SELF_SIGNUP_ENABLED && method === "email" && (mode === "login" || mode === "signup") && (
             <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
               <TabsList className="w-full">
                 <TabsTrigger value="login" className="flex-1">
@@ -276,7 +316,10 @@ export default function LoginPage() {
 
           {isEmailFlow && (
             <>
-              <IconField icon={Mail} label="Email" type="email" autoComplete="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" />
+              {mode === "signup" && (
+                <IconField icon={Store} label="Shop name" type="text" autoComplete="organization" autoFocus value={shopName} onChange={(e) => setShopName(e.target.value)} placeholder="Your shop's name" />
+              )}
+              <IconField icon={Mail} label="Email" type="email" autoComplete="email" autoFocus={mode !== "signup"} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" />
               <IconField
                 icon={Lock}
                 label="Password"
@@ -289,13 +332,13 @@ export default function LoginPage() {
           )}
 
           {err && (
-            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
               <span>{err}</span>
             </div>
           )}
           {ok && (
-            <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400">
               <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
               <span>{ok}</span>
             </div>

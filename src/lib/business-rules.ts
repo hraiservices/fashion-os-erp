@@ -3,12 +3,13 @@
 // (see plan doc: loyalty math, due-date badges, balance derivation, WhatsApp templates).
 
 import { istDateString } from "@/lib/ist-date";
+import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 
 /** How a customer found the shop — free-choice list, not enforced server-side (a blank/custom
  *  value is fine, this just drives the order-form dropdown and the booking-source report). */
 export const BOOKING_SOURCES = ["Walk-in", "Referral", "Repeat Customer", "Instagram", "Other"] as const;
 
-export const STAGES = ["received", "cutting", "stitching", "ready", "delivered", "payment"] as const;
+export const STAGES = ["received", "cutting", "stitching", "finishing", "ready", "delivered", "payment"] as const;
 export type Stage = (typeof STAGES)[number];
 
 /** getNext(), line ~2196. Returns null once at the last stage. */
@@ -20,7 +21,7 @@ export function getNextStage(status: string): Stage | null {
 export type Lining = "s" | "h" | "f";
 
 /** LINING, line ~1817. */
-export const LINING_LABELS: Record<Lining, string> = { s: "Simple", h: "Half Lining", f: "Full Lining" };
+export const LINING_LABELS: Record<Lining, string> = { s: "No Lining", h: "Half Lining", f: "Full Lining" };
 
 /** Shared with the stitching-order payment route (validation) and Day Book/Payment Methods
  *  reports (regex extraction of the method from activity_log's action text, since order
@@ -28,35 +29,50 @@ export const LINING_LABELS: Record<Lining, string> = { s: "Simple", h: "Half Lin
 export const ORDER_PAYMENT_METHODS = ["Cash", "UPI", "Card", "Bank Transfer"] as const;
 export type OrderPaymentMethod = (typeof ORDER_PAYMENT_METHODS)[number];
 
-/** DEF_RATES, line ~1765 — default per-garment rate card by lining tier. */
-export const DEFAULT_RATES: Record<string, Record<Lining, number>> = {
-  "Pant Suit": { s: 700, h: 1000, f: 1400 },
-  "Pallazo Suit": { s: 600, h: 1000, f: 1400 },
-  "Simple Suit": { s: 600, h: 1000, f: 1300 },
-  "Simple Kurti": { s: 400, h: 600, f: 900 },
-  Pant: { s: 350, h: 600, f: 900 },
-  Pallazo: { s: 400, h: 500, f: 700 },
-  "Simple Blouse": { s: 800, h: 850, f: 1500 },
-  "Designer Blouse": { s: 1000, h: 1800, f: 2500 },
-  Lehenga: { s: 1200, h: 1800, f: 2500 },
-  "Saree Fall/Piko": { s: 120, h: 120, f: 120 },
+/** One garment type's rate card row — a price per lining tier for new stitching, plus a single
+ *  alteration price that (unlike new stitching) does NOT vary by lining: an alteration is priced
+ *  by the work done, not by how the original garment was lined. Shared shape for both the
+ *  customer-facing rate card (DEFAULT_RATES) and the tailor payable rate card
+ *  (DEFAULT_TAILOR_RATES) — same fields, different numbers. */
+export interface GarmentRate {
+  s: number;
+  h: number;
+  f: number;
+  alteration: number;
+}
+
+export type RateCard = Record<string, GarmentRate>;
+
+/** DEF_RATES, line ~1765 — default per-garment rate card by lining tier, plus an alteration
+ *  price per garment type. */
+export const DEFAULT_RATES: RateCard = {
+  "Pant Suit": { s: 700, h: 1000, f: 1400, alteration: 0 },
+  "Pallazo Suit": { s: 600, h: 1000, f: 1400, alteration: 0 },
+  "Simple Suit": { s: 600, h: 1000, f: 1300, alteration: 0 },
+  "Simple Kurti": { s: 400, h: 600, f: 900, alteration: 0 },
+  Pant: { s: 350, h: 600, f: 900, alteration: 0 },
+  Pallazo: { s: 400, h: 500, f: 700, alteration: 0 },
+  "Simple Blouse": { s: 800, h: 850, f: 1500, alteration: 0 },
+  "Designer Blouse": { s: 1000, h: 1800, f: 2500, alteration: 0 },
+  Lehenga: { s: 1200, h: 1800, f: 2500, alteration: 0 },
+  "Saree Fall/Piko": { s: 120, h: 120, f: 120, alteration: 0 },
 };
 
 /** Tailor payable rate card — same garment-type × lining shape as DEFAULT_RATES (the customer
- *  price list), but each cell carries two payable amounts: what a tailor is paid for a NEW
- *  garment of that type/lining vs. an ALTERATION, since alterations pay less. Stored under
- *  app_settings key "tailorRates". Snapshotted onto each garment (frozen) the moment its order
- *  first reaches "ready" — see snapshot_tailor_payables() in the DB. */
-export interface TailorRate {
-  new: number;
-  alteration: number;
-}
-export type TailorRateCard = Record<string, Record<Lining, TailorRate>>;
+ *  price list): what a tailor is paid per lining for a NEW garment of that type, plus one
+ *  alteration payout per garment type (lining-independent, same reasoning as the customer side).
+ *  Versioned with a full history and an effective-from date in tailor_rate_versions
+ *  (add_tailor_rate_versions.sql) — current_tailor_rates() resolves whichever version is active
+ *  as of today, and that's what every not-yet-frozen garment's payableAmount is
+ *  live-recalculated from. A garment's payableAmount freezes permanently the moment its order
+ *  reaches "ready" or a payroll manager confirms it, whichever happens first — see
+ *  add_early_tailor_payables.sql. */
+export type TailorRateCard = Record<string, GarmentRate>;
 
 /** Zero by default for every garment type in DEFAULT_RATES — the shop enters real payable
  *  rates in Settings once this ships; there's no sensible default to guess at. */
 export const DEFAULT_TAILOR_RATES: TailorRateCard = Object.fromEntries(
-  Object.keys(DEFAULT_RATES).map((type) => [type, { s: { new: 0, alteration: 0 }, h: { new: 0, alteration: 0 }, f: { new: 0, alteration: 0 } }])
+  Object.keys(DEFAULT_RATES).map((type) => [type, { s: 0, h: 0, f: 0, alteration: 0 }])
 );
 
 /** Shop-configurable list of stitching-expense categories (Settings > Stitching Expense
@@ -86,6 +102,17 @@ export function newOrderId(): string {
   return `SOR-${rand}`;
 }
 
+/** A manually-typed order number becomes the order's real primary key and is used verbatim as
+ *  a URL segment (/orders/[id]) — the exact same trap the auto-generated separator once fell
+ *  into (see INVALID_SEPARATOR in document-numbering.ts). Restricted to a small, definitely
+ *  URL-safe charset rather than just blocking "/", since a manual field is more likely to see
+ *  spaces, quotes, or other characters an auto-formatter would never produce. */
+export const ORDER_NUMBER_PATTERN = /^[A-Za-z0-9._-]{1,40}$/;
+
+export function isValidManualOrderNumber(s: string): boolean {
+  return ORDER_NUMBER_PATTERN.test(s);
+}
+
 /** custId(), line ~2214. */
 export function customerIdFromMobile(mobile: string): string {
   return `CUST-${mobile}`;
@@ -110,6 +137,7 @@ export const STAGE_META: Record<Stage, StageMeta> = {
   received: { id: "received", label: "Received", emoji: "📥", color: "#18181B", bg: "#FAFAFA", border: "#E4E4E7" },
   cutting: { id: "cutting", label: "Cutting", emoji: "✂️", color: "#D97706", bg: "#FFFBEB", border: "#FDE68A" },
   stitching: { id: "stitching", label: "Stitching", emoji: "🧵", color: "#374151", bg: "#FAFAFA", border: "#E4E4E7" },
+  finishing: { id: "finishing", label: "Finishing", emoji: "🧷", color: "#7C3AED", bg: "#F5F3FF", border: "#DDD6FE" },
   ready: { id: "ready", label: "Ready", emoji: "✅", color: "#059669", bg: "#ECFDF5", border: "#A7F3D0" },
   delivered: { id: "delivered", label: "Delivered", emoji: "🚚", color: "#0891B2", bg: "#ECFEFF", border: "#A5F3FC" },
   payment: { id: "payment", label: "Paid ✓", emoji: "💰", color: "#065F46", bg: "#D1FAE5", border: "#6EE7B7" },
@@ -294,6 +322,9 @@ export interface WhatsAppOrder {
   balance?: number;
   deliveryDate: string;
   garments?: { type: string }[];
+  /** Customer's public order-status link (/track/[token]), if the caller has one ready.
+   *  Omitted entirely (rather than an empty {track_link} line) when absent. */
+  trackUrl?: string;
 }
 
 function fmtDateIN(iso: string): string {
@@ -303,7 +334,7 @@ function fmtDateIN(iso: string): string {
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export function buildWhatsAppMessage(order: WhatsAppOrder, type: WhatsAppMessageType, shop?: Shop): string {
+export function buildWhatsAppMessage(order: WhatsAppOrder, type: WhatsAppMessageType, shop?: Shop, templates?: Record<WhatsAppMessageType, string>): string {
   const ph = shop?.phone || "";
   const sn = shop?.name || "Fashion Boutique";
   const gs = (order.garments || []).map((g) => g.type).join(", ");
@@ -312,16 +343,22 @@ export function buildWhatsAppMessage(order: WhatsAppOrder, type: WhatsAppMessage
   // Google review link, which every other shop running this app would otherwise send
   // to their customers by mistake.
   const websiteLine = shop?.websiteUrl ? `\n🛍️ Shop Online: ${shop.websiteUrl}` : "";
-  const reviewLine = shop?.reviewUrl ? `\n🌐 ${shop.reviewUrl}` : "";
-  const messages: Record<WhatsAppMessageType, string> = {
-    received: `Dear *${order.name}*🙏\n\nYour Stitching Order *${order.id}* Received at *${sn}* Boutique.\n🗓️ Delivery Date is: *${fmtDateIN(order.deliveryDate)}*\n We will notify you when Ready! Thanks.🌸\n📞 ${ph}${websiteLine}`,
-    ready: `Dear *${order.name}*✅\n\nYour Stitching Order *${order.id}* is *READY!* 🎉\n${gs}. Please Collect soon !.${order.balance ? `\n💰 Balance Payment is : *₹${order.balance}*` : ""}\n📞 *${ph}*\n_${sn}_ 🌸`,
-    overdue: `Dear *${order.name}* 🙏\n\nYour Stitching Order *${order.id}* was due on *${fmtDateIN(order.deliveryDate)}* and is still in progress.\nWe sincerely apologize for the delay. We will notify you as soon as it is Ready! 🙏\n📞 ${ph}\n_${sn}_${websiteLine}`,
-    delivered: `Dear *${order.name}*💐\n Thank you for collecting your garments from *${sn}!* 😍${reviewLine ? `\nPlease Review on Google ! Click Below⭐${reviewLine}` : ""}${websiteLine}`,
-    payment: `Dear *${order.name}*🙏\nPayment of *₹${order.balance || 0}* received. Thank you! 💚\n_${sn}_ ✂️${websiteLine}`,
-    paymentDue: `Dear *${order.name}* 🙏\n\n₹${order.balance || 0} is due against your stitching order *${order.id}*.\nPlease clear at your earliest convenience.\n📞 ${ph}\n_${sn}_`,
-  };
-  return messages[type] || messages.received;
+  const reviewLine = shop?.reviewUrl ? `\nPlease Review on Google ! Click Below⭐\n🌐 ${shop.reviewUrl}` : "";
+  const balanceLine = order.balance ? `\n💰 Balance Payment is : *₹${order.balance}*` : "";
+  const trackLine = order.trackUrl ? `\n📲 Track your order anytime: ${order.trackUrl}` : "";
+  const template = templates?.[type] || DEFAULT_STITCHING_WHATSAPP_TEMPLATES[type] || DEFAULT_STITCHING_WHATSAPP_TEMPLATES.received;
+  return template
+    .replaceAll("{name}", order.name)
+    .replaceAll("{order_id}", order.id)
+    .replaceAll("{delivery_date}", fmtDateIN(order.deliveryDate))
+    .replaceAll("{garments}", gs)
+    .replaceAll("{balance}", String(order.balance || 0))
+    .replaceAll("{shop_name}", sn)
+    .replaceAll("{shop_phone}", ph)
+    .replaceAll("{website_line}", websiteLine)
+    .replaceAll("{review_line}", reviewLine)
+    .replaceAll("{balance_line}", balanceLine)
+    .replaceAll("{track_link}", trackLine);
 }
 
 /** Strips everything but digits, then a leading 91 country code, so a number typed/exported as
@@ -336,9 +373,9 @@ export function normalizeIndianMobile(mobile: string): string {
   return raw;
 }
 
-export function buildWhatsAppUrl(order: WhatsAppOrder, type: WhatsAppMessageType, shop?: Shop): string {
+export function buildWhatsAppUrl(order: WhatsAppOrder, type: WhatsAppMessageType, shop?: Shop, templates?: Record<WhatsAppMessageType, string>): string {
   const mobile = normalizeIndianMobile(order.mobile);
-  const message = buildWhatsAppMessage(order, type, shop);
+  const message = buildWhatsAppMessage(order, type, shop, templates);
   return `https://wa.me/91${mobile}?text=${encodeURIComponent(message)}`;
 }
 

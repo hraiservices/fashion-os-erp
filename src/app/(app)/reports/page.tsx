@@ -7,6 +7,7 @@ import { REPORTS_GROUP, resolveReportSection } from "@/components/app-shell/nav-
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { isReportEnabled } from "@/lib/entitlements";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { cn } from "@/lib/utils";
 
 const FAVORITES_CATEGORY = "__favorites__";
@@ -36,6 +37,7 @@ interface ReportItem {
  */
 export default function ReportsIndexPage() {
   const { data: entitlements } = useModuleEntitlements();
+  const { data: user } = useCurrentUser();
   // Shop-wide (not per-browser) — anyone marking a report favourite changes it for everyone,
   // same as the rest of app_settings.
   const { data: favoriteHrefs, save: saveFavorites } = useAppSetting<string[]>("favoriteReports", []);
@@ -44,9 +46,10 @@ export default function ReportsIndexPage() {
   const allReports = useMemo<ReportItem[]>(() => {
     if (!entitlements) return [];
     return REPORTS_GROUP.children
+      .filter((leaf) => !leaf.adminOnly || user?.role === "admin")
       .map((leaf) => ({ href: leaf.href, label: leaf.label, category: resolveReportSection(leaf.href) || "" }))
       .filter((r) => isReportEnabled(entitlements, r.href, r.category));
-  }, [entitlements]);
+  }, [entitlements, user?.role]);
 
   const categories = useMemo(() => {
     const seen = new Set<string>();
@@ -212,7 +215,7 @@ export default function ReportsIndexPage() {
         <div className="overflow-hidden rounded-xl border">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="border-b bg-muted/40 text-left text-sm font-bold uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="w-10 px-4 py-2.5" />
                   <th className="px-4 py-2.5 font-medium">Report Name</th>

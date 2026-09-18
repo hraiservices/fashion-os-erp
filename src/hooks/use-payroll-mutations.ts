@@ -70,6 +70,18 @@ export function useMarkPayslipPaid() {
   });
 }
 
+/** Apply a manual bonus (positive amount) or deduction (negative amount) to a draft payslip,
+ *  with a required note explaining why — e.g. a one-off bonus or a fine the attendance-based
+ *  math has no way to express. Rejected server-side once the payslip is marked paid. */
+export function useAdjustPayslip() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, amount, note }: { id: string; amount: number; note: string }) =>
+      apiJson<{ ok: true }>(`/api/payroll/payslips/${id}`, "PATCH", { action: "adjust", amount, note }),
+    onSuccess: () => invalidatePayroll(qc),
+  });
+}
+
 /** Record an advance. Routed through POST /api/employees/[id]/advances — same reasoning as
  *  useMarkPayslipPaid above. */
 export function useAddAdvance() {
@@ -77,6 +89,19 @@ export function useAddAdvance() {
   return useMutation({
     mutationFn: ({ employeeId, date, amount, note }: { employeeId: string; date: string; amount: number; note: string; userEmail?: string }) =>
       apiJson<{ ok: true }>(`/api/employees/${employeeId}/advances`, "POST", { date, amount, note }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["employee-advances"] }),
+  });
+}
+
+/** Bulk-records advances for several employees at once — the weekly (often Saturday) round
+ *  where a manager pays out several tailors' advances in one sitting instead of opening each
+ *  employee's own page. Partial success is normal: `skipped` names anyone whose entry was
+ *  rejected (e.g. over their piece-rate cap) without failing the others. */
+export function useAddBulkAdvances() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { date: string; entries: { employeeId: string; amount: number; note?: string }[] }) =>
+      apiJson<{ inserted: number; skipped: { employeeId: string; reason: string }[] }>("/api/employees/advances/bulk", "POST", input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["employee-advances"] }),
   });
 }

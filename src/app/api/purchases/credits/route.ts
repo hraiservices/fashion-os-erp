@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 import { computeLineItemsTotal, purchaseItemType, purchaseItemId, type PurchaseLineItem } from "@/lib/purchases";
 
@@ -40,6 +41,9 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.managePurchases) return NextResponse.json({ error: "No permission to manage vendor credits" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
@@ -48,7 +52,7 @@ export async function POST(request: Request) {
   const total = computeLineItemsTotal(items);
   if (total <= 0) return NextResponse.json({ error: "Add at least one returned item" }, { status: 400 });
 
-  const { data: bill } = await supabase.from("purchase_bills").select("items").eq("id", fd.billId).maybeSingle();
+  const { data: bill } = await db.from("purchase_bills").select("items").eq("id", fd.billId).maybeSingle();
   if (!bill) return NextResponse.json({ error: "Bill not found" }, { status: 404 });
 
   const billedQty = new Map<string, number>();
@@ -58,7 +62,7 @@ export async function POST(request: Request) {
     billedQty.set(key, (billedQty.get(key) || 0) + (i.qty || 0));
   }
 
-  const { data: existingCredits } = await supabase.from("vendor_credits").select("items").eq("bill_id", fd.billId);
+  const { data: existingCredits } = await db.from("vendor_credits").select("items").eq("bill_id", fd.billId);
   const alreadyCreditedQty = new Map<string, number>();
   for (const c of existingCredits || []) {
     for (const i of (c.items as unknown as PurchaseLineItem[]) || []) {
@@ -81,7 +85,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("vendor_credits")
     .insert({
       credit_number: fd.creditNumber,
@@ -110,7 +114,7 @@ export async function POST(request: Request) {
       created_by: user.email,
     }));
   if (ledgerRows.length) {
-    const { error: ledgerError } = await supabase.from("inventory_ledger").insert(ledgerRows);
+    const { error: ledgerError } = await db.from("inventory_ledger").insert(ledgerRows);
     if (ledgerError) return NextResponse.json({ error: ledgerError.message }, { status: 500 });
   }
 

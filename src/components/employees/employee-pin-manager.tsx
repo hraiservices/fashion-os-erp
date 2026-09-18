@@ -68,7 +68,7 @@ export function EmployeePinManager({ employeeId }: { employeeId: string }) {
 
   return (
     <div className="space-y-2">
-      <Label className="text-xs font-medium text-foreground/80">Self check-in PIN</Label>
+      <Label className="text-sm font-bold text-foreground/80">Self check-in PIN</Label>
       <p className="text-[11px] text-muted-foreground">Lets this employee check in/out themselves at /checkin with a selfie and location.</p>
 
       {editing ? (

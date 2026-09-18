@@ -175,10 +175,15 @@ export function ProductLineItemsEditor({
     else scanAdd(code);
   }
 
-  const productOptions = useMemo(
-    () => (products || []).map((p) => ({ value: p.id, label: p.name, sublabel: `${p.sku} · ${p.stockQty} in stock · ${inr(p.sellingPrice)}` })),
-    [products]
-  );
+  // Archived products are hidden from new selections — the whole point of archiving is to stop
+  // it coming up for new sales — but a line already pointing at one (an existing invoice/quote
+  // being edited) must still resolve to its name rather than showing a blank/unknown option.
+  const productOptions = useMemo(() => {
+    const usedIds = new Set(lines.map((l) => l.productId).filter(Boolean));
+    return (products || [])
+      .filter((p) => p.active || usedIds.has(p.id))
+      .map((p) => ({ value: p.id, label: p.name, sublabel: `${p.sku} · ${p.stockQty} in stock · ${inr(p.sellingPrice)}` }));
+  }, [products, lines]);
 
   function lineTotals(l: EditableSalesLine) {
     const qty = parseFloat(l.qty) || 0;
@@ -257,7 +262,7 @@ export function ProductLineItemsEditor({
               <div className="flex items-start gap-2 sm:contents">
                 <SearchSelect
                   className="flex-1"
-                  inputClassName="h-10"
+                  inputClassName="h-10 text-sm"
                   placeholder="Type to search item…"
                   value={line.productId}
                   options={productOptions}
@@ -284,13 +289,13 @@ export function ProductLineItemsEditor({
 
               {/* Qty / Price / Discount — labeled grid on mobile, inline row on desktop */}
               <div className={cn("grid gap-2 sm:contents", showDiscount ? "grid-cols-3" : "grid-cols-2")}>
-                <div className="sm:w-20">
+                <div className="sm:w-24">
                   <label className="mb-1 block text-[10px] font-medium text-muted-foreground sm:hidden">Qty</label>
-                  <Input type="number" inputMode="numeric" min={0} step="1" placeholder="Qty" className="h-10 w-full sm:w-20" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
+                  <Input type="number" inputMode="numeric" min={0} step="1" placeholder="Qty" className="h-10 w-full text-sm sm:w-24" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
                 </div>
-                <div className="sm:w-28">
+                <div className="sm:w-32">
                   <label className="mb-1 block text-[10px] font-medium text-muted-foreground sm:hidden">Price</label>
-                  <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="Price" className="h-10 w-full sm:w-28" value={line.unitPrice} onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })} />
+                  <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="Price" className="h-10 w-full text-sm sm:w-32" value={line.unitPrice} onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })} />
                 </div>
                 {showDiscount && (
                   <div className="sm:w-auto sm:shrink-0">
@@ -312,7 +317,7 @@ export function ProductLineItemsEditor({
                         max={discountType === "percent" ? 100 : undefined}
                         step="0.01"
                         placeholder="Disc."
-                        className="h-10 w-full rounded-none border-0 sm:w-16"
+                        className="h-10 w-full rounded-none border-0 text-sm sm:w-16"
                         value={discountType === "percent" ? line.discountPercent : line.discountFlat || ""}
                         onChange={(e) =>
                           updateLine(line.key, discountType === "percent" ? { discountPercent: e.target.value } : { discountFlat: e.target.value })

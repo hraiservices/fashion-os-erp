@@ -2,25 +2,111 @@
 
 import { useMemo } from "react";
 import { useCombinedPl } from "@/hooks/use-combined-pl";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportCard, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportCard, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
+import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { TrendingUp, TrendingDown, Wallet, Receipt } from "lucide-react";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange } from "@/lib/report-date-range";
 
+const COMBINED_PL_COLUMNS = [
+  { key: "month", label: "Month", required: true },
+  { key: "stitchingRevenue", label: "Stitching Rev" },
+  { key: "salesRevenue", label: "Product Sales Rev" },
+  { key: "purchaseCost", label: "Purchases" },
+  { key: "stitchingCost", label: "Stitching Cost" },
+  { key: "laborCost", label: "Mfg Labor" },
+  { key: "expenseCost", label: "Expenses" },
+  { key: "payrollCost", label: "Salaries" },
+  { key: "netProfit", label: "Net Profit", required: true },
+];
+
+// Below 1920px (a 14" laptop) the full 9-column table feels cramped — Mfg Labor and Salaries
+// are the least commonly referenced of the cost lines, so they default to hidden there and
+// reappear automatically on a wider monitor (still one click away via the Columns menu).
+const COMBINED_PL_AUTO_HIDE = { belowWidth: 1920, keys: ["laborCost", "payrollCost"] };
+
+/** useCombinedPl() hardcodes a trailing-6-month window across purchases/expenses/payroll/orders/
+ *  invoices with no date-range parameter of its own — properly honoring a custom range here needs
+ *  that hook reworked to accept one. The bar is shown for consistency; it doesn't filter yet. */
 export default function CombinedPlPage() {
+  const { data: user } = useCurrentUser();
   const { monthly, isLoading } = useCombinedPl();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo } = useReportDateRange();
+  const columnTable = useColumnVisibility("combined-pl", COMBINED_PL_COLUMNS, COMBINED_PL_AUTO_HIDE);
+  const isVisible = columnTable.isVisible;
 
   const totals = useMemo(
     () => monthly.reduce((acc, m) => ({ revenue: acc.revenue + m.revenue, cost: acc.cost + m.totalCost, net: acc.net + m.netProfit }), { revenue: 0, cost: 0, net: 0 }),
     [monthly]
   );
 
+  // Profit & Loss is entirely profit data — restricted to the admin role specifically,
+  // everywhere in the app.
+  if (user && user.role !== "admin") {
+    return (
+      <div className="p-4 sm:p-6">
+        <EmptyState icon={Wallet} title="No access" description="Combined P&L is restricted to admins." />
+      </div>
+    );
+  }
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
+  const columnTotals = monthly.reduce(
+    (acc, m) => ({
+      stitchingRevenue: acc.stitchingRevenue + m.stitchingRevenue,
+      salesRevenue: acc.salesRevenue + m.salesRevenue,
+      purchaseCost: acc.purchaseCost + m.purchaseCost,
+      stitchingCost: acc.stitchingCost + m.stitchingCost,
+      laborCost: acc.laborCost + m.laborCost,
+      expenseCost: acc.expenseCost + m.expenseCost,
+      payrollCost: acc.payrollCost + m.payrollCost,
+      netProfit: acc.netProfit + m.netProfit,
+    }),
+    { stitchingRevenue: 0, salesRevenue: 0, purchaseCost: 0, stitchingCost: 0, laborCost: 0, expenseCost: 0, payrollCost: 0, netProfit: 0 }
+  );
+
   return (
-    <ReportShell title="Combined P&L" description="All revenue (stitching + product sales) against all costs — purchases, stitching job costs, manufacturing labour, company expenses and salaries — last 6 months">
+    <ReportShell
+      title="Combined P&L"
+      description="All revenue (stitching + product sales) against all costs — purchases, stitching material costs, manufacturing labour, company expenses (including tailor payments logged under Salaries) and payroll salaries — last 6 months"
+      actions={
+        <ReportActionsMenu
+          rows={monthly.map((m) => ({
+            Month: m.label,
+            "Stitching Rev": m.stitchingRevenue,
+            "Product Sales Rev": m.salesRevenue,
+            Purchases: m.purchaseCost,
+            "Stitching Cost": m.stitchingCost,
+            "Mfg Labor": m.laborCost,
+            Expenses: m.expenseCost,
+            Salaries: m.payrollCost,
+            "Net Profit": m.netProfit,
+          }))}
+          filename="combined-pl"
+          title="Combined P&L"
+          summaryLines={[`Total revenue: ${inr(totals.revenue)}`, `Total cost: ${inr(totals.cost)}`, `Net profit: ${inr(totals.net)}`]}
+        />
+      }
+    >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Total Revenue" value={inr(totals.revenue)} icon={TrendingUp} tone="success" />
         <StatCard label="Total Cost" value={inr(totals.cost)} icon={TrendingDown} tone="danger" />
@@ -48,52 +134,117 @@ export default function CombinedPlPage() {
         </div>
       </ReportCard>
 
-      <ReportTable>
-        <thead className="border-b bg-muted/40">
-          <tr>
-            <Th>Month</Th>
-            <Th align="right">Stitching Rev</Th>
-            <Th align="right">Product Sales Rev</Th>
-            <Th align="right">Purchases</Th>
-            <Th align="right">Stitching Cost</Th>
-            <Th align="right">Mfg Labor</Th>
-            <Th align="right">Expenses</Th>
-            <Th align="right">Salaries</Th>
-            <Th align="right">Net Profit</Th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {monthly.map((m) => (
-            <tr key={m.month} className="hover:bg-muted/30">
-              <Td className="font-medium">{m.label}</Td>
-              <Td align="right">{inr(m.stitchingRevenue)}</Td>
-              <Td align="right">{inr(m.salesRevenue)}</Td>
-              <Td align="right" className="text-muted-foreground">
-                {inr(m.purchaseCost)}
-              </Td>
-              <Td align="right" className="text-muted-foreground">
-                {inr(m.stitchingCost)}
-              </Td>
-              <Td align="right" className="text-muted-foreground">
-                {inr(m.laborCost)}
-              </Td>
-              <Td align="right" className="text-muted-foreground">
-                {inr(m.expenseCost)}
-              </Td>
-              <Td align="right" className="text-muted-foreground">
-                {inr(m.payrollCost)}
-              </Td>
-              <Td align="right" className={`font-semibold ${m.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
-                {inr(m.netProfit)}
-              </Td>
+      <div className="hidden justify-end sm:flex">
+        <ColumnCustomizerMenu table={columnTable} />
+      </div>
+      <div className="hidden sm:block">
+        <ReportTable>
+          <thead className="border-b bg-muted/40">
+            <tr>
+              <Th>Month</Th>
+              <Th align="right">Stitching Rev</Th>
+              <Th align="right">Product Sales Rev</Th>
+              <Th align="right">Purchases</Th>
+              <Th align="right">Stitching Cost</Th>
+              {isVisible("laborCost") && <Th align="right">Mfg Labor</Th>}
+              <Th align="right">Expenses</Th>
+              {isVisible("payrollCost") && <Th align="right">Salaries</Th>}
+              <Th align="right">Net Profit</Th>
             </tr>
-          ))}
-        </tbody>
-      </ReportTable>
+          </thead>
+          <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{inr(columnTotals.stitchingRevenue)}</Td>
+              <Td align="right">{inr(columnTotals.salesRevenue)}</Td>
+              <Td align="right">{inr(columnTotals.purchaseCost)}</Td>
+              <Td align="right">{inr(columnTotals.stitchingCost)}</Td>
+              {isVisible("laborCost") && <Td align="right">{inr(columnTotals.laborCost)}</Td>}
+              <Td align="right">{inr(columnTotals.expenseCost)}</Td>
+              {isVisible("payrollCost") && <Td align="right">{inr(columnTotals.payrollCost)}</Td>}
+              <Td align="right">{inr(columnTotals.netProfit)}</Td>
+            </ReportTotalsRow>
+            {monthly.map((m) => (
+              <tr key={m.month} className="hover:bg-muted/30">
+                <Td className="font-medium">{m.label}</Td>
+                <Td align="right">{inr(m.stitchingRevenue)}</Td>
+                <Td align="right">{inr(m.salesRevenue)}</Td>
+                <Td align="right" className="text-muted-foreground">
+                  {inr(m.purchaseCost)}
+                </Td>
+                <Td align="right" className="text-muted-foreground">
+                  {inr(m.stitchingCost)}
+                </Td>
+                {isVisible("laborCost") && (
+                  <Td align="right" className="text-muted-foreground">
+                    {inr(m.laborCost)}
+                  </Td>
+                )}
+                <Td align="right" className="text-muted-foreground">
+                  {inr(m.expenseCost)}
+                </Td>
+                {isVisible("payrollCost") && (
+                  <Td align="right" className="text-muted-foreground">
+                    {inr(m.payrollCost)}
+                  </Td>
+                )}
+                <Td align="right" className={`font-semibold ${m.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+                  {inr(m.netProfit)}
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </ReportTable>
+      </div>
+
+      <MobileRecordList>
+        <MobileRecordCard className="bg-muted/40">
+          <MobileRecordHeader
+            title="Total"
+            value={inr(columnTotals.netProfit)}
+            valueClassName={columnTotals.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
+            showChevron={false}
+          />
+          <MobileRecordGrid
+            columns={3}
+            items={[
+              { label: "Stitching Rev", value: inr(columnTotals.stitchingRevenue) },
+              { label: "Product Sales Rev", value: inr(columnTotals.salesRevenue) },
+              { label: "Purchases", value: inr(columnTotals.purchaseCost) },
+              { label: "Stitching Cost", value: inr(columnTotals.stitchingCost) },
+              { label: "Mfg Labor", value: inr(columnTotals.laborCost) },
+              { label: "Expenses", value: inr(columnTotals.expenseCost) },
+              { label: "Salaries", value: inr(columnTotals.payrollCost) },
+            ]}
+          />
+        </MobileRecordCard>
+        {monthly.map((m) => (
+          <MobileRecordCard key={m.month}>
+            <MobileRecordHeader
+              title={m.label}
+              value={inr(m.netProfit)}
+              valueClassName={m.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
+              showChevron={false}
+            />
+            <MobileRecordGrid
+              columns={3}
+              items={[
+                { label: "Stitching Rev", value: inr(m.stitchingRevenue) },
+                { label: "Product Sales Rev", value: inr(m.salesRevenue) },
+                { label: "Purchases", value: inr(m.purchaseCost), valueClassName: "text-muted-foreground" },
+                { label: "Stitching Cost", value: inr(m.stitchingCost), valueClassName: "text-muted-foreground" },
+                { label: "Mfg Labor", value: inr(m.laborCost), valueClassName: "text-muted-foreground" },
+                { label: "Expenses", value: inr(m.expenseCost), valueClassName: "text-muted-foreground" },
+                { label: "Salaries", value: inr(m.payrollCost), valueClassName: "text-muted-foreground" },
+              ]}
+            />
+          </MobileRecordCard>
+        ))}
+      </MobileRecordList>
       <p className="text-xs text-muted-foreground">
-        Stitching Cost is booked by each order&apos;s intake date, but Salaries is booked by when a payslip was actually paid — a garment taken in one month whose tailor is paid via a
-        later payroll run shows its cost in the earlier month and the matching salary reduction in the later one. Totals across the full period are still correct either way; a single
-        month&apos;s Net Profit can shift a little depending on payroll timing.
+        Stitching Cost here is materials only (fabric, other, per-order expenses) — it deliberately excludes tailor payable. Tailor payments are logged as an Expense under the
+        Salaries category instead of run through payroll, so counting the same payable again here would double it. Per-order profit (on the order form, order detail page, Orders
+        list, and Order Profitability report) still deducts tailor cost from that specific order&apos;s margin — only this company-wide P&amp;L excludes it.
       </p>
     </ReportShell>
   );

@@ -23,6 +23,7 @@ import { CustomerPicker } from "@/components/sales/customer-picker";
 import { BarcodeScannerModal } from "@/components/pos/barcode-scanner-modal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import type { Customer } from "@/lib/types";
+import { istDateString } from "@/lib/ist-date";
 
 const TENDER_METHODS = ["Cash", "UPI", "Bank Transfer", "Cheque", "Card"];
 
@@ -90,12 +91,12 @@ function CloseRegisterDialog({ open, onOpenChange, sessionId, openingCash }: { o
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-border">
-            <div className="bg-card p-3 text-center">
-              <p className="text-lg font-semibold tabular-nums">{inr(openingCash)}</p>
+            <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+              <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{inr(openingCash)}</p>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Opening cash</p>
             </div>
-            <div className="bg-card p-3 text-center">
-              <p className="text-lg font-semibold tabular-nums">{inr(expected)}</p>
+            <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+              <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{inr(expected)}</p>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Expected cash</p>
             </div>
           </div>
@@ -206,7 +207,7 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
       const items: SalesLineItem[] = cart.map((c) => ({ productId: c.productId, productName: c.productName, qty: c.qty, unitPrice: c.unitPrice, discountPercent: 0, amount: c.qty * c.unitPrice }));
       const totals = computeInvoiceTotals(items, 0, "flat", 0, 0, "none");
       const invoiceNumber = genInvoiceNumber();
-      const invoiceDate = new Date().toISOString().slice(0, 10);
+      const invoiceDate = istDateString();
       const invoice = await saveInvoice.mutateAsync({
         invoiceNumber,
         customerMobile: customer?.mobile || "walk-in",
@@ -234,7 +235,7 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
           invoiceNumber,
           amount: amt,
           method: t.method,
-          date: new Date().toISOString().slice(0, 10),
+          date: istDateString(),
           note: "POS sale",
           posSessionId: sessionId,
           userEmail: user?.email,
@@ -272,9 +273,11 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
   }
 
   const filteredProducts = useMemo(() => {
+    // Archived products are discontinued — don't let them come up at checkout.
+    const active = (products || []).filter((p) => p.active);
     const q = scanValue.trim().toLowerCase();
-    if (!q) return (products || []).slice(0, 24);
-    return (products || []).filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || p.barcode === q).slice(0, 24);
+    if (!q) return active.slice(0, 24);
+    return active.filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || p.barcode === q).slice(0, 24);
   }, [products, scanValue]);
 
   return (
@@ -336,7 +339,7 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
                   key={p.id}
                   type="button"
                   onClick={() => addProduct(p)}
-                  className="rounded-lg border bg-card p-3 text-left transition-colors hover:bg-muted/50 active:bg-muted"
+                  className="min-w-0 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-muted/50 active:bg-muted"
                 >
                   <p className="truncate text-sm font-medium">{p.name}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">{p.sku}</p>

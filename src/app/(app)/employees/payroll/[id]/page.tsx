@@ -1,22 +1,53 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, Wallet, CheckCircle2, Trash2, FileDown } from "lucide-react";
+import { ArrowLeft, Wallet, CheckCircle2, Trash2, FileDown, PencilLine, MessageCircle } from "lucide-react";
 import { usePayrollRun, usePayslipsForRun } from "@/hooks/use-payroll";
-import { useFinalizePayrollRun, useMarkPayslipPaid, useDeletePayrollRun } from "@/hooks/use-payroll-mutations";
+import { useFinalizePayrollRun, useMarkPayslipPaid, useDeletePayrollRun, useAdjustPayslip } from "@/hooks/use-payroll-mutations";
 import { useEmployees } from "@/hooks/use-employees";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useRouter } from "next/navigation";
 import { inr, fmtDate } from "@/lib/format";
+import { buildPayslipWhatsAppUrl } from "@/lib/payslip-whatsapp";
+import { cn } from "@/lib/utils";
+import type { Payslip } from "@/lib/types";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+
+const PAYROLL_RUN_COLUMNS = [
+  { key: "employee", label: "Employee", required: true },
+  { key: "present", label: "Present" },
+  { key: "absent", label: "Absent" },
+  { key: "halfDay", label: "Half day" },
+  { key: "leave", label: "Leave" },
+  { key: "gross", label: "Gross" },
+  { key: "pieceRate", label: "Piece-rate" },
+  { key: "overtime", label: "Overtime" },
+  { key: "deductions", label: "Deductions" },
+  { key: "adjustment", label: "Adjustment" },
+  { key: "netPay", label: "Net Pay", required: true },
+  { key: "status", label: "Status", required: true },
+  { key: "actions", label: "Actions", required: true },
+];
+
+// Below 1920px (a 14" laptop) the full 12-column table feels cramped — the attendance
+// breakdown (Present/Absent/Half day/Leave) and the less-common pay lines (Piece-rate/
+// Overtime/Adjustment) are the least essential to see at a glance, so they default to hidden
+// there and reappear automatically on a wider monitor (still one click away via Columns).
+const PAYROLL_RUN_AUTO_HIDE = { belowWidth: 1920, keys: ["present", "absent", "halfDay", "leave", "pieceRate", "overtime", "adjustment"] };
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,11 +67,44 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
   const { data: payslips, isLoading: payslipsLoading } = usePayslipsForRun(id);
   const { data: employees } = useEmployees();
   const { data: user } = useCurrentUser();
+  const { data: shop } = useShopSettings();
   const finalizeRun = useFinalizePayrollRun();
   const markPaid = useMarkPayslipPaid();
   const deleteRun = useDeletePayrollRun();
+  const adjustPayslip = useAdjustPayslip();
 
-  const employeeName = (empId: string) => (employees || []).find((e) => e.id === empId)?.name || "—";
+  const [adjusting, setAdjusting] = useState<Payslip | null>(null);
+  const [adjustAmount, setAdjustAmount] = useState("");
+  const [adjustNote, setAdjustNote] = useState("");
+  const columnTable = useColumnVisibility("payroll-run-detail", PAYROLL_RUN_COLUMNS, PAYROLL_RUN_AUTO_HIDE);
+  const isVisible = columnTable.isVisible;
+
+  const employee = (empId: string) => (employees || []).find((e) => e.id === empId);
+  const employeeName = (empId: string) => employee(empId)?.name || "—";
+
+  function openAdjust(p: Payslip) {
+    setAdjusting(p);
+    setAdjustAmount(p.adjustmentAmount ? String(p.adjustmentAmount) : "");
+    setAdjustNote(p.notes);
+  }
+
+  async function handleSaveAdjustment() {
+    if (!adjusting) return;
+    const amount = Number(adjustAmount) || 0;
+    try {
+      await adjustPayslip.mutateAsync({ id: adjusting.id, amount, note: adjustNote });
+      toast.success("Adjustment saved");
+      setAdjusting(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save adjustment");
+    }
+  }
+
+  function notifyHref(p: Payslip) {
+    const emp = employee(p.employeeId);
+    if (!emp || !run) return undefined;
+    return buildPayslipWhatsAppUrl(emp, p, run, shop?.name);
+  }
 
   async function handleFinalize() {
     try {
@@ -128,36 +192,47 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
         <EmptyState icon={Wallet} title="No payslips" description="No active employees at the time this run was generated." />
       ) : (
         <div className="overflow-hidden rounded-xl border">
+          <div className="hidden justify-end p-2 pb-0 sm:flex">
+            <ColumnCustomizerMenu table={columnTable} />
+          </div>
           <div className="hidden overflow-x-auto sm:block">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Employee</TableHead>
-                  <TableHead className="text-right">Present</TableHead>
-                  <TableHead className="text-right">Absent</TableHead>
-                  <TableHead className="text-right">Half day</TableHead>
-                  <TableHead className="text-right">Leave</TableHead>
+                  {isVisible("present") && <TableHead className="text-right">Present</TableHead>}
+                  {isVisible("absent") && <TableHead className="text-right">Absent</TableHead>}
+                  {isVisible("halfDay") && <TableHead className="text-right">Half day</TableHead>}
+                  {isVisible("leave") && <TableHead className="text-right">Leave</TableHead>}
                   <TableHead className="text-right">Gross</TableHead>
-                  <TableHead className="text-right">Piece-rate</TableHead>
-                  <TableHead className="text-right">Overtime</TableHead>
+                  {isVisible("pieceRate") && <TableHead className="text-right">Piece-rate</TableHead>}
+                  {isVisible("overtime") && <TableHead className="text-right">Overtime</TableHead>}
                   <TableHead className="text-right">Deductions</TableHead>
+                  {isVisible("adjustment") && <TableHead className="text-right">Adjustment</TableHead>}
                   <TableHead className="text-right">Net Pay</TableHead>
                   <TableHead className="text-right">Status</TableHead>
-                  <TableHead className="w-10" />
+                  <TableHead className="w-24" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {payslips.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{employeeName(p.employeeId)}</TableCell>
-                    <TableCell className="text-right">{p.presentDays}</TableCell>
-                    <TableCell className="text-right">{p.absentDays}</TableCell>
-                    <TableCell className="text-right">{p.halfDays}</TableCell>
-                    <TableCell className="text-right">{p.leaveDays}</TableCell>
+                    {isVisible("present") && <TableCell className="text-right">{p.presentDays}</TableCell>}
+                    {isVisible("absent") && <TableCell className="text-right">{p.absentDays}</TableCell>}
+                    {isVisible("halfDay") && <TableCell className="text-right">{p.halfDays}</TableCell>}
+                    {isVisible("leave") && <TableCell className="text-right">{p.leaveDays}</TableCell>}
                     <TableCell className="text-right">{inr(p.grossPay)}</TableCell>
-                    <TableCell className="text-right">{p.pieceRatePay > 0 ? inr(p.pieceRatePay) : "—"}</TableCell>
-                    <TableCell className="text-right">{p.overtimeHours > 0 ? `${p.overtimeHours}h · ${inr(p.overtimePay)}` : "—"}</TableCell>
+                    {isVisible("pieceRate") && <TableCell className="text-right">{p.pieceRatePay > 0 ? inr(p.pieceRatePay) : "—"}</TableCell>}
+                    {isVisible("overtime") && (
+                      <TableCell className="text-right">{p.overtimeHours > 0 ? `${p.overtimeHours}h · ${inr(p.overtimePay)}` : "—"}</TableCell>
+                    )}
                     <TableCell className="text-right text-red-600 dark:text-red-400">{p.deductions > 0 ? `− ${inr(p.deductions)}` : "—"}</TableCell>
+                    {isVisible("adjustment") && (
+                      <TableCell className={cn("text-right", p.adjustmentAmount > 0 ? "text-emerald-600 dark:text-emerald-400" : p.adjustmentAmount < 0 ? "text-red-600 dark:text-red-400" : undefined)}>
+                        {p.adjustmentAmount !== 0 ? `${p.adjustmentAmount > 0 ? "+" : "−"} ${inr(Math.abs(p.adjustmentAmount))}` : "—"}
+                      </TableCell>
+                    )}
                     <TableCell className="text-right font-semibold">{inr(p.netPay)}</TableCell>
                     <TableCell className="text-right">
                       {p.status === "paid" ? (
@@ -169,17 +244,42 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
                       )}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="size-11 sm:size-7"
-                        aria-label={`Download payslip for ${employeeName(p.employeeId)}`}
-                        title="Download payslip"
-                        nativeButton={false}
-                        render={<a href={`/api/employees/payslips/${p.id}/pdf`} target="_blank" rel="noopener noreferrer" />}
-                      >
-                        <FileDown className="size-3.5" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-0.5">
+                        {p.status !== "paid" && (
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="size-11 sm:size-7"
+                            aria-label={`Adjust payslip for ${employeeName(p.employeeId)}`}
+                            title="Adjust (bonus/deduction)"
+                            onClick={() => openAdjust(p)}
+                          >
+                            <PencilLine className="size-3.5" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="size-11 sm:size-7"
+                          aria-label={`Notify ${employeeName(p.employeeId)} on WhatsApp`}
+                          title="Notify on WhatsApp"
+                          nativeButton={false}
+                          render={<a href={notifyHref(p)} target="_blank" rel="noopener noreferrer" />}
+                        >
+                          <MessageCircle className="size-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="size-11 sm:size-7"
+                          aria-label={`Download payslip for ${employeeName(p.employeeId)}`}
+                          title="Download payslip"
+                          nativeButton={false}
+                          render={<a href={`/api/employees/payslips/${p.id}/pdf`} target="_blank" rel="noopener noreferrer" />}
+                        >
+                          <FileDown className="size-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -196,6 +296,13 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
                 {p.pieceRatePay > 0 && <MobileRecordRow label="Piece-rate" value={inr(p.pieceRatePay)} />}
                 {p.overtimeHours > 0 && <MobileRecordRow label="Overtime" value={`${p.overtimeHours}h · ${inr(p.overtimePay)}`} />}
                 <MobileRecordRow label="Deductions" value={p.deductions > 0 ? `− ${inr(p.deductions)}` : "—"} valueClassName={p.deductions > 0 ? "text-red-600 dark:text-red-400" : undefined} />
+                {p.adjustmentAmount !== 0 && (
+                  <MobileRecordRow
+                    label="Adjustment"
+                    value={`${p.adjustmentAmount > 0 ? "+" : "−"} ${inr(Math.abs(p.adjustmentAmount))}`}
+                    valueClassName={p.adjustmentAmount > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
+                  />
+                )}
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-xs text-muted-foreground">Status</span>
                   {p.status === "paid" ? (
@@ -206,15 +313,25 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
                     </Button>
                   )}
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2 w-full gap-1.5"
-                  nativeButton={false}
-                  render={<a href={`/api/employees/payslips/${p.id}/pdf`} target="_blank" rel="noopener noreferrer" />}
-                >
-                  <FileDown className="size-3.5" /> Download Payslip
-                </Button>
+                <div className="mt-2 flex gap-1.5">
+                  {p.status !== "paid" && (
+                    <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => openAdjust(p)}>
+                      <PencilLine className="size-3.5" /> Adjust
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" className="flex-1 gap-1.5" nativeButton={false} render={<a href={notifyHref(p)} target="_blank" rel="noopener noreferrer" />}>
+                    <MessageCircle className="size-3.5" /> Notify
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-1.5"
+                    nativeButton={false}
+                    render={<a href={`/api/employees/payslips/${p.id}/pdf`} target="_blank" rel="noopener noreferrer" />}
+                  >
+                    <FileDown className="size-3.5" /> Slip
+                  </Button>
+                </div>
               </MobileRecordCard>
             ))}
           </MobileRecordList>
@@ -222,6 +339,38 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
       )}
 
       {allPaid && <p className="text-sm text-muted-foreground">All payslips in this run are marked paid.</p>}
+
+      <Dialog open={!!adjusting} onOpenChange={(o) => !o && setAdjusting(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Adjust payslip{adjusting ? ` — ${employeeName(adjusting.employeeId)}` : ""}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="adjust-amount">Amount</Label>
+              <Input
+                id="adjust-amount"
+                type="number"
+                inputMode="decimal"
+                value={adjustAmount}
+                onChange={(e) => setAdjustAmount(e.target.value)}
+                placeholder="e.g. 500 for a bonus, -200 for a fine"
+              />
+              <p className="text-xs text-muted-foreground">Positive adds a bonus to net pay; negative deducts (e.g. a fine).</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="adjust-note">Reason</Label>
+              <Input id="adjust-note" value={adjustNote} onChange={(e) => setAdjustNote(e.target.value)} placeholder="e.g. Diwali bonus" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdjusting(null)}>Cancel</Button>
+            <Button onClick={handleSaveAdjustment} disabled={adjustPayslip.isPending}>
+              {adjustPayslip.isPending ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

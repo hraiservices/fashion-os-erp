@@ -4,16 +4,18 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, LayoutList, KanbanSquare, ArrowRight, Trash2, Upload, MessageCircle } from "lucide-react";
+import { Plus, Search, LayoutList, KanbanSquare, CalendarDays, ArrowRight, Trash2, Upload, MessageCircle } from "lucide-react";
 import { BulkWhatsAppDialog } from "@/components/orders/bulk-whatsapp-dialog";
+import { CalendarView } from "@/components/orders/calendar-view";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
+import { cn } from "@/lib/utils";
 import { useOrders } from "@/hooks/use-orders";
+import { useCustomers } from "@/hooks/use-customers";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useActiveTailors, useTailorName } from "@/hooks/use-employees";
 import { useAdvanceStage, useSetStage, useDeleteOrder } from "@/hooks/use-order-mutations";
 import { useShopSettings } from "@/hooks/use-shop-settings";
-import { useAppSetting } from "@/hooks/use-app-setting";
 import { useOrderExpensesByOrderId } from "@/hooks/use-order-expenses";
 import { computeOrderProfit, type OrderProfitBreakdown } from "@/lib/order-profit";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
@@ -26,6 +28,7 @@ import { PaymentModal } from "@/components/orders/payment-modal";
 import type { Order } from "@/lib/types";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
+import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { Input } from "@/components/ui/input";
 import { Skeleton, SkeletonListItem } from "@/components/ui/skeleton";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
@@ -42,7 +45,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Suspense } from "react";
-import { daysLeft, getNextStage, STAGE_META, DEFAULT_TAILOR_RATES, type Stage, type TailorRateCard } from "@/lib/business-rules";
+import { daysLeft, getNextStage, STAGE_META, type Stage } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
 
 interface PendingStageChange {
@@ -62,13 +65,30 @@ interface OrdersViewFilters {
 const ORDER_COLUMNS = [
   { key: "order", label: "Order#", required: true },
   { key: "customer", label: "Customer", required: true },
+  { key: "garment", label: "Garment" },
   { key: "stage", label: "Stage" },
   { key: "tailor", label: "Tailor" },
   { key: "delivery", label: "Delivery" },
   { key: "total", label: "Total" },
   { key: "balance", label: "Balance" },
   { key: "profit", label: "Profit" },
+  { key: "tailorPayable", label: "Tailor Payable" },
+  { key: "stitchingCost", label: "Stitching Cost" },
 ];
+
+// Hidden from the column picker for non-admins, not just their data — same profit-sensitive
+// restriction that already applied to the Profit column alone.
+const PROFIT_SENSITIVE_COLUMNS = new Set(["profit", "tailorPayable", "stitchingCost"]);
+
+// Below 1920px (a 14" laptop, typically 1536px effective) the full column set doesn't fit
+// without cramming — these are the least essential to have visible at a glance (still one click
+// away via the Columns menu), so they default to hidden there and reappear automatically on a
+// wider monitor. Doesn't touch a user's own explicit show/hide choice either way.
+const ORDERS_AUTO_HIDE = { belowWidth: 1920, keys: ["garment", "tailor", "profit", "tailorPayable", "stitchingCost"] };
+
+// Text columns sort A-Z on first click (like the Customers page); every other column (money,
+// dates) sorts largest/latest-first on first click.
+const TEXT_SORT_COLUMNS = new Set(["order", "customer", "garment", "stage", "tailor"]);
 
 export default function OrdersPage() {
   return (
@@ -90,39 +110,67 @@ function OrdersContent() {
   });
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
-  // Derive view directly from URL — reactive to sidebar nav and back/forward.
-  const view = searchParams.get("view") === "board" ? "board" : "list";
+  const { data: user } = useCurrentUser();
+  // Tailors and sales staff live on the board day-to-day (stage-by-stage progress); everyone
+  // else (admin/manager) defaults to the list. Only applies when the URL doesn't already say —
+  // an explicit ?view= (from a link, back/forward, or the toggle itself) always wins.
+  const defaultView = user?.role === "tailor" || user?.role === "sales" ? "board" : "list";
 
-  function setView(v: "board" | "list") {
+  // Derived from the URL (falling back to the role default above) so it stays in sync with the
+  // sidebar nav and back/forward — but a click needs to flip the toggle immediately rather than
+  // wait on the URL round-trip, so an explicit click is also mirrored into this local override;
+  // it's dropped once the URL catches up.
+  const viewParam = searchParams.get("view");
+  const viewFromUrl = viewParam === "board" ? "board" : viewParam === "list" ? "list" : viewParam === "calendar" ? "calendar" : defaultView;
+  const [viewOverride, setViewOverride] = useState<"board" | "list" | "calendar" | null>(null);
+  const view = viewOverride ?? viewFromUrl;
+  if (viewOverride && viewOverride === viewFromUrl) setViewOverride(null);
+
+  function setView(v: "board" | "list" | "calendar") {
+    setViewOverride(v);
     const params = new URLSearchParams(searchParams.toString());
-    if (v === "board") params.set("view", "board");
-    else params.delete("view");
-    router.replace(`/orders${params.toString() ? `?${params.toString()}` : ""}`);
+    params.set("view", v);
+    router.replace(`/orders?${params.toString()}`);
   }
 
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const isLoading = useDelayedLoading(ordersLoading);
-  const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
+  // A brand-new order redirects here (not to its detail page) — see order-form.tsx — so this is
+  // where the "received" WhatsApp message actually gets sent from. Built once for the whole list
+  // rather than one customer lookup per card/row.
+  const { data: customers } = useCustomers();
+  const trackUrlByMobile = useMemo(() => {
+    const map = new Map<string, string>();
+    if (typeof window === "undefined") return map;
+    const origin = window.location.origin;
+    for (const c of customers || []) {
+      if (c.shareToken) map.set(c.mobile, `${origin}/track/${c.shareToken}`);
+    }
+    return map;
+  }, [customers]);
   const advanceStage = useAdvanceStage();
   const setStage = useSetStage();
   const deleteOrder = useDeleteOrder();
-  const { data: tailorRates } = useAppSetting<TailorRateCard>("tailorRates", DEFAULT_TAILOR_RATES);
   const { data: expensesByOrderId } = useOrderExpensesByOrderId();
 
   // Same computeOrderProfit() the New Order form, Order Details, and Order Profitability
-  // report all use — one Profit column that can never disagree with those. Only computed
-  // (and only ever shown) for users who can see cost data at all.
+  // report all use — one Profit column that can never disagree with those. Profit figures are
+  // restricted to the admin role specifically, not just viewReports (which managers also hold).
   const profitByOrderId = useMemo(() => {
-    if (!user?.perms.viewReports || !orders) return undefined;
+    if (user?.role !== "admin" || !orders) return undefined;
     const map = new Map<string, OrderProfitBreakdown>();
     for (const o of orders) {
-      map.set(o.id, computeOrderProfit(o, tailorRates || DEFAULT_TAILOR_RATES, expensesByOrderId.get(o.id) || []));
+      map.set(o.id, computeOrderProfit(o, expensesByOrderId.get(o.id) || []));
     }
     return map;
-  }, [orders, user?.perms.viewReports, tailorRates, expensesByOrderId]);
+  }, [orders, user?.role, expensesByOrderId]);
 
-  const columnTable = useColumnVisibility("orders", ORDER_COLUMNS);
+  const orderColumns = useMemo(
+    () => (user?.role === "admin" ? ORDER_COLUMNS : ORDER_COLUMNS.filter((c) => !PROFIT_SENSITIVE_COLUMNS.has(c.key))),
+    [user?.role]
+  );
+  const columnTable = useColumnVisibility("orders", orderColumns, ORDERS_AUTO_HIDE);
   const tailorName = useTailorName();
   const savedViews = useSavedViews<OrdersViewFilters>("orders");
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
@@ -130,6 +178,13 @@ function OrdersContent() {
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const { data: tailors } = useActiveTailors();
+
+  // Column-header click-to-sort on the List view (see orders-list.tsx's SortableTh) — resets to
+  // the default newest/oldest-by-date sort (filters.sort) on every page load, never persisted.
+  const [colSort, setColSort] = useState<{ key: string; asc: boolean } | null>(null);
+  function toggleColumnSort(key: string) {
+    setColSort((prev) => (prev?.key === key ? { key, asc: !prev.asc } : { key, asc: TEXT_SORT_COLUMNS.has(key) }));
+  }
 
   const filtered = useMemo(() => {
     if (!orders) return [];
@@ -157,10 +212,84 @@ function OrdersContent() {
       list = list.filter((o) => o.inDate >= filters.customFrom && o.inDate <= filters.customTo);
     }
 
+    if (colSort) {
+      const { key, asc } = colSort;
+      const sorted = [...list].sort((a, b) => {
+        let diff = 0;
+        switch (key) {
+          case "order":
+            diff = a.id.localeCompare(b.id);
+            break;
+          case "customer":
+            diff = a.name.localeCompare(b.name);
+            break;
+          case "garment":
+            diff = (a.garments[0]?.type || "").localeCompare(b.garments[0]?.type || "");
+            break;
+          case "stage":
+            diff = (STAGE_META[a.status]?.label || a.status).localeCompare(STAGE_META[b.status]?.label || b.status);
+            break;
+          case "tailor":
+            diff = tailorName(a.tailor).localeCompare(tailorName(b.tailor));
+            break;
+          case "delivery":
+            diff = new Date(a.deliveryDate || 0).getTime() - new Date(b.deliveryDate || 0).getTime();
+            break;
+          case "total":
+            diff = a.total - b.total;
+            break;
+          case "balance":
+            diff = a.balance - b.balance;
+            break;
+          case "profit":
+            diff = (profitByOrderId?.get(a.id)?.profit ?? 0) - (profitByOrderId?.get(b.id)?.profit ?? 0);
+            break;
+          case "tailorPayable":
+            diff = (profitByOrderId?.get(a.id)?.tailorCost ?? 0) - (profitByOrderId?.get(b.id)?.tailorCost ?? 0);
+            break;
+          case "stitchingCost": {
+            const costOf = (id: string) => {
+              const p = profitByOrderId?.get(id);
+              return p ? p.fabricCost + p.otherCost + p.stitchingExpenses : 0;
+            };
+            diff = costOf(a.id) - costOf(b.id);
+            break;
+          }
+        }
+        return asc ? diff : -diff;
+      });
+      return sorted;
+    }
+
     return [...list].sort((a, b) => {
       const diff = new Date(a.inDate || 0).getTime() - new Date(b.inDate || 0).getTime();
       return filters.sort === "newest" ? -diff : diff;
     });
+  }, [orders, search, filters, colSort, tailorName, profitByOrderId]);
+
+  // Same filters as `filtered` above, minus the date-range preset — the Calendar view owns its
+  // own time window (whichever month it's currently showing) instead of the shared date-range
+  // filter that List/Board use, so applying that filter here would just fight the month nav.
+  const calendarOrders = useMemo(() => {
+    if (!orders) return [];
+    const q = search.trim().toLowerCase();
+    let list = orders.filter((o) => !q || o.name.toLowerCase().includes(q) || o.mobile.includes(q) || o.id.toLowerCase().includes(q));
+
+    if (filters.tailor !== "all") list = list.filter((o) => o.tailor === filters.tailor);
+    if (filters.stage !== "all") list = list.filter((o) => o.status === filters.stage);
+    if (filters.orderType !== "all") list = list.filter((o) => o.orderType === filters.orderType);
+
+    if (filters.priority !== "all") {
+      list = list.filter((o) => {
+        if (o.status === "delivered" || o.status === "payment") return false;
+        const d = daysLeft(o.deliveryDate);
+        if (filters.priority === "overdue") return d < 0;
+        if (filters.priority === "soon") return d === 0 || d === 1;
+        return d > 1;
+      });
+    }
+
+    return list;
   }, [orders, search, filters]);
 
   const [pendingChange, setPendingChange] = useState<PendingStageChange | null>(null);
@@ -287,17 +416,8 @@ function OrdersContent() {
         description={`${filtered.length} of ${orders?.length ?? 0} orders`}
         actions={
           <>
-            <SegmentedToggle
-              ariaLabel="View mode"
-              value={view}
-              onChange={setView}
-              options={[
-                { value: "list", label: "List", icon: LayoutList },
-                { value: "board", label: "Board", icon: KanbanSquare },
-              ]}
-            />
             {user?.perms.addOrder && (
-              <Button variant="outline" nativeButton={false} render={<Link href="/orders/import" />}>
+              <Button variant="outline" nativeButton={false} render={<Link href="/orders/import" />} className="hidden sm:inline-flex">
                 <Upload className="size-4" /> Import
               </Button>
             )}
@@ -306,13 +426,14 @@ function OrdersContent() {
                 <Plus className="size-4" /> New order
               </Button>
             )}
+            {user?.perms.managePayments && <NewPaymentButton className="hidden sm:inline-flex" />}
           </>
         }
       />
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-40 flex-1">
+          <div className="relative hidden min-w-40 flex-1 sm:block">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="search"
@@ -343,6 +464,55 @@ function OrdersContent() {
           resultCount={filtered.length}
           mobileOpen={filterSheetOpen}
           onMobileOpenChange={setFilterSheetOpen}
+          mobileLeading={
+            <div className="flex shrink-0 gap-2" role="group" aria-label="View mode">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setView("list")}
+                aria-pressed={view === "list"}
+                aria-label="List view"
+                className={cn("h-10 w-10 shrink-0 px-0", view === "list" && "bg-muted")}
+              >
+                <LayoutList className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setView("board")}
+                aria-pressed={view === "board"}
+                aria-label="Board view"
+                className={cn("h-10 w-10 shrink-0 px-0", view === "board" && "bg-muted")}
+              >
+                <KanbanSquare className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setView("calendar")}
+                aria-pressed={view === "calendar"}
+                aria-label="Calendar view"
+                className={cn("h-10 w-10 shrink-0 px-0", view === "calendar" && "bg-muted")}
+              >
+                <CalendarDays className="size-4" />
+              </Button>
+            </div>
+          }
+          desktopLeading={
+            <SegmentedToggle
+              ariaLabel="View mode"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: "list", label: "List", icon: LayoutList },
+                { value: "board", label: "Board", icon: KanbanSquare },
+                { value: "calendar", label: "Calendar", icon: CalendarDays },
+              ]}
+            />
+          }
           views={savedViews.views}
           onApplyView={applyView}
           onSaveView={savedViews.save}
@@ -388,6 +558,18 @@ function OrdersContent() {
           shop={shop}
           onSetStage={handleSetStage}
           onRecordPayment={user?.perms.managePayments ? setPaymentOrder : undefined}
+          trackUrlByMobile={trackUrlByMobile}
+        />
+      ) : view === "calendar" ? (
+        <CalendarView
+          orders={calendarOrders}
+          canChangeStage={user?.perms.changeStage}
+          onAdvance={handleAdvance}
+          advancingId={advancingId}
+          shop={shop}
+          onRecordPayment={user?.perms.managePayments ? setPaymentOrder : undefined}
+          tailorName={tailorName}
+          trackUrlByMobile={trackUrlByMobile}
         />
       ) : (
         <OrdersList
@@ -401,6 +583,10 @@ function OrdersContent() {
           selection={user?.perms.deleteOrder || user?.perms.managePayments ? selection : undefined}
           profitByOrderId={profitByOrderId}
           tailorName={tailorName}
+          trackUrlByMobile={trackUrlByMobile}
+          sortKey={colSort?.key ?? null}
+          sortAsc={colSort?.asc ?? false}
+          onSort={toggleColumnSort}
         />
       )}
 
@@ -428,7 +614,7 @@ function OrdersContent() {
 
       {paymentOrder && <PaymentModal order={paymentOrder} open={!!paymentOrder} onOpenChange={(v) => !v && setPaymentOrder(null)} />}
 
-      <BulkWhatsAppDialog orders={selectedOrders} shop={shop} open={bulkWhatsAppOpen} onOpenChange={setBulkWhatsAppOpen} />
+      <BulkWhatsAppDialog orders={selectedOrders} shop={shop} open={bulkWhatsAppOpen} onOpenChange={setBulkWhatsAppOpen} trackUrlByMobile={trackUrlByMobile} />
 
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
         <AlertDialogContent>

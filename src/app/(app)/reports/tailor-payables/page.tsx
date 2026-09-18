@@ -7,27 +7,20 @@ import { useOrders } from "@/hooks/use-orders";
 import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useEmployees } from "@/hooks/use-employees";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { computeOrderPieceRatePay, computeWorkOrderPieceRatePay } from "@/lib/piece-rate";
-import { istDateString, istDayBoundsUtc } from "@/lib/ist-date";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
+import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Order, WorkOrder } from "@/lib/types";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 
 interface TailorPayableRow {
   id: string;
   name: string;
-  weekEarned: number;
-  monthEarned: number;
-  pending: number;
-  unpaid: number;
-  allTimeEarned: number;
-  /** A deactivated employee is excluded from every future payroll run (it only ever fetches
-   *  active employees), so any "unpaid" money for them can never be settled through the normal
-   *  payroll flow — it needs manual settlement instead. Flagged distinctly so it doesn't look
-   *  like ordinary pending money that'll clear on the next run. */
-  isActive: boolean;
+  rangePayable: number;
+  allTimePayable: number;
 }
 
 /** A garment carrying a payable whose `tailor` resolves to no employee — money that is owed to
@@ -39,39 +32,22 @@ interface UnattributedRow {
   amount: number;
 }
 
-/** Per-tailor rollup of piece-rate payables — read-mostly, mirrors the self-service portal's
- *  own earnings figures (src/app/api/attendance/earnings) but across every piece-rate-eligible
- *  employee at once. Confirming a payable happens on the order/work-order detail page, not here. */
+/** Per-tailor rollup of what each piece-rate tailor is owed — a garment counts the moment its
+ *  order is received and a tailor is assigned (payableAmount is live-recalculated from the
+ *  current tailor rate card on every edit, see add_early_tailor_payables.sql /
+ *  add_tailor_rate_versions.sql) and keeps counting straight through to Ready and payroll
+ *  confirmation — no separate "pending" vs "confirmed" split to read. Confirming a payable
+ *  happens on the order/work-order detail page, not here. */
 export default function TailorPayablesPage() {
   const { data: user } = useCurrentUser();
   const { data: employees, isLoading: employeesLoading } = useEmployees();
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const { data: workOrders, isLoading: woLoading } = useWorkOrders();
   const isLoading = employeesLoading || ordersLoading || woLoading;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const { rows, unattributed, zeroRatedCount } = useMemo(() => {
     const tailors = (employees || []).filter((e) => e.pieceRateEligible);
-
-    // ready_at / completed_at are timestamptz (UTC instants); a plain "YYYY-MM-DD" string
-    // compare would put anything finished between 00:00–05:30 IST into the previous
-    // day/month. Compare against the real UTC instant that starts the IST day instead.
-    const today = istDateString();
-    const sixDaysAgo = new Date(`${today}T00:00:00Z`);
-    sixDaysAgo.setUTCDate(sixDaysAgo.getUTCDate() - 6);
-    const weekStartUtc = istDayBoundsUtc(sixDaysAgo.toISOString().slice(0, 10)).startUtc;
-    const monthStartUtc = istDayBoundsUtc(`${today.slice(0, 7)}-01`).startUtc;
-
-    const confirmedOrders = (orders || []).filter((o) => o.payablesConfirmedAt);
-    const unconfirmedOrders = (orders || []).filter((o) => o.readyAt && !o.payablesConfirmedAt);
-    // Still genuinely owed: confirmed but no payroll run has paid it out yet. This is the
-    // number a payables report exists to show — "earned all-time" is NOT what you owe.
-    const unpaidOrders = confirmedOrders.filter((o) => !o.pieceRatePaidAt);
-    const confirmedWo = (workOrders || []).filter((w) => w.laborPayableConfirmedAt);
-    const unconfirmedWo = (workOrders || []).filter((w) => w.completedAt && !w.laborPayableConfirmedAt);
-    const unpaidWo = confirmedWo.filter((w) => !w.pieceRatePaidAt);
-
-    const inWindow = (list: Order[], startUtc: string) => list.filter((o) => o.readyAt && o.readyAt >= startUtc);
-    const woInWindow = (wos: WorkOrder[], startUtc: string) => wos.filter((w) => w.completedAt && w.completedAt >= startUtc);
 
     // Every garment payable whose tailor doesn't resolve to a real employee record.
     const employeeIds = new Set((employees || []).map((e) => e.id));
@@ -93,25 +69,34 @@ export default function TailorPayablesPage() {
 
     const rows = tailors
       .map((t): TailorPayableRow => {
-        const pendingOrders = unconfirmedOrders.reduce((s, o) => s + o.garments.filter((g) => g.tailor === t.id).reduce((s2, g) => s2 + (g.payableAmount || 0), 0), 0);
-        const pendingWo = unconfirmedWo.filter((w) => w.tailor === t.id).reduce((s, w) => s + (w.laborCost || 0), 0);
+        let rangePayable = 0;
+        let allTimePayable = 0;
+        for (const o of orders || []) {
+          // Counted the moment the order was received, not when the garment reaches Ready —
+          // in_date is the business date the shop treats as "received".
+          const inRange = isWithinDateRange(o.inDate, range);
+          for (const g of o.garments) {
+            if (g.tailor !== t.id || !g.payableAmount) continue;
+            allTimePayable += g.payableAmount;
+            if (inRange) rangePayable += g.payableAmount;
+          }
+        }
+        for (const w of workOrders || []) {
+          if (w.tailor !== t.id || !w.laborCost) continue;
+          allTimePayable += w.laborCost;
+          if (isWithinDateRange(w.completedAt, range)) rangePayable += w.laborCost;
+        }
         return {
           id: t.id,
           name: t.name,
-          weekEarned:
-            computeOrderPieceRatePay(t.id, inWindow(confirmedOrders, weekStartUtc)) + computeWorkOrderPieceRatePay(t.id, woInWindow(confirmedWo, weekStartUtc)),
-          monthEarned:
-            computeOrderPieceRatePay(t.id, inWindow(confirmedOrders, monthStartUtc)) + computeWorkOrderPieceRatePay(t.id, woInWindow(confirmedWo, monthStartUtc)),
-          pending: Math.round((pendingOrders + pendingWo) * 100) / 100,
-          unpaid: computeOrderPieceRatePay(t.id, unpaidOrders) + computeWorkOrderPieceRatePay(t.id, unpaidWo),
-          allTimeEarned: computeOrderPieceRatePay(t.id, confirmedOrders) + computeWorkOrderPieceRatePay(t.id, confirmedWo),
-          isActive: t.active,
+          rangePayable: Math.round(rangePayable * 100) / 100,
+          allTimePayable: Math.round(allTimePayable * 100) / 100,
         };
       })
-      .sort((a, b) => b.unpaid - a.unpaid);
+      .sort((a, b) => b.allTimePayable - a.allTimePayable);
 
     return { rows, unattributed, zeroRatedCount };
-  }, [employees, orders, workOrders]);
+  }, [employees, orders, workOrders, range]);
 
   if (!user?.perms.managePayroll) {
     return (
@@ -124,63 +109,67 @@ export default function TailorPayablesPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   const unattributedTotal = unattributed.reduce((s, u) => s + u.amount, 0);
+  const rangeTotal = rows.reduce((s, r) => s + r.rangePayable, 0);
+  const allTimeTotal = rows.reduce((s, r) => s + r.allTimePayable, 0);
+  const exportRows = rows.map((r) => ({ Tailor: r.name, [`Payable (${DATE_RANGE_PRESET_LABELS[preset]})`]: r.rangePayable, "All-time total": r.allTimePayable }));
 
   return (
     <ReportShell
       title="Tailor Payables"
-      description="Piece-rate earnings per tailor. 'Still owed' is what you actually have to pay — it excludes anything already paid out by a payroll run."
+      description="What each tailor is owed — counted from the moment their order is received, not just once it's finished."
+      actions={
+        <ReportActionsMenu
+          rows={exportRows}
+          filename="tailor-payables"
+          title="Tailor Payables"
+          summaryLines={[`Range: ${DATE_RANGE_PRESET_LABELS[preset]}`, `Total in range: ${inr(rangeTotal)}`, `All-time total: ${inr(allTimeTotal)}`]}
+        />
+      }
     >
+      <ReportFilterBar preset={preset} onPresetChange={setPreset} customFrom={customFrom} onCustomFromChange={setCustomFrom} customTo={customTo} onCustomToChange={setCustomTo} />
+
       {rows.length === 0 ? (
         <EmptyState icon={Wallet} title="No piece-rate tailors yet" description="Mark a tailor 'Piece-rate eligible' on their employee record to see them here." />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Tailor</Th>
-              <Th align="right">This week</Th>
-              <Th align="right">This month</Th>
-              <Th align="right">Awaiting confirmation</Th>
-              <Th align="right">Still owed</Th>
-              <Th align="right">Earned, all-time</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
+        <>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Tailor</Th>
+                  <Th align="right">Payable ({DATE_RANGE_PRESET_LABELS[preset]})</Th>
+                  <Th align="right">All-time total</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td>Total</Td>
+                  <Td align="right">{inr(rangeTotal)}</Td>
+                  <Td align="right">{inr(allTimeTotal)}</Td>
+                </ReportTotalsRow>
+                {rows.map((r) => (
+                  <tr key={r.id} className="hover:bg-muted/30">
+                    <Td className="font-medium">{r.name}</Td>
+                    <Td align="right">{inr(r.rangePayable)}</Td>
+                    <Td align="right" className="font-semibold">{inr(r.allTimePayable)}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(allTimeTotal)} showChevron={false} />
+              <MobileRecordRow label={`Payable (${DATE_RANGE_PRESET_LABELS[preset]})`} value={inr(rangeTotal)} />
+            </MobileRecordCard>
             {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-muted/30">
-                <Td className="font-medium">
-                  {r.name}
-                  {!r.isActive && r.unpaid > 0 && (
-                    <span
-                      className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-red-500/10 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:text-red-400"
-                      title="This employee is inactive — payroll only ever runs for active employees, so this money can never be paid out through a normal run. Reactivate them or settle it manually."
-                    >
-                      <AlertTriangle className="size-2.5" /> Inactive — needs manual settlement
-                    </span>
-                  )}
-                </Td>
-                <Td align="right">{inr(r.weekEarned)}</Td>
-                <Td align="right">{inr(r.monthEarned)}</Td>
-                <Td align="right" className={r.pending > 0 ? "font-medium text-amber-600 dark:text-amber-400" : undefined}>
-                  {inr(r.pending)}
-                </Td>
-                <Td align="right" className={r.unpaid > 0 ? "font-semibold text-red-600 dark:text-red-400" : "font-semibold"}>
-                  {inr(r.unpaid)}
-                </Td>
-                <Td align="right" className="text-muted-foreground">{inr(r.allTimeEarned)}</Td>
-              </tr>
+              <MobileRecordCard key={r.id}>
+                <MobileRecordHeader title={r.name} value={inr(r.allTimePayable)} valueClassName="font-semibold" showChevron={false} />
+                <MobileRecordRow label={`Payable (${DATE_RANGE_PRESET_LABELS[preset]})`} value={inr(r.rangePayable)} />
+              </MobileRecordCard>
             ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t bg-muted/30 font-semibold">
-              <td className="px-3 py-2.5">Total</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.weekEarned, 0))}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.monthEarned, 0))}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.pending, 0))}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(rows.reduce((s, r) => s + r.unpaid, 0))}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{inr(rows.reduce((s, r) => s + r.allTimeEarned, 0))}</td>
-            </tr>
-          </tfoot>
-        </ReportTable>
+          </MobileRecordList>
+        </>
       )}
 
       {zeroRatedCount > 0 && (
@@ -203,28 +192,38 @@ export default function TailorPayablesPage() {
               an employee record, so they belong to nobody and are missing from every total above. Open each order and re-select the tailor from the dropdown to fix it.
             </p>
           </div>
-          <ReportTable>
-            <thead className="border-b bg-muted/40">
-              <tr>
-                <Th>Order</Th>
-                <Th>Stored tailor</Th>
-                <Th align="right">Payable</Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {unattributed.map((u, i) => (
-                <tr key={`${u.orderId}-${i}`} className="hover:bg-muted/30">
-                  <Td>
-                    <Link href={`/orders/${u.orderId}`} className="text-primary hover:underline">
-                      {u.orderId}
-                    </Link>
-                  </Td>
-                  <Td className="font-mono text-xs text-muted-foreground">{u.rawTailor}</Td>
-                  <Td align="right" className="tabular-nums">{inr(u.amount)}</Td>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Order</Th>
+                  <Th>Stored tailor</Th>
+                  <Th align="right">Payable</Th>
                 </tr>
-              ))}
-            </tbody>
-          </ReportTable>
+              </thead>
+              <tbody className="divide-y">
+                {unattributed.map((u, i) => (
+                  <tr key={`${u.orderId}-${i}`} className="hover:bg-muted/30">
+                    <Td>
+                      <Link href={`/orders/${u.orderId}`} className="text-primary hover:underline">
+                        {u.orderId}
+                      </Link>
+                    </Td>
+                    <Td className="font-mono text-xs text-muted-foreground">{u.rawTailor}</Td>
+                    <Td align="right" className="tabular-nums">{inr(u.amount)}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+          <MobileRecordList>
+            {unattributed.map((u, i) => (
+              <MobileRecordCard key={`${u.orderId}-${i}`} href={`/orders/${u.orderId}`}>
+                <MobileRecordHeader title={u.orderId} value={inr(u.amount)} />
+                <MobileRecordRow label="Stored tailor" value={<span className="font-mono">{u.rawTailor}</span>} />
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
         </div>
       )}
     </ReportShell>

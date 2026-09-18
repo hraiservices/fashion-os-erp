@@ -1,29 +1,96 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { buildWhatsAppUrl } from "@/lib/business-rules";
-import { fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { getPendingOrders } from "@/lib/analytics";
+import { fmtDate, inr } from "@/lib/format";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 
 export default function PendingOrdersPage() {
-  const { pending, isLoading } = useReportsData();
+  const { orders, isLoading } = useReportsData();
   const { data: shop } = useShopSettings();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+
+  const pending = useMemo(() => getPendingOrders(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
+  const totalBalance = pending.reduce((s, o) => s + o.balance, 0);
+
   return (
-    <ReportShell title="Pending Orders" description={`${pending.length} orders still in progress, soonest delivery first`}>
+    <ReportShell
+      title="Pending Orders"
+      description={`${pending.length} orders still in progress, soonest delivery first`}
+      actions={
+        <ReportActionsMenu
+          rows={pending.map((o) => ({ Order: o.id, Customer: o.name, Stage: o.status, Delivery: fmtDate(o.deliveryDate), Balance: o.balance }))}
+          filename="pending-orders"
+          title="Pending Orders"
+          summaryLines={[`Orders: ${pending.length}`, `Total balance due: ${inr(totalBalance)}`]}
+        />
+      }
+    >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       {pending.length === 0 ? (
         <EmptyState icon={CheckCircle2} title="Nothing pending" description="Every order has been delivered and paid." />
       ) : (
+        <>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(totalBalance)} showChevron={false} />
+            </MobileRecordCard>
+            {pending.map((o) => (
+              <MobileRecordCard key={o.id}>
+                <MobileRecordHeader
+                  title={
+                    <Link href={`/orders/${o.id}`} className="hover:underline">
+                      {o.id}
+                    </Link>
+                  }
+                  subtitle={`${o.name} · ${o.mobile}`}
+                  value={o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}
+                  showChevron={false}
+                />
+                <MobileRecordRow label="Stage" value={<StageBadge stage={o.status} size="sm" />} />
+                <MobileRecordRow
+                  label="Delivery"
+                  value={
+                    <span className="flex items-center gap-1.5">
+                      {fmtDate(o.deliveryDate)} <DueBadge order={o} />
+                    </span>
+                  }
+                />
+                {o.balance > 0 && (
+                  <div className="flex justify-end border-t pt-1.5">
+                    <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop)} label={`Payment reminder to ${o.name}`} tone="reminder" />
+                  </div>
+                )}
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
+
+          <div className="hidden sm:block">
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
@@ -36,6 +103,11 @@ export default function PendingOrdersPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={4}>Total</Td>
+              <Td align="right">{inr(totalBalance)}</Td>
+              <Td align="right">—</Td>
+            </ReportTotalsRow>
             {pending.map((o) => (
               <tr key={o.id} className="hover:bg-muted/30">
                 <Td>
@@ -58,12 +130,14 @@ export default function PendingOrdersPage() {
                 </Td>
                 <Td align="right">{o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}</Td>
                 <Td align="right">
-                  {o.balance > 0 && <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop)} label={`Payment reminder to ${o.name}`} />}
+                  {o.balance > 0 && <WhatsAppIconButton href={buildWhatsAppUrl(o, "paymentDue", shop)} label={`Payment reminder to ${o.name}`} tone="reminder" />}
                 </Td>
               </tr>
             ))}
           </tbody>
         </ReportTable>
+          </div>
+        </>
       )}
     </ReportShell>
   );

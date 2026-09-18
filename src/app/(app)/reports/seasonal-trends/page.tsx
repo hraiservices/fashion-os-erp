@@ -1,19 +1,54 @@
 "use client";
 
+import { useMemo } from "react";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
+import { getSeasonalTrends } from "@/lib/analytics";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportCard, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportCard, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
+/** The month buckets themselves are always the trailing 12 months (see getSeasonalTrends) — the
+ *  date range narrows which orders count toward each bucket's revenue, not the window of months
+ *  shown. */
 export default function SeasonalTrendsPage() {
-  const { seasonal, isLoading } = useReportsData();
+  const { orders, isLoading } = useReportsData();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+
+  const seasonal = useMemo(() => getSeasonalTrends(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-80 w-full" /></div>;
 
+  const totalOrders = seasonal.reduce((s, m) => s + m.count, 0);
+  const totalRevenue = seasonal.reduce((s, m) => s + m.revenue, 0);
+
   return (
-    <ReportShell title="Seasonal Trends" description="Revenue and order volume across the last 12 months">
+    <ReportShell
+      title="Seasonal Trends"
+      description="Revenue and order volume across the last 12 months"
+      actions={
+        <ReportActionsMenu
+          rows={seasonal.map((m) => ({ Month: m.label, Orders: m.count, Revenue: m.revenue, "Avg order": m.avgOrderVal, "Growth %": `${m.growth}%` }))}
+          filename="seasonal-trends"
+          title="Seasonal Trends"
+          summaryLines={[`Total orders: ${totalOrders}`, `Total revenue: ${inr(totalRevenue)}`]}
+        />
+      }
+    >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <ReportCard className="p-4">
         <div className="h-64 sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
@@ -31,37 +66,74 @@ export default function SeasonalTrendsPage() {
         </div>
       </ReportCard>
 
-      <ReportTable>
-        <thead className="border-b bg-muted/40">
-          <tr>
-            <Th>Month</Th>
-            <Th align="right">Orders</Th>
-            <Th align="right">Revenue</Th>
-            <Th align="right">Avg order</Th>
-            <Th align="right">Growth</Th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {seasonal.map((m) => {
-            const Icon = m.growth > 0 ? TrendingUp : m.growth < 0 ? TrendingDown : Minus;
-            const tone = m.growth > 0 ? "text-emerald-600 dark:text-emerald-400" : m.growth < 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground";
-            return (
-              <tr key={m.month} className="hover:bg-muted/30">
-                <Td className="font-medium">{m.label}</Td>
-                <Td align="right">{m.count}</Td>
-                <Td align="right">{inr(m.revenue)}</Td>
-                <Td align="right">{inr(m.avgOrderVal)}</Td>
-                <Td align="right">
-                  <span className={`inline-flex items-center justify-end gap-1 ${tone}`}>
+      <div className="hidden sm:block">
+        <ReportTable>
+          <thead className="border-b bg-muted/40">
+            <tr>
+              <Th>Month</Th>
+              <Th align="right">Orders</Th>
+              <Th align="right">Revenue</Th>
+              <Th align="right">Avg order</Th>
+              <Th align="right">Growth</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{totalOrders}</Td>
+              <Td align="right">{inr(totalRevenue)}</Td>
+              <Td align="right">{totalOrders > 0 ? inr(Math.round(totalRevenue / totalOrders)) : "—"}</Td>
+              <Td align="right">—</Td>
+            </ReportTotalsRow>
+            {seasonal.map((m) => {
+              const Icon = m.growth > 0 ? TrendingUp : m.growth < 0 ? TrendingDown : Minus;
+              const tone = m.growth > 0 ? "text-emerald-600 dark:text-emerald-400" : m.growth < 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground";
+              return (
+                <tr key={m.month} className="hover:bg-muted/30">
+                  <Td className="font-medium">{m.label}</Td>
+                  <Td align="right">{m.count}</Td>
+                  <Td align="right">{inr(m.revenue)}</Td>
+                  <Td align="right">{inr(m.avgOrderVal)}</Td>
+                  <Td align="right">
+                    <span className={`inline-flex items-center justify-end gap-1 ${tone}`}>
+                      <Icon className="size-3.5" />
+                      {m.growth}%
+                    </span>
+                  </Td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </ReportTable>
+      </div>
+      <MobileRecordList>
+        <MobileRecordCard className="bg-muted/40">
+          <MobileRecordHeader title="Total" value={inr(totalRevenue)} showChevron={false} />
+          <MobileRecordRow label="Orders" value={totalOrders} />
+          <MobileRecordRow label="Avg order" value={totalOrders > 0 ? inr(Math.round(totalRevenue / totalOrders)) : "—"} />
+          <MobileRecordRow label="Growth" value="—" />
+        </MobileRecordCard>
+        {seasonal.map((m) => {
+          const Icon = m.growth > 0 ? TrendingUp : m.growth < 0 ? TrendingDown : Minus;
+          const tone = m.growth > 0 ? "text-emerald-600 dark:text-emerald-400" : m.growth < 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground";
+          return (
+            <MobileRecordCard key={m.month}>
+              <MobileRecordHeader title={m.label} value={inr(m.revenue)} showChevron={false} />
+              <MobileRecordRow label="Orders" value={m.count} />
+              <MobileRecordRow label="Avg order" value={inr(m.avgOrderVal)} />
+              <MobileRecordRow
+                label="Growth"
+                value={
+                  <span className={`inline-flex items-center gap-1 ${tone}`}>
                     <Icon className="size-3.5" />
                     {m.growth}%
                   </span>
-                </Td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </ReportTable>
+                }
+              />
+            </MobileRecordCard>
+          );
+        })}
+      </MobileRecordList>
     </ReportShell>
   );
 }

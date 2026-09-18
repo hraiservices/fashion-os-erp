@@ -2,18 +2,28 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Search, Users } from "lucide-react";
-import { useCustomerLedger } from "@/hooks/use-customer-ledger";
+import { useOrders } from "@/hooks/use-orders";
+import { useSalesInvoices } from "@/hooks/use-sales-invoices";
+import { useCustomers } from "@/hooks/use-customers";
+import { buildCustomerLedger } from "@/lib/customer-ledger";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { normalizeIndianMobile } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
+import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { cn } from "@/lib/utils";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 type Filter = "all" | "due" | "paid";
 const FILTERS: { value: Filter; label: string }[] = [
@@ -22,11 +32,47 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "paid", label: "Fully paid" },
 ];
 
+const CUSTOMER_BALANCES_COLUMNS = [
+  { key: "customer", label: "Customer", required: true },
+  { key: "orders", label: "Orders" },
+  { key: "invoices", label: "Invoices" },
+  { key: "stitchDue", label: "Stitch Due", required: true },
+  { key: "salesDue", label: "Product Sales Due", required: true },
+  { key: "totalDue", label: "Total Due", required: true },
+  { key: "lifetime", label: "Lifetime" },
+  { key: "actions", label: "Actions", required: true },
+];
+
+// Below 1920px (a 14" laptop) the full 8-column table feels cramped — Invoices and Lifetime are
+// the least essential to have visible at a glance, so they default to hidden there and reappear
+// automatically on a wider monitor (still one click away via the Columns menu).
+const CUSTOMER_BALANCES_AUTO_HIDE = { belowWidth: 1920, keys: ["invoices", "lifetime"] };
+
+/** Point-in-time snapshot (current balances) — the date range filters the underlying orders
+ *  and invoices (by inDate/invoiceDate) feeding each customer's ledger, per the earlier decision
+ *  to apply the range everywhere for consistency. */
 export default function CustomerBalancesPage() {
-  const { data: rows, isLoading } = useCustomerLedger();
+  const router = useRouter();
+  const { data: orders, isLoading: l1 } = useOrders();
+  const { data: invoices, isLoading: l2 } = useSalesInvoices();
+  const { data: customers, isLoading: l3 } = useCustomers();
+  const isLoading = l1 || l2 || l3;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
   const { data: shop } = useShopSettings();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const columnTable = useColumnVisibility("customer-balances", CUSTOMER_BALANCES_COLUMNS, CUSTOMER_BALANCES_AUTO_HIDE);
+  const isVisible = columnTable.isVisible;
+
+  const rows = useMemo(
+    () =>
+      buildCustomerLedger(
+        (orders || []).filter((o) => isWithinDateRange(o.inDate, range)),
+        (invoices || []).filter((i) => isWithinDateRange(i.invoiceDate, range)),
+        customers || []
+      ),
+    [orders, invoices, customers, range]
+  );
 
   function reminderUrl(name: string, mobile: string, due: number) {
     const text = `Dear *${name || "Customer"}* 🙏\n\n₹${due} is due on your account at *${shop?.name || "our company"}*.\nPlease clear at your earliest convenience.\n📞 ${shop?.phone || ""}`;
@@ -48,7 +94,35 @@ export default function CustomerBalancesPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
-    <ReportShell title="Customer Balances" description="Stitching order dues and product sales dues, shown separately, per customer">
+    <ReportShell
+      title="Customer Balances"
+      description="Stitching order dues and product sales dues, shown separately, per customer"
+      actions={
+        <ReportActionsMenu
+          rows={filtered.map((r) => ({
+            Customer: r.name || r.mobile,
+            Orders: r.orderCount,
+            Invoices: r.invoiceCount,
+            "Stitch Due": r.stitchDue,
+            "Product Sales Due": r.salesDue,
+            "Total Due": r.totalDue,
+            Lifetime: r.lifetime,
+          }))}
+          filename="customer-balances"
+          title="Customer Balances"
+          summaryLines={[`Customers: ${filtered.length}`, `Total due: ${inr(totals.totalDue)}`]}
+        />
+      }
+    >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative sm:max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -68,60 +142,103 @@ export default function CustomerBalancesPage() {
             </button>
           ))}
         </div>
+        <ColumnCustomizerMenu table={columnTable} />
       </div>
 
       {filtered.length === 0 ? (
         <EmptyState icon={Users} title="No customers found" />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Customer</Th>
-              <Th align="right">Orders</Th>
-              <Th align="right">Invoices</Th>
-              <Th align="right">Stitch Due</Th>
-              <Th align="right">Product Sales Due</Th>
-              <Th align="right">Total Due</Th>
-              <Th align="right">Lifetime</Th>
-              <Th align="right">Actions</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
+        <>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Customer</Th>
+                  <Th align="right">Orders</Th>
+                  {isVisible("invoices") && <Th align="right">Invoices</Th>}
+                  <Th align="right">Stitch Due</Th>
+                  <Th align="right">Product Sales Due</Th>
+                  <Th align="right">Total Due</Th>
+                  {isVisible("lifetime") && <Th align="right">Lifetime</Th>}
+                  <Th align="right">Actions</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td colSpan={isVisible("invoices") ? 3 : 2}>Total</Td>
+                  <Td align="right">{inr(totals.stitchDue)}</Td>
+                  <Td align="right">{inr(totals.salesDue)}</Td>
+                  <Td align="right">{inr(totals.totalDue)}</Td>
+                  {isVisible("lifetime") && <Td align="right">—</Td>}
+                  <Td />
+                </ReportTotalsRow>
+                {filtered.map((r) => (
+                  <tr key={r.mobile} className="hover:bg-muted/30">
+                    <Td className="font-medium">
+                      <Link href={`/crm/${r.mobile}`} className="hover:underline">
+                        {r.name || r.mobile}
+                      </Link>
+                    </Td>
+                    <Td align="right">{r.orderCount}</Td>
+                    {isVisible("invoices") && <Td align="right">{r.invoiceCount}</Td>}
+                    <Td align="right">{r.stitchDue > 0 ? <BalanceDue amount={r.stitchDue} /> : "—"}</Td>
+                    <Td align="right">{r.salesDue > 0 ? <BalanceDue amount={r.salesDue} /> : "—"}</Td>
+                    <Td align="right" className="font-semibold">
+                      {r.totalDue > 0 ? <BalanceDue amount={r.totalDue} /> : "—"}
+                    </Td>
+                    {isVisible("lifetime") && (
+                      <Td align="right" className="text-muted-foreground">
+                        {inr(r.lifetime)}
+                      </Td>
+                    )}
+                    <Td align="right">
+                      {r.totalDue > 0 && <WhatsAppIconButton href={reminderUrl(r.name, r.mobile, r.totalDue)} label={`Payment reminder to ${r.name || r.mobile}`} tone="reminder" />}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(totals.totalDue)} showChevron={false} />
+              <MobileRecordGrid
+                items={[
+                  { label: "Stitch Due", value: inr(totals.stitchDue) },
+                  { label: "Product Sales Due", value: inr(totals.salesDue) },
+                ]}
+              />
+            </MobileRecordCard>
             {filtered.map((r) => (
-              <tr key={r.mobile} className="hover:bg-muted/30">
-                <Td className="font-medium">
-                  <Link href={`/crm/${r.mobile}`} className="hover:underline">
-                    {r.name || r.mobile}
-                  </Link>
-                </Td>
-                <Td align="right">{r.orderCount}</Td>
-                <Td align="right">{r.invoiceCount}</Td>
-                <Td align="right">{r.stitchDue > 0 ? <BalanceDue amount={r.stitchDue} /> : "—"}</Td>
-                <Td align="right">{r.salesDue > 0 ? <BalanceDue amount={r.salesDue} /> : "—"}</Td>
-                <Td align="right" className="font-semibold">
-                  {r.totalDue > 0 ? <BalanceDue amount={r.totalDue} /> : "—"}
-                </Td>
-                <Td align="right" className="text-muted-foreground">
-                  {inr(r.lifetime)}
-                </Td>
-                <Td align="right">
-                  {r.totalDue > 0 && <WhatsAppIconButton href={reminderUrl(r.name, r.mobile, r.totalDue)} label={`Payment reminder to ${r.name || r.mobile}`} />}
-                </Td>
-              </tr>
+              // onClick (not href) — the WhatsApp button below renders its own <a>, which can't
+              // nest inside this card's anchor.
+              <MobileRecordCard key={r.mobile} onClick={() => router.push(`/crm/${r.mobile}`)}>
+                <MobileRecordHeader
+                  title={r.name || r.mobile}
+                  value={r.totalDue > 0 ? <BalanceDue amount={r.totalDue} /> : "—"}
+                  valueClassName="font-semibold"
+                />
+                <MobileRecordGrid
+                  columns={3}
+                  items={[
+                    { label: "Orders", value: r.orderCount },
+                    { label: "Invoices", value: r.invoiceCount },
+                    { label: "Stitch Due", value: r.stitchDue > 0 ? inr(r.stitchDue) : "—" },
+                    { label: "Product Sales Due", value: r.salesDue > 0 ? inr(r.salesDue) : "—" },
+                    { label: "Lifetime", value: inr(r.lifetime), valueClassName: "text-muted-foreground" },
+                  ]}
+                />
+                {r.totalDue > 0 && (
+                  <div className="flex items-center justify-between border-t pt-1.5 text-xs" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-muted-foreground">Actions</span>
+                    <WhatsAppIconButton href={reminderUrl(r.name, r.mobile, r.totalDue)} label={`Payment reminder to ${r.name || r.mobile}`} tone="reminder" />
+                  </div>
+                )}
+              </MobileRecordCard>
             ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t bg-muted/30 font-semibold">
-              <td className="px-3 py-2.5" colSpan={3}>
-                Total
-              </td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(totals.stitchDue)}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(totals.salesDue)}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{inr(totals.totalDue)}</td>
-              <td className="px-3 py-2.5" />
-            </tr>
-          </tfoot>
-        </ReportTable>
+          </MobileRecordList>
+        </>
       )}
     </ReportShell>
   );

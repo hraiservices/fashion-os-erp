@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   const { tags, message } = parsed.data;
 
   const serviceClient = createServiceClient();
-  if (!serviceClient) return NextResponse.json({ error: "Server is not configured (missing service role key)" }, { status: 501 });
+  if (!serviceClient) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
 
   const { data: cloudApiSetting } = await serviceClient.from("app_settings").select("value").eq("key", "whatsappCloudApiConfig").maybeSingle();
   const cloudApi = cloudApiSetting?.value as WhatsAppCloudApiConfig | null;

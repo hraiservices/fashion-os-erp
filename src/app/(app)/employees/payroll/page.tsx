@@ -39,7 +39,7 @@ export default function PayrollRunsPage() {
 
   async function handleRunPayroll() {
     try {
-      const runId = await runPayroll.mutateAsync({ periodStart, periodEnd, userEmail: user?.email });
+      const { runId } = await runPayroll.mutateAsync({ periodStart, periodEnd, userEmail: user?.email });
       toast.success("Payroll run generated");
       setDialogOpen(false);
       router.push(`/employees/payroll/${runId}`);

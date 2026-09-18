@@ -13,6 +13,7 @@ import {
   type TailorLineItem,
   type ProfitConfig,
 } from "@/lib/cost-sheet";
+import { istDateString } from "@/lib/ist-date";
 import { useSaveCostSheet } from "@/hooks/use-cost-sheet-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import type { CostSheetWithItems } from "@/hooks/use-cost-sheet";
@@ -62,7 +63,7 @@ function LineItemsEditor({
       <CardContent className="space-y-2">
         {items.map((item, i) => (
           <div key={item.id} className="grid grid-cols-12 items-center gap-2">
-            <Input className="col-span-4" placeholder="Item name" value={item.expense_name} onChange={(e) => update(i, { expense_name: e.target.value })} />
+            <Input className="col-span-3" placeholder="Item name" value={item.expense_name} onChange={(e) => update(i, { expense_name: e.target.value })} />
             {showQtyUnit && (
               <>
                 <NumberInput className="col-span-2" min={0} placeholder="Qty" value={item.quantity} onChange={(v) => update(i, { quantity: v })} />
@@ -70,7 +71,7 @@ function LineItemsEditor({
               </>
             )}
             <NumberInput
-              className={showQtyUnit ? "col-span-2" : "col-span-5"}
+              className={showQtyUnit ? "col-span-3" : "col-span-6"}
               min={0}
               placeholder="Rate"
               value={item.rate}
@@ -91,7 +92,7 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
   const saveCostSheet = useSaveCostSheet();
 
   const [sheetNo] = useState(existing?.cost_sheet_no || genSheetNo());
-  const [date, setDate] = useState(existing?.date || new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(existing?.date || istDateString());
   const [customerName, setCustomerName] = useState(existing?.customer_name || "");
   const [customerMobile, setCustomerMobile] = useState(existing?.customer_mobile || "");
   const [productName, setProductName] = useState(existing?.product_name || "");
@@ -154,14 +155,14 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
     <div className="min-h-screen bg-muted/30">
       {/* Sticky header */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
-        <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-3 sm:px-6">
           <Link href="/cost-estimator" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="size-4" />
             <span className="hidden sm:inline">Cost sheets</span>
           </Link>
-          <div className="flex-1">
-            <h1 className="text-base font-semibold">{existing ? "Edit Cost Sheet" : "New Cost Sheet"}</h1>
-            <p className="text-[11px] font-mono text-muted-foreground">{sheetNo}</p>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-semibold truncate">{existing ? "Edit Cost Sheet" : "New Cost Sheet"}</h1>
+            <p className="text-[11px] font-mono text-muted-foreground truncate">{sheetNo}</p>
           </div>
           {/* Duplicate of the bottom FormActionBar — mobile only, so Save is reachable
              without scrolling all the way down. */}
@@ -176,7 +177,7 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
         </div>
       </div>
 
-      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 space-y-5">
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 space-y-5">
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">{sheetNo}</CardTitle>
@@ -294,7 +295,7 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
         <Button
           variant="outline"
           size="lg"
-          className="h-12 px-5 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 px-4 text-sm sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
           onClick={print}
         >
           Print
@@ -302,7 +303,7 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
         <Button
           variant="outline"
           size="lg"
-          className="h-12 px-5 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 px-4 text-sm sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
           disabled={saveCostSheet.isPending}
           onClick={() => save("draft")}
         >
@@ -310,7 +311,7 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
         </Button>
         <Button
           size="lg"
-          className="h-12 flex-1 px-5 text-base sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 flex-1 px-4 text-sm sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
           disabled={saveCostSheet.isPending}
           onClick={() => save("final")}
         >

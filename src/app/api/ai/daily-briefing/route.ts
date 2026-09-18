@@ -5,6 +5,7 @@ import { generateBriefing } from "@/lib/chatbot/gemini";
 import { sendPushToAll } from "@/lib/push";
 import { sendWhatsAppTemplateText, type WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
 import { logWhatsAppSend } from "@/lib/whatsapp-log";
+import { istDateString } from "@/lib/ist-date";
 
 /**
  * Cron entry point — hit daily by vercel.json's schedule, mirroring the recurring-invoices
@@ -27,7 +28,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not configured." }, { status: 501 });
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = istDateString();
   const { data: existing } = await supabase
     .from("admin_notifications")
     .select("id")

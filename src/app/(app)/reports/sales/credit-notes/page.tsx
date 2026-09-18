@@ -6,19 +6,23 @@ import { FileMinus } from "lucide-react";
 import { useSalesCreditNotes } from "@/hooks/use-sales-credit-notes";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { inr, fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 
 export default function CreditNoteDetailsPage() {
   const { data: creditNotes, isLoading: l1 } = useSalesCreditNotes();
   const { data: invoices, isLoading: l2 } = useSalesInvoices();
   const isLoading = l1 || l2;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const invoiceById = useMemo(() => new Map((invoices || []).map((i) => [i.id, i])), [invoices]);
-  const rows = useMemo(() => creditNotes || [], [creditNotes]);
+  const rows = useMemo(() => (creditNotes || []).filter((c) => isWithinDateRange(c.date, range)), [creditNotes, range]);
   const total = useMemo(() => rows.reduce((s, c) => s + c.total, 0), [rows]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
@@ -28,19 +32,19 @@ export default function CreditNoteDetailsPage() {
       title="Credit Note Details"
       description="Every credit note issued against a Product Sales invoice — used to reduce a customer's balance without a cash refund."
       actions={
-        rows.length > 0 && (
-          <ExportMenu
-            rows={rows.map((c) => ({
-              "Credit#": c.creditNumber,
-              Date: c.date,
-              Customer: invoiceById.get(c.invoiceId)?.customerName || "",
-              Invoice: invoiceById.get(c.invoiceId)?.invoiceNumber || "",
-              Amount: c.total,
-              Reason: c.reason,
-            }))}
-            filename="credit_note_details"
-          />
-        )
+        <ReportActionsMenu
+          rows={rows.map((c) => ({
+            "Credit#": c.creditNumber,
+            Date: c.date,
+            Customer: invoiceById.get(c.invoiceId)?.customerName || "",
+            Invoice: invoiceById.get(c.invoiceId)?.invoiceNumber || "",
+            Amount: c.total,
+            Reason: c.reason,
+          }))}
+          filename="credit-note-details"
+          title="Credit Note Details"
+          summaryLines={[`Credit notes: ${rows.length}`, `Total credited: ${inr(total)}`]}
+        />
       }
     >
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -48,44 +52,90 @@ export default function CreditNoteDetailsPage() {
         <StatCard label="Total Credited" value={inr(total)} icon={FileMinus} />
       </div>
 
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+        resultLabel={`${rows.length} credit note${rows.length === 1 ? "" : "s"}`}
+      />
+
       {rows.length === 0 ? (
         <EmptyState icon={FileMinus} title="No credit notes yet" description="Credit notes issued against sales invoices will appear here." />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Credit#</Th>
-              <Th>Date</Th>
-              <Th>Customer</Th>
-              <Th>Invoice</Th>
-              <Th>Reason</Th>
-              <Th align="right">Amount</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
+        <>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(total)} showChevron={false} />
+            </MobileRecordCard>
             {rows.map((c) => {
               const inv = invoiceById.get(c.invoiceId);
               return (
-                <tr key={c.id} className="hover:bg-muted/30">
-                  <Td className="font-medium">{c.creditNumber}</Td>
-                  <Td className="text-muted-foreground">{fmtDate(c.date)}</Td>
-                  <Td>{inv?.customerName || "—"}</Td>
-                  <Td>
-                    {inv ? (
-                      <Link href={`/sales/invoices/${inv.id}`} className="text-primary hover:underline">
-                        {inv.invoiceNumber}
-                      </Link>
-                    ) : (
-                      "—"
-                    )}
-                  </Td>
-                  <Td className="max-w-40 truncate text-muted-foreground">{c.reason || "—"}</Td>
-                  <Td align="right" className="font-medium">{inr(c.total)}</Td>
-                </tr>
+                <MobileRecordCard key={c.id}>
+                  <MobileRecordHeader title={c.creditNumber} subtitle={fmtDate(c.date)} value={inr(c.total)} showChevron={false} />
+                  <MobileRecordRow label="Customer" value={inv?.customerName || "—"} />
+                  <MobileRecordRow
+                    label="Invoice"
+                    value={
+                      inv ? (
+                        <Link href={`/sales/invoices/${inv.id}`} className="text-primary hover:underline">
+                          {inv.invoiceNumber}
+                        </Link>
+                      ) : (
+                        "—"
+                      )
+                    }
+                  />
+                  <MobileRecordRow label="Reason" value={c.reason || "—"} />
+                </MobileRecordCard>
               );
             })}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Credit#</Th>
+                  <Th>Date</Th>
+                  <Th>Customer</Th>
+                  <Th>Invoice</Th>
+                  <Th>Reason</Th>
+                  <Th align="right">Amount</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td colSpan={5}>Total</Td>
+                  <Td align="right">{inr(total)}</Td>
+                </ReportTotalsRow>
+                {rows.map((c) => {
+                  const inv = invoiceById.get(c.invoiceId);
+                  return (
+                    <tr key={c.id} className="hover:bg-muted/30">
+                      <Td className="font-medium">{c.creditNumber}</Td>
+                      <Td className="text-muted-foreground">{fmtDate(c.date)}</Td>
+                      <Td>{inv?.customerName || "—"}</Td>
+                      <Td>
+                        {inv ? (
+                          <Link href={`/sales/invoices/${inv.id}`} className="text-primary hover:underline">
+                            {inv.invoiceNumber}
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
+                      </Td>
+                      <Td className="max-w-40 truncate text-muted-foreground">{c.reason || "—"}</Td>
+                      <Td align="right" className="font-medium">{inr(c.total)}</Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </ReportTable>
+          </div>
+        </>
       )}
     </ReportShell>
   );

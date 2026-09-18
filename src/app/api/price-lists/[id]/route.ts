@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 
 /** Delete a price list. Previously ran entirely client-side with no permission check. */
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase, user } = await getServerUser();
+  const { user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageSales) return NextResponse.json({ error: "No permission to manage price lists" }, { status: 403 });
 
-  const { error } = await supabase.from("price_lists").delete().eq("id", id);
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
+  const { error } = await db.from("price_lists").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

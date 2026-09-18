@@ -1,6 +1,6 @@
-// Editable WhatsApp templates for Sales — unlike the stitching-order templates (hardcoded
-// in business-rules.ts), these are stored in app_settings and editable from Settings, per
-// the decision to let the shop customize sales messaging wording.
+// Editable WhatsApp templates for Sales — mirrors stitching-whatsapp.ts. Stored in
+// app_settings and editable from Settings, per the decision to let the shop customize
+// sales messaging wording.
 import { normalizeIndianMobile } from "@/lib/business-rules";
 
 export type SalesWhatsAppType = "invoiceSent" | "paymentReminder" | "paymentReceived" | "sendPdfLink";

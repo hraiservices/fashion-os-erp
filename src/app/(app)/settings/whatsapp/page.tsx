@@ -3,6 +3,7 @@
 import { SettingsGuard } from "@/components/settings/settings-guard";
 import { SettingsPage } from "@/components/settings/settings-page";
 import { WhatsAppSalesSection } from "@/components/settings/whatsapp-sales-section";
+import { WhatsAppStitchingSection } from "@/components/settings/whatsapp-stitching-section";
 import { RecommendationWhatsAppSection } from "@/components/settings/recommendation-whatsapp-section";
 import { ProactiveWhatsAppSection } from "@/components/settings/proactive-whatsapp-section";
 import { WhatsAppSendLogSection } from "@/components/settings/whatsapp-send-log-section";
@@ -17,6 +18,7 @@ export default function Page() {
       <SettingsGuard allow={({ isAdmin }) => isAdmin}>
         <div className="space-y-5">
           <WhatsAppSalesSection />
+          <WhatsAppStitchingSection />
           <RecommendationWhatsAppSection />
           <ProactiveWhatsAppSection />
           <WhatsAppSendLogSection />

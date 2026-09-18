@@ -11,7 +11,7 @@ import { DEFAULT_ENTITLEMENTS, ROUTE_MODULE_PREFIXES, isModuleEnabled, isReportE
 // entry, every unauthenticated visit to /checkin was server-redirected to /login before the
 // page could even render its own PIN login form — silently making self-service check-in (and
 // the leave-management self-service tab) completely unreachable.
-const PUBLIC_PATHS = ["/login", "/checkin", "/invoice/view", "/api/public", "/api/recurring-invoices/generate"];
+const PUBLIC_PATHS = ["/login", "/signup", "/checkin", "/invoice/view", "/track", "/api/public", "/api/recurring-invoices/generate"];
 
 function isSuperAdminEmail(email: string | undefined): boolean {
   const ownerEmail = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL;
@@ -52,7 +52,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && request.nextUrl.pathname === "/login") {
+  if (user && (request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/signup")) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
@@ -88,7 +88,14 @@ export async function updateSession(request: NextRequest) {
 
     if (modulePrefix || reportLeaf || settingsLeaf) {
       const { data: settingRow } = await supabase.from("app_settings").select("value").eq("key", "moduleEntitlements").maybeSingle();
-      const entitlements = (settingRow?.value as ModuleEntitlements | null) || DEFAULT_ENTITLEMENTS;
+      // Shallow-merge over the defaults, same as the client-side useAppSetting hook does for
+      // every other setting — a row saved before a newer top-level key existed (e.g. `settings`,
+      // added after `modules`/`reports`/`widgets`/`billing`/`limits` were already in use) would
+      // otherwise come back missing that key entirely, and isSettingEnabled()/isModuleEnabled()
+      // reading `entitlements.settings[href]` on a genuinely undefined `settings` throws — in
+      // middleware, uncaught by any error boundary, so it took down the whole route with a raw
+      // 500 rather than a clean fallback.
+      const entitlements: ModuleEntitlements = { ...DEFAULT_ENTITLEMENTS, ...(settingRow?.value as Partial<ModuleEntitlements> | null) };
 
       // A path can be both a module page and a REPORTS_GROUP leaf (e.g. /purchases/bills) —
       // the module check takes priority since these are primarily functional module pages,

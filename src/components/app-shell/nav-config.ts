@@ -16,6 +16,7 @@ import {
   Scissors,
   UserCog,
   ScanBarcode,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -26,6 +27,10 @@ export interface NavLeaf {
   newHref?: string;
   /** When set, a small section header is rendered above this leaf whenever it differs from the previous leaf's section — groups a flat children list into categories without changing the data shape. */
   section?: string;
+  /** Profit/margin reports — restricted to the admin role specifically, not just viewReports
+   *  (which managers also hold). Hidden from the Reports index/sidebar entirely for non-admins;
+   *  the destination page enforces the same check independently in case of a direct link. */
+  adminOnly?: boolean;
 }
 
 export interface NavGroup {
@@ -60,7 +65,7 @@ export const ORDERS_GROUP: NavGroup = {
   label: "Stitching Orders",
   icon: Receipt,
   children: [
-    { href: "/orders", label: "All Orders", newHref: "/orders/new" },
+    { href: "/orders?view=list", label: "All Orders", newHref: "/orders/new" },
     { href: "/orders/measurements", label: "Search Measurement" },
     { href: "/settings/rates", label: "Rate Card" },
     { href: "/settings/measurements", label: "Measurements" },
@@ -84,7 +89,7 @@ export const REPORTS_GROUP: NavGroup = {
   indexHref: "/reports",
   children: [
     { href: "/reports/day-book", label: "Day Book", section: "Summary" },
-    { href: "/reports/combined-pl", label: "Combined P&L" },
+    { href: "/reports/combined-pl", label: "Combined P&L", adminOnly: true },
     { href: "/reports/payments-received", label: "Payments Received" },
 
     { href: "/reports/monthly", label: "Stitching Monthly P&L", section: "Stitching Orders" },
@@ -93,15 +98,18 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/garments", label: "Garment Analysis" },
     { href: "/reports/seasonal-trends", label: "Seasonal Trends" },
     { href: "/reports/tailors", label: "Tailor Performance" },
+    { href: "/reports/tailor-turnaround", label: "Tailor Turnaround Time" },
     { href: "/reports/staff-efficiency", label: "Staff Efficiency" },
     { href: "/reports/tailor-workload", label: "Tailor Workload" },
     { href: "/reports/tailor-worksheet", label: "Daily Tailor Worksheet" },
+    { href: "/reports/tailor-payable-details", label: "Tailor Payable Report" },
     { href: "/reports/aging", label: "Balance Aging" },
     { href: "/reports/pending-orders", label: "Pending Orders" },
     { href: "/reports/ready-uncollected", label: "Ready & Uncollected" },
+    { href: "/reports/today-deliverables", label: "Today Deliverables" },
     { href: "/reports/rework-rate", label: "Rework Rate" },
     { href: "/reports/deposit-compliance", label: "Deposit Compliance" },
-    { href: "/reports/order-profitability", label: "Order Profitability" },
+    { href: "/reports/order-profitability", label: "Order Profitability", adminOnly: true },
     { href: "/reports/booking-sources", label: "Booking Sources" },
     { href: "/reports/reorder-candidates", label: "Reorder Candidates" },
     { href: "/reports/top-referrers", label: "Top Referrers" },
@@ -115,7 +123,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/sales", label: "Sales Summary", section: "Sales" },
     { href: "/reports/sales/by-customer", label: "Sales by Customer" },
     { href: "/reports/sales/by-item", label: "Sales by Item" },
-    { href: "/reports/sales/profit-by-item", label: "Profit by Item" },
+    { href: "/reports/sales/profit-by-item", label: "Profit by Item", adminOnly: true },
     { href: "/sales/payments", label: "Payments Received" },
     { href: "/reports/sales/time-to-get-paid", label: "Time to Get Paid" },
     { href: "/reports/sales/credit-notes", label: "Credit Note Details" },
@@ -208,9 +216,9 @@ export const EMPLOYEES_GROUP: NavGroup = {
     { href: "/employees/attendance", label: "Attendance" },
     { href: "/employees/leave", label: "Leave" },
     { href: "/employees/payroll", label: "Payroll" },
+    { href: "/employees/advances", label: "Advances" },
     { href: "/settings/attendance-payroll", label: "Attendance & Payroll Settings" },
     { href: "/settings/leave-policy", label: "Leave Policy" },
-    { href: "/settings/tailor-rates", label: "Tailor Payable Rates" },
     { href: "/settings/users", label: "Users & Roles" },
   ],
 };
@@ -257,6 +265,7 @@ export const SETTINGS_GROUP: NavGroup = {
     { href: "/settings/copilot", label: "AI Copilot" },
     { href: "/settings/navigation", label: "Sidebar Navigation" },
     { href: "/settings/module-licensing", label: "Module Licensing" },
+    { href: "/settings/signup-requests", label: "Signup Requests" },
   ],
 };
 
@@ -265,19 +274,13 @@ export const SETTINGS_GROUP: NavGroup = {
  *  only an admin should see the policy config links and Users & Roles (the pages themselves
  *  also enforce this via SettingsGuard). */
 export function employeesLeafVisible(href: string, isAdmin: boolean): boolean {
-  if (
-    href === "/settings/attendance-payroll" ||
-    href === "/settings/leave-policy" ||
-    href === "/settings/tailor-rates" ||
-    href === "/settings/users"
-  )
-    return isAdmin;
+  if (href === "/settings/attendance-payroll" || href === "/settings/leave-policy" || href === "/settings/users") return isAdmin;
   return true;
 }
 
 /** Per-section Settings gating, mirroring the old app's rules. Module Licensing is platform-owner-only — invisible to every shop's own admin, including "admin" role. Personalize merges Shop Profile/Account/Appearance/Document Numbering onto one page, so it stays visible to everyone the same way Account did — the page itself hides the admin/manager-only sections inline. */
 export function settingsLeafVisible(href: string, isAdmin: boolean, canManageShop: boolean, isSuperAdmin: boolean): boolean {
-  if (href === "/settings/module-licensing") return isSuperAdmin;
+  if (href === "/settings/module-licensing" || href === "/settings/signup-requests") return isSuperAdmin;
   if (
     ["/settings/whatsapp", "/settings/loyalty", "/settings/invoice-terms", "/settings/invoice-template", "/settings/price-lists", "/settings/copilot", "/settings/navigation"].includes(
       href,
@@ -287,10 +290,27 @@ export function settingsLeafVisible(href: string, isAdmin: boolean, canManageSho
   return true; // /settings/personalize and /settings/account — everyone (canManageShop kept as a param for callers/backward compat)
 }
 
-/** Bottom tab bar on mobile. Deliberately 5 items max, thumb-reachable. */
-export const MOBILE_TABS: NavFlatItem[] = [
-  { href: "/dashboard", label: "Home", icon: LayoutDashboard, restricted: true },
-  { href: "/orders", label: "Orders", icon: Receipt },
+/** Bottom tab bar on mobile for admin/manager (unrestricted) logins — sits left of the centre
+ *  "+"; MOBILE_TABS_ADMIN_RIGHT sits right of it. Support/WhatsApp and AI Copilot are NOT here
+ *  for this role — they live in the hamburger side drawer instead (NavContent), since an
+ *  admin/manager already has a full set of nav destinations competing for the bar's limited
+ *  space. */
+export const MOBILE_TABS_ADMIN_LEFT: NavFlatItem[] = [
+  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
+  { href: "/orders?view=list", label: "Orders", icon: Receipt },
   { href: "/orders?view=board", label: "Board", icon: KanbanSquare },
-  { href: "/crm", label: "Clients", icon: Users, restricted: true },
+];
+
+export const MOBILE_TABS_ADMIN_RIGHT: NavFlatItem[] = [
+  { href: "/crm", label: "Clients", icon: Users },
+  { href: "/sales/invoices", label: "Invoices", icon: FileText },
+  { href: "/reports", label: "Reports", icon: BarChart3 },
+];
+
+/** Bottom tab bar on mobile for tailor/sales (restricted) logins — day-to-day work is just
+ *  Orders/Board, so Support and Copilot (rendered separately in MobileTabBar, not part of this
+ *  list) fill the space admin/manager instead spends on Clients/Invoices/Reports. */
+export const MOBILE_TABS_RESTRICTED_LEFT: NavFlatItem[] = [
+  { href: "/orders?view=list", label: "Orders", icon: Receipt },
+  { href: "/orders?view=board", label: "Board", icon: KanbanSquare },
 ];

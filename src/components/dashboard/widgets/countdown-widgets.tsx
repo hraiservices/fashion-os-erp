@@ -93,17 +93,17 @@ export function UpcomingDeliveriesWidget() {
 
   return (
     <section className="rounded-xl border bg-card">
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <div className="flex items-center gap-2">
-          <AlarmClock className="size-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold">Delivery Countdown</h2>
+      <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <AlarmClock className="size-4 shrink-0 text-muted-foreground" />
+          <h2 className="truncate text-sm font-semibold">Delivery Countdown</h2>
           {rows.length > 0 && (
-            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:bg-red-950 dark:text-red-300">
+            <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:bg-red-950 dark:text-red-300">
               {rows.length}
             </span>
           )}
         </div>
-        <Link href="/orders?view=board" className="text-xs text-muted-foreground hover:text-foreground">
+        <Link href="/orders?view=board" className="shrink-0 text-xs text-muted-foreground hover:text-foreground">
           View board
         </Link>
       </div>
@@ -133,17 +133,17 @@ export function UpcomingPaymentsWidget() {
 
   return (
     <section className="rounded-xl border bg-card">
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <div className="flex items-center gap-2">
-          <Wallet className="size-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold">Payment Countdown</h2>
+      <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <Wallet className="size-4 shrink-0 text-muted-foreground" />
+          <h2 className="truncate text-sm font-semibold">Payment Countdown</h2>
           {rows.length > 0 && (
-            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:bg-red-950 dark:text-red-300">
+            <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:bg-red-950 dark:text-red-300">
               {rows.length}
             </span>
           )}
         </div>
-        <Link href="/reports/aging" className="text-xs text-muted-foreground hover:text-foreground">
+        <Link href="/reports/aging" className="shrink-0 text-xs text-muted-foreground hover:text-foreground">
           View aging
         </Link>
       </div>

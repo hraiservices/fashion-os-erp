@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { mapPayrollRunRow, mapPayslipRow, mapEmployeeAdvanceRow } from "@/lib/types";
+import { mapPayrollRunRow, mapPayslipRow, mapEmployeeAdvanceRow, type Payslip, type PayrollRun } from "@/lib/types";
 
 async function fetchPayrollRuns() {
   const supabase = createClient();
@@ -77,5 +77,51 @@ export function useAdvancesForEmployee(employeeId: string) {
     queryKey: ["employee-advances", employeeId],
     queryFn: () => fetchAdvancesForEmployee(employeeId),
     enabled: !!employeeId,
+  });
+}
+
+export interface BulkAdvanceCandidate {
+  id: string;
+  name: string;
+  role: string;
+  pieceRateEligible: boolean;
+  /** Most this employee can be advanced right now, or null if they're not piece-rate eligible
+   *  (salaried employees have no cap here — a manager judgment call). */
+  pieceRateCap: number | null;
+  outstandingAdvances: number;
+}
+
+async function fetchBulkAdvanceCandidates(): Promise<BulkAdvanceCandidate[]> {
+  const res = await fetch("/api/employees/advances/bulk");
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to load employees");
+  return data.employees;
+}
+
+/** Every active employee, with the context the Weekly Advances screen needs before anyone
+ *  types an amount — not cached long, since an outstanding-advance total or a piece-rate cap
+ *  can change the moment someone else records a payslip or confirms a payable. */
+export function useBulkAdvanceCandidates() {
+  return useQuery({
+    queryKey: ["employee-advances", "bulk-candidates"],
+    queryFn: fetchBulkAdvanceCandidates,
+    staleTime: 5_000,
+  });
+}
+
+async function fetchMyPayslips(): Promise<{ payslips: Payslip[]; runs: PayrollRun[] }> {
+  const res = await fetch("/api/payroll/my-payslips");
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to load payslips");
+  return data;
+}
+
+/** The logged-in staff member's own payslips (scoped server-side to their linked employee
+ *  record) — for the "My Payslips" self-service page, not payroll administration. */
+export function useMyPayslips() {
+  return useQuery({
+    queryKey: ["payslips", "mine"],
+    queryFn: fetchMyPayslips,
+    staleTime: 15_000,
   });
 }

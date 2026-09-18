@@ -1,19 +1,41 @@
 "use client";
 
 import { useMemo } from "react";
-import { Printer, Wallet, FileDown } from "lucide-react";
+import { Wallet, FileDown } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
 import { usePayrollRuns, useAllPayslips } from "@/hooks/use-payroll";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { printReport } from "@/lib/export";
 import { inr, fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
+import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 
-/** Salary/payroll report — every payslip ever generated, across all runs, with employee + period joined in client-side. Admin-only (managePayroll), same as the Payroll pages themselves. */
+const PAYROLL_SUMMARY_COLUMNS = [
+  { key: "period", label: "Period", required: true },
+  { key: "employee", label: "Employee", required: true },
+  { key: "gross", label: "Gross" },
+  { key: "overtime", label: "Overtime" },
+  { key: "deductions", label: "Deductions" },
+  { key: "netPay", label: "Net Pay", required: true },
+  { key: "status", label: "Status" },
+  { key: "download", label: "Download" },
+];
+
+// Below 1920px (a 14" laptop) the full 8-column table feels cramped — Overtime is the widest
+// cell ("Xh · ₹Y") and the least essential to have visible at a glance, so it defaults to hidden
+// there and reappears automatically on a wider monitor (still one click away via Columns).
+const PAYROLL_SUMMARY_AUTO_HIDE = { belowWidth: 1920, keys: ["overtime"] };
+
+/** Salary/payroll report — every payslip ever generated, across all runs, with employee + period joined in client-side. Admin-only (managePayroll), same as the Payroll pages themselves.
+ *  Each payslip covers a pay period rather than a single date — the date range matches it against
+ *  the run's periodStart. */
 export default function PayrollSummaryReportPage() {
   const { data: user } = useCurrentUser();
   const { data: employees, isLoading: employeesLoading } = useEmployees();
@@ -21,6 +43,9 @@ export default function PayrollSummaryReportPage() {
   const { data: payslips, isLoading: payslipsLoading } = useAllPayslips();
   const canManagePayroll = !!user?.perms.managePayroll;
   const isLoading = employeesLoading || runsLoading || payslipsLoading;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const columnTable = useColumnVisibility("payroll-summary", PAYROLL_SUMMARY_COLUMNS, PAYROLL_SUMMARY_AUTO_HIDE);
+  const isVisible = columnTable.isVisible;
 
   const employeeName = (id: string) => (employees || []).find((e) => e.id === id)?.name || "—";
   const runById = useMemo(() => new Map((runs || []).map((r) => [r.id, r])), [runs]);
@@ -28,9 +53,9 @@ export default function PayrollSummaryReportPage() {
   const rows = useMemo(() => {
     return (payslips || [])
       .map((p) => ({ payslip: p, run: runById.get(p.payrollRunId) }))
-      .filter((r) => r.run)
+      .filter((r) => r.run && isWithinDateRange(r.run.periodStart, range))
       .sort((a, b) => (b.run!.periodStart || "").localeCompare(a.run!.periodStart || ""));
-  }, [payslips, runById]);
+  }, [payslips, runById, range]);
 
   const totals = rows.reduce(
     (acc, r) => ({ gross: acc.gross + r.payslip.grossPay, deductions: acc.deductions + r.payslip.deductions, net: acc.net + r.payslip.netPay }),
@@ -52,68 +77,124 @@ export default function PayrollSummaryReportPage() {
       title="Salary Report"
       description={`${rows.length} payslips across ${runs?.length || 0} payroll runs · Total net paid ${inr(totals.net)}`}
       actions={
-        rows.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              printReport(
-                "Salary Report",
-                `<table><thead><tr><th>Period</th><th>Employee</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th></tr></thead><tbody>${rows
-                  .map(
-                    (r) =>
-                      `<tr><td>${fmtDate(r.run!.periodStart)} – ${fmtDate(r.run!.periodEnd)}</td><td>${employeeName(r.payslip.employeeId)}</td><td>${inr(r.payslip.grossPay)}</td><td>${inr(r.payslip.deductions)}</td><td>${inr(r.payslip.netPay)}</td><td>${r.payslip.status}</td></tr>`
-                  )
-                  .join("")}</tbody></table>`
-              )
-            }
-          >
-            <Printer className="size-4" /> Print
-          </Button>
-        )
+        <ReportActionsMenu
+          rows={rows.map((r) => ({
+            Period: `${fmtDate(r.run!.periodStart)} – ${fmtDate(r.run!.periodEnd)}`,
+            Employee: employeeName(r.payslip.employeeId),
+            Gross: r.payslip.grossPay,
+            Deductions: r.payslip.deductions,
+            "Net Pay": r.payslip.netPay,
+            Status: r.payslip.status,
+          }))}
+          filename="salary-report"
+          title="Salary Report"
+          summaryLines={[`Payslips: ${rows.length}`, `Total net paid: ${inr(totals.net)}`]}
+        />
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       {rows.length === 0 ? (
         <EmptyState icon={Wallet} title="No payslips yet" description="Run payroll from Employees → Payroll to see salary history here." />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Period</Th>
-              <Th>Employee</Th>
-              <Th align="right">Gross</Th>
-              <Th align="right">Overtime</Th>
-              <Th align="right">Deductions</Th>
-              <Th align="right">Net Pay</Th>
-              <Th align="right">Status</Th>
-              <Th />
-            </tr>
-          </thead>
-          <tbody>
+        <>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(totals.net)} showChevron={false} />
+              <MobileRecordGrid
+                items={[
+                  { label: "Gross", value: inr(totals.gross) },
+                  { label: "Deductions", value: inr(totals.deductions) },
+                ]}
+              />
+            </MobileRecordCard>
             {rows.map((r) => (
-              <tr key={r.payslip.id} className="border-b last:border-0">
-                <Td>
-                  {fmtDate(r.run!.periodStart)} – {fmtDate(r.run!.periodEnd)}
-                </Td>
-                <Td>{employeeName(r.payslip.employeeId)}</Td>
-                <Td align="right">{inr(r.payslip.grossPay)}</Td>
-                <Td align="right">{r.payslip.overtimeHours > 0 ? `${r.payslip.overtimeHours}h · ${inr(r.payslip.overtimePay)}` : "—"}</Td>
-                <Td align="right">{r.payslip.deductions > 0 ? `− ${inr(r.payslip.deductions)}` : "—"}</Td>
-                <Td align="right" className="font-semibold">
-                  {inr(r.payslip.netPay)}
-                </Td>
-                <Td align="right">
-                  <Badge variant={r.payslip.status === "paid" ? "secondary" : "outline"}>{r.payslip.status === "paid" ? "Paid" : "Draft"}</Badge>
-                </Td>
-                <Td>
-                  <a href={`/api/employees/payslips/${r.payslip.id}/pdf`} target="_blank" rel="noopener noreferrer" aria-label="Download payslip" title="Download payslip" className="inline-flex text-muted-foreground hover:text-foreground">
-                    <FileDown className="size-3.5" />
+              <MobileRecordCard key={r.payslip.id}>
+                <MobileRecordHeader
+                  title={employeeName(r.payslip.employeeId)}
+                  subtitle={`${fmtDate(r.run!.periodStart)} – ${fmtDate(r.run!.periodEnd)}`}
+                  value={inr(r.payslip.netPay)}
+                  showChevron={false}
+                />
+                <MobileRecordGrid
+                  items={[
+                    { label: "Gross", value: inr(r.payslip.grossPay) },
+                    { label: "Overtime", value: r.payslip.overtimeHours > 0 ? `${r.payslip.overtimeHours}h · ${inr(r.payslip.overtimePay)}` : "—" },
+                    { label: "Deductions", value: r.payslip.deductions > 0 ? `− ${inr(r.payslip.deductions)}` : "—" },
+                    { label: "Status", value: <Badge variant={r.payslip.status === "paid" ? "secondary" : "outline"}>{r.payslip.status === "paid" ? "Paid" : "Draft"}</Badge> },
+                  ]}
+                />
+                <div className="flex justify-end border-t pt-1.5">
+                  <a href={`/api/employees/payslips/${r.payslip.id}/pdf`} target="_blank" rel="noopener noreferrer" aria-label="Download payslip" title="Download payslip" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                    <FileDown className="size-3.5" /> Download
                   </a>
-                </Td>
-              </tr>
+                </div>
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+
+          <div className="hidden justify-end sm:flex">
+            <ColumnCustomizerMenu table={columnTable} />
+          </div>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Period</Th>
+                  <Th>Employee</Th>
+                  <Th align="right">Gross</Th>
+                  {isVisible("overtime") && <Th align="right">Overtime</Th>}
+                  <Th align="right">Deductions</Th>
+                  <Th align="right">Net Pay</Th>
+                  <Th align="right">Status</Th>
+                  <Th />
+                </tr>
+              </thead>
+              <tbody>
+                <ReportTotalsRow>
+                  <Td colSpan={2}>Total</Td>
+                  <Td align="right">{inr(totals.gross)}</Td>
+                  {isVisible("overtime") && <Td align="right">—</Td>}
+                  <Td align="right">{inr(totals.deductions)}</Td>
+                  <Td align="right">{inr(totals.net)}</Td>
+                  <Td align="right">—</Td>
+                  <Td />
+                </ReportTotalsRow>
+                {rows.map((r) => (
+                  <tr key={r.payslip.id} className="border-b last:border-0">
+                    <Td>
+                      {fmtDate(r.run!.periodStart)} – {fmtDate(r.run!.periodEnd)}
+                    </Td>
+                    <Td>{employeeName(r.payslip.employeeId)}</Td>
+                    <Td align="right">{inr(r.payslip.grossPay)}</Td>
+                    {isVisible("overtime") && (
+                      <Td align="right">{r.payslip.overtimeHours > 0 ? `${r.payslip.overtimeHours}h · ${inr(r.payslip.overtimePay)}` : "—"}</Td>
+                    )}
+                    <Td align="right">{r.payslip.deductions > 0 ? `− ${inr(r.payslip.deductions)}` : "—"}</Td>
+                    <Td align="right" className="font-semibold">
+                      {inr(r.payslip.netPay)}
+                    </Td>
+                    <Td align="right">
+                      <Badge variant={r.payslip.status === "paid" ? "secondary" : "outline"}>{r.payslip.status === "paid" ? "Paid" : "Draft"}</Badge>
+                    </Td>
+                    <Td>
+                      <a href={`/api/employees/payslips/${r.payslip.id}/pdf`} target="_blank" rel="noopener noreferrer" aria-label="Download payslip" title="Download payslip" className="inline-flex text-muted-foreground hover:text-foreground">
+                        <FileDown className="size-3.5" />
+                      </a>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+        </>
       )}
     </ReportShell>
   );

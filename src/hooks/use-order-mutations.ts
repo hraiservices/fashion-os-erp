@@ -20,7 +20,7 @@ interface CreateOrderInput {
   deliveryDate: string;
   inTime?: string;
   deliveryTime?: string;
-  garments: { type: string; lining?: string; no?: number; amount?: number; tailor?: string }[];
+  garments: { type: string; lining?: string; no?: number; amount?: number; tailor?: string; payableAmount?: number }[];
   total: number;
   advance: number;
   tailor: string;
@@ -37,6 +37,16 @@ interface CreateOrderInput {
   otherCost?: number;
   couponCode?: string;
   expenses?: NewOrderExpenseInput[];
+  /** Manual override for the order's id/number — leave unset for the usual auto-generated or
+   *  sequential (Document Numbering) behavior. */
+  orderNumber?: string;
+  /** Links this order to sibling orders from the same "split into one order per garment"
+   *  submission — see order-form.tsx's splitIntoGroupOrders(). */
+  groupId?: string;
+  /** See src/lib/measurement-profiles.ts and /api/orders' bodySchema. */
+  measurementProfileId?: string;
+  measurementProfileName?: string;
+  measurementSaveMode?: "profile" | "flat" | "skip";
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -78,7 +88,12 @@ export function useAdvanceStage() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (orderId: string) => postJson<{ order: Order }>(`/api/orders/${orderId}/advance-stage`, {}),
-    onSuccess: (_data, orderId) => {
+    // onSettled, not onSuccess: a 409 ("Stage was already changed by another request") means the
+    // server rejected OUR view of the order, not that nothing happened — someone else's request
+    // won the race. Invalidating only on success left the board showing the stage as it was
+    // before that other change, so retrying "Move to Ready" kept hitting the same 409 forever,
+    // with nothing on screen telling the user their card was already stale.
+    onSettled: (_data, _error, orderId) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["order", orderId] });
     },
@@ -91,7 +106,9 @@ export function useSetStage() {
   return useMutation({
     mutationFn: ({ orderId, stage }: { orderId: string; stage: string }) =>
       postJson<{ order: Order }>(`/api/orders/${orderId}/set-stage`, { stage }),
-    onSuccess: (_data, vars) => {
+    // See useAdvanceStage — same reasoning: a conflict means the board's copy of this order is
+    // stale, so it needs refetching exactly as much as a success does.
+    onSettled: (_data, _error, vars) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["order", vars.orderId] });
     },
@@ -107,19 +124,6 @@ export function useSetOrderRework() {
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["order", vars.orderId] });
-    },
-  });
-}
-
-/** Confirms this order's snapshotted tailor payables so they count toward payroll — see the
- *  self-dealing note on the confirm-payables route. */
-export function useConfirmOrderPayables() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (orderId: string) => postJson<{ ok: true; confirmedAt: string }>(`/api/orders/${orderId}/confirm-payables`, {}),
-    onSuccess: (_data, orderId) => {
-      qc.invalidateQueries({ queryKey: ["orders"] });
-      qc.invalidateQueries({ queryKey: ["order", orderId] });
     },
   });
 }
@@ -194,7 +198,7 @@ export function useBackfillOrderPayment() {
  * the server resolves the authenticated user from the session cookie.
  */
 /** Patch payload — order fields plus the optimistic-concurrency baseline for `advance`. */
-type OrderEditPatch = Partial<Order> & { expectedAdvance?: number; expenses?: NewOrderExpenseInput[] };
+type OrderEditPatch = Partial<Order> & { expectedAdvance?: number; expenses?: NewOrderExpenseInput[]; measurementSaveMode?: "profile" | "flat" | "skip" };
 
 export function useUpdateOrder() {
   const qc = useQueryClient();
@@ -225,6 +229,18 @@ export function useDeleteOrder() {
       // for the identical reason; this one never did.
       qc.invalidateQueries({ queryKey: ["customers"] });
       qc.invalidateQueries({ queryKey: ["customer-by-mobile"] });
+    },
+  });
+}
+
+export function useRenameOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, newId }: { id: string; newId: string }) => postJson<{ order: Order }>(`/api/orders/${id}/rename`, { newId }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["order", vars.id] });
+      qc.invalidateQueries({ queryKey: ["order", vars.newId] });
     },
   });
 }

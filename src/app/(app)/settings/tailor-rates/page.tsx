@@ -1,15 +1,7 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { SettingsGuard } from "@/components/settings/settings-guard";
-import { SettingsPage } from "@/components/settings/settings-page";
-import { TailorRatesSection } from "@/components/settings/tailor-rates-section";
-
+/** Tailor Payable Rates merged into the Rate Card page (src/app/(app)/settings/rates/page.tsx)
+ *  — redirect any bookmarked/linked visit here rather than leave a dead page. */
 export default function Page() {
-  return (
-    <SettingsPage title="Tailor Payable Rates" description="What each tailor earns per garment — payroll-sensitive, admin-only">
-      <SettingsGuard allow={({ isAdmin }) => isAdmin}>
-        <TailorRatesSection />
-      </SettingsGuard>
-    </SettingsPage>
-  );
+  redirect("/settings/rates");
 }

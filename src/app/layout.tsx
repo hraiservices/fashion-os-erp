@@ -25,10 +25,13 @@ export const metadata: Metadata = {
   description: "Tailoring shop management — orders, CRM, billing, reports.",
   manifest: "/manifest.json",
   icons: {
-    // Dynamic — serves the shop's own uploaded logo (Settings → Shop) once one is set,
-    // falling back to the default scissors icon otherwise. See that route's comment.
+    // Dynamic — serves the shop's own uploaded favicon/logo (Settings → Personalize) once one
+    // is set, falling back to the default scissors icon otherwise. See that route's comment.
+    // `apple` used to point at the static default /icon-192.png regardless of what a shop
+    // uploaded, so an uploaded logo never actually showed up as the Home Screen/bookmark icon
+    // on iOS — pointing both at the same dynamic route fixes that.
     icon: "/api/branding/icon",
-    apple: "/icon-192.png",
+    apple: "/api/branding/icon",
   },
   appleWebApp: {
     capable: true,
@@ -42,6 +45,15 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  // Explicit, not left to Next's defaults: Next only emits the <meta name="viewport"> keys
+  // actually present on this object, so a version of this file that specified viewportFit/
+  // themeColor without width/initialScale rendered a viewport tag with NO width=device-width at
+  // all. Without it, some mobile browsers (Xiaomi/MIUI's Chrome-based browser in particular) fall
+  // back to laying the page out at a fixed desktop-ish viewport width and pillarboxing it — a
+  // narrow rendered column with blank space filling the rest of the actual screen, in both
+  // orientations, exactly matching the "distorted tablet dashboard" report.
+  width: "device-width",
+  initialScale: 1,
   // Lets the app draw under the notch/home-indicator area so env(safe-area-inset-*) resolves
   // to real values instead of 0 — required for the bottom tab bar and sheets to pad around them.
   viewportFit: "cover",
@@ -75,7 +87,7 @@ export default function RootLayout({
             flash, same as before; this only fixes the far more common repeat-visit case. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var c=JSON.parse(localStorage.getItem("shop-font-config"));if(!c)return;var h=document.documentElement;h.style.setProperty("font-family",'"'+c.family+'", sans-serif');h.style.setProperty("font-weight",String(c.weight));h.style.setProperty("font-size",c.size+"px");var l=document.createElement("link");l.id="sw-google-font-link";l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?family="+c.family.replace(/\\s+/g,"+")+":wght@"+c.weight+"&display=swap";document.head.appendChild(l);}catch(e){}})();`,
+            __html: `(function(){try{var c=JSON.parse(localStorage.getItem("shop-font-config"));if(!c)return;var h=document.documentElement;h.style.setProperty("font-family",'"'+c.family+'", sans-serif');h.style.setProperty("font-weight",String(c.weight));var boost=window.innerWidth<=640?3:0;h.style.setProperty("font-size",(c.size+boost)+"px");var l=document.createElement("link");l.id="sw-google-font-link";l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?family="+c.family.replace(/\\s+/g,"+")+":wght@"+c.weight+"&display=swap";document.head.appendChild(l);}catch(e){}})();`,
           }}
         />
       </head>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 
 const bodySchema = z.object({
@@ -37,11 +38,14 @@ export async function POST(request: Request) {
   // filled the form, and got a 403 on submit.
   if (!user.perms.managePayments) return NextResponse.json({ error: "No permission to record sales payments" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
 
-  const { error } = await supabase.rpc("record_sales_payment", {
+  const { error } = await db.rpc("record_sales_payment", {
     p_invoice_id: fd.invoiceId,
     p_customer_mobile: fd.customerMobile,
     p_amount: fd.amount,

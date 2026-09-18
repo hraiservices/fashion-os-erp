@@ -34,6 +34,9 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageCustomers) return NextResponse.json({ error: "No permission to message customers" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
@@ -43,13 +46,13 @@ export async function POST(request: Request) {
   // client, which bypasses RLS, rather than the session client every other read here uses.
   const serviceClient = createServiceClient();
   const [{ data: cooldownSetting }, { data: templateSetting }, cloudApiResult, { data: productRow }, { data: customerRow }] = await Promise.all([
-    supabase.from("app_settings").select("value").eq("key", "recommendationCooldownDays").maybeSingle(),
-    supabase.from("app_settings").select("value").eq("key", "recommendationWhatsAppTemplate").maybeSingle(),
+    db.from("app_settings").select("value").eq("key", "recommendationCooldownDays").maybeSingle(),
+    db.from("app_settings").select("value").eq("key", "recommendationWhatsAppTemplate").maybeSingle(),
     serviceClient
       ? serviceClient.from("app_settings").select("value").eq("key", "whatsappCloudApiConfig").maybeSingle()
       : Promise.resolve({ data: null }),
-    supabase.from("products").select("image_data_url").eq("id", fd.productId).maybeSingle(),
-    supabase.from("customers").select("whatsapp_opt_out").eq("mobile", fd.mobile).maybeSingle(),
+    db.from("products").select("image_data_url").eq("id", fd.productId).maybeSingle(),
+    db.from("customers").select("whatsapp_opt_out").eq("mobile", fd.mobile).maybeSingle(),
   ]);
   const cloudApiSetting = cloudApiResult?.data;
   const cooldownDays = typeof cooldownSetting?.value === "number" ? cooldownSetting.value : DEFAULT_COOLDOWN_DAYS;
@@ -60,7 +63,7 @@ export async function POST(request: Request) {
   }
 
   const cutoff = new Date(Date.now() - cooldownDays * 86_400_000).toISOString();
-  const { data: recent } = await supabase
+  const { data: recent } = await db
     .from("customer_recommendations")
     .select("created_at")
     .eq("customer_mobile", fd.mobile)
@@ -100,7 +103,7 @@ export async function POST(request: Request) {
         imageUrl,
       });
       await logWhatsAppSend(supabase, { messageType: "recommendation", toMobile, waMessageId, status: "sent" });
-      await supabase.from("customer_recommendations").insert({
+      await db.from("customer_recommendations").insert({
         customer_mobile: fd.mobile,
         customer_name: fd.customerName,
         product_id: fd.productId,
@@ -130,7 +133,7 @@ export async function POST(request: Request) {
     price: fd.price,
   });
 
-  const { error } = await supabase.from("customer_recommendations").insert({
+  const { error } = await db.from("customer_recommendations").insert({
     customer_mobile: fd.mobile,
     customer_name: fd.customerName,
     product_id: fd.productId,

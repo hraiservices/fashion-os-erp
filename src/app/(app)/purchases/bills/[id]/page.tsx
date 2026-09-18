@@ -102,10 +102,10 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <th className="p-2 text-left font-medium">Item</th>
-                  <th className="p-2 text-right font-medium">Qty</th>
-                  <th className="p-2 text-right font-medium">Cost/unit</th>
-                  <th className="p-2 text-right font-medium">Amount</th>
+                  <th className="p-2 text-left font-bold">Item</th>
+                  <th className="p-2 text-right font-bold">Qty</th>
+                  <th className="p-2 text-right font-bold">Cost/unit</th>
+                  <th className="p-2 text-right font-bold">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y">

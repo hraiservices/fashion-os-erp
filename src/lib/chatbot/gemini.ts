@@ -1,16 +1,25 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { GlossaryEntry } from "@/lib/chatbot/glossary";
 import { toMKey } from "@/lib/measurements";
+import { istDateString } from "@/lib/ist-date";
+import { resolveGeminiApiKey } from "@/lib/gemini-config";
 
-let client: GoogleGenAI | null = null;
-
-function getClient(): GoogleGenAI {
-  if (!client) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error("GEMINI_API_KEY is not configured — add it to .env.local");
-    client = new GoogleGenAI({ apiKey });
+/** Thrown when neither GEMINI_API_KEY nor the Settings → AI Copilot key is configured — callers
+ *  (chatbot route) match on this to give a specific "not configured" answer instead of the
+ *  generic "couldn't find an answer" every other failure gets. */
+export class GeminiNotConfiguredError extends Error {
+  constructor() {
+    super("The AI Copilot isn't configured yet — ask your admin to add a Gemini API key under Settings → AI Copilot.");
+    this.name = "GeminiNotConfiguredError";
   }
-  return client;
+}
+
+// Deliberately not cached across calls — an admin saving a new/corrected key in Settings must
+// take effect on the very next question, not after a redeploy or server restart.
+async function getClient(): Promise<GoogleGenAI> {
+  const apiKey = await resolveGeminiApiKey();
+  if (!apiKey) throw new GeminiNotConfiguredError();
+  return new GoogleGenAI({ apiKey });
 }
 
 // "latest" alias rather than a pinned version — the pinned "gemini-2.5-flash" tag is listed
@@ -18,6 +27,33 @@ function getClient(): GoogleGenAI {
 // available to new users"), so the alias avoids this recurring every time Google rotates
 // which dated model tag is actually servable.
 const MODEL = "gemini-flash-latest";
+
+/**
+ * "This model is currently experiencing high demand" (503 UNAVAILABLE) is a real, common,
+ * genuinely transient condition on the shared/free Gemini tier — confirmed as the cause of a
+ * live "AI Copilot never answers" report, where it failed the very first call (generateSql,
+ * before any query even existed) and the whole question died with it. Nothing about the
+ * question was wrong; the model was momentarily overloaded. One retry with a short backoff
+ * turns "every question has a chance of failing outright" into "occasionally half a second
+ * slower," which is the actual fix — no amount of prompt or parsing work addresses a 503.
+ *
+ * 429 (RESOURCE_EXHAUSTED / rate limit) is bundled in for the same reason: also transient, also
+ * resolved by waiting a moment, and indistinguishable from 503 as far as the caller is concerned.
+ */
+function isRetryableGeminiError(e: unknown): boolean {
+  const message = e instanceof Error ? e.message : String(e);
+  return /"code"\s*:\s*(503|429)\b/.test(message) || /\b(UNAVAILABLE|RESOURCE_EXHAUSTED)\b/.test(message);
+}
+
+async function withGeminiRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    if (!isRetryableGeminiError(e)) throw e;
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    return fn();
+  }
+}
 
 /**
  * Everything the model needs to know about the two views it's allowed to query, plus the
@@ -34,7 +70,7 @@ TABLE v_chatbot_orders (custom tailoring orders):
   total integer, advance integer, balance integer, status text, tailor text,
   is_overdue boolean, days_overdue integer, created_at timestamptz
 
-  - status is one of: 'received', 'cutting', 'stitching', 'ready', 'delivered', 'payment'.
+  - status is one of: 'received', 'cutting', 'stitching', 'finishing', 'ready', 'delivered', 'payment'.
     'payment' means delivered and fully paid; 'delivered' means delivered but balance may
     still be owed.
   - balance is already the correct amount owed — never recompute it as total - advance
@@ -113,6 +149,19 @@ Rules:
   basically a restatement of what was just answered.
 Respond with JSON only: {"answer": "<the answer>", "followups": ["<short question>", ...]}.`;
 
+/**
+ * `responseMimeType: "application/json"` is a strong hint, not a guarantee — Gemini
+ * occasionally wraps the JSON in a ```json ... ``` fence anyway (a known, intermittent quirk,
+ * not tied to any one question). A bare `JSON.parse` on that raw text throws, and generateSql
+ * had no try/catch around its parse at all, so this single-line issue surfaced as "AI Copilot
+ * is broken" for whatever question happened to trigger it, indistinguishable from a question
+ * that's genuinely out of scope.
+ */
+function parseJsonResponse<T>(text: string): T {
+  const stripped = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
+  return JSON.parse(stripped) as T;
+}
+
 function buildGlossaryBlock(glossary: GlossaryEntry[]): string {
   if (!glossary.length) return "";
   const lines = glossary.map((g) => `- "${g.term}": ${g.meaning}`).join("\n");
@@ -130,29 +179,31 @@ export async function generateSql(
   glossary: GlossaryEntry[] = [],
   history: { question: string; answer: string }[] = [],
 ): Promise<string> {
-  const ai = getClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const ai = await getClient();
+  const today = istDateString();
   const systemInstruction =
     SQL_SYSTEM_PROMPT.replace("{{TODAY}}", today) +
     buildGlossaryBlock(glossary) +
     buildHistoryBlock(history);
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    contents: [{ role: "user", parts: [{ text: question }] }],
-    config: {
-      systemInstruction,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: { sql: { type: Type.STRING } },
-        required: ["sql"],
+  const response = await withGeminiRetry(() =>
+    ai.models.generateContent({
+      model: MODEL,
+      contents: [{ role: "user", parts: [{ text: question }] }],
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: { sql: { type: Type.STRING } },
+          required: ["sql"],
+        },
+        temperature: 0,
       },
-      temperature: 0,
-    },
-  });
+    })
+  );
   const text = response.text;
   if (!text) throw new Error("Empty response from the model");
-  const parsed = JSON.parse(text) as { sql?: string };
+  const parsed = parseJsonResponse<{ sql?: string }>(text);
   if (!parsed.sql) throw new Error("The question couldn't be turned into a query");
   return parsed.sql;
 }
@@ -169,15 +220,17 @@ Rules:
 - Keep it conversational, no markdown tables or code blocks. A short bulleted list is fine.`;
 
 export async function generateBriefing(summary: unknown): Promise<string> {
-  const ai = getClient();
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    contents: [{ role: "user", parts: [{ text: `Today's business summary (JSON): ${JSON.stringify(summary)}` }] }],
-    config: {
-      systemInstruction: BRIEFING_SYSTEM_PROMPT,
-      temperature: 0.3,
-    },
-  });
+  const ai = await getClient();
+  const response = await withGeminiRetry(() =>
+    ai.models.generateContent({
+      model: MODEL,
+      contents: [{ role: "user", parts: [{ text: `Today's business summary (JSON): ${JSON.stringify(summary)}` }] }],
+      config: {
+        systemInstruction: BRIEFING_SYSTEM_PROMPT,
+        temperature: 0.3,
+      },
+    })
+  );
   return response.text?.trim() || "Couldn't generate today's briefing — try again shortly.";
 }
 
@@ -206,17 +259,19 @@ Respond with plain text only — no JSON, no quotes around the whole message.`;
  * data — Gemini's only job here is phrasing, on data it never chose itself.
  */
 export async function generateConciergeReply(question: string, orders: unknown[]): Promise<string> {
-  const ai = getClient();
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: `Customer's message: ${question}\n\nTheir recent orders (JSON, may be empty): ${JSON.stringify(orders).slice(0, 4000)}` }],
-      },
-    ],
-    config: { systemInstruction: CONCIERGE_SYSTEM_PROMPT, temperature: 0.2 },
-  });
+  const ai = await getClient();
+  const response = await withGeminiRetry(() =>
+    ai.models.generateContent({
+      model: MODEL,
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: `Customer's message: ${question}\n\nTheir recent orders (JSON, may be empty): ${JSON.stringify(orders).slice(0, 4000)}` }],
+        },
+      ],
+      config: { systemInstruction: CONCIERGE_SYSTEM_PROMPT, temperature: 0.2 },
+    })
+  );
   return response.text?.trim() || "Sorry, I couldn't look that up right now — please contact the shop directly.";
 }
 
@@ -243,18 +298,20 @@ export async function extractMeasurementsFromImage(imageDataUrl: string, fieldLa
   if (!match) throw new Error("Invalid image");
   const [, mimeType, base64] = match;
 
-  const ai = getClient();
+  const ai = await getClient();
   const prompt = MEASUREMENT_EXTRACTION_PROMPT.replace("{{FIELDS}}", fieldLabels.map((f) => `- ${f}`).join("\n"));
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    contents: [{ role: "user", parts: [{ inlineData: { mimeType, data: base64 } }, { text: prompt }] }],
-    config: { responseMimeType: "application/json", temperature: 0 },
-  });
+  const response = await withGeminiRetry(() =>
+    ai.models.generateContent({
+      model: MODEL,
+      contents: [{ role: "user", parts: [{ inlineData: { mimeType, data: base64 } }, { text: prompt }] }],
+      config: { responseMimeType: "application/json", temperature: 0 },
+    })
+  );
 
   const text = response.text;
   if (!text) return {};
   try {
-    const parsed = JSON.parse(text) as { values?: Record<string, string> };
+    const parsed = parseJsonResponse<{ values?: Record<string, string> }>(text);
     const out: Record<string, string> = {};
     for (const [label, value] of Object.entries(parsed.values || {})) {
       const trimmed = String(value ?? "").trim();
@@ -282,12 +339,14 @@ export async function transcribeVoiceNote(audioDataUrl: string): Promise<string>
   if (!match) throw new Error("Invalid audio");
   const [, mimeType, base64] = match;
 
-  const ai = getClient();
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    contents: [{ role: "user", parts: [{ inlineData: { mimeType, data: base64 } }, { text: VOICE_NOTE_TRANSCRIPTION_PROMPT }] }],
-    config: { temperature: 0 },
-  });
+  const ai = await getClient();
+  const response = await withGeminiRetry(() =>
+    ai.models.generateContent({
+      model: MODEL,
+      contents: [{ role: "user", parts: [{ inlineData: { mimeType, data: base64 } }, { text: VOICE_NOTE_TRANSCRIPTION_PROMPT }] }],
+      config: { temperature: 0 },
+    })
+  );
   return response.text?.trim() || "(could not transcribe)";
 }
 
@@ -301,37 +360,39 @@ export async function generateAnswer(
   rows: unknown[],
   history: { question: string; answer: string }[] = [],
 ): Promise<GeneratedAnswer> {
-  const ai = getClient();
+  const ai = await getClient();
   const historyBlock = history.length
     ? `\n\nPrior conversation:\n${history.map((h) => `Q: ${h.question}\nA: ${h.answer}`).join("\n\n")}`
     : "";
   const fallback = { answer: "I couldn't turn that into an answer — try rephrasing the question.", followups: [] };
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: `Question: ${question}${historyBlock}\n\nQuery result (JSON array, may be empty): ${JSON.stringify(rows).slice(0, 8000)}` }],
-      },
-    ],
-    config: {
-      systemInstruction: ANSWER_SYSTEM_PROMPT,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          answer: { type: Type.STRING },
-          followups: { type: Type.ARRAY, items: { type: Type.STRING } },
+  const response = await withGeminiRetry(() =>
+    ai.models.generateContent({
+      model: MODEL,
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: `Question: ${question}${historyBlock}\n\nQuery result (JSON array, may be empty): ${JSON.stringify(rows).slice(0, 8000)}` }],
         },
-        required: ["answer", "followups"],
+      ],
+      config: {
+        systemInstruction: ANSWER_SYSTEM_PROMPT,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            answer: { type: Type.STRING },
+            followups: { type: Type.ARRAY, items: { type: Type.STRING } },
+          },
+          required: ["answer", "followups"],
+        },
+        temperature: 0.3,
       },
-      temperature: 0.3,
-    },
-  });
+    })
+  );
   const text = response.text;
   if (!text) return fallback;
   try {
-    const parsed = JSON.parse(text) as { answer?: string; followups?: string[] };
+    const parsed = parseJsonResponse<{ answer?: string; followups?: string[] }>(text);
     if (!parsed.answer) return fallback;
     return { answer: parsed.answer, followups: (parsed.followups || []).slice(0, 3) };
   } catch {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 
 /**
@@ -27,7 +28,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.managePayments) return NextResponse.json({ error: "No permission to manage payments" }, { status: 403 });
 
-  const { data: paymentId, error } = await supabase.rpc("backfill_order_payment", {
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
+  const { data: paymentId, error } = await db.rpc("backfill_order_payment", {
     p_order_id: id,
     p_created_by: user.email,
   });

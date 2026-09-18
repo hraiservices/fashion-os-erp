@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BalanceDue } from "@/components/ui/money-text";
+import { istDateString } from "@/lib/ist-date";
 
 const METHODS = ["Cash", "UPI", "Bank Transfer", "Cheque", "Card"];
 
@@ -31,7 +32,7 @@ export default function RecordSalesPaymentPage({ params }: { params: Promise<{ i
 
   const [amount, setAmount] = useState<string | null>(null);
   const [method, setMethod] = useState("Cash");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(istDateString());
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
 
@@ -110,35 +111,35 @@ export default function RecordSalesPaymentPage({ params }: { params: Promise<{ i
           <div className="rounded-xl border bg-card p-4 sm:p-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Customer Name</Label>
+                <Label className="text-sm font-bold">Customer Name</Label>
                 <Input value={invoice.customerName || invoice.customerMobile} disabled readOnly />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Invoice Number</Label>
+                <Label className="text-sm font-bold">Invoice Number</Label>
                 <Input value={invoice.invoiceNumber} disabled readOnly />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Amount Received (₹) — balance due {inr(invoice.balance)}</Label>
+                <Label className="text-sm font-bold">Amount Received (₹) — balance due {inr(invoice.balance)}</Label>
                 <Input type="number" inputMode="decimal" min={0} step="0.01" value={amountValue} onChange={(e) => setAmount(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Payment Date</Label>
+                <Label className="text-sm font-bold">Payment Date</Label>
                 <DatePicker value={date} onChange={setDate} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Payment Mode</Label>
+                <Label className="text-sm font-bold">Payment Mode</Label>
                 <Select value={method} onValueChange={(v) => v && setMethod(v)}>
                   <SelectTrigger className="h-10 w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>{METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Reference #</Label>
+                <Label className="text-sm font-bold">Reference #</Label>
                 <Input placeholder="Cheque / transaction / UTR number…" value={reference} onChange={(e) => setReference(e.target.value)} />
               </div>
             </div>
             <div className="mt-4 space-y-1.5">
-              <Label className="text-xs font-medium">Notes</Label>
+              <Label className="text-sm font-bold">Notes</Label>
               <Textarea rows={3} placeholder="Optional…" value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
           </div>

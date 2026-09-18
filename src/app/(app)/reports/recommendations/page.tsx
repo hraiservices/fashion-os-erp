@@ -1,17 +1,22 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Sparkles, Send, CheckCircle2, TrendingUp } from "lucide-react";
 import { useCustomerRecommendations } from "@/hooks/use-customer-recommendations";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { ReportShell, ReportCard } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { fmtDate } from "@/lib/format";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 
 /**
  * Phase 8: "is this feature actually generating sales?" — cross-references every logged
@@ -25,19 +30,24 @@ export default function RecommendationsReportPage() {
   const { data: invoices, isLoading: invoicesLoading } = useSalesInvoices();
 
   const isLoading = recsLoading || invoicesLoading;
+  const [channel, setChannel] = useState<"all" | "whatsapp_api" | "wa_me">("all");
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const rows = useMemo(() => {
     if (!recommendations || !invoices) return [];
-    return recommendations.map((rec) => {
-      const convertedInvoice = invoices.find(
-        (inv) =>
-          inv.customerMobile === rec.customerMobile &&
-          new Date(inv.invoiceDate).getTime() >= new Date(rec.createdAt).getTime() &&
-          inv.items.some((it) => it.productId === rec.productId)
-      );
-      return { rec, converted: !!convertedInvoice, convertedDate: convertedInvoice?.invoiceDate };
-    });
-  }, [recommendations, invoices]);
+    return recommendations
+      .filter((rec) => isWithinDateRange(rec.createdAt, range))
+      .filter((rec) => channel === "all" || (channel === "wa_me" ? rec.channel !== "whatsapp_api" : rec.channel === "whatsapp_api"))
+      .map((rec) => {
+        const convertedInvoice = invoices.find(
+          (inv) =>
+            inv.customerMobile === rec.customerMobile &&
+            new Date(inv.invoiceDate).getTime() >= new Date(rec.createdAt).getTime() &&
+            inv.items.some((it) => it.productId === rec.productId)
+        );
+        return { rec, converted: !!convertedInvoice, convertedDate: convertedInvoice?.invoiceDate };
+      });
+  }, [recommendations, invoices, range, channel]);
 
   const totalSent = rows.length;
   const viaApi = rows.filter((r) => r.rec.channel === "whatsapp_api").length;
@@ -48,8 +58,28 @@ export default function RecommendationsReportPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   return (
-    <ReportShell title="Recommendation Performance" description="Product recommendations sent to customers, and whether they led to a sale">
-      {totalSent === 0 ? (
+    <ReportShell
+      title="Recommendation Performance"
+      description="Product recommendations sent to customers, and whether they led to a sale"
+      actions={
+        rows.length > 0 && (
+          <ReportActionsMenu
+            rows={rows.map(({ rec, converted, convertedDate }) => ({
+              Customer: rec.customerName,
+              Product: rec.productName,
+              "Match %": rec.score,
+              Channel: rec.channel === "whatsapp_api" ? "API" : "wa.me",
+              Sent: fmtDate(rec.createdAt),
+              Outcome: converted ? `Bought ${convertedDate ? fmtDate(convertedDate) : ""}` : "—",
+            }))}
+            filename="recommendation-performance"
+            title="Recommendation Performance"
+            summaryLines={[`Sent: ${totalSent}`, `Converted: ${converted} (${conversionRate}%)`]}
+          />
+        )
+      }
+    >
+      {(recommendations || []).length === 0 ? (
         <EmptyState
           icon={Sparkles}
           title="No recommendations sent yet"
@@ -57,6 +87,28 @@ export default function RecommendationsReportPage() {
         />
       ) : (
         <>
+          <ReportFilterBar
+            preset={preset}
+            onPresetChange={setPreset}
+            customFrom={customFrom}
+            onCustomFromChange={setCustomFrom}
+            customTo={customTo}
+            onCustomToChange={setCustomTo}
+            resultLabel={`${totalSent} recommendation${totalSent === 1 ? "" : "s"}`}
+            category={
+              <Select value={channel} onValueChange={(v) => v && setChannel(v as typeof channel)}>
+                <SelectTrigger className="h-9 w-40">
+                  <SelectValue>{channel === "all" ? "All Channels" : channel === "whatsapp_api" ? "API" : "wa.me"}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Channels</SelectItem>
+                  <SelectItem value="whatsapp_api">API</SelectItem>
+                  <SelectItem value="wa_me">wa.me</SelectItem>
+                </SelectContent>
+              </Select>
+            }
+          />
+
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard label="Recommendations sent" value={totalSent} icon={Send} />
             <StatCard label="Via WhatsApp API" value={viaApi} hint={`${viaWaMe} via wa.me`} icon={Sparkles} />
@@ -64,7 +116,49 @@ export default function RecommendationsReportPage() {
             <StatCard label="Conversion rate" value={`${conversionRate}%`} icon={TrendingUp} tone={conversionRate > 0 ? "success" : "default"} />
           </div>
 
-          <ReportCard>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={`${totalSent} sent`} showChevron={false} />
+              <MobileRecordRow label="Converted" value={`${converted} (${conversionRate}%)`} />
+            </MobileRecordCard>
+            {rows.slice(0, 100).map(({ rec, converted, convertedDate }) => (
+              <MobileRecordCard key={rec.id}>
+                <MobileRecordHeader
+                  title={
+                    <Link href={`/crm/${rec.customerMobile}`} className="hover:underline">
+                      {rec.customerName}
+                    </Link>
+                  }
+                  value={`${rec.score}%`}
+                  showChevron={false}
+                />
+                <MobileRecordRow
+                  label="Product"
+                  value={
+                    <Link href={`/inventory/products/${rec.productId}/edit`} className="hover:underline">
+                      {rec.productName}
+                    </Link>
+                  }
+                />
+                <MobileRecordRow label="Channel" value={<Badge variant={rec.channel === "whatsapp_api" ? "secondary" : "outline"}>{rec.channel === "whatsapp_api" ? "API" : "wa.me"}</Badge>} />
+                <MobileRecordRow label="Sent" value={fmtDate(rec.createdAt)} />
+                <MobileRecordRow
+                  label="Outcome"
+                  value={
+                    converted ? (
+                      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle2 className="size-3.5" /> Bought {convertedDate ? fmtDate(convertedDate) : ""}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )
+                  }
+                />
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
+
+          <ReportCard className="hidden sm:block">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -78,6 +172,11 @@ export default function RecommendationsReportPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  <TableRow className="border-b-2 bg-muted/40 font-semibold">
+                    <TableCell colSpan={4}>Total</TableCell>
+                    <TableCell>{totalSent} sent</TableCell>
+                    <TableCell>{converted} converted ({conversionRate}%)</TableCell>
+                  </TableRow>
                   {rows.slice(0, 100).map(({ rec, converted, convertedDate }) => (
                     <TableRow key={rec.id}>
                       <TableCell>

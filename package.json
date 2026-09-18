@@ -9,10 +9,20 @@
     "lint": "eslint",
     "test": "vitest run",
     "usage-report": "node scripts/usage-report.mjs",
-    "onboard-customer": "node scripts/onboard-customer.mjs"
+    "onboard-customer": "node scripts/onboard-customer.mjs",
+    "sync-migrations": "node scripts/sync-migrations.mjs",
+    "android:sync": "cap sync android",
+    "android:open": "cap open android"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/camera": "^8.2.4",
+    "@capacitor/core": "^8.5.1",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/push-notifications": "^8.1.2",
+    "@capacitor/status-bar": "^8.0.3",
     "@google/genai": "^2.16.0",
     "@hookform/resolvers": "^5.5.7",
     "@react-pdf/renderer": "^4.5.1",
@@ -31,6 +41,7 @@
     "next": "16.2.12",
     "next-themes": "^0.4.6",
     "pg": "^8.22.0",
+    "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-day-picker": "^10.0.1",
     "react-dom": "19.2.4",
@@ -45,9 +56,12 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.20.4",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",

@@ -104,12 +104,12 @@ export function ModuleLicensingSection() {
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Paid until</Label>
+            <Label className="text-sm font-bold">Paid until</Label>
             <Input type="date" value={ent.billing?.paidUntil || ""} onChange={(e) => setPaidUntil(e.target.value)} />
             <p className="text-xs text-muted-foreground">Blank = never expires. Set manually for cash/bank-transfer customers, or leave for Razorpay to update automatically.</p>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Last payment</Label>
+            <Label className="text-sm font-bold">Last payment</Label>
             <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
               {ent.billing?.lastPaymentAt ? fmtDate(ent.billing.lastPaymentAt) : "No payment recorded yet"}
               {ent.billing?.razorpaySubscriptionId && ` · Razorpay: ${ent.billing.razorpaySubscriptionId}`}
@@ -135,11 +135,11 @@ export function ModuleLicensingSection() {
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Max orders per month</Label>
+            <Label className="text-sm font-bold">Max orders per month</Label>
             <Input type="number" inputMode="numeric" min={0} placeholder="Unlimited" value={ent.limits?.maxOrdersPerMonth ?? ""} onChange={(e) => setLimit("maxOrdersPerMonth", e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Max staff accounts</Label>
+            <Label className="text-sm font-bold">Max staff accounts</Label>
             <Input type="number" inputMode="numeric" min={0} placeholder="Unlimited" value={ent.limits?.maxStaffAccounts ?? ""} onChange={(e) => setLimit("maxStaffAccounts", e.target.value)} />
           </div>
           <p className="text-xs text-muted-foreground sm:col-span-2">Soft caps only — never blocks a customer from working, just shows a warning once exceeded.</p>

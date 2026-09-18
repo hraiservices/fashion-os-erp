@@ -43,7 +43,7 @@ function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label:
 function FieldGroup({ label, required, error, children, hint }: { label: string; required?: boolean; error?: string; children: React.ReactNode; hint?: string }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-foreground/80">
+      <Label className="text-sm font-bold text-foreground/80">
         {label}{required && <span className="ml-0.5 text-red-500">*</span>}
       </Label>
       {children}
@@ -96,13 +96,13 @@ export function VendorForm({ existing }: { existing?: Vendor }) {
     <form onSubmit={handleSubmit(onSubmit as never)} className="min-h-screen bg-muted/30">
       {/* Sticky header */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
-        <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-4xl items-center gap-4 px-4 py-3 sm:px-6">
           <Link href="/purchases/vendors" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="size-4" />
             <span className="hidden sm:inline">Vendors</span>
           </Link>
-          <div className="flex-1">
-            <h1 className="text-base font-semibold">{isEdit ? "Edit Vendor" : "New Vendor"}</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Vendor" : "New Vendor"}</h1>
             {isEdit && <p className="text-[11px] font-mono text-muted-foreground">{existing!.name}</p>}
           </div>
           {/* Duplicate of the bottom FormActionBar — mobile only, so Add/Save is reachable
@@ -119,7 +119,7 @@ export function VendorForm({ existing }: { existing?: Vendor }) {
         </div>
       </div>
 
-      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 space-y-5">
+      <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 space-y-5">
         {/* Vendor details */}
         <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
           <SectionHeading icon={Building2} label="Vendor details" />
@@ -196,7 +196,7 @@ export function VendorForm({ existing }: { existing?: Vendor }) {
           type="button"
           variant="outline"
           size="lg"
-          className="h-12 px-6 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 px-4 text-sm sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
           onClick={() => router.back()}
           disabled={isSubmitting}
         >
@@ -205,7 +205,7 @@ export function VendorForm({ existing }: { existing?: Vendor }) {
         <Button
           type="submit"
           size="lg"
-          className="h-12 flex-1 gap-1.5 px-6 text-base sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 flex-1 gap-1.5 px-4 text-sm sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
           disabled={isSubmitting}
         >
           <Save className="size-3.5" />

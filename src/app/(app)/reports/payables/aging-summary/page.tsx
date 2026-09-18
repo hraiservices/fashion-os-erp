@@ -5,11 +5,14 @@ import { Wallet } from "lucide-react";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { daysLeft } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { StatCard } from "@/components/ui/stat-card";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 const BANDS = [
   { key: "current", label: "Not yet due" },
@@ -29,11 +32,12 @@ function bandOf(daysOverdue: number): BandKey {
 
 export default function ApAgingSummaryPage() {
   const { data: bills, isLoading } = usePurchaseBills();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const buckets = useMemo(() => {
     const map = new Map<BandKey, { count: number; total: number }>(BANDS.map((b) => [b.key, { count: 0, total: 0 }]));
     (bills || [])
-      .filter((b) => b.balance > 0)
+      .filter((b) => b.balance > 0 && isWithinDateRange(b.billDate, range))
       .forEach((b) => {
         const daysOverdue = b.dueDate ? Math.max(0, -daysLeft(b.dueDate)) : 0;
         const band = map.get(bandOf(daysOverdue))!;
@@ -41,7 +45,7 @@ export default function ApAgingSummaryPage() {
         band.total += b.balance;
       });
     return map;
-  }, [bills]);
+  }, [bills, range]);
 
   const totalPayable = useMemo(() => Array.from(buckets.values()).reduce((s, b) => s + b.total, 0), [buckets]);
 
@@ -52,14 +56,23 @@ export default function ApAgingSummaryPage() {
       title="AP Aging Summary"
       description="Outstanding payables grouped by how overdue they are."
       actions={
-        totalPayable > 0 && (
-          <ExportMenu
-            rows={BANDS.map((b) => ({ Band: b.label, Bills: buckets.get(b.key)!.count, Total: buckets.get(b.key)!.total }))}
-            filename="ap_aging_summary"
-          />
-        )
+        <ReportActionsMenu
+          rows={BANDS.map((b) => ({ Band: b.label, Bills: buckets.get(b.key)!.count, Amount: buckets.get(b.key)!.total }))}
+          filename="ap-aging-summary"
+          title="AP Aging Summary"
+          summaryLines={[`Total payable: ${inr(totalPayable)}`]}
+        />
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Total Payable" value={inr(totalPayable)} icon={Wallet} tone={totalPayable > 0 ? "warning" : "default"} />
       </div>
@@ -67,6 +80,31 @@ export default function ApAgingSummaryPage() {
       {totalPayable === 0 ? (
         <EmptyState icon={Wallet} title="No outstanding bills" description="Everything is paid up." />
       ) : (
+        <>
+        <MobileRecordList>
+          <MobileRecordCard className="bg-muted/40">
+            <MobileRecordHeader title="Total" value={inr(totalPayable)} showChevron={false} />
+            <MobileRecordRow label="Bills" value={Array.from(buckets.values()).reduce((s, b) => s + b.count, 0)} />
+            <MobileRecordRow label="% of Payable" value="100%" />
+          </MobileRecordCard>
+          {BANDS.map((b) => {
+            const bucket = buckets.get(b.key)!;
+            const pct = totalPayable > 0 ? (bucket.total / totalPayable) * 100 : 0;
+            return (
+              <MobileRecordCard key={b.key}>
+                <MobileRecordHeader
+                  title={b.label}
+                  value={inr(bucket.total)}
+                  valueClassName={b.key !== "current" && bucket.total > 0 ? "text-red-600 dark:text-red-400" : undefined}
+                  showChevron={false}
+                />
+                <MobileRecordRow label="Bills" value={bucket.count} />
+                <MobileRecordRow label="% of Payable" value={`${pct.toFixed(1)}%`} />
+              </MobileRecordCard>
+            );
+          })}
+        </MobileRecordList>
+        <div className="hidden sm:block">
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
@@ -77,6 +115,12 @@ export default function ApAgingSummaryPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{Array.from(buckets.values()).reduce((s, b) => s + b.count, 0)}</Td>
+              <Td align="right">{inr(totalPayable)}</Td>
+              <Td align="right">100%</Td>
+            </ReportTotalsRow>
             {BANDS.map((b) => {
               const bucket = buckets.get(b.key)!;
               const pct = totalPayable > 0 ? (bucket.total / totalPayable) * 100 : 0;
@@ -93,6 +137,8 @@ export default function ApAgingSummaryPage() {
             })}
           </tbody>
         </ReportTable>
+        </div>
+        </>
       )}
     </ReportShell>
   );

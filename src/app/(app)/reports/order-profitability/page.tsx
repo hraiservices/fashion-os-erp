@@ -5,9 +5,13 @@ import { TrendingUp } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr, fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 /** Profit = customer price − tailor cost − stitching expenses − fabric/other cost (order
  *  form's "Costs" section, gated to the same viewReports permission). Tailor cost is the real,
@@ -16,19 +20,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function OrderProfitabilityPage() {
   const { data: user } = useCurrentUser();
   const { orderProfitability, isLoading } = useReportsData();
-  const canView = !!user?.perms.viewReports;
+  // Profit figures are restricted to the admin role specifically, not just viewReports (which
+  // managers also hold) — a shop-wide requirement, not just this one report.
+  const canView = user?.role === "admin";
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   if (!canView) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={TrendingUp} title="No access" description="Order profitability is restricted to admins and managers." />
+        <EmptyState icon={TrendingUp} title="No access" description="Order profitability is restricted to admins." />
       </div>
     );
   }
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
-  const withCosts = orderProfitability.filter((o) => o.cost > 0);
+  const withCosts = orderProfitability.filter((o) => o.cost > 0 && isWithinDateRange(o.inDate, range));
   const totalProfit = withCosts.reduce((s, o) => s + o.profit, 0);
 
   return (
@@ -39,10 +46,56 @@ export default function OrderProfitabilityPage() {
           ? `${withCosts.length} order(s) with cost data · Total profit ${inr(totalProfit)}`
           : "No orders have cost data yet — assign a tailor with a configured rate, or fill in Fabric/Other cost on the order form, to populate this report."
       }
+      actions={
+        <ReportActionsMenu
+          rows={withCosts.map((o) => ({ Order: o.id, Customer: o.name, Price: o.total, Cost: o.cost, Profit: o.profit, "Margin %": `${o.marginPct}%` }))}
+          filename="order-profitability"
+          title="Order Profitability"
+          summaryLines={[`Orders: ${withCosts.length}`, `Total profit: ${inr(totalProfit)}`]}
+        />
+      }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+        resultLabel={`${withCosts.length} order${withCosts.length === 1 ? "" : "s"}`}
+      />
+
       {withCosts.length === 0 ? (
         <EmptyState icon={TrendingUp} title="No cost data yet" description="Add fabric/other cost on an order to see its profitability here." />
       ) : (
+        <>
+        <MobileRecordList>
+          <MobileRecordCard className="bg-muted/40">
+            <MobileRecordHeader title="Total" value={inr(totalProfit)} showChevron={false} />
+            <MobileRecordRow label="Price" value={inr(withCosts.reduce((s, o) => s + o.total, 0))} />
+            <MobileRecordRow label="Cost" value={inr(withCosts.reduce((s, o) => s + o.cost, 0))} />
+          </MobileRecordCard>
+          {withCosts.map((o) => (
+            <MobileRecordCard key={o.id} href={`/orders/${o.id}`}>
+              <MobileRecordHeader
+                title={o.id}
+                subtitle={fmtDate(o.inDate)}
+                value={
+                  <>
+                    {inr(o.profit)}
+                    {o.tailorCostIsEstimate && <span className="ml-1 text-[10px] font-normal text-muted-foreground">Est.</span>}
+                  </>
+                }
+                valueClassName={o.profit < 0 ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}
+              />
+              <MobileRecordRow label="Customer" value={o.name} />
+              <MobileRecordRow label="Price" value={inr(o.total)} />
+              <MobileRecordRow label="Cost" value={inr(o.cost)} />
+              <MobileRecordRow label="Margin" value={`${o.marginPct}%`} />
+            </MobileRecordCard>
+          ))}
+        </MobileRecordList>
+        <div className="hidden sm:block">
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
@@ -55,6 +108,13 @@ export default function OrderProfitabilityPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={2}>Total</Td>
+              <Td align="right">{inr(withCosts.reduce((s, o) => s + o.total, 0))}</Td>
+              <Td align="right">{inr(withCosts.reduce((s, o) => s + o.cost, 0))}</Td>
+              <Td align="right">{inr(totalProfit)}</Td>
+              <Td align="right">—</Td>
+            </ReportTotalsRow>
             {withCosts.map((o) => (
               <tr key={o.id} className="hover:bg-muted/30">
                 <Td>
@@ -75,6 +135,8 @@ export default function OrderProfitabilityPage() {
             ))}
           </tbody>
         </ReportTable>
+        </div>
+        </>
       )}
     </ReportShell>
   );

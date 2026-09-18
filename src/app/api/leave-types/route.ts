@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { mapLeaveTypeRow } from "@/lib/types";
 import { logAction } from "@/lib/logging";
 
@@ -10,9 +11,12 @@ import { logAction } from "@/lib/logging";
  *  leave types itself via a service-role client (see /api/attendance/leave-balance). Mutations
  *  below are admin/manager-only. */
 export async function GET() {
-  const { supabase, user } = await getServerUser();
+  const { user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  const { data, error } = await supabase.from("leave_types").select("*").order("name");
+
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+  const { data, error } = await db.from("leave_types").select("*").order("name");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ leaveTypes: (data || []).map(mapLeaveTypeRow) });
 }
@@ -31,11 +35,14 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageEmployees) return NextResponse.json({ error: "No permission to manage employees" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("leave_types")
     .insert({
       name: fd.name,

@@ -12,6 +12,10 @@ export const runtime = "nodejs";
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { supabase, user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // sales_invoices is read-scoped to these two permissions (lockdown_reads_whole_table.sql), so
+  // without this check the reads below would simply come back empty and the caller would be told
+  // the invoice does not exist. Same outcome, worse answer.
+  if (!user.perms.manageSales && !user.perms.usePOS) return NextResponse.json({ error: "No permission to view invoices" }, { status: 403 });
 
   const { id } = await params;
 

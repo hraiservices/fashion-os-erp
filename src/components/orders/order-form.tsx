@@ -15,8 +15,10 @@ import { CustomerPicker } from "@/components/sales/customer-picker";
 import { SearchSelect } from "@/components/ui/search-select";
 import { useCustomers } from "@/hooks/use-customers";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useCurrentTailorRates } from "@/hooks/use-current-tailor-rates";
 import { useActiveTailors } from "@/hooks/use-employees";
 import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { useCustomerByMobile } from "@/hooks/use-customer";
@@ -33,10 +35,13 @@ import {
   REFERRAL_COUPON_DISCOUNT,
   computeRedemption,
   loyaltyTier,
+  isValidManualOrderNumber,
   type Lining,
   type TailorRateCard,
+  type RateCard,
 } from "@/lib/business-rules";
 import { computeOrderProfit } from "@/lib/order-profit";
+import { apportionAmount } from "@/lib/order-split";
 import { hydrateMeasurements, compactMeasurements, type MeasureLang } from "@/lib/measurements";
 import { inr, fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -47,7 +52,6 @@ import { useTranscribeVoiceNote } from "@/hooks/use-transcribe-voice-note";
 import { fileToDataUrl } from "@/lib/image-utils";
 import { MediaCapture } from "@/components/orders/media-capture";
 import { Button } from "@/components/ui/button";
-import { FormActionBar } from "@/components/ui/form-action-bar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,6 +61,8 @@ import { BalanceDue } from "@/components/ui/money-text";
 import { DatePicker } from "@/components/ui/date-picker";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { istDateString } from "@/lib/ist-date";
+import { getProfiles, activeProfiles, defaultProfile, findProfile } from "@/lib/measurement-profiles";
 
 const garmentSchema = z.object({
   type: z.string().min(1, "Select a garment"),
@@ -64,12 +70,15 @@ const garmentSchema = z.object({
   no: z.number().min(1),
   amount: z.number().min(0),
   tailor: z.string().optional(),
-  // Generated once (below) and echoed back unchanged on every edit — lets preserve_garment_payables
-  // reattach a frozen payableAmount to the correct garment even if lines are reordered/deleted.
+  // Generated once (below) and echoed back unchanged on every edit — carries a garment's
+  // identity across reorders/deletes for anything that needs to match lines up (e.g. the
+  // production checklist).
   lineId: z.string().optional(),
-  // Echoed back unchanged on edit so it isn't lost — the server ignores/re-derives this value
-  // regardless (see preserve_garment_payables), so it's never actually trusted from here.
-  payableAmount: z.number().optional(),
+  // What the tailor is paid for this garment — auto-filled from the Tailor Payable Rate card
+  // as a starting suggestion (applyRate below), then a plain editable number from there, same
+  // as `amount` above. Hidden from the tailor role in the UI (see canEditPayable) and stripped
+  // server-side for that role regardless, so a tailor can never set their own pay.
+  payableAmount: z.number().min(0).optional(),
 });
 
 function newLineId(): string {
@@ -87,6 +96,12 @@ const expenseSchema = z.object({
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
   mobile: z.string().min(10, "Enter a valid 10-digit mobile number"),
+  // Only ever sent/used on create (see the isEdit guard around its field) — an existing order's
+  // number is changed through the dedicated rename action instead, not a routine form save.
+  orderNumber: z
+    .string()
+    .optional()
+    .refine((v) => !v || isValidManualOrderNumber(v.trim()), "Only letters, numbers, dots, dashes and underscores (no spaces or slashes)"),
   inDate: z.string().min(1),
   inTime: z.string(),
   deliveryDate: z.string().min(1, "Delivery date is required"),
@@ -105,12 +120,16 @@ const formSchema = z.object({
 const PAYMENT_METHODS = ["Cash", "UPI", "Card", "Bank Transfer"];
 
 type FormValues = z.infer<typeof formSchema>;
-type RateCard = Record<string, Record<Lining, number>>;
 
 const LININGS = Object.keys(LINING_LABELS) as Lining[];
 
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  // istDateString, NOT toISOString: toISOString() is always UTC regardless of device timezone,
+  // so between 00:00 and 05:30 IST (a device correctly set to IST included) it silently returns
+  // YESTERDAY's date — a new order's default "Order date" landed a day (and, at a month
+  // boundary, a whole month) behind reality, which is exactly what fed the dashboard's monthly
+  // charts the wrong bucket even after that bucketing math itself was fixed to use IST.
+  return istDateString();
 }
 
 /** "HH:mm" in local time — the current wall-clock moment an order is being received. */
@@ -136,7 +155,7 @@ function SectionHeading({ icon: Icon, label, action }: { icon: React.ElementType
 function FieldGroup({ label, required, error, children, hint, className }: { label: string; required?: boolean; error?: string; children: React.ReactNode; hint?: string; className?: string }) {
   return (
     <div className={cn("space-y-1.5", className)}>
-      <Label className="text-xs font-medium text-foreground/80">
+      <Label className="text-sm font-bold text-foreground/80">
         {label}
         {required && <span className="ml-0.5 text-red-500">*</span>}
       </Label>
@@ -154,7 +173,7 @@ function FieldGroup({ label, required, error, children, hint, className }: { lab
  */
 export function OrderForm({ existingOrder, prefillMobile, initialOrderType }: { existingOrder?: Order; prefillMobile?: string; initialOrderType?: OrderType }) {
   const { data: rates, isLoading: ratesLoading } = useAppSetting<RateCard>("rates", DEFAULT_RATES);
-  const { data: tailorRates, isLoading: tailorRatesLoading } = useAppSetting<TailorRateCard>("tailorRates", DEFAULT_TAILOR_RATES);
+  const { data: tailorRates, isLoading: tailorRatesLoading } = useCurrentTailorRates(DEFAULT_TAILOR_RATES);
   const { data: expenseCategories, isLoading: categoriesLoading } = useAppSetting<string[]>("stitchingExpenseCategories", DEFAULT_EXPENSE_CATEGORIES);
   const { data: tailors, isLoading: tailorsLoading } = useActiveTailors();
   const { data: measureFields, isLoading: fieldsLoading } = useMeasureFields();
@@ -213,12 +232,24 @@ function OrderFormFields({
 
   const [orderType, setOrderType] = useState<OrderType>(existingOrder?.orderType || initialOrderType || "new");
   const isAlteration = orderType === "alteration";
+  // Tailor payable is compensation data — a tailor must never see or set their own pay.
+  // Everyone else who can reach this form (sales/manager/admin) can.
+  const canEditPayable = user?.role !== "tailor";
 
   const [measurements, setMeasurements] = useState<Record<string, string>>(() =>
     hydrateMeasurements(measureFields, existingOrder?.measurements)
   );
   const [measureLang, setMeasureLang] = useState<MeasureLang>("en");
   const extractMeasurements = useExtractMeasurements();
+
+  // Which of the customer's saved measurement profiles (if any) is currently loaded — carried
+  // through to the save payload so the server can snapshot it onto the order and, when a name
+  // is set, upsert it back into the customer's profile array. See lib/measurement-profiles.ts.
+  const [measureProfileId, setMeasureProfileId] = useState<string | null>(existingOrder?.measurementProfileId ?? null);
+  const [measureProfileName, setMeasureProfileName] = useState<string>(existingOrder?.measurementProfileName ?? "");
+  // Whether to persist the measurements typed here back onto the customer at all — off for a
+  // genuine one-off order, on otherwise (matches the legacy always-sync behavior by default).
+  const [saveMeasurementsToCustomer, setSaveMeasurementsToCustomer] = useState(true);
 
   async function handleScanChart(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -266,6 +297,11 @@ function OrderFormFields({
   }
   const [usePoints, setUsePoints] = useState(false);
   const [couponCode, setCouponCode] = useState("");
+  // New orders only (splitting an already-created order isn't supported) — on by default per
+  // the agreed design, so a multi-garment order is one board card per garment unless someone
+  // deliberately turns it off. A no-op for the common single-garment order regardless of this
+  // setting (see totalPieceCount below), so it never changes anything for the typical case.
+  const [splitOrders, setSplitOrders] = useState(true);
   const [prefilled, setPrefilled] = useState(false);
   const [measureOpen, setMeasureOpen] = useState(false);
   const [costsOpen, setCostsOpen] = useState(false);
@@ -360,18 +396,16 @@ function OrderFormFields({
   // Live profit — the exact same computeOrderProfit() used by Order Details, the Stitching
   // Orders list, and the Order Profitability report (see src/lib/order-profit.ts), fed with
   // this form's current in-progress values so it updates as the user types. A new order is
-  // always pre-"ready" (tailorCostIsEstimate always true here); an existing order uses its
-  // real current status so an already-ready order shows its real, frozen tailor cost.
+  // never paid out yet (tailorCostIsEstimate always true here); an existing order uses its
+  // real pieceRatePaidAt so an already-paid order shows its real, frozen tailor cost.
   const profit = computeOrderProfit(
     {
       total,
       garments: garments as Order["garments"],
-      status: existingOrder?.status || "received",
-      orderType,
+      pieceRatePaidAt: existingOrder?.pieceRatePaidAt || null,
       fabricCost,
       otherCost,
     },
-    tailorRates,
     expenses
   );
 
@@ -452,14 +486,41 @@ function OrderFormFields({
   const lookupMobile = !existingOrder && mobile?.length === 10 ? mobile : "";
   const { data: foundCustomer } = useCustomerByMobile(lookupMobile);
 
+  // Also looked up on edit (and kept live as the mobile field changes) purely to read the
+  // customer's saved measurement profiles for the Load/Save controls below — never used to
+  // auto-prefill name/measurements outside the new-order flow above.
+  const profileLookupMobile = mobile?.length === 10 ? mobile : "";
+  const { data: profileCustomer } = useCustomerByMobile(profileLookupMobile);
+  const measureProfiles = profileCustomer
+    ? activeProfiles(getProfiles({ measurements: profileCustomer.measurements, measurementProfiles: profileCustomer.measurementProfiles, createdAt: profileCustomer.createdAt }))
+    : [];
+
   useSyncFromSource(existingOrder || prefilled ? null : foundCustomer, (customer) => {
     if (!customer) return;
     setValue("name", customer.name, { shouldValidate: true });
-    const saved = hydrateMeasurements(measureFields, customer.measurements);
+    const profiles = activeProfiles(getProfiles({ measurements: customer.measurements, measurementProfiles: customer.measurementProfiles, createdAt: customer.createdAt }));
+    const toLoad = defaultProfile(profiles);
+    const saved = toLoad ? hydrateMeasurements(measureFields, toLoad.values) : hydrateMeasurements(measureFields, customer.measurements);
     setMeasurements(saved);
+    setMeasureProfileId(toLoad?.id ?? null);
+    setMeasureProfileName(toLoad?.name ?? "");
     setPrefilled(true);
     toast.success(`Loaded ${customer.name}'s details`);
   });
+
+  function handlePickProfile(id: string) {
+    if (id === "__blank__") {
+      setMeasurements(hydrateMeasurements(measureFields, {}));
+      setMeasureProfileId(null);
+      setMeasureProfileName("");
+      return;
+    }
+    const profile = findProfile(measureProfiles, id);
+    if (!profile) return;
+    setMeasurements(hydrateMeasurements(measureFields, profile.values));
+    setMeasureProfileId(profile.id);
+    setMeasureProfileName(profile.name);
+  }
 
   // Reset the prefill latch if the number is edited, so a different customer re-triggers it.
   useSyncFromSource(mobile, (m) => {
@@ -478,6 +539,18 @@ function OrderFormFields({
   function applyRate(index: number, type: string, lining: string) {
     const rate = rates[type]?.[lining as Lining];
     if (rate != null) setValue(`garments.${index}.amount`, rate);
+    applyPayableRate(index, type, lining);
+  }
+
+  /** Suggests a starting Tailor Payable for this line from the rate card — an alteration order
+   *  reads the garment type's lining-independent Alteration rate, a new-stitching order reads
+   *  the lining-based rate. Only ever a suggestion: the field is a plain editable number from
+   *  here (see canEditPayable), same as the customer Rate field already is — computeOrderProfit
+   *  just sums whatever ends up stored, it doesn't re-derive it from the rate card. */
+  function applyPayableRate(index: number, type: string, lining: string) {
+    if (!canEditPayable) return;
+    const rate = isAlteration ? tailorRates[type]?.alteration : tailorRates[type]?.[lining as Lining];
+    if (rate != null) setValue(`garments.${index}.payableAmount`, rate);
   }
 
   function selectCustomer(c: Customer) {
@@ -494,6 +567,92 @@ function OrderFormFields({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const totalPieceCount = garments.reduce((s, g) => s + (g.no || 1), 0);
+
+  /**
+   * "Create a separate order for each garment" path — one createOrder call per physical piece
+   * (a garment line with no=3 becomes 3 single-piece orders, not 3 lines on one order), all
+   * sharing a client-generated group_id so staff can still find them together. Sequential, not
+   * parallel: keeps sequential order numbering simple and avoids many concurrent inserts for the
+   * same customer racing each other.
+   *
+   * Money is deliberately NOT linked across the group (per design decision): total/advance are
+   * apportioned per piece by that piece's own share of the order's total value, rounded to the
+   * nearest rupee with any leftover absorbed into the LAST piece so the sum always reconciles
+   * exactly to what was entered. Loyalty-point redemption, the referral coupon, fabric/other
+   * cost and stitching expenses are NOT divided — they're one-time, order-level things that
+   * don't cleanly map to "per garment", so they're attached to the first order in the group only
+   * (never duplicated, never invented from nothing).
+   */
+  async function submitSplitOrders(values: Omit<FormValues, "paymentMethod">, paymentMethod: string, measurementPayload: Record<string, unknown>) {
+    const groupId = newLineId();
+    const pieces: { type: string; lining: string; amount: number; tailor?: string; payableAmount?: number }[] = [];
+    values.garments.forEach((g) => {
+      const qty = g.no || 1;
+      for (let i = 0; i < qty; i++) pieces.push({ type: g.type, lining: g.lining, amount: g.amount, tailor: g.tailor, payableAmount: g.payableAmount });
+    });
+
+    const advanceByPiece = apportionAmount(
+      values.advance,
+      pieces.map((p) => p.amount)
+    );
+    const created: Order[] = [];
+
+    for (let i = 0; i < pieces.length; i++) {
+      const piece = pieces[i];
+      // apportionAmount's own invariant (the pieces sum back to the entered advance exactly) can
+      // only be broken by this cap, and only when one garment's price is wildly out of line with
+      // the rest of the order — the cap still guarantees no single order's advance ever exceeds
+      // its own total, which the server enforces anyway.
+      const cappedAdvance = Math.min(advanceByPiece[i], piece.amount);
+
+      try {
+        const res = await createOrder.mutateAsync({
+          name: values.name,
+          mobile: values.mobile,
+          inDate: values.inDate,
+          inTime: values.inTime,
+          deliveryDate: values.deliveryDate,
+          deliveryTime: values.deliveryTime,
+          tailor: piece.tailor || values.tailor,
+          special: values.special,
+          advance: cappedAdvance,
+          garments: [{ type: piece.type, lining: piece.lining, no: 1, amount: piece.amount, tailor: piece.tailor, payableAmount: piece.payableAmount }],
+          total: piece.amount,
+          measurements: measurementPayload,
+          ...(i === 0 ? measurementProfileFields : { measurementSaveMode: "skip" as const }),
+          images, audios, videos,
+          usePoints: i === 0 ? usePoints : false,
+          orderType,
+          paymentMethod: cappedAdvance > 0 ? paymentMethod : undefined,
+          bookingSource: values.bookingSource,
+          fabricCost: i === 0 ? values.fabricCost : 0,
+          otherCost: i === 0 ? values.otherCost : 0,
+          couponCode: i === 0 ? couponCode.trim() || undefined : undefined,
+          expenses: i === 0 ? values.expenses : undefined,
+          groupId,
+        });
+        created.push(res.order);
+      } catch (e) {
+        const createdList = created.map((o) => o.id).join(", ");
+        throw new Error(
+          created.length > 0
+            ? `Created ${created.length} of ${pieces.length} orders (${createdList}) before this failed: ${e instanceof Error ? e.message : "Unknown error"}. The customer's remaining garment(s) were NOT ordered — check ${createdList} and add the rest manually if needed.`
+            : e instanceof Error
+              ? e.message
+              : "Failed to save order"
+        );
+      }
+    }
+    return created;
+  }
+
+  const measurementSaveMode: "profile" | "flat" | "skip" = !saveMeasurementsToCustomer ? "skip" : measureProfileName.trim() ? "profile" : "flat";
+  const measurementProfileFields =
+    measurementSaveMode === "profile"
+      ? { measurementProfileId: measureProfileId ?? undefined, measurementProfileName: measureProfileName.trim(), measurementSaveMode }
+      : { measurementSaveMode };
+
   async function onSubmit({ paymentMethod, ...values }: FormValues) {
     const measurementPayload = compactMeasurements(measurements);
     try {
@@ -505,6 +664,7 @@ function OrderFormFields({
             total,
             garments: values.garments as Order["garments"],
             measurements: measurementPayload,
+            ...measurementProfileFields,
             images,
             audios,
             videos,
@@ -519,11 +679,16 @@ function OrderFormFields({
         });
         toast.success("Order updated");
         router.push(`/orders/${existingOrder.id}`);
+      } else if (splitOrders && totalPieceCount > 1) {
+        const createdOrders = await submitSplitOrders(values, paymentMethod, measurementPayload);
+        toast.success(`Created ${createdOrders.length} orders — one per garment: ${createdOrders.map((o) => o.id).join(", ")}`);
+        router.push("/orders");
       } else {
         const res = await createOrder.mutateAsync({
           ...values,
           total,
           measurements: measurementPayload,
+          ...measurementProfileFields,
           images,
           audios,
           videos,
@@ -535,10 +700,10 @@ function OrderFormFields({
         toast.success(res.ptDiscount > 0 ? `Order ${res.order.id} created · ${inr(res.ptDiscount)} points discount applied` : `Order ${res.order.id} created`);
         if (res.limitWarning) toast.warning(res.limitWarning);
         if (res.paymentLedgerWarning) toast.warning(res.paymentLedgerWarning, { duration: 12_000 });
-        router.push(`/orders/${res.order.id}`);
+        router.push("/orders");
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save order");
+      toast.error(e instanceof Error ? e.message : "Failed to save order", { duration: 15_000 });
     }
   }
 
@@ -546,16 +711,17 @@ function OrderFormFields({
     <div className="min-h-screen bg-muted/30">
       {/* ── Page header bar ───────────────────────────────────────────────── */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
-        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-4 py-3 sm:px-6">
           <Link href="/orders" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="size-4" />
             <span className="hidden sm:inline">Orders</span>
           </Link>
-          <div className="flex-1">
-            <h1 className="text-base font-semibold">{isEdit ? "Edit Order" : isAlteration ? "New Alteration" : "New Order"}</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Order" : isAlteration ? "New Alteration" : "New Order"}</h1>
             {isEdit && <p className="text-[11px] text-muted-foreground font-mono">{existingOrder.id}</p>}
           </div>
-          {/* Duplicate of the bottom FormActionBar — mobile only, so Create/Save is reachable
+          {/* Duplicate of the summary card's primary action, mobile only — that card sits at
+             the end of a single-column stack on mobile, so this keeps Create/Save reachable
              without scrolling all the way down on a long order form. */}
           <div className="flex items-center gap-2 sm:hidden">
             <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>
@@ -568,8 +734,21 @@ function OrderFormFields({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
+      <form onSubmit={handleSubmit(onSubmit)} className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
         <div className="lg:col-span-2 space-y-5">
+          {!isEdit && (
+            <label className="flex cursor-pointer items-start gap-2 rounded-xl border bg-white dark:bg-card shadow-sm p-4">
+              <Checkbox checked={splitOrders} onChange={(e) => setSplitOrders(e.target.checked)} className="mt-0.5" />
+              <span>
+                <span className="block text-sm font-medium">Create a separate order for each garment</span>
+                <span className="block text-xs text-muted-foreground">
+                  {totalPieceCount > 1
+                    ? `This order has ${totalPieceCount} garments — with this on, you'll get ${totalPieceCount} separate orders (e.g. so a tailor can move one suit to Cutting without the others following). Payment and delivery date are split across them; recommended for most multi-garment orders.`
+                    : "Only matters once this order has more than one garment — add another garment line or increase a quantity to see it apply."}
+                </span>
+              </span>
+            </label>
+          )}
           {/* Customer & dates */}
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
             <SectionHeading icon={User2} label="Customer & dates" />
@@ -619,6 +798,16 @@ function OrderFormFields({
               <FieldGroup label="Name" required error={errors.name?.message}>
                 <Input {...register("name")} placeholder="Customer name" autoComplete="name" className="h-10" />
               </FieldGroup>
+              {!isEdit && (
+                <FieldGroup
+                  label="Order number"
+                  hint="Optional — leave blank to auto-generate. Set this to match an old system's numbering or a specific requirement."
+                  error={errors.orderNumber?.message}
+                  className="sm:col-span-2"
+                >
+                  <Input {...register("orderNumber")} placeholder="Leave blank to auto-generate" className="h-10" />
+                </FieldGroup>
+              )}
               <div className="grid grid-cols-2 gap-3 sm:col-span-2">
                 <FieldGroup label="Order date" required>
                   <Controller control={control} name="inDate" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} />} />
@@ -634,7 +823,7 @@ function OrderFormFields({
                     <button
                       type="button"
                       onClick={() => setValue("deliveryDate", deliveryEstimate!.date, { shouldDirty: true, shouldValidate: true })}
-                      className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                      className="mt-1.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-left text-xs text-muted-foreground hover:text-foreground"
                     >
                       <Sparkles className="size-3 shrink-0 text-primary" />
                       Suggested: <span className="font-medium text-foreground">{fmtDate(deliveryEstimate!.date)}</span>
@@ -685,7 +874,7 @@ function OrderFormFields({
                   <button
                     type="button"
                     onClick={() => setValue("tailor", recommendedTailor.tailorId, { shouldDirty: true })}
-                    className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    className="mt-1.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-left text-xs text-muted-foreground hover:text-foreground"
                   >
                     <Sparkles className="size-3 shrink-0 text-primary" />
                     Recommended: <span className="font-medium text-foreground">{tailorName(recommendedTailor.tailorId)}</span>
@@ -742,9 +931,6 @@ function OrderFormFields({
                   )}
                 />
               </FieldGroup>
-              <FieldGroup label="Special instructions" className="sm:col-span-2">
-                <Textarea {...register("special")} rows={2} placeholder="Anything the tailor should know…" />
-              </FieldGroup>
             </div>
 
             {foundCustomer && !isEdit && (
@@ -757,49 +943,6 @@ function OrderFormFields({
               </div>
             )}
           </div>
-
-          {measureFields.length > 0 && (
-            <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-              <Accordion value={measureOpen ? ["measurements"] : []} onValueChange={(v) => setMeasureOpen(v.includes("measurements"))}>
-                <AccordionItem value="measurements" className="border-b-0">
-                  <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
-                    <span className="flex items-center gap-2">
-                      <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
-                        <Ruler className="size-3.5 text-primary" />
-                      </span>
-                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Measurements</span>
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="-mt-2 mb-4 flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs text-muted-foreground">
-                        {prefilled ? "Loaded from this customer's saved profile — edit as needed." : "Saved to the customer for next time."}
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={extractMeasurements.isPending}
-                        nativeButton={false}
-                        render={<label className="cursor-pointer" />}
-                      >
-                        <ScanLine className="size-3.5" />
-                        {extractMeasurements.isPending ? "Reading chart…" : "Scan chart"}
-                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScanChart} disabled={extractMeasurements.isPending} />
-                      </Button>
-                    </div>
-                    <MeasurementGrid
-                      fields={measureFields}
-                      values={measurements}
-                      onChange={(key, value) => setMeasurements((m) => ({ ...m, [key]: value }))}
-                      lang={measureLang}
-                      onLangChange={setMeasureLang}
-                    />
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </div>
-          )}
 
           {/* Garments */}
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
@@ -827,7 +970,7 @@ function OrderFormFields({
               {fields.map((field, index) => (
                 <div key={field.id} className="rounded-lg border p-3">
                   <div className="grid gap-3 sm:grid-cols-12">
-                    <FieldGroup label="Type" className="sm:col-span-3">
+                    <FieldGroup label="Type" className="sm:col-span-2">
                       <Controller
                         control={control}
                         name={`garments.${index}.type`}
@@ -882,7 +1025,7 @@ function OrderFormFields({
                         )}
                       />
                     </FieldGroup>
-                    <FieldGroup label="Tailor" className="sm:col-span-3" hint={tailors.length === 0 ? "Add tailors in Employees" : undefined}>
+                    <FieldGroup label="Tailor" className="sm:col-span-2" hint={tailors.length === 0 ? "Add tailors in Employees" : undefined}>
                       <Controller
                         control={control}
                         name={`garments.${index}.tailor`}
@@ -909,6 +1052,11 @@ function OrderFormFields({
                     <FieldGroup label="Rate" className="sm:col-span-2">
                       <Input type="number" min={0} inputMode="numeric" className="h-10" {...register(`garments.${index}.amount`, { valueAsNumber: true })} />
                     </FieldGroup>
+                    {canEditPayable && (
+                      <FieldGroup label="Tailor Payable" className="sm:col-span-2" hint="What the tailor is paid">
+                        <Input type="number" min={0} inputMode="numeric" className="h-10" {...register(`garments.${index}.payableAmount`, { valueAsNumber: true })} />
+                      </FieldGroup>
+                    )}
                     <div className="flex items-end sm:col-span-1">
                       <Button
                         type="button"
@@ -933,13 +1081,132 @@ function OrderFormFields({
                 type="button"
                 variant="outline"
                 className="w-full"
-                onClick={() => append({ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0, tailor: selectedTailor || "", lineId: newLineId() })}
+                onClick={() =>
+                  append({
+                    type: defaultGarmentType,
+                    lining: "s",
+                    no: 1,
+                    amount: rates[defaultGarmentType]?.s || 0,
+                    payableAmount: canEditPayable ? (isAlteration ? tailorRates[defaultGarmentType]?.alteration : tailorRates[defaultGarmentType]?.s) || 0 : undefined,
+                    tailor: selectedTailor || "",
+                    lineId: newLineId(),
+                  })
+                }
               >
                 <Plus className="size-4" /> Add garment
               </Button>
               {errors.garments && <p className="text-xs text-destructive">{errors.garments.message as string}</p>}
+              <FieldGroup label="Special instructions" className="pt-1">
+                <Textarea {...register("special")} rows={2} placeholder="Anything the tailor should know…" />
+              </FieldGroup>
             </div>
           </div>
+
+          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+            <Accordion value={measureOpen ? ["measurements"] : []} onValueChange={(v) => setMeasureOpen(v.includes("measurements"))}>
+              <AccordionItem value="measurements" className="border-b-0">
+                <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                  <span className="flex items-center gap-2">
+                    <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                      <Ruler className="size-3.5 text-primary" />
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Measurements</span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  {measureFields.length > 0 && (
+                    <div className="-mt-2 mb-4 flex flex-wrap items-center justify-between gap-2">
+                      {/* text-xs text-muted-foreground alone (11px, low-contrast gray) was too
+                          subtle to notice as a hint — reported as looking "hidden" even though
+                          the color itself was rendering exactly as specified. An icon + stronger
+                          color make this actually readable at a glance instead of technically-
+                          correct-but-invisible. */}
+                      {prefilled ? (
+                        <p className="flex items-center gap-1.5 text-sm font-medium text-sky-700 dark:text-sky-400">
+                          <Sparkles className="size-3.5 shrink-0" />
+                          Loaded from this customer&apos;s saved profile — edit as needed.
+                        </p>
+                      ) : (
+                        <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                          <Check className="size-3.5 shrink-0" />
+                          Saved to the customer for next time.
+                        </p>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={extractMeasurements.isPending}
+                        nativeButton={false}
+                        render={<label className="cursor-pointer" />}
+                      >
+                        <ScanLine className="size-3.5" />
+                        {extractMeasurements.isPending ? "Reading chart…" : "Scan chart"}
+                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScanChart} disabled={extractMeasurements.isPending} />
+                      </Button>
+                    </div>
+                  )}
+                  {/* Only surfaced once the customer actually has more than one saved profile —
+                      per the locked design, a customer with a single (or no) profile keeps
+                      seeing exactly the old, simpler single-measurements form. */}
+                  {measureProfiles.length >= 2 && (
+                    <div className="mb-3">
+                      <Label className="mb-1 block text-sm font-bold">Load measurements</Label>
+                      <Select value={measureProfileId ?? "__blank__"} onValueChange={(v) => v && handlePickProfile(v)}>
+                        <SelectTrigger className="w-full sm:w-72">
+                          <SelectValue placeholder="Choose a saved profile…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {measureProfiles.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name}
+                              {p.isDefault ? " (usual)" : ""}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="__blank__">+ Start blank</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <MeasurementGrid
+                    fields={measureFields}
+                    values={measurements}
+                    onChange={(key, value) => setMeasurements((m) => ({ ...m, [key]: value }))}
+                    lang={measureLang}
+                    onLangChange={setMeasureLang}
+                  />
+                  {measureFields.length > 0 && (
+                    <div className="mt-4 space-y-2 border-t pt-3">
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox checked={saveMeasurementsToCustomer} onChange={(e) => setSaveMeasurementsToCustomer(e.target.checked)} />
+                        Save these measurements to the customer
+                      </label>
+                      {saveMeasurementsToCustomer && (
+                        <FieldGroup label="Profile name (optional — leave blank to just update the customer's default measurements)">
+                          <Input
+                            value={measureProfileName}
+                            onChange={(e) => setMeasureProfileName(e.target.value)}
+                            placeholder="e.g. Regular fit, Loose fit, Wedding suit"
+                          />
+                        </FieldGroup>
+                      )}
+                    </div>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+
+          <MediaCapture
+            images={images}
+            audios={audios}
+            videos={videos}
+            onImagesChange={setImages}
+            onAudiosChange={setAudios}
+            onVideosChange={setVideos}
+            onTranscribe={handleTranscribe}
+            transcribingIndex={transcribingIndex}
+          />
 
           {user?.perms.viewReports && (
             <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
@@ -954,7 +1221,7 @@ function OrderFormFields({
                     </span>
                   </AccordionTrigger>
                   <AccordionContent>
-              <p className="-mt-2 mb-4 text-xs text-muted-foreground">Powers the order-profitability report. Leave blank if unknown.</p>
+              <p className="mb-4 text-xs text-muted-foreground">Powers the order-profitability report. Leave blank if unknown.</p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FieldGroup label="Fabric cost">
                   <Controller
@@ -1121,50 +1388,44 @@ function OrderFormFields({
                 </div>
               </div>
 
-              <div className="mt-5 space-y-1.5 border-t pt-4 text-sm">
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Order value</span>
-                  <span className="tabular-nums">{inr(profit.revenue)}</span>
+              {/* Profit margin is restricted to the admin role specifically — a manager entering
+                  fabric/other cost above still needs those fields to do their job, but the
+                  derived profit figure itself is admin-only, everywhere in the app. */}
+              {user?.role === "admin" && (
+                <div className="mt-5 space-y-1.5 border-t pt-4 text-sm">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Order value</span>
+                    <span className="tabular-nums">{inr(profit.revenue)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Tailor cost{profit.tailorCostIsEstimate ? " (estimated)" : ""}</span>
+                    <span className="tabular-nums">−{inr(profit.tailorCost)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Stitching expenses</span>
+                    <span className="tabular-nums">−{inr(profit.stitchingExpenses)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Fabric + other cost</span>
+                    <span className="tabular-nums">−{inr(profit.fabricCost + profit.otherCost)}</span>
+                  </div>
+                  <div className="flex items-center justify-between border-t pt-2 text-base font-semibold">
+                    <span className="flex items-center gap-1.5">
+                      {profit.profit >= 0 ? <TrendingUp className="size-4 text-emerald-600 dark:text-emerald-400" /> : <TrendingDown className="size-4 text-red-600 dark:text-red-400" />}
+                      {profit.tailorCostIsEstimate ? "Estimated profit margin" : "Profit margin"}
+                    </span>
+                    <span className={cn("tabular-nums", profit.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
+                      {inr(profit.profit)}
+                      {profit.marginPct != null && <span className="ml-1 text-xs font-normal text-muted-foreground">({profit.marginPct}%)</span>}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Tailor cost{profit.tailorCostIsEstimate ? " (estimated)" : ""}</span>
-                  <span className="tabular-nums">−{inr(profit.tailorCost)}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Stitching expenses</span>
-                  <span className="tabular-nums">−{inr(profit.stitchingExpenses)}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Fabric + other cost</span>
-                  <span className="tabular-nums">−{inr(profit.fabricCost + profit.otherCost)}</span>
-                </div>
-                <div className="flex items-center justify-between border-t pt-2 text-base font-semibold">
-                  <span className="flex items-center gap-1.5">
-                    {profit.profit >= 0 ? <TrendingUp className="size-4 text-emerald-600 dark:text-emerald-400" /> : <TrendingDown className="size-4 text-red-600 dark:text-red-400" />}
-                    {profit.tailorCostIsEstimate ? "Estimated profit margin" : "Profit margin"}
-                  </span>
-                  <span className={cn("tabular-nums", profit.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
-                    {inr(profit.profit)}
-                    {profit.marginPct != null && <span className="ml-1 text-xs font-normal text-muted-foreground">({profit.marginPct}%)</span>}
-                  </span>
-                </div>
-              </div>
+              )}
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
             </div>
           )}
-
-          <MediaCapture
-            images={images}
-            audios={audios}
-            videos={videos}
-            onImagesChange={setImages}
-            onAudiosChange={setAudios}
-            onVideosChange={setVideos}
-            onTranscribe={handleTranscribe}
-            transcribingIndex={transcribingIndex}
-          />
         </div>
 
         {/* ── Payment summary sidebar ───────────────────────────────────── */}
@@ -1266,34 +1527,29 @@ function OrderFormFields({
                   {ptDiscount > 0 && <p className="mt-0.5 text-[11px] text-emerald-600 dark:text-emerald-400">after {inr(ptDiscount)} points discount</p>}
                 </div>
               </div>
+
+              {/* Primary actions live here, right under the running total/balance they commit
+                  to — not in a page-wide sticky footer detached from the numbers they submit. */}
+              <div className="flex flex-col gap-2 border-t pt-3">
+                <Button
+                  size="lg"
+                  className="h-12 w-full gap-1.5 bg-primary text-base text-primary-foreground"
+                  onClick={handleSubmit(onSubmit)}
+                  disabled={isSubmitting}
+                >
+                  <ClipboardList className="size-4" />
+                  {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : `Create Order · ${inr(total)}`}
+                </Button>
+                <Button type="button" variant="outline" size="lg" className="h-11 w-full text-base" onClick={() => router.back()} disabled={isSubmitting}>
+                  Cancel
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       </form>
 
-      <FormActionBar className="justify-start sm:justify-end">
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="h-12 px-6 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
-          onClick={() => router.back()}
-          disabled={isSubmitting}
-        >
-          Cancel
-        </Button>
-        <Button
-          size="lg"
-          className="h-12 flex-1 gap-1.5 bg-primary px-6 text-base text-primary-foreground sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
-          onClick={handleSubmit(onSubmit)}
-          disabled={isSubmitting}
-        >
-          <ClipboardList className="size-3.5" />
-          {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : `Create Order · ${inr(total)}`}
-        </Button>
-      </FormActionBar>
-
-      {!isEdit && <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={selectCustomer} />}
+      {!isEdit && <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={selectCustomer} startInAddMode />}
     </div>
   );
 }

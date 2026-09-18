@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { mapOrderRow } from "@/lib/types";
 import { fmtNow, loyaltyDiscountOf, couponDiscountOf, customerIdFromMobile, REFERRAL_BONUS_POINTS } from "@/lib/business-rules";
-import { logAction } from "@/lib/logging";
+import { logAction, resolveActingUserName } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
 import type { Json } from "@/lib/supabase/database.types";
+import { getProfiles, upsertProfile, toJson } from "@/lib/measurement-profiles";
 
 const garmentSchema = z.object({
   type: z.string().min(1),
@@ -14,17 +16,25 @@ const garmentSchema = z.object({
   no: z.number().optional(),
   amount: z.number().optional(),
   checklist: z.record(z.string(), z.boolean()).optional(),
+  // One entry per unit for a qty>1 line (e.g. 3 suits on one line, each cut/stitched
+  // independently) — see src/lib/garment-checklist.ts. Absent/short arrays are fine; missing
+  // pieces are treated as not-yet-started.
+  pieces: z
+    .array(
+      z.object({
+        checklist: z.record(z.string(), z.boolean()).optional(),
+        label: z.string().optional(),
+      })
+    )
+    .optional(),
   tailor: z.string().optional(),
-  // Stable id preserve_garment_payables() matches on to reattach a frozen payableAmount to the
-  // right garment even if lines are reordered/deleted during this edit.
+  // Stable id carrying a garment's identity across edits (e.g. for the production checklist,
+  // and below, to preserve a tailor-role caller's existing payable when their edit is stripped).
   lineId: z.string().optional(),
-  // Accepted here only so TS/zod don't choke on the order-form echoing back a garment's
-  // existing payableAmount — the value itself is never trusted. edit_order's
-  // preserve_garment_payables() strips whatever the client sends and re-attaches the row's
-  // own prior value (matched by lineId, falling back to position for legacy garments), so
-  // this field can only ever really be set by snapshot_tailor_payables() inside
-  // set_order_stage, never by an edit.
-  payableAmount: z.number().optional(),
+  // What the tailor is paid for this garment — a plain figure entered on the order (see the
+  // order form's Tailor Payable field), stored verbatim by edit_order(). Stripped/preserved
+  // below for the tailor role regardless of what's sent.
+  payableAmount: z.number().min(0).optional(),
 });
 
 const patchSchema = z.object({
@@ -66,6 +76,11 @@ const patchSchema = z.object({
       })
     )
     .optional(),
+  /** See src/app/api/orders/route.ts — same "profile"/"flat"/"skip" mode, applies only when
+   *  `measurements` is also sent. Defaults to "flat" for backward compatibility. */
+  measurementProfileId: z.string().optional(),
+  measurementProfileName: z.string().optional(),
+  measurementSaveMode: z.enum(["profile", "flat", "skip"]).optional().default("flat"),
 });
 
 /**
@@ -81,6 +96,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.editOrder) return NextResponse.json({ error: "No permission to edit orders" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = patchSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const patch = parsed.data;
@@ -93,11 +111,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     patch.expenses = undefined;
   }
 
+  // Tailor payable is compensation data — a tailor role must never change their own pay, even
+  // by crafting a request directly. Preserve each garment's current stored payableAmount
+  // (matched by lineId) instead of trusting whatever this edit submits for it.
+  if (user.role === "tailor" && patch.garments) {
+    const { data: cur } = await db.from("orders").select("garments").eq("id", id).maybeSingle();
+    const curGarments = (Array.isArray(cur?.garments) ? cur.garments : []) as { lineId?: string; payableAmount?: number }[];
+    const payableByLineId = new Map(curGarments.filter((g) => g.lineId).map((g) => [g.lineId, g.payableAmount]));
+    patch.garments = patch.garments.map((g) => ({ ...g, payableAmount: g.lineId ? payableByLineId.get(g.lineId) : undefined }));
+  }
+
   const financialSubmitted = patch.total !== undefined || patch.advance !== undefined;
   let historyLine: string | null = null;
 
   if (financialSubmitted) {
-    const { data: cur } = await supabase.from("orders").select("total,advance").eq("id", id).maybeSingle();
+    const { data: cur } = await db.from("orders").select("total,advance").eq("id", id).maybeSingle();
     const curTotal   = cur?.total   ?? 0;
     const curAdvance = cur?.advance ?? 0;
     const newTotal   = patch.total   ?? curTotal;
@@ -122,12 +150,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // total/advance on every save, so writing unconditionally would spam the audit trail
     // with "Total ₹2000→₹2000" entries on unrelated edits (e.g. fixing a name typo).
     if (newTotal !== curTotal || newAdvance !== curAdvance) {
-      const userName = user.email.split("@")[0] || "user";
+      const userName = await resolveActingUserName(db, user);
       historyLine = `✏️ Edited — Total ₹${curTotal}→₹${newTotal}, Advance ₹${curAdvance}→₹${newAdvance} by ${userName} — ${fmtNow()}`;
     }
   }
 
-  const { data: updatedRows, error } = await supabase.rpc("edit_order", {
+  const { data: updatedRows, error } = await db.rpc("edit_order", {
     p_order_id:      id,
     p_name:          patch.name          ?? null,
     p_mobile:        patch.mobile        ?? null,
@@ -168,16 +196,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   await logAction(supabase, user.email, `✏️ Order edited: ${updatedRow.name}`, id);
 
+  // edit_order()'s RPC signature predates this feature, so the profile label is written directly
+  // rather than threaded through it — only touched when the client actually sent one.
+  if (patch.measurementProfileId !== undefined || patch.measurementProfileName !== undefined) {
+    const { error } = await db
+      .from("orders")
+      .update({ measurement_profile_id: patch.measurementProfileId || null, measurement_profile_name: patch.measurementProfileName || null })
+      .eq("id", id);
+    if (error) await logAction(supabase, user.email, `⚠️ Measurement profile label not saved for order ${id}`, id, error.message);
+  }
+
   // Whole-array replace: delete then re-insert, mirroring how garments themselves are already
   // fully replaced on edit (COALESCE(p_garments, garments) inside edit_order). Skipped entirely
   // when the field wasn't sent, so an edit that doesn't touch the Costs section never touches
   // existing expense rows.
   if (patch.expenses !== undefined) {
-    const { error: deleteExpensesError } = await supabase.from("order_expenses").delete().eq("order_id", id);
+    const { error: deleteExpensesError } = await db.from("order_expenses").delete().eq("order_id", id);
     if (deleteExpensesError) {
       await logAction(supabase, user.email, `⚠️ Stitching expenses not updated for order ${id}`, id, deleteExpensesError.message);
     } else if (patch.expenses.length > 0) {
-      const { error: insertExpensesError } = await supabase.from("order_expenses").insert(
+      const { error: insertExpensesError } = await db.from("order_expenses").insert(
         patch.expenses.map((e) => ({
           order_id: id,
           category: e.category,
@@ -198,18 +236,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // below (and the legacy app's _handleSave, which ran this same upsert for both new AND
   // edited orders — line ~17070). Without this, editing an order's measurements silently
   // never reaches the customer record, and CRM measurements go stale after the first order.
-  if (patch.measurements !== undefined) {
-    const { data: existingCustomer, error: lookupError } = await supabase
+  if (patch.measurements !== undefined && patch.measurementSaveMode !== "skip") {
+    const { data: existingCustomer, error: lookupError } = await db
       .from("customers")
-      .select("id")
+      .select("id, measurements, measurement_profiles, created_at")
       .eq("mobile", updatedRow.mobile)
       .maybeSingle();
     if (!lookupError) {
       if (existingCustomer) {
-        const { error } = await supabase.from("customers").update({ measurements: patch.measurements as Json }).eq("id", existingCustomer.id);
-        if (error) await logAction(supabase, user.email, `⚠️ Customer measurements not synced for order ${id}`, id, error.message);
+        if (patch.measurementSaveMode === "profile" && patch.measurementProfileName) {
+          const profiles = getProfiles({
+            measurements: (existingCustomer.measurements as Record<string, unknown>) || {},
+            measurementProfiles: Array.isArray(existingCustomer.measurement_profiles) ? (existingCustomer.measurement_profiles as never) : [],
+            createdAt: existingCustomer.created_at,
+          });
+          const nextProfiles = upsertProfile(profiles, {
+            id: patch.measurementProfileId,
+            name: patch.measurementProfileName,
+            values: patch.measurements as Record<string, string>,
+          });
+          const { error } = await db.from("customers").update({ measurement_profiles: toJson(nextProfiles) }).eq("id", existingCustomer.id);
+          if (error) await logAction(supabase, user.email, `⚠️ Customer measurement profile not synced for order ${id}`, id, error.message);
+        } else {
+          const { error } = await db.from("customers").update({ measurements: patch.measurements as Json }).eq("id", existingCustomer.id);
+          if (error) await logAction(supabase, user.email, `⚠️ Customer measurements not synced for order ${id}`, id, error.message);
+        }
       } else {
-        const { error } = await supabase.from("customers").insert({
+        const { error } = await db.from("customers").insert({
           id: customerIdFromMobile(updatedRow.mobile),
           name: updatedRow.name,
           mobile: updatedRow.mobile,
@@ -236,56 +289,109 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.deleteOrder) return NextResponse.json({ error: "No permission to delete orders" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   // Fetch enough columns for guards + loyalty refund; avoid mapOrderRow on a partial row (M2).
-  const { data: row, error: fetchError } = await supabase
+  const { data: row, error: fetchError } = await db
     .from("orders")
-    .select("id, name, status, mobile, history, advance, payables_confirmed_at, piece_rate_paid_at")
+    .select("id, name, status, mobile, history, advance, garments, piece_rate_paid_at")
     .eq("id", id)
     .maybeSingle();
   if (fetchError || !row) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-  // Confirming payables freezes them for payroll to pick up; deleting the order after that
-  // (with no equivalent guard to the advance>0 check below) would silently destroy the only
-  // record that the payable was confirmed/paid — a real gap once a payroll run has already
-  // paid the tailor for it. Mirrors the identical guard added to work-orders/[id]/route.ts.
-  if (row.piece_rate_paid_at) {
-    return NextResponse.json(
-      { error: "This order's tailor payable has already been paid out in a payroll run and cannot be deleted." },
-      { status: 409 }
-    );
-  }
-  if (row.payables_confirmed_at) {
-    return NextResponse.json(
-      { error: "This order's tailor payable has been confirmed for payroll and cannot be deleted." },
-      { status: 409 }
-    );
+  // A garment's payable is live and real money owed to a tailor from the moment a tailor is
+  // assigned (no manager-confirmation step — see remove_tailor_payable_confirm_step.sql), so
+  // deleting the order would silently write it off the moment it exists, not just once frozen.
+  const hasActivePayable = (Array.isArray(row.garments) ? row.garments : []).some((g) => ((g as { payableAmount?: number })?.payableAmount || 0) > 0);
+
+  // Admin override: an admin can always delete an order, bypassing every guard below. Every
+  // other role still goes through them. Since order_payments.order_id has no ON DELETE CASCADE
+  // (unlike order_expenses), an admin deleting an order with payment rows still needs those
+  // rows removed first below, or the delete would fail on the foreign key instead of the guard.
+  const isAdmin = user.role === "admin";
+  const guardWouldHaveBlocked = !!row.piece_rate_paid_at || hasActivePayable || (row.advance || 0) > 0;
+  const isAdminOverride = isAdmin && guardWouldHaveBlocked;
+
+  if (!isAdmin) {
+    // Deleting the order (with no equivalent guard to the advance>0 check below) would silently
+    // destroy the only record that a tailor payable was owed or paid. Mirrors the identical
+    // guard added to work-orders/[id]/route.ts.
+    if (row.piece_rate_paid_at) {
+      return NextResponse.json(
+        { error: "This order's tailor payable has already been paid out in a payroll run and cannot be deleted." },
+        { status: 409 }
+      );
+    }
+    if (hasActivePayable) {
+      return NextResponse.json(
+        { error: "This order has a tailor payable still owed and cannot be deleted. Unassign the tailor first, or move the order to a closed stage instead." },
+        { status: 409 }
+      );
+    }
+
+    // A blanket "delivered"/"payment" stage block used to sit here, pointing at an "Archive"
+    // feature that was never actually built — a genuine dead end, since deleting the order's
+    // payment(s) below (which the message DID offer as an option) still leaves the order at
+    // "delivered" stage (delete_order_payment only reverts payment -> delivered, not further),
+    // meaning a fully-paid-then-refunded order could never actually be deleted at all. The real
+    // safeguard for "this is an accounting record" is the money check right below — a delivered/
+    // paid order becomes deletable once its payment rows are gone (order detail page ->
+    // Payments), same as any other order; stage alone no longer blocks it.
+
+    // Refuse to delete an order that already has money collected against it. Each payment is a
+    // real row in order_payments now — deleting them there (order detail page → Payments) reverses
+    // this same advance figure, at which point the order becomes deletable normally.
+    if ((row.advance || 0) > 0) {
+      return NextResponse.json(
+        {
+          error: `This order has ₹${row.advance} collected against it and cannot be deleted. Delete the recorded payment(s) first from the order's Payments section, or move the order to a closed stage instead.`,
+        },
+        { status: 409 }
+      );
+    }
+  } else if ((row.advance || 0) > 0) {
+    // Bypassing the money guard above still requires clearing order_payments rows first —
+    // the table has no ON DELETE CASCADE, so leaving them would fail the delete below with a
+    // foreign key error instead of a guard message.
+    const { error: deletePaymentsError } = await db.from("order_payments").delete().eq("order_id", id);
+    if (deletePaymentsError) return NextResponse.json({ error: deletePaymentsError.message }, { status: 500 });
   }
 
-  // A blanket "delivered"/"payment" stage block used to sit here, pointing at an "Archive"
-  // feature that was never actually built — a genuine dead end, since deleting the order's
-  // payment(s) below (which the message DID offer as an option) still leaves the order at
-  // "delivered" stage (delete_order_payment only reverts payment -> delivered, not further),
-  // meaning a fully-paid-then-refunded order could never actually be deleted at all. The real
-  // safeguard for "this is an accounting record" is the money check right below — a delivered/
-  // paid order becomes deletable once its payment rows are gone (order detail page ->
-  // Payments), same as any other order; stage alone no longer blocks it.
-
-  // Refuse to delete an order that already has money collected against it. Each payment is a
-  // real row in order_payments now — deleting them there (order detail page → Payments) reverses
-  // this same advance figure, at which point the order becomes deletable normally.
-  if ((row.advance || 0) > 0) {
-    return NextResponse.json(
-      {
-        error: `This order has ₹${row.advance} collected against it and cannot be deleted. Delete the recorded payment(s) first from the order's Payments section, or move the order to a closed stage instead.`,
-      },
-      { status: 409 }
-    );
+  // The order is the only place a garment's payableAmount lives — deleting it destroys that
+  // number outright. If it was already paid out (piece_rate_paid_at set), that's harmless: the
+  // payslip snapshot the run created holds the tailor's total independently. But a still-unpaid
+  // payable is counted live off this exact row by every future payroll run (see
+  // /api/payroll/run's unpaidOrders query) — deleting it here with no trace would silently write
+  // off money genuinely owed to the tailor, with no payslip ever created for it. Surface exactly
+  // what's being lost, per tailor, so accounting can settle it by hand.
+  let lostPayableNote: string | null = null;
+  if (isAdmin && hasActivePayable && !row.piece_rate_paid_at) {
+    const garments = (Array.isArray(row.garments) ? row.garments : []) as { tailor?: string; payableAmount?: number }[];
+    const byTailor = new Map<string, number>();
+    for (const g of garments) {
+      if (g.tailor && (g.payableAmount || 0) > 0) byTailor.set(g.tailor, (byTailor.get(g.tailor) || 0) + (g.payableAmount || 0));
+    }
+    if (byTailor.size > 0) {
+      const { data: tailorRows } = await db.from("employees").select("id, name").in("id", Array.from(byTailor.keys()));
+      const nameById = new Map((tailorRows || []).map((t) => [t.id, t.name]));
+      const parts = Array.from(byTailor.entries()).map(([tailorId, amount]) => `${nameById.get(tailorId) || tailorId}: ₹${amount}`);
+      lostPayableNote = `⚠️ Unpaid tailor payable(s) lost on delete — ${parts.join(", ")}. Settle manually if owed.`;
+    }
   }
 
-  const { error: deleteError } = await supabase.from("orders").delete().eq("id", id);
+  const { error: deleteError } = await db.from("orders").delete().eq("id", id);
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
 
-  await logAction(supabase, user.email, `🗑️ Order deleted: ${row.name}`, id);
+  await logAction(
+    supabase,
+    user.email,
+    isAdminOverride
+      ? `🗑️ Order deleted (admin override — bypassed payable/payment guards): ${row.name}`
+      : `🗑️ Order deleted: ${row.name}`,
+    id,
+    lostPayableNote
+  );
 
   // L3: refund any loyalty points the customer spent as a redemption discount on this order.
   try {
@@ -296,7 +402,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
         // Read the exact points spent from the customer's own ledger rather than
         // recomputing from ptDiscount via the *current* redeemPer100pts config — if that
         // rate changed since the order was placed, recomputing would over- or under-refund.
-        const { data: custRow } = await supabase
+        const { data: custRow } = await db
           .from("customers")
           .select("loyalty_history")
           .eq("id", customerIdFromMobile(row.mobile))
@@ -305,7 +411,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
         const redeemEntry = history.find((e) => e?.type === "redeem" && e?.orderId === id);
         const ptsToRefund = redeemEntry ? Math.abs(redeemEntry.pts || 0) : Math.round((ptDiscount / (loyaltyCfg.redeemPer100pts || 10)) * 100);
         if (ptsToRefund > 0) {
-          await awardLoyaltyPoints(supabase, row.mobile, row.name, ptsToRefund, "manual", id, `Refund — order ${id} deleted`);
+          await awardLoyaltyPoints(db, row.mobile, row.name, ptsToRefund, "manual", id, `Refund — order ${id} deleted`);
         }
       }
     }
@@ -320,10 +426,10 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   try {
     const couponAmount = couponDiscountOf({ history: Array.isArray(row.history) ? (row.history as string[]) : [] });
     if (couponAmount > 0) {
-      const { data: couponRow } = await supabase.from("referral_coupons").select("code, referrer_mobile, referrer_name").eq("redeemed_order_id", id).maybeSingle();
+      const { data: couponRow } = await db.from("referral_coupons").select("code, referrer_mobile, referrer_name").eq("redeemed_order_id", id).maybeSingle();
       if (couponRow) {
-        await supabase.rpc("release_referral_coupon", { p_code: couponRow.code });
-        await awardLoyaltyPoints(supabase, couponRow.referrer_mobile, couponRow.referrer_name, -REFERRAL_BONUS_POINTS, "manual", id, `Referral bonus reversed — order ${id} deleted`);
+        await db.rpc("release_referral_coupon", { p_code: couponRow.code });
+        await awardLoyaltyPoints(db, couponRow.referrer_mobile, couponRow.referrer_name, -REFERRAL_BONUS_POINTS, "manual", id, `Referral bonus reversed — order ${id} deleted`);
       }
     }
   } catch {

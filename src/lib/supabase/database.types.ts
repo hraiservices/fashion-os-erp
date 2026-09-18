@@ -7,6 +7,25 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export interface Database {
   public: {
     Tables: {
+      signup_requests: {
+        Row: {
+          id: string;
+          name: string;
+          shop_name: string;
+          email: string;
+          phone: string | null;
+          note: string | null;
+          status: string;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["signup_requests"]["Row"]> & {
+          name: string;
+          shop_name: string;
+          email: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["signup_requests"]["Row"]>;
+        Relationships: [];
+      };
       tailor_worksheet_snapshots: {
         Row: {
           id: string;
@@ -40,7 +59,7 @@ export interface Database {
           special: string;
           history: Json;
           measurements: Json;
-          images: Json;
+          images: string[];
           audios: Json;
           videos: Json;
           payments: Json;
@@ -53,10 +72,15 @@ export interface Database {
           rework_reason: string;
           rework_flagged_by: string | null;
           rework_flagged_at: string | null;
+          rework_count: number;
           ready_at: string | null;
           payables_confirmed_at: string | null;
           payables_confirmed_by: string | null;
           piece_rate_paid_at: string | null;
+          paid_by_payroll_run_id: string | null;
+          group_id: string | null;
+          measurement_profile_id: string | null;
+          measurement_profile_name: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -106,6 +130,8 @@ export interface Database {
           tags: string[];
           gstin: string;
           whatsapp_opt_out: boolean;
+          share_token: string;
+          measurement_profiles: Json;
           created_at: string;
           updated_at: string;
         };
@@ -180,6 +206,21 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["app_settings"]["Row"]>;
         Relationships: [];
       };
+      tailor_rate_versions: {
+        Row: {
+          id: string;
+          rates: Json;
+          effective_from: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["tailor_rate_versions"]["Row"]> & {
+          rates: Json;
+          effective_from: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["tailor_rate_versions"]["Row"]>;
+        Relationships: [];
+      };
       push_subscriptions: {
         Row: {
           id: string;
@@ -196,6 +237,22 @@ export interface Database {
           auth: string;
         };
         Update: Partial<Database["public"]["Tables"]["push_subscriptions"]["Row"]>;
+        Relationships: [];
+      };
+      native_push_tokens: {
+        Row: {
+          id: string;
+          email: string;
+          token: string;
+          platform: string;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["native_push_tokens"]["Row"]> & {
+          email: string;
+          token: string;
+          platform: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["native_push_tokens"]["Row"]>;
         Relationships: [];
       };
       billing_events: {
@@ -245,6 +302,51 @@ export interface Database {
           email: string;
         };
         Update: Partial<Database["public"]["Tables"]["user_roles"]["Row"]>;
+        Relationships: [];
+      };
+      user_scratch_notes: {
+        Row: {
+          id: string;
+          user_email: string;
+          color: string;
+          content: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["user_scratch_notes"]["Row"]> & {
+          user_email: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["user_scratch_notes"]["Row"]>;
+        Relationships: [];
+      };
+      user_mini_sheets: {
+        Row: {
+          id: string;
+          user_email: string;
+          name: string;
+          cells: Record<string, unknown>;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["user_mini_sheets"]["Row"]> & {
+          user_email: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["user_mini_sheets"]["Row"]>;
+        Relationships: [];
+      };
+      user_todos: {
+        Row: {
+          id: string;
+          user_email: string;
+          text: string;
+          done: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["user_todos"]["Row"]> & {
+          user_email: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["user_todos"]["Row"]>;
         Relationships: [];
       };
       admin_notifications: {
@@ -366,6 +468,7 @@ export interface Database {
           occasion: string | null;
           brand: string | null;
           image_data_url: string | null;
+          active: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -807,6 +910,7 @@ export interface Database {
           labor_payable_confirmed_at: string | null;
           labor_payable_confirmed_by: string | null;
           piece_rate_paid_at: string | null;
+          paid_by_payroll_run_id: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -839,6 +943,7 @@ export interface Database {
           failed_pin_attempts: number;
           pin_locked_until: string | null;
           manager_id: string | null;
+          photo_url: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -922,6 +1027,7 @@ export interface Database {
           status: string;
           paid_at: string | null;
           notes: string;
+          adjustment_amount: number;
         };
         Insert: Partial<Database["public"]["Tables"]["payslips"]["Row"]> & {
           payroll_run_id: string;
@@ -1151,6 +1257,10 @@ export interface Database {
       };
     };
     Functions: {
+      submit_signup_request: {
+        Args: { p_name: string; p_shop_name: string; p_email: string; p_phone?: string | null; p_note?: string | null };
+        Returns: undefined;
+      };
       next_document_number: {
         Args: { p_doc_type: string; p_period_key: string; p_start?: number };
         Returns: number;
@@ -1167,6 +1277,14 @@ export interface Database {
         Returns: undefined;
       };
       get_public_invoice: {
+        Args: { p_token: string };
+        Returns: Json;
+      };
+      get_customer_order_status: {
+        Args: { p_token: string };
+        Returns: Json;
+      };
+      get_customer_statement: {
         Args: { p_token: string };
         Returns: Json;
       };
@@ -1219,6 +1337,18 @@ export interface Database {
       set_tailor_rates: {
         Args: { p_value: Json };
         Returns: undefined;
+      };
+      set_tailor_rates_versioned: {
+        Args: { p_rates: Json; p_effective_from: string; p_created_by: string | null };
+        Returns: undefined;
+      };
+      current_tailor_rates: {
+        Args: Record<string, never>;
+        Returns: Json;
+      };
+      rename_garment_type: {
+        Args: { p_old: string; p_new: string };
+        Returns: number;
       };
       confirm_order_payables: {
         Args: { p_order_id: string; p_user_email: string };
@@ -1346,6 +1476,10 @@ export interface Database {
           p_created_by: string | null;
         };
         Returns: undefined;
+      };
+      rename_order_id: {
+        Args: { p_old_id: string; p_new_id: string };
+        Returns: Database["public"]["Tables"]["orders"]["Row"][];
       };
     };
     Enums: Record<string, never>;

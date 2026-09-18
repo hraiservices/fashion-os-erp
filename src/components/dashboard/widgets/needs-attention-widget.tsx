@@ -13,9 +13,9 @@ export function NeedsAttentionWidget() {
 
   return (
     <section className="rounded-xl border bg-card">
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <h2 className="text-sm font-semibold">Needs attention</h2>
-        <Link href="/reports/pending-orders" className="text-xs text-muted-foreground hover:text-foreground">
+      <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+        <h2 className="truncate text-sm font-semibold">Needs attention</h2>
+        <Link href="/reports/pending-orders" className="shrink-0 text-xs text-muted-foreground hover:text-foreground">
           View all
         </Link>
       </div>

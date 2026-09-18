@@ -24,6 +24,15 @@ export async function POST(request: Request) {
   const serviceClient = createServiceClient();
   if (!serviceClient) return NextResponse.json({ error: "Server is not configured to manage users (missing service role key)" }, { status: 501 });
 
+  // No DB-level unique constraint on phone, and phone-login looks a row up by phone alone
+  // (see /api/auth/phone-login) — two logins sharing a number makes that lookup ambiguous and
+  // silently fails both of them (a Postgrest "multiple rows" error, swallowed as "not found").
+  // Reject the collision here instead of letting it happen silently.
+  if (phone) {
+    const { data: existing } = await serviceClient.from("user_roles").select("email").eq("phone", phone).neq("email", email).maybeSingle();
+    if (existing) return NextResponse.json({ error: `That number is already used by ${existing.email}` }, { status: 409 });
+  }
+
   const { error } = await serviceClient.from("user_roles").update({ phone }).eq("email", email);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

@@ -76,12 +76,12 @@ export function RecommendationWhatsAppSection() {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Message template</Label>
+          <Label className="text-sm font-bold">Message template</Label>
           <Textarea rows={5} className="font-mono text-xs" value={draftTemplate} onChange={(e) => setDraftTemplate(e.target.value)} />
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Cooldown (days)</Label>
+          <Label className="text-sm font-bold">Cooldown (days)</Label>
           <p className="text-[11px] text-muted-foreground">Don&apos;t let the same product be re-suggested to the same customer within this many days.</p>
           <NumberInput min={0} className="h-9 w-32" value={draftCooldown} onChange={setDraftCooldown} />
         </div>
@@ -98,15 +98,15 @@ export function RecommendationWhatsAppSection() {
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Phone Number ID</Label>
+              <Label className="text-sm font-bold">Phone Number ID</Label>
               <Input value={draftCloudApi.phoneNumberId} onChange={(e) => setDraftCloudApi({ ...draftCloudApi, phoneNumberId: e.target.value })} placeholder="e.g. 109876543210123" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Access Token</Label>
+              <Label className="text-sm font-bold">Access Token</Label>
               <Input type="password" value={draftCloudApi.accessToken} onChange={(e) => setDraftCloudApi({ ...draftCloudApi, accessToken: e.target.value })} placeholder="System user access token" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Approved Template Name</Label>
+              <Label className="text-sm font-bold">Approved Template Name</Label>
               <WhatsAppTemplateField
                 value={draftCloudApi.templateName}
                 onChange={(v) => setDraftCloudApi({ ...draftCloudApi, templateName: v })}
@@ -116,11 +116,11 @@ export function RecommendationWhatsAppSection() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Template Language Code</Label>
+              <Label className="text-sm font-bold">Template Language Code</Label>
               <Input value={draftCloudApi.languageCode} onChange={(e) => setDraftCloudApi({ ...draftCloudApi, languageCode: e.target.value })} placeholder="e.g. en_US" />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label className="text-xs font-medium">WhatsApp Business Account ID (optional)</Label>
+              <Label className="text-sm font-bold">WhatsApp Business Account ID (optional)</Label>
               <Input value={draftCloudApi.wabaId || ""} onChange={(e) => setDraftCloudApi({ ...draftCloudApi, wabaId: e.target.value })} placeholder="e.g. 123456789012345" />
               <p className="text-[11px] text-muted-foreground">
                 Lets every template field on this page show a dropdown of your actual approved templates instead of a plain text box. Find it in Meta
@@ -143,7 +143,7 @@ export function RecommendationWhatsAppSection() {
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">App Secret</Label>
+              <Label className="text-sm font-bold">App Secret</Label>
               <Input
                 type="password"
                 value={draftCloudApi.appSecret || ""}
@@ -152,7 +152,7 @@ export function RecommendationWhatsAppSection() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Webhook Verify Token</Label>
+              <Label className="text-sm font-bold">Webhook Verify Token</Label>
               <Input
                 value={draftCloudApi.verifyToken || ""}
                 onChange={(e) => setDraftCloudApi({ ...draftCloudApi, verifyToken: e.target.value })}

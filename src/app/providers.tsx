@@ -10,6 +10,7 @@ import { ColorThemeLoader } from "@/components/app-shell/color-theme-loader";
 import { DefaultThemeLoader } from "@/components/app-shell/default-theme-loader";
 import { ThemeColorSync } from "@/components/app-shell/theme-color-sync";
 import { KeyboardAvoidance } from "@/components/app-shell/keyboard-avoidance";
+import { NativeBackButton } from "@/components/app-shell/native-back-button";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -43,6 +44,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <DefaultThemeLoader />
           <ThemeColorSync />
           <KeyboardAvoidance />
+          <NativeBackButton />
           {children}
           <Toaster richColors position="top-center" />
         </TooltipProvider>

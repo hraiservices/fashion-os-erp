@@ -5,17 +5,21 @@ import { Package } from "lucide-react";
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders";
 import { inr } from "@/lib/format";
 import { purchaseItemId, purchaseItemName } from "@/lib/purchases";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 export default function PurchaseOrderByItemPage() {
   const { data: orders, isLoading } = usePurchaseOrders();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const rows = useMemo(() => {
     const map = new Map<string, { itemName: string; unitName: string; qty: number; amount: number; poCount: number }>();
-    (orders || []).forEach((po) => {
+    (orders || []).filter((po) => isWithinDateRange(po.date, range)).forEach((po) => {
       po.items.forEach((item) => {
         const id = purchaseItemId(item);
         if (!id) return;
@@ -27,7 +31,7 @@ export default function PurchaseOrderByItemPage() {
       });
     });
     return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
-  }, [orders]);
+  }, [orders, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -36,17 +40,42 @@ export default function PurchaseOrderByItemPage() {
       title="Purchase Order By Item"
       description="Quantity and value ordered per item, across every purchase order."
       actions={
-        rows.length > 0 && (
-          <ExportMenu
-            rows={rows.map((r) => ({ Item: r.itemName, Unit: r.unitName, "Qty Ordered": r.qty, "Purchase Orders": r.poCount, "Total Value": r.amount }))}
-            filename="po_by_item"
-          />
-        )
+        <ReportActionsMenu
+          rows={rows.map((r) => ({ Item: r.itemName, Unit: r.unitName, "Qty Ordered": r.qty, "Purchase Orders": r.poCount, "Total Value": r.amount }))}
+          filename="po-by-item"
+          title="Purchase Order By Item"
+          summaryLines={[`Items: ${rows.length}`, `Total value: ${inr(rows.reduce((s, r) => s + r.amount, 0))}`]}
+        />
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       {rows.length === 0 ? (
         <EmptyState icon={Package} title="No purchase orders yet" />
       ) : (
+        <>
+        <MobileRecordList>
+          <MobileRecordCard className="bg-muted/40">
+            <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.amount, 0))} showChevron={false} />
+            <MobileRecordRow label="Qty Ordered" value={rows.reduce((s, r) => s + r.qty, 0)} />
+            <MobileRecordRow label="Purchase Orders" value={rows.reduce((s, r) => s + r.poCount, 0)} />
+          </MobileRecordCard>
+          {rows.map((r) => (
+            <MobileRecordCard key={r.itemName}>
+              <MobileRecordHeader title={r.itemName} value={inr(r.amount)} showChevron={false} />
+              <MobileRecordRow label="Qty Ordered" value={`${r.qty} ${r.unitName}`} />
+              <MobileRecordRow label="Purchase Orders" value={r.poCount} />
+            </MobileRecordCard>
+          ))}
+        </MobileRecordList>
+        <div className="hidden sm:block">
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
@@ -57,6 +86,12 @@ export default function PurchaseOrderByItemPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{rows.reduce((s, r) => s + r.qty, 0)}</Td>
+              <Td align="right">{rows.reduce((s, r) => s + r.poCount, 0)}</Td>
+              <Td align="right">{inr(rows.reduce((s, r) => s + r.amount, 0))}</Td>
+            </ReportTotalsRow>
             {rows.map((r) => (
               <tr key={r.itemName} className="hover:bg-muted/30">
                 <Td className="font-medium">{r.itemName}</Td>
@@ -69,6 +104,8 @@ export default function PurchaseOrderByItemPage() {
             ))}
           </tbody>
         </ReportTable>
+        </div>
+        </>
       )}
     </ReportShell>
   );

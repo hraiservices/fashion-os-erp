@@ -4,10 +4,10 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, ShoppingBag, Pencil, Trash2, AlertTriangle, Printer, Upload } from "lucide-react";
+import { Plus, Search, ShoppingBag, Pencil, Trash2, AlertTriangle, Printer, Upload, Archive, ArchiveRestore } from "lucide-react";
 import { printBarcodeLabel } from "@/lib/barcode";
 import { useProducts } from "@/hooks/use-products";
-import { useDeleteProduct, useBulkDeleteProducts, useQuickUpdateProduct } from "@/hooks/use-inventory-mutations";
+import { useDeleteProduct, useBulkDeleteProducts, useQuickUpdateProduct, useArchiveProduct } from "@/hooks/use-inventory-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRowSelection } from "@/hooks/use-row-selection";
 import { isLowStock } from "@/lib/inventory";
@@ -23,6 +23,22 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+
+const PRODUCT_LIST_COLUMNS = [
+  { key: "name", label: "Name", required: true },
+  { key: "sku", label: "SKU" },
+  { key: "stock", label: "Stock", required: true },
+  { key: "price", label: "Price", required: true },
+  { key: "margin", label: "Margin" },
+  { key: "bom", label: "BOM" },
+];
+
+// Below 1920px (a 14" laptop) the table feels cramped — Margin and BOM are the least essential
+// to see at a glance, so they default to hidden there and reappear automatically on a wider
+// monitor (still one click away via Columns).
+const PRODUCT_LIST_AUTO_HIDE = { belowWidth: 1920, keys: ["margin", "bom"] };
 import {
   AlertDialog,
   AlertDialogAction,
@@ -97,10 +113,13 @@ function ProductsPageContent() {
   const { data: user } = useCurrentUser();
   const deleteProduct = useDeleteProduct();
   const bulkDeleteProducts = useBulkDeleteProducts();
+  const archiveProduct = useArchiveProduct();
 
   const [search, setSearch] = useState("");
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const columnTable = useColumnVisibility("inventory-products", PRODUCT_LIST_COLUMNS, PRODUCT_LIST_AUTO_HIDE);
+  const isVisible = columnTable.isVisible;
 
   const canManage = !!user?.perms.manageInventory;
 
@@ -138,6 +157,15 @@ function ProductsPageContent() {
     }
   }
 
+  async function handleToggleArchive(p: Product) {
+    try {
+      await archiveProduct.mutateAsync({ id: p.id, active: !p.active, name: p.name, userEmail: user?.email });
+      toast.success(p.active ? `${p.name} archived` : `${p.name} unarchived`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update");
+    }
+  }
+
   return (
     <div className="space-y-4 p-4 sm:p-6">
       <PageHeader
@@ -157,9 +185,12 @@ function ProductsPageContent() {
         }
       />
 
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input type="search" enterKeyHint="search" placeholder="Search name, SKU or category…" className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search products" />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-48 flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input type="search" enterKeyHint="search" placeholder="Search name, SKU or category…" className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search products" />
+        </div>
+        <ColumnCustomizerMenu table={columnTable} />
       </div>
 
       {canManage && selection.count > 0 && (
@@ -217,8 +248,8 @@ function ProductsPageContent() {
                 <TableHead>SKU</TableHead>
                 <TableHead className="text-right">Stock</TableHead>
                 <TableHead className="text-right">Price</TableHead>
-                <TableHead className="text-right">Margin</TableHead>
-                <TableHead className="text-right">BOM</TableHead>
+                {isVisible("margin") && <TableHead className="text-right">Margin</TableHead>}
+                {isVisible("bom") && <TableHead className="text-right">BOM</TableHead>}
                 {canManage && <TableHead className="w-20" />}
               </TableRow>
             </TableHeader>
@@ -246,7 +277,14 @@ function ProductsPageContent() {
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="font-medium">{p.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <span className={cn(!p.active && "text-muted-foreground")}>{p.name}</span>
+                      {!p.active && (
+                        <Badge variant="secondary" className="ml-2">
+                          Archived
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{p.sku}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
@@ -257,18 +295,22 @@ function ProductsPageContent() {
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <EditablePrice product={p} canEdit={canManage} userEmail={user?.email} />
                     </TableCell>
-                    <TableCell className="text-right">
-                      {p.costPrice > 0 ? (
-                        <span className={p.sellingPrice - p.costPrice >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
-                          {inr(p.sellingPrice - p.costPrice)}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {p.bom.length > 0 ? <Badge variant="secondary">{p.bom.length} items</Badge> : <span className="text-xs text-muted-foreground">Not set</span>}
-                    </TableCell>
+                    {isVisible("margin") && (
+                      <TableCell className="text-right">
+                        {p.costPrice > 0 ? (
+                          <span className={p.sellingPrice - p.costPrice >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
+                            {inr(p.sellingPrice - p.costPrice)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    )}
+                    {isVisible("bom") && (
+                      <TableCell className="text-right">
+                        {p.bom.length > 0 ? <Badge variant="secondary">{p.bom.length} items</Badge> : <span className="text-xs text-muted-foreground">Not set</span>}
+                      </TableCell>
+                    )}
                     {canManage && (
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
@@ -279,6 +321,17 @@ function ProductsPageContent() {
                           )}
                           <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => openEdit(p)} aria-label={`Edit ${p.name}`}>
                             <Pencil className="size-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="size-11 sm:size-7"
+                            onClick={() => handleToggleArchive(p)}
+                            disabled={archiveProduct.isPending}
+                            aria-label={p.active ? `Archive ${p.name}` : `Unarchive ${p.name}`}
+                            title={p.active ? "Archive — hides it from new sales, keeps its history" : "Unarchive"}
+                          >
+                            {p.active ? <Archive className="size-3.5" /> : <ArchiveRestore className="size-3.5" />}
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger
@@ -293,7 +346,9 @@ function ProductsPageContent() {
                                 <AlertDialogTitle>Delete {p.name}?</AlertDialogTitle>
                                 <AlertDialogDescription>
                                   This removes the product and its bill of materials. Stock ledger history is kept for audit purposes.
-                                  {p.stockQty > 0 && ` Current stock is ${p.stockQty} pcs.`}
+                                  {p.stockQty > 0 && ` Current stock is ${p.stockQty} pcs.`} If this product has ever had a purchase, sale, or
+                                  adjustment recorded against it, deleting it will be refused — use Archive instead to hide it from new sales
+                                  while keeping its history intact.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -319,7 +374,17 @@ function ProductsPageContent() {
             const low = isLowStock(p.stockQty, p.lowStockAlert);
             return (
               <MobileRecordCard key={p.id} onClick={canManage ? () => openEdit(p) : undefined}>
-                <MobileRecordHeader title={p.name} subtitle={p.sku} value={inr(p.sellingPrice)} showChevron={canManage} />
+                <MobileRecordHeader
+                  title={!p.active ? <span className="text-muted-foreground">{p.name}</span> : p.name}
+                  subtitle={p.sku}
+                  value={
+                    <span className="inline-flex items-center gap-1.5">
+                      {!p.active && <Badge variant="secondary">Archived</Badge>}
+                      {inr(p.sellingPrice)}
+                    </span>
+                  }
+                  showChevron={canManage}
+                />
                 <MobileRecordRow
                   label="Stock"
                   value={

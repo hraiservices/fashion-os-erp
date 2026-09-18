@@ -4,17 +4,21 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt } from "lucide-react";
 import { useOrder } from "@/hooks/use-order";
+import { useOrders } from "@/hooks/use-orders";
+import { useOrderGroup } from "@/hooks/use-order-group";
+import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useConfirmOrderPayables, useDeleteOrderPayment, useBackfillOrderPayment } from "@/hooks/use-order-mutations";
+import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useDeleteOrderPayment, useBackfillOrderPayment, useRenameOrder } from "@/hooks/use-order-mutations";
 import { useOrderPayments } from "@/hooks/use-order-payments";
 import { useTailorName } from "@/hooks/use-employees";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
 import { computeOrderProfit } from "@/lib/order-profit";
-import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppUrl, DEFAULT_TAILOR_RATES, type Lining, type TailorRateCard } from "@/lib/business-rules";
+import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppUrl, isValidManualOrderNumber, type Lining } from "@/lib/business-rules";
+import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
 import { inr, fmtDate } from "@/lib/format";
@@ -30,6 +34,7 @@ import { ReworkDialog } from "@/components/orders/rework-dialog";
 import { printOrderTag } from "@/lib/order-tag";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { PrintButton } from "@/components/ui/print-button";
@@ -46,21 +51,38 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const { data: order, isLoading } = useOrder(id);
+  const { data: customer } = useCustomerByMobile(order?.mobile || "");
+  // Other orders from the same "one order per garment" split submission (see the New Order
+  // form's split checkbox) — the authoritative list, unlike the approximate badges on the
+  // kanban/orders-list cards which only count what's already loaded on that screen.
+  const { data: orderGroup } = useOrderGroup(order?.groupId ?? null);
+  const groupSiblings = (orderGroup || []).filter((o) => o.id !== id);
+  // Same list + ordering (newest-first by created_at) the notification bell and dashboard
+  // widgets already query — reused here just to let the detail page step to the adjacent
+  // order without forcing a round trip back through the list's own filters/search/sort.
+  const { data: allOrders } = useOrders();
+  const orderIndex = allOrders?.findIndex((o) => o.id === id) ?? -1;
+  const prevOrderId = orderIndex > 0 ? allOrders?.[orderIndex - 1]?.id : undefined;
+  const nextOrderId = orderIndex >= 0 && allOrders && orderIndex < allOrders.length - 1 ? allOrders[orderIndex + 1]?.id : undefined;
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
+  const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   const advanceStage = useAdvanceStage();
   const deleteOrder = useDeleteOrder();
+  const renameOrder = useRenameOrder();
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [newOrderNumber, setNewOrderNumber] = useState("");
+  const renameError = newOrderNumber && !isValidManualOrderNumber(newOrderNumber.trim()) ? "Only letters, numbers, dots, dashes and underscores (no spaces or slashes)" : null;
   const updateOrder = useUpdateOrder();
   const setRework = useSetOrderRework();
-  const confirmPayables = useConfirmOrderPayables();
   const tailorName = useTailorName();
   const { data: measureFields } = useMeasureFields();
-  const { data: tailorRates } = useAppSetting<TailorRateCard>("tailorRates", DEFAULT_TAILOR_RATES);
   const { data: orderExpenses } = useOrderExpensesFor(id);
   const { data: orderPayments, isError: paymentsError } = useOrderPayments(id);
   const deletePayment = useDeleteOrderPayment();
@@ -95,9 +117,24 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     }
   }
 
+  async function doRename() {
+    const trimmed = newOrderNumber.trim();
+    if (!trimmed || !isValidManualOrderNumber(trimmed)) return;
+    try {
+      const res = await renameOrder.mutateAsync({ id, newId: trimmed });
+      setRenameOpen(false);
+      toast.success(`Order renamed to ${res.order.id}`);
+      // The old id's page (this one) is gone the moment the rename lands — move on before the
+      // user hits reload and gets a 404 for an id that no longer exists.
+      router.replace(`/orders/${res.order.id}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to rename order");
+    }
+  }
+
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
+      <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
         <Skeleton className="h-28 w-full" />
         <Skeleton className="h-48 w-full" />
       </div>
@@ -113,12 +150,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   const next = getNextStage(order.status);
   const orderName = order.name;
-  const waUrl = buildWhatsAppUrl(order, resolveWaType(order), shop);
-  const paymentReminderUrl = buildWhatsAppUrl(order, "paymentDue", shop);
+  const trackUrl = typeof window !== "undefined" && customer?.shareToken ? `${window.location.origin}/track/${customer.shareToken}` : undefined;
+  const waUrl = buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates);
+  const paymentReminderUrl = buildWhatsAppUrl({ ...order, trackUrl }, "paymentDue", shop, waTemplates);
   const paidPct = order.total > 0 ? Math.round((order.advance / order.total) * 100) : 0;
 
   const orderBalance = order.balance;
-  const profit = computeOrderProfit(order, tailorRates || DEFAULT_TAILOR_RATES, orderExpenses || []);
+  const profit = computeOrderProfit(order, orderExpenses || []);
   function requestAdvance() {
     if (next === "payment" && orderBalance > 0) {
       toast.error(`Clear balance of ${inr(orderBalance)} before marking as paid`);
@@ -166,11 +204,39 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
-      <Link href="/orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Orders
-      </Link>
+    <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+      <div className="flex items-center justify-between gap-3">
+        <Link href="/orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="size-4" /> Orders
+        </Link>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="size-9 sm:size-8"
+            aria-label="Previous order"
+            title="Previous order"
+            disabled={!prevOrderId}
+            onClick={() => prevOrderId && router.push(`/orders/${prevOrderId}`)}
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="size-9 sm:size-8"
+            aria-label="Next order"
+            title="Next order"
+            disabled={!nextOrderId}
+            onClick={() => nextOrderId && router.push(`/orders/${nextOrderId}`)}
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
+      </div>
 
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
+      <div className="space-y-4 lg:col-span-4">
       {/* Header */}
       <div className="overflow-hidden rounded-xl border bg-card">
         <div className={cn("h-1", STAGE_STYLE[order.status].accent)} />
@@ -180,6 +246,49 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <h1 className="truncate text-xl font-semibold tracking-tight">{order.name}</h1>
               <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                 <span>{order.id}</span>
+                {user?.perms.deleteOrder && (
+                  <Dialog
+                    open={renameOpen}
+                    onOpenChange={(open) => {
+                      setRenameOpen(open);
+                      if (open) setNewOrderNumber(order.id);
+                    }}
+                  >
+                    <DialogTrigger
+                      render={
+                        <button type="button" className="inline-flex items-center gap-1 hover:text-foreground" aria-label="Change order number" title="Change order number">
+                          <Pencil className="size-3.5" />
+                        </button>
+                      }
+                    />
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Change order number</DialogTitle>
+                        <DialogDescription>
+                          This is the order&apos;s actual id — every payment, expense, log entry, and shared link that points at {order.id} will be repointed to the new number.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <Input
+                        value={newOrderNumber}
+                        onChange={(e) => setNewOrderNumber(e.target.value)}
+                        placeholder="e.g. SOR-2026-0193"
+                        autoFocus
+                      />
+                      {renameError && <p className="text-[11px] text-destructive">{renameError}</p>}
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setRenameOpen(false)} disabled={renameOrder.isPending}>
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={doRename}
+                          disabled={renameOrder.isPending || !newOrderNumber.trim() || newOrderNumber.trim() === order.id || !!renameError}
+                        >
+                          {renameOrder.isPending ? "Renaming…" : "Rename"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
                 <a href={`tel:${order.mobile}`} className="inline-flex items-center gap-1 hover:text-foreground">
                   <Phone className="size-3.5" /> {order.mobile}
                 </a>
@@ -200,12 +309,18 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <div className="mt-3 rounded-lg border border-red-500/30 bg-red-50 p-3 text-sm dark:bg-red-950/40">
               <p className="font-medium text-red-700 dark:text-red-400">Flagged for rework</p>
               <p className="mt-0.5 text-xs text-red-700/80 dark:text-red-400/80">{order.reworkReason}</p>
+              {order.reworkCount > 1 && (
+                <p className="mt-0.5 text-xs text-red-700/80 dark:text-red-400/80">Sent back {order.reworkCount} times total</p>
+              )}
               {user?.perms.changeStage && (
                 <Button variant="outline" size="sm" className="mt-2" disabled={setRework.isPending} onClick={clearRework}>
                   Clear rework flag
                 </Button>
               )}
             </div>
+          )}
+          {!order.reworkFlag && order.reworkCount > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">Previously sent back for rework {order.reworkCount} {order.reworkCount === 1 ? "time" : "times"}.</p>
           )}
 
           {/* Payment progress — the number the shop cares about most */}
@@ -225,30 +340,30 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      {/* Actions — a plain wrapping/grid layout in normal document flow, not a fixed/sticky bar.
+      {/* Actions — a plain wrapping/flex layout in normal document flow, not a fixed/sticky bar.
           A fixed bottom bar fought for the same screen corner as the app-wide WhatsApp-support/
           AI-Copilot bubbles (no amount of horizontal clearance fully avoided it) and forced a
           horizontally scrollable row to fit its buttons, which is worse than just wrapping them.
-          The two primary actions (stage/payment) stay a prominent, naturally-sized row; the rest
-          (up to 6: WhatsApp/edit/rework/payables/tag/print/delete) go in a 3-column grid on
-          mobile so they fill the row evenly instead of wrapping into ragged, differently-sized
-          groups — back to plain inline flex-wrap on desktop, where there's room to lay out
-          naturally. */}
+          Every button is `flex-1` with a `basis` floor, not a fixed-column grid — a grid's column
+          count is set by container width alone, so whenever the trailing row had fewer buttons
+          than that column count (e.g. 2 buttons in a 3-column grid), the leftover column just sat
+          empty instead of the row filling out. flex-1 lets each wrapped row's items share exactly
+          that row's width, however many end up on it. */}
       <div className="space-y-2 print:hidden">
         <div className="flex flex-wrap gap-2">
           {user?.perms.changeStage && next && (
-            <Button className={cn("h-12 flex-1 text-base sm:h-8 sm:flex-none sm:text-sm", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
-              <ArrowRight className="size-4" /> Move to {STAGE_META[next].label}
+            <Button className={cn("h-12 min-w-0 flex-1 basis-36 text-base sm:h-10 sm:text-sm", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
+              <ArrowRight className="size-4 shrink-0" /> <span className="truncate">Move to {STAGE_META[next].label}</span>
             </Button>
           )}
           {user?.perms.managePayments && order.balance > 0 && (
-            <Button variant="outline" className="h-12 flex-1 text-base sm:h-8 sm:flex-none sm:text-sm" onClick={() => setPaymentOpen(true)}>
-              <Wallet className="size-4" /> Collect payment
+            <Button variant="outline" className="h-12 min-w-0 flex-1 basis-36 text-base sm:h-10 sm:text-sm" onClick={() => setPaymentOpen(true)}>
+              <Wallet className="size-4 shrink-0" /> <span className="truncate">Collect payment</span>
             </Button>
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+        <div className="flex flex-wrap gap-2">
           {order.balance > 0 ? (
             <WhatsAppButton
               href={paymentReminderUrl}
@@ -258,56 +373,37 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   <span className="hidden sm:inline">Payment Reminder</span>
                 </>
               }
-              className="h-12 w-full justify-center sm:h-8 sm:w-auto sm:justify-start"
+              labelClassName="min-w-0 truncate"
+              className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm"
+              tone="reminder"
             />
           ) : (
-            <WhatsAppButton href={waUrl} label="WhatsApp" className="h-12 w-full justify-center sm:h-8 sm:w-auto sm:justify-start" />
+            <WhatsAppButton href={waUrl} label="WhatsApp" labelClassName="min-w-0 truncate" className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm" />
           )}
           {user?.perms.editOrder && (
-            <Button variant="outline" className="h-12 w-full sm:h-8 sm:w-auto" nativeButton={false} render={<Link href={`/orders/${id}/edit`} />} aria-label="Edit order">
+            <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" nativeButton={false} render={<Link href={`/orders/${id}/edit`} />} aria-label="Edit order">
               <Pencil className="size-4" />
-              <span>Edit</span>
+              <span className="min-w-0 truncate">Edit</span>
             </Button>
           )}
           {user?.perms.changeStage && !order.reworkFlag && (
-            <Button variant="outline" className="h-12 w-full sm:h-8 sm:w-auto" aria-label="Flag for rework" onClick={() => setReworkDialogOpen(true)}>
+            <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Flag for rework" onClick={() => setReworkDialogOpen(true)}>
               <RotateCcw className="size-4" />
-              <span>Rework</span>
+              <span className="min-w-0 truncate">Rework</span>
             </Button>
           )}
-          {user?.perms.managePayroll && order.readyAt && !order.payablesConfirmedAt && order.garments.some((g) => g.payableAmount) && (
-            <Button
-              variant="outline"
-              className="h-12 w-full sm:h-8 sm:w-auto"
-              aria-label="Confirm tailor payables"
-              disabled={confirmPayables.isPending}
-              onClick={async () => {
-                try {
-                  await confirmPayables.mutateAsync(id);
-                  toast.success("Tailor payables confirmed");
-                } catch (e) {
-                  toast.error(e instanceof Error ? e.message : "Failed to confirm payables");
-                }
-              }}
-            >
-              <Wallet className="size-4" />
-              <span className="sm:hidden">{confirmPayables.isPending ? "…" : "Confirm"}</span>
-              <span className="hidden sm:inline lg:hidden">{confirmPayables.isPending ? "Confirming…" : "Confirm payables"}</span>
-              <span className="hidden lg:inline">{confirmPayables.isPending ? "Confirming…" : "Confirm tailor payables"}</span>
-            </Button>
-          )}
-          <Button variant="outline" className="h-12 w-full sm:h-8 sm:w-auto" aria-label="Print order tag" onClick={() => printOrderTag(order, shop, tailorName(order.tailor))}>
+          <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print order tag" onClick={() => printOrderTag(order, shop, tailorName(order.tailor))}>
             <TagIcon className="size-4" />
-            <span>Print tag</span>
+            <span className="min-w-0 truncate">Print tag</span>
           </Button>
-          <PrintButton className="h-12 w-full justify-center sm:h-8 sm:w-auto sm:justify-start" />
+          <PrintButton labelClassName="min-w-0 truncate" className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm" />
           {user?.perms.deleteOrder && (
             <AlertDialog>
               <AlertDialogTrigger
                 render={
-                  <Button variant="destructive" className="h-12 w-full sm:h-8 sm:w-auto" aria-label="Delete order">
+                  <Button variant="destructive" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Delete order">
                     <Trash2 className="size-4" />
-                    <span>Delete</span>
+                    <span className="min-w-0 truncate">Delete</span>
                   </Button>
                 }
               />
@@ -329,7 +425,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           )}
         </div>
       </div>
+      </div>
 
+      <div className="space-y-4 lg:col-span-8">
       <AlertDialog open={confirmAdvanceOpen} onOpenChange={setConfirmAdvanceOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -391,6 +489,35 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         )}
       </section>
+
+      {/* Linked orders — this order came from a "one order per garment" split submission (see
+          the New Order form's split checkbox). Each sibling moves through stages on its own;
+          this is just so staff can find the rest of the same customer visit in one place. Money
+          is deliberately NOT shared across them (see order-form.tsx's submitSplitOrders). */}
+      {groupSiblings.length > 0 && (
+        <section className="rounded-xl border bg-card">
+          <div className="border-b px-4 py-3">
+            <h2 className="text-sm font-semibold">Linked orders</h2>
+            <p className="text-xs text-muted-foreground">Same customer visit, split into one order per garment — each moves independently.</p>
+          </div>
+          <ul className="divide-y">
+            {groupSiblings.map((sib) => (
+              <li key={sib.id}>
+                <Link href={`/orders/${sib.id}`} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-muted/40">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{sib.id}</p>
+                    <p className="truncate text-xs text-muted-foreground">{(sib.garments[0]?.type || "—")}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <StageBadge stage={sib.status} size="sm" />
+                    <span className="text-xs font-medium tabular-nums">{inr(sib.total)}</span>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Payments — itemized ledger; deleting a row reverses the order's advance/balance
           (and any redeemed loyalty points) via delete_order_payment(). */}
@@ -466,8 +593,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </section>
       )}
 
-      {/* Profitability — internal only, same viewReports gate as the order form's Costs section */}
-      {user?.perms.viewReports && (
+      {/* Profitability — admin-only, not just viewReports (which managers also hold). Profit
+          figures are restricted to the admin role specifically, everywhere in the app. */}
+      {user?.role === "admin" && (
         <section className="rounded-xl border bg-card">
           <div className="border-b px-4 py-3">
             <h2 className="flex items-center gap-1.5 text-sm font-semibold">
@@ -510,6 +638,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <section className="rounded-xl border bg-card">
           <div className="border-b px-4 py-3">
             <h2 className="text-sm font-semibold">Measurements</h2>
+            {order.measurementProfileName && (
+              <p className="mt-0.5 text-xs text-muted-foreground">From profile: {order.measurementProfileName}</p>
+            )}
           </div>
           <div className="p-4">
             <MeasurementView fields={measureFields || []} values={hydrateMeasurements(measureFields || [], order.measurements)} />
@@ -537,6 +668,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </ol>
         )}
       </section>
+
+      </div>
+      </div>
 
       <PaymentModal order={order} open={paymentOpen} onOpenChange={setPaymentOpen} />
       <ReworkDialog orderId={id} open={reworkDialogOpen} onOpenChange={setReworkDialogOpen} />

@@ -55,7 +55,17 @@ export function useAttendanceInRange(from: string, to: string) {
   });
 }
 
-/** Marks (or updates) one employee's attendance for a given day — upsert on the (employee_id, date) unique constraint. */
+/**
+ * Marks (or updates) one employee's attendance for a given day.
+ *
+ * Routed through POST /api/attendance/mark rather than upserting employee_attendance straight
+ * from the browser: these rows are what payroll multiplies into gross pay, so the write needs a
+ * real manageEmployees check on the server (the attendance page's own check was UI-only), and
+ * `created_by` has to come from the session instead of the request — see that route's comment.
+ *
+ * `userEmail` is still accepted so existing callers don't have to change, but it is no longer
+ * sent anywhere: the server records the actor from the session cookie.
+ */
 export function useMarkAttendance() {
   const qc = useQueryClient();
   return useMutation({
@@ -66,7 +76,6 @@ export function useMarkAttendance() {
       checkIn,
       checkOut,
       notes,
-      userEmail,
     }: {
       employeeId: string;
       date: string;
@@ -76,20 +85,13 @@ export function useMarkAttendance() {
       notes?: string;
       userEmail?: string;
     }) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("employee_attendance").upsert(
-        {
-          employee_id: employeeId,
-          date,
-          status,
-          check_in: checkIn || null,
-          check_out: checkOut || null,
-          notes: notes || "",
-          created_by: userEmail || null,
-        },
-        { onConflict: "employee_id,date" }
-      );
-      if (error) throw error;
+      const res = await fetch("/api/attendance/mark", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId, date, status, checkIn, checkOut, notes }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to mark attendance");
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["attendance"] });

@@ -41,7 +41,7 @@ export function StatCard({
           <Icon className="size-4" />
         </span>
       </div>
-      <p className={cn("mt-2 text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl", t.value)}>{value}</p>
+      <p className={cn("mt-2 truncate text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl", t.value)}>{value}</p>
       {hint && <p className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</p>}
       {progress && (
         <div className="mt-4">

@@ -19,6 +19,22 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+
+const VENDOR_PAYMENT_COLUMNS = [
+  { key: "date", label: "Date", required: true },
+  { key: "vendor", label: "Vendor", required: true },
+  { key: "bill", label: "Bill#" },
+  { key: "mode", label: "Mode" },
+  { key: "amount", label: "Amount", required: true },
+  { key: "note", label: "Note" },
+];
+
+// Below 1920px (a 14" laptop) the table feels cramped — Note is the widest, least essential
+// column to see at a glance, so it defaults to hidden there and reappears automatically on a
+// wider monitor (still one click away via Columns).
+const VENDOR_PAYMENT_AUTO_HIDE = { belowWidth: 1920, keys: ["note"] };
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +58,8 @@ export default function VendorPaymentsPage() {
   const [confirmOne, setConfirmOne] = useState<string | null>(null);
   const [confirmBulk, setConfirmBulk] = useState(false);
   const [busy, setBusy] = useState(false);
+  const columnTable = useColumnVisibility("vendor-payments", VENDOR_PAYMENT_COLUMNS, VENDOR_PAYMENT_AUTO_HIDE);
+  const isVisible = columnTable.isVisible;
 
   const canManage = !!user?.perms.managePurchases;
   const billById = useMemo(() => new Map((bills || []).map((b) => [b.id, b])), [bills]);
@@ -95,9 +113,12 @@ export default function VendorPaymentsPage() {
     <div className="space-y-4 p-4 sm:p-6">
       <PageHeader title="Payments Made" description={`${filtered.length} payments · ${inr(total)} total`} />
 
-      <div className="relative sm:max-w-xs">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input type="search" enterKeyHint="search" placeholder="Search bill#, vendor…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input type="search" enterKeyHint="search" placeholder="Search bill#, vendor…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <ColumnCustomizerMenu table={columnTable} />
       </div>
 
       {canManage && selection.count > 0 && (
@@ -144,7 +165,7 @@ export default function VendorPaymentsPage() {
                 <TableHead>Bill#</TableHead>
                 <TableHead>Mode</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Note</TableHead>
+                {isVisible("note") && <TableHead>Note</TableHead>}
                 {canManage && <TableHead className="w-10" />}
               </TableRow>
             </TableHeader>
@@ -171,7 +192,7 @@ export default function VendorPaymentsPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{p.method}</TableCell>
                     <TableCell className="text-right font-medium tabular-nums text-red-600 dark:text-red-400">{inr(p.amount)}</TableCell>
-                    <TableCell className="max-w-48 truncate text-muted-foreground">{p.note || "—"}</TableCell>
+                    {isVisible("note") && <TableCell className="max-w-48 truncate text-muted-foreground">{p.note || "—"}</TableCell>}
                     {canManage && (
                       <TableCell>
                         <Button variant="ghost" size="icon-sm" className="size-11 text-muted-foreground hover:text-destructive sm:size-7" onClick={() => setConfirmOne(p.id)} aria-label="Delete payment">

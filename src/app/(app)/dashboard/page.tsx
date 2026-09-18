@@ -12,12 +12,13 @@ import { isWidgetEnabled } from "@/lib/entitlements";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
+import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardGrid } from "@/components/dashboard/dashboard-grid";
 import { CustomizePanel } from "@/components/dashboard/customize-panel";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { DigitalClock } from "@/components/dashboard/digital-clock";
-import type { WidgetInstance } from "@/lib/dashboard-widgets";
+import { isWidgetVisibleForRole, type WidgetInstance } from "@/lib/dashboard-widgets";
 
 export default function DashboardPage() {
   const { data: user } = useCurrentUser();
@@ -43,6 +44,11 @@ export default function DashboardPage() {
     setWidgets(next);
     save.mutate(next, { onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to save layout") });
   }
+
+  // Role-restricted builtins (e.g. Profit Overview — admin/manager only) are filtered out here
+  // rather than baked into the saved layout itself, so a role change takes effect immediately
+  // without needing to touch anyone's stored widget list.
+  const roleVisibleWidgets = widgets.filter((w) => w.kind === "custom" || isWidgetVisibleForRole(w.builtinKey, user?.role));
 
   return (
     <div className="space-y-5 p-4 sm:p-6">
@@ -86,6 +92,7 @@ export default function DashboardPage() {
             <Button nativeButton={false} render={<Link href="/expenses/new" />} className="hidden sm:inline-flex">
               <Wallet className="size-4" /> New Expense
             </Button>
+            {user?.perms.managePayments && <NewPaymentButton className="hidden sm:inline-flex" />}
             {(user?.perms.manageCustomers || user?.role === "admin" || user?.role === "manager") && (
               <Button nativeButton={false} render={<Link href="/crm/new" />} className="hidden sm:inline-flex">
                 <UserPlus className="size-4" /> New Customer
@@ -106,10 +113,10 @@ export default function DashboardPage() {
           ))}
         </div>
       ) : (
-        <DashboardGrid widgets={widgets} editing={panelOpen} onChange={handleChange} />
+        <DashboardGrid widgets={roleVisibleWidgets} editing={panelOpen} onChange={handleChange} />
       )}
 
-      <CustomizePanel open={panelOpen} onOpenChange={setPanelOpen} widgets={widgets} onChange={handleChange} />
+      <CustomizePanel open={panelOpen} onOpenChange={setPanelOpen} widgets={roleVisibleWidgets} onChange={handleChange} />
     </div>
   );
 }

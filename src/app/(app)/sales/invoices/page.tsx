@@ -21,6 +21,7 @@ import { DEFAULT_SALES_WHATSAPP_TEMPLATES, buildSalesWhatsAppUrl, type SalesWhat
 import { ExportMenu } from "@/components/ui/export-menu";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
+import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { Input } from "@/components/ui/input";
 import { Skeleton, SkeletonListItem } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -88,7 +89,9 @@ export default function SalesInvoicesPage() {
   const setDocStatus = useSetInvoiceDocStatus();
   const deleteInvoice = useDeleteInvoice();
   const canManage = !!user?.perms.manageSales;
-  const canViewMargin = !!user?.perms.viewReports;
+  // Profit margin is restricted to the admin role specifically, not just viewReports (which
+  // managers also hold) — a shop-wide requirement, not just this one table.
+  const canViewMargin = user?.role === "admin";
 
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date");
@@ -96,7 +99,9 @@ export default function SalesInvoicesPage() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  const table = useColumnVisibility("sales-invoices", COLUMNS);
+  // The Profit Margin column toggle itself is hidden from the picker for non-admins, not just its data.
+  const columns = canViewMargin ? COLUMNS : COLUMNS.filter((c) => c.key !== "margin");
+  const table = useColumnVisibility("sales-invoices", columns);
   const savedViews = useSavedViews<InvoiceViewFilters>("sales-invoices");
 
   function reminderUrl(inv: SalesInvoiceWithBalance) {
@@ -235,14 +240,19 @@ export default function SalesInvoicesPage() {
         title="Invoices"
         description={`${invoices?.length ?? 0} invoices`}
         actions={
-          canManage && (
+          (canManage || user?.perms.managePayments) && (
             <div className="flex gap-2">
-              <Button variant="outline" nativeButton={false} render={<Link href="/sales/invoices/import" />}>
-                <Upload className="size-4" /> Import
-              </Button>
-              <Button nativeButton={false} render={<Link href="/sales/invoices/new" />}>
-                <Plus className="size-4" /> New invoice
-              </Button>
+              {canManage && (
+                <>
+                  <Button variant="outline" nativeButton={false} render={<Link href="/sales/invoices/import" />}>
+                    <Upload className="size-4" /> Import
+                  </Button>
+                  <Button nativeButton={false} render={<Link href="/sales/invoices/new" />}>
+                    <Plus className="size-4" /> New invoice
+                  </Button>
+                </>
+              )}
+              {user?.perms.managePayments && <NewPaymentButton />}
             </div>
           )
         }
@@ -409,7 +419,7 @@ export default function SalesInvoicesPage() {
                               <Wallet className="size-3.5" />
                             </Button>
                           )}
-                          {inv.balance > 0 && <WhatsAppIconButton href={reminderUrl(inv)} label={`WhatsApp reminder to ${inv.customerName}`} />}
+                          {inv.balance > 0 && <WhatsAppIconButton href={reminderUrl(inv)} label={`WhatsApp reminder to ${inv.customerName}`} tone="reminder" />}
                           <WhatsAppIconButton href={sendPdfUrl(inv)} label={`Send PDF link to ${inv.customerName}`} />
                           <Link
                             href={`/sales/invoices/new?cloneId=${inv.id}`}

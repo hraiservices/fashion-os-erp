@@ -5,14 +5,17 @@ import { ChevronRight, Wallet } from "lucide-react";
 import { getNextStage, buildWhatsAppUrl, STAGE_META } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
+import { useAppSetting } from "@/hooks/use-app-setting";
+import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { inr, fmtDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { deliveryTarget, formatCountdownDHM, useCountdownNow } from "@/lib/delivery-countdown";
 import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
-import { AlterationBadge, ReworkBadge } from "@/components/orders/order-card";
+import { AlterationBadge, ReworkBadge, DeleteOrderButton, GroupBadge } from "@/components/orders/order-card";
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { Checkbox } from "@/components/ui/checkbox";
 import { hapticTap } from "@/lib/haptics";
 import type { useRowSelection } from "@/hooks/use-row-selection";
@@ -29,6 +32,13 @@ interface RowProps {
   onRecordPayment?: (order: Order) => void;
   /** Resolves order.tailor (an employee id) to a display name — see orders/page.tsx. */
   tailorName?: (id: string) => string;
+  /** Customer's public order-status link, for the {track_link} WhatsApp variable. */
+  trackUrl?: string;
+  /** Count of orders sharing this order's group_id (itself included) — see order-card.tsx's
+   *  GroupBadge. Omit/undefined when the caller isn't tracking groups. */
+  groupSize?: number;
+  /** Sum of every sibling's own `total` (this order included) — see GroupBadge. */
+  groupTotal?: number;
 }
 
 interface TableRowProps extends RowProps {
@@ -78,13 +88,39 @@ function AdvanceButton({ order, onAdvance, advancing, compact }: RowProps & { co
   );
 }
 
-function OrderWhatsAppButton({ order, shop, compact }: { order: Order; shop?: Shop; compact?: boolean }) {
+function OrderWhatsAppButton({ order, shop, compact, trackUrl }: { order: Order; shop?: Shop; compact?: boolean; trackUrl?: string }) {
+  const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   return (
     <WhatsAppIconButton
-      href={buildWhatsAppUrl(order, resolveWaType(order), shop)}
+      href={buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates)}
       label={`WhatsApp ${order.name}`}
       className={cn("size-9", !compact && "sm:size-8")}
     />
+  );
+}
+
+/** Balance-due orders get a one-tap payment-reminder WhatsApp link next to the plain WhatsApp
+ *  button, so staff don't have to open the order just to nudge a customer for the balance.
+ *  Icon-only everywhere (desktop table and mobile card) — the visible "Reminder" label was the
+ *  single widest thing in an already-crowded actions row (Advance/Record/WhatsApp/Reminder/Delete
+ *  all in one row), and on a real phone it's what forces the primary "Move to X" button down to
+ *  a few clipped letters. */
+function PaymentReminderButton({ order, shop, compact, trackUrl }: { order: Order; shop?: Shop; compact?: boolean; trackUrl?: string }) {
+  const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
+  if (order.balance <= 0) return null;
+  const href = buildWhatsAppUrl({ ...order, trackUrl }, "paymentDue", shop, waTemplates);
+  return (
+    <Button
+      variant="outline"
+      size="icon-sm"
+      className={cn("size-9 shrink-0", !compact && "sm:size-8")}
+      aria-label={`Payment reminder to ${order.name}`}
+      title="Payment reminder"
+      nativeButton={false}
+      render={<a href={href} target="_blank" rel="noopener noreferrer" />}
+    >
+      <WhatsAppIcon className="size-3.5 text-orange-400" />
+    </Button>
   );
 }
 
@@ -113,7 +149,7 @@ function RecordPaymentButton({ order, onRecordPayment, compact }: { order: Order
  * every order becomes a tap-friendly card with its actions inline.
  */
 export function OrderCardRow(props: RowProps) {
-  const { order, canChangeStage, shop, onRecordPayment, tailorName } = props;
+  const { order, canChangeStage, shop, onRecordPayment, tailorName, trackUrl, groupSize, groupTotal } = props;
   const style = STAGE_STYLE[order.status];
 
   return (
@@ -134,6 +170,7 @@ export function OrderCardRow(props: RowProps) {
           <StageBadge stage={order.status} size="sm" />
           {order.orderType === "alteration" && <AlterationBadge />}
           {order.reworkFlag && <ReworkBadge />}
+          <GroupBadge size={groupSize} groupTotal={groupTotal} />
           <DueBadge order={order} />
           <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums">{inr(order.total)}</span>
         </div>
@@ -157,7 +194,9 @@ export function OrderCardRow(props: RowProps) {
       <div className="flex items-center gap-2 border-t bg-muted/30 p-2">
         {canChangeStage && <AdvanceButton {...props} compact />}
         <RecordPaymentButton order={order} onRecordPayment={onRecordPayment} compact />
-        <OrderWhatsAppButton order={order} shop={shop} compact />
+        <OrderWhatsAppButton order={order} shop={shop} compact trackUrl={trackUrl} />
+        <PaymentReminderButton order={order} shop={shop} compact trackUrl={trackUrl} />
+        <DeleteOrderButton order={order} compact />
       </div>
     </div>
   );
@@ -165,7 +204,7 @@ export function OrderCardRow(props: RowProps) {
 
 /** Desktop table row. */
 export function OrderTableRow(props: TableRowProps) {
-  const { order, canChangeStage, shop, onRecordPayment, selection, profit, tailorName } = props;
+  const { order, canChangeStage, shop, onRecordPayment, selection, profit, tailorName, trackUrl, groupSize, groupTotal } = props;
   const style = STAGE_STYLE[order.status];
   const isVisible = props.isVisible || (() => true);
 
@@ -175,7 +214,7 @@ export function OrderTableRow(props: TableRowProps) {
         <div className={cn("h-full w-1", style.accent)} aria-hidden />
       </td>
       {selection && (
-        <td className="px-3 py-3">
+        <td className="px-2.5 py-2.5">
           <Checkbox
             checked={selection.selected.has(order.id)}
             onChange={() => selection.toggle(order.id)}
@@ -184,7 +223,7 @@ export function OrderTableRow(props: TableRowProps) {
         </td>
       )}
       {isVisible("order") && (
-        <td className="px-3 py-3">
+        <td className="px-2.5 py-2.5">
           <Link href={`/orders/${order.id}`} className="font-medium hover:underline">
             {order.id}
           </Link>
@@ -192,27 +231,33 @@ export function OrderTableRow(props: TableRowProps) {
         </td>
       )}
       {isVisible("customer") && (
-        <td className="px-3 py-3">
+        <td className="px-2.5 py-2.5">
           <p className="truncate font-medium">{order.name}</p>
           <p className="truncate text-xs text-muted-foreground">{order.mobile}</p>
         </td>
       )}
+      {isVisible("garment") && (
+        <td className="max-w-[9rem] px-2.5 py-2.5">
+          <p className="truncate text-sm">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>
+        </td>
+      )}
       {isVisible("stage") && (
-        <td className="px-3 py-3">
+        <td className="px-2.5 py-2.5">
           <div className="flex flex-wrap items-center gap-1.5">
             <StageBadge stage={order.status} />
             {order.orderType === "alteration" && <AlterationBadge />}
             {order.reworkFlag && <ReworkBadge />}
+            <GroupBadge size={groupSize} groupTotal={groupTotal} />
           </div>
         </td>
       )}
       {isVisible("tailor") && (
-        <td className="px-3 py-3">
+        <td className="px-2.5 py-2.5">
           <span className="text-sm">{order.tailor ? tailorName?.(order.tailor) || order.tailor : "—"}</span>
         </td>
       )}
       {isVisible("delivery") && (
-        <td className="px-3 py-3">
+        <td className="px-2.5 py-2.5">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-sm">{fmtDateShort(order.deliveryDate)}</span>
             <DueBadge order={order} />
@@ -220,23 +265,34 @@ export function OrderTableRow(props: TableRowProps) {
           <DeliveryCountdown order={order} />
         </td>
       )}
-      {isVisible("total") && <td className="px-3 py-3 text-right tabular-nums">{inr(order.total)}</td>}
+      {isVisible("total") && <td className="px-2.5 py-2.5 text-right tabular-nums">{inr(order.total)}</td>}
       {isVisible("balance") && (
-        <td className="px-3 py-3 text-right tabular-nums">
+        <td className="px-2.5 py-2.5 text-right tabular-nums">
           <BalanceDue amount={order.balance} paidLabel="Paid" />
         </td>
       )}
       {isVisible("profit") && profit && (
-        <td className="px-3 py-3 text-right tabular-nums">
+        <td className="px-2.5 py-2.5 text-right tabular-nums">
           <span className={cn("font-medium", profit.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>{inr(profit.profit)}</span>
           {profit.tailorCostIsEstimate && <span className="ml-1 text-[10px] font-normal text-muted-foreground">Est.</span>}
         </td>
       )}
-      <td className="px-3 py-3">
-        <div className="flex items-center justify-end gap-1.5">
+      {isVisible("tailorPayable") && profit && (
+        <td className="px-2.5 py-2.5 text-right tabular-nums">
+          {inr(profit.tailorCost)}
+          {profit.tailorCostIsEstimate && <span className="ml-1 text-[10px] font-normal text-muted-foreground">Est.</span>}
+        </td>
+      )}
+      {isVisible("stitchingCost") && profit && (
+        <td className="px-2.5 py-2.5 text-right tabular-nums">{inr(profit.fabricCost + profit.otherCost + profit.stitchingExpenses)}</td>
+      )}
+      <td className="px-2.5 py-2.5">
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
           {canChangeStage && <AdvanceButton {...props} />}
           <RecordPaymentButton order={order} onRecordPayment={onRecordPayment} />
-          <OrderWhatsAppButton order={order} shop={shop} />
+          <OrderWhatsAppButton order={order} shop={shop} trackUrl={trackUrl} />
+          <PaymentReminderButton order={order} shop={shop} trackUrl={trackUrl} />
+          <DeleteOrderButton order={order} />
         </div>
       </td>
     </tr>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 
 /**
@@ -15,9 +16,12 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageInventory) return NextResponse.json({ error: "No permission to manage inventory" }, { status: 403 });
 
-  const { data: material } = await supabase.from("raw_materials").select("name").eq("id", id).maybeSingle();
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
 
-  const { data: ledgerRows } = await supabase
+  const { data: material } = await db.from("raw_materials").select("name").eq("id", id).maybeSingle();
+
+  const { data: ledgerRows } = await db
     .from("inventory_ledger")
     .select("id")
     .eq("item_type", "raw_material")
@@ -30,7 +34,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     );
   }
 
-  const { error } = await supabase.from("raw_materials").delete().eq("id", id);
+  const { error } = await db.from("raw_materials").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await logAction(supabase, user.email, `Raw material deleted: ${material?.name ?? id}`);

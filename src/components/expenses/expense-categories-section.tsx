@@ -256,7 +256,7 @@ export function ExpenseCategoriesSection() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Category name</Label>
+              <Label className="text-sm font-bold">Category name</Label>
               <Input
                 placeholder="e.g. Utilities"
                 className="h-10"

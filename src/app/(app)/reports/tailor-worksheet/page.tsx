@@ -1,11 +1,13 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Download, AlertTriangle, Shirt } from "lucide-react";
+import { Download, AlertTriangle, Share2, Shirt } from "lucide-react";
 import { ReportShell } from "@/components/reports/report-shell";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { exportXLSX } from "@/lib/export";
+import { buildReportWhatsAppUrl } from "@/lib/report-share";
 import { fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { TailorWorksheetSection, WorksheetGarment } from "@/lib/tailor-worksheet";
@@ -42,12 +44,31 @@ export default function TailorWorksheetPage() {
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
+  const allGarments = (sections || []).flatMap((s) =>
+    [...s.overdue, ...s.pendingFromBefore, ...s.newToday].map((g) => ({
+      Tailor: s.tailorName,
+      "Garment Type": g.garmentType,
+      Lining: g.lining || "",
+      Customer: g.customerName,
+      Order: g.orderId,
+      Qty: g.qty,
+      "Due Date": g.deliveryDate ? fmtDate(g.deliveryDate) : "",
+    }))
+  );
+  const summaryLines = (sections || []).map((s) => `${s.tailorName}: ${s.overdue.length + s.pendingFromBefore.length + s.newToday.length} garment(s)`);
+
   return (
     <ReportShell
       title="Daily Tailor Worksheet"
       description="Today's work and anything still pending from before, per tailor — download and print or share on WhatsApp."
     >
-      <div className="flex justify-end print:hidden">
+      <div className="flex flex-wrap justify-end gap-2 print:hidden">
+        <Button variant="outline" onClick={() => exportXLSX(allGarments, "tailor-worksheet")} disabled={allGarments.length === 0}>
+          <Download className="size-4" /> Excel (.xlsx)
+        </Button>
+        <Button variant="outline" onClick={() => window.open(buildReportWhatsAppUrl("Daily Tailor Worksheet", summaryLines), "_blank", "noopener,noreferrer")} disabled={summaryLines.length === 0}>
+          <Share2 className="size-4" /> Share on WhatsApp
+        </Button>
         <Button nativeButton={false} render={<a href="/api/reports/tailor-worksheet/pdf" target="_blank" rel="noopener noreferrer" />}>
           <Download className="size-4" /> Download printable PDF
         </Button>

@@ -5,22 +5,29 @@ import { Factory, Wallet, TrendingDown, Layers } from "lucide-react";
 import { useWorkOrders } from "@/hooks/use-work-orders";
 import { WO_STATUS_LABELS, WO_STAGES } from "@/lib/manufacturing";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Badge } from "@/components/ui/badge";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 export default function ManufacturingReportPage() {
-  const { data: workOrders, isLoading } = useWorkOrders();
+  const { data: allWorkOrders, isLoading } = useWorkOrders();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+
+  const workOrders = useMemo(() => (allWorkOrders || []).filter((w) => isWithinDateRange(w.startDate, range)), [allWorkOrders, range]);
 
   const statusCounts = useMemo(() => {
     const counts = { draft: 0, in_progress: 0, qc: 0, completed: 0 };
-    (workOrders || []).forEach((w) => (counts[w.status] += 1));
+    workOrders.forEach((w) => (counts[w.status] += 1));
     return counts;
   }, [workOrders]);
 
-  const completed = useMemo(() => (workOrders || []).filter((w) => w.status === "completed"), [workOrders]);
+  const completed = useMemo(() => workOrders.filter((w) => w.status === "completed"), [workOrders]);
   const totalProductionCost = useMemo(() => completed.reduce((s, w) => s + (w.totalCost || 0), 0), [completed]);
   const totalWastageCost = useMemo(() => completed.reduce((s, w) => s + (w.wastageCost || 0), 0), [completed]);
   const totalMaterialCost = useMemo(() => completed.reduce((s, w) => s + (w.materialCost || 0), 0), [completed]);
@@ -43,7 +50,27 @@ export default function ManufacturingReportPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
-    <ReportShell title="Manufacturing" description="Work order status, production cost and wastage">
+    <ReportShell
+      title="Manufacturing"
+      description="Work order status, production cost and wastage"
+      actions={
+        <ReportActionsMenu
+          rows={byProduct.map((p) => ({ Product: p.productName, "Work orders": p.woCount, "Qty produced": p.qtyProduced, "Total cost": p.totalCost, "Avg cost/unit": p.avgCostPerUnit }))}
+          filename="manufacturing"
+          title="Manufacturing"
+          summaryLines={[`Production cost: ${inr(totalProductionCost)}`, `Wastage cost: ${inr(totalWastageCost)} (${wastagePct}%)`]}
+        />
+      }
+    >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Active Work Orders" value={statusCounts.draft + statusCounts.in_progress + statusCounts.qc} icon={Factory} />
         <StatCard label="Production Cost" value={inr(totalProductionCost)} icon={Wallet} />
@@ -67,6 +94,23 @@ export default function ManufacturingReportPage() {
         {byProduct.length === 0 ? (
           <EmptyState icon={Factory} title="No completed work orders yet" description="Cost breakdowns appear once a work order is completed." />
         ) : (
+          <>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(byProduct.reduce((s, p) => s + p.totalCost, 0))} showChevron={false} />
+              <MobileRecordRow label="Work orders" value={byProduct.reduce((s, p) => s + p.woCount, 0)} />
+              <MobileRecordRow label="Qty produced" value={byProduct.reduce((s, p) => s + p.qtyProduced, 0)} />
+            </MobileRecordCard>
+            {byProduct.map((p) => (
+              <MobileRecordCard key={p.productName}>
+                <MobileRecordHeader title={p.productName} value={inr(p.totalCost)} showChevron={false} />
+                <MobileRecordRow label="Work orders" value={p.woCount} />
+                <MobileRecordRow label="Qty produced" value={p.qtyProduced} />
+                <MobileRecordRow label="Avg cost/unit" value={inr(p.avgCostPerUnit)} />
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
+          <div className="hidden sm:block">
           <ReportTable>
             <thead className="border-b bg-muted/40">
               <tr>
@@ -78,6 +122,13 @@ export default function ManufacturingReportPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
+              <ReportTotalsRow>
+                <Td>Total</Td>
+                <Td align="right">{byProduct.reduce((s, p) => s + p.woCount, 0)}</Td>
+                <Td align="right">{byProduct.reduce((s, p) => s + p.qtyProduced, 0)}</Td>
+                <Td align="right">{inr(byProduct.reduce((s, p) => s + p.totalCost, 0))}</Td>
+                <Td align="right">—</Td>
+              </ReportTotalsRow>
               {byProduct.map((p) => (
                 <tr key={p.productName} className="hover:bg-muted/30">
                   <Td className="font-medium">{p.productName}</Td>
@@ -89,6 +140,8 @@ export default function ManufacturingReportPage() {
               ))}
             </tbody>
           </ReportTable>
+          </div>
+          </>
         )}
       </div>
     </ReportShell>

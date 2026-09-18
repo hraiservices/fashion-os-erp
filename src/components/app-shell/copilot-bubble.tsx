@@ -4,17 +4,23 @@ import { useRef, useEffect, useState, useSyncExternalStore, type ReactNode } fro
 import Link from "next/link";
 import { Sparkles, Send, X, Copy, Check, Mic, MicOff, RotateCcw, Eraser } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { isModuleEnabled, DEFAULT_ENTITLEMENTS } from "@/lib/entitlements";
 import { useChatbotHistory, useAskChatbot, useClearChatbotHistory } from "@/hooks/use-chatbot";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useCopilotOpen } from "@/components/app-shell/copilot-context";
 import { hapticTap } from "@/lib/haptics";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
-const WA_SUPPORT = "919897504343";
+/** Also used by MobileTabBar to build the same support link for its "Support" tab. */
+export const WA_SUPPORT = "919897504343";
+
+export function buildSupportWhatsAppHref(shopName?: string): string {
+  const text = encodeURIComponent(`Hi, I need support with ${shopName || "Fashion Flow"}`);
+  return `https://wa.me/${WA_SUPPORT}?text=${text}`;
+}
 
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
@@ -83,7 +89,6 @@ function MessageActions({ text }: { text: string }) {
 
 export function CopilotBubble() {
   const { data: user } = useCurrentUser();
-  const { data: shop } = useShopSettings();
   const { data: entitlements } = useModuleEntitlements();
   const { data: history } = useChatbotHistory();
   const ask = useAskChatbot();
@@ -91,7 +96,7 @@ export function CopilotBubble() {
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const micSupported = useMicSupport();
 
-  const [open, setOpen] = useState(false);
+  const { open, setOpen } = useCopilotOpen();
   const [question, setQuestion] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
   const [lastFailedQuestion, setLastFailedQuestion] = useState<string | null>(null);
@@ -104,10 +109,6 @@ export function CopilotBubble() {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   const canUse = !!user?.perms.useChatbot && isModuleEnabled(entitlements ?? DEFAULT_ENTITLEMENTS, "copilot");
-
-  const shopName = shop?.name || "Fashion Flow";
-  const waText = encodeURIComponent(`Hi, I need support with ${shopName}`);
-  const waHref = `https://wa.me/${WA_SUPPORT}?text=${waText}`;
 
   useEffect(() => {
     if (open) {
@@ -325,7 +326,15 @@ export function CopilotBubble() {
   );
 
   return (
-    <div className="fixed bottom-20 right-3 z-50 flex flex-col items-end gap-2 lg:bottom-8 lg:right-6 print:hidden">
+    // bottom-20 is a guess at the mobile tab bar's height — unlike the tab bar itself
+    // (mobile-nav.tsx's pb-[env(safe-area-inset-bottom)]), this never accounted for the bottom
+    // safe-area inset, so on a phone with a tall gesture-nav area the FAB stack could sit too
+    // close to (or overlapping) the tab bar/page content instead of clearing it. calc() layers
+    // the inset on top of the fixed guess rather than replacing it, so this only pushes the
+    // stack up further on devices that actually have a non-zero inset.
+    <div
+      className="fixed right-3 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-50 flex flex-col items-end gap-2 lg:right-6 lg:bottom-8 print:hidden"
+    >
       {/* Desktop: small floating panel */}
       {isDesktop && open && canUse && (
         <div className="mb-2 flex h-[440px] w-[350px] flex-col overflow-hidden rounded-2xl border bg-popover text-popover-foreground shadow-2xl ring-1 ring-foreground/10">
@@ -382,37 +391,6 @@ export function CopilotBubble() {
         </Sheet>
       )}
 
-      {/* ── FAB buttons ── */}
-      <div className="flex flex-col items-end gap-2">
-        {/* WhatsApp support */}
-        <a
-          href={waHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="WhatsApp support"
-          className="flex size-12 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
-        >
-          <WhatsAppIcon className="size-[22px]" />
-        </a>
-
-        {/* AI Copilot toggle */}
-        {canUse && (
-          <button
-            type="button"
-            onClick={() => {
-              hapticTap();
-              setOpen((o) => !o);
-            }}
-            aria-label={open ? "Close AI Copilot" : "Open AI Copilot"}
-            className={cn(
-              "flex size-12 items-center justify-center rounded-full shadow-lg transition-all hover:scale-105 active:scale-95",
-              open ? "bg-primary text-primary-foreground ring-2 ring-primary/30" : "border bg-background text-primary hover:bg-primary/5"
-            )}
-          >
-            {open ? <X className="size-5" /> : <Sparkles className="size-5" />}
-          </button>
-        )}
-      </div>
     </div>
   );
 }

@@ -51,7 +51,7 @@ function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label:
 function FieldGroup({ label, required, error, children, hint }: { label: string; required?: boolean; error?: string; children: React.ReactNode; hint?: string }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-foreground/80">
+      <Label className="text-sm font-bold text-foreground/80">
         {label}{required && <span className="ml-0.5 text-red-500">*</span>}
       </Label>
       {children}
@@ -111,13 +111,13 @@ export function CustomerForm() {
     <form onSubmit={handleSubmit(onSubmit)} className="min-h-screen bg-muted/30">
       {/* Sticky header */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
-        <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-4xl items-center gap-4 px-4 py-3 sm:px-6">
           <Link href="/crm" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="size-4" />
             <span className="hidden sm:inline">Customers</span>
           </Link>
-          <div className="flex-1">
-            <h1 className="text-base font-semibold">New Customer</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-semibold truncate">New Customer</h1>
           </div>
           {/* Duplicate of the bottom FormActionBar — mobile only, so Add Customer is
              reachable without scrolling all the way down. */}
@@ -133,7 +133,7 @@ export function CustomerForm() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 space-y-5">
+      <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 space-y-5">
         {/* Basic info */}
         <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
           <SectionHeading icon={User} label="Basic info" />
@@ -219,7 +219,7 @@ export function CustomerForm() {
                   </span>
                 </AccordionTrigger>
                 <AccordionContent>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
                     {fields.map((label) => {
                       const key = toMKey(label);
                       return (
@@ -251,7 +251,7 @@ export function CustomerForm() {
           type="button"
           variant="outline"
           size="lg"
-          className="h-12 px-6 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 px-4 text-sm sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
           onClick={() => router.back()}
           disabled={isSubmitting}
         >
@@ -260,7 +260,7 @@ export function CustomerForm() {
         <Button
           type="submit"
           size="lg"
-          className="h-12 flex-1 gap-1.5 px-6 text-base sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 flex-1 gap-1.5 px-4 text-sm sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
           disabled={isSubmitting}
         >
           <Save className="size-3.5" />

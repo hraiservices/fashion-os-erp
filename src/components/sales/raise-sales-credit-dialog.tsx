@@ -13,6 +13,7 @@ import { useRaiseSalesCreditNote } from "@/hooks/use-sales-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { genSalesCreditNumber } from "@/lib/sales";
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
+import { istDateString } from "@/lib/ist-date";
 
 export function RaiseSalesCreditDialog({
   open,
@@ -34,7 +35,7 @@ export function RaiseSalesCreditDialog({
   const [lines, setLines] = useState<EditableSalesLine[]>([blankSalesLine()]);
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(istDateString());
 
   const productsById = useMemo(() => new Map((products || []).map((p) => [p.id, { name: p.name }])), [products]);
 
@@ -77,19 +78,19 @@ export function RaiseSalesCreditDialog({
         </DialogHeader>
         <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Returned items</Label>
+            <Label className="text-sm font-bold">Returned items</Label>
             <ProductLineItemsEditor lines={lines} onChange={setLines} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Return date</Label>
+            <Label className="text-sm font-bold">Return date</Label>
             <DatePicker value={date} onChange={setDate} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Reason *</Label>
+            <Label className="text-sm font-bold">Reason *</Label>
             <Input placeholder="e.g. Size exchange, damaged item" value={reason} onChange={(e) => setReason(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Notes</Label>
+            <Label className="text-sm font-bold">Notes</Label>
             <Textarea rows={2} placeholder="Optional…" value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </div>

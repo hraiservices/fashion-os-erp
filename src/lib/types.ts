@@ -1,5 +1,6 @@
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { deriveBalance, STAGES, type Stage } from "@/lib/business-rules";
+import type { MeasurementProfile } from "@/lib/measurement-profiles";
 
 export type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
 export type OrderExpenseRow = Database["public"]["Tables"]["order_expenses"]["Row"];
@@ -66,16 +67,19 @@ export interface Garment {
   lining?: "s" | "h" | "f" | string;
   no?: number;
   amount?: number;
-  /** Stable per-garment id, generated client-side once and carried through every edit —
-   *  what preserve_garment_payables() matches on to keep a frozen payableAmount attached to
-   *  the correct garment even if lines are reordered or one is deleted. Absent on garments
-   *  created before this existed (the SQL falls back to positional matching for those). */
+  /** Stable per-garment id, generated client-side once and carried through every edit — lets
+   *  the production checklist (and a tailor-role edit's payable-preserving guard, see
+   *  /api/orders/[id] PATCH) match this garment across reorders/deletes. Absent on garments
+   *  created before this existed (callers fall back to positional matching for those). */
   lineId?: string;
   /** Employee id of whoever stitches this garment — drives tailor piece-rate pay. */
   tailor?: string;
-  /** Snapshotted from the tailor rate card the moment this garment's order first reaches
-   *  "ready", then frozen forever — never recalculated, even if the rate card or the order
-   *  changes afterward. Undefined until snapshotted (no tailor assigned, or not ready yet). */
+  /** What the tailor is paid for this garment — a plain figure entered on the order (the order
+   *  form's Tailor Payable field), pre-filled from the Tailor Payable Rate card as a starting
+   *  suggestion, then freely editable, same as `amount` above. No server-side recomputation —
+   *  whatever is stored is the value, until a payroll run pays it out (Order.pieceRatePaidAt /
+   *  WorkOrder.pieceRatePaidAt), which is the only remaining freeze point. See
+   *  tailor_payable_manual_entry.sql. Undefined when no tailor is assigned. */
   payableAmount?: number;
   [key: string]: Json | undefined;
 }
@@ -113,10 +117,15 @@ export interface Order {
   reworkReason: string;
   reworkFlaggedBy: string | null;
   reworkFlaggedAt: string | null;
+  /** Lifetime count of times this order has been flagged for rework — unlike the fields above
+   *  (which describe only the current/most-recent flag and reset on clear), this never resets,
+   *  so it's the one place "how many times has this been sent back, total" survives. */
+  reworkCount: number;
   /** Set once, the first time the order reaches "ready" — powers the ready-but-uncollected aging report. Null for orders that haven't reached ready yet, or that reached it before this column existed. */
   readyAt: string | null;
-  /** Set by a payroll manager to confirm this order's snapshotted tailor payables as real —
-   *  see /api/orders/[id]/confirm-payables. Only confirmed payables count toward payroll. */
+  /** Retired — no longer set (there is no manager-confirmation step; a garment's payable counts
+   *  toward payroll from the moment it exists, see remove_tailor_payable_confirm_step.sql).
+   *  Column kept, unread, as a historical record of what used to be confirmed under the old flow. */
   payablesConfirmedAt: string | null;
   payablesConfirmedBy: string | null;
   /** Stamped by a payroll run once this order's payables have actually been paid out on a
@@ -129,6 +138,16 @@ export interface Order {
    *  against the real column value. */
   rawStatus: string;
   createdAt: string;
+  /** Shared across every order created from the same "split into one order per garment"
+   *  submission (see the New Order form's split checkbox) — null for every order created the
+   *  normal way. Purely a grouping label for staff to see related orders together; it carries
+   *  no other meaning (no shared money, no shared stage). */
+  groupId: string | null;
+  /** Which of the customer's saved measurement profiles (if any) this order's measurements were
+   *  taken from — a snapshot label, not a live foreign key, so it stays meaningful even if the
+   *  profile is later renamed or archived. Null for orders that didn't reference a named profile. */
+  measurementProfileId: string | null;
+  measurementProfileName: string | null;
 }
 
 export type OrderType = "new" | "alteration";
@@ -179,12 +198,16 @@ export function mapOrderRow(r: OrderRowForMapping): Order {
     reworkReason: r.rework_reason || "",
     reworkFlaggedBy: r.rework_flagged_by ?? null,
     reworkFlaggedAt: r.rework_flagged_at ?? null,
+    reworkCount: r.rework_count || 0,
     readyAt: r.ready_at ?? null,
     payablesConfirmedAt: r.payables_confirmed_at ?? null,
     payablesConfirmedBy: r.payables_confirmed_by ?? null,
     pieceRatePaidAt: r.piece_rate_paid_at ?? null,
     rawStatus: r.status || "received",
     createdAt: r.created_at || "",
+    groupId: r.group_id ?? null,
+    measurementProfileId: r.measurement_profile_id ?? null,
+    measurementProfileName: r.measurement_profile_name ?? null,
   };
 }
 
@@ -240,6 +263,13 @@ export interface Customer {
    *  Not checked for the order-status concierge, which only ever replies to a message the
    *  customer sent first. */
   whatsappOptOut: boolean;
+  /** Random token addressing this customer's public order-status page (/track/[token]) —
+   *  never guessable from mobile/id, safe to put in a plain-text WhatsApp link. */
+  shareToken: string;
+  /** Named measurement profiles ("Regular fit", "Loose fit") — see lib/measurement-profiles.ts.
+   *  Empty for a customer who's never engaged with this; the flat `measurements` field above
+   *  still works exactly as before and getProfiles() synthesizes a fallback from it. */
+  measurementProfiles: MeasurementProfile[];
 }
 
 /** mapCust(), line ~2324. */
@@ -263,6 +293,8 @@ export function mapCustomerRow(r: CustomerRow): Customer {
     tags: Array.isArray(r.tags) ? r.tags : [],
     gstin: r.gstin || "",
     whatsappOptOut: !!r.whatsapp_opt_out,
+    shareToken: r.share_token || "",
+    measurementProfiles: (Array.isArray(r.measurement_profiles) ? r.measurement_profiles : []) as unknown as MeasurementProfile[],
   };
 }
 
@@ -379,6 +411,9 @@ export interface Product {
   brand: string;
   /** Resized JPEG data URL (see fileToDataUrl) — same inline-storage pattern as branding images. */
   imageDataUrl: string | null;
+  /** false = archived/discontinued — kept (with all its stock ledger history) rather than
+   *  deleted, just hidden from pickers for new sales going forward. */
+  active: boolean;
   createdAt: string;
 }
 
@@ -403,6 +438,7 @@ export function mapProductRow(r: ProductRow, stockQty: number, bom: BomLine[]): 
     occasion: r.occasion || "",
     brand: r.brand || "",
     imageDataUrl: r.image_data_url || null,
+    active: r.active ?? true,
     createdAt: r.created_at,
   };
 }
@@ -615,9 +651,9 @@ export interface WorkOrder {
   costPerUnit: number | null;
   notes: string;
   completedAt: string | null;
-  /** Set once a payroll manager confirms this WO's laborCost as a real tailor payable — see
-   *  the split-gate note on the /complete and /confirm-payable routes. Null until confirmed,
-   *  even after the WO itself is completed. */
+  /** Retired — no longer set (there is no manager-confirmation step; a completed WO's laborCost
+   *  counts toward payroll immediately, see remove_tailor_payable_confirm_step.sql). Column
+   *  kept, unread, as a historical record of what used to be confirmed under the old flow. */
   laborPayableConfirmedAt: string | null;
   laborPayableConfirmedBy: string | null;
   /** Stamped by a payroll run once this WO's labour payable has actually been paid out on a
@@ -965,6 +1001,8 @@ export interface Employee {
   /** Reporting manager (another employee's id) — org-structure data, not yet used to scope
    *  approval visibility (see leave management plan notes). */
   managerId: string | null;
+  /** Profile photo as a data URL (see src/lib/media.ts) — null until set from the employee form. */
+  photoUrl: string | null;
   createdAt: string;
 }
 
@@ -988,6 +1026,7 @@ export function mapEmployeeRow(r: EmployeeRow, hasPin = false): Employee {
     locationId: r.location_id ?? null,
     hasPin,
     managerId: r.manager_id ?? null,
+    photoUrl: r.photo_url ?? null,
     createdAt: r.created_at,
   };
 }
@@ -1236,6 +1275,10 @@ export interface Payslip {
   status: PayslipStatus;
   paidAt: string | null;
   notes: string;
+  /** Manual bonus (positive) or deduction (negative) applied on top of the attendance-based
+   *  math — see src/app/api/payroll/payslips/[id]/route.ts. Zero for every payslip that hasn't
+   *  been manually adjusted. */
+  adjustmentAmount: number;
 }
 
 export function mapPayslipRow(r: PayslipRow): Payslip {
@@ -1257,6 +1300,7 @@ export function mapPayslipRow(r: PayslipRow): Payslip {
     status: (r.status as PayslipStatus) || "draft",
     paidAt: r.paid_at,
     notes: r.notes || "",
+    adjustmentAmount: r.adjustment_amount || 0,
   };
 }
 
@@ -1342,5 +1386,74 @@ export function mapWarehouseRow(r: WarehouseRow): Warehouse {
     isDefault: r.is_default,
     active: r.active,
     createdAt: r.created_at,
+  };
+}
+
+/** Desktop utility rail's sticky notes — same idea as Zoho Notebook's color swatches. */
+export const NOTE_COLORS = ["yellow", "green", "blue", "pink", "purple", "orange"] as const;
+export type NoteColor = (typeof NOTE_COLORS)[number];
+
+export type NoteRow = Database["public"]["Tables"]["user_scratch_notes"]["Row"];
+
+export interface Note {
+  id: string;
+  color: NoteColor;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function mapNoteRow(r: NoteRow): Note {
+  return {
+    id: r.id,
+    color: (NOTE_COLORS as readonly string[]).includes(r.color) ? (r.color as NoteColor) : "yellow",
+    content: r.content || "",
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+/** Desktop utility rail's mini spreadsheet — several named sheets per account, each a sparse
+ *  cell map ("A1" -> raw text/formula, or a {value,bold,italic,color,bg} object once formatting
+ *  is applied — see lib/mini-sheet.ts's normalizeCells for upgrading either shape uniformly),
+ *  evaluated client-side. */
+export type MiniSheetRow = Database["public"]["Tables"]["user_mini_sheets"]["Row"];
+
+export interface MiniSheet {
+  id: string;
+  name: string;
+  cells: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function mapMiniSheetRow(r: MiniSheetRow): MiniSheet {
+  return {
+    id: r.id,
+    name: r.name || "Sheet",
+    cells: r.cells || {},
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+/** Desktop utility rail's To-do icon — a personal checklist per account. */
+export type TodoRow = Database["public"]["Tables"]["user_todos"]["Row"];
+
+export interface Todo {
+  id: string;
+  text: string;
+  done: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function mapTodoRow(r: TodoRow): Todo {
+  return {
+    id: r.id,
+    text: r.text || "",
+    done: !!r.done,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
   };
 }

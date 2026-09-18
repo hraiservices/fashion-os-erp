@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { buildWhatsAppUrl } from "@/lib/business-rules";
 import { resolveWaType } from "@/lib/wa-type";
+import { useAppSetting } from "@/hooks/use-app-setting";
+import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import type { Order } from "@/lib/types";
 import type { Shop } from "@/lib/settings";
 
@@ -15,7 +17,21 @@ import type { Shop } from "@/lib/settings";
  * per recipient, same as sending them one at a time from the order list, just batched into one
  * place instead of hunting down each order.
  */
-export function BulkWhatsAppDialog({ orders, shop, open, onOpenChange }: { orders: Order[]; shop?: Shop; open: boolean; onOpenChange: (open: boolean) => void }) {
+export function BulkWhatsAppDialog({
+  orders,
+  shop,
+  open,
+  onOpenChange,
+  trackUrlByMobile,
+}: {
+  orders: Order[];
+  shop?: Shop;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Customer mobile → their public order-status link, for the {track_link} WhatsApp variable. */
+  trackUrlByMobile?: Map<string, string>;
+}) {
+  const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -32,7 +48,7 @@ export function BulkWhatsAppDialog({ orders, shop, open, onOpenChange }: { order
                   <p className="truncate text-sm font-medium">{o.name}</p>
                   <p className="text-xs text-muted-foreground">{o.id} · {o.mobile}</p>
                 </div>
-                <WhatsAppButton href={buildWhatsAppUrl(o, type, shop)} label="Send" size="sm" />
+                <WhatsAppButton href={buildWhatsAppUrl({ ...o, trackUrl: trackUrlByMobile?.get(o.mobile) }, type, shop, waTemplates)} label="Send" size="sm" tone={type === "paymentDue" ? "reminder" : "whatsapp"} />
               </div>
             );
           })}

@@ -24,6 +24,7 @@ import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/custom
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
 import type { Customer, RecurringInvoiceProfile, RecurringFrequency, RecurringEndType } from "@/lib/types";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { istDateString } from "@/lib/ist-date";
 
 const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
 const discountTypeLabel = (v: unknown) => (v === "percent" ? "Percent (%)" : "Flat (₹)");
@@ -31,7 +32,7 @@ const frequencyLabel = (v: unknown) => RECURRING_FREQUENCY_LABELS[v as Recurring
 const endTypeLabel = (v: unknown) => RECURRING_END_TYPE_LABELS[v as RecurringEndType] ?? "";
 
 function placeholderCustomer(name: string, mobile: string): Customer {
-  return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms: "due_on_receipt", priceListId: null, tags: [], gstin: "", whatsappOptOut: false };
+  return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms: "due_on_receipt", priceListId: null, tags: [], gstin: "", whatsappOptOut: false, shareToken: "", measurementProfiles: [] };
 }
 
 /** Renders blank (with the input's own "0" placeholder) instead of a literal typed "0" for fields where zero and "not entered" should look the same. */
@@ -66,7 +67,7 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
   const [notes, setNotes] = useState(existing?.notes || "");
 
   const [frequency, setFrequency] = useState<RecurringFrequency>(existing?.frequency || "monthly");
-  const [nextRunDate, setNextRunDate] = useState(existing?.nextRunDate || new Date().toISOString().slice(0, 10));
+  const [nextRunDate, setNextRunDate] = useState(existing?.nextRunDate || istDateString());
   const [endType, setEndType] = useState<RecurringEndType>(existing?.endType || "never");
   const [endDate, setEndDate] = useState(existing?.endDate || "");
   const [endAfterCount, setEndAfterCount] = useState(String(existing?.endAfterCount ?? 12));
@@ -118,23 +119,23 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Profile name *</Label>
+              <Label className="text-sm font-bold">Profile name *</Label>
               <Input placeholder="e.g. Monthly maintenance retainer" value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Customer *</Label>
+              <Label className="text-sm font-bold">Customer *</Label>
               <CustomerPickerTrigger customerName={customer?.name || ""} onClick={() => setPickerOpen(true)} />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Subject</Label>
+            <Label className="text-sm font-bold">Subject</Label>
             <Input placeholder="Shown on each generated invoice" value={subject} onChange={(e) => setSubject(e.target.value)} />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Frequency</Label>
+              <Label className="text-sm font-bold">Frequency</Label>
               <Select value={frequency} onValueChange={(v) => v && setFrequency(v as RecurringFrequency)}>
                 <SelectTrigger className="h-10 w-full">
                   <SelectValue>{frequencyLabel}</SelectValue>
@@ -149,11 +150,11 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Next run date</Label>
+              <Label className="text-sm font-bold">Next run date</Label>
               <DatePicker value={nextRunDate} onChange={setNextRunDate} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Ends</Label>
+              <Label className="text-sm font-bold">Ends</Label>
               <Select value={endType} onValueChange={(v) => v && setEndType(v as RecurringEndType)}>
                 <SelectTrigger className="h-10 w-full">
                   <SelectValue>{endTypeLabel}</SelectValue>
@@ -171,25 +172,25 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
 
           {endType === "on_date" && (
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">End date</Label>
+              <Label className="text-sm font-bold">End date</Label>
               <DatePicker value={endDate} onChange={setEndDate} />
             </div>
           )}
           {endType === "after_count" && (
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Number of invoices to generate</Label>
+              <Label className="text-sm font-bold">Number of invoices to generate</Label>
               <Input type="number" inputMode="numeric" min={1} value={endAfterCount} onChange={(e) => setEndAfterCount(e.target.value)} />
             </div>
           )}
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Items</Label>
+            <Label className="text-sm font-bold">Items</Label>
             <ProductLineItemsEditor lines={lines} onChange={setLines} showDiscount priceOverrides={priceOverrides} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">GST type</Label>
+              <Label className="text-sm font-bold">GST type</Label>
               <Select value={gstType} onValueChange={(v) => v && setGstType(v as GstType)}>
                 <SelectTrigger className="h-10 w-full">
                   <SelectValue>{gstTypeLabel}</SelectValue>
@@ -202,18 +203,18 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Tax rate (%)</Label>
+              <Label className="text-sm font-bold">Tax rate (%)</Label>
               <Input type="number" inputMode="decimal" min={0} max={100} step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} disabled={gstType === "none"} />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Shipping charges (₹)</Label>
+              <Label className="text-sm font-bold">Shipping charges (₹)</Label>
               <Input type="number" inputMode="decimal" min={0} step="0.01" value={shippingCharges} onChange={(e) => setShippingCharges(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Discount type</Label>
+              <Label className="text-sm font-bold">Discount type</Label>
               <Select value={discountType} onValueChange={(v) => v && setDiscountType(v as DiscountType)}>
                 <SelectTrigger className="h-10 w-full">
                   <SelectValue>{discountTypeLabel}</SelectValue>
@@ -225,7 +226,7 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Discount value</Label>
+              <Label className="text-sm font-bold">Discount value</Label>
               <Input type="number" inputMode="decimal" min={0} step="0.01" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} />
             </div>
           </div>
@@ -240,7 +241,7 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
           </Accordion>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Notes</Label>
+            <Label className="text-sm font-bold">Notes</Label>
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </CardContent>

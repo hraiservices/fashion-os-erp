@@ -6,10 +6,14 @@ import { useAllSalesPayments } from "@/hooks/use-sales-payments";
 import { useAllVendorPayments } from "@/hooks/use-vendor-payments";
 import { useAllOrderPayments } from "@/hooks/use-order-payments";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 
 interface MethodRow {
   method: string;
@@ -31,36 +35,53 @@ function byMethod(payments: { method: string; amount: number }[]): MethodRow[] {
 function MethodTable({ rows, total, emptyLabel }: { rows: MethodRow[]; total: number; emptyLabel: string }) {
   if (rows.length === 0) return <EmptyState icon={Wallet} title={emptyLabel} className="border-0" />;
   return (
-    <ReportTable>
-      <thead className="border-b bg-muted/40">
-        <tr>
-          <Th>Method</Th>
-          <Th align="right">Transactions</Th>
-          <Th align="right">Amount</Th>
-          <Th align="right">% of Total</Th>
-        </tr>
-      </thead>
-      <tbody className="divide-y">
+    <>
+      <MobileRecordList>
+        <MobileRecordCard className="bg-muted/40">
+          <MobileRecordHeader title="Total" value={inr(total)} showChevron={false} />
+          <MobileRecordRow label="Transactions" value={rows.reduce((s, r) => s + r.count, 0)} />
+          <MobileRecordRow label="% of Total" value="100%" />
+        </MobileRecordCard>
         {rows.map((r) => (
-          <tr key={r.method} className="hover:bg-muted/30">
-            <Td className="font-medium">{r.method}</Td>
-            <Td align="right">{r.count}</Td>
-            <Td align="right">{inr(r.amount)}</Td>
-            <Td align="right" className="text-muted-foreground">
-              {total > 0 ? ((r.amount / total) * 100).toFixed(1) : "0.0"}%
-            </Td>
-          </tr>
+          <MobileRecordCard key={r.method}>
+            <MobileRecordHeader title={r.method} value={inr(r.amount)} showChevron={false} />
+            <MobileRecordRow label="Transactions" value={r.count} />
+            <MobileRecordRow label="% of Total" value={`${total > 0 ? ((r.amount / total) * 100).toFixed(1) : "0.0"}%`} />
+          </MobileRecordCard>
         ))}
-      </tbody>
-      <tfoot>
-        <tr className="border-t bg-muted/30 font-semibold">
-          <td className="px-3 py-2.5">Total</td>
-          <td className="px-3 py-2.5 text-right tabular-nums">{rows.reduce((s, r) => s + r.count, 0)}</td>
-          <td className="px-3 py-2.5 text-right tabular-nums">{inr(total)}</td>
-          <td className="px-3 py-2.5" />
-        </tr>
-      </tfoot>
-    </ReportTable>
+      </MobileRecordList>
+
+      <div className="hidden sm:block">
+        <ReportTable>
+          <thead className="border-b bg-muted/40">
+            <tr>
+              <Th>Method</Th>
+              <Th align="right">Transactions</Th>
+              <Th align="right">Amount</Th>
+              <Th align="right">% of Total</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{rows.reduce((s, r) => s + r.count, 0)}</Td>
+              <Td align="right">{inr(total)}</Td>
+              <Td align="right">100%</Td>
+            </ReportTotalsRow>
+            {rows.map((r) => (
+              <tr key={r.method} className="hover:bg-muted/30">
+                <Td className="font-medium">{r.method}</Td>
+                <Td align="right">{r.count}</Td>
+                <Td align="right">{inr(r.amount)}</Td>
+                <Td align="right" className="text-muted-foreground">
+                  {total > 0 ? ((r.amount / total) * 100).toFixed(1) : "0.0"}%
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </ReportTable>
+      </div>
+    </>
   );
 }
 
@@ -69,19 +90,50 @@ export default function PaymentMethodsReportPage() {
   const { data: vendorPayments, isLoading: l2 } = useAllVendorPayments();
   const { data: orderPayments, isLoading: l3 } = useAllOrderPayments();
   const isLoading = l1 || l2 || l3;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   // Both revenue streams — sales_payments (product sales) and order_payments (stitching orders)
   // both have a real `method` column now, so this report reflects every rupee to reconcile
   // against a bank deposit, not just retail.
-  const receivedByMethod = useMemo(() => byMethod([...(salesPayments || []), ...(orderPayments || [])]), [salesPayments, orderPayments]);
-  const madeByMethod = useMemo(() => byMethod(vendorPayments || []), [vendorPayments]);
+  const receivedByMethod = useMemo(
+    () =>
+      byMethod([
+        ...(salesPayments || []).filter((p) => isWithinDateRange(p.date, range)),
+        ...(orderPayments || []).filter((p) => isWithinDateRange(p.createdAt, range)),
+      ]),
+    [salesPayments, orderPayments, range]
+  );
+  const madeByMethod = useMemo(() => byMethod((vendorPayments || []).filter((p) => isWithinDateRange(p.date, range))), [vendorPayments, range]);
   const totalReceived = useMemo(() => receivedByMethod.reduce((s, r) => s + r.amount, 0), [receivedByMethod]);
   const totalMade = useMemo(() => madeByMethod.reduce((s, r) => s + r.amount, 0), [madeByMethod]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
-    <ReportShell title="Payment Methods" description="Cash, UPI, bank transfer and card totals across stitching orders and product sales — useful for daily reconciliation against your bank deposits">
+    <ReportShell
+      title="Payment Methods"
+      description="Cash, UPI, bank transfer and card totals across stitching orders and product sales — useful for daily reconciliation against your bank deposits"
+      actions={
+        <ReportActionsMenu
+          rows={[
+            ...receivedByMethod.map((r) => ({ Type: "Received", Method: r.method, Transactions: r.count, Amount: r.amount })),
+            ...madeByMethod.map((r) => ({ Type: "Made", Method: r.method, Transactions: r.count, Amount: r.amount })),
+          ]}
+          filename="payment-methods"
+          title="Payment Methods"
+          summaryLines={[`Received: ${inr(totalReceived)}`, `Made: ${inr(totalMade)}`, `Net: ${inr(totalReceived - totalMade)}`]}
+        />
+      }
+    >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Payments Received" value={inr(totalReceived)} icon={ArrowDownCircle} />
         <StatCard label="Payments Made" value={inr(totalMade)} icon={ArrowUpCircle} />

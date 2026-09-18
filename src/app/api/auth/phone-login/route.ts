@@ -34,11 +34,17 @@ export async function POST(request: Request) {
   // number belongs to a real account, same posture as attendance login.
   const genericError = () => NextResponse.json({ error: "Invalid mobile number or PIN" }, { status: 401 });
 
-  const { data: userRow } = await serviceClient
+  const { data: userRow, error: userRowError } = await serviceClient
     .from("user_roles")
     .select("email, linked_employee_id, pin_hash, failed_pin_attempts, pin_locked_until")
     .eq("phone", mobile)
     .maybeSingle();
+  // maybeSingle() errors (rather than just returning null) when more than one row shares this
+  // phone number — two logins colliding on the same number, which the write-side routes now
+  // guard against but couldn't retroactively fix for numbers already duplicated. Surfacing this
+  // in the server log, instead of silently falling through to the same generic error a genuinely
+  // wrong number/PIN gets, is the only way an admin debugging "can't log in" ever finds it.
+  if (userRowError) console.error(`Phone login lookup failed for ${mobile}:`, userRowError.message);
   if (!userRow) return genericError();
 
   // "Same PIN when linked": the linked employee's own pin_hash/lockout is the single source of

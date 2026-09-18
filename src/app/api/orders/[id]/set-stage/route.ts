@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { mapOrderRow } from "@/lib/types";
 import { STAGES, STAGE_META, fmtNow, deliveryBonusPoints, computeEarnPoints, loyaltyDiscountOf, couponDiscountOf, getNextStage, type Stage } from "@/lib/business-rules";
-import { logAction, sendAdminNotification } from "@/lib/logging";
+import { logAction, sendAdminNotification, resolveActingUserName } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
 
@@ -15,11 +16,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.changeStage) return NextResponse.json({ error: "No permission to change order stage" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: "Invalid stage" }, { status: 400 });
   const target = parsed.data.stage;
 
-  const { data: row, error: fetchError } = await supabase.from("orders").select("*").eq("id", id).maybeSingle();
+  const { data: row, error: fetchError } = await db.from("orders").select("*").eq("id", id).maybeSingle();
   if (fetchError || !row) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
   const order = mapOrderRow(row);
@@ -33,8 +37,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // This mirrors a check that only ever existed client-side (handleSetStage in
   // orders/page.tsx) — a direct POST here with an arbitrary target skipped every
   // intermediate stage (and, since tailors hold changeStage, could be done by a tailor
-  // account), including "ready", the exact transition snapshot_tailor_payables fires on —
-  // skipping it silently voided piece-rate pay tracking for that order.
+  // account).
   if (getNextStage(order.status) !== target) {
     return NextResponse.json({ error: "Change stage step by step — you can only move to the next stage." }, { status: 400 });
   }
@@ -51,11 +54,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const curMeta  = STAGE_META[order.status];
   const nextMeta = STAGE_META[target];
-  const userName = user.email.split("@")[0] || "user";
+  const userName = await resolveActingUserName(db, user);
   const historyLine = `${nextMeta.emoji} ${nextMeta.label} — ${fmtNow()} by ${userName}`;
 
   // C2: optimistic-lock on current status prevents skipping stages under concurrency.
-  const { data: updatedRows, error: updateError } = await supabase.rpc("set_order_stage", {
+  const { data: updatedRows, error: updateError } = await db.rpc("set_order_stage", {
     p_order_id:        id,
     p_new_status:      target,
     p_history_line:    historyLine,
@@ -66,7 +69,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   });
   const updatedRow = updatedRows?.[0];
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
-  if (!updatedRow) return NextResponse.json({ error: "Stage was already changed by another request. Please refresh." }, { status: 409 });
+  if (!updatedRow) return NextResponse.json({ error: "Someone else already updated this order — its card has been refreshed." }, { status: 409 });
 
   // order.tailor is now an employee id, not a name — dropped from this detail string (was
   // showing a raw UUID); the order's own detail page already shows the tailor's name.
@@ -77,7 +80,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   );
   await sendAdminNotification(supabase, user.email, {
     orderId: id, customerName: order.name, fromStage: curMeta.label, toStage: nextMeta.label,
-  });
+  }, userName);
 
   // H7/M9: loyalty calls happen after stage is committed — wrap in try/catch so a loyalty
   // RPC failure doesn't return HTTP 500 with a stale Kanban cache (stage already changed in DB).
@@ -85,14 +88,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const loyaltyCfg = await getLoyaltyConfig(supabase);
     if (loyaltyCfg.enabled) {
       if (target === "delivered") {
-        await awardLoyaltyPoints(supabase, order.mobile, order.name, deliveryBonusPoints(loyaltyCfg), "delivery", id, "Order delivered");
+        await awardLoyaltyPoints(db, order.mobile, order.name, deliveryBonusPoints(loyaltyCfg), "delivery", id, "Order delivered");
       }
       if (target === "payment" && order.balance === 0) {
         // H5: earn on net total (total - any loyalty/coupon discount already applied to this order).
         const netTotal = Math.max(0, order.total - loyaltyDiscountOf(order) - couponDiscountOf(order));
         const earnPts = computeEarnPoints(netTotal, loyaltyCfg);
         if (earnPts > 0) {
-          await awardLoyaltyPoints(supabase, order.mobile, order.name, earnPts, "earn", id, `Full payment received ₹${order.total}`);
+          await awardLoyaltyPoints(db, order.mobile, order.name, earnPts, "earn", id, `Full payment received ₹${order.total}`);
         }
       }
     }

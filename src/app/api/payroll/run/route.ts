@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 import { computeGrossPay, countAttendance } from "@/lib/payroll";
 import { mapEmployeeRow, mapAttendanceRow, type Order, type WorkOrder } from "@/lib/types";
@@ -33,10 +34,12 @@ const bodySchema = z.object({
  * so a mid-run failure leaves behind only the payroll_run header (which the
  * admin can delete as a draft), not a mix of some payslips and some missing.
  *
- * C-5: Monthly-salary employees with zero attendance records were paid their
- * full monthly salary (computeGrossPay with all-zero counts returns the full
- * rate for monthly employees). Now treated as fully absent (grossPay = 0) —
- * if attendance wasn't entered, payroll won't silently overpay.
+ * C-5: Monthly-salary employees with zero (or partially missing) attendance
+ * records were paid in full for those days — computeGrossPay only treated an
+ * EXPLICIT absent/half-day/leave mark as unpaid, so a day with no attendance
+ * record at all was silently paid. Fixed in computeGrossPay itself (see
+ * fix_payroll_bugs.sql) to treat any day in the period with no record as
+ * unpaid, same as an explicit absence.
  *
  * H-8: The original code passed userEmail from the browser body; this route
  * derives the actor's email from the server session cookie.
@@ -54,8 +57,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Period start must be before period end" }, { status: 400 });
   }
 
+  // Every table this run touches (employees, employee_attendance, employee_advances,
+  // payroll_runs, payslips) is now write-locked for `authenticated`, and employees' salary
+  // columns are only reachable with a service-role SELECT — see lockdown_hr_payroll_writes.sql
+  // and lockdown_pin_hash_columns.sql. The managePayroll check above is what authorises all of
+  // it; `supabase` (the caller's own session) is kept only for the audit-log write, so the
+  // action is still attributed to the real actor rather than to the service role.
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured to run payroll (missing service role key)" }, { status: 501 });
+
   // C-4 preflight: friendly error before hitting the DB UNIQUE constraint.
-  const { data: existing } = await supabase
+  const { data: existing } = await db
     .from("payroll_runs")
     .select("id")
     .eq("period_start", periodStart)
@@ -66,7 +78,7 @@ export async function POST(request: Request) {
   }
 
   // Create the run header.
-  const { data: runRow, error: runError } = await supabase
+  const { data: runRow, error: runError } = await db
     .from("payroll_runs")
     .insert({ period_start: periodStart, period_end: periodEnd, created_by: user.email, status: "draft" })
     .select()
@@ -77,7 +89,7 @@ export async function POST(request: Request) {
   let employeeCount = 0;
 
   try {
-    const { data: employeeRows, error: empError } = await supabase
+    const { data: employeeRows, error: empError } = await db
       .from("employees")
       .select("*")
       .eq("active", true);
@@ -87,7 +99,7 @@ export async function POST(request: Request) {
 
     // Flat rupees-per-hour OT rate (per the "flat OT rate" decision, not a multiplier of each
     // employee's own rate) — one shop-wide setting, read once for the whole run.
-    const { data: attSettingRow } = await supabase.from("app_settings").select("value").eq("key", "attendanceSettings").maybeSingle();
+    const { data: attSettingRow } = await db.from("app_settings").select("value").eq("key", "attendanceSettings").maybeSingle();
     const attendanceSettings: AttendanceSettings = { ...DEFAULT_ATTENDANCE_SETTINGS, ...((attSettingRow?.value as Partial<AttendanceSettings>) || {}) };
 
     // Compute all payslips in memory first so the batch insert is all-or-nothing.
@@ -117,23 +129,24 @@ export async function POST(request: Request) {
     // IST has no DST and a fixed +5:30 offset — an explicit offset here (not a naive literal)
     // is what makes this compare correctly against ready_at/completed_at, which are UTC
     // timestamps. periodEnd's upper bound is inclusive through the end of that IST calendar
-    // day. There's deliberately no lower bound: piece_rate_paid_at IS NULL is what scopes this
-    // to "not yet paid" — a payable confirmed late (after its own period's run already
-    // happened) still surfaces in the next run instead of being lost, and nothing already
-    // marked paid can ever be summed again, however the chosen period overlaps a prior run.
-    const periodEndOfDay = `${periodEnd}T23:59:59.999+05:30`;
-    const [{ data: allAttRows }, { data: allAdvanceRows }, { data: confirmedOrderRows }, { data: confirmedWoRows }] = await Promise.all([
-      supabase.from("employee_attendance").select("*").in("employee_id", employeeIds).gte("date", periodStart).lte("date", periodEnd),
-      supabase.from("employee_advances").select("*").in("employee_id", employeeIds).is("payslip_id", null).lte("date", periodEnd).order("date", { ascending: true }),
+    // Piece-rate pay does not depend on order stage — a tailor's payable is owed the moment
+    // it exists (see remove_tailor_payable_confirm_step.sql / tailor_payable_manual_entry.sql),
+    // so any not-yet-paid order/work-order counts here regardless of whether it has reached
+    // Ready/Completed yet. piece_rate_paid_at IS NULL is what scopes this to "not yet paid" —
+    // nothing already marked paid can ever be summed again, however the chosen period overlaps
+    // a prior run.
+    const [{ data: allAttRows }, { data: allAdvanceRows }, { data: unpaidOrderRows }, { data: unpaidWoRows }] = await Promise.all([
+      db.from("employee_attendance").select("*").in("employee_id", employeeIds).gte("date", periodStart).lte("date", periodEnd),
+      db.from("employee_advances").select("*").in("employee_id", employeeIds).is("payslip_id", null).lte("date", periodEnd).order("date", { ascending: true }),
       hasPieceRateEmployees
-        ? supabase.from("orders").select("id, garments").not("payables_confirmed_at", "is", null).is("piece_rate_paid_at", null).lte("ready_at", periodEndOfDay)
+        ? db.from("orders").select("id, garments").is("piece_rate_paid_at", null)
         : Promise.resolve({ data: [] as { id: string; garments: unknown }[] }),
       hasPieceRateEmployees
-        ? supabase.from("work_orders").select("id, tailor, labor_cost").not("labor_payable_confirmed_at", "is", null).is("piece_rate_paid_at", null).lte("completed_at", periodEndOfDay)
+        ? db.from("work_orders").select("id, tailor, labor_cost").is("piece_rate_paid_at", null)
         : Promise.resolve({ data: [] as { id: string; tailor: string; labor_cost: number | null }[] }),
     ]);
-    const confirmedOrders = (confirmedOrderRows || []) as (Pick<Order, "garments"> & { id: string })[];
-    const confirmedWorkOrders = (confirmedWoRows || []).map((w) => ({ id: w.id, tailor: w.tailor, laborCost: w.labor_cost })) as (Pick<
+    const unpaidOrders = (unpaidOrderRows || []) as (Pick<Order, "garments"> & { id: string })[];
+    const unpaidWorkOrders = (unpaidWoRows || []).map((w) => ({ id: w.id, tailor: w.tailor, laborCost: w.labor_cost })) as (Pick<
       WorkOrder,
       "tailor" | "laborCost"
     > & { id: string })[];
@@ -156,31 +169,27 @@ export async function POST(request: Request) {
       const attRows = attByEmployee.get(employee.id) || [];
       const attendance = attRows.map(mapAttendanceRow);
 
-      // C-5: Monthly employees with no attendance data would receive full salary
-      // since computeGrossPay(monthly, 0 absences, 0 present) = full rate.
-      // Treat zero records as fully absent — don't silently overpay.
-      let grossPay: number;
-      if (attRows && attRows.length === 0 && employee.salaryType === "monthly") {
-        grossPay = 0;
-      } else {
-        const counts = countAttendance(attendance);
-        grossPay = computeGrossPay(employee, periodStart, periodEnd, counts);
-      }
-
+      // C-5: a monthly employee with no attendance data (or gaps in it) must not be paid for
+      // days nobody recorded anything for — computeGrossPay itself now treats any day in the
+      // period with no attendance record as unpaid, the all-missing case included, so no
+      // special-case is needed here anymore.
       const counts = countAttendance(attendance);
+      const grossPay = computeGrossPay(employee, periodStart, periodEnd, counts);
 
       // Hours/overtime are only ever populated by self-service checkout (Phase 2) — manual
       // attendance rows have hours_worked=null and overtime_hours=0, so they simply contribute
       // nothing here rather than needing separate handling.
       const totalHoursWorked = Math.round(attendance.reduce((s, a) => s + (a.hoursWorked || 0), 0) * 100) / 100;
-      const totalOvertimeHours = Math.round(attendance.reduce((s, a) => s + (a.overtimeHours || 0), 0) * 100) / 100;
+      // Overtime doesn't apply to piece-rate tailors — they're paid per garment/work-order, not
+      // per hour, so there's no hourly rate for an "extra hour" to be worth anything against.
+      const totalOvertimeHours = employee.pieceRateEligible ? 0 : Math.round(attendance.reduce((s, a) => s + (a.overtimeHours || 0), 0) * 100) / 100;
       const overtimePay = Math.round(totalOvertimeHours * attendanceSettings.otRatePerHour * 100) / 100;
 
       const advanceRows = advancesByEmployee.get(employee.id) || [];
 
       // Piece-rate pay is additive to salary, not a replacement — a hybrid tailor's own
       // salaryRate can be ₹0 (pure piece-rate) or nonzero (base + piece-rate on top).
-      const piecePay = employee.pieceRateEligible ? computePieceRatePay(employee.id, confirmedOrders, confirmedWorkOrders) : 0;
+      const piecePay = employee.pieceRateEligible ? computePieceRatePay(employee.id, unpaidOrders, unpaidWorkOrders) : 0;
 
       // C-3: Only link advances that fit within the gross pay + overtime + piece-rate budget.
       // Excess advances roll forward to the next payroll run instead of
@@ -223,7 +232,7 @@ export async function POST(request: Request) {
     }
 
     // Batch insert all payslips — either all succeed or we clean up and fail.
-    const { data: insertedPayslips, error: payslipError } = await supabase
+    const { data: insertedPayslips, error: payslipError } = await db
       .from("payslips")
       .insert(payslipRows)
       .select("id, employee_id");
@@ -233,7 +242,7 @@ export async function POST(request: Request) {
     for (const ps of insertedPayslips || []) {
       const ids = advanceLinkMap.get(ps.employee_id) || [];
       if (ids.length > 0) {
-        await supabase.from("employee_advances").update({ payslip_id: ps.id }).in("id", ids);
+        await db.from("employee_advances").update({ payslip_id: ps.id }).in("id", ids);
       }
     }
 
@@ -243,20 +252,24 @@ export async function POST(request: Request) {
     // marked absent tailors' earnings as paid; because every future run filters on
     // piece_rate_paid_at IS NULL, that money became unrecoverable and unpayable.
     const paidEmployeeIds = new Set(employees.filter((e) => e.pieceRateEligible).map((e) => e.id));
-    const paidOrderIds = confirmedOrders
+    const paidOrderIds = unpaidOrders
       .filter((o) => (o.garments || []).some((g) => g.tailor && paidEmployeeIds.has(g.tailor) && (g.payableAmount || 0) > 0))
       .map((o) => o.id);
-    const paidWoIds = confirmedWorkOrders.filter((w) => w.tailor && paidEmployeeIds.has(w.tailor)).map((w) => w.id);
+    const paidWoIds = unpaidWorkOrders.filter((w) => w.tailor && paidEmployeeIds.has(w.tailor)).map((w) => w.id);
+    // paid_by_payroll_run_id records exactly which run paid each row, so deleting a still-draft
+    // run (see DELETE /api/payroll/run/[id]) can find and revert exactly these rows — otherwise
+    // a deleted draft would leave every included tailor's earnings permanently marked "paid"
+    // with no payslip left to show for it, silently writing off real money owed to them.
     const nowIso = new Date().toISOString();
     if (paidOrderIds.length > 0) {
-      await supabase.from("orders").update({ piece_rate_paid_at: nowIso }).in("id", paidOrderIds);
+      await db.from("orders").update({ piece_rate_paid_at: nowIso, paid_by_payroll_run_id: runId }).in("id", paidOrderIds);
     }
     if (paidWoIds.length > 0) {
-      await supabase.from("work_orders").update({ piece_rate_paid_at: nowIso }).in("id", paidWoIds);
+      await db.from("work_orders").update({ piece_rate_paid_at: nowIso, paid_by_payroll_run_id: runId }).in("id", paidWoIds);
     }
   } catch (err) {
     // Clean up the run header so the admin gets a clean slate.
-    await supabase.from("payroll_runs").delete().eq("id", runId);
+    await db.from("payroll_runs").delete().eq("id", runId);
     return NextResponse.json({ error: err instanceof Error ? err.message : "Payroll run failed" }, { status: 500 });
   }
 

@@ -63,7 +63,8 @@ describe("getNextStage", () => {
   it("walks the fixed stage order and stops at the last stage", () => {
     expect(getNextStage("received")).toBe("cutting");
     expect(getNextStage("cutting")).toBe("stitching");
-    expect(getNextStage("stitching")).toBe("ready");
+    expect(getNextStage("stitching")).toBe("finishing");
+    expect(getNextStage("finishing")).toBe("ready");
     expect(getNextStage("ready")).toBe("delivered");
     expect(getNextStage("delivered")).toBe("payment");
     expect(getNextStage("payment")).toBeNull();

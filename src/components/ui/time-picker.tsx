@@ -34,16 +34,16 @@ export function TimePicker({
   disabled?: boolean;
 }) {
   return (
-    <div className={cn("relative h-10 w-full", className)}>
+    <div className={cn("relative h-10 w-full min-w-0", className)}>
       <div
         className={cn(
-          "flex h-10 w-full items-center gap-2 rounded-lg border border-input bg-transparent px-3 text-sm font-normal",
+          "flex h-10 w-full min-w-0 items-center gap-2 rounded-lg border border-input bg-transparent px-3 text-sm font-normal",
           !value && "text-muted-foreground",
           disabled && "pointer-events-none opacity-50"
         )}
       >
         <Clock className="size-4 shrink-0 text-muted-foreground" />
-        {value ? fmt12h(value) : "Pick a time"}
+        <span className="truncate">{value ? fmt12h(value) : "Pick a time"}</span>
       </div>
       <input
         id={id}

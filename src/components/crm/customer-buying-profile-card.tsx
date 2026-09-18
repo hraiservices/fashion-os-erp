@@ -34,21 +34,21 @@ export function CustomerBuyingProfileCard({ mobile }: { mobile: string }) {
       </div>
 
       <div className="space-y-4 p-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-lg bg-muted/50 p-3 text-center">
-            <p className="text-lg font-semibold tabular-nums">{profile.totalPurchases}</p>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="min-w-0 rounded-lg bg-muted/50 p-2 text-center sm:p-3">
+            <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{profile.totalPurchases}</p>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Purchases</p>
           </div>
-          <div className="rounded-lg bg-muted/50 p-3 text-center">
-            <p className="text-lg font-semibold tabular-nums">{inr(profile.totalSpend)}</p>
+          <div className="min-w-0 rounded-lg bg-muted/50 p-2 text-center sm:p-3">
+            <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{inr(profile.totalSpend)}</p>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total spend</p>
           </div>
-          <div className="rounded-lg bg-muted/50 p-3 text-center">
-            <p className="text-lg font-semibold tabular-nums">{inr(profile.averageOrderValue)}</p>
+          <div className="min-w-0 rounded-lg bg-muted/50 p-2 text-center sm:p-3">
+            <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{inr(profile.averageOrderValue)}</p>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Avg. order</p>
           </div>
-          <div className="rounded-lg bg-muted/50 p-3 text-center">
-            <p className="text-lg font-semibold tabular-nums">{profile.lastPurchaseDate ? fmtDate(profile.lastPurchaseDate) : "—"}</p>
+          <div className="min-w-0 rounded-lg bg-muted/50 p-2 text-center sm:p-3">
+            <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{profile.lastPurchaseDate ? fmtDate(profile.lastPurchaseDate) : "—"}</p>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Last purchase</p>
           </div>
         </div>

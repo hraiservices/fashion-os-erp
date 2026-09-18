@@ -1,30 +1,11 @@
 // Combined P&L — every revenue stream (stitching + retail sales) against every cost stream
 // (purchases, manufacturing labor, shop expenses). Kept as its own module rather than folded
 // into lib/analytics.ts since it spans modules that evolved independently.
-import { istDateString } from "@/lib/ist-date";
 import type { Order, Expense, OrderExpense, Payslip } from "@/lib/types";
 import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import type { PurchaseBillWithBalance } from "@/hooks/use-purchase-bills";
 import type { WorkOrder } from "@/lib/types";
-
-function fmtMon(yyyyMm: string): string {
-  const [y, m] = yyyyMm.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
-}
-
-function getLast6Months(): string[] {
-  const months: string[] = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(1);
-    d.setMonth(d.getMonth() - i);
-    // istDateString, NOT toISOString: setDate(1) keeps the current time-of-day, so between
-    // 00:00 and 05:30 IST toISOString() rolls back to the last day of the PREVIOUS month and
-    // every bucket key silently shifts a month (the current month vanishes from the report).
-    months.push(istDateString(d).substring(0, 7));
-  }
-  return months;
-}
+import { last6MonthBuckets, lastNDayBuckets } from "@/lib/period-buckets";
 
 export interface CombinedMonthStat {
   month: string;
@@ -35,13 +16,84 @@ export interface CombinedMonthStat {
   purchaseCost: number;
   laborCost: number;
   expenseCost: number;
-  /** Stitching job costs: tailor piece-rate payables + fabric + other + per-order stitching
-   *  expense line items. Attributed to the order's own month so cost lands with its revenue. */
+  /** Stitching MATERIAL costs only — fabric + other + per-order stitching expense line items.
+   *  Deliberately excludes tailor payable: the shop pays tailors manually and logs it as an
+   *  Expense (Salaries category) instead of through payroll, so counting payableAmount here
+   *  too would double it up alongside that Expense entry. Per-order profit (order-profit.ts,
+   *  used by the order form/detail page/Orders list/Order Profitability report) still deducts
+   *  tailor cost from that specific order's margin — this exclusion is scoped to the
+   *  company-wide P&L only. Attributed to the order's own month so cost lands with its revenue. */
   stitchingCost: number;
   /** Salaries actually paid out (payslips marked paid), by the month they were paid. */
   payrollCost: number;
   totalCost: number;
   netProfit: number;
+}
+
+/** Computes one bucket's stats — shared by getCombinedMonthly (bucket key "yyyy-mm") and
+ *  getCombinedDaily (bucket key "yyyy-mm-dd"). Every date field compared here (inDate,
+ *  invoiceDate, billDate, completedAt, paidAt) starts with the plain date, so `startsWith(key)`
+ *  matches whichever grain the key is at without any other change to the classification logic. */
+function computeBucket(
+  key: string,
+  label: string,
+  orders: Order[],
+  invoices: SalesInvoiceWithBalance[],
+  bills: PurchaseBillWithBalance[],
+  workOrders: WorkOrder[],
+  expenses: Expense[],
+  orderExpenseByOrderId: Map<string, number>,
+  payslips: Payslip[]
+): CombinedMonthStat {
+  const bucketOrders = orders.filter((o) => o.inDate?.startsWith(key));
+  const stitchingRevenue = bucketOrders.reduce((s, o) => s + (o.total || 0), 0);
+  // Drafts aren't sales yet (nothing has been issued to the customer), and a credit note
+  // reverses part of a sale (a return) — both must come out of "revenue", the same
+  // total-minus-credits-minus-payments logic already used for an individual invoice's
+  // balance (src/hooks/use-sales-invoices.ts deriveInvoiceBalance). Previously this summed
+  // every invoice's gross total including drafts and fully-refunded sales, which fed
+  // straight into the "Net Profit"/"Margin" cards on this report.
+  const salesRevenue = invoices
+    .filter((i) => i.invoiceDate?.startsWith(key) && i.docStatus !== "draft")
+    .reduce((s, i) => s + Math.max(0, i.total - i.creditsTotal), 0);
+  const purchaseCost = bills.filter((b) => b.billDate?.startsWith(key)).reduce((s, b) => s + b.total, 0);
+  const laborCost = workOrders
+    .filter((w) => w.status === "completed" && w.completedAt?.startsWith(key))
+    .reduce((s, w) => s + (w.laborCost || 0), 0);
+  const expenseCost = expenses.filter((e) => e.date?.startsWith(key)).reduce((s, e) => s + e.amount, 0);
+
+  // Material/incidental costs of fulfilling this bucket's stitching orders — fabric, other,
+  // and per-order expense line items. Tailor payable is intentionally NOT included: the shop
+  // pays tailors manually and logs it as an Expense (Salaries category, counted in expenseCost
+  // above) instead of running payroll, so adding payableAmount here too would double-count it.
+  const stitchingCost = bucketOrders.reduce((s, o) => {
+    return s + (o.fabricCost || 0) + (o.otherCost || 0) + (orderExpenseByOrderId.get(o.id) || 0);
+  }, 0);
+
+  // Salary only — pieceRatePay is deliberately subtracted out because that exact money is
+  // already counted above as the tailor cost of the order it was earned on. Counting the
+  // payslip's full netPay here would charge every tailor's piece-rate twice.
+  const payrollCost = payslips
+    .filter((p) => p.status === "paid" && p.paidAt?.startsWith(key))
+    .reduce((s, p) => s + Math.max(0, (p.netPay || 0) - (p.pieceRatePay || 0)), 0);
+
+  const revenue = stitchingRevenue + salesRevenue;
+  const totalCost = purchaseCost + laborCost + expenseCost + stitchingCost + payrollCost;
+
+  return {
+    month: key,
+    label,
+    stitchingRevenue,
+    salesRevenue,
+    revenue,
+    purchaseCost,
+    laborCost,
+    expenseCost,
+    stitchingCost,
+    payrollCost,
+    totalCost,
+    netProfit: revenue - totalCost,
+  };
 }
 
 export function getCombinedMonthly(
@@ -60,56 +112,29 @@ export function getCombinedMonthly(
     orderExpenseByOrderId.set(e.orderId, (orderExpenseByOrderId.get(e.orderId) || 0) + (e.amount || 0));
   }
 
-  return getLast6Months().map((month) => {
-    const monthOrders = orders.filter((o) => o.inDate?.startsWith(month));
-    const stitchingRevenue = monthOrders.reduce((s, o) => s + (o.total || 0), 0);
-    // Drafts aren't sales yet (nothing has been issued to the customer), and a credit note
-    // reverses part of a sale (a return) — both must come out of "revenue", the same
-    // total-minus-credits-minus-payments logic already used for an individual invoice's
-    // balance (src/hooks/use-sales-invoices.ts deriveInvoiceBalance). Previously this summed
-    // every invoice's gross total including drafts and fully-refunded sales, which fed
-    // straight into the "Net Profit"/"Margin" cards on this report.
-    const salesRevenue = invoices
-      .filter((i) => i.invoiceDate?.startsWith(month) && i.docStatus !== "draft")
-      .reduce((s, i) => s + Math.max(0, i.total - i.creditsTotal), 0);
-    const purchaseCost = bills.filter((b) => b.billDate?.startsWith(month)).reduce((s, b) => s + b.total, 0);
-    const laborCost = workOrders
-      .filter((w) => w.status === "completed" && w.completedAt?.startsWith(month))
-      .reduce((s, w) => s + (w.laborCost || 0), 0);
-    const expenseCost = expenses.filter((e) => e.date?.startsWith(month)).reduce((s, e) => s + e.amount, 0);
+  return last6MonthBuckets().map(({ key, label }) =>
+    computeBucket(key, label, orders, invoices, bills, workOrders, expenses, orderExpenseByOrderId, payslips)
+  );
+}
 
-    // Every direct cost of fulfilling this month's stitching orders. Previously omitted
-    // entirely, so Net Profit counted the full order value as margin and overstated profit by
-    // the whole cost of actually making the garment. Mirrors computeOrderProfit's components
-    // (src/lib/order-profit.ts) so per-order and company-level profit agree.
-    const stitchingCost = monthOrders.reduce((s, o) => {
-      const tailorCost = (o.garments || []).reduce((g, garment) => g + (garment.payableAmount || 0), 0);
-      return s + tailorCost + (o.fabricCost || 0) + (o.otherCost || 0) + (orderExpenseByOrderId.get(o.id) || 0);
-    }, 0);
+/** Same shape as getCombinedMonthly, bucketed by day instead of month — the dashboard's Profit
+ *  Overview card uses this for its Week (7) and Month-to-date (day-of-month) views. */
+export function getCombinedDaily(
+  orders: Order[],
+  invoices: SalesInvoiceWithBalance[],
+  bills: PurchaseBillWithBalance[],
+  workOrders: WorkOrder[],
+  expenses: Expense[],
+  orderExpenses: OrderExpense[] = [],
+  payslips: Payslip[] = [],
+  days = 7
+): CombinedMonthStat[] {
+  const orderExpenseByOrderId = new Map<string, number>();
+  for (const e of orderExpenses) {
+    orderExpenseByOrderId.set(e.orderId, (orderExpenseByOrderId.get(e.orderId) || 0) + (e.amount || 0));
+  }
 
-    // Salary only — pieceRatePay is deliberately subtracted out because that exact money is
-    // already counted above as the tailor cost of the order it was earned on. Counting the
-    // payslip's full netPay here would charge every tailor's piece-rate twice.
-    const payrollCost = payslips
-      .filter((p) => p.status === "paid" && p.paidAt?.startsWith(month))
-      .reduce((s, p) => s + Math.max(0, (p.netPay || 0) - (p.pieceRatePay || 0)), 0);
-
-    const revenue = stitchingRevenue + salesRevenue;
-    const totalCost = purchaseCost + laborCost + expenseCost + stitchingCost + payrollCost;
-
-    return {
-      month,
-      label: fmtMon(month),
-      stitchingRevenue,
-      salesRevenue,
-      revenue,
-      purchaseCost,
-      laborCost,
-      expenseCost,
-      stitchingCost,
-      payrollCost,
-      totalCost,
-      netProfit: revenue - totalCost,
-    };
-  });
+  return lastNDayBuckets(days).map(({ key, label }) =>
+    computeBucket(key, label, orders, invoices, bills, workOrders, expenses, orderExpenseByOrderId, payslips)
+  );
 }

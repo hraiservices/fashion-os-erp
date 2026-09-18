@@ -55,12 +55,11 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   const commission = employee ? computeCommission(employee, orders || []) : null;
   const outstandingAdvances = (advances || []).filter((a) => !a.payslipId).reduce((s, a) => s + a.amount, 0);
 
-  // All-time confirmed piece-rate earnings — a status figure for this page, not what payroll
-  // actually pays out per period (that's computed fresh, period-scoped, in the payroll run).
-  const confirmedOrders = (orders || []).filter((o) => o.payablesConfirmedAt);
-  const confirmedWorkOrders = (workOrders || []).filter((w) => w.laborPayableConfirmedAt);
+  // All-time piece-rate earnings — a status figure for this page, not what payroll actually
+  // pays out per period (that's computed fresh, period-scoped, in the payroll run). No manager
+  // confirmation step — every order/work-order with a tailor payable counts.
   const pieceRateEarnings = employee?.pieceRateEligible
-    ? computeOrderPieceRatePay(employee.id, confirmedOrders) + computeWorkOrderPieceRatePay(employee.id, confirmedWorkOrders)
+    ? computeOrderPieceRatePay(employee.id, orders || []) + computeWorkOrderPieceRatePay(employee.id, workOrders || [])
     : 0;
 
   async function handleAddAdvance() {
@@ -87,7 +86,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
+      <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-40 w-full" />
       </div>
@@ -103,11 +102,13 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
+    <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
       <Link href="/employees" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" /> Employees
       </Link>
 
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
+      <div className="space-y-4 lg:col-span-4">
       <div className="rounded-xl border bg-card p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -137,23 +138,23 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         </div>
 
         {canManagePayroll && (
-          <div className={`mt-4 grid gap-px overflow-hidden rounded-lg bg-border ${employee.pieceRateEligible ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
-            <div className="bg-card p-3 text-center">
-              <p className="text-lg font-semibold tabular-nums">{inr(employee.salaryRate)}</p>
+          <div className={`mt-4 grid gap-px overflow-hidden rounded-lg bg-border ${employee.pieceRateEligible ? "grid-cols-2 md:grid-cols-4" : "grid-cols-3"}`}>
+            <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+              <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{inr(employee.salaryRate)}</p>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{SALARY_TYPE_LABELS[employee.salaryType]} rate</p>
             </div>
-            <div className="bg-card p-3 text-center">
-              <p className="text-lg font-semibold tabular-nums text-amber-700 dark:text-amber-400">{inr(outstandingAdvances)}</p>
+            <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+              <p className="truncate text-base font-semibold tabular-nums text-amber-700 dark:text-amber-400 sm:text-lg">{inr(outstandingAdvances)}</p>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Advances pending</p>
             </div>
-            <div className="bg-card p-3 text-center">
-              <p className="text-lg font-semibold tabular-nums">{commission ? inr(commission.commission) : "—"}</p>
+            <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+              <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{commission ? inr(commission.commission) : "—"}</p>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Commission (all-time)</p>
             </div>
             {employee.pieceRateEligible && (
-              <div className="bg-card p-3 text-center">
-                <p className="text-lg font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{inr(pieceRateEarnings)}</p>
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Piece-rate (confirmed, all-time)</p>
+              <div className="min-w-0 bg-card p-2 text-center sm:p-3">
+                <p className="truncate text-base font-semibold tabular-nums text-emerald-700 dark:text-emerald-400 sm:text-lg">{inr(pieceRateEarnings)}</p>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Piece-rate (all-time)</p>
               </div>
             )}
           </div>
@@ -196,7 +197,9 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
           )}
         </section>
       )}
+      </div>
 
+      <div className="space-y-4 lg:col-span-8">
       <EmployeeLeaveSection employeeId={id} />
 
       <section className="rounded-xl border bg-card">
@@ -218,6 +221,8 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
           </ul>
         )}
       </section>
+      </div>
+      </div>
     </div>
   );
 }

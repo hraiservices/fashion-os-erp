@@ -29,12 +29,14 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
 import { FormActionBar } from "@/components/ui/form-action-bar";
+import { isNativePlatform } from "@/lib/capacitor";
 import { usePriceListItemsMap } from "@/hooks/use-price-lists";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_DOCUMENT_NUMBERING, type DocumentNumberingSettings } from "@/lib/document-numbering";
 import type { Customer, SalesInvoice, InvoiceDocStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { istDateString } from "@/lib/ist-date";
 
 const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
 const paymentTermLabel = (v: unknown) => PAYMENT_TERM_LABELS[v as PaymentTerm] ?? "";
@@ -44,7 +46,7 @@ function blankIfZero(n: number | null | undefined): string {
 }
 
 function placeholderCustomer(name: string, mobile: string, paymentTerms = "due_on_receipt"): Customer {
-  return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms, priceListId: null, tags: [], gstin: "", whatsappOptOut: false };
+  return { id: "", name, mobile, email: "", dob: "", anniversary: "", address: "", measurements: {}, notes: "", createdAt: "", loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms, priceListId: null, tags: [], gstin: "", whatsappOptOut: false, shareToken: "", measurementProfiles: [] };
 }
 
 function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
@@ -61,7 +63,7 @@ function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label:
 function FieldGroup({ label, required, children, hint }: { label: string; required?: boolean; children: React.ReactNode; hint?: string }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-foreground/80">
+      <Label className="text-sm font-bold text-foreground/80">
         {label}
         {required && <span className="ml-0.5 text-red-500">*</span>}
       </Label>
@@ -94,7 +96,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
   const priceOverrides = usePriceListItemsMap(customer?.priceListId);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [subject, setSubject] = useState(existing?.subject || "");
-  const [invoiceDate, setInvoiceDate] = useState(existing?.invoiceDate || new Date().toISOString().slice(0, 10));
+  const [invoiceDate, setInvoiceDate] = useState(existing?.invoiceDate || istDateString());
   const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>("due_on_receipt");
   const [dueDate, setDueDate] = useState(existing?.dueDate || "");
   const [lines, setLines] = useState<EditableSalesLine[]>(
@@ -253,18 +255,18 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
     <div className="min-h-screen bg-muted/30">
       {/* ── Page header bar ───────────────────────────────────────────────── */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
-        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-4 py-3 sm:px-6">
           <Link href="/sales/invoices" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="size-4" />
             <span className="hidden sm:inline">Invoices</span>
           </Link>
-          <div className="flex-1">
-            <h1 className="text-base font-semibold">{isEdit ? "Edit Invoice" : "New Invoice"}</h1>
-            <p className="text-[11px] text-muted-foreground font-mono">{customNumberingOn ? "Assigned automatically on save" : invoiceNumber}</p>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Invoice" : "New Invoice"}</h1>
+            <p className="text-[11px] text-muted-foreground font-mono truncate">{customNumberingOn ? "Assigned automatically on save" : invoiceNumber}</p>
           </div>
           {/* Duplicate of the bottom FormActionBar — mobile only, so Save/Send is reachable
              without scrolling all the way down on a long invoice. */}
-          <div className="flex items-center gap-2 sm:hidden">
+          <div className="flex shrink-0 items-center gap-1.5 sm:hidden">
             <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveInvoice.isPending}>
               Cancel
             </Button>
@@ -281,7 +283,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
         </div>
       </div>
 
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
+      <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
         {/* ── Main form ─────────────────────────────────────────────────── */}
         <div className="lg:col-span-2 space-y-5">
 
@@ -341,7 +343,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
           {/* Line Items */}
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
             <SectionHeading icon={Package2} label="Items" />
-            <ProductLineItemsEditor lines={lines} onChange={setLines} showDiscount showMargin={!!user?.perms.viewReports} priceOverrides={priceOverrides} />
+            <ProductLineItemsEditor lines={lines} onChange={setLines} showDiscount showMargin={user?.role === "admin"} priceOverrides={priceOverrides} />
           </div>
 
           {/* Tax, Shipping & Discount */}
@@ -414,7 +416,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
               <p className="text-2xl font-bold text-primary-foreground tabular-nums">{inr(totals.total)}</p>
             </div>
 
-            {user?.perms.viewReports && items.length > 0 && (
+            {user?.role === "admin" && items.length > 0 && (
               <div className={cn("flex items-center justify-between border-b px-5 py-2.5", margin === null ? "bg-muted/40" : "bg-emerald-50 dark:bg-emerald-950/30")}>
                 <span className={cn("text-xs font-semibold uppercase tracking-wide", margin === null ? "text-muted-foreground" : "text-emerald-700 dark:text-emerald-400")}>
                   Profit margin
@@ -505,37 +507,43 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
         </div>
       </div>
 
-      <FormActionBar className="flex-wrap justify-start sm:flex-nowrap sm:justify-end">
-        <Button
-          variant="outline"
-          size="lg"
-          className="h-12 px-5 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
-          onClick={() => router.back()}
-          disabled={saveInvoice.isPending}
-        >
-          Cancel
-        </Button>
-        {!isEdit && (
+      {/* Inside the native app the sticky header above already carries Cancel/Draft/Send (it's
+          only hidden on desktop widths, which the app never runs at) — repeating them again down
+          here just doubled up the same three buttons on one screen. Browser/PWA users keep this
+          bar: on desktop it's their only way to save, since the header's copy is sm:hidden there. */}
+      {!isNativePlatform() && (
+        <FormActionBar className="flex-wrap justify-start sm:flex-nowrap sm:justify-end">
           <Button
             variant="outline"
             size="lg"
-            className="h-12 px-5 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
-            onClick={() => handleSave("draft")}
+            className="h-11 px-4 text-sm sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+            onClick={() => router.back()}
             disabled={saveInvoice.isPending}
           >
-            {saveInvoice.isPending ? "Saving…" : "Save Draft"}
+            Cancel
           </Button>
-        )}
-        <Button
-          size="lg"
-          className="h-12 flex-1 gap-1.5 bg-primary px-5 text-base text-primary-foreground sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
-          onClick={() => handleSave(isEdit ? existing!.docStatus : "sent")}
-          disabled={saveInvoice.isPending}
-        >
-          <Receipt className="size-3.5" />
-          {saveInvoice.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(totals.total)}` : `Save & Send · ${inr(totals.total)}`}
-        </Button>
-      </FormActionBar>
+          {!isEdit && (
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-11 px-4 text-sm sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+              onClick={() => handleSave("draft")}
+              disabled={saveInvoice.isPending}
+            >
+              {saveInvoice.isPending ? "Saving…" : "Save Draft"}
+            </Button>
+          )}
+          <Button
+            size="lg"
+            className="h-11 flex-1 gap-1.5 bg-primary px-4 text-sm text-primary-foreground sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+            onClick={() => handleSave(isEdit ? existing!.docStatus : "sent")}
+            disabled={saveInvoice.isPending}
+          >
+            <Receipt className="size-3.5" />
+            {saveInvoice.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(totals.total)}` : `Save & Send · ${inr(totals.total)}`}
+          </Button>
+        </FormActionBar>
+      )}
 
       <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={handleSelectCustomer} />
     </div>

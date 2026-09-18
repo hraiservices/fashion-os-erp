@@ -120,7 +120,7 @@ FROM customers WHERE loyalty_points < 0;
 -- 8g. Invalid order stages
 SELECT 'orders_invalid_status' AS integrity_check, count(*) AS bad_rows
 FROM orders
-WHERE status NOT IN ('received','cutting','stitching','ready','delivered','payment','trial');
+WHERE status NOT IN ('received','cutting','stitching','finishing','ready','delivered','payment','trial');
 
 -- 9. PAYLOAD SIZE — the scalability blocker ─────────────────────────────────
 -- The orders list downloads EVERY row including base64 images/audio/video.

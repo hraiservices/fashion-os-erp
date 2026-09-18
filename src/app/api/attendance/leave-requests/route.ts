@@ -49,10 +49,14 @@ export async function POST(request: Request) {
 
   if (fd.toDate < fd.fromDate) return NextResponse.json({ error: "To date must be on or after from date" }, { status: 400 });
 
-  const [{ data: holidayRows }, { data: attSettingRow }] = await Promise.all([
+  const [{ data: holidayRows, error: holidayError }, { data: attSettingRow }] = await Promise.all([
     supabase.from("holidays").select("*").eq("active", true).gte("date", fd.fromDate).lte("date", fd.toDate),
     supabase.from("app_settings").select("value").eq("key", "attendanceSettings").maybeSingle(),
   ]);
+  // See src/app/api/leave-requests/route.ts (the admin-side twin of this route) — a failed
+  // lookup here must not silently read as "no holidays," which would over-charge the employee's
+  // leave balance for a day that was actually a holiday.
+  if (holidayError) return NextResponse.json({ error: `Could not check holidays for this range: ${holidayError.message}` }, { status: 500 });
   const attendanceSettings: AttendanceSettings = { ...DEFAULT_ATTENDANCE_SETTINGS, ...((attSettingRow?.value as Partial<AttendanceSettings>) || {}) };
   const holidayDates = new Set((holidayRows || []).map(mapHolidayRow).map((h) => h.date));
 

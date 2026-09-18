@@ -25,11 +25,12 @@ import { useDayBook } from "@/hooks/use-day-book";
 import { DAY_BOOK_MODULE_ICONS, DAY_BOOK_MODULE_LABELS, fmtTime, type DayBookModule } from "@/lib/day-book";
 import { inr, fmtDate } from "@/lib/format";
 import { toISODate } from "@/components/ui/date-picker";
-import { ReportShell, ReportCard, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportCard, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExportMenu } from "@/components/ui/export-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -61,6 +62,9 @@ export default function DayBookPage() {
   const [maxAmount, setMaxAmount] = useState("");
 
   const canView = !!user?.perms.viewReports;
+  // Profit is restricted to the admin role specifically — the rest of the Day Book (sales,
+  // payments, expenses, activity) stays visible to any manager who can already view reports.
+  const canViewProfit = user?.role === "admin";
   const { data, isLoading, isError, error } = useDayBook(date);
 
   const entries = useMemo(() => data?.entries || [], [data]);
@@ -101,7 +105,7 @@ export default function DayBookPage() {
         { name: "Purchases", value: data.totals.purchases, color: "#f59e0b" },
         { name: "Expenses", value: data.totals.expenses, color: "#ef4444" },
         { name: "Refunds", value: data.totals.refunds, color: "#a855f7" },
-        { name: "Profit", value: data.totals.profit, color: data.totals.profit >= 0 ? "#059669" : "#ef4444" },
+        ...(canViewProfit ? [{ name: "Profit", value: data.totals.profit, color: data.totals.profit >= 0 ? "#059669" : "#ef4444" }] : []),
       ]
     : [];
 
@@ -143,7 +147,12 @@ export default function DayBookPage() {
           <Button variant="outline" size="sm" onClick={() => setDate(todayISO())}>
             Today
           </Button>
-          <ExportMenu rows={exportRows} filename={`day-book-${date}`} sheetName="Day Book" disabled={filtered.length === 0} />
+          <ReportActionsMenu
+            rows={exportRows}
+            filename={`day-book-${date}`}
+            title={`Day Book — ${fmtDate(date)}`}
+            summaryLines={[`Date: ${fmtDate(date)}`, `Sales: ${inr(data?.totals.sales ?? 0)}`, `Payments: ${inr(data?.totals.payments ?? 0)}`, `Expenses: ${inr(data?.totals.expenses ?? 0)}`]}
+          />
         </div>
       }
     >
@@ -164,7 +173,9 @@ export default function DayBookPage() {
             <StatCard label="Purchases" value={inr(data.totals.purchases)} icon={ShoppingCart} tone="default" />
             <StatCard label="Expenses" value={inr(data.totals.expenses)} icon={Wallet} tone="danger" />
             <StatCard label="Refunds" value={inr(data.totals.refunds)} icon={RotateCcw} tone="warning" />
-            <StatCard label="Profit" value={inr(data.totals.profit)} icon={data.totals.profit >= 0 ? TrendingUp : TrendingDown} tone={data.totals.profit >= 0 ? "success" : "danger"} />
+            {canViewProfit && (
+              <StatCard label="Profit" value={inr(data.totals.profit)} icon={data.totals.profit >= 0 ? TrendingUp : TrendingDown} tone={data.totals.profit >= 0 ? "success" : "danger"} />
+            )}
           </div>
 
           {/* Operational KPIs */}
@@ -262,49 +273,92 @@ export default function DayBookPage() {
           {filtered.length === 0 ? (
             <EmptyState icon={CalendarDays} title="No activity" description="Nothing matches the current filters for this date." />
           ) : (
-            <ReportTable>
-              <thead className="border-b bg-muted/40">
-                <tr>
-                  <Th>Time</Th>
-                  <Th>Module</Th>
-                  <Th>Activity</Th>
-                  <Th>Details</Th>
-                  <Th align="right">Amount</Th>
-                  <Th>User</Th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
+            <>
+              <div className="hidden sm:block">
+                <ReportTable>
+                  <thead className="border-b bg-muted/40">
+                    <tr>
+                      <Th>Time</Th>
+                      <Th>Module</Th>
+                      <Th>Activity</Th>
+                      <Th>Details</Th>
+                      <Th align="right">Amount</Th>
+                      <Th>User</Th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    <ReportTotalsRow>
+                      <Td colSpan={4}>{filtered.length} {filtered.length === 1 ? "entry" : "entries"}</Td>
+                      <Td align="right">{inr(filtered.reduce((s, e) => s + (e.amount || 0), 0))}</Td>
+                      <Td />
+                    </ReportTotalsRow>
+                    {filtered.map((e) => {
+                      const Icon = DAY_BOOK_MODULE_ICONS[e.module];
+                      return (
+                        <tr key={e.id} className="hover:bg-muted/30">
+                          <Td className="whitespace-nowrap font-medium tabular-nums">{fmtTime(e.time)}</Td>
+                          <Td>
+                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium">
+                              <Icon className="size-3.5" />
+                              {DAY_BOOK_MODULE_LABELS[e.module]}
+                            </span>
+                          </Td>
+                          <Td className="whitespace-nowrap">{e.activity}</Td>
+                          <Td className="max-w-md">
+                            {e.referenceHref ? (
+                              <Link href={e.referenceHref} className="font-medium text-primary hover:underline">
+                                {e.reference ? `${e.reference} — ` : ""}
+                                {e.description}
+                              </Link>
+                            ) : (
+                              <span>{e.description}</span>
+                            )}
+                          </Td>
+                          <Td align="right" className={cn("whitespace-nowrap", e.amount != null && "font-medium")}>
+                            {e.amount != null ? inr(e.amount) : "—"}
+                          </Td>
+                          <Td className="whitespace-nowrap text-muted-foreground">{e.user}</Td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </ReportTable>
+              </div>
+
+              <MobileRecordList>
+                <MobileRecordCard className="bg-muted/40">
+                  <MobileRecordHeader
+                    title={`${filtered.length} ${filtered.length === 1 ? "entry" : "entries"}`}
+                    value={inr(filtered.reduce((s, e) => s + (e.amount || 0), 0))}
+                    showChevron={false}
+                  />
+                </MobileRecordCard>
                 {filtered.map((e) => {
                   const Icon = DAY_BOOK_MODULE_ICONS[e.module];
                   return (
-                    <tr key={e.id} className="hover:bg-muted/30">
-                      <Td className="whitespace-nowrap font-medium tabular-nums">{fmtTime(e.time)}</Td>
-                      <Td>
-                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium">
-                          <Icon className="size-3.5" />
-                          {DAY_BOOK_MODULE_LABELS[e.module]}
-                        </span>
-                      </Td>
-                      <Td className="whitespace-nowrap">{e.activity}</Td>
-                      <Td className="max-w-md">
-                        {e.referenceHref ? (
-                          <Link href={e.referenceHref} className="font-medium text-primary hover:underline">
-                            {e.reference ? `${e.reference} — ` : ""}
-                            {e.description}
-                          </Link>
-                        ) : (
-                          <span>{e.description}</span>
-                        )}
-                      </Td>
-                      <Td align="right" className={cn("whitespace-nowrap", e.amount != null && "font-medium")}>
-                        {e.amount != null ? inr(e.amount) : "—"}
-                      </Td>
-                      <Td className="whitespace-nowrap text-muted-foreground">{e.user}</Td>
-                    </tr>
+                    <MobileRecordCard key={e.id} href={e.referenceHref || undefined}>
+                      <MobileRecordHeader
+                        title={e.activity}
+                        subtitle={fmtTime(e.time)}
+                        value={e.amount != null ? inr(e.amount) : "—"}
+                        showChevron={!!e.referenceHref}
+                      />
+                      <MobileRecordRow
+                        label="Module"
+                        value={
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium">
+                            <Icon className="size-3.5" />
+                            {DAY_BOOK_MODULE_LABELS[e.module]}
+                          </span>
+                        }
+                      />
+                      <MobileRecordRow label="Details" value={<span className="text-right">{e.reference ? `${e.reference} — ` : ""}{e.description}</span>} />
+                      <MobileRecordRow label="User" value={e.user} />
+                    </MobileRecordCard>
                   );
                 })}
-              </tbody>
-            </ReportTable>
+              </MobileRecordList>
+            </>
           )}
         </>
       )}

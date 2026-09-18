@@ -1,47 +1,115 @@
 "use client";
 
+import { useMemo } from "react";
 import { Megaphone } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
+import { getBookingSourceBreakdown } from "@/lib/analytics";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 /** How customers found the shop — "Not recorded" is expected and honest for orders created
  *  before this field existed, or where it was left blank. See order-form.tsx's "How did they
  *  find us?" field and src/lib/analytics.ts getBookingSourceBreakdown. */
 export default function BookingSourcesPage() {
-  const { bookingSourceBreakdown, isLoading } = useReportsData();
+  const { orders, isLoading } = useReportsData();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+
+  const bookingSourceBreakdown = useMemo(
+    () => getBookingSourceBreakdown(orders.filter((o) => isWithinDateRange(o.inDate, range))),
+    [orders, range]
+  );
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   const totalOrders = bookingSourceBreakdown.reduce((s, r) => s + r.count, 0);
 
+  const totalRevenue = bookingSourceBreakdown.reduce((s, r) => s + r.revenue, 0);
+
   return (
-    <ReportShell title="Booking Sources" description={`${totalOrders} order(s), by how the customer found the company`}>
+    <ReportShell
+      title="Booking Sources"
+      description={`${totalOrders} order(s), by how the customer found the company`}
+      actions={
+        <ReportActionsMenu
+          rows={bookingSourceBreakdown.map((r) => ({
+            Source: r.source,
+            Orders: r.count,
+            Share: totalOrders ? `${Math.round((r.count / totalOrders) * 100)}%` : "0%",
+            Revenue: r.revenue,
+          }))}
+          filename="booking-sources"
+          title="Booking Sources"
+          summaryLines={[`Orders: ${totalOrders}`, `Total revenue: ${inr(totalRevenue)}`]}
+        />
+      }
+    >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       {bookingSourceBreakdown.length === 0 ? (
         <EmptyState icon={Megaphone} title="No orders yet" />
       ) : (
-        <ReportTable>
-          <thead className="border-b bg-muted/40">
-            <tr>
-              <Th>Source</Th>
-              <Th align="right">Orders</Th>
-              <Th align="right">Share</Th>
-              <Th align="right">Revenue</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
+        <>
+          <div className="hidden sm:block">
+            <ReportTable>
+              <thead className="border-b bg-muted/40">
+                <tr>
+                  <Th>Source</Th>
+                  <Th align="right">Orders</Th>
+                  <Th align="right">Share</Th>
+                  <Th align="right">Revenue</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <ReportTotalsRow>
+                  <Td>Total</Td>
+                  <Td align="right">{totalOrders}</Td>
+                  <Td align="right">100%</Td>
+                  <Td align="right">{inr(totalRevenue)}</Td>
+                </ReportTotalsRow>
+                {bookingSourceBreakdown.map((r) => (
+                  <tr key={r.source} className="hover:bg-muted/30">
+                    <Td className={r.source === "Not recorded" ? "text-muted-foreground italic" : "font-medium"}>{r.source}</Td>
+                    <Td align="right">{r.count}</Td>
+                    <Td align="right">{totalOrders ? Math.round((r.count / totalOrders) * 100) : 0}%</Td>
+                    <Td align="right">{inr(r.revenue)}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </ReportTable>
+          </div>
+
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(totalRevenue)} showChevron={false} />
+              <MobileRecordRow label="Orders" value={totalOrders} />
+              <MobileRecordRow label="Share" value="100%" />
+            </MobileRecordCard>
             {bookingSourceBreakdown.map((r) => (
-              <tr key={r.source} className="hover:bg-muted/30">
-                <Td className={r.source === "Not recorded" ? "text-muted-foreground italic" : "font-medium"}>{r.source}</Td>
-                <Td align="right">{r.count}</Td>
-                <Td align="right">{totalOrders ? Math.round((r.count / totalOrders) * 100) : 0}%</Td>
-                <Td align="right">{inr(r.revenue)}</Td>
-              </tr>
+              <MobileRecordCard key={r.source}>
+                <MobileRecordHeader
+                  title={<span className={r.source === "Not recorded" ? "text-muted-foreground italic" : undefined}>{r.source}</span>}
+                  value={inr(r.revenue)}
+                  showChevron={false}
+                />
+                <MobileRecordRow label="Orders" value={r.count} />
+                <MobileRecordRow label="Share" value={`${totalOrders ? Math.round((r.count / totalOrders) * 100) : 0}%`} />
+              </MobileRecordCard>
             ))}
-          </tbody>
-        </ReportTable>
+          </MobileRecordList>
+        </>
       )}
     </ReportShell>
   );

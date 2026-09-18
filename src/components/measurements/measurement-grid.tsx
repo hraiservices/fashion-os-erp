@@ -1,6 +1,7 @@
 "use client";
 
-import { Languages } from "lucide-react";
+import { useState } from "react";
+import { Languages, Keyboard } from "lucide-react";
 import { toMKey, measureLabel, type MeasureLang } from "@/lib/measurements";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,20 +21,31 @@ export function MeasurementGrid({
   lang: MeasureLang;
   onLangChange?: (lang: MeasureLang) => void;
 }) {
+  // Measurements are free text on purpose (fractions like "32 1/2", sizes like "S/M", a quick
+  // note) — never validated as numbers, so this never restricts what can be typed. It only
+  // picks which virtual keyboard a phone shows: "decimal" is faster for the common case (plain
+  // numbers) but hides letters, so anyone entering a size/fraction/note needs a way back to the
+  // full keyboard rather than being stuck on a number pad.
+  const [numericKeyboard, setNumericKeyboard] = useState(true);
+
   if (fields.length === 0) {
     return <p className="text-sm text-muted-foreground">No measurement fields configured. Add them in Settings → Measurements.</p>;
   }
 
   return (
     <div className="space-y-3">
-      {onLangChange && (
-        <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={() => setNumericKeyboard((v) => !v)}>
+          <Keyboard className="size-3.5" />
+          {numericKeyboard ? "Full keyboard" : "Number pad"}
+        </Button>
+        {onLangChange && (
           <Button type="button" variant="outline" size="sm" onClick={() => onLangChange(lang === "en" ? "hi" : "en")}>
             <Languages className="size-3.5" />
             {lang === "en" ? "हिंदी" : "English"}
           </Button>
-        </div>
-      )}
+        )}
+      </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {fields.map((f) => {
           const key = toMKey(f);
@@ -44,7 +56,7 @@ export function MeasurementGrid({
               </Label>
               <Input
                 id={`meas-${key}`}
-                inputMode="decimal"
+                inputMode={numericKeyboard ? "decimal" : "text"}
                 placeholder="—"
                 value={values[key] ?? ""}
                 onChange={(e) => onChange(key, e.target.value)}

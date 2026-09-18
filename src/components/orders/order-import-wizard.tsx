@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { istDateString } from "@/lib/ist-date";
 
 const UNMAPPED = "__unmapped__";
 
@@ -167,7 +168,7 @@ export function OrderImportWizard() {
         const res = await createOrder.mutateAsync({
           name: row.customerName,
           mobile: row.customerMobile,
-          inDate: new Date().toISOString().slice(0, 10),
+          inDate: istDateString(),
           deliveryDate: row.deliveryDate,
           garments: [{ type: row.garmentType, amount: row.total, tailor: row.tailorUnresolved ? undefined : row.tailor || undefined }],
           total: row.total,

@@ -7,24 +7,30 @@ import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
 import { daysLeft } from "@/lib/business-rules";
 import { inr, fmtDate } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
+/** Point-in-time snapshot ("outstanding as of today") — the date range filters which bills
+ *  (by billDate) feed the list, not the "days overdue" math, which stays as-of-now. */
 export default function ApAgingDetailsPage() {
   const { data: bills, isLoading: l1 } = usePurchaseBills();
   const { data: vendors, isLoading: l2 } = useVendors();
   const isLoading = l1 || l2;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const vendorNameById = useMemo(() => new Map((vendors || []).map((v) => [v.id, v.name])), [vendors]);
 
   const rows = useMemo(() => {
     return (bills || [])
-      .filter((b) => b.balance > 0)
+      .filter((b) => b.balance > 0 && isWithinDateRange(b.billDate, range))
       .map((b) => ({ ...b, daysOverdue: b.dueDate ? Math.max(0, -daysLeft(b.dueDate)) : 0 }))
       .sort((a, b) => b.daysOverdue - a.daysOverdue);
-  }, [bills]);
+  }, [bills, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -33,23 +39,54 @@ export default function ApAgingDetailsPage() {
       title="AP Aging Details"
       description="Every outstanding bill, ranked by how overdue it is."
       actions={
-        rows.length > 0 && (
-          <ExportMenu
-            rows={rows.map((b) => ({
-              Bill: b.billNumber,
-              Vendor: vendorNameById.get(b.vendorId) || "",
-              "Due Date": b.dueDate || "",
-              Balance: b.balance,
-              "Days Overdue": b.daysOverdue,
-            }))}
-            filename="ap_aging_details"
-          />
-        )
+        <ReportActionsMenu
+          rows={rows.map((b) => ({
+            Bill: b.billNumber,
+            Vendor: vendorNameById.get(b.vendorId) || "",
+            "Due Date": b.dueDate || "",
+            Balance: b.balance,
+            "Days Overdue": b.daysOverdue,
+          }))}
+          filename="ap-aging-details"
+          title="AP Aging Details"
+          summaryLines={[`Bills: ${rows.length}`, `Total balance: ${inr(rows.reduce((s, b) => s + b.balance, 0))}`]}
+        />
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       {rows.length === 0 ? (
         <EmptyState icon={Wallet} title="No outstanding bills" description="Everything is paid up." />
       ) : (
+        <>
+        <MobileRecordList>
+          <MobileRecordCard className="bg-muted/40">
+            <MobileRecordHeader title="Total" value={inr(rows.reduce((s, b) => s + b.balance, 0))} showChevron={false} />
+          </MobileRecordCard>
+          {rows.map((b) => (
+            <MobileRecordCard key={b.id} href={`/purchases/bills/${b.id}`}>
+              <MobileRecordHeader
+                title={b.billNumber}
+                subtitle={vendorNameById.get(b.vendorId) || "Unknown vendor"}
+                value={inr(b.balance)}
+              />
+              <MobileRecordRow label="Due Date" value={b.dueDate ? fmtDate(b.dueDate) : "—"} />
+              <MobileRecordRow
+                label="Days Overdue"
+                value={b.daysOverdue > 0 ? `${b.daysOverdue}d` : "Not due"}
+                valueClassName={b.daysOverdue > 0 ? "text-red-600 dark:text-red-400" : undefined}
+              />
+            </MobileRecordCard>
+          ))}
+        </MobileRecordList>
+        <div className="hidden sm:block">
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
@@ -61,6 +98,11 @@ export default function ApAgingDetailsPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td colSpan={3}>Total</Td>
+              <Td align="right">{inr(rows.reduce((s, b) => s + b.balance, 0))}</Td>
+              <Td align="right">—</Td>
+            </ReportTotalsRow>
             {rows.map((b) => (
               <tr key={b.id} className="hover:bg-muted/30">
                 <Td className="font-medium">
@@ -78,6 +120,8 @@ export default function ApAgingDetailsPage() {
             ))}
           </tbody>
         </ReportTable>
+        </div>
+        </>
       )}
     </ReportShell>
   );

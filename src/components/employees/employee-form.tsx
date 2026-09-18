@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, User, TrendingUp, Banknote, Save, MapPin } from "lucide-react";
+import { ArrowLeft, User, TrendingUp, Banknote, Save, MapPin, Camera, Loader2, X } from "lucide-react";
 import Link from "next/link";
 import { useSaveEmployee } from "@/hooks/use-employee-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useEmployees } from "@/hooks/use-employees";
 import { useActiveShopLocations } from "@/hooks/use-shop-locations";
 import { Button } from "@/components/ui/button";
 import { FormActionBar } from "@/components/ui/form-action-bar";
@@ -18,14 +19,22 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchSelect } from "@/components/ui/search-select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { EmployeePinManager } from "@/components/employees/employee-pin-manager";
-import { LinkedUserAccountManager } from "@/components/employees/linked-user-account-manager";
+import { DashboardAccessManager } from "@/components/employees/dashboard-access-manager";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { Employee, CommissionType, SalaryType } from "@/lib/types";
 import { SALARY_TYPE_LABELS } from "@/lib/payroll";
+import { compressImage, approxBytesOfDataUrl, formatBytes, MAX_IMAGE_BYTES } from "@/lib/media";
 
 const NO_LOCATION = "__no_location__";
+
+// Sensible starting options for a shop with no employees yet — the Tailor dropdown check
+// below only ever cares about the exact string "Tailor", so this list is purely for the
+// picker's convenience, not enforced anywhere.
+const COMMON_JOB_ROLES = ["Tailor", "Manager", "Sales Person", "Cutter", "Helper", "Accountant"];
 
 const COMMISSION_LABELS: Record<CommissionType, string> = {
   none: "No commission",
@@ -67,7 +76,7 @@ function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label:
 function FieldGroup({ label, required, error, children, hint }: { label: string; required?: boolean; error?: string; children: React.ReactNode; hint?: string }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-foreground/80">
+      <Label className="text-sm font-bold text-foreground/80">
         {label}{required && <span className="ml-0.5 text-red-500">*</span>}
       </Label>
       {children}
@@ -81,8 +90,17 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
   const router = useRouter();
   const { data: user } = useCurrentUser();
   const { data: locations } = useActiveShopLocations();
+  const { data: allEmployees } = useEmployees();
   const saveEmployee = useSaveEmployee();
   const isEdit = !!existing;
+
+  // Job-title options for the Role picker: every distinct one already in use across employees,
+  // plus a handful of common defaults so a fresh shop with no employees yet still has choices.
+  // Free text underneath (via the picker's "Add new" option) — nothing is enforced against this
+  // list, it's just there to save retyping "Sales Person" for the tenth time.
+  const roleOptions = Array.from(new Set([...(allEmployees || []).map((e) => e.role).filter(Boolean), ...COMMON_JOB_ROLES]))
+    .sort((a, b) => a.localeCompare(b))
+    .map((r) => ({ value: r, label: r }));
 
   const {
     register,
@@ -131,9 +149,33 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
   // every active employee shows up as a tailor.
   const roleValue = useWatch({ control, name: "role" });
   const willShowAsTailor = (roleValue || "").trim().toLowerCase() === "tailor";
+  const mobileValue = useWatch({ control, name: "mobile" });
   const [commissionOpen, setCommissionOpen] = useState(false);
   const [salaryOpen, setSalaryOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(existing?.photoUrl || null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  async function onPhotoPicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return toast.error(`${file.name} isn't an image.`);
+    setPhotoBusy(true);
+    try {
+      // Smaller than an order attachment (200px is plenty for an avatar) so a profile photo
+      // doesn't bloat the employees row every time someone re-saves the form.
+      const dataUrl = await compressImage(file, 200, 0.8);
+      const size = approxBytesOfDataUrl(dataUrl);
+      if (size > MAX_IMAGE_BYTES) return toast.error(`That photo is ${formatBytes(size)} — too large (limit ${formatBytes(MAX_IMAGE_BYTES)}).`);
+      setPhotoUrl(dataUrl);
+    } catch {
+      toast.error("Could not read that image.");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   async function onSubmit(values: FormValues) {
     try {
@@ -156,6 +198,7 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
           ? { salaryType: values.salaryType, salaryRate: values.salaryRate || 0, pieceRateEligible: values.pieceRateEligible }
           : {}),
         locationId: values.locationId === NO_LOCATION ? null : values.locationId,
+        photoUrl,
         userEmail: user?.email,
       });
       toast.success(isEdit ? "Employee updated" : "Employee added");
@@ -169,13 +212,13 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
     <form onSubmit={handleSubmit(onSubmit as never)} className="min-h-screen bg-muted/30">
       {/* Sticky header */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
-        <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-4xl items-center gap-4 px-4 py-3 sm:px-6">
           <Link href="/employees" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="size-4" />
             <span className="hidden sm:inline">Employees</span>
           </Link>
-          <div className="flex-1">
-            <h1 className="text-base font-semibold">{isEdit ? "Edit Employee" : "New Employee"}</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Employee" : "New Employee"}</h1>
             {isEdit && <p className="text-[11px] font-mono text-muted-foreground">{existing!.name}</p>}
           </div>
           {/* Duplicate of the bottom FormActionBar — mobile only, so Add/Save is reachable
@@ -192,11 +235,32 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
         </div>
       </div>
 
-      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 space-y-5">
+      <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 space-y-5">
         {/* Basic info */}
         <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
           <SectionHeading icon={User} label="Basic info" />
           <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Avatar size="lg" className="size-16">
+                {photoUrl && <AvatarImage src={photoUrl} alt="" />}
+                <AvatarFallback className="text-lg">{(existing?.name || "?")[0]?.toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" size="sm" disabled={photoBusy} onClick={() => photoInputRef.current?.click()}>
+                    {photoBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Camera className="size-3.5" />}
+                    {photoUrl ? "Change photo" : "Add photo"}
+                  </Button>
+                  {photoUrl && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setPhotoUrl(null)}>
+                      <X className="size-3.5" /> Remove
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">Shown on their dashboard login and in staff lists.</p>
+              </div>
+              <input ref={photoInputRef} type="file" accept="image/*" hidden onChange={onPhotoPicked} />
+            </div>
             <FieldGroup label="Full name" required error={errors.name?.message}>
               <Input placeholder="e.g. Ramesh Kumar" className="h-10" {...register("name")} />
             </FieldGroup>
@@ -212,7 +276,22 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
                     : "Only employees whose role is exactly \"Tailor\" appear in the Tailor dropdown on Orders. Other roles (Sales Person, Cutter, Manager, Accountant, …) do not."
                 }
               >
-                <Input placeholder="e.g. Tailor, Sales Person, Cutter, Manager" className="h-10" {...register("role")} />
+                <Controller
+                  control={control}
+                  name="role"
+                  render={({ field }) => (
+                    <SearchSelect
+                      inputClassName="h-10"
+                      placeholder="Select or type a role…"
+                      value={field.value || ""}
+                      fallbackLabel={field.value || undefined}
+                      options={roleOptions}
+                      onSelect={(v) => field.onChange(v)}
+                      onCreateNew={(query) => query && field.onChange(query)}
+                      createLabel="Add new role"
+                    />
+                  )}
+                />
               </FieldGroup>
               <FieldGroup label="Employment type">
                 <Controller
@@ -318,7 +397,7 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
             ) : (
               <p className="text-[11px] text-muted-foreground">Save this employee first, then come back to set their self check-in PIN.</p>
             )}
-            {isEdit && user?.perms.manageUsers && <LinkedUserAccountManager employeeId={existing!.id} />}
+            {isEdit && user?.perms.manageUsers && <DashboardAccessManager employeeId={existing!.id} employeeMobile={mobileValue || existing!.mobile} />}
           </div>
         </div>
 
@@ -407,7 +486,7 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
           type="button"
           variant="outline"
           size="lg"
-          className="h-12 px-6 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 px-4 text-sm sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
           onClick={() => router.back()}
           disabled={isSubmitting}
         >
@@ -416,7 +495,7 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
         <Button
           type="submit"
           size="lg"
-          className="h-12 flex-1 gap-1.5 px-6 text-base sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 flex-1 gap-1.5 px-4 text-sm sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
           disabled={isSubmitting}
         >
           <Save className="size-3.5" />

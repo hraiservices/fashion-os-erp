@@ -2,6 +2,7 @@
 // or list — is addressable by a stable key so a user's visibility/order choices survive
 // across sessions regardless of how the underlying section is implemented.
 import type { CustomCardConfig } from "@/lib/custom-card";
+import type { Role } from "@/lib/permissions";
 
 export type WidgetSize = "sm" | "lg" | "full";
 
@@ -36,9 +37,28 @@ export const BUILTIN_WIDGETS: BuiltinWidgetMeta[] = [
   { key: "recent-orders",               title: "Recent Orders",        size: "lg",   href: "/orders",                description: "Latest stitching orders" },
   { key: "tailor-load",                 title: "Tailor Load",          size: "lg",   href: "/orders?view=board",     description: "Active orders per tailor" },
   { key: "sales-opportunities",         title: "Sales Opportunities",  size: "lg",   href: "/inventory/products",    description: "Customers who may want current stock, based on purchase history" },
+  { key: "profit-overview",             title: "Profit Overview",      size: "full", href: "/reports/combined-pl",   description: "Live stitching revenue, sales revenue, costs and profit — Week/Month/6 Months. Admin & manager only." },
+  { key: "pipeline-velocity",           title: "Pipeline Velocity",    size: "full", href: "/reports/tailor-workload", description: "Live average days-to-Ready and on-time % trend — Week/Month/6 Months. Admin & manager only." },
+  { key: "tailor-performance",          title: "Tailor Performance",   size: "full", href: "/reports/tailor-workload", description: "Live per-tailor revenue, order count and rework count leaderboard — Week/Month/6 Months. Admin & manager only." },
 ];
 
 export const BUILTIN_WIDGET_BY_KEY = new Map(BUILTIN_WIDGETS.map((w) => [w.key, w]));
+
+/** Builtin widgets visible only to specific roles — everything else is visible to any role that
+ *  can reach the dashboard at all (there's no per-role restriction otherwise; entitlements
+ *  gate by module, not role). Checked at render time in the dashboard page, not baked into
+ *  BUILTIN_WIDGETS itself, so a role change takes effect without touching anyone's saved layout. */
+const WIDGET_ROLE_RESTRICTIONS: Record<string, Role[]> = {
+  "profit-overview": ["admin", "manager"],
+  "pipeline-velocity": ["admin", "manager"],
+  "tailor-performance": ["admin", "manager"],
+};
+
+export function isWidgetVisibleForRole(builtinKey: string | undefined, role: string | undefined): boolean {
+  if (!builtinKey) return true;
+  const allowed = WIDGET_ROLE_RESTRICTIONS[builtinKey];
+  return !allowed || (!!role && allowed.includes(role as Role));
+}
 
 export interface WidgetInstance {
   /** Stable across renders — the builtin key, or `custom-<random>` for user-built cards. */

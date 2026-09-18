@@ -1,0 +1,114 @@
+name: Build Android APK
+
+# GitHub's runners have full internet access to the Android SDK repositories, unlike the sandbox
+# this project is developed in — so this is where the actual .apk gets built, not locally in that
+# environment. Manual trigger (Actions tab → this workflow → "Run workflow") plus automatically
+# whenever the native Android project or web build actually changes, so a debug APK is always
+# available to download without anyone needing Android Studio installed at all.
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - "capacitor.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/android-build.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fashion-flow-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  # Actually run the thing. The shell loads a remote URL, so a green Gradle build proves only
+  # that it compiled — the first APK built cleanly and still failed to open with net::ERR_FAILED.
+  # GitHub's runners expose /dev/kvm, so a real emulator can boot here (the dev sandbox has no
+  # virtualization at all, which is why this check lives in CI rather than next to the code).
+  emulator-test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: fashion-flow-debug-apk
+          path: apk
+
+      # The runner ships KVM but not a permissive udev rule for it; without this the emulator
+      # falls back to software rendering and is too slow to finish inside the job timeout.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # No npm install here on purpose: the audit speaks CDP over Node 22's global WebSocket.
+      # Playwright cannot attach to an Android WebView at all — connectOverCDP calls
+      # Browser.setDownloadBehavior, which WebView answers with "Browser context management is
+      # not supported" — so there is no client library to install.
+      - name: Launch app on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          # Optional. Set these as repository secrets to have the audit sign in and check the
+          # order/invoice forms too; without them it audits the login screen only. Kept in
+          # secrets rather than the repo so the value never lands in git history.
+          FF_TEST_MOBILE: ${{ secrets.FF_TEST_MOBILE }}
+          FF_TEST_PIN: ${{ secrets.FF_TEST_PIN }}
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: bash .github/scripts/emulator-smoke.sh
+
+      # Uploaded even on failure — the screenshots and logcat are the whole point when it breaks.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-screenshots
+          path: artifacts/
+          if-no-files-found: warn

@@ -1,10 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
-import { resolvePerms, type Permissions } from "@/lib/permissions";
+import { resolvePerms, type Permissions, type RoleDefaultOverrides } from "@/lib/permissions";
 
 export interface ServerUser {
   email: string;
   role: string;
   perms: Permissions;
+  /** The employees row this login is linked to (user_roles.linked_employee_id), if any — lets
+   *  a route scope access to "your own" employee data (e.g. your own payslips) without the
+   *  managePayroll permission. Null for a login with no linked staff record. */
+  employeeId: string | null;
 }
 
 /** Loads the authenticated user + resolved permissions for use inside API route handlers. */
@@ -15,14 +19,13 @@ export async function getServerUser(): Promise<{ supabase: Awaited<ReturnType<ty
   } = await supabase.auth.getUser();
   if (!user?.email) return { supabase, user: null };
 
-  const { data: roleRow } = await supabase
-    .from("user_roles")
-    .select("role, custom_permissions")
-    .eq("email", user.email)
-    .maybeSingle();
+  const [{ data: roleRow }, { data: overridesRow }] = await Promise.all([
+    supabase.from("user_roles").select("role, custom_permissions, linked_employee_id").eq("email", user.email).maybeSingle(),
+    supabase.from("app_settings").select("value").eq("key", "roleDefaultOverrides").maybeSingle(),
+  ]);
 
   const role = roleRow?.role || "tailor";
-  const perms = resolvePerms(role, roleRow?.custom_permissions as Partial<Permissions> | null);
+  const perms = resolvePerms(role, roleRow?.custom_permissions as Partial<Permissions> | null, overridesRow?.value as RoleDefaultOverrides | null);
 
-  return { supabase, user: { email: user.email, role, perms } };
+  return { supabase, user: { email: user.email, role, perms, employeeId: roleRow?.linked_employee_id ?? null } };
 }

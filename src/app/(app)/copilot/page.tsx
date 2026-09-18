@@ -63,7 +63,7 @@ export default function CopilotPage() {
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-4rem)] max-w-3xl flex-col p-4 sm:p-6 lg:h-dvh">
+    <div className="mx-auto flex h-[calc(100vh-4rem)] h-[calc(100dvh-4rem)] max-w-3xl flex-col p-4 sm:p-6 lg:h-screen lg:h-dvh">
       <PageHeader title="AI Copilot" description="Ask about revenue, orders, deliveries, or payments — in English or Hindi." />
 
       <div className="mt-4 flex-1 space-y-4 overflow-y-auto rounded-xl border bg-card p-4">

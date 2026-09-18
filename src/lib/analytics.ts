@@ -1,7 +1,8 @@
 // Ported from Stitching_Manager_Pro_v16.html ~lines 2373-2524 (Analytics helpers).
-import { daysLeft, loyaltyDiscountOf, couponDiscountOf, loyaltyTier, DEFAULT_LOYALTY_CONFIG, type LoyaltyConfig, type TailorRateCard } from "@/lib/business-rules";
+import { daysLeft, loyaltyDiscountOf, couponDiscountOf, loyaltyTier, DEFAULT_LOYALTY_CONFIG, type LoyaltyConfig } from "@/lib/business-rules";
 import { isOrderOutstanding } from "@/lib/balances";
 import { istDateString } from "@/lib/ist-date";
+import { isWithinDateRange, type DateRange } from "@/lib/report-date-range";
 import { computeOrderProfit } from "@/lib/order-profit";
 import type { Order, Customer, ReferralCoupon, OrderExpense } from "@/lib/types";
 
@@ -11,15 +12,22 @@ function fmtMon(yyyyMm: string): string {
 }
 
 function getLast6Months(): string[] {
+  // Anchor entirely on the IST calendar month, not the server's local one. The previous version
+  // read the current month via d.getMonth() (server-local — UTC on Vercel/Supabase) and only
+  // converted to IST afterward, which is fine most of the day but silently disagrees with IST
+  // for the ~5.5 hours after midnight IST (00:00-05:30) whenever that crosses a month boundary:
+  // at, say, 02:00 IST on the 1st of a new month, UTC is still 20:30 the previous day, so
+  // server-local getMonth() reports the OLD month — every bucket (and the current month itself)
+  // silently shifted a whole month behind, exactly the reported "dashboard chart missing this
+  // month's orders" bug. Deriving the anchor from istDateString() first avoids any dependency on
+  // what timezone the server happens to run in.
+  const [y, m] = istDateString().split("-").map(Number);
   const months: string[] = [];
   for (let i = 5; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(1);
-    d.setMonth(d.getMonth() - i);
-    // istDateString, NOT toISOString: setDate(1) keeps the current time-of-day, so between
-    // 00:00 and 05:30 IST toISOString() rolls back to the last day of the PREVIOUS month and
-    // every bucket key silently shifts a month (the current month vanishes from the report).
-    months.push(istDateString(d).substring(0, 7));
+    const total = y * 12 + (m - 1) - i;
+    const yy = Math.floor(total / 12);
+    const mm = (total % 12) + 1;
+    months.push(`${yy}-${String(mm).padStart(2, "0")}`);
   }
   return months;
 }
@@ -91,23 +99,162 @@ export interface GarmentStat {
   type: string;
   count: number;
   rev: number;
+  /** Distinct orders carrying at least one garment of this type — different from `count`
+   *  (garment quantity) since one order can hold several of the same type. */
+  orders: number;
 }
 
 /** getGarmentStats(), line ~2459. */
 export function getGarmentStats(orders: Order[]): GarmentStat[] {
-  const m: Record<string, { count: number; rev: number }> = {};
+  const m: Record<string, { count: number; rev: number; orders: number }> = {};
   orders.forEach((o) => {
+    const seenTypes = new Set<string>();
     (o.garments || []).forEach((g) => {
       if (g.type) {
-        m[g.type] = m[g.type] || { count: 0, rev: 0 };
+        m[g.type] = m[g.type] || { count: 0, rev: 0, orders: 0 };
         m[g.type].count += (g.no as number) || 1;
         m[g.type].rev += (g.amount as number) || 0;
+        if (!seenTypes.has(g.type)) {
+          m[g.type].orders += 1;
+          seenTypes.add(g.type);
+        }
       }
     });
   });
   return Object.entries(m)
     .map(([type, v]) => ({ type, ...v }))
     .sort((a, b) => b.count - a.count);
+}
+
+export interface TailorTurnaroundStat {
+  tailor: string;
+  ordersCompleted: number;
+  /** Actual calendar days from in_date to ready_at, averaged — unlike getTailorStats().avg,
+   *  which is the PROMISED turnaround (delivery_date − in_date) and says nothing about how
+   *  long the tailor actually took. */
+  avgDays: number;
+  minDays: number;
+  maxDays: number;
+  /** % of completed orders where ready_at fell on or before the promised delivery_date. */
+  onTimePct: number;
+}
+
+/** Actual turnaround time per tailor — how many days it really took from an order being
+ *  received to the tailor marking it Ready, not the promised delivery window. Only orders with
+ *  both in_date and ready_at set count (an order still in progress has no turnaround yet). */
+export function getTailorTurnaround(orders: Order[]): TailorTurnaroundStat[] {
+  const byTailor = new Map<string, { days: number[]; onTime: number; withPromise: number }>();
+  for (const o of orders) {
+    if (!o.tailor || !o.inDate || !o.readyAt) continue;
+    const inMs = new Date(o.inDate).getTime();
+    const readyMs = new Date(o.readyAt).getTime();
+    if (!Number.isFinite(inMs) || !Number.isFinite(readyMs)) continue;
+    const days = Math.max(0, Math.round((readyMs - inMs) / 86400000));
+    const bucket = byTailor.get(o.tailor) || { days: [], onTime: 0, withPromise: 0 };
+    bucket.days.push(days);
+    if (o.deliveryDate) {
+      bucket.withPromise += 1;
+      if (o.readyAt.slice(0, 10) <= o.deliveryDate) bucket.onTime += 1;
+    }
+    byTailor.set(o.tailor, bucket);
+  }
+  return Array.from(byTailor.entries())
+    .map(([tailor, b]) => ({
+      tailor,
+      ordersCompleted: b.days.length,
+      avgDays: Math.round((b.days.reduce((s, d) => s + d, 0) / b.days.length) * 10) / 10,
+      minDays: Math.min(...b.days),
+      maxDays: Math.max(...b.days),
+      onTimePct: b.withPromise > 0 ? Math.round((b.onTime / b.withPromise) * 100) : 0,
+    }))
+    .sort((a, b) => a.avgDays - b.avgDays);
+}
+
+export interface PipelineVelocityBucket {
+  key: string;
+  label: string;
+  /** Orders received in this bucket that have reached Ready — an order still in progress
+   *  contributes nothing yet, same convention as getTailorTurnaround. */
+  completedCount: number;
+  /** Average calendar days from in_date to ready_at, null if nothing in the bucket has
+   *  reached Ready yet. */
+  avgDaysToReady: number | null;
+  /** % of that bucket's completed orders where ready_at fell on or before the promised
+   *  delivery_date — null (not 0) when there's nothing with a promised date to judge against,
+   *  so a chart can tell "no data" apart from "0% on time". */
+  onTimePct: number | null;
+}
+
+/** Buckets orders by in_date (the same PeriodBucket[] as bucketsForRange/last6MonthBuckets/
+ *  lastNDayBuckets) and reports how fast each bucket's orders actually moved: average
+ *  days-to-ready and on-time %. This is a time TREND of getTailorTurnaround's own metric,
+ *  not per-tailor — how the whole shop's pipeline speed is moving, bucket to bucket. */
+export function getPipelineVelocity(orders: Order[], buckets: { key: string; label: string }[]): PipelineVelocityBucket[] {
+  return buckets.map(({ key, label }) => {
+    const bucketOrders = orders.filter((o) => o.inDate?.startsWith(key));
+    const days: number[] = [];
+    let onTime = 0;
+    let withPromise = 0;
+    for (const o of bucketOrders) {
+      if (!o.readyAt) continue;
+      const inMs = new Date(o.inDate).getTime();
+      const readyMs = new Date(o.readyAt).getTime();
+      if (Number.isFinite(inMs) && Number.isFinite(readyMs)) days.push(Math.max(0, Math.round((readyMs - inMs) / 86400000)));
+      if (o.deliveryDate) {
+        withPromise += 1;
+        if (o.readyAt.slice(0, 10) <= o.deliveryDate) onTime += 1;
+      }
+    }
+    return {
+      key,
+      label,
+      completedCount: days.length,
+      avgDaysToReady: days.length ? Math.round((days.reduce((s, d) => s + d, 0) / days.length) * 10) / 10 : null,
+      onTimePct: withPromise > 0 ? Math.round((onTime / withPromise) * 100) : null,
+    };
+  });
+}
+
+export interface TailorPerformanceStat {
+  tailor: string;
+  ordersCount: number;
+  revenue: number;
+  /** Same definition as getTailorTurnaround's avgDays — null if none of this tailor's orders
+   *  in range have reached Ready yet. */
+  avgTurnaroundDays: number | null;
+  /** Lifetime rework_count summed across this tailor's orders in range — see
+   *  add_finishing_stage_and_rework_count.sql for what that column tracks. */
+  reworkCount: number;
+}
+
+/** Per-tailor leaderboard for whatever slice of orders is passed in (the dashboard card filters
+ *  by in_date >= a range cutoff before calling this) — revenue, order count, actual turnaround,
+ *  and total rework count. Order-level tailor assignment only (o.tailor), same as
+ *  getTailorTurnaround; a per-garment tailor override isn't split out here. */
+export function getTailorPerformance(orders: Order[]): TailorPerformanceStat[] {
+  const byTailor = new Map<string, { count: number; revenue: number; days: number[]; reworkCount: number }>();
+  for (const o of orders) {
+    if (!o.tailor) continue;
+    const b = byTailor.get(o.tailor) || { count: 0, revenue: 0, days: [], reworkCount: 0 };
+    b.count += 1;
+    b.revenue += o.total || 0;
+    b.reworkCount += o.reworkCount || 0;
+    if (o.inDate && o.readyAt) {
+      const inMs = new Date(o.inDate).getTime();
+      const readyMs = new Date(o.readyAt).getTime();
+      if (Number.isFinite(inMs) && Number.isFinite(readyMs)) b.days.push(Math.max(0, Math.round((readyMs - inMs) / 86400000)));
+    }
+    byTailor.set(o.tailor, b);
+  }
+  return Array.from(byTailor.entries())
+    .map(([tailor, b]) => ({
+      tailor,
+      ordersCount: b.count,
+      revenue: b.revenue,
+      avgTurnaroundDays: b.days.length ? Math.round((b.days.reduce((s, d) => s + d, 0) / b.days.length) * 10) / 10 : null,
+      reworkCount: b.reworkCount,
+    }))
+    .sort((a, b) => b.revenue - a.revenue);
 }
 
 export interface CustomerAgg {
@@ -420,6 +567,27 @@ export function getPendingOrders(orders: Order[]): Order[] {
     .sort((a, b) => new Date(a.deliveryDate).getTime() - new Date(b.deliveryDate).getTime());
 }
 
+export interface TodayDeliverablesResult {
+  /** Still-pending orders whose delivery date falls in the selected range (today, by default) —
+   *  what still needs to go out for that day/range. */
+  due: Order[];
+  /** Still-pending orders whose delivery date has already passed — always relative to the real
+   *  calendar today, independent of whatever range is selected, since a backlog doesn't stop
+   *  being a backlog just because you're looking at a different day. */
+  overdue: Order[];
+}
+
+/** Today Deliverables — the flip side of Pending Orders: not "everything still in progress" but
+ *  specifically "what's promised for today (or the selected range)", split from the pre-existing
+ *  overdue backlog so staff can tell "due now" apart from "already late" at a glance. */
+export function getTodayDeliverables(orders: Order[], range: DateRange): TodayDeliverablesResult {
+  const today = istDateString();
+  const pending = getPendingOrders(orders);
+  const due = pending.filter((o) => isWithinDateRange(o.deliveryDate, range) && o.deliveryDate >= today);
+  const overdue = pending.filter((o) => o.deliveryDate && o.deliveryDate < today);
+  return { due, overdue };
+}
+
 export interface LoyaltyImpactStat {
   totalPointsOutstanding: number;
   totalPointsEverEarned: number;
@@ -619,11 +787,12 @@ export interface OrderProfitabilityRow extends Order {
   tailorCostIsEstimate: boolean;
 }
 
-/** Profit = customer price − tailor cost (real once the order reaches ready, estimated from
- *  the tailor rate card before that) − stitching expenses − manually-entered fabric/other
- *  cost. Same computeOrderProfit() used by the New Order form, Order Details, and the
- *  Stitching Orders list — see src/lib/order-profit.ts. Only as accurate as whoever fills in
- *  fabric/other cost and the tailor rate card. */
+/** Profit = customer price − tailor cost (the sum of each garment's payableAmount, whatever
+ *  was entered on the order — real once a payroll run pays it out, an editable working figure
+ *  before that) − stitching expenses − manually-entered fabric/other cost. Same
+ *  computeOrderProfit() used by the New Order form, Order Details, and the Stitching Orders
+ *  list — see src/lib/order-profit.ts. Only as accurate as whoever fills in fabric/other cost
+ *  and each garment's tailor payable. */
 export interface ReorderCandidateRow {
   name: string;
   mobile: string;
@@ -684,12 +853,11 @@ export function getTopReferrers(coupons: ReferralCoupon[]): TopReferrerRow[] {
 
 export function getOrderProfitability(
   orders: Order[],
-  rates: TailorRateCard,
   expensesByOrderId: Map<string, Pick<OrderExpense, "amount">[]>
 ): OrderProfitabilityRow[] {
   return orders
     .map((o) => {
-      const breakdown = computeOrderProfit(o, rates, expensesByOrderId.get(o.id) || []);
+      const breakdown = computeOrderProfit(o, expensesByOrderId.get(o.id) || []);
       const cost = breakdown.tailorCost + breakdown.stitchingExpenses + breakdown.fabricCost + breakdown.otherCost;
       return { ...o, cost, profit: breakdown.profit, marginPct: breakdown.marginPct ?? 0, tailorCostIsEstimate: breakdown.tailorCostIsEstimate };
     })

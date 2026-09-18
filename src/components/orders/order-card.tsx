@@ -1,10 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Wallet, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
+import { Wallet, RotateCcw, Trash2, Link as LinkIcon } from "lucide-react";
 import { getNextStage, buildWhatsAppUrl, STAGE_META } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
+import { useAppSetting } from "@/hooks/use-app-setting";
+import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { inr, fmtDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { orderChecklistProgress } from "@/lib/garment-checklist";
@@ -12,8 +16,79 @@ import { DueBadge } from "@/components/orders/stage-badge";
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useDeleteOrder } from "@/hooks/use-order-mutations";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import type { Order } from "@/lib/types";
 import type { Shop } from "@/lib/settings";
+
+/**
+ * Quick delete straight from a list/board card — gated on deleteOrder, same as the order detail
+ * page's delete button and the orders list's bulk-select delete, just without needing to open the
+ * order or select it first. Self-contained (own confirm dialog + mutation) so it drops into any
+ * card/row type with no wiring through the parent list/board.
+ */
+export function DeleteOrderButton({ order, compact }: { order: Order; compact?: boolean }) {
+  const { data: user } = useCurrentUser();
+  const deleteOrder = useDeleteOrder();
+  const [open, setOpen] = useState(false);
+  if (!user?.perms.deleteOrder) return null;
+
+  async function doDelete() {
+    try {
+      await deleteOrder.mutateAsync({ id: order.id, name: order.name, userEmail: user?.email });
+      toast.success("Order deleted");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete order");
+    } finally {
+      setOpen(false);
+    }
+  }
+
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger
+        render={
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className={cn("size-9 shrink-0 text-destructive hover:bg-destructive/10", !compact && "sm:size-8")}
+            aria-label={`Delete order ${order.id}`}
+            title="Delete order"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        }
+      />
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete this order?</AlertDialogTitle>
+          <AlertDialogDescription>{order.id} for {order.name} will be permanently removed. This cannot be undone.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleteOrder.isPending}>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={doDelete} disabled={deleteOrder.isPending}>
+            {deleteOrder.isPending ? "Deleting…" : "Delete"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
 
 export function AlterationBadge() {
   return (
@@ -39,11 +114,44 @@ export function ChecklistProgressChip({ order }: { order: Order }) {
   return <span className="shrink-0 rounded-full bg-muted px-1.5 py-0 text-[10px] font-medium tabular-nums text-muted-foreground">{done}/{total}</span>;
 }
 
+/** Thin colored strip along a kanban card's top edge — the at-a-glance version of the "2/4"
+ *  chip. The card itself never leaves its column (that's still driven by the order's own single
+ *  status), but this makes it obvious some of an order's garments have moved ahead of the rest
+ *  without needing to open the card. Same hide conditions as the chip: nothing yet, or already
+ *  fully done, draws no attention. */
+export function ChecklistProgressBar({ order }: { order: Order }) {
+  const { done, total } = orderChecklistProgress(order.garments || []);
+  if (total === 0 || done === 0 || done === total) return null;
+  const pct = Math.round((done / total) * 100);
+  return (
+    <div className="h-1 w-full shrink-0 bg-muted" aria-hidden>
+      <div className="h-full bg-amber-500 transition-all" style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
 /**
  * Kanban board card. OrderCard(), Stitching_Manager_Pro_v16.html ~line 6033.
  * The stage is implied by the column, so the card omits the stage badge and spends
  * that space on the details a tailor actually scans for: who, what, when, how much.
  */
+/** "3 linked · Total ₹3,000" — a garment-split order's link to its siblings from the same
+ *  customer visit (see the New Order form's split checkbox). Each sibling moves independently
+ *  and carries its own money (not linked/shared — see order-split.ts), so `groupTotal` here is
+ *  just the sum of every sibling's own total for a quick "what's this whole visit worth" read;
+ *  it is not a shared balance. */
+export function GroupBadge({ size, groupTotal }: { size?: number; groupTotal?: number }) {
+  if (!size || size < 2) return null;
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-sky-500/30 bg-sky-50 px-1.5 py-0 text-[10px] font-medium text-sky-700 dark:bg-sky-950/40 dark:text-sky-400">
+      <LinkIcon className="size-2.5" /> {size} linked
+      {groupTotal != null && (
+        <span className="text-emerald-600 dark:text-emerald-400">· Total {inr(groupTotal)}</span>
+      )}
+    </span>
+  );
+}
+
 export function OrderCard({
   order,
   canChangeStage,
@@ -55,6 +163,9 @@ export function OrderCard({
   onDragEnd,
   dragging,
   onRecordPayment,
+  trackUrl,
+  groupSize,
+  groupTotal,
 }: {
   order: Order;
   canChangeStage?: boolean;
@@ -66,8 +177,16 @@ export function OrderCard({
   onDragEnd?: () => void;
   dragging?: boolean;
   onRecordPayment?: (order: Order) => void;
+  /** Customer's public order-status link, for the {track_link} WhatsApp variable. */
+  trackUrl?: string;
+  /** Count of orders sharing this order's group_id (itself included) — omit/undefined when the
+   *  caller isn't tracking groups, 1 or less hides the badge (not actually grouped). */
+  groupSize?: number;
+  /** Sum of every sibling's own `total` (this order included) — see GroupBadge. */
+  groupTotal?: number;
 }) {
   const next = getNextStage(order.status);
+  const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
 
   return (
     <div
@@ -80,15 +199,17 @@ export function OrderCard({
         dragging && "opacity-40"
       )}
     >
+      <ChecklistProgressBar order={order} />
       <Link href={`/orders/${order.id}`} className="block p-3">
         <div className="flex items-start justify-between gap-2">
           <p className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">{order.name}</p>
           <span className="shrink-0 text-sm font-semibold tabular-nums">{inr(order.total)}</span>
         </div>
-        <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-muted-foreground">
-          {order.id}
+        <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="min-w-0 shrink truncate">{order.id}</span>
           {order.orderType === "alteration" && <AlterationBadge />}
           {order.reworkFlag && <ReworkBadge />}
+          <GroupBadge size={groupSize} groupTotal={groupTotal} />
         </p>
 
         <p className="mt-2 truncate text-xs text-muted-foreground">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>
@@ -134,10 +255,11 @@ export function OrderCard({
           </Button>
         )}
         <WhatsAppIconButton
-          href={buildWhatsAppUrl(order, resolveWaType(order), shop)}
+          href={buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates)}
           label={`WhatsApp ${order.name}`}
           className="size-8"
         />
+        <DeleteOrderButton order={order} compact />
       </div>
     </div>
   );

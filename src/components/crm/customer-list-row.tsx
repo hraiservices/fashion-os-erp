@@ -36,12 +36,15 @@ export function CustomerListRow({
   shop,
   invoices = [],
   onRecordPayment,
+  isVisible = () => true,
 }: {
   cust: CustomerProfile;
   loyaltyCfg?: LoyaltyConfig;
   shop?: Shop;
   invoices?: SalesInvoiceWithBalance[];
   onRecordPayment?: (order: Order) => void;
+  /** Column-visibility check — see useColumnVisibility()/ColumnCustomizerMenu on the CRM list page. */
+  isVisible?: (key: string) => boolean;
 }) {
   const { data: user } = useCurrentUser();
   const deleteCustomer = useDeleteCustomerAndOrders();
@@ -90,20 +93,24 @@ export function CustomerListRow({
       <TableCell>
         <RefChips items={orderChips} moreHref={`/crm/${cust.mobile}`} />
       </TableCell>
-      <TableCell>
-        <RefChips items={invoiceChips} moreHref={`/crm/${cust.mobile}`} />
-      </TableCell>
-      <TableCell className="text-right tabular-nums">{inr(cust.spent)}</TableCell>
-      <TableCell className="text-muted-foreground">{fmtDateShort(latestOrder?.inDate || "")}</TableCell>
-      <TableCell>
-        {tier ? (
-          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ background: tier.bg, color: tier.color }}>
-            {tier.label}
-          </span>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
-      </TableCell>
+      {isVisible("invoices") && (
+        <TableCell>
+          <RefChips items={invoiceChips} moreHref={`/crm/${cust.mobile}`} />
+        </TableCell>
+      )}
+      {isVisible("spent") && <TableCell className="text-right tabular-nums">{inr(cust.spent)}</TableCell>}
+      {isVisible("lastOrder") && <TableCell className="text-muted-foreground">{fmtDateShort(latestOrder?.inDate || "")}</TableCell>}
+      {isVisible("tier") && (
+        <TableCell>
+          {tier ? (
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ background: tier.bg, color: tier.color }}>
+              {tier.label}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </TableCell>
+      )}
       <TableCell className="text-right">
         {outstanding > 0 ? (
           <div className="space-y-0.5 text-xs leading-tight">
@@ -121,7 +128,7 @@ export function CustomerListRow({
       </TableCell>
       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-end gap-1.5">
-          {outstanding > 0 && <WhatsAppIconButton href={reminderUrl} label={`Payment reminder for ${cust.name}`} />}
+          {outstanding > 0 && <WhatsAppIconButton href={reminderUrl} label={`Payment reminder for ${cust.name}`} tone="reminder" />}
           {onRecordPayment && payableOrder && (
             <Button
               variant="outline"

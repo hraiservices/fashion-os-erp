@@ -64,23 +64,23 @@ function LocationForm({ draft, onChange, onCancel, onSave, saving }: { draft: Lo
     <div className="space-y-3 rounded-lg border p-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Name</Label>
+          <Label className="text-sm font-bold">Name</Label>
           <Input placeholder="e.g. Main Store" className="h-9" value={draft.name} onChange={(e) => onChange({ ...draft, name: e.target.value })} />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Address</Label>
+          <Label className="text-sm font-bold">Address</Label>
           <Input placeholder="Optional" className="h-9" value={draft.address} onChange={(e) => onChange({ ...draft, address: e.target.value })} />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Latitude</Label>
+          <Label className="text-sm font-bold">Latitude</Label>
           <Input placeholder="e.g. 19.0760" className="h-9" value={draft.latitude} onChange={(e) => onChange({ ...draft, latitude: e.target.value })} />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Longitude</Label>
+          <Label className="text-sm font-bold">Longitude</Label>
           <Input placeholder="e.g. 72.8777" className="h-9" value={draft.longitude} onChange={(e) => onChange({ ...draft, longitude: e.target.value })} />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Geofence radius (meters)</Label>
+          <Label className="text-sm font-bold">Geofence radius (meters)</Label>
           <Input type="number" inputMode="numeric" min={10} className="h-9" value={draft.geofenceRadiusM} onChange={(e) => onChange({ ...draft, geofenceRadiusM: e.target.value })} />
         </div>
         <div className="flex items-end">
@@ -220,16 +220,16 @@ export function AttendancePayrollSection() {
             <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Standard shift (hours)</Label>
+                  <Label className="text-sm font-bold">Standard shift (hours)</Label>
                   <NumberInput min={1} max={24} className="h-10" value={draftSettings.standardShiftHours} onChange={(v) => setDraftSettings({ ...draftSettings, standardShiftHours: v })} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Overtime rate (₹/hour)</Label>
+                  <Label className="text-sm font-bold">Overtime rate (₹/hour)</Label>
                   <p className="text-[11px] text-muted-foreground">Flat rate for every hour worked beyond the standard shift, same for all employees.</p>
                   <NumberInput min={0} step={0.5} className="h-10" value={draftSettings.otRatePerHour} onChange={(v) => setDraftSettings({ ...draftSettings, otRatePerHour: v })} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Weekly off day</Label>
+                  <Label className="text-sm font-bold">Weekly off day</Label>
                   <p className="text-[11px] text-muted-foreground">Excluded automatically when counting leave-request days.</p>
                   <Select
                     value={draftSettings.weeklyOffDay == null ? NO_WEEKLY_OFF : String(draftSettings.weeklyOffDay)}

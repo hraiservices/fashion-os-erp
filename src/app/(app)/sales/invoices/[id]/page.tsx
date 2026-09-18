@@ -166,11 +166,11 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <th className="p-2 text-left font-medium">Product</th>
-                  <th className="p-2 text-right font-medium">Qty</th>
-                  <th className="p-2 text-right font-medium">Price</th>
-                  <th className="p-2 text-right font-medium">Disc %</th>
-                  <th className="p-2 text-right font-medium">Amount</th>
+                  <th className="p-2 text-left font-bold">Product</th>
+                  <th className="p-2 text-right font-bold">Qty</th>
+                  <th className="p-2 text-right font-bold">Price</th>
+                  <th className="p-2 text-right font-bold">Disc %</th>
+                  <th className="p-2 text-right font-bold">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -363,6 +363,7 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
                 className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]"
                 href={waHref(invoice.balance > 0 ? "paymentReminder" : "invoiceSent")}
                 label={invoice.balance > 0 ? "Payment Reminder" : "Send Invoice"}
+                tone={invoice.balance > 0 ? "reminder" : "whatsapp"}
               />
               {(payments?.length || 0) > 0 && <WhatsAppButton className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" href={waHref("paymentReceived")} label="Send Receipt" />}
               <WhatsAppButton className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" href={waHref("sendPdfLink")} label="Send PDF on WhatsApp" />

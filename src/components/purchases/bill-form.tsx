@@ -24,6 +24,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { LineItemsEditor, linesToItems, blankLine, lineFromItem, type EditableLine } from "@/components/purchases/line-items-editor";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import type { PurchaseBill } from "@/lib/types";
+import { istDateString } from "@/lib/ist-date";
 
 const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
 const paymentTermLabel = (v: unknown) => PAYMENT_TERM_LABELS[v as PaymentTerm] ?? "";
@@ -42,7 +43,7 @@ function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label:
 function FieldGroup({ label, required, children, hint }: { label: string; required?: boolean; children: React.ReactNode; hint?: string }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-foreground/80">
+      <Label className="text-sm font-bold text-foreground/80">
         {label}{required && <span className="ml-0.5 text-red-500">*</span>}
       </Label>
       {children}
@@ -61,7 +62,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
 
   const [billNumber] = useState(existing?.billNumber || genBillNumber());
   const [vendorId, setVendorId] = useState(existing?.vendorId || "");
-  const [billDate, setBillDate] = useState(existing?.billDate || new Date().toISOString().slice(0, 10));
+  const [billDate, setBillDate] = useState(existing?.billDate || istDateString());
   const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>("due_on_receipt");
   const [dueDate, setDueDate] = useState(existing?.dueDate || "");
   const [lines, setLines] = useState<EditableLine[]>(
@@ -122,18 +123,18 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
     <div className="min-h-screen bg-muted/30">
       {/* Sticky header */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
-        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-4 py-3 sm:px-6">
           <Link href="/purchases/bills" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="size-4" />
             <span className="hidden sm:inline">Bills</span>
           </Link>
-          <div className="flex-1">
-            <h1 className="text-base font-semibold">{isEdit ? "Edit Bill" : "New Bill"}</h1>
-            <p className="text-[11px] text-muted-foreground font-mono">{billNumber}</p>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Bill" : "New Bill"}</h1>
+            <p className="text-[11px] text-muted-foreground font-mono truncate">{billNumber}</p>
           </div>
           {/* Duplicate of the bottom FormActionBar — mobile only, so Record/Save is reachable
              without scrolling all the way down. */}
-          <div className="flex items-center gap-2 sm:hidden">
+          <div className="flex shrink-0 items-center gap-1.5 sm:hidden">
             <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveBill.isPending}>
               Cancel
             </Button>
@@ -145,7 +146,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
         </div>
       </div>
 
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
+      <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
         {/* Main form */}
         <div className="lg:col-span-2 space-y-5">
           {/* Vendor & dates */}
@@ -287,7 +288,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
         <Button
           variant="outline"
           size="lg"
-          className="h-12 px-6 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 px-4 text-sm sm:h-7 sm:px-2.5 sm:text-[0.8rem]"
           onClick={() => router.back()}
           disabled={saveBill.isPending}
         >
@@ -295,7 +296,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
         </Button>
         <Button
           size="lg"
-          className="h-12 flex-1 gap-1.5 bg-primary px-6 text-base text-primary-foreground sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
+          className="h-11 flex-1 gap-1.5 bg-primary px-4 text-sm text-primary-foreground sm:h-7 sm:flex-none sm:px-2.5 sm:text-[0.8rem]"
           onClick={handleSave}
           disabled={saveBill.isPending}
         >

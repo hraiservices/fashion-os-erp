@@ -1,16 +1,26 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, SwitchCamera, RotateCcw, Check, X } from "lucide-react";
+import { Camera as CameraIcon, SwitchCamera, RotateCcw, Check, X } from "lucide-react";
 import { compressImage } from "@/lib/media";
+import { isNativePlatform } from "@/lib/capacitor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 /**
  * CameraModal(), Stitching_Manager_Pro_v16.html ~line 3872.
- * Captures a photo via getUserMedia and hands back a compressed JPEG data URL.
- * The old app had a known leak here (orphaned camera streams on unmount, noted at
- * line ~10355); the cleanup below stops every track on close, unmount, and facing switch.
+ * Captures a photo and hands back a compressed JPEG data URL.
+ *
+ * Inside the Capacitor shell, this defers entirely to the native Camera plugin instead of
+ * getUserMedia: it opens the OS's own camera app (which already has its own retake/confirm step,
+ * hardware shutter support, and a working front/back switch — getUserMedia inside an Android
+ * WebView is comparatively unreliable and never got a facing-switch that works on every device).
+ * The dialog below, and the getUserMedia flow with its own retake/confirm UI, exist only for the
+ * plain website and installed PWA.
+ *
+ * The old getUserMedia-based app had a known leak here (orphaned camera streams on unmount, noted
+ * at line ~10355 of the original); the cleanup below stops every track on close, unmount, and
+ * facing switch.
  */
 export function CameraModal({
   open,
@@ -36,6 +46,23 @@ export function CameraModal({
     streamRef.current = null;
   }, []);
 
+  const captureNative = useCallback(async () => {
+    try {
+      const { Camera, CameraResultType, CameraSource } = await import("@capacitor/camera");
+      const photo = await Camera.getPhoto({ resultType: CameraResultType.DataUrl, source: CameraSource.Camera, quality: 90 });
+      if (!photo.dataUrl) return onOpenChange(false);
+      // fetch() understands data: URLs fine in a Chromium WebView — reuses the same
+      // resize/recompress path as every other capture route instead of storing the raw shot.
+      const blob = await (await fetch(photo.dataUrl)).blob();
+      onCapture(await compressImage(blob));
+    } catch {
+      // The native camera's own cancel button rejects the promise — not a real error, just close.
+    } finally {
+      onOpenChange(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!open) {
       stopStream();
@@ -44,6 +71,10 @@ export function CameraModal({
         setError(null);
       }, 0);
       return () => clearTimeout(t);
+    }
+    if (isNativePlatform()) {
+      void captureNative();
+      return;
     }
     let cancelled = false;
 
@@ -69,7 +100,7 @@ export function CameraModal({
       cancelled = true;
       stopStream();
     };
-  }, [open, facing, stopStream]);
+  }, [open, facing, stopStream, captureNative]);
 
   async function snap() {
     if (!videoRef.current) return;
@@ -85,6 +116,10 @@ export function CameraModal({
     onCapture(preview);
     onOpenChange(false);
   }
+
+  // The native camera app owns the entire capture UI (including its own cancel/retake) — this
+  // dialog only exists long enough to trigger it, with nothing worth showing underneath.
+  if (isNativePlatform()) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -130,7 +165,7 @@ export function CameraModal({
                 <SwitchCamera className="size-4" />
               </Button>
               <Button className="h-12 flex-1 text-base sm:h-8 sm:text-sm" disabled={!!error} onClick={snap}>
-                <Camera className="size-4" /> Capture
+                <CameraIcon className="size-4" /> Capture
               </Button>
             </>
           )}

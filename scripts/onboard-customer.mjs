@@ -342,6 +342,11 @@ async function main() {
     NEXT_PUBLIC_SUPABASE_ANON_KEY: anon,
     SUPABASE_SERVICE_ROLE_KEY: serviceRole,
     NEXT_PUBLIC_SUPER_ADMIN_EMAIL: cfg.platformOwnerEmail,
+    // This script never creates the customer's first login itself — the /login page's own
+    // "Sign up" tab is how that first admin account gets created (first-ever user becomes
+    // admin, see ensureUserRole). That tab is off by default on any deployment where this var
+    // isn't set, so a freshly onboarded customer needs it on for their own first-run setup.
+    NEXT_PUBLIC_ENABLE_SELF_SIGNUP: "true",
     NEXT_PUBLIC_APP_NAME: appName,
     ATTENDANCE_SESSION_SECRET: attendanceSecret,
     NEXT_PUBLIC_VAPID_PUBLIC_KEY: vapid.publicKey,

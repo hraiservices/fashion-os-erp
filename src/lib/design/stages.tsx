@@ -1,4 +1,4 @@
-import { Inbox, Scissors, Shirt, CheckCircle2, Truck, IndianRupee, type LucideIcon } from "lucide-react";
+import { Inbox, Scissors, Shirt, Sparkles, CheckCircle2, Truck, IndianRupee, type LucideIcon } from "lucide-react";
 import type { Stage } from "@/lib/business-rules";
 
 /**
@@ -40,6 +40,13 @@ export const STAGE_STYLE: Record<Stage, StageStyle> = {
     surface: "bg-violet-50 dark:bg-violet-950/30",
     accent: "bg-violet-400",
     solid: "bg-violet-600 text-white hover:bg-violet-700",
+  },
+  finishing: {
+    icon: Sparkles,
+    badge: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300",
+    surface: "bg-purple-50 dark:bg-purple-950/30",
+    accent: "bg-purple-400",
+    solid: "bg-purple-600 text-white hover:bg-purple-700",
   },
   ready: {
     icon: CheckCircle2,

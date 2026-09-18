@@ -6,15 +6,23 @@ import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useProducts } from "@/hooks/use-products";
 import { isLowStock } from "@/lib/inventory";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange } from "@/lib/report-date-range";
 
+/** Pure point-in-time stock/valuation snapshot — raw materials and products carry no date field
+ *  at all (current stockQty/cost only), so there is no underlying transaction for a date range to
+ *  filter. The bar is shown anyway for consistency with every other report; it has no effect here. */
 export default function InventoryReportPage() {
   const { data: rawMaterials, isLoading: loadingMaterials } = useRawMaterials();
   const { data: products, isLoading: loadingProducts } = useProducts();
   const isLoading = loadingMaterials || loadingProducts;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo } = useReportDateRange();
 
   const rawValue = useMemo(() => (rawMaterials || []).reduce((s, m) => s + m.stockQty * m.costPerUnit, 0), [rawMaterials]);
   // "Inventory Value" is cost-basis (what you paid) — the accounting-correct figure for a
@@ -31,7 +39,30 @@ export default function InventoryReportPage() {
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
-    <ReportShell title="Inventory Valuation" description="Stock on hand valued at cost (accounting basis) and at retail, across raw materials and finished goods">
+    <ReportShell
+      title="Inventory Valuation"
+      description="Stock on hand valued at cost (accounting basis) and at retail, across raw materials and finished goods"
+      actions={
+        <ReportActionsMenu
+          rows={[
+            ...(rawMaterials || []).map((m) => ({ Type: "Raw Material", Name: m.name, Category: m.category || "—", Stock: `${m.stockQty} ${m.unitName}`, "Cost/unit": m.costPerUnit, Value: m.stockQty * m.costPerUnit })),
+            ...(products || []).map((p) => ({ Type: "Product", Name: p.name, Category: p.sku, Stock: `${p.stockQty} pcs`, "Cost/unit": p.costPrice, Value: p.stockQty * p.costPrice })),
+          ]}
+          filename="inventory-valuation"
+          title="Inventory Valuation"
+          summaryLines={[`Inventory value (cost): ${inr(rawValue + finishedCostValue)}`, `Retail value: ${inr(finishedRetailValue)}`, `Low stock items: ${lowStockCount}`]}
+        />
+      }
+    >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <StatCard label="Raw Materials" value={rawMaterials?.length ?? 0} icon={Package} />
         <StatCard label="Products" value={products?.length ?? 0} icon={ShoppingBag} />
@@ -45,6 +76,29 @@ export default function InventoryReportPage() {
         {!rawMaterials || rawMaterials.length === 0 ? (
           <EmptyState icon={Package} title="No raw materials yet" />
         ) : (
+          <>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total raw material value" value={inr(rawValue)} showChevron={false} />
+            </MobileRecordCard>
+            {rawMaterials.map((m) => (
+              <MobileRecordCard key={m.id}>
+                <MobileRecordHeader
+                  title={m.name}
+                  subtitle={m.category || "—"}
+                  value={inr(m.stockQty * m.costPerUnit)}
+                  showChevron={false}
+                />
+                <MobileRecordRow
+                  label="Stock"
+                  value={`${m.stockQty} ${m.unitName}`}
+                  valueClassName={isLowStock(m.stockQty, m.lowStockAlert) ? "font-medium text-amber-700 dark:text-amber-400" : undefined}
+                />
+                <MobileRecordRow label="Cost/unit" value={inr(m.costPerUnit)} />
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
+          <div className="hidden sm:block">
           <ReportTable>
             <thead className="border-b bg-muted/40">
               <tr>
@@ -56,6 +110,10 @@ export default function InventoryReportPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
+              <ReportTotalsRow>
+                <Td colSpan={4}>Total raw material value</Td>
+                <Td align="right">{inr(rawValue)}</Td>
+              </ReportTotalsRow>
               {rawMaterials.map((m) => (
                 <tr key={m.id} className="hover:bg-muted/30">
                   <Td className="font-medium">{m.name}</Td>
@@ -68,15 +126,9 @@ export default function InventoryReportPage() {
                 </tr>
               ))}
             </tbody>
-            <tfoot>
-              <tr className="border-t bg-muted/30 font-semibold">
-                <td className="px-3 py-2.5" colSpan={4}>
-                  Total raw material value
-                </td>
-                <td className="px-3 py-2.5 text-right tabular-nums">{inr(rawValue)}</td>
-              </tr>
-            </tfoot>
           </ReportTable>
+          </div>
+          </>
         )}
       </div>
 
@@ -85,6 +137,32 @@ export default function InventoryReportPage() {
         {!products || products.length === 0 ? (
           <EmptyState icon={ShoppingBag} title="No products yet" />
         ) : (
+          <>
+          <MobileRecordList>
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total finished-goods value" value={inr(finishedCostValue)} showChevron={false} />
+              <MobileRecordRow label="Retail value" value={inr(finishedRetailValue)} />
+            </MobileRecordCard>
+            {products.map((p) => (
+              <MobileRecordCard key={p.id}>
+                <MobileRecordHeader
+                  title={p.name}
+                  subtitle={p.sku}
+                  value={inr(p.stockQty * p.costPrice)}
+                  showChevron={false}
+                />
+                <MobileRecordRow
+                  label="Stock"
+                  value={`${p.stockQty} pcs`}
+                  valueClassName={isLowStock(p.stockQty, p.lowStockAlert) ? "font-medium text-amber-700 dark:text-amber-400" : undefined}
+                />
+                <MobileRecordRow label="Cost price" value={inr(p.costPrice)} />
+                <MobileRecordRow label="Selling price" value={inr(p.sellingPrice)} />
+                <MobileRecordRow label="Retail value" value={inr(p.stockQty * p.sellingPrice)} />
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
+          <div className="hidden sm:block">
           <ReportTable>
             <thead className="border-b bg-muted/40">
               <tr>
@@ -98,6 +176,12 @@ export default function InventoryReportPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
+              <ReportTotalsRow>
+                <Td colSpan={4}>Total finished-goods value</Td>
+                <Td align="right">{inr(finishedCostValue)}</Td>
+                <Td />
+                <Td align="right">{inr(finishedRetailValue)}</Td>
+              </ReportTotalsRow>
               {products.map((p) => (
                 <tr key={p.id} className="hover:bg-muted/30">
                   <Td className="font-medium">{p.name}</Td>
@@ -112,17 +196,9 @@ export default function InventoryReportPage() {
                 </tr>
               ))}
             </tbody>
-            <tfoot>
-              <tr className="border-t bg-muted/30 font-semibold">
-                <td className="px-3 py-2.5" colSpan={4}>
-                  Total finished-goods value
-                </td>
-                <td className="px-3 py-2.5 text-right tabular-nums">{inr(finishedCostValue)}</td>
-                <td className="px-3 py-2.5" />
-                <td className="px-3 py-2.5 text-right tabular-nums">{inr(finishedRetailValue)}</td>
-              </tr>
-            </tfoot>
           </ReportTable>
+          </div>
+          </>
         )}
       </div>
     </ReportShell>

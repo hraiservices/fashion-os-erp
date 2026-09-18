@@ -12,6 +12,13 @@ function daysBetweenInclusive(start: string, end: string): number {
   return Math.round((e.getTime() - s.getTime()) / 86400000) + 1;
 }
 
+/** Number of calendar days in the month a date (YYYY-MM-DD) falls in — the divisor a monthly
+ *  salary is actually quoted against, whatever the length of the payroll period being run. */
+function daysInMonthOf(dateStr: string): number {
+  const d = new Date(dateStr);
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+}
+
 export interface AttendanceCounts {
   presentDays: number;
   absentDays: number;
@@ -46,12 +53,71 @@ export function computeGrossPay(employee: Pick<Employee, "salaryType" | "salaryR
   if (salaryType === "monthly") {
     const totalDaysInPeriod = daysBetweenInclusive(periodStart, periodEnd);
     if (totalDaysInPeriod <= 0) return 0;
-    const perDayRate = salaryRate / totalDaysInPeriod;
-    const unpaidDayEquivalent = absentDays + leaveDays + 0.5 * halfDays;
-    return Math.max(0, Math.round((salaryRate - perDayRate * unpaidDayEquivalent) * 100) / 100);
+    // The per-day rate a monthly salary is actually quoted against is salaryRate divided by
+    // the calendar month's own length — NOT the length of whatever period this run happens to
+    // cover. Dividing by totalDaysInPeriod instead (the previous behaviour) meant any period
+    // shorter than a full month, with zero recorded absences, paid the employee their ENTIRE
+    // monthly salary: a 4-day run for someone on ₹1,50,000/month would show ₹1,50,000 gross for
+    // those 4 days, because a 0 "unpaid day equivalent" times ANY per-day rate is still 0, so
+    // gross = salaryRate - 0 regardless of how short the period was.
+    const perDayRate = salaryRate / daysInMonthOf(periodStart);
+    // A day with NO attendance record at all (nobody marked present/absent/half/leave for it)
+    // must count as unpaid too, not just an explicit absence — otherwise a gap in attendance
+    // marking (rather than an all-zero period, which the payroll run route already catches
+    // separately) silently pays the employee in full for days nobody ever recorded anything
+    // for. recordedDays can exceed totalDaysInPeriod if attendance rows exist outside the
+    // period's own bounds (shouldn't happen given the caller's own date-scoped query, but
+    // clamped at 0 regardless so it can never manufacture negative "missing" days).
+    const recordedDays = presentDays + absentDays + halfDays + leaveDays;
+    const missingDays = Math.max(0, totalDaysInPeriod - recordedDays);
+    const unpaidDayEquivalent = absentDays + leaveDays + 0.5 * halfDays + missingDays;
+    const paidDays = Math.max(0, totalDaysInPeriod - unpaidDayEquivalent);
+    return Math.round(perDayRate * paidDays * 100) / 100;
   }
 
   // daily and hourly (hours aren't tracked separately, so hourly is treated as a daily rate per attended day)
   const paidDayEquivalent = presentDays + 0.5 * halfDays;
   return Math.round(salaryRate * paidDayEquivalent * 100) / 100;
+}
+
+export interface BulkAdvanceEntry {
+  employeeId: string;
+  amount: number;
+  note?: string;
+}
+
+export interface BulkAdvanceSkip {
+  employeeId: string;
+  reason: string;
+}
+
+/**
+ * Splits a weekly/bulk batch of advance entries into ones that fit each employee's own limit
+ * and ones that don't, so one over-cap tailor in a Saturday batch of nine doesn't block the
+ * other eight — the caller inserts `valid` and reports `skipped` back with its reasons.
+ *
+ * Salaried employees have no cap here (a manager judgment call, same as the single-employee
+ * advance route). A piece-rate-eligible employee can only draw against what they've actually
+ * earned so far — `capsByEmployeeId` is expected to hold a real, freshly-computed cap for every
+ * id in `pieceRateEligibleIds`; a missing entry is treated as a cap of ₹0 rather than
+ * unlimited, so a lookup failure fails closed.
+ */
+export function partitionBulkAdvances(
+  entries: BulkAdvanceEntry[],
+  pieceRateEligibleIds: Set<string>,
+  capsByEmployeeId: Map<string, number>
+): { valid: BulkAdvanceEntry[]; skipped: BulkAdvanceSkip[] } {
+  const valid: BulkAdvanceEntry[] = [];
+  const skipped: BulkAdvanceSkip[] = [];
+  for (const entry of entries) {
+    if (pieceRateEligibleIds.has(entry.employeeId)) {
+      const cap = capsByEmployeeId.get(entry.employeeId) ?? 0;
+      if (entry.amount > cap) {
+        skipped.push({ employeeId: entry.employeeId, reason: `Exceeds this tailor's ₹${cap} piece-rate advance cap` });
+        continue;
+      }
+    }
+    valid.push(entry);
+  }
+  return { valid, skipped };
 }

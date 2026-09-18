@@ -7,21 +7,25 @@ import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
 import { avgDaysToPayVendor } from "@/lib/purchases";
 import { inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
-import { ExportMenu } from "@/components/ui/export-menu";
+import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
 import { BalanceDue } from "@/components/ui/money-text";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 export default function VendorBalanceSummaryPage() {
   const { data: bills, isLoading: l1 } = usePurchaseBills();
   const { data: vendors, isLoading: l2 } = useVendors();
   const isLoading = l1 || l2;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const vendorNameById = useMemo(() => new Map((vendors || []).map((v) => [v.id, v.name])), [vendors]);
 
   const rows = useMemo(() => {
-    const billsList = bills || [];
+    const billsList = (bills || []).filter((b) => isWithinDateRange(b.billDate, range));
     const map = new Map<string, { vendorId: string; billCount: number; total: number; paid: number; balance: number; bills: typeof billsList }>();
     billsList.forEach((b) => {
       const row = map.get(b.vendorId) || { vendorId: b.vendorId, billCount: 0, total: 0, paid: 0, balance: 0, bills: [] as typeof billsList };
@@ -35,7 +39,7 @@ export default function VendorBalanceSummaryPage() {
     return Array.from(map.values())
       .map((r) => ({ ...r, avgDaysToPay: avgDaysToPayVendor(r.bills) }))
       .sort((a, b) => b.balance - a.balance);
-  }, [bills]);
+  }, [bills, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -44,24 +48,65 @@ export default function VendorBalanceSummaryPage() {
       title="Vendor Balance Summary"
       description="Total billed, paid, outstanding balance, and average days to pay per vendor."
       actions={
-        rows.length > 0 && (
-          <ExportMenu
-            rows={rows.map((r) => ({
-              Vendor: vendorNameById.get(r.vendorId) || "Unknown",
-              Bills: r.billCount,
-              Total: r.total,
-              Paid: r.paid,
-              Balance: r.balance,
-              "Avg Days to Pay": r.avgDaysToPay ?? "",
-            }))}
-            filename="vendor_balance_summary"
-          />
-        )
+        <ReportActionsMenu
+          rows={rows.map((r) => ({
+            Vendor: vendorNameById.get(r.vendorId) || "Unknown",
+            Bills: r.billCount,
+            Total: r.total,
+            Paid: r.paid,
+            Balance: r.balance,
+            "Avg Days to Pay": r.avgDaysToPay ?? "",
+          }))}
+          filename="vendor-balance-summary"
+          title="Vendor Balance Summary"
+          summaryLines={[`Vendors: ${rows.length}`, `Total balance: ${inr(rows.reduce((s, r) => s + r.balance, 0))}`]}
+        />
       }
     >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
       {rows.length === 0 ? (
         <EmptyState icon={Truck} title="No purchases yet" />
       ) : (
+        <>
+        <MobileRecordList>
+          <MobileRecordCard className="bg-muted/40">
+            <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.balance, 0))} showChevron={false} />
+            <MobileRecordGrid
+              columns={3}
+              items={[
+                { label: "Bills", value: rows.reduce((s, r) => s + r.billCount, 0) },
+                { label: "Total Billed", value: inr(rows.reduce((s, r) => s + r.total, 0)) },
+                { label: "Paid", value: inr(rows.reduce((s, r) => s + r.paid, 0)) },
+              ]}
+            />
+          </MobileRecordCard>
+          {rows.map((r) => (
+            <MobileRecordCard key={r.vendorId} href={`/purchases/vendors/${r.vendorId}`}>
+              <MobileRecordHeader
+                title={vendorNameById.get(r.vendorId) || "Unknown vendor"}
+                value={r.balance > 0 ? inr(r.balance) : "—"}
+                valueClassName={r.balance > 0 ? "text-red-600 dark:text-red-400" : undefined}
+              />
+              <MobileRecordGrid
+                items={[
+                  { label: "Bills", value: r.billCount },
+                  { label: "Total Billed", value: inr(r.total) },
+                  { label: "Paid", value: inr(r.paid), valueClassName: "text-emerald-600 dark:text-emerald-400" },
+                  { label: "Avg Days to Pay", value: r.avgDaysToPay != null ? `${r.avgDaysToPay}d` : "—" },
+                ]}
+              />
+            </MobileRecordCard>
+          ))}
+        </MobileRecordList>
+        <div className="hidden sm:block">
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
@@ -75,6 +120,15 @@ export default function VendorBalanceSummaryPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
+            <ReportTotalsRow>
+              <Td>Total</Td>
+              <Td align="right">{rows.reduce((s, r) => s + r.billCount, 0)}</Td>
+              <Td align="right">{inr(rows.reduce((s, r) => s + r.total, 0))}</Td>
+              <Td align="right">{inr(rows.reduce((s, r) => s + r.paid, 0))}</Td>
+              <Td align="right">{inr(rows.reduce((s, r) => s + r.balance, 0))}</Td>
+              <Td align="right">—</Td>
+              <Td align="right">—</Td>
+            </ReportTotalsRow>
             {rows.map((r) => (
               <tr key={r.vendorId} className="hover:bg-muted/30">
                 <Td className="font-medium">{vendorNameById.get(r.vendorId) || "Unknown vendor"}</Td>
@@ -92,6 +146,8 @@ export default function VendorBalanceSummaryPage() {
             ))}
           </tbody>
         </ReportTable>
+        </div>
+        </>
       )}
     </ReportShell>
   );

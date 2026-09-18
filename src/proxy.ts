@@ -11,6 +11,12 @@ export async function proxy(request: NextRequest) {
   return updateSession(request);
 }
 
+// sw.js and manifest.json are excluded deliberately, not for tidiness: both are fetched by the
+// browser itself rather than by the app, so they can arrive without the session cookie — and this
+// proxy answers an unauthenticated request with a 307 to /login. A service worker script that
+// redirects fails registration outright (the spec rejects any redirect on the script request),
+// and a redirected manifest silently drops the PWA's install metadata. Neither contains anything
+// private, so auth-gating them only ever broke them.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$|api).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$|api).*)"],
 };

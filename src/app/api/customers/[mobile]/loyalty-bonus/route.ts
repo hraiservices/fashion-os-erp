@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 
@@ -23,6 +24,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ mob
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.manageCustomers) return NextResponse.json({ error: "No permission to grant loyalty points" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const { name, pts } = parsed.data;
@@ -32,7 +36,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ mob
   }
 
   try {
-    await awardLoyaltyPoints(supabase, mobile, name, pts, "manual", null, `Manual bonus by ${user.email}`);
+    await awardLoyaltyPoints(db, mobile, name, pts, "manual", null, `Manual bonus by ${user.email}`);
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to grant points" }, { status: 500 });
   }

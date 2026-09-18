@@ -59,7 +59,7 @@ export function LiveReportWidget() {
               <li key={o.id} className="flex items-center gap-2 px-3 py-2">
                 <Link href={`/orders/${o.id}`} className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{o.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{o.id} · {o.daysWaiting}d waiting</p>
+                  <p className="truncate text-xs text-muted-foreground">{o.id} · {o.daysWaiting} day{o.daysWaiting === 1 ? "" : "s"} waiting</p>
                 </Link>
                 <WhatsAppIconButton
                   href={buildWhatsAppUrl(o, o.balance > 0 ? "paymentDue" : "ready", shop, waTemplates)}

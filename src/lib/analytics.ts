@@ -632,6 +632,14 @@ export function getReadyUncollected(orders: Order[]): ReadyUncollectedRow[] {
     .sort((a, b) => b.daysWaiting - a.daysWaiting);
 }
 
+/** Orders already picked up ("delivered") but still owing money — record_order_payment auto-
+ *  advances a "delivered" order to "payment" the moment its balance hits zero (see
+ *  add_atomic_order_payment.sql), so any order still sitting at "delivered" is, by definition,
+ *  collected but unpaid. Sorted biggest balance first — the ones most worth a reminder call. */
+export function getDeliveredUnpaid(orders: Order[]): Order[] {
+  return orders.filter((o) => o.status === "delivered" && o.balance > 0).sort((a, b) => b.balance - a.balance);
+}
+
 export interface ReworkRateRow {
   tailor: string;
   totalOrders: number;

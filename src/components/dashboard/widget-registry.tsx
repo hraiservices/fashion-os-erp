@@ -13,6 +13,7 @@ import { SalesOpportunitiesWidget } from "@/components/dashboard/widgets/sales-o
 import { ProfitOverviewWidget } from "@/components/dashboard/widgets/profit-overview-widget";
 import { PipelineVelocityWidget } from "@/components/dashboard/widgets/pipeline-velocity-widget";
 import { TailorPerformanceWidget } from "@/components/dashboard/widgets/tailor-performance-widget";
+import { LiveReportWidget } from "@/components/dashboard/widgets/live-report-widget";
 import {
   StitchingDuesWidget,
   SalesDuesWidget,
@@ -50,4 +51,5 @@ export const WIDGET_COMPONENTS: Record<string, React.ComponentType> = {
   "profit-overview": ProfitOverviewWidget,
   "pipeline-velocity": PipelineVelocityWidget,
   "tailor-performance": TailorPerformanceWidget,
+  "live-report": LiveReportWidget,
 };

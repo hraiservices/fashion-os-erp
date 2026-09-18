@@ -5,7 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { mapOrderRow } from "@/lib/types";
 import { computeRedemption, computeEarnPoints, loyaltyDiscountOf, couponDiscountOf, fmtNow, customerIdFromMobile, ORDER_PAYMENT_METHODS as PAYMENT_METHODS } from "@/lib/business-rules";
 // customerIdFromMobile retained for loyalty lookup below
-import { logAction } from "@/lib/logging";
+import { logAction, resolveActingUserName } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
 
@@ -87,11 +87,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // cash-only — no error, matching order creation's same "silently skip the discount" choice.
   }
 
+  const userName = await resolveActingUserName(supabase, user);
   const historyLine =
     `💰 Payment ₹${cashPaid} via ${payMethod}` +
     (ptDiscount > 0 ? ` + 🎁 ₹${ptDiscount} loyalty pts` : "") +
     (safeNote ? ` — ${safeNote}` : "") +
-    ` — ${fmtNow()}`;
+    ` — ${fmtNow()} by ${userName}`;
 
   // Atomic: advance/balance/status/history are all read-modified-written in a single SQL
   // UPDATE (see record_order_payment migration) so two concurrent payments on the same order

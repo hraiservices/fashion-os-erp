@@ -257,6 +257,7 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
         paid: tenderTotal,
         balance: balanceDue,
         paymentMethod: tenders.filter((t) => (parseFloat(t.amount) || 0) > 0).map((t) => t.method).join(" + "),
+        paperWidthMm: shop?.receiptPaperWidthMm,
       };
       setLastReceipt(receipt);
       if (autoPrint) printThermalReceipt(receipt);

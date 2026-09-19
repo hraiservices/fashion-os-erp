@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { runAgentTurn, generateFollowups, ClaudeNotConfiguredError } from "@/lib/chatbot/claude";
+import { tryFallbackAnswer } from "@/lib/chatbot/fallback";
 import { getChatbotGlossary } from "@/lib/settings";
 
 const bodySchema = z.object({
@@ -82,10 +83,22 @@ export async function POST(request: Request) {
     toolCalls = result.toolCalls;
   } catch (e) {
     errorMessage = e instanceof Error ? e.message : "Unknown error";
-    // A missing/invalid Gemini API key fails every single question identically — surfacing the
-    // real reason here (rather than the generic "no answer" message) is the difference between
-    // an admin fixing it in Settings in 30 seconds and it looking like the AI just doesn't work.
-    answer = e instanceof ClaudeNotConfiguredError ? e.message : TECHNICAL_ERROR_ANSWER;
+    // Claude itself is unreachable/not configured/rate-limited — this only fires when the AI
+    // call failed, never when Claude ran fine but genuinely couldn't answer (that path never
+    // reaches this catch). Before giving up, try the same real data behind the Reports pages
+    // with a plain keyword match — no AI involved — so common questions still get a real
+    // answer instead of a flat error. `errorMessage` stays set either way so the underlying
+    // failure is still visible in the persisted history for an admin to notice and fix.
+    const fallback = await tryFallbackAnswer(question);
+    if (fallback) {
+      answer = fallback;
+    } else {
+      // A missing/invalid Claude API key fails every single question identically — surfacing
+      // the real reason here (rather than the generic "no answer" message) is the difference
+      // between an admin fixing it in Settings in 30 seconds and it looking like the AI just
+      // doesn't work.
+      answer = e instanceof ClaudeNotConfiguredError ? e.message : TECHNICAL_ERROR_ANSWER;
+    }
   }
 
   if (!errorMessage) {

@@ -12,8 +12,11 @@ const COL_SPAN_CLASS: Record<1 | 2 | 3 | 4, string> = {
   4: "sm:col-span-4",
 };
 
+const MIN_HEIGHT_PX = 120;
+
 export function WidgetShell({
   colSpan,
+  heightPx,
   href,
   editing,
   dragging,
@@ -25,10 +28,16 @@ export function WidgetShell({
   onHide,
   onResizeProgress,
   onResizeEnd,
+  onResizeHeightProgress,
+  onResizeHeightEnd,
   onResetSize,
   children,
 }: {
   colSpan: 1 | 2 | 3 | 4;
+  /** Manually-set pixel height, from the bottom-edge drag handle below. Undefined = natural
+   *  content height (the default — see the grid's items-start, cards don't stretch to match
+   *  siblings). Set only when someone has explicitly dragged this one card taller/shorter. */
+  heightPx?: number;
   href?: string;
   editing: boolean;
   dragging?: boolean;
@@ -40,6 +49,8 @@ export function WidgetShell({
   onHide?: () => void;
   onResizeProgress?: (colSpan: 1 | 2 | 3 | 4) => void;
   onResizeEnd?: (colSpan: 1 | 2 | 3 | 4) => void;
+  onResizeHeightProgress?: (heightPx: number) => void;
+  onResizeHeightEnd?: (heightPx: number) => void;
   onResetSize?: () => void;
   children: React.ReactNode;
 }) {
@@ -59,6 +70,7 @@ export function WidgetShell({
     startW: number;
     lastCols: 1 | 2 | 3 | 4;
   } | null>(null);
+  const heightResizeState = useRef<{ startY: number; startH: number; lastHeight: number } | null>(null);
 
   function handleDragStart(e: React.DragEvent) {
     if (!gripPressed.current) { e.preventDefault(); return; }
@@ -122,6 +134,36 @@ export function WidgetShell({
     document.addEventListener("mouseup", onMouseUp);
   }
 
+  // Manual height resize — bottom edge, mouse/trackpad only (same limitation as the width
+  // handle: native mouse events, no touch support). Overrides the natural content height set
+  // by onResetSize clearing it back to undefined.
+  function handleResizeHeightMouseDown(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const el = containerRef.current;
+    if (!el) return;
+    heightResizeState.current = { startY: e.clientY, startH: el.offsetHeight, lastHeight: el.offsetHeight };
+
+    function onMouseMove(ev: MouseEvent) {
+      resizeDragged.current = true;
+      const s = heightResizeState.current;
+      if (!s) return;
+      s.lastHeight = Math.max(MIN_HEIGHT_PX, Math.round(s.startH + (ev.clientY - s.startY)));
+      onResizeHeightProgress?.(s.lastHeight);
+    }
+
+    function onMouseUp() {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      if (heightResizeState.current) onResizeHeightEnd?.(heightResizeState.current.lastHeight);
+      heightResizeState.current = null;
+      setTimeout(() => { resizeDragged.current = false; }, 0);
+    }
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }
+
   return (
     <div
       ref={containerRef}
@@ -130,8 +172,10 @@ export function WidgetShell({
         COL_SPAN_CLASS[colSpan],
         editing && "rounded-xl outline-dashed outline-2 outline-transparent transition-all hover:outline-primary/40",
         dragging && "opacity-40",
-        dropTarget && "outline-primary/60"
+        dropTarget && "outline-primary/60",
+        heightPx ? "overflow-y-auto" : undefined
       )}
+      style={heightPx ? { height: heightPx } : undefined}
       draggable={gripActive}
       onDragStart={handleDragStart}
       onDragOver={onDragOver}
@@ -194,6 +238,18 @@ export function WidgetShell({
       >
         <div className="h-8 w-1 rounded-full bg-muted-foreground/30" />
       </div>
+
+      {/* Resize zone — bottom edge, manual height override (see handleResizeHeightMouseDown).
+          Only rendered when a resize handler is actually wired up, same as onResetSize below. */}
+      {onResizeHeightProgress && (
+        <div
+          className="absolute inset-x-0 bottom-0 z-20 flex h-3 cursor-ns-resize items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
+          onMouseDown={handleResizeHeightMouseDown}
+          title="Drag to resize height"
+        >
+          <div className="h-1 w-8 rounded-full bg-muted-foreground/30" />
+        </div>
+      )}
     </div>
   );
 }

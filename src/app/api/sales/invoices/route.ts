@@ -23,6 +23,14 @@ const lineItemSchema = z.object({
   amount: z.number().nonnegative(),
 });
 
+const paymentSchema = z.object({
+  amount: z.number().positive(),
+  method: z.string().min(1),
+  date: z.string().min(1),
+  note: z.string().optional(),
+  posSessionId: z.string().uuid().optional(),
+});
+
 const bodySchema = z.object({
   id: z.string().uuid().optional(),
   invoiceNumber: z.string().min(1),
@@ -47,6 +55,10 @@ const bodySchema = z.object({
   // Only honored on CREATE (see isEdit check below); an edit to an existing invoice always
   // reconciles the ledger normally, same as before.
   skipInventoryEffect: z.boolean().default(false),
+  // POS checkout only — lets a sale's invoice, stock ledger, and payment(s) commit as one
+  // atomic write (see save_sales_invoice RPC) instead of two separate mutations where a
+  // network drop between them could leave stock deducted with no matching payment recorded.
+  payments: z.array(paymentSchema).optional(),
 });
 
 /**
@@ -102,19 +114,6 @@ export async function POST(request: Request) {
     }
   }
 
-  // Converting a quotation to an invoice had no idempotency guard — clicking "Convert to
-  // invoice" twice (double-click, or retrying after navigating away before the redirect)
-  // created two separate invoices from the same quote, each independently decrementing stock.
-  if (!isEdit && fd.quoteId) {
-    const { data: existingForQuote } = await db.from("sales_invoices").select("id, invoice_number").eq("quote_id", fd.quoteId).limit(1).maybeSingle();
-    if (existingForQuote) {
-      return NextResponse.json(
-        { error: `This quotation was already converted to invoice ${existingForQuote.invoice_number}.` },
-        { status: 409 }
-      );
-    }
-  }
-
   // Sequential numbering (Settings > Document Numbering) always overrides whatever the client
   // sent for a brand-new invoice -- the client-side value is only ever a fallback placeholder
   // for when this is disabled. Editing an existing invoice never renumbers it.
@@ -160,59 +159,75 @@ export async function POST(request: Request) {
     fd.gstType as GstType
   );
 
-  const { data, error } = await db
-    .from("sales_invoices")
-    .upsert({
-      id: fd.id,
-      invoice_number: invoiceNumber,
-      customer_mobile: fd.customerMobile,
-      customer_name: fd.customerName,
-      quote_id: fd.quoteId ?? null,
-      invoice_date: fd.invoiceDate,
-      due_date: fd.dueDate ?? null,
-      items: itemsWithVerifiedCost as never,
-      subject: fd.subject.trim(),
-      shipping_charges: totals.shippingCharges,
-      discount_type: fd.discountType,
-      discount_value: fd.discountValue,
-      taxable_amount: totals.taxableAmount,
-      gst_type: fd.gstType,
-      tax_rate: fd.taxRate,
-      cgst: totals.cgst,
-      sgst: totals.sgst,
-      igst: totals.igst,
-      round_off: totals.roundOff,
-      total: totals.total,
-      doc_status: fd.docStatus,
-      terms: fd.terms.trim(),
-      notes: fd.notes.trim(),
-      created_by: user.email,
-    })
-    .select()
-    .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Invoice upsert + stock ledger replace + quote-acceptance + (for POS) payment rows all
+  // happen inside one Postgres transaction via this RPC (see atomic_sales_invoice_save.sql) —
+  // previously these were 2-3 separate round-trips from this route, so a failure partway
+  // through (e.g. the ledger call failing after the invoice upsert had already committed)
+  // left an invoice with a real total but no matching stock movement, or a POS sale with
+  // stock deducted but no payment recorded. Either all of this commits, or none of it does.
+  const includeLedger = !(!isEdit && fd.skipInventoryEffect);
+  const ledgerRows = includeLedger
+    ? fd.items
+        .filter((i) => i.productId && i.qty > 0)
+        .map((i) => ({
+          item_type: "product" as const,
+          item_id: i.productId!,
+          movement: -i.qty,
+          note: `Invoice ${invoiceNumber}`,
+          created_by: user.email,
+        }))
+    : null;
 
-  if (!(!isEdit && fd.skipInventoryEffect)) {
-    const ledgerRows = fd.items
-      .filter((i) => i.productId && i.qty > 0)
-      .map((i) => ({
-        item_type: "product" as const,
-        item_id: i.productId!,
-        movement: -i.qty,
-        note: `Invoice ${invoiceNumber}`,
+  const paymentRows = fd.payments?.length
+    ? fd.payments.map((p) => ({
+        amount: p.amount,
+        method: p.method,
+        date: p.date,
+        note: p.note ?? "",
         created_by: user.email,
-      }));
+        pos_session_id: p.posSessionId ?? null,
+      }))
+    : null;
 
-    const { error: ledgerError } = await db.rpc("replace_inventory_ledger", {
-      p_ref_type: "sale",
-      p_ref_id: data.id,
-      p_rows: ledgerRows,
-    });
-    if (ledgerError) return NextResponse.json({ error: ledgerError.message }, { status: 500 });
-  }
-
-  if (!isEdit && fd.quoteId) {
-    await db.from("sales_quotations").update({ status: "accepted" }).eq("id", fd.quoteId);
+  const { data, error } = await db
+    .rpc("save_sales_invoice", {
+      p_id: fd.id ?? null,
+      p_invoice_number: invoiceNumber,
+      p_customer_mobile: fd.customerMobile,
+      p_customer_name: fd.customerName,
+      p_quote_id: fd.quoteId ?? null,
+      p_invoice_date: fd.invoiceDate,
+      p_due_date: fd.dueDate ?? null,
+      p_items: itemsWithVerifiedCost as never,
+      p_subject: fd.subject.trim(),
+      p_shipping_charges: totals.shippingCharges,
+      p_discount_type: fd.discountType,
+      p_discount_value: fd.discountValue,
+      p_taxable_amount: totals.taxableAmount,
+      p_gst_type: fd.gstType,
+      p_tax_rate: fd.taxRate,
+      p_cgst: totals.cgst,
+      p_sgst: totals.sgst,
+      p_igst: totals.igst,
+      p_round_off: totals.roundOff,
+      p_total: totals.total,
+      p_doc_status: fd.docStatus,
+      p_terms: fd.terms.trim(),
+      p_notes: fd.notes.trim(),
+      p_created_by: user.email,
+      p_ledger_rows: ledgerRows,
+      p_mark_quote_accepted: !isEdit && !!fd.quoteId,
+      p_payments: paymentRows,
+    })
+    .single();
+  if (error) {
+    // 23505 = unique_violation — specifically the idx_sales_invoices_quote_unique race guard
+    // (see the migration) firing when two near-simultaneous "Convert to Invoice" calls target
+    // the same quote; everything else is a genuine unexpected failure.
+    if (error.code === "23505") {
+      return NextResponse.json({ error: "This quotation was already converted to an invoice." }, { status: 409 });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   await logAction(supabase, user.email, isEdit ? `Invoice updated: ${invoiceNumber}` : `Invoice created: ${invoiceNumber}`, null, `₹${totals.total}`);

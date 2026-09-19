@@ -89,6 +89,10 @@ interface SaveInvoiceInput {
   userEmail?: string;
   /** Backdated/historical invoices only — skip decrementing current stock. See the route. */
   skipInventoryEffect?: boolean;
+  /** POS checkout only — commits the invoice, stock ledger, and these initial payment(s) as
+   *  one atomic write (see save_sales_invoice RPC) instead of a separate payment call that
+   *  could fail after stock was already deducted. Omit for the normal invoice-form flow. */
+  payments?: { amount: number; method: string; date: string; note?: string; posSessionId?: string }[];
 }
 
 /**

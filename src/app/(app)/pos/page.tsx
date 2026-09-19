@@ -6,7 +6,7 @@ import { ScanBarcode, Camera, Trash2, Plus, Minus, User, X, Lock, Unlock, Printe
 import { useProducts } from "@/hooks/use-products";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
-import { useSaveInvoice, useRecordSalesPayment } from "@/hooks/use-sales-mutations";
+import { useSaveInvoice } from "@/hooks/use-sales-mutations";
 import { useOpenPosSession, useOpenRegister, useCloseRegister, useSessionCashTotal } from "@/hooks/use-pos-session";
 import { genInvoiceNumber, computeLineItemsTotal, type SalesLineItem } from "@/lib/sales";
 import { computeInvoiceTotals } from "@/lib/invoice-totals";
@@ -126,7 +126,6 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
   const { data: products, isLoading: productsLoading } = useProducts();
   const { data: shop } = useShopSettings();
   const saveInvoice = useSaveInvoice();
-  const recordPayment = useRecordSalesPayment();
 
   const [scanValue, setScanValue] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -208,7 +207,16 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
       const totals = computeInvoiceTotals(items, 0, "flat", 0, 0, "none");
       const invoiceNumber = genInvoiceNumber();
       const invoiceDate = istDateString();
-      const invoice = await saveInvoice.mutateAsync({
+      // Invoice + stock ledger + payment(s) all commit as one atomic write (see the
+      // save_sales_invoice RPC) — previously the payment(s) were recorded in a separate loop
+      // of calls after the invoice save, so a network drop between them could leave stock
+      // deducted with no matching payment recorded, or one tender saved and a later one lost.
+      const payments = tenders
+        .map((t) => ({ amount: parseFloat(t.amount) || 0, method: t.method }))
+        .filter((t) => t.amount > 0)
+        .map((t) => ({ amount: t.amount, method: t.method, date: istDateString(), note: "POS sale", posSessionId: sessionId }));
+
+      await saveInvoice.mutateAsync({
         invoiceNumber,
         customerMobile: customer?.mobile || "walk-in",
         customerName: customer?.name || "Walk-in customer",
@@ -224,23 +232,8 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
         terms: "",
         notes: "",
         userEmail: user?.email,
+        payments,
       });
-
-      for (const t of tenders) {
-        const amt = parseFloat(t.amount) || 0;
-        if (amt <= 0) continue;
-        await recordPayment.mutateAsync({
-          invoiceId: invoice.id,
-          customerMobile: customer?.mobile || "walk-in",
-          invoiceNumber,
-          amount: amt,
-          method: t.method,
-          date: istDateString(),
-          note: "POS sale",
-          posSessionId: sessionId,
-          userEmail: user?.email,
-        });
-      }
 
       const balanceDue = Math.max(0, Math.round((totals.total - tenderTotal) * 100) / 100);
       toast.success(balanceDue > 0 ? `Sale complete · ${invoiceNumber} · ${inr(balanceDue)} balance due` : `Sale complete · ${invoiceNumber} · ${inr(totals.total)}`);

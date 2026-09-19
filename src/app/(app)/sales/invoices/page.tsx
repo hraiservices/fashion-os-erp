@@ -80,7 +80,7 @@ function marginText(m: number | null): string {
 }
 
 export default function SalesInvoicesPage() {
-  const { data: invoices, isLoading: invoicesLoading } = useSalesInvoices();
+  const { data: invoices, isLoading: invoicesLoading, isError: invoicesError, refetch: refetchInvoices } = useSalesInvoices();
   const isLoading = useDelayedLoading(invoicesLoading);
   const { data: quotes } = useSalesQuotations();
   const { data: user } = useCurrentUser();
@@ -308,6 +308,20 @@ export default function SalesInvoicesPage() {
             <SkeletonListItem key={i} />
           ))}
         </div>
+      ) : invoicesError ? (
+        // Distinct from "no invoices yet" on purpose — collapsing a fetch failure into the same
+        // empty-state message could read as "customer owes nothing" when the real answer is
+        // "we don't know," which matters a lot more here than on most list pages.
+        <EmptyState
+          icon={Receipt}
+          title="Couldn't load invoices"
+          description="Something went wrong fetching your invoices — this is not the same as having none."
+          action={
+            <Button variant="outline" onClick={() => refetchInvoices()}>
+              Try again
+            </Button>
+          }
+        />
       ) : !invoices || invoices.length === 0 ? (
         <EmptyState
           icon={Receipt}

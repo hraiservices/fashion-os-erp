@@ -337,8 +337,8 @@ export async function transcribeVoiceNote(audioDataUrl: string): Promise<string>
  * threatens the actual answer the user is waiting on.
  */
 export async function generateFollowups(question: string, answer: string): Promise<string[]> {
-  const ai = await getClient();
   try {
+    const ai = await getClient();
     const response = await withGeminiRetry(() =>
       ai.models.generateContent({
         model: MODEL,

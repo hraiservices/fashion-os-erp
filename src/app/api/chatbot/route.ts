@@ -57,6 +57,7 @@ export async function POST(request: Request) {
   let refs: { id: string; label: string }[] = [];
   let refTable: RefTable | null = null;
   let toolsUsed: string[] = [];
+  let toolCalls: { name: string; result: unknown }[] = [];
 
   try {
     const glossary = await getChatbotGlossary(supabase);
@@ -71,16 +72,30 @@ export async function POST(request: Request) {
     const history = (recentMessages || []).reverse();
 
     const result = await runAgentTurn(question, glossary, history);
+    // From here on, `answer` and `toolsUsed` are a done deal — a real answer was produced.
+    // Follow-up suggestions and ref-chip links are best-effort polish on top of it; a failure
+    // in either must never overwrite the answer the user is actually waiting on (this exact
+    // failure mode — a followups hiccup silently clobbering a good answer — is why refs/
+    // followups get their own try below instead of sharing this one).
     answer = result.answer;
     toolsUsed = result.toolCalls.map((c) => c.name);
-    ({ refs, refTable } = buildRefs(result.toolCalls));
-    followups = await generateFollowups(question, answer);
+    toolCalls = result.toolCalls;
   } catch (e) {
     errorMessage = e instanceof Error ? e.message : "Unknown error";
     // A missing/invalid Gemini API key fails every single question identically — surfacing the
     // real reason here (rather than the generic "no answer" message) is the difference between
     // an admin fixing it in Settings in 30 seconds and it looking like the AI just doesn't work.
     answer = e instanceof GeminiNotConfiguredError ? e.message : TECHNICAL_ERROR_ANSWER;
+  }
+
+  if (!errorMessage) {
+    try {
+      ({ refs, refTable } = buildRefs(toolCalls));
+      followups = await generateFollowups(question, answer);
+    } catch {
+      // Best-effort polish only — an empty refs/followups list is a fine degraded result,
+      // nowhere near serious enough to turn a good answer into an error.
+    }
   }
 
   // Persisted regardless of outcome — the tools called and any error are exactly what you'd

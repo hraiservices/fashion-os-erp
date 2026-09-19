@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, KeyRound } from "lucide-react";
-import { useAiCopilotStatus, useSaveAiCopilotApiKey, useTestAiCopilotApiKey } from "@/hooks/use-ai-copilot-config";
+import { useClaudeCopilotStatus, useSaveClaudeCopilotApiKey, useTestClaudeCopilotApiKey } from "@/hooks/use-claude-copilot-config";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -12,16 +12,15 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
- * The AI Copilot's chat Q&A now runs on Claude (see ClaudeCopilotConnectionSection) — this
- * Gemini key only powers the daily briefing, WhatsApp order-status concierge replies,
- * measurement-photo OCR, and voice-note transcription. Without a key configured (env var OR
- * here), those features fail identically with a generic error; this gives an admin a
- * self-service way to add/fix the key and confirm it actually works.
+ * The AI Copilot's Q&A chat now runs on Claude (Anthropic), not Gemini — switched after the
+ * SQL-generation-then-Gemini design proved unreliable, per direct feedback that it "failed
+ * totally." Without a key configured (env var OR here), every question fails identically with a
+ * generic error; this gives an admin a self-service way to add/fix the key and confirm it works.
  */
-export function AiCopilotConnectionSection() {
-  const { data: status, isLoading } = useAiCopilotStatus();
-  const saveKey = useSaveAiCopilotApiKey();
-  const testKey = useTestAiCopilotApiKey();
+export function ClaudeCopilotConnectionSection() {
+  const { data: status, isLoading } = useClaudeCopilotStatus();
+  const saveKey = useSaveClaudeCopilotApiKey();
+  const testKey = useTestClaudeCopilotApiKey();
   const [apiKey, setApiKey] = useState("");
 
   async function handleTest() {
@@ -45,7 +44,7 @@ export function AiCopilotConnectionSection() {
     try {
       await saveKey.mutateAsync(apiKey.trim());
       setApiKey("");
-      toast.success("Gemini API key saved");
+      toast.success("Claude API key saved");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save");
     }
@@ -56,12 +55,13 @@ export function AiCopilotConnectionSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">AI connection (Gemini — briefing, WhatsApp, voice, OCR)</CardTitle>
+        <CardTitle className="text-sm">AI Copilot connection (Claude)</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-xs text-muted-foreground">
-          The daily briefing, WhatsApp order-status replies, voice-note transcription, and measurement-photo reading run on a free Google Gemini API key.
-          Get one at <span className="font-medium">aistudio.google.com/apikey</span> and paste it below.
+          The AI Copilot chat — the question-answering assistant, not the daily briefing or voice/photo features below — runs on a Claude (Anthropic) API
+          key. Get one at <span className="font-medium">console.anthropic.com</span> and paste it below. Costs a small amount per question (a fraction of a
+          cent), unlike the free Gemini key below.
         </p>
 
         <div className="flex items-center gap-2">
@@ -72,21 +72,21 @@ export function AiCopilotConnectionSection() {
             </Badge>
           ) : (
             <Badge variant="outline" className="gap-1 text-destructive">
-              <KeyRound className="size-3" /> Not configured — AI features will fail
+              <KeyRound className="size-3" /> Not configured — AI Copilot chat will fail
             </Badge>
           )}
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="gemini-api-key" className="text-xs font-medium">
-            Gemini API key
+          <Label htmlFor="claude-api-key" className="text-xs font-medium">
+            Claude API key
           </Label>
           <Input
-            id="gemini-api-key"
+            id="claude-api-key"
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder={status?.configured ? "•••••••••••••••• (enter a new key to replace it)" : "Paste your Gemini API key"}
+            placeholder={status?.configured ? "•••••••••••••••• (enter a new key to replace it)" : "Paste your Claude API key"}
             autoComplete="off"
           />
         </div>

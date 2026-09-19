@@ -16,6 +16,7 @@
     "android:open": "cap open android"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.127.0",
     "@base-ui/react": "^1.6.0",
     "@capacitor/android": "^8.5.1",
     "@capacitor/app": "^8.1.1",

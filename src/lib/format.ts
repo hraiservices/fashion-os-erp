@@ -28,3 +28,12 @@ export function fmtDateShort(iso: string): string {
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
 }
+
+/** "2:45 pm" — a chat bubble's timestamp needs the time of day, not the full date; the date is
+ *  already implied by scrolling context. */
+export function fmtTime(iso: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
+}

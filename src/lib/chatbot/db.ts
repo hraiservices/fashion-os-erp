@@ -5,7 +5,7 @@ const MAX_ROWS = 200;
 
 let pool: Pool | null = null;
 
-function getPool(): Pool {
+export function getPool(): Pool {
   if (!pool) {
     const connectionString = process.env.CHATBOT_DB_URL;
     if (!connectionString) throw new Error("CHATBOT_DB_URL is not configured — add it to .env.local");

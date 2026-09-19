@@ -1,8 +1,9 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, type Content } from "@google/genai";
 import type { GlossaryEntry } from "@/lib/chatbot/glossary";
 import { toMKey } from "@/lib/measurements";
 import { istDateString } from "@/lib/ist-date";
 import { resolveGeminiApiKey } from "@/lib/gemini-config";
+import { TOOL_DECLARATIONS, executeTool } from "@/lib/chatbot/tools";
 
 /** Thrown when neither GEMINI_API_KEY nor the Settings → AI Copilot key is configured — callers
  *  (chatbot route) match on this to give a specific "not configured" answer instead of the
@@ -56,98 +57,40 @@ async function withGeminiRetry<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 /**
- * Everything the model needs to know about the two views it's allowed to query, plus the
- * business rules that are non-obvious from the column names alone. These are exactly the
- * rules that caused real reporting bugs elsewhere in this app when duplicated ad hoc — see
- * the audit that preceded this chatbot's design.
+ * The tool-calling system prompt. Unlike the old SQL-generation design, the model here never
+ * writes a query — it only picks one of the named tools in TOOL_DECLARATIONS and fills in
+ * their (few, typed) arguments. Each tool is a fixed, hand-reviewed query (see tools.ts); the
+ * model's only real job is matching a business question to the right tool and date range.
  */
-const SCHEMA_CONTEXT = `
-You can query exactly these five PostgreSQL views. Do not reference any other table or view —
-you have no access to them and the query will fail.
+const AGENT_SYSTEM_PROMPT = `You are a friendly, sharp business assistant for an Indian tailoring shop's ERP
+(custom stitching orders + product sales). Money is in Indian Rupees (₹). Today's date is
+{{TODAY}}.
 
-TABLE v_chatbot_orders (custom tailoring orders):
-  id text, customer_name text, customer_mobile text, in_date date, delivery_date date,
-  total integer, advance integer, balance integer, status text, tailor text,
-  is_overdue boolean, days_overdue integer, created_at timestamptz
+You have tools that look up real, live data — orders, invoices, payments, expenses, inventory,
+tailor workload. Given a business question (which may be in English, Hindi written in Roman
+script, or a mix of both):
 
-  - status is one of: 'received', 'cutting', 'stitching', 'finishing', 'ready', 'delivered', 'payment'.
-    'payment' means delivered and fully paid; 'delivered' means delivered but balance may
-    still be owed.
-  - balance is already the correct amount owed — never recompute it as total - advance
-    yourself, the column is authoritative.
-  - is_overdue and days_overdue already account for delivered/paid orders being excluded —
-    use them directly rather than comparing delivery_date to CURRENT_DATE yourself.
+- Call whichever tool(s) answer it. Call more than one if the question needs it (e.g. "revenue
+  and low stock" needs two tools). You may call tools in more than one turn if an answer needs
+  a follow-up lookup.
+- Never guess a number — if no tool covers the question, say so honestly instead of making one up.
+- "Stitching orders" / "tailoring orders" is the generic name for ALL rows in the orders tools —
+  not a status filter. Only filter by a pipeline stage when the question is clearly about one.
+- Once you have what you need, reply directly (no more tool calls) with the final answer.
 
-TABLE v_chatbot_invoices (product sales invoices, separate from tailoring orders):
-  id uuid, invoice_number text, customer_name text, customer_mobile text,
-  invoice_date date, due_date date, total numeric, paid_total numeric, credits_total numeric,
-  balance numeric, payment_status text, is_overdue boolean, created_at timestamptz
-
-  - payment_status is one of: 'unpaid', 'partial', 'paid'. Only 'paid' means fully settled —
-    never describe a 'partial' invoice as paid.
-  - balance already accounts for payments and credit notes — it is authoritative.
-
-TABLE v_chatbot_expenses (shop expenses — rent, salaries, supplies, etc.):
-  id uuid, date date, category text, description text, amount numeric, pay_method text,
-  customer_name text (nullable), customer_mobile text (nullable), created_at timestamptz
-
-  - customer_name/customer_mobile are only set for expenses linked to a specific customer
-    (rare) — most rows have them null.
-
-TABLE v_chatbot_payments (money actually received — both stitching-order and product-sale
-payments combined into one ledger, separate from an order/invoice's running balance):
-  id uuid, source text, reference_id text, customer_name text, customer_mobile text,
-  amount numeric, method text, date date, created_at timestamptz
-
-  - source is 'order' (stitching order payment) or 'invoice' (product sale payment).
-  - Use this view (not v_chatbot_orders.advance or v_chatbot_invoices.paid_total) for
-    "how much did I collect today/this week/this month" style questions — those columns are
-    running totals, not individual payment events, so they can't answer "on what day."
-
-TABLE v_chatbot_inventory (products and raw materials, with current stock level):
-  id text, item_type text, name text, sku text (nullable, raw materials have none),
-  category text, stock_qty integer, low_stock_alert integer, is_low_stock boolean
-
-  - item_type is 'product' (finished goods for sale) or 'raw_material' (fabric etc. used in
-    stitching).
-  - is_low_stock is already computed (stock_qty <= low_stock_alert) — use it directly.
-
-Business context: this is an Indian tailoring shop. Money is in Indian Rupees (₹). "Revenue"
-or "business" spans both v_chatbot_orders.total and v_chatbot_invoices.total — combine both
-unless the question is clearly about only one. Today's date is {{TODAY}}.
-`;
-
-const SQL_SYSTEM_PROMPT = `You are a PostgreSQL query generator for a tailoring-shop ERP chatbot.
-${SCHEMA_CONTEXT}
-Given a business question (which may be in English, Hindi written in Roman script, or a mix of
-both), write exactly one read-only SELECT statement that answers it.
-
-Rules:
-- SELECT only. Never write INSERT, UPDATE, DELETE, or any DDL.
-- Exactly one statement — no semicolons except an optional single trailing one.
-- Only reference the five views listed above.
-- Prefer aggregates (COUNT, SUM, AVG) with clear column aliases when the question asks "how
-  many" or "how much".
-- If the question truly cannot be answered from these views, return a query that selects
-  nothing meaningful is not allowed — instead set "sql" to an empty string.
-Respond with JSON only: {"sql": "<the query>"}.`;
-
-const ANSWER_SYSTEM_PROMPT = `You are a friendly, sharp business assistant for an Indian
-tailoring shop's ERP. You'll be given the original question, any recent conversation context,
-and the JSON rows a database query returned. Turn that into a concise, actionable answer.
-
-Rules:
-- Reply in the same language / language-mix as the question (Hinglish → Hinglish; English → English).
-- Lead with the most important number or fact.
-- Use ₹ for currency, state real numbers — don't round or hedge unnecessarily.
-- If the rows array is empty, say so clearly and suggest what they might try instead.
+Answer rules:
+- Reply in the same language/mix as the question (Hinglish → Hinglish; English → English).
+- Lead with the most important number or fact. Use ₹ for currency, state real numbers.
+- If a tool returned no rows, say so clearly and suggest what they might try instead.
 - For lists of 5 or fewer items, name them. For longer lists give the count and top examples.
 - Keep it short and conversational — 1-3 sentences or a tight bullet list. No markdown tables, no code blocks.
-- If the answer implies something actionable (overdue balance, pending delivery), say so.
-- Also suggest 2-3 short, natural follow-up questions the owner would plausibly ask next, in
-  the same language/mix as the question. Keep each under 8 words. Skip a follow-up that's
-  basically a restatement of what was just answered.
-Respond with JSON only: {"answer": "<the answer>", "followups": ["<short question>", ...]}.`;
+- If the answer implies something actionable (overdue balance, pending delivery), say so.`;
+
+const FOLLOWUPS_SYSTEM_PROMPT = `Given a business question and the answer just given to an Indian tailoring shop
+owner, suggest 2-3 short, natural follow-up questions they'd plausibly ask next, in the same
+language/mix as the question. Keep each under 8 words. Skip anything that's basically a
+restatement of what was just answered.
+Respond with JSON only: {"followups": ["<short question>", ...]}.`;
 
 /**
  * `responseMimeType: "application/json"` is a strong hint, not a guarantee — Gemini
@@ -174,38 +117,76 @@ function buildHistoryBlock(history: { question: string; answer: string }[]): str
   return `\n\nRECENT CONVERSATION (last ${history.length} turns — use for context when the new question is a follow-up):\n${lines}`;
 }
 
-export async function generateSql(
+export interface AgentTurnResult {
+  answer: string;
+  /** Every tool call made while answering, in order — persisted for audit/debugging in place
+   *  of the old `generated_sql` column, and used by the route to build result-chip links. */
+  toolCalls: { name: string; args: Record<string, unknown>; result: unknown }[];
+}
+
+const MAX_TOOL_ROUNDS = 4;
+
+/**
+ * Runs the full tool-calling agent loop for one question: the model calls zero or more tools
+ * (each a fixed query from tools.ts — see executeTool), sees their results, and keeps going
+ * until it has enough to answer directly with no more calls, or MAX_TOOL_ROUNDS is hit.
+ */
+export async function runAgentTurn(
   question: string,
   glossary: GlossaryEntry[] = [],
   history: { question: string; answer: string }[] = [],
-): Promise<string> {
+): Promise<AgentTurnResult> {
   const ai = await getClient();
   const today = istDateString();
   const systemInstruction =
-    SQL_SYSTEM_PROMPT.replace("{{TODAY}}", today) +
+    AGENT_SYSTEM_PROMPT.replace("{{TODAY}}", today) +
     buildGlossaryBlock(glossary) +
     buildHistoryBlock(history);
-  const response = await withGeminiRetry(() =>
-    ai.models.generateContent({
-      model: MODEL,
-      contents: [{ role: "user", parts: [{ text: question }] }],
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: { sql: { type: Type.STRING } },
-          required: ["sql"],
+
+  const contents: Content[] = [{ role: "user", parts: [{ text: question }] }];
+  const toolCalls: AgentTurnResult["toolCalls"] = [];
+
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    const response = await withGeminiRetry(() =>
+      ai.models.generateContent({
+        model: MODEL,
+        contents,
+        config: {
+          systemInstruction,
+          tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
+          temperature: 0,
         },
-        temperature: 0,
-      },
-    })
-  );
-  const text = response.text;
-  if (!text) throw new Error("Empty response from the model");
-  const parsed = parseJsonResponse<{ sql?: string }>(text);
-  if (!parsed.sql) throw new Error("The question couldn't be turned into a query");
-  return parsed.sql;
+      })
+    );
+
+    const candidateParts = response.candidates?.[0]?.content?.parts || [];
+    const functionCalls = candidateParts.filter((p) => p.functionCall).map((p) => p.functionCall!);
+
+    if (functionCalls.length === 0) {
+      const answer = response.text?.trim();
+      if (!answer) throw new Error("Empty response from the model");
+      return { answer, toolCalls };
+    }
+
+    contents.push({ role: "model", parts: candidateParts });
+
+    const responseParts = [];
+    for (const call of functionCalls) {
+      const name = call.name || "";
+      const args = (call.args || {}) as Record<string, unknown>;
+      let result: unknown;
+      try {
+        result = await executeTool(name, args);
+      } catch (e) {
+        result = { error: e instanceof Error ? e.message : "Tool failed" };
+      }
+      toolCalls.push({ name, args, result });
+      responseParts.push({ functionResponse: { name, response: { result } } });
+    }
+    contents.push({ role: "user", parts: responseParts });
+  }
+
+  throw new Error("The question needed too many lookups to answer — try breaking it into smaller questions");
 }
 
 const BRIEFING_SYSTEM_PROMPT = `You are a friendly, precise business assistant writing a short daily briefing for the
@@ -350,52 +331,35 @@ export async function transcribeVoiceNote(audioDataUrl: string): Promise<string>
   return response.text?.trim() || "(could not transcribe)";
 }
 
-export interface GeneratedAnswer {
-  answer: string;
-  followups: string[];
-}
-
-export async function generateAnswer(
-  question: string,
-  rows: unknown[],
-  history: { question: string; answer: string }[] = [],
-): Promise<GeneratedAnswer> {
+/**
+ * A short, cheap second call purely for follow-up suggestions — kept separate from the main
+ * tool-calling turn so a failure here (or the model preferring not to suggest any) never
+ * threatens the actual answer the user is waiting on.
+ */
+export async function generateFollowups(question: string, answer: string): Promise<string[]> {
   const ai = await getClient();
-  const historyBlock = history.length
-    ? `\n\nPrior conversation:\n${history.map((h) => `Q: ${h.question}\nA: ${h.answer}`).join("\n\n")}`
-    : "";
-  const fallback = { answer: "I couldn't turn that into an answer — try rephrasing the question.", followups: [] };
-  const response = await withGeminiRetry(() =>
-    ai.models.generateContent({
-      model: MODEL,
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: `Question: ${question}${historyBlock}\n\nQuery result (JSON array, may be empty): ${JSON.stringify(rows).slice(0, 8000)}` }],
-        },
-      ],
-      config: {
-        systemInstruction: ANSWER_SYSTEM_PROMPT,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            answer: { type: Type.STRING },
-            followups: { type: Type.ARRAY, items: { type: Type.STRING } },
-          },
-          required: ["answer", "followups"],
-        },
-        temperature: 0.3,
-      },
-    })
-  );
-  const text = response.text;
-  if (!text) return fallback;
   try {
-    const parsed = parseJsonResponse<{ answer?: string; followups?: string[] }>(text);
-    if (!parsed.answer) return fallback;
-    return { answer: parsed.answer, followups: (parsed.followups || []).slice(0, 3) };
+    const response = await withGeminiRetry(() =>
+      ai.models.generateContent({
+        model: MODEL,
+        contents: [{ role: "user", parts: [{ text: `Question: ${question}\n\nAnswer given: ${answer}` }] }],
+        config: {
+          systemInstruction: FOLLOWUPS_SYSTEM_PROMPT,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: { followups: { type: Type.ARRAY, items: { type: Type.STRING } } },
+            required: ["followups"],
+          },
+          temperature: 0.3,
+        },
+      })
+    );
+    const text = response.text;
+    if (!text) return [];
+    const parsed = parseJsonResponse<{ followups?: string[] }>(text);
+    return (parsed.followups || []).slice(0, 3);
   } catch {
-    return fallback;
+    return [];
   }
 }

@@ -2,48 +2,41 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { generateSql, generateAnswer, GeminiNotConfiguredError } from "@/lib/chatbot/gemini";
-import { runChatbotQuery } from "@/lib/chatbot/db";
+import { runAgentTurn, generateFollowups, GeminiNotConfiguredError } from "@/lib/chatbot/gemini";
 import { getChatbotGlossary } from "@/lib/settings";
 
 const bodySchema = z.object({
   question: z.string().min(1).max(500),
 });
 
-const NO_DATA_ANSWER = "I couldn't find an answer to that. Try asking about revenue, orders, deliveries, or payments.";
-// Distinct from NO_DATA_ANSWER on purpose: that one means the model itself judged the question
-// out of scope (an empty "sql"). This one means the question WAS in scope — the model wrote a
-// query — but something broke turning it into an answer (a transient Gemini hiccup, a bad
-// generated query, a DB timeout). Collapsing both into the same wording was hiding real
-// failures behind what looked like an unsupported-question message, on questions that plainly
-// should have worked.
 const TECHNICAL_ERROR_ANSWER = "Something went wrong answering that — please try again in a moment.";
 
 type RefTable = "orders" | "invoices";
 
+const ORDER_TOOLS = new Set(["get_pending_orders", "get_aging_report", "get_ready_uncollected", "get_delivered_unpaid", "search_customer_orders"]);
+const INVOICE_TOOLS = new Set(["get_invoice_status_summary"]);
+
 /**
  * Lets the UI turn a short result list into tappable links (e.g. "3 overdue orders" -> chips
  * that jump straight to those orders) without the model ever needing to know about app routes.
- * Only fires for a single-table query — a query that combines both views (a UNION, or "combine
- * both unless clearly about one" per the system prompt) can't be attributed row-by-row to a
- * source table, so it's left without links rather than guessed at.
+ * Only fires when exactly one tool call in the turn returned order/invoice rows — a turn that
+ * mixes tool types, or returns aggregate (non-row) data, is left without links rather than
+ * guessed at.
  */
-function detectRefTable(sql: string): RefTable | null {
-  const hasOrders = /\bv_chatbot_orders\b/i.test(sql);
-  const hasInvoices = /\bv_chatbot_invoices\b/i.test(sql);
-  if (hasOrders && !hasInvoices) return "orders";
-  if (hasInvoices && !hasOrders) return "invoices";
-  return null;
-}
-
-function buildRefs(rows: Record<string, unknown>[], table: RefTable | null): { id: string; label: string }[] {
-  if (!table || rows.length === 0 || rows.length > 5) return [];
-  return rows
+function buildRefs(toolCalls: { name: string; result: unknown }[]): { refs: { id: string; label: string }[]; refTable: RefTable | null } {
+  const rowCalls = toolCalls.filter((c) => Array.isArray(c.result) && (ORDER_TOOLS.has(c.name) || INVOICE_TOOLS.has(c.name)));
+  if (rowCalls.length !== 1) return { refs: [], refTable: null };
+  const call = rowCalls[0];
+  const refTable: RefTable = INVOICE_TOOLS.has(call.name) ? "invoices" : "orders";
+  const rows = call.result as Record<string, unknown>[];
+  if (rows.length === 0 || rows.length > 5) return { refs: [], refTable };
+  const refs = rows
     .filter((r) => typeof r.id === "string" || typeof r.id === "number")
     .map((r) => ({
       id: String(r.id),
-      label: table === "invoices" && typeof r.invoice_number === "string" ? r.invoice_number : String(r.id),
+      label: refTable === "invoices" && typeof r.invoice_number === "string" ? r.invoice_number : String(r.id),
     }));
+  return { refs, refTable };
 }
 
 export async function POST(request: Request) {
@@ -58,13 +51,12 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   const { question } = parsed.data;
 
-  let sql: string | null = null;
   let answer: string = TECHNICAL_ERROR_ANSWER;
   let followups: string[] = [];
   let errorMessage: string | null = null;
   let refs: { id: string; label: string }[] = [];
   let refTable: RefTable | null = null;
-  let history: { question: string; answer: string }[] = [];
+  let toolsUsed: string[] = [];
 
   try {
     const glossary = await getChatbotGlossary(supabase);
@@ -76,9 +68,13 @@ export async function POST(request: Request) {
       .eq("user_email", user.email)
       .order("created_at", { ascending: false })
       .limit(5);
-    history = (recentMessages || []).reverse();
+    const history = (recentMessages || []).reverse();
 
-    sql = await generateSql(question, glossary, history);
+    const result = await runAgentTurn(question, glossary, history);
+    answer = result.answer;
+    toolsUsed = result.toolCalls.map((c) => c.name);
+    ({ refs, refTable } = buildRefs(result.toolCalls));
+    followups = await generateFollowups(question, answer);
   } catch (e) {
     errorMessage = e instanceof Error ? e.message : "Unknown error";
     // A missing/invalid Gemini API key fails every single question identically — surfacing the
@@ -87,41 +83,19 @@ export async function POST(request: Request) {
     answer = e instanceof GeminiNotConfiguredError ? e.message : TECHNICAL_ERROR_ANSWER;
   }
 
-  if (!errorMessage) {
-    if (!sql) {
-      // The model itself decided this question can't be answered from the five views it has —
-      // a real "not supported," not a bug.
-      answer = NO_DATA_ANSWER;
-    } else {
-      try {
-        const rows = await runChatbotQuery(sql);
-        const generated = await generateAnswer(question, rows, history);
-        answer = generated.answer;
-        followups = generated.followups;
-        refTable = detectRefTable(sql);
-        refs = buildRefs(rows, refTable);
-      } catch (e) {
-        // The question WAS answerable — sql exists — so this is a genuine hiccup (a malformed
-        // generated query, a DB timeout, a flaky Gemini call on the answer step), not a scope
-        // limitation. Told apart from NO_DATA_ANSWER so it reads as "try again," not "unsupported."
-        errorMessage = e instanceof Error ? e.message : "Unknown error";
-        answer = TECHNICAL_ERROR_ANSWER;
-      }
-    }
-  }
-
-  // Persisted regardless of outcome — the SQL and any error are exactly what you'd need to
-  // audit "why did it say that." RLS on this table is permissive like the rest of the schema;
-  // the real per-user scoping happens here and in the GET route below.
+  // Persisted regardless of outcome — the tools called and any error are exactly what you'd
+  // need to audit "why did it say that," replacing the old generated_sql column. RLS on this
+  // table is permissive like the rest of the schema; the real per-user scoping happens here
+  // and in the GET route below.
   await db.from("chatbot_messages").insert({
     user_email: user.email,
     question,
-    generated_sql: sql,
+    generated_sql: toolsUsed.length ? toolsUsed.join(", ") : null,
     answer,
     error: errorMessage,
   });
 
-  return NextResponse.json({ answer, sql, refs, refTable, followups });
+  return NextResponse.json({ answer, sql: toolsUsed.join(", ") || null, refs, refTable, followups });
 }
 
 export async function GET() {

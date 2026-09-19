@@ -19,7 +19,7 @@ function SqlDisclosure({ sql }: { sql: string }) {
   return (
     <div className="mt-2">
       <button type="button" onClick={() => setOpen((o) => !o)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-        <ChevronDown className={cn("size-3 transition-transform", open && "rotate-180")} /> {open ? "Hide" : "Show"} query
+        <ChevronDown className={cn("size-3 transition-transform", open && "rotate-180")} /> {open ? "Hide" : "Show"} tools used
       </button>
       {open && <pre className="mt-1.5 overflow-x-auto rounded-md bg-muted/60 p-2.5 text-[11px] leading-relaxed">{sql}</pre>}
     </div>

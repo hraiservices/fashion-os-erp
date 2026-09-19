@@ -51,29 +51,44 @@ export async function POST(request: Request) {
   const fd = parsed.data;
   const isNew = !fd.id;
 
-  const { data, error } = await db
-    .from("products")
-    .upsert({
-      id: fd.id,
-      name: fd.name.trim(),
-      sku: fd.sku.trim(),
-      category: fd.category.trim(),
-      selling_price: fd.sellingPrice,
-      cost_price: fd.costPrice,
-      tax_rate: fd.taxRate,
-      low_stock_alert: fd.lowStockAlert,
-      notes: fd.notes.trim(),
-      barcode: fd.barcode?.trim() || genBarcode(),
-      size: fd.size || null,
-      color: fd.color || null,
-      fabric: fd.fabric || null,
-      pattern: fd.pattern || null,
-      occasion: fd.occasion || null,
-      brand: fd.brand?.trim() || null,
-      image_data_url: fd.imageDataUrl ?? null,
-    })
-    .select()
-    .single();
+  // genBarcode() is a timestamp-tail + 3-random-digit code — a same-millisecond collision is
+  // rare but genuinely possible (e.g. two terminals adding a product back-to-back, or a bulk
+  // import). The `barcode` column has a real UNIQUE constraint (add_product_barcode.sql), so a
+  // collision can't silently corrupt data, but without a retry it previously surfaced as a raw
+  // Postgres constraint-violation message to a shop-floor user. Only auto-regenerate when the
+  // client didn't supply an explicit barcode — a user-entered/pre-printed code that collides is
+  // a real duplicate they need to know about, not something to silently paper over.
+  const explicitBarcode = fd.barcode?.trim();
+  const upsertOnce = () =>
+    db
+      .from("products")
+      .upsert({
+        id: fd.id,
+        name: fd.name.trim(),
+        sku: fd.sku.trim(),
+        category: fd.category.trim(),
+        selling_price: fd.sellingPrice,
+        cost_price: fd.costPrice,
+        tax_rate: fd.taxRate,
+        low_stock_alert: fd.lowStockAlert,
+        notes: fd.notes.trim(),
+        barcode: explicitBarcode || genBarcode(),
+        size: fd.size || null,
+        color: fd.color || null,
+        fabric: fd.fabric || null,
+        pattern: fd.pattern || null,
+        occasion: fd.occasion || null,
+        brand: fd.brand?.trim() || null,
+        image_data_url: fd.imageDataUrl ?? null,
+      })
+      .select()
+      .single();
+
+  let result = await upsertOnce();
+  for (let attempt = 0; attempt < 2 && result.error && !explicitBarcode && result.error.code === "23505"; attempt++) {
+    result = await upsertOnce();
+  }
+  const { data, error } = result;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Replace BOM lines wholesale — same pattern as cost_sheet_items.

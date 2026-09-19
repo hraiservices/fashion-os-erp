@@ -4,9 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { mapWorkOrderRow } from "@/lib/types";
 
+// A growth safety net, not real pagination — see the identical comment in use-orders.ts.
+const SAFETY_LIMIT = 20_000;
+
 async function fetchWorkOrders() {
   const supabase = createClient();
-  const { data, error } = await supabase.from("work_orders").select("*").order("created_at", { ascending: false });
+  const { data, error } = await supabase.from("work_orders").select("*").order("created_at", { ascending: false }).limit(SAFETY_LIMIT);
   if (error) throw error;
   return (data || []).map(mapWorkOrderRow);
 }

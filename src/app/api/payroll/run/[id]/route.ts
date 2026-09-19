@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
+
+const patchBodySchema = z.object({ action: z.literal("finalize") });
 
 /** payroll_runs is write-locked for `authenticated` (lockdown_hr_payroll_writes.sql), so the
  *  mutations below go through the service-role client. The managePayroll check in each handler
@@ -49,10 +52,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.managePayroll) return NextResponse.json({ error: "No permission to finalize payroll runs" }, { status: 403 });
 
-  const body = await request.json().catch(() => ({}));
-  const { action } = body as { action?: string };
+  const parsed = patchBodySchema.safeParse(await request.json().catch(() => ({})));
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
 
-  if (action === "finalize") {
+  if (parsed.data.action === "finalize") {
     const db = createServiceClient();
     if (!db) return NextResponse.json(NO_SERVICE_CLIENT, { status: 501 });
 

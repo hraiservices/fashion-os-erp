@@ -62,6 +62,10 @@ function verifySignature(rawBody: string, signatureHeader: string | null, appSec
 interface InboundMessage {
   from: string;
   text: string;
+  /** Meta's own message id (wamid) — used to dedup a redelivered webhook, see
+   *  whatsapp_inbound_dedup.sql. Not always present on every message type, but is on every
+   *  plain text message, which is the only kind this ever acts on. */
+  id?: string;
 }
 
 /** Best-effort extraction from Meta's deeply-nested webhook payload — returns null for
@@ -71,9 +75,9 @@ function extractInboundMessage(payload: unknown): InboundMessage | null {
   try {
     const entry = (payload as { entry?: unknown[] })?.entry?.[0] as { changes?: unknown[] } | undefined;
     const change = entry?.changes?.[0] as { value?: { messages?: unknown[] } } | undefined;
-    const message = change?.value?.messages?.[0] as { from?: string; type?: string; text?: { body?: string } } | undefined;
+    const message = change?.value?.messages?.[0] as { id?: string; from?: string; type?: string; text?: { body?: string } } | undefined;
     if (!message?.from || message.type !== "text" || !message.text?.body) return null;
-    return { from: message.from, text: message.text.body };
+    return { from: message.from, text: message.text.body, id: message.id };
   } catch {
     return null;
   }
@@ -132,6 +136,20 @@ export async function POST(request: Request) {
 
   const inbound = extractInboundMessage(payload);
   if (!inbound) return NextResponse.json({ ok: true });
+
+  // Meta guarantees at-least-once delivery and retries aggressively on a slow/non-2xx
+  // response — without this, a redelivered event would re-run the concierge and send the
+  // customer the same reply twice. Claim the message id exactly once; if this specific id has
+  // already been seen (a real redelivery, or two webhook instances racing), do nothing further.
+  if (inbound.id) {
+    const { error: dedupError } = await serviceClient.from("whatsapp_inbound_dedup").insert({ wa_message_id: inbound.id });
+    if (dedupError) {
+      // 23505 = unique_violation — this exact message id was already claimed. Any other error
+      // (e.g. table momentarily unreachable) fails open rather than silently dropping a
+      // legitimate customer message just because the dedup write itself hiccuped.
+      if (dedupError.code === "23505") return NextResponse.json({ ok: true });
+    }
+  }
 
   const mobile = normalizeMobile(inbound.from);
 

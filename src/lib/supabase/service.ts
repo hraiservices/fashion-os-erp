@@ -2,9 +2,14 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 
 /**
- * Service-role client — bypasses RLS entirely. Only ever used server-side, from the
- * recurring-invoice cron route, which runs with no logged-in user session (Vercel Cron
- * hits it directly) so the normal cookie-based client has nothing to authenticate with.
+ * Service-role client — bypasses RLS entirely. Used server-side across most API routes (not
+ * just the recurring-invoice cron, which was this comment's original scope) wherever a table is
+ * write-locked for `authenticated` under the lockdown_*.sql migrations. Because it bypasses RLS,
+ * **every** call site is individually responsible for its own authorization — there is no
+ * table-level backstop once this client is in play. Any new route that uses it must perform its
+ * own `getServerUser()` + `user.perms.X`/`user.role === "admin"` check before touching data,
+ * exactly like every existing call site does; grepping for `createServiceClient` without also
+ * finding a permission check right above it is the one pattern to treat as a bug on sight.
  * Never import this into client code or any route reachable from the browser.
  */
 export function createServiceClient() {

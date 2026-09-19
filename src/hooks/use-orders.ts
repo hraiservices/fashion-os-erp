@@ -21,9 +21,16 @@ import { mapOrderRow, type Order } from "@/lib/types";
 const ORDER_LIST_COLUMNS =
   "id, name, mobile, in_date, delivery_date, in_time, delivery_time, garments, total, advance, balance, tailor, status, special, history, measurements, payments, pay_breakdown, order_type, booking_source, fabric_cost, other_cost, rework_flag, rework_reason, rework_flagged_by, rework_flagged_at, rework_count, ready_at, payables_confirmed_at, payables_confirmed_by, piece_rate_paid_at, paid_by_payroll_run_id, group_id, measurement_profile_id, measurement_profile_name, created_at, updated_at";
 
+// A growth safety net, not real pagination: this hook feeds reports/dashboards whose totals
+// need the FULL order history to be correct, so a small limit would silently produce wrong
+// numbers rather than a visibly incomplete list. 20,000 is far beyond what a single shop
+// accumulates for years — if it's ever actually hit, that's a sign this needs a real
+// server-side aggregation redesign, not a bigger number here.
+const SAFETY_LIMIT = 20_000;
+
 async function fetchOrders(): Promise<Order[]> {
   const supabase = createClient();
-  const { data, error } = await supabase.from("orders").select(ORDER_LIST_COLUMNS).order("created_at", { ascending: false });
+  const { data, error } = await supabase.from("orders").select(ORDER_LIST_COLUMNS).order("created_at", { ascending: false }).limit(SAFETY_LIMIT);
   if (error) throw error;
   return (data || []).map((r) => mapOrderRow(r));
 }

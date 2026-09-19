@@ -14,12 +14,15 @@ export interface SalesInvoiceWithBalance extends SalesInvoice {
   lastPaymentDate: string | null;
 }
 
+// A growth safety net, not real pagination — see the identical comment in use-orders.ts.
+const SAFETY_LIMIT = 20_000;
+
 async function fetchInvoicesEnriched(): Promise<SalesInvoiceWithBalance[]> {
   const supabase = createClient();
   const [{ data: invoices, error: invError }, { data: payments, error: payError }, { data: credits, error: credError }] = await Promise.all([
-    supabase.from("sales_invoices").select("*").order("invoice_date", { ascending: false }),
-    supabase.from("sales_payments").select("*"),
-    supabase.from("sales_credit_notes").select("*"),
+    supabase.from("sales_invoices").select("*").order("invoice_date", { ascending: false }).limit(SAFETY_LIMIT),
+    supabase.from("sales_payments").select("*").limit(SAFETY_LIMIT),
+    supabase.from("sales_credit_notes").select("*").limit(SAFETY_LIMIT),
   ]);
   if (invError) throw invError;
   if (payError) throw payError;

@@ -528,6 +528,15 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["bill_of_materials"]["Row"]>;
         Relationships: [];
       };
+      whatsapp_inbound_dedup: {
+        Row: {
+          wa_message_id: string;
+          received_at: string;
+        };
+        Insert: { wa_message_id: string; received_at?: string };
+        Update: Partial<Database["public"]["Tables"]["whatsapp_inbound_dedup"]["Row"]>;
+        Relationships: [];
+      };
       whatsapp_message_log: {
         Row: {
           id: string;
@@ -1287,6 +1296,38 @@ export interface Database {
       get_customer_statement: {
         Args: { p_token: string };
         Returns: Json;
+      };
+      save_sales_invoice: {
+        Args: {
+          p_id: string | null;
+          p_invoice_number: string;
+          p_customer_mobile: string;
+          p_customer_name: string;
+          p_quote_id: string | null;
+          p_invoice_date: string;
+          p_due_date: string | null;
+          p_items: Json;
+          p_subject: string;
+          p_shipping_charges: number;
+          p_discount_type: string;
+          p_discount_value: number;
+          p_taxable_amount: number;
+          p_gst_type: string;
+          p_tax_rate: number;
+          p_cgst: number;
+          p_sgst: number;
+          p_igst: number;
+          p_round_off: number;
+          p_total: number;
+          p_doc_status: string;
+          p_terms: string;
+          p_notes: string;
+          p_created_by: string | null;
+          p_ledger_rows: Json | null;
+          p_mark_quote_accepted: boolean;
+          p_payments: Json | null;
+        };
+        Returns: Database["public"]["Tables"]["sales_invoices"]["Row"];
       };
       record_order_payment: {
         Args: {

@@ -22,6 +22,25 @@ async function getClient(): Promise<Anthropic> {
   return new Anthropic({ apiKey });
 }
 
+/**
+ * A transient Claude API hiccup (a brief capacity-constrained 5xx, a rate limit, or a dropped
+ * connection) previously failed the whole Copilot answer outright with no recovery — the exact
+ * failure mode that was already found and fixed on the Gemini side of this same file's
+ * predecessor (see gemini.ts's withGeminiRetry) after a real "AI Copilot never answers"
+ * incident. One retry with a short backoff turns "every question has a chance of failing
+ * outright" into "occasionally half a second slower."
+ */
+async function withClaudeRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    const retryable = e instanceof Anthropic.RateLimitError || e instanceof Anthropic.InternalServerError || e instanceof Anthropic.APIConnectionError;
+    if (!retryable) throw e;
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    return fn();
+  }
+}
+
 // Cheapest current Claude model — the Copilot is a high-volume, latency-sensitive Q&A route
 // (per-tool-call lookups, not open-ended reasoning), exactly the workload this tier is for.
 // Cost is real (unlike the free Gemini tier this replaces) but small: roughly a few thousand
@@ -105,13 +124,15 @@ export async function runAgentTurn(
   const toolCalls: AgentTurnResult["toolCalls"] = [];
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 1024,
-      system,
-      tools: ANTHROPIC_TOOLS,
-      messages,
-    });
+    const response = await withClaudeRetry(() =>
+      client.messages.create({
+        model: MODEL,
+        max_tokens: 1024,
+        system,
+        tools: ANTHROPIC_TOOLS,
+        messages,
+      })
+    );
 
     const toolUseBlocks = response.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
 
@@ -154,12 +175,14 @@ export async function runAgentTurn(
 export async function generateFollowups(question: string, answer: string): Promise<string[]> {
   try {
     const client = await getClient();
-    const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 256,
-      system: FOLLOWUPS_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: `Question: ${question}\n\nAnswer given: ${answer}` }],
-    });
+    const response = await withClaudeRetry(() =>
+      client.messages.create({
+        model: MODEL,
+        max_tokens: 256,
+        system: FOLLOWUPS_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: `Question: ${question}\n\nAnswer given: ${answer}` }],
+      })
+    );
     const textBlock = response.content.find((b): b is Anthropic.TextBlock => b.type === "text");
     if (!textBlock?.text) return [];
     const stripped = textBlock.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");

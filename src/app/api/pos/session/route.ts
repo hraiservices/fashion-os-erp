@@ -36,15 +36,16 @@ export async function POST(request: Request) {
 
   if (parsed.data.action === "open") {
     // One open register at a time — two overlapping sessions would split the same cash drawer
-    // across two reconciliations and make both wrong.
-    const { data: alreadyOpen } = await db.from("pos_sessions").select("id").eq("status", "open").limit(1).maybeSingle();
-    if (alreadyOpen) return NextResponse.json({ error: "A register session is already open." }, { status: 409 });
-
+    // across two reconciliations and make both wrong. The real guarantee is the partial unique
+    // index on pos_sessions(status) WHERE status='open' (see fix_pos_session_open_race.sql) —
+    // a plain SELECT-then-INSERT check here would still race between two near-simultaneous
+    // requests; catching the resulting unique_violation is what actually closes that gap.
     const { data, error } = await db
       .from("pos_sessions")
       .insert({ opening_cash: parsed.data.openingCash, opened_by: user.email, status: "open" })
       .select()
       .single();
+    if (error?.code === "23505") return NextResponse.json({ error: "A register session is already open." }, { status: 409 });
     if (error || !data) return NextResponse.json({ error: error?.message || "Could not open the register" }, { status: 500 });
 
     await logAction(supabase, user.email, `Register opened with ₹${parsed.data.openingCash}`);

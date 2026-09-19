@@ -35,18 +35,28 @@ export function computeGst(taxableAmount: number, taxRatePercent: number, gstTyp
     igst = (taxable * rate) / 100;
   }
 
-  const totalTax = cgst + sgst + igst;
   const round2 = (n: number) => Math.round(n * 100) / 100;
+
+  // Round each displayed component first, THEN sum those rounded values for totalTax/total —
+  // summing the unrounded values instead (the previous behavior) could make the printed
+  // CGST + SGST + IGST fail to add up to the printed total tax by a paisa on some rates/amounts.
+  // Rounding once, consistently, from the numbers actually shown, keeps the invoice internally
+  // consistent even though it means totalTax is no longer bit-for-bit round(cgst+sgst+igst) in
+  // unrounded-math terms — the displayed numbers are the ones that must reconcile, not the raw ones.
+  const cgstR = round2(cgst);
+  const sgstR = round2(sgst);
+  const igstR = round2(igst);
+  const totalTax = round2(cgstR + sgstR + igstR);
 
   return {
     taxableAmount: round2(taxable),
     gstType,
     taxRate: rate,
-    cgst: round2(cgst),
-    sgst: round2(sgst),
-    igst: round2(igst),
-    totalTax: round2(totalTax),
-    total: round2(taxable + totalTax),
+    cgst: cgstR,
+    sgst: sgstR,
+    igst: igstR,
+    totalTax,
+    total: round2(round2(taxable) + totalTax),
   };
 }
 

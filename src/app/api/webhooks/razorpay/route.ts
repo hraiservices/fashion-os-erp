@@ -54,9 +54,19 @@ export async function POST(req: Request) {
   await supabase.from("billing_events").insert({ event_type: eventType, razorpay_payload: payload as never });
 
   if (CHARGED_EVENTS.has(eventType)) {
-    const subEntity = (payload.payload as { subscription?: { entity?: Record<string, unknown> } } | undefined)?.subscription?.entity;
-    const subscriptionId = (subEntity?.id as string | undefined) || null;
-    const currentEndUnix = subEntity?.current_end as number | undefined;
+    // Razorpay's payload nesting is untyped/unschema'd here — an unexpected shape (a Razorpay
+    // API change, or a malformed/adversarial-but-signature-valid body) must degrade to "treat
+    // as if current_end/subscription id are absent" rather than throw an unhandled exception
+    // that would 500 back to Razorpay and trigger their retry storm.
+    let subscriptionId: string | null = null;
+    let currentEndUnix: number | undefined;
+    try {
+      const subEntity = (payload.payload as { subscription?: { entity?: Record<string, unknown> } } | undefined)?.subscription?.entity;
+      subscriptionId = (subEntity?.id as string | undefined) || null;
+      currentEndUnix = subEntity?.current_end as number | undefined;
+    } catch {
+      // Fall through with both left at their defaults — logged to billing_events above already.
+    }
     const paidUntil = currentEndUnix
       ? new Date(currentEndUnix * 1000).toISOString().slice(0, 10)
       : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);

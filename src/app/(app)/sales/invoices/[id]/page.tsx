@@ -388,6 +388,7 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
                     paid: invoice.paidTotal,
                     balance: invoice.balance,
                     notes: invoice.notes,
+                    paperWidthMm: shop?.receiptPaperWidthMm,
                   })
                 }
               >

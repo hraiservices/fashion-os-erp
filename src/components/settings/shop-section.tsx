@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 /** SettingsView section === "shop", Stitching_Manager_Pro_v16.html ~line 12597. */
 export function ShopSection() {
@@ -132,6 +133,24 @@ export function ShopSection() {
         <div className="space-y-2">
           <Label>Google review link (shown after delivery, optional)</Label>
           <Input value={shop.reviewUrl} onChange={(e) => setShop({ ...shop, reviewUrl: e.target.value })} placeholder="https://g.page/r/..." />
+        </div>
+        <div className="space-y-2">
+          <Label>Receipt printer paper width</Label>
+          <Select
+            value={String(shop.receiptPaperWidthMm ?? 80)}
+            onValueChange={(v) => v && setShop({ ...shop, receiptPaperWidthMm: Number(v) as 58 | 80 })}
+          >
+            <SelectTrigger className="h-10 w-full sm:w-56">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="58">58mm (narrow thermal roll)</SelectItem>
+              <SelectItem value="80">80mm (standard POS-counter roll)</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Must match your thermal/receipt printer&apos;s actual paper roll — check the model or the roll itself. Used for invoice and POS receipt printing.
+          </p>
         </div>
         <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" disabled={save.isPending} onClick={onSave}>
           Save changes

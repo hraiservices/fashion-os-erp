@@ -16,6 +16,10 @@ export interface ShopConfig {
   websiteUrl: string;
   /** Google review link shown in the "delivered" WhatsApp message when set. */
   reviewUrl: string;
+  /** Thermal receipt paper width (src/lib/thermal-receipt.ts) — must match the physical roll in
+   *  the connected receipt/label printer (e.g. Everycom's 58mm models vs. 80mm POS-counter
+   *  printers), or the printed receipt is truncated/oversized relative to the actual paper. */
+  receiptPaperWidthMm: 58 | 80;
 }
 
 export const DEFAULT_SHOP_CONFIG: ShopConfig = {
@@ -27,6 +31,7 @@ export const DEFAULT_SHOP_CONFIG: ShopConfig = {
   faviconDataUrl: null,
   websiteUrl: "",
   reviewUrl: "",
+  receiptPaperWidthMm: 80,
 };
 
 export function useShopSettings() {

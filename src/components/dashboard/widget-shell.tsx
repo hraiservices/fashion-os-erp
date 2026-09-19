@@ -13,6 +13,12 @@ const COL_SPAN_CLASS: Record<1 | 2 | 3 | 4, string> = {
 };
 
 const MIN_HEIGHT_PX = 120;
+// How close (px) a dragged card's height needs to get to a same-row neighbor's height before it
+// snaps to match exactly — a magnetic-guide feel like design tools, not a hard grid step.
+const HEIGHT_SNAP_TOLERANCE_PX = 4;
+// How close (px) two cards' `top` positions need to be to count as "the same row" — cards laid
+// out by the same grid row will have (near-)identical tops; a few px covers sub-pixel rounding.
+const SAME_ROW_TOLERANCE_PX = 2;
 
 export function WidgetShell({
   colSpan,
@@ -144,11 +150,24 @@ export function WidgetShell({
     if (!el) return;
     heightResizeState.current = { startY: e.clientY, startH: el.offsetHeight, lastHeight: el.offsetHeight };
 
+    // Same-row neighbors, captured once at drag start (not every mousemove) — their own heights
+    // don't change mid-drag since only THIS card is being resized.
+    const grid = el.closest("[data-dashboard-grid]");
+    const ownTop = el.getBoundingClientRect().top;
+    const neighborHeights = grid
+      ? Array.from(grid.children)
+          .filter((child): child is HTMLElement => child instanceof HTMLElement && child !== el)
+          .filter((child) => Math.abs(child.getBoundingClientRect().top - ownTop) <= SAME_ROW_TOLERANCE_PX)
+          .map((child) => child.offsetHeight)
+      : [];
+
     function onMouseMove(ev: MouseEvent) {
       resizeDragged.current = true;
       const s = heightResizeState.current;
       if (!s) return;
-      s.lastHeight = Math.max(MIN_HEIGHT_PX, Math.round(s.startH + (ev.clientY - s.startY)));
+      const raw = Math.max(MIN_HEIGHT_PX, Math.round(s.startH + (ev.clientY - s.startY)));
+      const snapTarget = neighborHeights.find((h) => Math.abs(h - raw) <= HEIGHT_SNAP_TOLERANCE_PX);
+      s.lastHeight = snapTarget ?? raw;
       onResizeHeightProgress?.(s.lastHeight);
     }
 

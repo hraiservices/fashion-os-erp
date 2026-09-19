@@ -376,11 +376,17 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
               <p className="py-8 text-center text-sm text-muted-foreground">Cart is empty — scan or tap a product to add it.</p>
             ) : (
               <div className="space-y-2">
-                {cart.map((line) => (
+                {cart.map((line) => {
+                  // Advisory only, same as the invoice line-item editor — a shop selling a
+                  // made-to-order/service item with no real stock tracking must still check out.
+                  const stockQty = products?.find((p) => p.id === line.productId)?.stockQty;
+                  const oversell = stockQty !== undefined && line.qty > stockQty;
+                  return (
                   <div key={line.productId} className="flex items-center gap-2 rounded-lg border p-2">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{line.productName}</p>
                       <p className="text-xs text-muted-foreground">{inr(line.unitPrice)} each</p>
+                      {oversell && <p className="text-[11px] text-amber-600 dark:text-amber-500">Only {stockQty} in stock</p>}
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       <Button variant="outline" size="icon-sm" className="size-11 sm:size-7" onClick={() => updateQty(line.productId, line.qty - 1)} aria-label="Decrease quantity">
@@ -396,7 +402,8 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
                       <Trash2 className="size-3.5" />
                     </Button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 

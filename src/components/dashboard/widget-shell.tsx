@@ -70,10 +70,10 @@ export function WidgetShell({
     onDragEnd?.();
   }
 
-  // Width-only resize — every widget's height now stretches to match its row (see the
-  // container's default grid stretch below), so the old height-drag was dropped: letting
-  // widgets pick their own pixel height is exactly what produced ragged, mismatched-height
-  // cards sitting side by side in the same row.
+  // Width-only resize. Height is NOT resizable and never stretches to match its row (the grid
+  // uses items-start) — every widget sizes to its own natural content height, on purpose, even
+  // if that leaves a row looking uneven. A tall widget (like LIVE Report) no longer forces its
+  // shorter row-mates to grow and sit mostly empty.
   function handleResizeMouseDown(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
@@ -126,10 +126,6 @@ export function WidgetShell({
     <div
       ref={containerRef}
       className={cn(
-        // No self-start here: a CSS grid row stretches every cell to match its tallest sibling
-        // by default, and that's exactly what we want — every widget in the same row ends up
-        // the same height, instead of each card sizing to its own content and leaving a ragged
-        // mix of heights across the row (the "scattered card" complaint).
         "group relative col-span-1",
         COL_SPAN_CLASS[colSpan],
         editing && "rounded-xl outline-dashed outline-2 outline-transparent transition-all hover:outline-primary/40",
@@ -184,8 +180,8 @@ export function WidgetShell({
         </div>
       </div>
 
-      {/* Widget content — h-full plus [&>*]:h-full stretches the widget's own root element
-          (each one is a plain <section>/<div>, not otherwise height-aware) to fill the row. */}
+      {/* h-full here just means "fill this container" — with the grid's items-start, the
+          container itself is sized by content, so this no longer causes row-stretching. */}
       <div className={cn("h-full [&>*]:h-full", dragging && "pointer-events-none select-none")}>
         {children}
       </div>

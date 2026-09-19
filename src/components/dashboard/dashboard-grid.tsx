@@ -80,7 +80,7 @@ export function DashboardGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-4" data-dashboard-grid>
+    <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-4" data-dashboard-grid>
       {visible.map((w) => {
         const isResizing = resizeLive?.id === w.id;
         const colSpan = isResizing ? resizeLive.colSpan : getEffectiveCols(w);

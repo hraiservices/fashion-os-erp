@@ -185,6 +185,8 @@ export function ProductLineItemsEditor({
       .map((p) => ({ value: p.id, label: p.name, sublabel: `${p.sku} · ${p.stockQty} in stock · ${inr(p.sellingPrice)}` }));
   }, [products, lines]);
 
+  const productById = useMemo(() => new Map((products || []).map((p) => [p.id, p])), [products]);
+
   function lineTotals(l: EditableSalesLine) {
     const qty = parseFloat(l.qty) || 0;
     const unitPrice = parseFloat(l.unitPrice) || 0;
@@ -253,6 +255,12 @@ export function ProductLineItemsEditor({
         lines.map((line) => {
           const { amount, margin } = lineTotals(line);
           const discountType = line.discountType || "percent";
+          // Advisory only, not a block — a shop legitimately backdating a historical sale, or
+          // selling a made-to-order/service line with no real stock tracking, must still be able
+          // to save. This just surfaces what would otherwise be a silent oversell.
+          const selectedProduct = line.productId ? productById.get(line.productId) : undefined;
+          const qtyNum = parseFloat(line.qty) || 0;
+          const oversell = selectedProduct && qtyNum > selectedProduct.stockQty;
           return (
             <div
               key={line.key}
@@ -291,7 +299,19 @@ export function ProductLineItemsEditor({
               <div className={cn("grid gap-2 sm:contents", showDiscount ? "grid-cols-3" : "grid-cols-2")}>
                 <div className="sm:w-24">
                   <label className="mb-1 block text-[10px] font-medium text-muted-foreground sm:hidden">Qty</label>
-                  <Input type="number" inputMode="numeric" min={0} step="1" placeholder="Qty" className="h-10 w-full text-sm sm:w-24" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    step="1"
+                    placeholder="Qty"
+                    className={cn("h-10 w-full text-sm sm:w-24", oversell && "border-amber-500 focus-visible:ring-amber-500/50")}
+                    value={line.qty}
+                    onChange={(e) => updateLine(line.key, { qty: e.target.value })}
+                  />
+                  {oversell && (
+                    <p className="mt-1 whitespace-nowrap text-[11px] text-amber-600 dark:text-amber-500">Only {selectedProduct!.stockQty} in stock</p>
+                  )}
                 </div>
                 <div className="sm:w-32">
                   <label className="mb-1 block text-[10px] font-medium text-muted-foreground sm:hidden">Price</label>

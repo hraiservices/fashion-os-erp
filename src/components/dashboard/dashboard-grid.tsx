@@ -35,6 +35,7 @@ export function DashboardGrid({
 
   // Live resize preview — not saved until mouseup
   const [resizeLive, setResizeLive] = useState<{ id: string; colSpan: 1 | 2 | 3 | 4 } | null>(null);
+  const [heightResizeLive, setHeightResizeLive] = useState<{ id: string; heightPx: number } | null>(null);
 
   function handleDrop(targetId: string) {
     const sourceId = draggingRef.current;
@@ -67,7 +68,16 @@ export function DashboardGrid({
   }
 
   function resetWidgetSize(id: string) {
-    onChange(widgets.map((w) => (w.id !== id ? w : { ...w, colSpan: undefined })));
+    onChange(widgets.map((w) => (w.id !== id ? w : { ...w, colSpan: undefined, heightPx: undefined })));
+  }
+
+  function handleResizeHeightProgress(id: string, heightPx: number) {
+    setHeightResizeLive({ id, heightPx });
+  }
+
+  function handleResizeHeightEnd(id: string, heightPx: number) {
+    setHeightResizeLive(null);
+    onChange(widgets.map((w) => (w.id !== id ? w : { ...w, heightPx })));
   }
 
   function renderContent(w: WidgetInstance) {
@@ -84,12 +94,15 @@ export function DashboardGrid({
       {visible.map((w) => {
         const isResizing = resizeLive?.id === w.id;
         const colSpan = isResizing ? resizeLive.colSpan : getEffectiveCols(w);
+        const isHeightResizing = heightResizeLive?.id === w.id;
+        const heightPx = isHeightResizing ? heightResizeLive.heightPx : w.heightPx;
         const href = w.kind === "builtin" ? BUILTIN_WIDGET_BY_KEY.get(w.builtinKey || "")?.href : undefined;
 
         return (
           <WidgetShell
             key={w.id}
             colSpan={colSpan}
+            heightPx={heightPx}
             href={href}
             editing={editing}
             dragging={draggingId === w.id}
@@ -97,6 +110,8 @@ export function DashboardGrid({
             onHide={() => hideWidget(w.id)}
             onResizeProgress={(cols) => handleResizeProgress(w.id, cols)}
             onResizeEnd={(cols) => handleResizeEnd(w.id, cols)}
+            onResizeHeightProgress={(px) => handleResizeHeightProgress(w.id, px)}
+            onResizeHeightEnd={(px) => handleResizeHeightEnd(w.id, px)}
             onResetSize={() => resetWidgetSize(w.id)}
             onDragStart={(e) => {
               draggingRef.current = w.id;

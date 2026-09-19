@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { runAgentTurn, generateFollowups, GeminiNotConfiguredError } from "@/lib/chatbot/gemini";
+import { runAgentTurn, generateFollowups, ClaudeNotConfiguredError } from "@/lib/chatbot/claude";
 import { getChatbotGlossary } from "@/lib/settings";
 
 const bodySchema = z.object({
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
     // A missing/invalid Gemini API key fails every single question identically — surfacing the
     // real reason here (rather than the generic "no answer" message) is the difference between
     // an admin fixing it in Settings in 30 seconds and it looking like the AI just doesn't work.
-    answer = e instanceof GeminiNotConfiguredError ? e.message : TECHNICAL_ERROR_ANSWER;
+    answer = e instanceof ClaudeNotConfiguredError ? e.message : TECHNICAL_ERROR_ANSWER;
   }
 
   if (!errorMessage) {

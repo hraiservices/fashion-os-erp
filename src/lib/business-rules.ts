@@ -18,6 +18,20 @@ export function getNextStage(status: string): Stage | null {
   return i >= 0 && i < STAGES.length - 1 ? STAGES[i + 1] : null;
 }
 
+const READY_STAGE_INDEX = STAGES.indexOf("ready");
+
+/** Whether an order's garments are actually payable work — Ready, Delivered, or Payment stage,
+ *  not still in progress (Received/Cutting/Stitching/Finishing). Shared by the Tailor Payables
+ *  summary and detail reports so the two always agree on which garments count toward a "what's
+ *  actually earned so far" total — a report-level display rule only; it does NOT affect the
+ *  underlying live payableAmount calculation or the payroll confirm/freeze workflow (see
+ *  add_early_tailor_payables.sql / unfreeze_tailor_payables_at_ready.sql), which keep tracking
+ *  every assigned garment from the moment it's received, same as before. */
+export function isOrderReadyOrBeyond(status: string): boolean {
+  const i = STAGES.indexOf(status as Stage);
+  return i >= READY_STAGE_INDEX;
+}
+
 export type Lining = "s" | "h" | "f";
 
 /** LINING, line ~1817. */

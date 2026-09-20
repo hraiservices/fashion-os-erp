@@ -43,8 +43,18 @@ export function ReportFilterBar({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-wrap items-end gap-x-3 gap-y-2 rounded-xl border bg-card p-3 print:hidden", className)}>
-      <div>
+    <div
+      className={cn(
+        // Stacked, full-width rows below `sm` — the previous single flex-wrap row let the
+        // custom date pickers (fixed w-36 each) overflow the viewport on a phone instead of
+        // wrapping cleanly, and left the category/Clear/result-count trio scattered across
+        // disconnected lines with no visual grouping. Each control group below is its own full-
+        // width row on mobile; `sm:` restores the original single-row flex-wrap layout.
+        "flex flex-col gap-3 rounded-xl border bg-card p-3 print:hidden sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-3 sm:gap-y-2",
+        className
+      )}
+    >
+      <div className="w-full sm:w-auto">
         <Label className="mb-1.5 block text-sm font-bold text-muted-foreground">Date range</Label>
         <div className="flex flex-wrap gap-1.5">
           {PRESET_ORDER.map((p) => (
@@ -56,22 +66,27 @@ export function ReportFilterBar({
       </div>
 
       {preset === "custom" && (
-        <div className="flex items-center gap-2">
-          <DatePicker className="w-36" value={customFrom} onChange={onCustomFromChange} placeholder="From" />
-          <span className="text-xs text-muted-foreground">to</span>
-          <DatePicker className="w-36" value={customTo} onChange={onCustomToChange} placeholder="To" />
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <DatePicker className="w-full sm:w-36" value={customFrom} onChange={onCustomFromChange} placeholder="From" />
+          <span className="shrink-0 text-xs text-muted-foreground">to</span>
+          <DatePicker className="w-full sm:w-36" value={customTo} onChange={onCustomToChange} placeholder="To" />
         </div>
       )}
 
-      {category}
+      {category && <div className="w-full sm:w-auto">{category}</div>}
 
-      {preset !== "all" && (
-        <Button type="button" variant="ghost" size="sm" onClick={() => onPresetChange("all")}>
-          <X className="size-3.5" /> Clear
-        </Button>
+      {(preset !== "all" || resultLabel) && (
+        <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:contents">
+          {preset !== "all" ? (
+            <Button type="button" variant="ghost" size="sm" onClick={() => onPresetChange("all")}>
+              <X className="size-3.5" /> Clear
+            </Button>
+          ) : (
+            <span />
+          )}
+          {resultLabel && <span className="text-xs tabular-nums text-muted-foreground sm:ml-auto">{resultLabel}</span>}
+        </div>
       )}
-
-      {resultLabel && <span className="ml-auto text-xs tabular-nums text-muted-foreground">{resultLabel}</span>}
     </div>
   );
 }

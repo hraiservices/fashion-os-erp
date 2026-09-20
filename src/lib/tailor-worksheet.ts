@@ -97,19 +97,34 @@ export async function buildTailorWorksheet(supabase: SupabaseClient<Database>): 
   const employeeNameById = new Map((employeeRows || []).map((e) => [e.id, e.name]));
 
   const pendingByTailor = pendingGarmentsByTailor(orders);
+
+  // One query for every tailor's snapshot history before today instead of one query per tailor
+  // (this loop previously issued a fresh SELECT per tailor — a real N+1, confirmed by a live
+  // performance audit). Reduced to "latest row per tailor" in memory below, since a single
+  // tailor's snapshot history is small and Supabase's query builder has no DISTINCT ON support.
+  const tailorIds = [...pendingByTailor.keys()];
+  const { data: snapshotRows } = tailorIds.length
+    ? await supabase
+        .from("tailor_worksheet_snapshots")
+        .select("tailor_id, snapshot_date, pending_keys")
+        .in("tailor_id", tailorIds)
+        .lt("snapshot_date", today)
+        .order("snapshot_date", { ascending: false })
+    : { data: [] as { tailor_id: string; snapshot_date: string; pending_keys: unknown }[] };
+
+  const priorKeysByTailor = new Map<string, Set<string>>();
+  for (const row of snapshotRows || []) {
+    // Rows arrive most-recent-first per the ORDER above; the first one seen per tailor_id is
+    // that tailor's latest snapshot before today, so later rows for the same tailor are skipped.
+    if (priorKeysByTailor.has(row.tailor_id)) continue;
+    priorKeysByTailor.set(row.tailor_id, new Set((row.pending_keys as string[] | null) || []));
+  }
+
   const sections: TailorWorksheetSection[] = [];
+  const snapshotUpserts: { snapshot_date: string; tailor_id: string; pending_keys: string[] }[] = [];
 
   for (const [tailorId, pending] of pendingByTailor) {
-    const { data: lastSnapshot } = await supabase
-      .from("tailor_worksheet_snapshots")
-      .select("pending_keys")
-      .eq("tailor_id", tailorId)
-      .lt("snapshot_date", today)
-      .order("snapshot_date", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const priorKeys = new Set((lastSnapshot?.pending_keys as string[] | null) || []);
+    const priorKeys = priorKeysByTailor.get(tailorId) || new Set<string>();
     // Overdue is judged purely by delivery date, independent of carried-over/new — a garment
     // due days from now shouldn't read as urgent just because it's been pending a while, and
     // one due today/passed should read as urgent even if it's brand new on today's list.
@@ -118,10 +133,7 @@ export async function buildTailorWorksheet(supabase: SupabaseClient<Database>): 
     const pendingFromBefore = notOverdue.filter((g) => priorKeys.has(g.key));
     const newToday = notOverdue.filter((g) => !priorKeys.has(g.key));
 
-    await supabase.from("tailor_worksheet_snapshots").upsert(
-      { snapshot_date: today, tailor_id: tailorId, pending_keys: pending.map((g) => g.key) },
-      { onConflict: "snapshot_date,tailor_id" }
-    );
+    snapshotUpserts.push({ snapshot_date: today, tailor_id: tailorId, pending_keys: pending.map((g) => g.key) });
 
     sections.push({
       tailorId,
@@ -130,6 +142,10 @@ export async function buildTailorWorksheet(supabase: SupabaseClient<Database>): 
       pendingFromBefore,
       newToday,
     });
+  }
+
+  if (snapshotUpserts.length) {
+    await supabase.from("tailor_worksheet_snapshots").upsert(snapshotUpserts, { onConflict: "snapshot_date,tailor_id" });
   }
 
   // Most-work-first so the busiest/most-behind tailor's sheet is easy to find at the top.

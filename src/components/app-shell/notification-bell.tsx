@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Bell, Trash2, X, CheckCircle2, AlertTriangle, RefreshCw, Sparkles, CalendarClock, Clock } from "lucide-react";
-import { useOrders } from "@/hooks/use-orders";
+import { useUrgentOrdersSummary } from "@/hooks/use-urgent-orders-summary";
 import { useNotifications, useDismissNotification, markNotificationsSeen, getLastSeenAt, getTimeAgo } from "@/hooks/use-notifications";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { dueBadge, STAGE_META, type Stage } from "@/lib/business-rules";
@@ -31,7 +31,7 @@ export function NotificationBell() {
   // recomputes when the bell closes, instead of keeping already-viewed items flagged "new" until
   // unrelated notifs/orders data happens to change.
   const [lastSeen, setLastSeen] = useState(getLastSeenAt);
-  const { data: orders } = useOrders();
+  const { data: orders } = useUrgentOrdersSummary();
   const { data: notifs } = useNotifications();
   const { data: user } = useCurrentUser();
   const dismissNotification = useDismissNotification();

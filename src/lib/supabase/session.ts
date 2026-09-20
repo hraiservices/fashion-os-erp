@@ -4,6 +4,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { isRestrictedRoute, isRestrictedRole, RESTRICTED_FALLBACK_ROUTE } from "@/lib/permissions";
 import { REPORTS_GROUP, resolveReportSection, SETTINGS_GROUP, EMPLOYEES_GROUP, ORDERS_GROUP } from "@/components/app-shell/nav-config";
 import { DEFAULT_ENTITLEMENTS, ROUTE_MODULE_PREFIXES, isModuleEnabled, isReportEnabled, isSettingEnabled, type ModuleEntitlements } from "@/lib/entitlements";
+import { getCachedAppSetting } from "@/lib/supabase/app-settings-cache";
 
 // /checkin is the self-service PIN portal (src/app/checkin/page.tsx) — it has its own
 // attendance-session cookie (lib/attendance-auth.ts), entirely separate from Supabase Auth,
@@ -87,7 +88,11 @@ export async function updateSession(request: NextRequest) {
       ORDERS_GROUP.children.find((c) => c.href === pathname);
 
     if (modulePrefix || reportLeaf || settingsLeaf) {
-      const { data: settingRow } = await supabase.from("app_settings").select("value").eq("key", "moduleEntitlements").maybeSingle();
+      // Short-TTL cached (app-settings-cache.ts) — this ran on every gated navigation with zero
+      // caching, confirmed by a live performance audit as a meaningful share of total request
+      // volume. Module licensing is already soft/fail-open by design, so a few seconds of
+      // staleness after an admin changes it is an accepted, deliberate tradeoff.
+      const settingValue = await getCachedAppSetting(supabase, "moduleEntitlements");
       // Shallow-merge over the defaults, same as the client-side useAppSetting hook does for
       // every other setting — a row saved before a newer top-level key existed (e.g. `settings`,
       // added after `modules`/`reports`/`widgets`/`billing`/`limits` were already in use) would
@@ -95,7 +100,7 @@ export async function updateSession(request: NextRequest) {
       // reading `entitlements.settings[href]` on a genuinely undefined `settings` throws — in
       // middleware, uncaught by any error boundary, so it took down the whole route with a raw
       // 500 rather than a clean fallback.
-      const entitlements: ModuleEntitlements = { ...DEFAULT_ENTITLEMENTS, ...(settingRow?.value as Partial<ModuleEntitlements> | null) };
+      const entitlements: ModuleEntitlements = { ...DEFAULT_ENTITLEMENTS, ...(settingValue as Partial<ModuleEntitlements> | null) };
 
       // A path can be both a module page and a REPORTS_GROUP leaf (e.g. /purchases/bills) —
       // the module check takes priority since these are primarily functional module pages,

@@ -90,7 +90,16 @@ export function DashboardGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-4" data-dashboard-grid>
+    // No `items-start` — cards in the same row now stretch to match the row's tallest card
+    // (CSS Grid's default `align-items: stretch`), instead of each sizing purely to its own
+    // content and leaving a ragged, gap-filled row. A widget whose own content doesn't grow to
+    // fill that height (a fixed-size chart/stat card) just gets some breathing room at the
+    // bottom, which reads as normal card padding rather than the "why is this row so uneven"
+    // look a short list widget next to a tall one produced before. List-style widgets (see
+    // countdown-widgets.tsx, tailor-load-widget.tsx, etc.) are built to actually absorb that
+    // extra height (flex-1 + overflow-y-auto on the list), so they visibly fill the row instead
+    // of just padding out under a fixed-height clipped list.
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-4" data-dashboard-grid>
       {visible.map((w) => {
         const isResizing = resizeLive?.id === w.id;
         const colSpan = isResizing ? resizeLive.colSpan : getEffectiveCols(w);

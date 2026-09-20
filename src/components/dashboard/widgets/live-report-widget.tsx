@@ -46,15 +46,15 @@ export function LiveReportWidget() {
         </Link>
       </div>
 
-      <div className="space-y-2">
-        <h3 className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+      <div className="flex flex-1 flex-col gap-2">
+        <h3 className="shrink-0 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <PackageCheck className="size-3.5 text-emerald-600" />
           Ready, not picked up ({readyUncollected.length}{readyBalance > 0 ? ` · ${inr(readyBalance)}` : ""})
         </h3>
         {readyUncollected.length === 0 ? (
           <p className="px-1 py-2 text-xs text-muted-foreground">Nothing waiting.</p>
         ) : (
-          <ul className="max-h-64 divide-y overflow-y-auto rounded-lg border">
+          <ul className="flex-1 divide-y overflow-y-auto rounded-lg border">
             {readyUncollected.slice(0, MAX_ROWS).map((o) => (
               <li key={o.id} className="flex items-center gap-2 px-3 py-2">
                 <Link href={`/orders/${o.id}`} className="min-w-0 flex-1">
@@ -73,15 +73,15 @@ export function LiveReportWidget() {
         )}
       </div>
 
-      <div className="space-y-2">
-        <h3 className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+      <div className="flex flex-1 flex-col gap-2">
+        <h3 className="shrink-0 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <Wallet className="size-3.5 text-amber-600" />
           Picked up, not paid ({deliveredUnpaid.length}{unpaidBalance > 0 ? ` · ${inr(unpaidBalance)}` : ""})
         </h3>
         {deliveredUnpaid.length === 0 ? (
           <p className="px-1 py-2 text-xs text-muted-foreground">Nothing unpaid.</p>
         ) : (
-          <ul className="max-h-64 divide-y overflow-y-auto rounded-lg border">
+          <ul className="flex-1 divide-y overflow-y-auto rounded-lg border">
             {deliveredUnpaid.slice(0, MAX_ROWS).map((o) => (
               <li key={o.id} className="flex items-center gap-2 px-3 py-2">
                 <Link href={`/orders/${o.id}`} className="min-w-0 flex-1">

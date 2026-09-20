@@ -174,6 +174,14 @@ export default function TailorPayablesPage() {
       <ReportFilterBar preset={preset} onPresetChange={setPreset} customFrom={customFrom} onCustomFromChange={setCustomFrom} customTo={customTo} onCustomToChange={setCustomTo} />
 
       {rows.length > 0 && (
+        <p className="text-sm">
+          Total Payable in this date range is{" "}
+          <span className="font-semibold text-emerald-600 dark:text-emerald-400">{inr(rangeTotal + rangePendingTotal)}</span>, but actual
+          payable (completed work only) is <span className="font-semibold text-red-600 dark:text-red-400">{inr(rangeTotal)}</span>.
+        </p>
+      )}
+
+      {rows.length > 0 && (
         <p className="text-sm text-muted-foreground">
           <span className="font-medium text-foreground">{rangeCompletedCount} of {rangeTotalCount}</span> garments in range are
           Ready/Delivered/Paid — actual payable for completed work is <span className="font-semibold text-foreground">{inr(rangeTotal)}</span>.

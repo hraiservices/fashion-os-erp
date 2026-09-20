@@ -89,15 +89,17 @@ export function WidgetShell({
     onDragEnd?.();
   }
 
-  // Width-only resize.
-  function handleResizeMouseDown(e: React.MouseEvent) {
+  // Width-only resize. Pointer Events (not mouse-only) so this works from touch/pen as well as
+  // a mouse — one event model instead of separate mouse/touch handling, which is what makes
+  // this usable from a phone's Customize panel instead of desktop-only.
+  function handleResizeStart(e: React.PointerEvent) {
     e.preventDefault();
     e.stopPropagation();
     const el = containerRef.current;
     if (!el) return;
     resizeState.current = { startX: e.clientX, startW: el.offsetWidth, lastCols: colSpan };
 
-    function onMouseMove(ev: MouseEvent) {
+    function onPointerMove(ev: PointerEvent) {
       resizeDragged.current = true;
       const s = resizeState.current;
       const el = containerRef.current;
@@ -124,32 +126,34 @@ export function WidgetShell({
       onResizeProgress?.(s.lastCols);
     }
 
-    function onMouseUp() {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
+    function onPointerEnd() {
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerEnd);
+      document.removeEventListener("pointercancel", onPointerEnd);
       if (resizeState.current) onResizeEnd?.(resizeState.current.lastCols);
       resizeState.current = null;
-      // The browser fires a click on the container after mouseup — clear the flag
+      // The browser fires a click on the container after pointerup — clear the flag
       // in the next microtask so the onClick handler can read it first.
       setTimeout(() => { resizeDragged.current = false; }, 0);
     }
 
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerEnd);
+    document.addEventListener("pointercancel", onPointerEnd);
   }
 
-  // Manual height resize — bottom edge, mouse/trackpad only (same limitation as the width
-  // handle: native mouse events, no touch support). Overrides the natural content height set
-  // by onResetSize clearing it back to undefined.
-  function handleResizeHeightMouseDown(e: React.MouseEvent) {
+  // Manual height resize — bottom edge. Same Pointer Events approach as the width handle above,
+  // so it works from touch too. Overrides the natural content height set by onResetSize
+  // clearing it back to undefined.
+  function handleResizeHeightStart(e: React.PointerEvent) {
     e.preventDefault();
     e.stopPropagation();
     const el = containerRef.current;
     if (!el) return;
     heightResizeState.current = { startY: e.clientY, startH: el.offsetHeight, lastHeight: el.offsetHeight };
 
-    // Same-row neighbors, captured once at drag start (not every mousemove) — their own heights
-    // don't change mid-drag since only THIS card is being resized.
+    // Same-row neighbors, captured once at drag start (not every pointermove) — their own
+    // heights don't change mid-drag since only THIS card is being resized.
     const grid = el.closest("[data-dashboard-grid]");
     const ownTop = el.getBoundingClientRect().top;
     const neighborHeights = grid
@@ -159,7 +163,7 @@ export function WidgetShell({
           .map((child) => child.offsetHeight)
       : [];
 
-    function onMouseMove(ev: MouseEvent) {
+    function onPointerMove(ev: PointerEvent) {
       resizeDragged.current = true;
       const s = heightResizeState.current;
       if (!s) return;
@@ -169,16 +173,18 @@ export function WidgetShell({
       onResizeHeightProgress?.(s.lastHeight);
     }
 
-    function onMouseUp() {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
+    function onPointerEnd() {
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerEnd);
+      document.removeEventListener("pointercancel", onPointerEnd);
       if (heightResizeState.current) onResizeHeightEnd?.(heightResizeState.current.lastHeight);
       heightResizeState.current = null;
       setTimeout(() => { resizeDragged.current = false; }, 0);
     }
 
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerEnd);
+    document.addEventListener("pointercancel", onPointerEnd);
   }
 
   return (
@@ -264,22 +270,23 @@ export function WidgetShell({
 
       {editing && (
         <>
-          {/* Resize zone — right edge, width only (see handleResizeMouseDown). Desktop only —
-              see the control-bar comment above. */}
+          {/* Resize zone — right edge, width only (see handleResizeStart). touch-none stops the
+              browser from treating a finger-drag here as a page scroll/pan instead of the resize
+              gesture — critical for this to actually work on a touchscreen, not just a mouse. */}
           <div
-            className="absolute inset-y-0 right-0 z-20 hidden w-3 cursor-ew-resize items-center justify-center sm:flex"
-            onMouseDown={handleResizeMouseDown}
+            className="absolute inset-y-0 right-0 z-20 flex w-4 touch-none cursor-ew-resize items-center justify-center"
+            onPointerDown={handleResizeStart}
             title="Drag to resize width"
           >
             <div className="h-8 w-1 rounded-full bg-muted-foreground/30" />
           </div>
 
-          {/* Resize zone — bottom edge, manual height override (see handleResizeHeightMouseDown).
+          {/* Resize zone — bottom edge, manual height override (see handleResizeHeightStart).
               Only rendered when a resize handler is actually wired up, same as onResetSize above. */}
           {onResizeHeightProgress && (
             <div
-              className="absolute inset-x-0 bottom-0 z-20 hidden h-3 cursor-ns-resize items-center justify-center sm:flex"
-              onMouseDown={handleResizeHeightMouseDown}
+              className="absolute inset-x-0 bottom-0 z-20 flex h-4 touch-none cursor-ns-resize items-center justify-center"
+              onPointerDown={handleResizeHeightStart}
               title="Drag to resize height"
             >
               <div className="h-1 w-8 rounded-full bg-muted-foreground/30" />

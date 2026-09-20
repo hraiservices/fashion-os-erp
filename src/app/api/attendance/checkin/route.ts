@@ -6,6 +6,7 @@ import { checkGeofence } from "@/lib/geofence";
 import { istDateString } from "@/lib/ist-date";
 import { notifyAttendance } from "@/lib/logging";
 import { MAX_SHIFT_HOURS } from "@/lib/attendance-settings";
+import { migrateAttendancePhoto } from "@/lib/supabase/attendance-media-storage";
 
 const bodySchema = z.object({
   lat: z.number(),
@@ -74,6 +75,16 @@ export async function POST(request: Request) {
 
   const { data: existing } = await supabase.from("employee_attendance").select("id, check_in_at").eq("employee_id", employeeId).eq("date", today).maybeSingle();
 
+  // Order-media-style Storage migration for attendance selfies (see
+  // supabase/migrations/create_employee_media_storage_bucket.sql): uploads the raw base64
+  // photo to Storage and stores its object path instead.
+  let photoPath: string;
+  try {
+    photoPath = await migrateAttendancePhoto(supabase, employeeId, photo);
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Could not save check-in photo" }, { status: 500 });
+  }
+
   const { error } = await supabase.from("employee_attendance").upsert(
     {
       id: existing?.id,
@@ -85,7 +96,7 @@ export async function POST(request: Request) {
       check_in_lat: lat,
       check_in_lng: lng,
       check_in_accuracy_m: accuracy ?? null,
-      check_in_photo: photo,
+      check_in_photo: photoPath,
       check_in_within_geofence: geo.withinGeofence,
       check_in_distance_m: geo.distanceM,
     },

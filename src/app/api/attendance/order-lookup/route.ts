@@ -4,6 +4,7 @@ import { getAttendanceEmployeeId } from "@/lib/attendance-session-server";
 import { STAGE_META, type Stage } from "@/lib/business-rules";
 import type { Garment } from "@/lib/types";
 import type { Json } from "@/lib/supabase/database.types";
+import { resolveOrderImageUrls } from "@/lib/supabase/media-storage";
 
 /**
  * Read-only order lookup for the check-in PIN session — a tailor who finds the full app
@@ -74,24 +75,30 @@ export async function GET(request: Request) {
     for (const t of tailors || []) tailorNameById.set(t.id, t.name);
   }
 
-  const orders: LookupOrder[] = (rows || []).map((r) => {
-    const { label, emoji } = stageLabel(r.status || "received");
-    const garments = (Array.isArray(r.garments) ? r.garments : []) as unknown as Garment[];
-    const measurements = (r.measurements || {}) as Record<string, Json>;
-    return {
-      id: r.id,
-      name: r.name || "",
-      mobile: r.mobile || "",
-      deliveryDate: r.delivery_date || "",
-      stage: label,
-      stageEmoji: emoji,
-      tailorName: r.tailor ? tailorNameById.get(r.tailor) || "" : "",
-      special: r.special || "",
-      garments: garments.map((g) => ({ type: g.type, lining: g.lining, no: g.no || 1 })),
-      measurements: Object.fromEntries(Object.entries(measurements).filter(([, v]) => v != null && String(v).trim() !== "").map(([k, v]) => [k, String(v)])),
-      images: Array.isArray(r.images) ? r.images : [],
-    };
-  });
+  const orders: LookupOrder[] = await Promise.all(
+    (rows || []).map(async (r) => {
+      const { label, emoji } = stageLabel(r.status || "received");
+      const garments = (Array.isArray(r.garments) ? r.garments : []) as unknown as Garment[];
+      const measurements = (r.measurements || {}) as Record<string, Json>;
+      // r.images may hold Storage object paths since the order-media migration (see
+      // src/lib/supabase/media-storage.ts) alongside legacy base64 data: URLs — resolve to
+      // displayable URLs before returning to the (PIN-session, not full Supabase auth) client.
+      const images = await resolveOrderImageUrls(supabase, Array.isArray(r.images) ? r.images : []);
+      return {
+        id: r.id,
+        name: r.name || "",
+        mobile: r.mobile || "",
+        deliveryDate: r.delivery_date || "",
+        stage: label,
+        stageEmoji: emoji,
+        tailorName: r.tailor ? tailorNameById.get(r.tailor) || "" : "",
+        special: r.special || "",
+        garments: garments.map((g) => ({ type: g.type, lining: g.lining, no: g.no || 1 })),
+        measurements: Object.fromEntries(Object.entries(measurements).filter(([, v]) => v != null && String(v).trim() !== "").map(([k, v]) => [k, String(v)])),
+        images,
+      };
+    })
+  );
 
   return NextResponse.json({ orders });
 }

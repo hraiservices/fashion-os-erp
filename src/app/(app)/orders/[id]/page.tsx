@@ -28,6 +28,7 @@ import { hasMeasurements, hydrateMeasurements } from "@/lib/measurements";
 import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { MeasurementView } from "@/components/measurements/measurement-grid";
 import { OrderAttachments } from "@/components/orders/order-attachments";
+import { useResolvedMediaUrls } from "@/hooks/use-order-media";
 import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
 import { PaymentModal } from "@/components/orders/payment-modal";
 import { GarmentChecklistRow } from "@/components/orders/garment-checklist";
@@ -58,6 +59,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params);
   const router = useRouter();
   const { data: order, isLoading } = useOrder(id);
+  // order.images may hold Storage object paths since the order-media migration
+  // (src/lib/supabase/media-storage.ts) alongside legacy base64 data: URLs — resolve to
+  // displayable URLs before handing to OrderAttachments.
+  const displayImages = useResolvedMediaUrls(order?.images || []);
   const { data: customer } = useCustomerByMobile(order?.mobile || "");
   // Other orders from the same "one order per garment" split submission (see the New Order
   // form's split checkbox) — the authoritative list, unlike the approximate badges on the
@@ -662,7 +667,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       )}
 
       {/* Attachments */}
-      <OrderAttachments images={order.images} audios={order.audios} videos={order.videos} />
+      <OrderAttachments images={displayImages} audios={order.audios} videos={order.videos} />
 
       {/* History */}
       <section className="rounded-xl border bg-card">

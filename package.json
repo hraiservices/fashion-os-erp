@@ -12,6 +12,7 @@
     "onboard-customer": "node scripts/onboard-customer.mjs",
     "sync-migrations": "node scripts/sync-migrations.mjs",
     "backfill-employee-names": "node scripts/backfill-employee-names.mjs",
+    "backfill-order-media": "node scripts/backfill-order-media.mjs",
     "android:sync": "cap sync android",
     "android:open": "cap open android"
   },

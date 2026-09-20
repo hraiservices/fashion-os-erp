@@ -1,0 +1,26 @@
+-- Forensic Supabase audit (2026-09-19/20): a full sweep of information_schema.role_table_grants
+-- found `anon` holds full privileges (INSERT, SELECT, UPDATE, DELETE, TRUNCATE, REFERENCES,
+-- TRIGGER) on every single table and view in the public schema -- this is Supabase's own default
+-- provisioning behavior (new tables get `GRANT ALL ... TO anon, authenticated, service_role`
+-- automatically unless explicitly revoked), and the app's whole security model is built on RLS
+-- being the actual gate rather than table grants -- which is the standard, documented Supabase
+-- pattern, not itself a bug.
+--
+-- With RLS enabled and zero anon-permissive policies on any table except user_roles (fixed
+-- separately in fix_user_roles_anon_phone_lookup.sql), these broad grants are currently inert.
+-- But they make RLS a single point of failure rather than defense-in-depth: one future migration
+-- that adds even a narrow anon policy to any table, or any code path that ever queries as anon
+-- outside RLS enforcement, would immediately expose full CRUD to anyone holding just the public
+-- anon key (shipped in every client bundle). Includes v_chatbot_* (five reporting views intended
+-- to be read ONLY by the separate least-privilege chatbot_readonly Postgres role over a raw
+-- connection string, per add_chatbot_module.sql/add_chatbot_wider_access.sql -- anon has no
+-- legitimate reason to touch them at all, not even SELECT).
+--
+-- Fix: revoke every privilege from anon on every table/view in the public schema. Confirmed
+-- safe -- the only public-facing (unauthenticated) read paths in this app are three SECURITY
+-- DEFINER functions (get_customer_order_status, get_public_invoice, submit_signup_request),
+-- which read with the *function owner's* privileges, not anon's own table grants, so this
+-- revoke does not affect them. Superseds the narrower 3-table version of this migration from
+-- earlier in this same audit pass.
+
+REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM anon;

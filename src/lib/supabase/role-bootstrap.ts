@@ -20,8 +20,11 @@ export async function ensureUserRole(
 ): Promise<void> {
   const cleanEmail = email.toLowerCase().trim();
 
-  const { data: rows } = await supabase.from("user_roles").select("email").limit(1);
-  const isFirstUser = !rows || rows.length === 0;
+  // user_roles_is_empty() is SECURITY DEFINER and answers the true table-wide question
+  // regardless of RLS — this signing-in user has no row of their own yet (and isn't admin),
+  // so a plain `.select('email').limit(1)` under user_roles_select_scoped's "own row OR
+  // manageUsers" policy would always see zero rows and incorrectly call every signup "first".
+  const { data: isFirstUser } = await supabase.rpc("user_roles_is_empty");
   const role = isFirstUser ? "admin" : "tailor";
 
   await supabase

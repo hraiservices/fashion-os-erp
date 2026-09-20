@@ -1,0 +1,33 @@
+-- Forensic Supabase audit (2026-09-19/20): user_roles had a policy
+--   allow_phone_lookup_for_login FOR SELECT TO public USING (true)
+-- `public` includes the unauthenticated `anon` role, and the USING clause imposes no
+-- restriction at all -- combined with anon's standard (Supabase-default) table grants, this
+-- meant anyone with just the public anon key (shipped in every client bundle as
+-- NEXT_PUBLIC_SUPABASE_ANON_KEY, no login required) could
+--   supabase.from('user_roles').select('*')
+-- and read every row: email, role, custom_permissions, linked_employee_id, phone -- the entire
+-- staff/role directory, with no login at all. This is the one table in the whole schema where
+-- the (otherwise harmless, RLS-blocked) broad anon table grants actually mattered, because this
+-- was a real permissive policy reachable by anon, not just a table grant with no matching policy.
+--
+-- Checked every caller before touching this: /api/auth/phone-login and
+-- /api/user-roles/phone-check both already query user_roles through the service-role client
+-- (bypasses RLS entirely, unaffected either way). Every client-side read
+-- (use-current-user.ts, session.ts) is scoped to the caller's own email, already covered by
+-- user_roles_select_scoped ("own row OR manageUsers"). Neither /login nor /signup touches
+-- user_roles directly at all (auth.* and submit_signup_request() only).
+--
+-- The ONE real dependency: role-bootstrap.ts's ensureUserRole() runs
+-- `supabase.from('user_roles').select('email').limit(1)` with no filter, to decide whether the
+-- signing-in user is the very first account (who becomes admin). Because permissive policies OR
+-- together, this currently only returns the true table-wide answer *because*
+-- allow_phone_lookup_for_login's `public`-role USING(true) is ORed in for every session,
+-- authenticated included. Dropping the policy without fixing this call would make
+-- user_roles_select_scoped's real scoping ("own row OR manageUsers") kick in instead: a
+-- brand-new, not-yet-admin user has no own row and no manageUsers permission, so the query would
+-- return zero rows regardless of how many real users already exist -- silently turning EVERY new
+-- signup into an admin. Fixed in the same change: role-bootstrap.ts now calls the existing
+-- user_roles_is_empty() SECURITY DEFINER function (already granted EXECUTE to anon/authenticated,
+-- already used for exactly this purpose elsewhere), which answers correctly regardless of RLS.
+
+DROP POLICY IF EXISTS "allow_phone_lookup_for_login" ON public.user_roles;

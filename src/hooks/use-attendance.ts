@@ -1,14 +1,29 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { mapAttendanceRow, type AttendanceStatus } from "@/lib/types";
+import { mapAttendanceRow, type Attendance, type AttendanceStatus } from "@/lib/types";
+import { ATTENDANCE_MEDIA_BUCKET, resolveSignedMediaUrls } from "@/lib/supabase/media-resolve";
+
+/** checkInPhoto/checkOutPhoto may be a Storage object path since the employee-media Storage
+ *  migration (see src/lib/supabase/attendance-media-storage.ts), alongside legacy base64
+ *  data: URLs — resolve to displayable URLs here, once, so every consumer of these three fetch
+ *  functions gets an already-displayable value. Safe to resolve permanently (unlike orders'
+ *  images/products' imageDataUrl): nothing ever re-submits a previously-fetched photo back to
+ *  the server — check-in/out always sends a fresh capture, and /api/attendance/mark never
+ *  touches these columns. */
+async function resolveAttendancePhotos(supabase: SupabaseClient, rows: Attendance[]): Promise<Attendance[]> {
+  const paths = rows.flatMap((r) => [r.checkInPhoto, r.checkOutPhoto]);
+  const resolved = await resolveSignedMediaUrls(supabase, ATTENDANCE_MEDIA_BUCKET, paths);
+  return rows.map((r, i) => ({ ...r, checkInPhoto: resolved[i * 2], checkOutPhoto: resolved[i * 2 + 1] }));
+}
 
 async function fetchAttendanceForDate(date: string) {
   const supabase = createClient();
   const { data, error } = await supabase.from("employee_attendance").select("*").eq("date", date);
   if (error) throw error;
-  return (data || []).map(mapAttendanceRow);
+  return resolveAttendancePhotos(supabase, (data || []).map(mapAttendanceRow));
 }
 
 export function useAttendanceForDate(date: string) {
@@ -28,7 +43,7 @@ async function fetchAttendanceForEmployee(employeeId: string) {
     .order("date", { ascending: false })
     .limit(90);
   if (error) throw error;
-  return (data || []).map(mapAttendanceRow);
+  return resolveAttendancePhotos(supabase, (data || []).map(mapAttendanceRow));
 }
 
 export function useAttendanceForEmployee(employeeId: string) {
@@ -43,7 +58,7 @@ async function fetchAttendanceInRange(from: string, to: string) {
   const supabase = createClient();
   const { data, error } = await supabase.from("employee_attendance").select("*").gte("date", from).lte("date", to);
   if (error) throw error;
-  return (data || []).map(mapAttendanceRow);
+  return resolveAttendancePhotos(supabase, (data || []).map(mapAttendanceRow));
 }
 
 /** Every attendance record in a date range, across all employees — feeds the Attendance Summary report. */

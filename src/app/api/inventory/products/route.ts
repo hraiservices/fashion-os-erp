@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 import { genBarcode, type ItemType } from "@/lib/inventory";
+import { migrateProductImage } from "@/lib/supabase/product-media-storage";
 
 const bomLineSchema = z.object({
   rawMaterialId: z.string(),
@@ -50,6 +52,20 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
   const isNew = !fd.id;
+  // Resolved up front (rather than left to the products.id column default) so it's known
+  // before the image upload below needs it as the Storage object path's prefix.
+  const id = fd.id || randomUUID();
+
+  // Order-media-style Storage migration for product photos (see
+  // supabase/migrations/create_product_media_storage_bucket.sql): uploads a raw base64 photo to
+  // Storage and stores its object path instead. An entry that's already a Storage path (a
+  // previous save already migrated it) passes through untouched.
+  let migratedImageDataUrl: string | null;
+  try {
+    migratedImageDataUrl = await migrateProductImage(db, id, fd.imageDataUrl ?? null);
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Could not save product image" }, { status: 500 });
+  }
 
   // genBarcode() is a timestamp-tail + 3-random-digit code — a same-millisecond collision is
   // rare but genuinely possible (e.g. two terminals adding a product back-to-back, or a bulk
@@ -63,7 +79,7 @@ export async function POST(request: Request) {
     db
       .from("products")
       .upsert({
-        id: fd.id,
+        id,
         name: fd.name.trim(),
         sku: fd.sku.trim(),
         category: fd.category.trim(),
@@ -79,7 +95,7 @@ export async function POST(request: Request) {
         pattern: fd.pattern || null,
         occasion: fd.occasion || null,
         brand: fd.brand?.trim() || null,
-        image_data_url: fd.imageDataUrl ?? null,
+        image_data_url: migratedImageDataUrl,
       })
       .select()
       .single();

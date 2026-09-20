@@ -11,6 +11,7 @@ import { matchProductsForCustomer } from "@/lib/customer-product-matching";
 import { inr } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
+import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 
 /** "What should I sell this customer?" (Phase 4) — reverse of ProductCustomerMatches. */
 export function CustomerProductRecommendations({ customer }: { customer: { mobile: string; name: string } }) {
@@ -56,14 +57,15 @@ export function CustomerProductRecommendations({ customer }: { customer: { mobil
       <ul className="divide-y">
         {shown.map((m) => (
           <li key={m.product.id} className="flex items-center gap-3 px-4 py-3">
-            {m.product.imageDataUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={m.product.imageDataUrl} alt="" className="size-10 shrink-0 rounded-md border object-cover bg-white" />
-            ) : (
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-dashed text-muted-foreground text-[10px]">
-                No photo
-              </div>
-            )}
+            <ProductThumbnail
+              imageDataUrl={m.product.imageDataUrl}
+              className="size-10 shrink-0 rounded-md border object-cover bg-white"
+              fallback={
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-dashed text-muted-foreground text-[10px]">
+                  No photo
+                </div>
+              }
+            />
             <div className="min-w-0 flex-1">
               <Link href={`/inventory/products/${m.product.id}/edit`} className="text-sm font-medium hover:underline">
                 {m.product.name}

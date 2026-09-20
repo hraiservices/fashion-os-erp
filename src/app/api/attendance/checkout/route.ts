@@ -5,6 +5,7 @@ import { getAttendanceEmployeeId } from "@/lib/attendance-session-server";
 import { checkGeofence } from "@/lib/geofence";
 import { DEFAULT_ATTENDANCE_SETTINGS, MAX_SHIFT_HOURS, type AttendanceSettings } from "@/lib/attendance-settings";
 import { notifyAttendance } from "@/lib/logging";
+import { migrateAttendancePhoto } from "@/lib/supabase/attendance-media-storage";
 
 const bodySchema = z.object({
   lat: z.number(),
@@ -63,6 +64,16 @@ export async function POST(request: Request) {
   const settings: AttendanceSettings = { ...DEFAULT_ATTENDANCE_SETTINGS, ...((settingRow?.value as Partial<AttendanceSettings>) || {}) };
   const overtimeHours = Math.round(Math.max(0, hoursWorked - settings.standardShiftHours) * 100) / 100;
 
+  // Order-media-style Storage migration for attendance selfies (see
+  // supabase/migrations/create_employee_media_storage_bucket.sql): uploads the raw base64
+  // photo to Storage and stores its object path instead.
+  let photoPath: string;
+  try {
+    photoPath = await migrateAttendancePhoto(supabase, employeeId, photo);
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Could not save check-out photo" }, { status: 500 });
+  }
+
   const { error } = await supabase
     .from("employee_attendance")
     .update({
@@ -70,7 +81,7 @@ export async function POST(request: Request) {
       check_out_lat: lat,
       check_out_lng: lng,
       check_out_accuracy_m: accuracy ?? null,
-      check_out_photo: photo,
+      check_out_photo: photoPath,
       check_out_within_geofence: geo.withinGeofence,
       check_out_distance_m: geo.distanceM,
       hours_worked: hoursWorked,

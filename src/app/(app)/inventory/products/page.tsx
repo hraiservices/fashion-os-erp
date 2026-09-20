@@ -24,6 +24,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
+import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 
 const PRODUCT_LIST_COLUMNS = [
@@ -268,14 +269,15 @@ function ProductsPageContent() {
                       </TableCell>
                     )}
                     <TableCell>
-                      {p.imageDataUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.imageDataUrl} alt="" className="size-9 rounded-md border object-cover bg-white" />
-                      ) : (
-                        <div className="flex size-9 items-center justify-center rounded-md border border-dashed text-muted-foreground">
-                          <ShoppingBag className="size-3.5" />
-                        </div>
-                      )}
+                      <ProductThumbnail
+                        imageDataUrl={p.imageDataUrl}
+                        className="size-9 rounded-md border object-cover bg-white"
+                        fallback={
+                          <div className="flex size-9 items-center justify-center rounded-md border border-dashed text-muted-foreground">
+                            <ShoppingBag className="size-3.5" />
+                          </div>
+                        }
+                      />
                     </TableCell>
                     <TableCell className="font-medium">
                       <span className={cn(!p.active && "text-muted-foreground")}>{p.name}</span>

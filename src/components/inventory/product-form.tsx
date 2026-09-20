@@ -19,6 +19,8 @@ import { useSaveProduct } from "@/hooks/use-inventory-mutations";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { fileToDataUrl } from "@/lib/image-utils";
+import { useResolvedMediaUrl } from "@/hooks/use-resolved-media-url";
+import { PRODUCT_MEDIA_BUCKET } from "@/lib/supabase/media-resolve";
 import { PRODUCT_SIZES, PRODUCT_COLORS, PRODUCT_FABRICS, PRODUCT_PATTERNS, PRODUCT_OCCASIONS } from "@/lib/product-attributes";
 import { ProductCustomerMatches } from "@/components/inventory/product-customer-matches";
 import { ProductStockAdjustmentDialog } from "@/components/inventory/product-stock-adjustment-dialog";
@@ -84,7 +86,13 @@ export function ProductForm({ existing }: { existing?: Product }) {
   const isEdit = !!existing;
 
   const [bomRows, setBomRows] = useState<BomRow[]>(existing ? existing.bom.map((b) => ({ key: b.id, rawMaterialId: b.rawMaterialId, qtyRequired: String(b.qtyRequired) })) : []);
+  // `imageDataUrl` is canonical — a legacy base64 data: URL, or, since the product-media
+  // Storage migration, a Storage object path (src/lib/supabase/product-media-storage.ts) — and
+  // is what actually gets submitted back on save. `displayImageUrl` resolves that into a URL
+  // the <img> below can render (a Storage path needs a signed URL); a freshly-picked photo is
+  // always a fresh data: URL, which resolves to itself with no round trip needed.
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(existing?.imageDataUrl ?? null);
+  const displayImageUrl = useResolvedMediaUrl(PRODUCT_MEDIA_BUCKET, imageDataUrl);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
 
@@ -212,9 +220,9 @@ export function ProductForm({ existing }: { existing?: Product }) {
           </p>
 
           <div className="mb-4 flex items-center gap-3">
-            {imageDataUrl ? (
+            {displayImageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageDataUrl} alt="Product" className="h-20 w-20 rounded-lg border object-cover bg-white" />
+              <img src={displayImageUrl} alt="Product" className="h-20 w-20 rounded-lg border object-cover bg-white" />
             ) : (
               <div className="flex h-20 w-20 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
                 <ImagePlus className="size-6" />

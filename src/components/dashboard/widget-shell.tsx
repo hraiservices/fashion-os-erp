@@ -185,7 +185,7 @@ export function WidgetShell({
     <div
       ref={containerRef}
       className={cn(
-        "group relative col-span-1",
+        "relative col-span-1",
         COL_SPAN_CLASS[colSpan],
         editing && "rounded-xl outline-dashed outline-2 outline-transparent transition-all hover:outline-primary/40",
         dragging && "opacity-40",
@@ -204,42 +204,55 @@ export function WidgetShell({
         router.push(href);
       } : undefined}
     >
-      {/* Hover control bar — transparent, grip left, hide right */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between rounded-t-xl px-2 py-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
-        <button
-          type="button"
-          aria-label="Drag to reorder"
-          className="cursor-grab text-muted-foreground/60 hover:text-muted-foreground active:cursor-grabbing"
-          onMouseDown={() => { gripPressed.current = true; setGripActive(true); }}
-          onMouseUp={() => { gripPressed.current = false; setGripActive(false); }}
-        >
-          <GripHorizontal className="size-3.5" />
-        </button>
-        <div className="flex items-center gap-1">
-          {/* Reset width to default */}
-          {colSpan && onResetSize && (
-            <button
-              type="button"
-              onClick={onResetSize}
-              title="Reset to default size"
-              aria-label="Reset size"
-              className="text-[10px] font-medium text-muted-foreground/50 hover:text-muted-foreground"
-            >
-              reset
-            </button>
-          )}
-          {onHide && (
-            <button
-              type="button"
-              onClick={onHide}
-              aria-label="Hide widget"
-              className="text-muted-foreground/60 hover:text-destructive"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
+      {/* Control bar and resize handles only render while `editing` (the Customize panel is
+          open — see app/(app)/dashboard/page.tsx) — previously they were hover-revealed at all
+          times, which on a touchscreen meant never, since there's no hover state to reveal them
+          from (a touch-only user had no way to reset a card stuck at an old manually-set size).
+          Gating on `editing` instead of hover fixes that directly — reset/hide are plain taps,
+          shown and tappable immediately once editing starts, no hover needed on any device — and
+          also stops the bar from ever overlapping a card's own header content (its "View all" /
+          "Full report" link, a live badge, …) during normal browsing, since it no longer appears
+          outside of the dashed-outline edit mode at all. The grip (native HTML5 drag-and-drop)
+          and the width/height resize handles below genuinely need a mouse, so they only render
+          at `sm` and up even within editing — dragging doesn't work on touch regardless of
+          whether the handle is visible. */}
+      {editing && (
+        <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between rounded-t-xl px-2 py-1">
+          <button
+            type="button"
+            aria-label="Drag to reorder"
+            className="hidden cursor-grab text-muted-foreground/60 hover:text-muted-foreground active:cursor-grabbing sm:block"
+            onMouseDown={() => { gripPressed.current = true; setGripActive(true); }}
+            onMouseUp={() => { gripPressed.current = false; setGripActive(false); }}
+          >
+            <GripHorizontal className="size-3.5" />
+          </button>
+          <div className="flex items-center gap-1">
+            {/* Reset width to default */}
+            {colSpan && onResetSize && (
+              <button
+                type="button"
+                onClick={onResetSize}
+                title="Reset to default size"
+                aria-label="Reset size"
+                className="text-[10px] font-medium text-muted-foreground/50 hover:text-muted-foreground"
+              >
+                reset
+              </button>
+            )}
+            {onHide && (
+              <button
+                type="button"
+                onClick={onHide}
+                aria-label="Hide widget"
+                className="text-muted-foreground/60 hover:text-destructive"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* h-full forces the widget's own root element to fill this container — which, since the
           grid stretches every card in a row to match the tallest one, is how a list-style
@@ -249,25 +262,30 @@ export function WidgetShell({
         {children}
       </div>
 
-      {/* Resize zone — right edge, width only (see handleResizeMouseDown) */}
-      <div
-        className="absolute inset-y-0 right-0 z-20 flex w-3 cursor-ew-resize items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
-        onMouseDown={handleResizeMouseDown}
-        title="Drag to resize width"
-      >
-        <div className="h-8 w-1 rounded-full bg-muted-foreground/30" />
-      </div>
+      {editing && (
+        <>
+          {/* Resize zone — right edge, width only (see handleResizeMouseDown). Desktop only —
+              see the control-bar comment above. */}
+          <div
+            className="absolute inset-y-0 right-0 z-20 hidden w-3 cursor-ew-resize items-center justify-center sm:flex"
+            onMouseDown={handleResizeMouseDown}
+            title="Drag to resize width"
+          >
+            <div className="h-8 w-1 rounded-full bg-muted-foreground/30" />
+          </div>
 
-      {/* Resize zone — bottom edge, manual height override (see handleResizeHeightMouseDown).
-          Only rendered when a resize handler is actually wired up, same as onResetSize below. */}
-      {onResizeHeightProgress && (
-        <div
-          className="absolute inset-x-0 bottom-0 z-20 flex h-3 cursor-ns-resize items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
-          onMouseDown={handleResizeHeightMouseDown}
-          title="Drag to resize height"
-        >
-          <div className="h-1 w-8 rounded-full bg-muted-foreground/30" />
-        </div>
+          {/* Resize zone — bottom edge, manual height override (see handleResizeHeightMouseDown).
+              Only rendered when a resize handler is actually wired up, same as onResetSize above. */}
+          {onResizeHeightProgress && (
+            <div
+              className="absolute inset-x-0 bottom-0 z-20 hidden h-3 cursor-ns-resize items-center justify-center sm:flex"
+              onMouseDown={handleResizeHeightMouseDown}
+              title="Drag to resize height"
+            >
+              <div className="h-1 w-8 rounded-full bg-muted-foreground/30" />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

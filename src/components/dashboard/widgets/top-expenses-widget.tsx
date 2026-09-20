@@ -34,7 +34,10 @@ export function TopExpensesWidget() {
       {topExp.length === 0 ? (
         <EmptyState icon={Wallet} title="No expenses yet" className="border-0 py-8" />
       ) : (
-        <div className="flex items-center gap-4">
+        // Stacked below `sm` — side-by-side on a ~350px mobile card left only ~140px for the
+        // legend, which is what was clipping category names ("S..", "T...") and the total
+        // figure ("₹12,79"). Full card width once stacked gives the legend room to breathe.
+        <div className="flex flex-col items-center gap-4 sm:flex-row">
           <div className="h-44 w-44 shrink-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>

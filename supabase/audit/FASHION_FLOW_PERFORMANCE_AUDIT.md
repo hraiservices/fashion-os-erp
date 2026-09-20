@@ -84,9 +84,13 @@ Execution Time: 0.543 ms
 
 `supabase/migrations/optimize_rls_function_calls.sql` recreates every affected policy **under its existing name** with every helper-function call (and every direct `auth.jwt()` reference) wrapped as `(select fn())`. Zero semantic change — every predicate was verified line-by-line against the live source of `lockdown_reads_per_row.sql` and `lockdown_reads_whole_table.sql` before being rewritten. Applied and verified idempotent against a local Postgres instance (same 39 policies present, by name, before and after; safe to re-run).
 
+### Ruled out: this is not an indexing problem
+
+`idx_user_roles_lower_email` (`btree(lower(email))`) already exists and matches the exact expression every helper function filters on. Confirmed via `EXPLAIN (ANALYZE, BUFFERS)` that Postgres still chooses a sequential scan over it — correctly: on a 3-row table, reading one page sequentially is cheaper than an index lookup regardless of whether a matching index exists. This rules out a second, independent cause hiding behind Finding #1 — the 739K count is fully explained by per-row function re-evaluation, not by a missing or mismatched index. This also sets an expectation: post-fix, individual `user_roles` lookups will still show as sequential scans (correct planner behavior for this table size) — what should change is the total *count* of evaluations, since wrapping collapses many-per-query into one-per-query.
+
 ### What's still open
 
-The 128x number above is from a synthetic case. **This document cannot claim a specific real-world before/after number for Fashion Flow's actual `user_roles` scan count until the migration is applied live and the same diagnostic query is re-run.** Section 8 and Section 5 of `performance_diagnostic.sql` (sent separately) are built for exactly this — please run them before and after applying `optimize_rls_function_calls.sql` and send both sets of numbers.
+The 128x number above is from a synthetic case, and it remains the best evidence available: `pg_stat_user_tables.seq_scan` for `user_roles` was checked immediately after applying the migration and had moved by exactly +1 from the original baseline (739,423 → 739,424) — and that +1 was the project owner's own manual `EXPLAIN` query, not app traffic. **No real usage window has occurred yet between the original report and this fix being applied**, so this specific database cannot yet show a real production before/after delta — there's nothing to compare against. The code-level proof stands (documented Postgres anti-pattern, reproduced and measured locally, migration verified semantically identical and idempotent); the production confirmation is pending real traffic. Recommend re-running the Section 7 query (`SELECT relname, seq_scan, idx_scan FROM pg_stat_user_tables WHERE relname = 'user_roles'`) after a few days of normal shop usage and comparing the **rate** of `seq_scan` growth against the pre-fix baseline, not the raw total.
 
 ---
 

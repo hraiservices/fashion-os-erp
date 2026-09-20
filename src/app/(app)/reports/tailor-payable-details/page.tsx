@@ -155,6 +155,9 @@ export default function TailorPayableDetailsPage() {
 
   const completedRows = rows.filter((r) => !r.isPending);
   const grandTotal = completedRows.reduce((s, r) => s + r.amount, 0);
+  // Every garment in range as if all of it were finished — the "before" number the owner wants
+  // shown alongside the actual (completed-only) payable, so the gap is visible at a glance.
+  const totalPayableAllGarments = rows.reduce((s, r) => s + r.amount, 0);
   const exportRows = rows.map((r) => ({
     Tailor: r.tailorName,
     Order: r.orderId,
@@ -210,6 +213,14 @@ export default function TailorPayableDetailsPage() {
           </Select>
         }
       />
+
+      {rows.length > 0 && (
+        <p className="text-sm">
+          Total Payable in this date range is{" "}
+          <span className="font-semibold text-emerald-600 dark:text-emerald-400">{inr(totalPayableAllGarments)}</span>, but actual payable
+          (completed work only) is <span className="font-semibold text-red-600 dark:text-red-400">{inr(grandTotal)}</span>.
+        </p>
+      )}
 
       {byTailor.length > 0 && (
         <div className="flex flex-wrap gap-2">

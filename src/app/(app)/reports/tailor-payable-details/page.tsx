@@ -7,7 +7,7 @@ import { useOrders } from "@/hooks/use-orders";
 import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useActiveTailors, useTailorName } from "@/hooks/use-employees";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { LINING_LABELS, type Lining } from "@/lib/business-rules";
+import { LINING_LABELS, isOrderReadyOrBeyond, type Lining } from "@/lib/business-rules";
 import { inr, fmtDate } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -48,18 +48,26 @@ interface PayableRow {
   lining: string;
   qty: number;
   amount: number;
+  /** Order not yet Ready/Delivered/Paid — still in progress, so not yet actually earned. Kept
+   *  visible in the table (not filtered out) but excluded from every total, per the owner's
+   *  explicit ask: pay only for completed work, but still see the full pipeline. */
+  isPending: boolean;
 }
 
 /** Per-garment breakdown of what each tailor is owed, one row per garment — the order/customer-
  *  level detail behind the Tailor Payables summary page's per-tailor totals. Same inclusion rule
- *  and same numbers as that page (a garment counts the moment its order is received and a tailor
- *  is assigned; payableAmount is live-recalculated until it's confirmed — see
- *  add_early_tailor_payables.sql / unfreeze_tailor_payables_at_ready.sql), just exploded down to
- *  the individual garment so a manager can see exactly which order and customer each payable
- *  came from, not only the per-tailor sum. Also includes manufacturing Work Orders' laborCost —
- *  omitting those would make this report's per-tailor totals silently disagree with the Tailor
- *  Payables summary page for any tailor who does both stitching and manufacturing work. Filtered
- *  on inDate for orders / completedAt for work orders, matching the summary page's "range"
+ *  and same numbers as that page: EVERY garment with a tailor assigned in range still appears
+ *  here (payableAmount is still live-recalculated from the moment an order is received, exactly
+ *  as before — see add_early_tailor_payables.sql / unfreeze_tailor_payables_at_ready.sql, neither
+ *  of which changed), but only garments whose order has reached Ready/Delivered/Payment stage
+ *  count toward any total — a report-display rule only, added per the owner's explicit ask to
+ *  see "what's actually earned so far" without waiting on a payroll run, not a change to when a
+ *  payable actually freezes/gets paid. Still-in-progress garments are shown marked "Pending"
+ *  rather than hidden, so the full pipeline stays visible. Also includes manufacturing Work
+ *  Orders' laborCost — omitting those would make this report's per-tailor totals silently
+ *  disagree with the Tailor Payables summary page for any tailor who does both stitching and
+ *  manufacturing work. Filtered on inDate for orders / completedAt for work orders, matching the
+ *  summary page's "range"
  *  column for each. */
 export default function TailorPayableDetailsPage() {
   const { data: user } = useCurrentUser();
@@ -92,6 +100,7 @@ export default function TailorPayableDetailsPage() {
           lining: o.orderType === "alteration" ? "—" : LINING_LABELS[(g.lining as Lining) || "s"] || g.lining || "",
           qty: g.no || 1,
           amount: g.payableAmount || 0,
+          isPending: !isOrderReadyOrBeyond(o.status),
         });
       });
     }
@@ -109,6 +118,10 @@ export default function TailorPayableDetailsPage() {
         lining: "—",
         qty: w.qtyToProduce,
         amount: w.laborCost,
+        // Work orders only ever enter this report once they have a completedAt (the filter
+        // above), so they're always already-finished work — never "pending" the way an
+        // in-progress stitching order's garment can be.
+        isPending: false,
       });
     }
     return out
@@ -117,11 +130,14 @@ export default function TailorPayableDetailsPage() {
   }, [orders, workOrders, range, tailorFilter, tailorName]);
 
   const byTailor = useMemo(() => {
-    const map = new Map<string, { tailorName: string; total: number; count: number }>();
+    const map = new Map<string, { tailorName: string; total: number; completedCount: number; totalCount: number }>();
     for (const r of rows) {
-      const entry = map.get(r.tailorId) || { tailorName: r.tailorName, total: 0, count: 0 };
-      entry.total += r.amount;
-      entry.count += 1;
+      const entry = map.get(r.tailorId) || { tailorName: r.tailorName, total: 0, completedCount: 0, totalCount: 0 };
+      entry.totalCount += 1;
+      if (!r.isPending) {
+        entry.total += r.amount;
+        entry.completedCount += 1;
+      }
       map.set(r.tailorId, entry);
     }
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
@@ -137,7 +153,8 @@ export default function TailorPayableDetailsPage() {
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
-  const grandTotal = rows.reduce((s, r) => s + r.amount, 0);
+  const completedRows = rows.filter((r) => !r.isPending);
+  const grandTotal = completedRows.reduce((s, r) => s + r.amount, 0);
   const exportRows = rows.map((r) => ({
     Tailor: r.tailorName,
     Order: r.orderId,
@@ -146,13 +163,14 @@ export default function TailorPayableDetailsPage() {
     Garment: r.garmentType,
     Lining: r.lining,
     Qty: r.qty,
-    Payable: r.amount,
+    Status: r.isPending ? "Pending" : "Completed",
+    Payable: r.isPending ? 0 : r.amount,
   }));
   const summaryLines = [
     `Range: ${DATE_RANGE_PRESET_LABELS[preset]}`,
-    `Garments: ${rows.length}`,
-    `Total payable: ${inr(grandTotal)}`,
-    ...byTailor.map((t) => `${t.tailorName}: ${inr(t.total)}`),
+    `Garments: ${completedRows.length} completed of ${rows.length} in range`,
+    `Actual payable (completed only): ${inr(grandTotal)}`,
+    ...byTailor.map((t) => `${t.tailorName}: ${t.completedCount}/${t.totalCount} completed — ${inr(t.total)}`),
   ];
 
   return (
@@ -198,12 +216,19 @@ export default function TailorPayableDetailsPage() {
           {byTailor.map((t) => (
             <div key={t.tailorName} className="rounded-lg border bg-card px-3 py-2 text-sm">
               <span className="font-medium">{t.tailorName}</span>
-              <span className="ml-2 text-muted-foreground">({t.count})</span>
+              <span className="ml-2 text-muted-foreground">
+                ({t.completedCount}/{t.totalCount} completed)
+              </span>
               <span className="ml-2 font-semibold">{inr(t.total)}</span>
             </div>
           ))}
         </div>
       )}
+      <p className="text-sm text-muted-foreground">
+        <span className="font-medium text-foreground">{completedRows.length} of {rows.length}</span> garments in range are
+        Ready/Delivered/Paid — actual payable for completed work is <span className="font-semibold text-foreground">{inr(grandTotal)}</span>.
+        {rows.length - completedRows.length > 0 && ` The rest are still in progress and shown below marked "Pending".`}
+      </p>
 
       {rows.length === 0 ? (
         <EmptyState icon={Wallet} title="No payables in range" description="No garment with a tailor assigned falls in the selected date range/filter." />
@@ -232,7 +257,7 @@ export default function TailorPayableDetailsPage() {
                   <Td align="right">{inr(grandTotal)}</Td>
                 </ReportTotalsRow>
                 {rows.map((r) => (
-                  <tr key={r.key} className="hover:bg-muted/30">
+                  <tr key={r.key} className={`hover:bg-muted/30 ${r.isPending ? "opacity-60" : ""}`}>
                     <Td>
                       <Link href={r.orderHref} className="text-primary hover:underline">
                         {r.orderId}
@@ -244,7 +269,15 @@ export default function TailorPayableDetailsPage() {
                     {isVisible("garment") && <Td>{r.garmentType}</Td>}
                     {isVisible("lining") && <Td className="text-muted-foreground">{r.lining}</Td>}
                     {isVisible("qty") && <Td align="right">{r.qty}</Td>}
-                    <Td align="right" className="font-medium">{inr(r.amount)}</Td>
+                    <Td align="right" className="font-medium">
+                      {r.isPending ? (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                          Pending
+                        </span>
+                      ) : (
+                        inr(r.amount)
+                      )}
+                    </Td>
                   </tr>
                 ))}
               </tbody>
@@ -255,8 +288,18 @@ export default function TailorPayableDetailsPage() {
               <MobileRecordHeader title="Total" value={inr(grandTotal)} showChevron={false} />
             </MobileRecordCard>
             {rows.map((r) => (
-              <MobileRecordCard key={r.key} href={r.orderHref}>
-                <MobileRecordHeader title={r.tailorName} subtitle={`${r.orderId} · ${r.customerName}`} value={inr(r.amount)} />
+              <MobileRecordCard key={r.key} href={r.orderHref} className={r.isPending ? "opacity-60" : ""}>
+                <MobileRecordHeader
+                  title={r.tailorName}
+                  subtitle={`${r.orderId} · ${r.customerName}`}
+                  value={
+                    r.isPending ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">Pending</span>
+                    ) : (
+                      inr(r.amount)
+                    )
+                  }
+                />
                 <MobileRecordRow label="Order Date" value={fmtDate(r.inDate)} />
                 <MobileRecordRow label="Garment" value={`${r.garmentType}${r.lining !== "—" ? ` (${r.lining})` : ""}`} />
                 <MobileRecordRow label="Qty" value={r.qty} />

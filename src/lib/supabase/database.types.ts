@@ -1297,6 +1297,10 @@ export interface Database {
         Args: { p_token: string };
         Returns: Json;
       };
+      user_roles_is_empty: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
       save_sales_invoice: {
         Args: {
           p_id: string | null;

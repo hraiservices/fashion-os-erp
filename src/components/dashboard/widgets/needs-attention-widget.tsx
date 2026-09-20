@@ -12,17 +12,17 @@ export function NeedsAttentionWidget() {
   if (isLoading || !stats) return <Skeleton className="h-64 w-full" />;
 
   return (
-    <section className="rounded-xl border bg-card">
-      <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+    <section className="flex h-full flex-col rounded-xl border bg-card">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3">
         <h2 className="truncate text-sm font-semibold">Needs attention</h2>
         <Link href="/reports/pending-orders" className="shrink-0 text-xs text-muted-foreground hover:text-foreground">
           View all
         </Link>
       </div>
       {stats.urgent.length === 0 ? (
-        <EmptyState icon={CalendarClock} title="All caught up" description="Nothing overdue or waiting for pickup." className="border-0" />
+        <EmptyState icon={CalendarClock} title="All caught up" description="Nothing overdue or waiting for pickup." className="border-0 flex-1" />
       ) : (
-        <ul className="divide-y">
+        <ul className="flex-1 divide-y overflow-y-auto">
           {stats.urgent.map((o) => (
             <li key={o.id}>
               <Link href={`/orders/${o.id}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">

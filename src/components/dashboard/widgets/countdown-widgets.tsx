@@ -92,8 +92,8 @@ export function UpcomingDeliveriesWidget() {
   if (isLoading) return <Skeleton className="h-64 w-full" />;
 
   return (
-    <section className="rounded-xl border bg-card">
-      <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+    <section className="flex h-full flex-col rounded-xl border bg-card">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <AlarmClock className="size-4 shrink-0 text-muted-foreground" />
           <h2 className="truncate text-sm font-semibold">Delivery Countdown</h2>
@@ -108,9 +108,9 @@ export function UpcomingDeliveriesWidget() {
         </Link>
       </div>
       {rows.length === 0 ? (
-        <EmptyState icon={AlarmClock} title="No active orders" description="Nothing currently in the delivery pipeline." className="border-0" />
+        <EmptyState icon={AlarmClock} title="No active orders" description="Nothing currently in the delivery pipeline." className="border-0 flex-1" />
       ) : (
-        <ul className="divide-y">
+        <ul className="flex-1 divide-y overflow-y-auto">
           {rows.map(({ order, target }) => (
             <CountdownRow key={order.id} order={order} target={target} now={now} />
           ))}
@@ -132,8 +132,8 @@ export function UpcomingPaymentsWidget() {
   if (isLoading) return <Skeleton className="h-64 w-full" />;
 
   return (
-    <section className="rounded-xl border bg-card">
-      <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+    <section className="flex h-full flex-col rounded-xl border bg-card">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <Wallet className="size-4 shrink-0 text-muted-foreground" />
           <h2 className="truncate text-sm font-semibold">Payment Countdown</h2>
@@ -148,9 +148,9 @@ export function UpcomingPaymentsWidget() {
         </Link>
       </div>
       {rows.length === 0 ? (
-        <EmptyState icon={Wallet} title="All payments collected" description="No outstanding balances on any order." className="border-0" />
+        <EmptyState icon={Wallet} title="All payments collected" description="No outstanding balances on any order." className="border-0 flex-1" />
       ) : (
-        <ul className="divide-y">
+        <ul className="flex-1 divide-y overflow-y-auto">
           {rows.map(({ order, target }) => (
             <CountdownRow key={order.id} order={order} target={target} now={now} amount={order.balance} />
           ))}

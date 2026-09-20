@@ -40,9 +40,10 @@ export function WidgetShell({
   children,
 }: {
   colSpan: 1 | 2 | 3 | 4;
-  /** Manually-set pixel height, from the bottom-edge drag handle below. Undefined = natural
-   *  content height (the default — see the grid's items-start, cards don't stretch to match
-   *  siblings). Set only when someone has explicitly dragged this one card taller/shorter. */
+  /** Manually-set pixel height, from the bottom-edge drag handle below, overriding the grid's
+   *  default row-stretch (every card in a row matches the tallest one). Undefined = the normal
+   *  stretched height. Set only when someone has explicitly dragged this one card taller/shorter
+   *  than its row. */
   heightPx?: number;
   href?: string;
   editing: boolean;
@@ -88,10 +89,7 @@ export function WidgetShell({
     onDragEnd?.();
   }
 
-  // Width-only resize. Height is NOT resizable and never stretches to match its row (the grid
-  // uses items-start) — every widget sizes to its own natural content height, on purpose, even
-  // if that leaves a row looking uneven. A tall widget (like LIVE Report) no longer forces its
-  // shorter row-mates to grow and sit mostly empty.
+  // Width-only resize.
   function handleResizeMouseDown(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
@@ -243,8 +241,10 @@ export function WidgetShell({
         </div>
       </div>
 
-      {/* h-full here just means "fill this container" — with the grid's items-start, the
-          container itself is sized by content, so this no longer causes row-stretching. */}
+      {/* h-full forces the widget's own root element to fill this container — which, since the
+          grid stretches every card in a row to match the tallest one, is how a list-style
+          widget's flex-1 content region actually grows to fill the row instead of leaving
+          blank space below a short, natural-height list. */}
       <div className={cn("h-full [&>*]:h-full", dragging && "pointer-events-none select-none")}>
         {children}
       </div>

@@ -14,17 +14,17 @@ export function TailorLoadWidget() {
   if (isLoading || !stats) return <Skeleton className="h-64 w-full" />;
 
   return (
-    <section className="rounded-xl border bg-card">
-      <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+    <section className="flex h-full flex-col rounded-xl border bg-card">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3">
         <h2 className="truncate text-sm font-semibold">Tailor load</h2>
         <Link href="/reports/tailor-workload" className="shrink-0 text-xs text-muted-foreground hover:text-foreground">
           View all
         </Link>
       </div>
       {stats.tailorStats.length === 0 ? (
-        <EmptyState icon={Users} title="No tailors assigned yet" className="border-0" />
+        <EmptyState icon={Users} title="No tailors assigned yet" className="border-0 flex-1" />
       ) : (
-        <ul className="divide-y">
+        <ul className="flex-1 divide-y overflow-y-auto">
           {stats.tailorStats.map((t) => (
             <li key={t.tailor} className="flex items-center gap-3 px-4 py-3 text-sm">
               <span className="min-w-0 flex-1 truncate font-medium">{tailorName(t.tailor)}</span>

@@ -16,7 +16,24 @@ Two of the report's hypotheses are **confirmed, root-caused, and fixed**. Two ar
 | 3 | N+1 in `buildTailorWorksheet()` | **Confirmed + fixed** |
 | 4 | `app_settings` — 46,176 calls | **Root-caused (server-side, uncached); NOT fixed this pass — see Remediation doc §"Deferred"** |
 | 5 | 17 unindexed FKs / 19 unused indexes | **Already addressed in the prior security audit pass** (see `add_missing_fk_indexes.sql`); not re-touched here per "don't blindly index" instruction |
-| 6 | Whether the reported query volume is Fashion Flow traffic or Supabase/tooling traffic | **Pending — needs Section 3 of `performance_diagnostic.sql`** |
+| 6 | Whether the reported query volume is Fashion Flow traffic or Supabase/tooling traffic | **Resolved — see "Traffic attribution" below. ~66% of total DB time in this window was Supabase/PostgREST/Studio/Auth internal overhead, not application code.** |
+
+---
+
+## Traffic attribution — the correction that changes the overall verdict
+
+Live `pg_stat_statements` grouped by executing role, across the full stats window (~2 months since 2026-07-24):
+
+| Attribution | Roles | Total calls | Total time | Share of total DB time |
+|---|---|---:|---:|---:|
+| **Fashion Flow's own traffic** | `authenticated` + `anon` + `service_role` | ~403,900 | ~759s | **~34%** |
+| **Supabase/PostgREST/Studio/Auth internal tooling** | `authenticator` + `postgres` + `supabase_admin` + `supabase_auth_admin` | ~903,400 | ~1,464s | **~66%** |
+
+The single largest total-time consumer in the entire system — `SELECT name FROM pg_timezone_names`, 1,290 calls, mean 463ms, **~597 seconds total, more than all of `app_settings` combined** — runs as `authenticator`, PostgREST's own internal connection role. This is PostgREST's schema-cache-reload machinery (it re-validates timezone strings on every cache reload), not Fashion Flow code. The same is true of a cluster of `postgres`/`supabase_admin`-role entries (`pg_available_extensions` introspection, function/type/domain introspection, an RLS/relation-introspection query averaging 1,485ms per call, a realtime-subscription existence check) — all Supabase Studio/tooling, not the application.
+
+**Caveat, stated plainly:** this audit itself applied a dense sequence of migrations in a short window immediately before this measurement. PostgREST reloads its schema cache on DDL changes, so some fraction of this "tooling overhead" total is very likely inflated by the audit's own migration activity and should settle down now that it's finished — this number should not be read as a permanent steady-state baseline.
+
+**What this changes:** the original report's implicit framing — "Fashion Flow is doing too much repeated database work" as the dominant explanation for the *entire* reported time total — does not hold up once traffic is actually separated by role, exactly as the report's own §13 said to check before concluding anything. Fashion Flow's real, addressable footprint is real (34% of ~2,227s is still ~759 seconds of real application-driven database time over 2 months) but is roughly a third of the picture, not the whole of it. The findings below remain valid and worth fixing on their own merits — they just shouldn't be read as explaining 100% of "the app feels slow."
 
 ---
 
@@ -101,6 +118,10 @@ The 128x number above is from a synthetic case. **This document cannot claim a s
 There is no caching layer anywhere in the codebase for these server-side reads (`grep -r "unstable_cache"` and equivalent found nothing relevant). Middleware runs before Next.js's React Server Component render tree even starts, so `React.cache()` (per-request memoization) cannot span across it and into `getServerUser()` — they are two genuinely separate invocations per request today.
 
 **Why this wasn't fixed in this pass:** this is a real architectural gap, not a one-line fix, and the report's own instruction is explicit — "do not make broad architectural changes merely because they sound theoretically faster." Two real options exist (a short-TTL in-memory cache scoped to the serverless instance, or consolidating `moduleEntitlements`/role data into signed JWT custom claims so neither middleware nor `getServerUser()` needs a DB round trip at all) and choosing between them changes how licensing/permission changes propagate (staleness window) — that's a decision for the project owner, not something to decide silently. See the Remediation document's "Deferred" section for the concrete options and their tradeoffs.
+
+**Denominator, now confirmed:** `pg_stat_statements` shows PostgREST's own per-request session-setup call (`set_config(...)`, cheap at 0.14ms mean but universal) ran 168,976 times in this window — that's the real total request count. `app_settings`'s 50,250 combined calls (`authenticated` + `anon` + `service_role` variants) are therefore **~30% of every single request this API served**, not an isolated hotspot — strong, direct confirmation this is worth fixing, whichever option is chosen.
+
+**A live, real anomaly worth a second look:** the identical `app_settings` key-lookup query is dramatically cheaper under `service_role` (mean 0.34ms) than under `authenticated` (5.30ms) or `anon` (16.47ms) — a ~15–48x gap on byte-identical SQL, measured by Postgres itself (not network/auth-handshake time). A direct `EXPLAIN (ANALYZE, BUFFERS)` of the same query as `authenticated` came back at **0.021ms execution, clean index scan, 2 buffer hits** — ruling out the query/RLS-policy shape as the cause. The gap is therefore being spent in PostgREST's own per-request session setup and/or connection-pooler contention under concurrent load, not in anything a schema or index change can fix — it reinforces that request *volume*, not query cost, is the real lever here.
 
 ---
 

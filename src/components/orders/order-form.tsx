@@ -51,6 +51,7 @@ import { useExtractMeasurements } from "@/hooks/use-measurement-extraction";
 import { useTranscribeVoiceNote } from "@/hooks/use-transcribe-voice-note";
 import { fileToDataUrl } from "@/lib/image-utils";
 import { MediaCapture } from "@/components/orders/media-capture";
+import { useResolvedMediaUrls, adaptMediaChange } from "@/hooks/use-order-media";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -272,7 +273,14 @@ function OrderFormFields({
       toast.error(e instanceof Error ? e.message : "Couldn't read the chart");
     }
   }
+  // `images` is canonical — a mix of legacy base64 data: URLs and, since the order-media
+  // Storage migration, Storage object paths (src/lib/supabase/media-storage.ts) — and is what
+  // actually gets submitted back to the order. `displayImages` resolves that into URLs the
+  // <img> tags below can render (a Storage path needs a signed URL); adaptMediaChange()
+  // translates MediaCapture's add/remove edits, made against displayImages, back onto images
+  // itself, so an untouched entry is never overwritten with its temporary signed display URL.
   const [images, setImages] = useState<string[]>(existingOrder?.images || []);
+  const displayImages = useResolvedMediaUrls(images);
   const [audios, setAudios] = useState<string[]>(existingOrder?.audios || []);
   const [videos, setVideos] = useState<string[]>(existingOrder?.videos || []);
   const transcribeVoiceNote = useTranscribeVoiceNote();
@@ -1198,10 +1206,10 @@ function OrderFormFields({
           </div>
 
           <MediaCapture
-            images={images}
+            images={displayImages}
             audios={audios}
             videos={videos}
-            onImagesChange={setImages}
+            onImagesChange={(next) => setImages(adaptMediaChange(images, displayImages, next))}
             onAudiosChange={setAudios}
             onVideosChange={setVideos}
             onTranscribe={handleTranscribe}

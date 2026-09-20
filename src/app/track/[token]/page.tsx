@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { Phone } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import { resolveOrderImageUrls } from "@/lib/supabase/media-storage";
 import { fetchPublicOrderStatus, parseHistoryLine, type PublicOrderStatusOrder } from "@/lib/public-order-status";
 import { STAGE_META, normalizeIndianMobile, type Stage } from "@/lib/business-rules";
 import { inr, fmtDate } from "@/lib/format";
@@ -29,7 +31,16 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
   const data = await fetchPublicOrderStatus(supabase, token);
   if (!data) notFound();
 
-  const { customerName, loyaltyPoints, measurements, orders, shopName, shopPhone, shopLogoDataUrl, salesDue, canRedeemPoints, maxPointsDiscount } = data;
+  const { customerName, loyaltyPoints, measurements, shopName, shopPhone, shopLogoDataUrl, salesDue, canRedeemPoints, maxPointsDiscount } = data;
+  // get_customer_order_status() returns images exactly as stored — a mix of legacy base64
+  // data: URLs and, since the order-media Storage migration, Storage object paths (see
+  // src/lib/supabase/media-storage.ts) — resolve the latter to signed URLs server-side (this
+  // page is unauthenticated, so it can't rely on the client-side Storage RLS policy other
+  // order views use).
+  const db = createServiceClient();
+  const orders = db
+    ? await Promise.all(data.orders.map(async (o) => ({ ...o, images: await resolveOrderImageUrls(db, o.images) })))
+    : data.orders;
   const measurementEntries = Object.entries(measurements).filter(([, v]) => typeof v === "string" && v.trim() !== "");
   const waHref = shopPhone ? `https://wa.me/91${normalizeIndianMobile(shopPhone)}` : "";
   const stitchingDue = orders.reduce((s, o) => s + (o.balance > 0 ? o.balance : 0), 0);

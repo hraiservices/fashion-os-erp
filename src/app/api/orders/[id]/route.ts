@@ -9,6 +9,7 @@ import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
 import type { Json } from "@/lib/supabase/database.types";
 import { getProfiles, upsertProfile, toJson } from "@/lib/measurement-profiles";
+import { migrateOrderImages } from "@/lib/supabase/media-storage";
 
 const garmentSchema = z.object({
   type: z.string().min(1),
@@ -155,6 +156,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
   }
 
+  // Order-media Storage migration, Phase 1 (see
+  // supabase/migrations/create_order_media_storage_bucket.sql): uploads every raw base64 photo
+  // in this edit to Storage and stores its object path instead. An entry that's already a
+  // Storage path (untouched since a previous save already migrated it) passes through as-is.
+  let migratedImages: string[] | null = null;
+  if (patch.images !== undefined) {
+    try {
+      migratedImages = await migrateOrderImages(db, id, patch.images);
+    } catch (e) {
+      return NextResponse.json({ error: e instanceof Error ? e.message : "Could not save attached photos" }, { status: 500 });
+    }
+  }
+
   const { data: updatedRows, error } = await db.rpc("edit_order", {
     p_order_id:      id,
     p_name:          patch.name          ?? null,
@@ -169,7 +183,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     p_tailor:        patch.tailor        ?? null,
     p_special:       patch.special       ?? null,
     p_measurements:  patch.measurements  ?? null,
-    p_images:        patch.images        ?? null,
+    p_images:        migratedImages,
     p_audios:        patch.audios        ?? null,
     p_videos:        patch.videos        ?? null,
     p_order_type:    patch.orderType     ?? null,

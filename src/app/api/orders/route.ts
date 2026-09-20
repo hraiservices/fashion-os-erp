@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -8,9 +9,10 @@ import { logAction, resolveActingUserName } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
 import type { ModuleEntitlements } from "@/lib/entitlements";
-import type { Json } from "@/lib/supabase/database.types";
+import type { Database, Json } from "@/lib/supabase/database.types";
 import { DEFAULT_DOCUMENT_NUMBERING, formatDocNumber, periodKeyFor, type DocumentNumberingSettings } from "@/lib/document-numbering";
 import { getProfiles, upsertProfile, toJson } from "@/lib/measurement-profiles";
+import { migrateOrderImages } from "@/lib/supabase/media-storage";
 
 const garmentSchema = z.object({
   type: z.string().min(1),
@@ -244,6 +246,36 @@ export async function POST(request: Request) {
     (ptDiscount > 0 ? ` · 🎁 ₹${ptDiscount} loyalty pts applied` : "") +
     (couponDiscount > 0 ? ` · 🎟️ ₹${couponDiscount} referral coupon applied` : "");
 
+  // Points/coupon were already reserved above. The order doesn't exist yet at this point in
+  // either failure path below, so nothing will ever consume that reservation — hand it back,
+  // otherwise a failed create silently burns the customer's balance/coupon. Takes the
+  // service-role client as a parameter (rather than closing over the outer `db`) purely so
+  // TypeScript keeps its already-checked non-null narrowing across the call.
+  async function releaseReservations(svc: SupabaseClient<Database>) {
+    if (ptsToRedeem > 0) {
+      await svc.rpc("refund_loyalty_discount", {
+        p_mobile: fd.mobile,
+        p_pts: ptsToRedeem,
+        p_order_id: id,
+        p_note: "Order creation failed — redemption reversed",
+      });
+    }
+    if (redeemedCouponCode) {
+      await svc.rpc("release_referral_coupon", { p_code: redeemedCouponCode });
+    }
+  }
+
+  // Order-media Storage migration, Phase 1 (see supabase/migrations/create_order_media_storage_bucket.sql):
+  // uploads every raw base64 photo to Storage and stores its object path instead. `id` is
+  // already final at this point, so it's safe to use as the object path prefix.
+  let migratedImages: string[];
+  try {
+    migratedImages = await migrateOrderImages(db, id, fd.images);
+  } catch (e) {
+    await releaseReservations(db);
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Could not save attached photos" }, { status: 500 });
+  }
+
   const { data: insertedRow, error: insertError } = await db
     .from("orders")
     .insert({
@@ -263,7 +295,7 @@ export async function POST(request: Request) {
       special: fd.special,
       history: [historyLine],
       measurements: fd.measurements as Json,
-      images: fd.images,
+      images: migratedImages,
       audios: fd.audios,
       videos: fd.videos,
       order_type: fd.orderType,
@@ -277,21 +309,7 @@ export async function POST(request: Request) {
     .select("*")
     .single();
   if (insertError || !insertedRow) {
-    // Points were already deducted by reserve_loyalty_discount above. The order does not
-    // exist, so nothing will ever consume that discount — hand the points back, otherwise
-    // a failed insert silently burns the customer's balance.
-    if (ptsToRedeem > 0) {
-      await db.rpc("refund_loyalty_discount", {
-        p_mobile: fd.mobile,
-        p_pts: ptsToRedeem,
-        p_order_id: id,
-        p_note: "Order creation failed — redemption reversed",
-      });
-    }
-    // Same reasoning for a reserved-but-now-orphaned referral coupon.
-    if (redeemedCouponCode) {
-      await db.rpc("release_referral_coupon", { p_code: redeemedCouponCode });
-    }
+    await releaseReservations(db);
     return NextResponse.json({ error: insertError?.message || "Insert failed" }, { status: 500 });
   }
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, CalendarCheck, Camera } from "lucide-react";
+import { ArrowLeft, CalendarCheck, Camera, Pencil } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
 import { useAttendanceForDate, useMarkAttendance } from "@/hooks/use-attendance";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AttendanceDetailDialog } from "@/components/employees/attendance-detail-dialog";
+import { AttendanceEditDialog } from "@/components/employees/attendance-edit-dialog";
 import { cn } from "@/lib/utils";
 import type { AttendanceStatus, Attendance } from "@/lib/types";
 
@@ -34,6 +35,7 @@ export default function AttendancePage() {
   const { data: user } = useCurrentUser();
   const markAttendance = useMarkAttendance();
   const [detailFor, setDetailFor] = useState<{ attendance: Attendance; employeeName: string } | null>(null);
+  const [editFor, setEditFor] = useState<{ employeeId: string; employeeName: string; attendance?: Attendance } | null>(null);
 
   const canManage = !!user?.perms.manageEmployees;
   const active = (employees || []).filter((e) => e.active);
@@ -104,6 +106,18 @@ export default function AttendancePage() {
                     </button>
                   ))}
                 </div>
+                {canManage && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label={`Edit attendance for ${e.name}`}
+                    title="Edit attendance"
+                    onClick={() => setEditFor({ employeeId: e.id, employeeName: e.name, attendance: current })}
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
+                )}
               </div>
             );
           })}
@@ -116,6 +130,17 @@ export default function AttendancePage() {
           employeeName={detailFor.employeeName}
           open={!!detailFor}
           onOpenChange={(v) => !v && setDetailFor(null)}
+        />
+      )}
+
+      {editFor && (
+        <AttendanceEditDialog
+          employeeId={editFor.employeeId}
+          employeeName={editFor.employeeName}
+          date={date}
+          current={editFor.attendance}
+          open={!!editFor}
+          onOpenChange={(v) => !v && setEditFor(null)}
         />
       )}
     </div>

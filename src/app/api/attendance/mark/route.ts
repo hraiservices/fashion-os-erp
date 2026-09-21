@@ -3,6 +3,13 @@ import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
+import { DEFAULT_ATTENDANCE_SETTINGS, MAX_SHIFT_HOURS, type AttendanceSettings } from "@/lib/attendance-settings";
+
+/** "HH:MM" IST wall-clock time + a YYYY-MM-DD date -> the UTC instant it represents. IST has no
+ *  DST, so the offset is always exactly +05:30. */
+function istWallTimeToIso(date: string, time: string): string {
+  return new Date(`${date}T${time}:00+05:30`).toISOString();
+}
 
 const bodySchema = z.object({
   employeeId: z.string().min(1),
@@ -48,6 +55,33 @@ export async function POST(request: Request) {
   const db = createServiceClient();
   if (!db) return NextResponse.json({ error: "Server is not configured to manage attendance (missing service role key)" }, { status: 501 });
 
+  // A "self_service" row (the employee's own PIN check-in/out) is displayed from check_in_at/
+  // check_out_at, not the plain check_in/check_out columns below — those are legacy fields only
+  // manual rows show. Without also updating check_in_at/check_out_at here, an admin correcting a
+  // self-checked-in employee's time saw it save with no visible change: the detail dialog (photo/
+  // GPS punch) kept showing the original self-service timestamp. Recompute the corrected instant
+  // (assuming the edited HH:MM is shop-local IST wall-clock time) and hours_worked/overtime_hours
+  // alongside it, without touching the row's existing GPS/photo/geofence fields.
+  const { data: existing } = await db
+    .from("employee_attendance")
+    .select("check_in_at, check_out_at")
+    .eq("employee_id", employeeId)
+    .eq("date", date)
+    .maybeSingle();
+
+  const checkInAt = checkIn ? istWallTimeToIso(date, checkIn) : existing?.check_in_at || null;
+  const checkOutAt = checkOut ? istWallTimeToIso(date, checkOut) : existing?.check_out_at || null;
+
+  let hoursWorked: number | null = null;
+  let overtimeHours = 0;
+  if (checkInAt && checkOutAt) {
+    const rawHours = (new Date(checkOutAt).getTime() - new Date(checkInAt).getTime()) / 3_600_000;
+    hoursWorked = Math.round(Math.min(Math.max(rawHours, 0), MAX_SHIFT_HOURS) * 100) / 100;
+    const { data: settingRow } = await db.from("app_settings").select("value").eq("key", "attendanceSettings").maybeSingle();
+    const settings: AttendanceSettings = { ...DEFAULT_ATTENDANCE_SETTINGS, ...((settingRow?.value as Partial<AttendanceSettings>) || {}) };
+    overtimeHours = Math.round(Math.max(0, hoursWorked - settings.standardShiftHours) * 100) / 100;
+  }
+
   const { error } = await db.from("employee_attendance").upsert(
     {
       employee_id: employeeId,
@@ -55,6 +89,9 @@ export async function POST(request: Request) {
       status,
       check_in: checkIn || null,
       check_out: checkOut || null,
+      ...(checkIn ? { check_in_at: checkInAt } : {}),
+      ...(checkOut ? { check_out_at: checkOutAt } : {}),
+      ...(hoursWorked != null ? { hours_worked: hoursWorked, overtime_hours: overtimeHours } : {}),
       notes: notes || "",
       created_by: user.email,
     },

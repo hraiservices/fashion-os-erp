@@ -612,3 +612,61 @@ export function sortEntries(entries: DayBookEntry[], order: "asc" | "desc"): Day
   const sorted = [...entries].sort((a, b) => a.time.localeCompare(b.time));
   return order === "desc" ? sorted.reverse() : sorted;
 }
+
+export interface TailorStageActivity {
+  tailorId: string;
+  tailorName: string;
+  stitchingToFinishing: number;
+  finishingToReady: number;
+}
+
+/** "Stage changed: Stitching → Finishing for X" — same STAGE_META labels
+ *  advance-stage/route.ts and set-stage/route.ts both build the logged line from, so this
+ *  matches regardless of which route triggered the change. */
+const STITCHING_TO_FINISHING = `Stage changed: ${STAGE_META.stitching.label} → ${STAGE_META.finishing.label} for`;
+const FINISHING_TO_READY = `Stage changed: ${STAGE_META.finishing.label} → ${STAGE_META.ready.label} for`;
+
+/**
+ * Per-tailor counts of the two stage transitions a tailor can point to as "what I did today":
+ * Stitching -> Finishing (their own stitching work finished) and Finishing -> Ready (a garment
+ * they finished is now ready for pickup) — "ready to deliver" and "moved to Ready" are the same
+ * count, so there is no separate metric for it.
+ *
+ * Stage is tracked per ORDER, but a tailor is assigned per GARMENT — an order with garments split
+ * across tailors credits every distinct tailor on it once for that order's transition (not once
+ * per garment), since the ask is "how many orders", not "how many garments".
+ */
+export function buildTailorStageProgress(
+  activityRows: ActivityLogRow[],
+  ordersById: Map<string, { garments: { tailor?: string }[] }>,
+  employeeNameById: Map<string, string>
+): TailorStageActivity[] {
+  const byTailor = new Map<string, TailorStageActivity>();
+
+  function credit(tailorId: string, field: "stitchingToFinishing" | "finishingToReady") {
+    const name = tailorId ? employeeNameById.get(tailorId) || "Unknown" : "Unassigned";
+    const existing = byTailor.get(tailorId) || { tailorId, tailorName: name, stitchingToFinishing: 0, finishingToReady: 0 };
+    existing[field] += 1;
+    byTailor.set(tailorId, existing);
+  }
+
+  for (const r of activityRows) {
+    if (!r.order_id) continue;
+    const field = r.action.includes(STITCHING_TO_FINISHING)
+      ? "stitchingToFinishing"
+      : r.action.includes(FINISHING_TO_READY)
+        ? "finishingToReady"
+        : null;
+    if (!field) continue;
+
+    const order = ordersById.get(r.order_id);
+    const tailorIds = new Set((order?.garments || []).map((g) => g.tailor || "").filter(Boolean));
+    if (tailorIds.size === 0) {
+      credit("", field);
+    } else {
+      for (const tailorId of tailorIds) credit(tailorId, field);
+    }
+  }
+
+  return Array.from(byTailor.values()).sort((a, b) => a.tailorName.localeCompare(b.tailorName));
+}

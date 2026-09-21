@@ -19,6 +19,8 @@ import {
   Activity as ActivityIcon,
   ArrowUpDown,
   Search,
+  Scissors,
+  CheckCircle2,
 } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDayBook } from "@/hooks/use-day-book";
@@ -186,6 +188,43 @@ export default function DayBookPage() {
             <StatCard label="Attendance Events" value={data.totals.attendanceEvents} icon={Clock} />
             <StatCard label="Total Activities" value={data.totals.totalActivities} icon={ActivityIcon} />
           </div>
+
+          {/* Tailor activity — what each tailor moved forward today, so it can be read out to
+              them directly ("you moved N to Finishing and M to Ready today"). */}
+          {data.tailorActivity.length > 0 && (
+            <ReportCard className="p-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tailor Activity Today</p>
+              <div className="hidden sm:block">
+                <ReportTable>
+                  <thead className="border-b bg-muted/40">
+                    <tr>
+                      <Th>Tailor</Th>
+                      <Th align="right">Stitching → Finishing</Th>
+                      <Th align="right">Finishing → Ready (ready to deliver)</Th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {data.tailorActivity.map((t) => (
+                      <tr key={t.tailorId} className="hover:bg-muted/30">
+                        <Td className="font-medium">{t.tailorName}</Td>
+                        <Td align="right" className="tabular-nums">{t.stitchingToFinishing}</Td>
+                        <Td align="right" className="tabular-nums">{t.finishingToReady}</Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </ReportTable>
+              </div>
+              <MobileRecordList>
+                {data.tailorActivity.map((t) => (
+                  <MobileRecordCard key={t.tailorId}>
+                    <MobileRecordHeader title={t.tailorName} showChevron={false} />
+                    <MobileRecordRow label="Stitching → Finishing" value={<span className="inline-flex items-center gap-1"><Scissors className="size-3.5" />{t.stitchingToFinishing}</span>} />
+                    <MobileRecordRow label="Finishing → Ready (ready to deliver)" value={<span className="inline-flex items-center gap-1"><CheckCircle2 className="size-3.5" />{t.finishingToReady}</span>} />
+                  </MobileRecordCard>
+                ))}
+              </MobileRecordList>
+            </ReportCard>
+          )}
 
           {/* Charts */}
           <div className="grid gap-4 lg:grid-cols-2">

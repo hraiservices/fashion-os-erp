@@ -24,7 +24,7 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  SELECT COALESCE(jsonb_agg(o ORDER BY o.in_date), '[]'::jsonb) INTO v_orders
+  SELECT COALESCE(jsonb_agg(o ORDER BY o."inDate"), '[]'::jsonb) INTO v_orders
   FROM (
     SELECT
       ord.id,
@@ -39,7 +39,7 @@ BEGIN
     WHERE ord.mobile = v_customer.mobile
   ) o;
 
-  SELECT COALESCE(jsonb_agg(i ORDER BY i.invoice_date), '[]'::jsonb) INTO v_invoices
+  SELECT COALESCE(jsonb_agg(i ORDER BY i."invoiceDate"), '[]'::jsonb) INTO v_invoices
   FROM (
     SELECT
       inv.id,

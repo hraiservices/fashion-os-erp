@@ -21,6 +21,7 @@ import {
   buildPayslipPaidEntries,
   buildAdvanceEntries,
   buildOtherActivityLogEntries,
+  buildTailorStageProgress,
   sortEntries,
   type DayBookEntry,
 } from "@/lib/day-book";
@@ -177,6 +178,20 @@ export async function GET(request: Request) {
     orderExpenseByOrderId.set(e.order_id, (orderExpenseByOrderId.get(e.order_id) || 0) + (e.amount || 0));
   }
 
+  // Per-tailor "what did I do today" — Stitching→Finishing / Finishing→Ready counts. Stage
+  // transitions can land on orders created any earlier day, not just today's ordersRes, so the
+  // orders those stage-change log lines reference need their own (garments-only) lookup.
+  const stageChangeOrderIds = new Set(
+    (orderActivityRes.data || []).filter((r) => r.order_id && r.action.includes("Stage changed")).map((r) => r.order_id as string)
+  );
+  const { data: stageChangeOrderRows } = stageChangeOrderIds.size
+    ? await db.from("orders").select("id, garments").in("id", Array.from(stageChangeOrderIds))
+    : { data: [] };
+  const stageChangeOrdersById = new Map(
+    (stageChangeOrderRows || []).map((o) => [o.id, { garments: (o.garments as unknown as { tailor?: string }[]) || [] }])
+  );
+  const tailorActivity = buildTailorStageProgress(orderActivityRes.data || [], stageChangeOrdersById, employeeNameById);
+
   const entries: DayBookEntry[] = [
     ...buildSalesInvoiceEntries(invoicesRes.data || [], employeeNameById),
     ...buildSalesPaymentEntries(paymentsRes.data || [], invoiceByIdMap, employeeNameById),
@@ -248,6 +263,7 @@ export async function GET(request: Request) {
     date,
     entries: sortEntries(entries, "asc"),
     totals,
+    tailorActivity,
     canSeePayroll,
   });
 }

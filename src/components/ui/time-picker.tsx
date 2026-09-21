@@ -1,37 +1,47 @@
 "use client";
 
-import { useRef } from "react";
 import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-/** "14:05" -> "2:05 PM" */
-function fmt12h(value: string): string {
+const HOURS = Array.from({ length: 12 }, (_, i) => i + 1); // 1..12
+const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5); // 0,5,...,55
+
+function pad2(n: number): string {
+  return n.toString().padStart(2, "0");
+}
+
+/** "14:05" -> { h12: 2, m: 5, ampm: "PM" } */
+function parse(value: string): { h12: number; m: number; ampm: "AM" | "PM" } {
   const [hStr, mStr] = value.split(":");
-  const h = parseInt(hStr, 10);
-  if (Number.isNaN(h)) return value;
-  const ampm = h >= 12 ? "PM" : "AM";
-  const h12 = h % 12 || 12;
-  return `${h12}:${mStr} ${ampm}`;
+  const h24 = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  if (Number.isNaN(h24) || Number.isNaN(m)) return { h12: 12, m: 0, ampm: "AM" };
+  const ampm = h24 >= 12 ? "PM" : "AM";
+  const h12 = h24 % 12 || 12;
+  return { h12, m, ampm };
+}
+
+function toValue(h12: number, m: number, ampm: "AM" | "PM"): string {
+  const h24 = ampm === "AM" ? (h12 % 12) : (h12 % 12) + 12;
+  return `${pad2(h24)}:${pad2(m)}`;
 }
 
 /**
- * Time field styled to match DatePicker (and the rest of the app's h-10 inputs). Native
- * `<input type="time">` sizes itself inconsistently across mobile browsers — Android Chrome in
- * particular renders it noticeably taller than a text input, ignoring `h-10` — so the native
- * input here is an invisible full-size overlay on top of a plain styled button; tapping anywhere
- * still opens the OS/browser time picker, but the visible surface is CSS we fully control.
+ * Time field styled to match DatePicker (and the rest of the app's h-10 inputs).
  *
- * The overlay-click-through approach is unreliable inside a Base UI Dialog specifically: a click
- * that lands on the (opacity-0, but still hit-testable) native input doesn't reliably open the
- * picker there, unlike on a plain page (order-form.tsx). Rather than depend on that, the visible
- * wrapper's own click explicitly calls `showPicker()` on the underlying input via a ref — this
- * works the same everywhere a click can reach the wrapper, dialog or not.
+ * Previously an invisible native `<input type="time">` overlaid on a styled button, tapping
+ * through to trigger the OS/browser's own time picker. That depends on browser support for
+ * `showPicker()`/native picker UI, which is inconsistent across contexts (confirmed broken inside
+ * a Base UI Dialog, and unsupported entirely on some browsers/webviews) -- reported as fields that
+ * looked right but weren't clickable/selectable at all. This picker is fully self-built from the
+ * same Select component already used elsewhere in this app (e.g. the Status field right next to
+ * it in the attendance edit dialog), so it has no dependency on any browser's native time UI.
  */
 export function TimePicker({
   value,
   onChange,
   className,
-  id,
   disabled,
 }: {
   value: string;
@@ -40,39 +50,49 @@ export function TimePicker({
   id?: string;
   disabled?: boolean;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const { h12, m, ampm } = parse(value || "12:00");
 
-  function openPicker() {
-    if (disabled) return;
-    try {
-      inputRef.current?.showPicker?.();
-    } catch {
-      inputRef.current?.focus();
-    }
+  function set(next: Partial<{ h12: number; m: number; ampm: "AM" | "PM" }>) {
+    onChange(toValue(next.h12 ?? h12, next.m ?? m, next.ampm ?? ampm));
   }
 
   return (
-    <div className={cn("relative h-10 w-full min-w-0", className)}>
-      <div
-        onClick={openPicker}
-        className={cn(
-          "flex h-10 w-full min-w-0 cursor-pointer items-center gap-2 rounded-lg border border-input bg-transparent px-3 text-sm font-normal",
-          !value && "text-muted-foreground",
-          disabled && "pointer-events-none opacity-50"
-        )}
-      >
-        <Clock className="size-4 shrink-0 text-muted-foreground" />
-        <span className="truncate">{value ? fmt12h(value) : "Pick a time"}</span>
-      </div>
-      <input
-        ref={inputRef}
-        id={id}
-        type="time"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-      />
+    <div className={cn("flex h-10 w-full min-w-0 items-center gap-1 rounded-lg border border-input bg-transparent pl-2.5 pr-1", className)}>
+      <Clock className="size-4 shrink-0 text-muted-foreground" />
+      <Select value={value ? String(h12) : ""} onValueChange={(v) => v && set({ h12: parseInt(v, 10) })} disabled={disabled}>
+        <SelectTrigger className="h-8 w-14 border-0 px-1.5 shadow-none">
+          <SelectValue>{value ? h12 : "--"}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {HOURS.map((h) => (
+            <SelectItem key={h} value={String(h)}>
+              {h}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <span className="text-muted-foreground">:</span>
+      <Select value={value ? String(m) : ""} onValueChange={(v) => v && set({ m: parseInt(v, 10) })} disabled={disabled}>
+        <SelectTrigger className="h-8 w-14 border-0 px-1.5 shadow-none">
+          <SelectValue>{value ? pad2(m) : "--"}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {MINUTES.map((mm) => (
+            <SelectItem key={mm} value={String(mm)}>
+              {pad2(mm)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={value ? ampm : ""} onValueChange={(v) => v && set({ ampm: v as "AM" | "PM" })} disabled={disabled}>
+        <SelectTrigger className="h-8 w-16 border-0 px-1.5 shadow-none">
+          <SelectValue>{value ? ampm : "--"}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="AM">AM</SelectItem>
+          <SelectItem value="PM">PM</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
   );
 }

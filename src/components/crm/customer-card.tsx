@@ -61,33 +61,40 @@ export function CustomerCard({ cust, loyaltyCfg, invoices = [] }: { cust: Custom
           </p>
         </div>
         {user?.perms.manageCustomers && (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <button
-                  type="button"
-                  aria-label={`Actions for ${cust.name}`}
-                  className="-m-1.5 flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted sm:size-8"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                >
-                  <MoreVertical className="size-4" />
-                </button>
-              }
-            />
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setEditOpen(true)}>
-                <Pencil className="size-4" /> Edit
-              </DropdownMenuItem>
-              {user?.perms.deleteCustomers && (
-                <DropdownMenuItem variant="destructive" onClick={() => setConfirmOpen(true)}>
-                  <Trash2 className="size-4" /> Delete
+          // DropdownMenuContent renders into a portal, so its clicks aren't a DOM descendant of
+          // this <Link> — but React dispatches synthetic events along the *component* tree, not
+          // the DOM tree, so a click on "Edit"/"Delete" still bubbles up through here and into the
+          // Link's navigation unless stopped. The trigger button already stops its own click; this
+          // stops the later item click the same way customer-list-row.tsx's action cell does.
+          <div onClick={(e) => e.stopPropagation()}>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label={`Actions for ${cust.name}`}
+                    className="-m-1.5 flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted sm:size-8"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                  >
+                    <MoreVertical className="size-4" />
+                  </button>
+                }
+              />
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                  <Pencil className="size-4" /> Edit
                 </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                {user?.perms.deleteCustomers && (
+                  <DropdownMenuItem variant="destructive" onClick={() => setConfirmOpen(true)}>
+                    <Trash2 className="size-4" /> Delete
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         )}
       </Link>
 

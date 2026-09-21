@@ -50,6 +50,10 @@ export function buildCustomerMap(orders: Order[], customers: Customer[]): Custom
 
   customers.forEach((c) => {
     if (!m[c.mobile]) m[c.mobile] = BLANK_PROFILE(c.name, c.mobile);
+    // The profile is seeded from the order's snapshotted name above (orders keep the name as
+    // it was when placed), so it must be overwritten here or an edited customer name never
+    // shows anywhere buildCustomerMap() is used once they have an order on file.
+    m[c.mobile].name = c.name;
     m[c.mobile].email = c.email || "";
     m[c.mobile].dob = c.dob || "";
     m[c.mobile].anniversary = c.anniversary || "";

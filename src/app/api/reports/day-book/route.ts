@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { istDayBoundsUtc } from "@/lib/ist-date";
+import type { Stage } from "@/lib/business-rules";
 import {
   buildSalesInvoiceEntries,
   buildSalesPaymentEntries,
@@ -185,10 +186,19 @@ export async function GET(request: Request) {
     (orderActivityRes.data || []).filter((r) => r.order_id && r.action.includes("Stage changed")).map((r) => r.order_id as string)
   );
   const { data: stageChangeOrderRows } = stageChangeOrderIds.size
-    ? await db.from("orders").select("id, garments").in("id", Array.from(stageChangeOrderIds))
+    ? await db.from("orders").select("id, name, status, garments").in("id", Array.from(stageChangeOrderIds))
     : { data: [] };
   const stageChangeOrdersById = new Map(
-    (stageChangeOrderRows || []).map((o) => [o.id, { garments: (o.garments as unknown as { tailor?: string }[]) || [] }])
+    (stageChangeOrderRows || []).map((o) => [
+      o.id,
+      {
+        name: o.name,
+        // Same legacy "trial" -> "ready" fold mapOrderRow does (src/lib/types.ts) — a raw
+        // 'trial' row would otherwise render an unrecognized stage badge here.
+        status: (o.status === "trial" ? "ready" : o.status) as Stage,
+        garments: (o.garments as unknown as { tailor?: string; payableAmount?: number }[]) || [],
+      },
+    ])
   );
   const tailorActivity = buildTailorStageProgress(orderActivityRes.data || [], stageChangeOrdersById, employeeNameById);
 

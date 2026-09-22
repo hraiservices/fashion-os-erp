@@ -613,11 +613,29 @@ export function sortEntries(entries: DayBookEntry[], order: "asc" | "desc"): Day
   return order === "desc" ? sorted.reverse() : sorted;
 }
 
+export interface TailorStageOrder {
+  orderId: string;
+  customerName: string;
+  status: Stage;
+}
+
 export interface TailorStageActivity {
   tailorId: string;
   tailorName: string;
   stitchingToFinishing: number;
   finishingToReady: number;
+  stitchingToFinishingOrders: TailorStageOrder[];
+  finishingToReadyOrders: TailorStageOrder[];
+  /** Sum of this tailor's own garments' payableAmount, for orders that reached Ready today —
+   *  the moment a garment's payableAmount freezes permanently (see business-rules.ts). Only
+   *  counts Finishing → Ready orders, not the full running total across every stage. */
+  payableToday: number;
+}
+
+interface StageChangeOrder {
+  name: string;
+  status: Stage;
+  garments: { tailor?: string; payableAmount?: number }[];
 }
 
 /** "Stage changed: Stitching → Finishing for X" — same STAGE_META labels
@@ -627,27 +645,40 @@ const STITCHING_TO_FINISHING = `Stage changed: ${STAGE_META.stitching.label} →
 const FINISHING_TO_READY = `Stage changed: ${STAGE_META.finishing.label} → ${STAGE_META.ready.label} for`;
 
 /**
- * Per-tailor counts of the two stage transitions a tailor can point to as "what I did today":
- * Stitching -> Finishing (their own stitching work finished) and Finishing -> Ready (a garment
- * they finished is now ready for pickup) — "ready to deliver" and "moved to Ready" are the same
- * count, so there is no separate metric for it.
+ * Per-tailor counts (plus the underlying order list and today's payable) of the two stage
+ * transitions a tailor can point to as "what I did today": Stitching -> Finishing (their own
+ * stitching work finished) and Finishing -> Ready (a garment they finished is now ready for
+ * pickup) — "ready to deliver" and "moved to Ready" are the same count, so there is no separate
+ * metric for it.
  *
  * Stage is tracked per ORDER, but a tailor is assigned per GARMENT — an order with garments split
  * across tailors credits every distinct tailor on it once for that order's transition (not once
- * per garment), since the ask is "how many orders", not "how many garments".
+ * per garment), since the ask is "how many orders", not "how many garments". Same reasoning for
+ * payableToday: only that tailor's own garments within a Finishing → Ready order count toward
+ * their payable, even if the order also has garments belonging to other tailors.
  */
 export function buildTailorStageProgress(
   activityRows: ActivityLogRow[],
-  ordersById: Map<string, { garments: { tailor?: string }[] }>,
+  ordersById: Map<string, StageChangeOrder>,
   employeeNameById: Map<string, string>
 ): TailorStageActivity[] {
   const byTailor = new Map<string, TailorStageActivity>();
 
-  function credit(tailorId: string, field: "stitchingToFinishing" | "finishingToReady") {
+  function entryFor(tailorId: string): TailorStageActivity {
     const name = tailorId ? employeeNameById.get(tailorId) || "Unknown" : "Unassigned";
-    const existing = byTailor.get(tailorId) || { tailorId, tailorName: name, stitchingToFinishing: 0, finishingToReady: 0 };
-    existing[field] += 1;
-    byTailor.set(tailorId, existing);
+    const existing = byTailor.get(tailorId);
+    if (existing) return existing;
+    const created: TailorStageActivity = {
+      tailorId,
+      tailorName: name,
+      stitchingToFinishing: 0,
+      finishingToReady: 0,
+      stitchingToFinishingOrders: [],
+      finishingToReadyOrders: [],
+      payableToday: 0,
+    };
+    byTailor.set(tailorId, created);
+    return created;
   }
 
   for (const r of activityRows) {
@@ -660,11 +691,17 @@ export function buildTailorStageProgress(
     if (!field) continue;
 
     const order = ordersById.get(r.order_id);
-    const tailorIds = new Set((order?.garments || []).map((g) => g.tailor || "").filter(Boolean));
-    if (tailorIds.size === 0) {
-      credit("", field);
-    } else {
-      for (const tailorId of tailorIds) credit(tailorId, field);
+    const garments = order?.garments || [];
+    const tailorIds = new Set(garments.map((g) => g.tailor || "").filter(Boolean));
+    const orderDetail: TailorStageOrder = { orderId: r.order_id, customerName: order?.name || "—", status: order?.status || "received" };
+
+    for (const tailorId of tailorIds.size ? tailorIds : [""]) {
+      const entry = entryFor(tailorId);
+      entry[field] += 1;
+      entry[`${field}Orders`].push(orderDetail);
+      if (field === "finishingToReady") {
+        entry.payableToday += garments.filter((g) => (g.tailor || "") === tailorId).reduce((s, g) => s + (g.payableAmount || 0), 0);
+      }
     }
   }
 

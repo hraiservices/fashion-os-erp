@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Copy } from "lucide-react";
 import { ItemPicker, ItemPickerTrigger } from "@/components/purchases/item-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,6 +65,15 @@ export function LineItemsEditor({ lines, onChange }: { lines: EditableLine[]; on
     onChange(lines.filter((l) => l.key !== key));
   }
 
+  /** Duplicates a line right after the original — same pattern as the sales-side
+   *  ProductLineItemsEditor's cloneLine(). */
+  function cloneLine(key: string) {
+    const index = lines.findIndex((l) => l.key === key);
+    if (index === -1) return;
+    const clone: EditableLine = { ...lines[index], key: `clone-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
+    onChange([...lines.slice(0, index + 1), clone, ...lines.slice(index + 1)]);
+  }
+
   const total = lines.reduce((s, l) => s + (parseFloat(l.qty) || 0) * (parseFloat(l.unitCost) || 0), 0);
 
   return (
@@ -82,6 +91,9 @@ export function LineItemsEditor({ lines, onChange }: { lines: EditableLine[]; on
             <Input type="number" inputMode="decimal" min={0} step="0.001" placeholder="Qty" className="w-28 h-10" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
             <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="Cost/unit" className="w-32 h-10" value={line.unitCost} onChange={(e) => updateLine(line.key, { unitCost: e.target.value })} />
             <span className="w-24 shrink-0 text-right text-sm tabular-nums text-muted-foreground">{inr((parseFloat(line.qty) || 0) * (parseFloat(line.unitCost) || 0))}</span>
+            <Button type="button" variant="ghost" size="icon-sm" className="size-9 sm:size-7" onClick={() => cloneLine(line.key)} aria-label="Clone item" title="Clone this line" disabled={!line.itemId}>
+              <Copy className="size-3.5" />
+            </Button>
             <Button type="button" variant="ghost" size="icon-sm" className="size-9 sm:size-7" onClick={() => removeLine(line.key)} aria-label="Remove item">
               <X className="size-3.5" />
             </Button>

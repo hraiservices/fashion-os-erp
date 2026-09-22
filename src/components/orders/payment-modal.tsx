@@ -9,12 +9,14 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { PaidAmount, BalanceDue } from "@/components/ui/money-text";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useRecordPayment } from "@/hooks/use-order-mutations";
 import { computeRedemption } from "@/lib/business-rules";
+import { istDateString } from "@/lib/ist-date";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Order } from "@/lib/types";
@@ -28,6 +30,7 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
   const [usePoints, setUsePoints] = useState(false);
   const [amount, setAmount] = useState(order.balance);
   const [payMethod, setPayMethod] = useState("Cash");
+  const [date, setDate] = useState(istDateString());
   const [note, setNote] = useState("");
 
   const availablePoints = loyaltyCfg?.enabled ? customer?.loyaltyPoints || 0 : 0;
@@ -52,7 +55,7 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
 
   async function save() {
     try {
-      await recordPayment.mutateAsync({ orderId: order.id, amount, payMethod, note, usePoints, expectedAdvance: order.advance });
+      await recordPayment.mutateAsync({ orderId: order.id, amount, payMethod, note, date, usePoints, expectedAdvance: order.advance });
       toast.success(amount + ptDiscount >= order.balance ? "Payment complete" : "Payment recorded");
       onOpenChange(false);
     } catch (e) {
@@ -108,20 +111,26 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
           <Label>Amount received</Label>
           <NumberInput min={0} max={effectiveBalance} value={amount} onChange={(v) => { setAmountEdited(true); setAmount(Math.min(v, effectiveBalance)); }} />
         </div>
-        <div className="space-y-2">
-          <Label>Payment method</Label>
-          <Select value={payMethod} onValueChange={(v) => v && setPayMethod(v)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {["Cash", "UPI", "Card", "Bank Transfer"].map((m) => (
-                <SelectItem key={m} value={m}>
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Payment date</Label>
+            <DatePicker value={date} onChange={setDate} />
+          </div>
+          <div className="space-y-2">
+            <Label>Payment method</Label>
+            <Select value={payMethod} onValueChange={(v) => v && setPayMethod(v)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {["Cash", "UPI", "Card", "Bank Transfer"].map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <div className="space-y-2">
           <Label>Note (optional)</Label>

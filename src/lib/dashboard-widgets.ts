@@ -69,8 +69,8 @@ export interface WidgetInstance {
   customConfig?: CustomCardConfig;
   visible: boolean;
   order: number;
-  /** Width in grid columns, out of the 12-column dashboard grid. Absent = use the builtin default. */
-  colSpan?: number;
+  /** Width in grid columns (1–4). Absent = use the builtin default. */
+  colSpan?: 1 | 2 | 3 | 4;
   /** Height in pixels. Absent = natural content height. */
   heightPx?: number;
 }

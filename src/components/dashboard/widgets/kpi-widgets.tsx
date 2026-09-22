@@ -44,7 +44,6 @@ export function SalesDuesWidget() {
       icon={ShoppingBag}
       tone={salesDues > 0 ? "warning" : "default"}
       href="/sales/invoices"
-      hint={billed === 0 ? "No product sales yet" : undefined}
       progress={billed > 0 ? { percent: collectedPct, caption: `Collected of ${inr(billed)} billed` } : undefined}
     />
   );

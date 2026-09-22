@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { DayBookEntry, DayBookModule, TailorStageActivity } from "@/lib/day-book";
+import type { DayBookEntry, DayBookModule, TailorStageActivity, TailorStageOrder } from "@/lib/day-book";
 
 export interface DayBookTotals {
   sales: number;
@@ -24,7 +24,7 @@ export interface DayBookResponse {
   canSeePayroll: boolean;
 }
 
-export type { DayBookEntry, DayBookModule, TailorStageActivity };
+export type { DayBookEntry, DayBookModule, TailorStageActivity, TailorStageOrder };
 
 /** Server-side date-scoped fetch (src/app/api/reports/day-book/route.ts) — never the whole
  *  table, just the selected day, re-queried on every date change. */

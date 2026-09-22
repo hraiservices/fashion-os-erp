@@ -24,7 +24,8 @@ import {
 } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDayBook } from "@/hooks/use-day-book";
-import { DAY_BOOK_MODULE_ICONS, DAY_BOOK_MODULE_LABELS, fmtTime, type DayBookModule } from "@/lib/day-book";
+import { DAY_BOOK_MODULE_ICONS, DAY_BOOK_MODULE_LABELS, fmtTime, type DayBookModule, type TailorStageOrder } from "@/lib/day-book";
+import { StageBadge } from "@/components/orders/stage-badge";
 import { inr, fmtDate } from "@/lib/format";
 import { toISODate } from "@/components/ui/date-picker";
 import { ReportShell, ReportCard, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
@@ -52,6 +53,31 @@ function shiftDate(iso: string, days: number): string {
 }
 
 const MODULES: DayBookModule[] = ["sales", "payments", "expenses", "purchases", "stitching", "customers", "attendance", "payroll", "other"];
+
+function TailorOrderList({ label, icon: Icon, orders }: { label: string; icon: typeof Scissors; orders: TailorStageOrder[] }) {
+  return (
+    <div>
+      <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <Icon className="size-3.5" /> {label} ({orders.length})
+      </p>
+      {orders.length === 0 ? (
+        <p className="pl-5 text-xs text-muted-foreground">None</p>
+      ) : (
+        <ul className="space-y-1 pl-5">
+          {orders.map((o) => (
+            <li key={o.orderId} className="flex flex-wrap items-center gap-2 text-sm">
+              <Link href={`/orders/${o.orderId}`} className="font-medium text-primary hover:underline">
+                {o.customerName}
+              </Link>
+              <span className="text-xs text-muted-foreground">{o.orderId}</span>
+              <StageBadge stage={o.status} size="sm" />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export default function DayBookPage() {
   const { data: user } = useCurrentUser();
@@ -190,39 +216,22 @@ export default function DayBookPage() {
           </div>
 
           {/* Tailor activity — what each tailor moved forward today, so it can be read out to
-              them directly ("you moved N to Finishing and M to Ready today"). */}
+              them directly ("you moved N to Finishing and M to Ready today, ₹X payable"). */}
           {data.tailorActivity.length > 0 && (
-            <ReportCard className="p-4">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tailor Activity Today</p>
-              <div className="hidden sm:block">
-                <ReportTable>
-                  <thead className="border-b bg-muted/40">
-                    <tr>
-                      <Th>Tailor</Th>
-                      <Th align="right">Stitching → Finishing</Th>
-                      <Th align="right">Finishing → Ready (ready to deliver)</Th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {data.tailorActivity.map((t) => (
-                      <tr key={t.tailorId} className="hover:bg-muted/30">
-                        <Td className="font-medium">{t.tailorName}</Td>
-                        <Td align="right" className="tabular-nums">{t.stitchingToFinishing}</Td>
-                        <Td align="right" className="tabular-nums">{t.finishingToReady}</Td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </ReportTable>
-              </div>
-              <MobileRecordList>
-                {data.tailorActivity.map((t) => (
-                  <MobileRecordCard key={t.tailorId}>
-                    <MobileRecordHeader title={t.tailorName} showChevron={false} />
-                    <MobileRecordRow label="Stitching → Finishing" value={<span className="inline-flex items-center gap-1"><Scissors className="size-3.5" />{t.stitchingToFinishing}</span>} />
-                    <MobileRecordRow label="Finishing → Ready (ready to deliver)" value={<span className="inline-flex items-center gap-1"><CheckCircle2 className="size-3.5" />{t.finishingToReady}</span>} />
-                  </MobileRecordCard>
-                ))}
-              </MobileRecordList>
+            <ReportCard className="space-y-4 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tailor Activity Today</p>
+              {data.tailorActivity.map((t) => (
+                <div key={t.tailorId} className="space-y-3 rounded-lg border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold">{t.tailorName}</p>
+                    {t.payableToday > 0 && (
+                      <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{inr(t.payableToday)} payable today</span>
+                    )}
+                  </div>
+                  <TailorOrderList label="Stitching → Finishing" icon={Scissors} orders={t.stitchingToFinishingOrders} />
+                  <TailorOrderList label="Finishing → Ready (ready to deliver)" icon={CheckCircle2} orders={t.finishingToReadyOrders} />
+                </div>
+              ))}
             </ReportCard>
           )}
 

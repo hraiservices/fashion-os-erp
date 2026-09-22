@@ -135,6 +135,8 @@ interface PaymentInput {
   note?: string;
   usePoints?: boolean;
   expectedAdvance?: number;
+  /** IST calendar date ("YYYY-MM-DD") the cash was actually collected on. Absent = now. */
+  date?: string;
 }
 
 export function useRecordPayment() {

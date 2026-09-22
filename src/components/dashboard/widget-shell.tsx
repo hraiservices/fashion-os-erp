@@ -5,11 +5,20 @@ import { useRouter } from "next/navigation";
 import { GripHorizontal, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const COL_SPAN_CLASS: Record<1 | 2 | 3 | 4, string> = {
+// 12-column dashboard grid — literal classes so Tailwind's static scan picks up every one.
+const COL_SPAN_CLASS: Record<number, string> = {
   1: "sm:col-span-1",
   2: "sm:col-span-2",
   3: "sm:col-span-3",
   4: "sm:col-span-4",
+  5: "sm:col-span-5",
+  6: "sm:col-span-6",
+  7: "sm:col-span-7",
+  8: "sm:col-span-8",
+  9: "sm:col-span-9",
+  10: "sm:col-span-10",
+  11: "sm:col-span-11",
+  12: "sm:col-span-12",
 };
 
 const MIN_HEIGHT_PX = 120;
@@ -39,7 +48,8 @@ export function WidgetShell({
   onResetSize,
   children,
 }: {
-  colSpan: 1 | 2 | 3 | 4;
+  /** Width in columns, out of the 12-column dashboard grid. */
+  colSpan: number;
   /** Manually-set pixel height, from the bottom-edge drag handle below, overriding the grid's
    *  default row-stretch (every card in a row matches the tallest one). Undefined = the normal
    *  stretched height. Set only when someone has explicitly dragged this one card taller/shorter
@@ -54,8 +64,8 @@ export function WidgetShell({
   onDrop?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
   onHide?: () => void;
-  onResizeProgress?: (colSpan: 1 | 2 | 3 | 4) => void;
-  onResizeEnd?: (colSpan: 1 | 2 | 3 | 4) => void;
+  onResizeProgress?: (colSpan: number) => void;
+  onResizeEnd?: (colSpan: number) => void;
   onResizeHeightProgress?: (heightPx: number) => void;
   onResizeHeightEnd?: (heightPx: number) => void;
   onResetSize?: () => void;
@@ -75,7 +85,7 @@ export function WidgetShell({
   const resizeState = useRef<{
     startX: number;
     startW: number;
-    lastCols: 1 | 2 | 3 | 4;
+    lastCols: number;
   } | null>(null);
   const heightResizeState = useRef<{ startY: number; startH: number; lastHeight: number } | null>(null);
 
@@ -110,7 +120,7 @@ export function WidgetShell({
       // the grid is actually 1 column, and any future gap/breakpoint change would silently
       // throw this off again. gridTemplateColumns is a space-separated track list, so its
       // length IS the live column count.
-      let numCols = 4;
+      let numCols = 12;
       let gapPx = 16;
       if (grid) {
         const cs = getComputedStyle(grid);
@@ -122,7 +132,7 @@ export function WidgetShell({
       const gridW = grid ? grid.clientWidth : el.offsetWidth * numCols;
       const colW = (gridW - gapPx * (numCols - 1)) / numCols;
       const newW = s.startW + (ev.clientX - s.startX);
-      s.lastCols = Math.max(1, Math.min(numCols, Math.round(newW / colW))) as 1 | 2 | 3 | 4;
+      s.lastCols = Math.max(1, Math.min(numCols, Math.round(newW / colW)));
       onResizeProgress?.(s.lastCols);
     }
 
@@ -192,7 +202,7 @@ export function WidgetShell({
       ref={containerRef}
       className={cn(
         "relative col-span-1",
-        COL_SPAN_CLASS[colSpan],
+        COL_SPAN_CLASS[Math.min(12, Math.max(1, Math.round(colSpan)))],
         editing && "rounded-xl outline-dashed outline-2 outline-transparent transition-all hover:outline-primary/40",
         dragging && "opacity-40",
         dropTarget && "outline-primary/60",

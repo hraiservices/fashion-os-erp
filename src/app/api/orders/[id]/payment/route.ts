@@ -20,6 +20,10 @@ const bodySchema = z.object({
   /** IST calendar date ("YYYY-MM-DD") the cash was actually collected on, for backdating a
    *  payment entered into the app after the fact. Absent = now, same as before this existed. */
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  /** Which payment_accounts row ("Deposit To") this cash landed in, and an optional free-text
+   *  reference (cheque number, UPI transaction id, etc.) — both new, both optional. */
+  accountId: z.string().uuid().optional(),
+  reference: z.string().max(200).optional(),
 });
 
 /** Discount markers ("🎁 ₹500", "🎟️ ₹100") are recovered from history lines by regex
@@ -48,7 +52,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-  const { amount, payMethod, note, usePoints, expectedAdvance, date } = parsed.data;
+  const { amount, payMethod, note, usePoints, expectedAdvance, date, accountId, reference } = parsed.data;
   const safeNote = note ? sanitizeHistoryText(note) : "";
 
   const { data: row, error: fetchError } = await db.from("orders").select("*").eq("id", id).maybeSingle();
@@ -114,6 +118,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     p_created_by: user.email,
     p_pts_redeemed: ptsToRedeem,
     p_paid_at: date || null,
+    p_account_id: accountId || null,
+    p_reference: reference ? sanitizeHistoryText(reference) : "",
   });
   const updatedRow = updatedRows?.[0];
   if (updateError || !updatedRow) {

@@ -155,6 +155,8 @@ interface RecordSalesPaymentInput {
   note: string;
   posSessionId?: string | null;
   userEmail?: string;
+  accountId?: string;
+  reference?: string;
 }
 
 /**

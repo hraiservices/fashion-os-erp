@@ -13,6 +13,8 @@ const bodySchema = z.object({
   date: z.string().min(1),
   note: z.string().default(""),
   posSessionId: z.string().uuid().nullable().optional(),
+  accountId: z.string().uuid().optional(),
+  reference: z.string().max(200).optional(),
 });
 
 /**
@@ -54,6 +56,8 @@ export async function POST(request: Request) {
     p_note: fd.note.trim(),
     p_pos_session_id: fd.posSessionId ?? null,
     p_created_by: user.email,
+    p_account_id: fd.accountId ?? null,
+    p_reference: fd.reference?.trim() ?? "",
   });
   if (error) {
     const status = error.message.includes("not found") ? 404 : error.message.includes("exceeds") ? 422 : 500;

@@ -793,6 +793,8 @@ export interface Database {
           created_by: string | null;
           pos_session_id: string | null;
           created_at: string;
+          account_id: string | null;
+          reference: string;
         };
         Insert: Partial<Database["public"]["Tables"]["sales_payments"]["Row"]> & {
           invoice_id: string;
@@ -813,12 +815,28 @@ export interface Database {
           note: string;
           created_by: string | null;
           created_at: string;
+          account_id: string | null;
+          reference: string;
         };
         Insert: Partial<Database["public"]["Tables"]["order_payments"]["Row"]> & {
           order_id: string;
           amount: number;
         };
         Update: Partial<Database["public"]["Tables"]["order_payments"]["Row"]>;
+        Relationships: [];
+      };
+      payment_accounts: {
+        Row: {
+          id: string;
+          name: string;
+          type: "cash" | "bank";
+          is_default: boolean;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["payment_accounts"]["Row"]> & {
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["payment_accounts"]["Row"]>;
         Relationships: [];
       };
       pos_sessions: {

@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, ChevronRight, CreditCard, Receipt, Scissors, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 import { DueBadge } from "@/components/orders/stage-badge";
 import { BalanceDue } from "@/components/ui/money-text";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -29,6 +31,8 @@ export function NewPaymentDialog({
   allowCustomerChange,
   onSelectOrder,
   onSelectInvoice,
+  onBulkPayOrders,
+  onBulkPayInvoices,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -37,10 +41,35 @@ export function NewPaymentDialog({
   allowCustomerChange: boolean;
   onSelectOrder: (order: Order) => void;
   onSelectInvoice: (invoice: SalesInvoiceWithBalance) => void;
+  /** One-time payment across several of the customer's orders (or invoices) at once — a single
+   *  amount, auto-allocated oldest-due-first. Orders and invoices are never combined into one
+   *  payment (separate ledgers/RPCs), so this is two independent selections, not one. */
+  onBulkPayOrders: (orders: Order[]) => void;
+  onBulkPayInvoices: (invoices: SalesInvoiceWithBalance[]) => void;
 }) {
   const [query, setQuery] = useState("");
   const { profiles } = useCustomerProfiles();
   const { data: allInvoices } = useSalesInvoices();
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Set<string>>(new Set());
+
+  function toggleOrder(id: string) {
+    setSelectedOrderIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleInvoice(id: string) {
+    setSelectedInvoiceIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   const customerResults = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -64,7 +93,11 @@ export function NewPaymentDialog({
   );
 
   function reset(v: boolean) {
-    if (!v) setQuery("");
+    if (!v) {
+      setQuery("");
+      setSelectedOrderIds(new Set());
+      setSelectedInvoiceIds(new Set());
+    }
     onOpenChange(v);
   }
 
@@ -126,8 +159,11 @@ export function NewPaymentDialog({
               ) : (
                 <ul className="divide-y overflow-hidden rounded-lg border">
                   {dueOrders.map((o) => (
-                    <li key={o.id}>
-                      <button type="button" className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/50" onClick={() => onSelectOrder(o)}>
+                    <li key={o.id} className="flex items-center">
+                      {dueOrders.length > 1 && (
+                        <Checkbox checked={selectedOrderIds.has(o.id)} onChange={() => toggleOrder(o.id)} aria-label={`Select ${o.id} for one-time payment`} className="ml-1" />
+                      )}
+                      <button type="button" className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pr-3 text-left transition-colors hover:bg-muted/50" onClick={() => onSelectOrder(o)}>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">{o.id}</p>
                           <p className="truncate text-xs text-muted-foreground">{fmtDate(o.deliveryDate)}</p>
@@ -140,6 +176,11 @@ export function NewPaymentDialog({
                   ))}
                 </ul>
               )}
+              {selectedOrderIds.size > 1 && (
+                <Button type="button" size="sm" className="mt-2 w-full" onClick={() => onBulkPayOrders(dueOrders.filter((o) => selectedOrderIds.has(o.id)))}>
+                  One-time payment for {selectedOrderIds.size} selected orders
+                </Button>
+              )}
             </div>
 
             <div>
@@ -151,8 +192,11 @@ export function NewPaymentDialog({
               ) : (
                 <ul className="divide-y overflow-hidden rounded-lg border">
                   {dueInvoices.map((inv) => (
-                    <li key={inv.id}>
-                      <button type="button" className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/50" onClick={() => onSelectInvoice(inv)}>
+                    <li key={inv.id} className="flex items-center">
+                      {dueInvoices.length > 1 && (
+                        <Checkbox checked={selectedInvoiceIds.has(inv.id)} onChange={() => toggleInvoice(inv.id)} aria-label={`Select ${inv.invoiceNumber} for one-time payment`} className="ml-1" />
+                      )}
+                      <button type="button" className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pr-3 text-left transition-colors hover:bg-muted/50" onClick={() => onSelectInvoice(inv)}>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">{inv.invoiceNumber}</p>
                           <p className="truncate text-xs text-muted-foreground">{fmtDate(inv.invoiceDate)}</p>
@@ -163,6 +207,11 @@ export function NewPaymentDialog({
                     </li>
                   ))}
                 </ul>
+              )}
+              {selectedInvoiceIds.size > 1 && (
+                <Button type="button" size="sm" className="mt-2 w-full" onClick={() => onBulkPayInvoices(dueInvoices.filter((i) => selectedInvoiceIds.has(i.id)))}>
+                  One-time payment for {selectedInvoiceIds.size} selected invoices
+                </Button>
               )}
             </div>
           </div>

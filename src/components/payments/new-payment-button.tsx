@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { NewPaymentDialog } from "@/components/payments/new-payment-dialog";
 import { PaymentModal } from "@/components/orders/payment-modal";
 import { InvoicePaymentModal } from "@/components/payments/invoice-payment-modal";
+import { BulkPaymentModal, type BulkPaymentTarget } from "@/components/payments/bulk-payment-modal";
 import type { Order } from "@/lib/types";
 import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 
@@ -31,6 +32,7 @@ export function NewPaymentButton({
   const [selectedMobile, setSelectedMobile] = useState<string | null>(customerMobile ?? null);
   const [paymentOrder, setPaymentOrder] = useState<Order | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<SalesInvoiceWithBalance | null>(null);
+  const [bulkTarget, setBulkTarget] = useState<BulkPaymentTarget | null>(null);
 
   function open() {
     setSelectedMobile(customerMobile ?? null);
@@ -57,10 +59,19 @@ export function NewPaymentButton({
           setDialogOpen(false);
           setPaymentInvoice(i);
         }}
+        onBulkPayOrders={(orders) => {
+          setDialogOpen(false);
+          setBulkTarget({ kind: "orders", items: orders });
+        }}
+        onBulkPayInvoices={(invoices) => {
+          setDialogOpen(false);
+          setBulkTarget({ kind: "invoices", items: invoices });
+        }}
       />
 
       {paymentOrder && <PaymentModal order={paymentOrder} open={!!paymentOrder} onOpenChange={(v) => !v && setPaymentOrder(null)} />}
       {paymentInvoice && <InvoicePaymentModal invoice={paymentInvoice} open={!!paymentInvoice} onOpenChange={(v) => !v && setPaymentInvoice(null)} />}
+      {bulkTarget && <BulkPaymentModal target={bulkTarget} open={!!bulkTarget} onOpenChange={(v) => !v && setBulkTarget(null)} />}
     </>
   );
 }

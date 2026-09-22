@@ -6,15 +6,20 @@ import { WIDGET_COMPONENTS } from "@/components/dashboard/widget-registry";
 import { WidgetShell } from "@/components/dashboard/widget-shell";
 import { CustomCardWidget } from "@/components/dashboard/custom-card-widget";
 
-const SIZE_TO_COLS: Record<WidgetSize, 1 | 2 | 3 | 4> = { sm: 1, lg: 2, full: 4 };
+// 12-column grid — sm/lg/full map to 3/6/12 of 12 (same proportions as the old 1/2/4-of-4
+// scheme), but the finer column count lets a manually-resized card land on any of 12 widths
+// instead of only quarters, and lets bigger/more-important widgets (full = 12, e.g. Pipeline
+// Velocity) actually read as bigger next to a stat tile (sm = 3) rather than everything being
+// 1x/2x/4x the same unit.
+const SIZE_TO_COLS: Record<WidgetSize, number> = { sm: 3, lg: 6, full: 12 };
 
-function getDefaultCols(w: WidgetInstance): 1 | 2 | 3 | 4 {
-  if (w.kind === "custom") return 1;
+function getDefaultCols(w: WidgetInstance): number {
+  if (w.kind === "custom") return 3;
   const size = BUILTIN_WIDGET_BY_KEY.get(w.builtinKey || "")?.size ?? "sm";
   return SIZE_TO_COLS[size];
 }
 
-function getEffectiveCols(w: WidgetInstance): 1 | 2 | 3 | 4 {
+function getEffectiveCols(w: WidgetInstance): number {
   return w.colSpan ?? getDefaultCols(w);
 }
 
@@ -34,7 +39,7 @@ export function DashboardGrid({
   const draggingRef = useRef<string | null>(null);
 
   // Live resize preview — not saved until mouseup
-  const [resizeLive, setResizeLive] = useState<{ id: string; colSpan: 1 | 2 | 3 | 4 } | null>(null);
+  const [resizeLive, setResizeLive] = useState<{ id: string; colSpan: number } | null>(null);
   const [heightResizeLive, setHeightResizeLive] = useState<{ id: string; heightPx: number } | null>(null);
 
   function handleDrop(targetId: string) {
@@ -58,11 +63,11 @@ export function DashboardGrid({
     onChange(widgets.map((w) => (w.id === id ? { ...w, visible: false } : w)));
   }
 
-  function handleResizeProgress(id: string, colSpan: 1 | 2 | 3 | 4) {
+  function handleResizeProgress(id: string, colSpan: number) {
     setResizeLive({ id, colSpan });
   }
 
-  function handleResizeEnd(id: string, colSpan: 1 | 2 | 3 | 4) {
+  function handleResizeEnd(id: string, colSpan: number) {
     setResizeLive(null);
     onChange(widgets.map((w) => (w.id !== id ? w : { ...w, colSpan })));
   }
@@ -99,7 +104,7 @@ export function DashboardGrid({
     // countdown-widgets.tsx, tailor-load-widget.tsx, etc.) are built to actually absorb that
     // extra height (flex-1 + overflow-y-auto on the list), so they visibly fill the row instead
     // of just padding out under a fixed-height clipped list.
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-4" data-dashboard-grid>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-12" data-dashboard-grid>
       {visible.map((w) => {
         const isResizing = resizeLive?.id === w.id;
         const colSpan = isResizing ? resizeLive.colSpan : getEffectiveCols(w);

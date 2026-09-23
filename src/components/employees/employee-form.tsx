@@ -23,7 +23,6 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { EmployeePinManager } from "@/components/employees/employee-pin-manager";
-import { DashboardAccessManager } from "@/components/employees/dashboard-access-manager";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { Employee, CommissionType, SalaryType } from "@/lib/types";
 import { SALARY_TYPE_LABELS } from "@/lib/payroll";
@@ -149,7 +148,6 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
   // every active employee shows up as a tailor.
   const roleValue = useWatch({ control, name: "role" });
   const willShowAsTailor = (roleValue || "").trim().toLowerCase() === "tailor";
-  const mobileValue = useWatch({ control, name: "mobile" });
   const [commissionOpen, setCommissionOpen] = useState(false);
   const [salaryOpen, setSalaryOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -397,7 +395,15 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
             ) : (
               <p className="text-[11px] text-muted-foreground">Save this employee first, then come back to set their self check-in PIN.</p>
             )}
-            {isEdit && user?.perms.manageUsers && <DashboardAccessManager employeeId={existing!.id} employeeMobile={mobileValue || existing!.mobile} />}
+            {isEdit && user?.perms.manageUsers && (
+              <p className="text-[11px] text-muted-foreground">
+                Dashboard access is now managed from{" "}
+                <Link href="/settings/users" className="underline hover:text-foreground">
+                  Settings → Users & Access
+                </Link>
+                .
+              </p>
+            )}
           </div>
         </div>
 

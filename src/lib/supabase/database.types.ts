@@ -1001,6 +1001,14 @@ export interface Database {
           pin_locked_until: string | null;
           manager_id: string | null;
           photo_url: string | null;
+          aadhaar_number: string | null;
+          aadhaar_image_path: string | null;
+          pan_number: string | null;
+          pan_image_path: string | null;
+          offer_letter_path: string | null;
+          relieving_letter_path: string | null;
+          resignation_letter_path: string | null;
+          experience_letter_path: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1008,6 +1016,24 @@ export interface Database {
           name: string;
         };
         Update: Partial<Database["public"]["Tables"]["employees"]["Row"]>;
+        Relationships: [];
+      };
+      employee_documents: {
+        Row: {
+          id: string;
+          employee_id: string;
+          category: string;
+          label: string;
+          storage_path: string;
+          uploaded_by: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["employee_documents"]["Row"]> & {
+          employee_id: string;
+          category: string;
+          storage_path: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["employee_documents"]["Row"]>;
         Relationships: [];
       };
       shop_locations: {

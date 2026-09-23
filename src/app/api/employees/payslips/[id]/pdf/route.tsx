@@ -49,7 +49,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const payslip = mapPayslipRow(payslipRow);
   // The credential columns aren't selected above and aren't used by the document — filled in
   // here only to satisfy the EmployeeRow shape, same as use-employees.ts does client-side.
-  const employee = mapEmployeeRow({ ...employeeRow, pin_hash: null, failed_pin_attempts: 0, pin_locked_until: null });
+  const employee = mapEmployeeRow({
+    ...employeeRow,
+    pin_hash: null,
+    failed_pin_attempts: 0,
+    pin_locked_until: null,
+    aadhaar_number: null,
+    aadhaar_image_path: null,
+    pan_number: null,
+    pan_image_path: null,
+    offer_letter_path: null,
+    relieving_letter_path: null,
+    resignation_letter_path: null,
+    experience_letter_path: null,
+  });
   const run = mapPayrollRunRow(runRow);
   const advances = (advanceRows || []).map(mapEmployeeAdvanceRow);
   const shop = (shopSetting?.value as { name?: string; phone?: string; address?: string } | null) || {};

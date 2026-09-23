@@ -45,12 +45,14 @@ const styles = StyleSheet.create({
   colDate: { flex: 1.1 },
   colType: { flex: 1.3 },
   colRef: { flex: 1.3 },
-  colDesc: { flex: 2 },
+  colDesc: { flex: 1.7 },
+  colStage: { flex: 1 },
   colAmount: { flex: 1, textAlign: "right" },
   qrBlock: { marginTop: 16, alignItems: "center" },
   qrImage: { width: 90, height: 90 },
   qrCaption: { fontSize: 7, color: "#6b7280", marginTop: 3 },
   bankDetails: { marginTop: 14, fontSize: 8, color: "#374151", lineHeight: 1.4 },
+  terms: { marginTop: 14, fontSize: 8, color: "#374151", lineHeight: 1.4 },
   signatureBlock: { marginTop: 20, alignItems: "flex-end" },
   signatureImage: { width: 100, height: 40, objectFit: "contain" },
   signatureCaption: { fontSize: 8, color: "#6b7280", marginTop: 2, borderTop: "1 solid #d1d5db", paddingTop: 2, minWidth: 100, textAlign: "center" },
@@ -153,6 +155,7 @@ export function CustomerStatementDocument({
             <Text style={[styles.th, styles.colType, { fontFamily: bold }]}>Type</Text>
             <Text style={[styles.th, styles.colRef, { fontFamily: bold }]}>Reference</Text>
             <Text style={[styles.th, styles.colDesc, { fontFamily: bold }]}>Description</Text>
+            <Text style={[styles.th, styles.colStage, { fontFamily: bold }]}>Stage</Text>
             <Text style={[styles.th, styles.colAmount, { fontFamily: bold }]}>Billed</Text>
             <Text style={[styles.th, styles.colAmount, { fontFamily: bold }]}>Paid</Text>
             <Text style={[styles.th, styles.colAmount, { fontFamily: bold }]}>Balance</Text>
@@ -163,6 +166,7 @@ export function CustomerStatementDocument({
               <Text style={[styles.td, styles.colType]}>{TYPE_LABEL[tr.type]}</Text>
               <Text style={[styles.td, styles.colRef]}>{tr.reference}</Text>
               <Text style={[styles.td, styles.colDesc]}>{tr.description}</Text>
+              <Text style={[styles.td, styles.colStage]}>{tr.stage || "—"}</Text>
               <Text style={[styles.td, styles.colAmount]}>{money(tr.billed)}</Text>
               <Text style={[styles.td, styles.colAmount]}>{tr.paid > 0 ? money(tr.paid) : "—"}</Text>
               <Text style={[styles.td, styles.colAmount]}>{money(tr.balance)}</Text>
@@ -182,6 +186,13 @@ export function CustomerStatementDocument({
           <View style={styles.bankDetails}>
             <Text style={{ fontFamily: bold, marginBottom: 3, color: "#374151" }}>Bank Details</Text>
             <Text>{t.bankDetails}</Text>
+          </View>
+        )}
+
+        {t.showTerms && t.terms && (
+          <View style={styles.terms}>
+            <Text style={{ fontFamily: bold, marginBottom: 3, color: "#374151" }}>Terms & Conditions</Text>
+            <Text>{t.terms}</Text>
           </View>
         )}
 

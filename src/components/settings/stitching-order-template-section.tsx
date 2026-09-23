@@ -360,6 +360,11 @@ export function StitchingOrderTemplateSection() {
           <Textarea rows={3} placeholder="Bank name, account number, IFSC, branch…" value={active.bankDetails} onChange={(e) => updateActive({ bankDetails: e.target.value })} />
         </div>
 
+        <div className="space-y-1.5">
+          <CheckboxRow label="Show terms & conditions" checked={active.showTerms} onChange={(v) => updateActive({ showTerms: v })} />
+          <Textarea rows={3} placeholder="e.g. Alterations within 7 days are free. No refunds after stitching begins." value={active.terms} onChange={(e) => updateActive({ terms: e.target.value })} />
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
           <div className="flex items-center gap-2">
             {active.id !== setting.defaultId && (

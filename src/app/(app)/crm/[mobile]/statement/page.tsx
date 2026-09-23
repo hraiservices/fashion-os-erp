@@ -255,6 +255,7 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
                       {TYPE_LABEL[t.type]}
                     </span>
                   </div>
+                  {t.stage && <p className="mt-1.5 text-xs text-muted-foreground">Stage: <span className="font-medium text-foreground">{t.stage}</span></p>}
                   <div className="mt-2 grid grid-cols-3 gap-1 border-t pt-2 text-xs">
                     <div>
                       <p className="text-muted-foreground">Date</p>
@@ -284,6 +285,7 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
                     <th className="py-2 pr-2 font-bold">Type</th>
                     <th className="py-2 pr-2 font-bold">Reference</th>
                     <th className="py-2 pr-2 font-bold">Description</th>
+                    <th className="py-2 pr-2 font-bold">Stage</th>
                     <th className="py-2 pr-2 text-right font-bold">Billed</th>
                     <th className="py-2 pr-2 text-right font-bold">Paid</th>
                     <th className="py-2 text-right font-bold">Balance</th>
@@ -304,6 +306,7 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
                         </Link>
                       </td>
                       <td className="max-w-40 truncate py-2 pr-2 text-muted-foreground">{t.description}</td>
+                      <td className="py-2 pr-2 whitespace-nowrap text-muted-foreground">{t.stage || "—"}</td>
                       <td className="py-2 pr-2 text-right tabular-nums">{inr(t.billed)}</td>
                       <td className="py-2 pr-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{t.paid > 0 ? inr(t.paid) : "—"}</td>
                       <td className={cn("py-2 text-right font-medium tabular-nums", t.balance > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>{inr(t.balance)}</td>

@@ -34,10 +34,12 @@ export interface StitchingOrderTemplateConfig {
   showLogo: boolean;
   showSignature: boolean;
   showBankDetails: boolean;
+  showTerms: boolean;
   logoDataUrl: string | null;
   qrCodeDataUrl: string | null;
   signatureDataUrl: string | null;
   bankDetails: string;
+  terms: string;
 }
 
 export interface StitchingOrderTemplatesSetting {
@@ -72,10 +74,12 @@ export function blankStitchingOrderTemplate(name = "Default"): StitchingOrderTem
     showLogo: false,
     showSignature: false,
     showBankDetails: false,
+    showTerms: false,
     logoDataUrl: null,
     qrCodeDataUrl: null,
     signatureDataUrl: null,
     bankDetails: "",
+    terms: "",
   };
 }
 

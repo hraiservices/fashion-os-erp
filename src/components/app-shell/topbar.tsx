@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NotificationBell } from "@/components/app-shell/notification-bell";
+import { AttendanceWidget } from "@/components/app-shell/attendance-widget";
 import { ThemeToggle } from "@/components/app-shell/theme-toggle";
 import { PwaInstaller } from "@/components/app-shell/pwa-installer";
 import { CommandTrigger } from "@/components/app-shell/command-palette";
@@ -41,6 +42,7 @@ export function Topbar() {
       </div>
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        <AttendanceWidget />
         <PwaInstaller />
         <ThemeToggle />
         <NotificationBell />

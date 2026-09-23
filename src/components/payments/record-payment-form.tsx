@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, ChevronRight, CreditCard, Search } from "lucide-react";
+import { ArrowLeft, ChevronRight, CreditCard, Search, Wallet } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NumberInput } from "@/components/ui/number-input";
@@ -13,12 +13,14 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BalanceDue } from "@/components/ui/money-text";
+import { CustomerSummarySheet } from "@/components/payments/customer-summary-sheet";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { usePaymentAccounts } from "@/hooks/use-payment-accounts";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRecordPayment } from "@/hooks/use-order-mutations";
 import { useRecordSalesPayment } from "@/hooks/use-sales-mutations";
+import { useCustomerCredit, useIssueCustomerCredit, useRedeemCustomerCredit } from "@/hooks/use-customer-credit";
 import { isOrderOutstanding, sumOrdersOutstanding } from "@/lib/balances";
 import { ORDER_PAYMENT_METHODS } from "@/lib/business-rules";
 import { istDateString } from "@/lib/ist-date";
@@ -30,9 +32,15 @@ import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 // tables and RPCs — this form still writes to each via the same single-item mutations
 // PaymentModal/InvoicePaymentModal already use one at a time (no new bulk RPC), it just lets one
 // visit fill in several rows of either kind at once and submits them in one sequential pass.
-// A row's Payment input is always capped at that row's own balance (server-enforced too), so
-// there's no "overpayment becomes a credit" case to model — this app has no customer-credit
-// ledger for either orders or invoices to hold that in.
+// A row's Payment input is always capped at that row's own balance (server-enforced too).
+//
+// "Amount received" auto-allocates oldest-first across rows (same algorithm the old
+// BulkPaymentModal used) the moment it — or the credit applied alongside it — changes; a row can
+// still be hand-edited afterward, which just overwrites that one row's allocation until the top
+// field changes again and redistributes everything. Anything received beyond the combined rows'
+// total due is saved as customer credit (supabase/migrations/add_customer_credit_ledger.sql) —
+// a shared balance usable later against either an order or an invoice — rather than silently
+// capped away.
 //
 // Payment Mode is restricted to ORDER_PAYMENT_METHODS (the stricter of the two — invoice
 // payments accept any free-text method, order payments are a validated enum) so one selection
@@ -42,6 +50,17 @@ type Row =
   | { kind: "order"; id: string; number: string; date: string; total: number; due: number; item: Order }
   | { kind: "invoice"; id: string; number: string; date: string; total: number; due: number; item: SalesInvoiceWithBalance };
 
+function distributeOldestFirst(rows: Row[], pool: number): Record<string, number> {
+  const result: Record<string, number> = {};
+  let remaining = Math.max(0, pool);
+  for (const row of rows) {
+    const alloc = Math.round(Math.min(row.due, remaining) * 100) / 100;
+    remaining = Math.round((remaining - alloc) * 100) / 100;
+    result[row.id] = alloc;
+  }
+  return result;
+}
+
 export function RecordPaymentForm({ initialMobile }: { initialMobile?: string }) {
   const router = useRouter();
   const { data: user } = useCurrentUser();
@@ -50,6 +69,8 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
   const { data: accounts } = usePaymentAccounts();
   const recordOrderPayment = useRecordPayment();
   const recordSalesPayment = useRecordSalesPayment();
+  const issueCredit = useIssueCustomerCredit();
+  const redeemCredit = useRedeemCustomerCredit();
 
   const [selectedMobile, setSelectedMobile] = useState<string | null>(initialMobile ?? null);
   const [query, setQuery] = useState("");
@@ -58,9 +79,14 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
   const [accountId, setAccountId] = useState<string>("");
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
+  const [cashAmount, setCashAmount] = useState(0);
+  const [creditToApply, setCreditToApply] = useState(0);
   const [rowPayments, setRowPayments] = useState<Record<string, number>>({});
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const saving = progress !== null;
+
+  const { data: availableCredit } = useCustomerCredit(selectedMobile);
 
   const customerResults = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -90,7 +116,25 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
   }, [selectedMobile, selectedCustomer, allInvoices]);
 
   const totalDue = rows.reduce((s, r) => s + r.due, 0);
-  const amountReceived = rows.reduce((s, r) => s + Math.min(rowPayments[r.id] || 0, r.due), 0);
+  const pool = cashAmount + creditToApply;
+  const appliedToDues = rows.reduce((s, r) => s + Math.min(rowPayments[r.id] || 0, r.due), 0);
+  const excess = Math.max(0, Math.round((pool - appliedToDues) * 100) / 100);
+
+  function redistribute(newCash: number, newCredit: number) {
+    setRowPayments(distributeOldestFirst(rows, newCash + newCredit));
+  }
+
+  function setCash(v: number) {
+    const next = Math.max(0, v);
+    setCashAmount(next);
+    redistribute(next, creditToApply);
+  }
+
+  function setCredit(v: number) {
+    const next = Math.max(0, Math.min(v, availableCredit || 0));
+    setCreditToApply(next);
+    redistribute(cashAmount, next);
+  }
 
   function setRowAmount(id: string, due: number, value: number) {
     setRowPayments((prev) => ({ ...prev, [id]: Math.max(0, Math.min(value, due)) }));
@@ -102,8 +146,8 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
 
   async function save() {
     const toApply = rows.filter((r) => (rowPayments[r.id] || 0) > 0);
-    if (toApply.length === 0) {
-      toast.error("Enter a payment amount for at least one row");
+    if (toApply.length === 0 && excess <= 0) {
+      toast.error("Enter an amount received, or a payment amount for at least one row");
       return;
     }
 
@@ -133,7 +177,26 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
         return;
       }
     }
-    toast.success(`Payment recorded across ${toApply.length} row${toApply.length === 1 ? "" : "s"}`);
+
+    // Credit is only touched once every row payment above has actually landed — redeeming or
+    // issuing first and then having a row fail partway would leave the ledger out of sync with
+    // what was really applied.
+    try {
+      if (creditToApply > 0 && selectedMobile) {
+        await redeemCredit.mutateAsync({ mobile: selectedMobile, amount: creditToApply, note: `Applied to payment on ${date}` });
+      }
+      if (excess > 0 && selectedMobile) {
+        await issueCredit.mutateAsync({ mobile: selectedMobile, amount: excess, note: `Excess from payment on ${date}` });
+      }
+    } catch (e) {
+      toast.error(`Payment recorded, but the credit ledger update failed: ${e instanceof Error ? e.message : "Unknown error"}. Please correct it manually.`);
+      setProgress(null);
+      router.push(selectedMobile ? `/crm/${selectedMobile}` : "/dashboard");
+      return;
+    }
+
+    const parts = [toApply.length > 0 ? `${toApply.length} row${toApply.length === 1 ? "" : "s"}` : null, excess > 0 ? `${inr(excess)} saved as credit` : null].filter(Boolean);
+    toast.success(`Payment recorded — ${parts.join(", ")}`);
     setProgress(null);
     router.push(selectedMobile ? `/crm/${selectedMobile}` : "/dashboard");
   }
@@ -177,12 +240,17 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
           <ArrowLeft className="size-3.5" /> Change customer
         </button>
       )}
-      <div>
-        <p className="text-lg font-semibold">{selectedCustomer?.name || selectedMobile}</p>
+      <button type="button" onClick={() => setSummaryOpen(true)} className="block text-left transition-opacity hover:opacity-70">
+        <p className="text-lg font-semibold underline decoration-muted-foreground/40 underline-offset-4">{selectedCustomer?.name || selectedMobile}</p>
         <p className="text-sm text-muted-foreground">{selectedMobile}</p>
-      </div>
+      </button>
+      <CustomerSummarySheet mobile={selectedMobile} open={summaryOpen} onOpenChange={setSummaryOpen} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-2">
+          <Label>Amount received</Label>
+          <NumberInput min={0} value={cashAmount} onChange={setCash} className="h-10" />
+        </div>
         <div className="space-y-2">
           <Label>Payment date</Label>
           <DatePicker value={date} onChange={setDate} />
@@ -217,15 +285,33 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
             </SelectContent>
           </Select>
         </div>
+      </div>
+
+      {!!availableCredit && availableCredit > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-emerald-500/5 p-3">
+          <p className="flex items-center gap-1.5 text-sm">
+            <Wallet className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-muted-foreground">Available credit:</span> <span className="font-semibold tabular-nums">{inr(availableCredit)}</span>
+          </p>
+          <div className="ml-auto flex items-center gap-2">
+            <Label className="text-xs whitespace-nowrap text-muted-foreground">Apply</Label>
+            <NumberInput min={0} max={availableCredit} value={creditToApply} onChange={setCredit} className="h-9 w-28" />
+            <button type="button" onClick={() => setCredit(availableCredit)} className="text-xs text-primary hover:underline">
+              Apply all
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label>Reference # (optional)</Label>
           <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Cheque / UPI ref no." />
         </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Note (optional)</Label>
-        <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
+        <div className="space-y-2">
+          <Label>Note (optional)</Label>
+          <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={1} />
+        </div>
       </div>
 
       <div>
@@ -280,16 +366,22 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
           <span className="font-medium tabular-nums">{inr(totalDue)}</span>
         </p>
         <p className="flex items-center justify-between">
-          <span className="text-muted-foreground">Amount received</span>
-          <span className="font-semibold tabular-nums">{inr(amountReceived)}</span>
+          <span className="text-muted-foreground">Applied to dues</span>
+          <span className="font-semibold tabular-nums">{inr(appliedToDues)}</span>
         </p>
+        {excess > 0 && (
+          <p className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
+            <span>Saved as credit</span>
+            <span className="font-semibold tabular-nums">{inr(excess)}</span>
+          </p>
+        )}
       </div>
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => router.back()} disabled={saving}>
           Cancel
         </Button>
-        <Button onClick={save} disabled={saving || amountReceived <= 0}>
+        <Button onClick={save} disabled={saving || pool <= 0}>
           {saving ? `Saving ${progress!.done}/${progress!.total}…` : "Record payment"}
         </Button>
       </div>

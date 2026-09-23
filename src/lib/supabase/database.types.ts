@@ -839,6 +839,36 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["payment_accounts"]["Row"]>;
         Relationships: [];
       };
+      customer_credit_balances: {
+        Row: {
+          customer_mobile: string;
+          balance: number;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["customer_credit_balances"]["Row"]> & {
+          customer_mobile: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["customer_credit_balances"]["Row"]>;
+        Relationships: [];
+      };
+      customer_credit_ledger: {
+        Row: {
+          id: string;
+          customer_mobile: string;
+          amount: number;
+          entry_type: "issued" | "redeemed";
+          note: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["customer_credit_ledger"]["Row"]> & {
+          customer_mobile: string;
+          amount: number;
+          entry_type: "issued" | "redeemed";
+        };
+        Update: Partial<Database["public"]["Tables"]["customer_credit_ledger"]["Row"]>;
+        Relationships: [];
+      };
       pos_sessions: {
         Row: {
           id: string;
@@ -1362,6 +1392,9 @@ export interface Database {
           p_note?: string;
           p_created_by?: string | null;
           p_pts_redeemed?: number;
+          p_paid_at?: string | null;
+          p_account_id?: string | null;
+          p_reference?: string;
         };
         Returns: Database["public"]["Tables"]["orders"]["Row"][];
       };
@@ -1505,8 +1538,28 @@ export interface Database {
           p_note: string;
           p_pos_session_id: string | null;
           p_created_by: string | null;
+          p_account_id?: string | null;
+          p_reference?: string;
         };
         Returns: string;
+      };
+      issue_customer_credit: {
+        Args: {
+          p_mobile: string;
+          p_amount: number;
+          p_note?: string;
+          p_created_by?: string | null;
+        };
+        Returns: number;
+      };
+      redeem_customer_credit: {
+        Args: {
+          p_mobile: string;
+          p_amount: number;
+          p_note?: string;
+          p_created_by?: string | null;
+        };
+        Returns: number;
       };
       record_sales_credit_note: {
         Args: {

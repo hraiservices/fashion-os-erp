@@ -55,6 +55,7 @@ const styles = StyleSheet.create({
   amountWords: { marginTop: 8, fontSize: 8, color: "#374151" },
   special: { marginTop: 14, fontSize: 9, color: "#374151", lineHeight: 1.4 },
   bankDetails: { marginTop: 12, fontSize: 8, color: "#374151", lineHeight: 1.4 },
+  terms: { marginTop: 12, fontSize: 8, color: "#374151", lineHeight: 1.4 },
   qrBlock: { marginTop: 12, alignItems: "center" },
   qrImage: { width: 90, height: 90 },
   qrCaption: { fontSize: 7, color: "#6b7280", marginTop: 3 },
@@ -205,6 +206,13 @@ export function StitchingOrderDocument({
           <View style={styles.bankDetails}>
             <Text style={{ fontFamily: bold, marginBottom: 3, color: "#374151" }}>Bank Details</Text>
             <Text>{t.bankDetails}</Text>
+          </View>
+        )}
+
+        {t.showTerms && t.terms && (
+          <View style={styles.terms}>
+            <Text style={{ fontFamily: bold, marginBottom: 3, color: "#374151" }}>Terms & Conditions</Text>
+            <Text>{t.terms}</Text>
           </View>
         )}
 

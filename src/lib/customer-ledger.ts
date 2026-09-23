@@ -4,6 +4,7 @@
 import type { Order, Customer } from "@/lib/types";
 import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import { getOrderOutstanding, getInvoiceOutstanding } from "@/lib/balances";
+import { STAGE_META, type Stage } from "@/lib/business-rules";
 
 export interface CustomerLedgerRow {
   mobile: string;
@@ -59,6 +60,9 @@ export interface LedgerTransaction {
   /** Delivery date for a stitching order, null for a retail/invoice row (no equivalent field) —
    *  lets the statement filter by delivery date instead of order/invoice date when asked to. */
   deliveryDate: string | null;
+  /** Workflow stage label (Received/Cutting/.../Delivered) for a stitching order, null for a
+   *  retail/invoice row — invoices have no equivalent workflow. */
+  stage: string | null;
   type: "stitching" | "retail";
   reference: string;
   description: string;
@@ -83,6 +87,7 @@ export function buildCustomerTransactions(orders: Order[], invoices: SalesInvoic
     id: `order-${o.id}`,
     date: o.inDate,
     deliveryDate: o.deliveryDate || null,
+    stage: STAGE_META[o.status as Stage]?.label ?? o.status ?? null,
     type: "stitching",
     reference: o.id,
     description: (o.garments || []).map((g) => g.type).join(", ") || "Stitching order",
@@ -96,6 +101,7 @@ export function buildCustomerTransactions(orders: Order[], invoices: SalesInvoic
     id: `invoice-${inv.id}`,
     date: inv.invoiceDate,
     deliveryDate: null,
+    stage: null,
     type: "retail",
     reference: inv.invoiceNumber,
     description: inv.subject || `${inv.items.length} item(s)`,

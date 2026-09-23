@@ -1240,6 +1240,7 @@ export interface Database {
           check_out_distance_m: number | null;
           hours_worked: number | null;
           overtime_hours: number;
+          work_notes: string;
         };
         Insert: Partial<Database["public"]["Tables"]["employee_attendance"]["Row"]> & {
           employee_id: string;

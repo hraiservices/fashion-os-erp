@@ -1335,6 +1335,9 @@ export interface Attendance {
   checkOutDistanceM: number | null;
   hoursWorked: number | null;
   overtimeHours: number;
+  /** The employee's own "what did you do today" note, required at self-service check-out for
+   *  every role except tailors (see checkout/route.ts) — locked once submitted, never edited. */
+  workNotes: string;
 }
 
 export function mapAttendanceRow(r: AttendanceRow): Attendance {
@@ -1364,6 +1367,7 @@ export function mapAttendanceRow(r: AttendanceRow): Attendance {
     checkOutDistanceM: r.check_out_distance_m,
     hoursWorked: r.hours_worked,
     overtimeHours: r.overtime_hours || 0,
+    workNotes: r.work_notes || "",
   };
 }
 

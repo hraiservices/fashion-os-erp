@@ -12,6 +12,7 @@ const bodySchema = z.object({
   lng: z.number(),
   accuracy: z.number().optional(),
   photo: z.string().min(1, "A selfie is required"),
+  workNotes: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -23,11 +24,19 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid check-out data" }, { status: 400 });
-  const { lat, lng, accuracy, photo } = parsed.data;
+  const { lat, lng, accuracy, photo, workNotes } = parsed.data;
 
-  const { data: employee } = await supabase.from("employees").select("id, name, location_id, active").eq("id", employeeId).maybeSingle();
+  const { data: employee } = await supabase.from("employees").select("id, name, role, location_id, active").eq("id", employeeId).maybeSingle();
   if (!employee || !employee.active) return NextResponse.json({ error: "Employee not found or inactive" }, { status: 404 });
   if (!employee.location_id) return NextResponse.json({ error: "No shop location is assigned to you — ask your manager to set this up." }, { status: 400 });
+
+  // Tailors already have their day's output tracked via order stage moves (see
+  // day-book.ts buildTailorStageProgress) — everyone else must add a short note on what they
+  // did today before they can check out (see checkin/page.tsx's check-out dialog).
+  const isTailor = (employee.role || "").toLowerCase().includes("tailor");
+  if (!isTailor && !workNotes?.trim()) {
+    return NextResponse.json({ error: "Add your work done today before checking out." }, { status: 400 });
+  }
 
   const { data: location } = await supabase.from("shop_locations").select("name, latitude, longitude, geofence_radius_m").eq("id", employee.location_id).maybeSingle();
   if (!location) return NextResponse.json({ error: "Your assigned shop location no longer exists — ask your manager." }, { status: 400 });
@@ -86,6 +95,7 @@ export async function POST(request: Request) {
       check_out_distance_m: geo.distanceM,
       hours_worked: hoursWorked,
       overtime_hours: overtimeHours,
+      work_notes: workNotes?.trim() || "",
     })
     .eq("id", existing.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

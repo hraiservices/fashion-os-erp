@@ -117,6 +117,7 @@ export const REPORTS_GROUP: NavGroup = {
 
     { href: "/reports/employees", label: "Employee Directory", section: "Employees" },
     { href: "/reports/attendance-summary", label: "Attendance Summary" },
+    { href: "/reports/daily-employee-activity", label: "Daily Employee Activity" },
     { href: "/reports/employee-commission", label: "Employee Commission" },
     { href: "/reports/payroll-summary", label: "Salary Report" },
     { href: "/reports/tailor-payables", label: "Tailor Payables" },

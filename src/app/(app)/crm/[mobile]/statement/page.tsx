@@ -6,8 +6,14 @@ import { ArrowLeft, FileDown, Printer, Scissors } from "lucide-react";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useShopSettings } from "@/hooks/use-shop-settings";
+import { useAppSetting } from "@/hooks/use-app-setting";
 import { buildCustomerTransactions } from "@/lib/customer-ledger";
 import { normalizeIndianMobile } from "@/lib/business-rules";
+import {
+  DEFAULT_STITCHING_ORDER_TEMPLATES_SETTING,
+  getDefaultStitchingOrderTemplate,
+  type StitchingOrderTemplatesSetting,
+} from "@/lib/stitching-order-template";
 import { inr, fmtDate } from "@/lib/format";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -37,6 +43,12 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
   const { profiles, isLoading } = useCustomerProfiles();
   const { data: allInvoices, isLoading: invoicesLoading } = useSalesInvoices();
   const { data: shop } = useShopSettings();
+  const { data: stitchingTemplates } = useAppSetting<StitchingOrderTemplatesSetting>("stitchingOrderTemplates", DEFAULT_STITCHING_ORDER_TEMPLATES_SETTING);
+  const template = getDefaultStitchingOrderTemplate(stitchingTemplates || DEFAULT_STITCHING_ORDER_TEMPLATES_SETTING);
+  const showQrCode = template.showQrCode && template.qrCodeDataUrl;
+  const showSignature = template.showSignature && template.signatureDataUrl;
+  const showBankDetails = template.showBankDetails && template.bankDetails;
+  const showTerms = template.showTerms && template.terms;
 
   const [typeFilter, setTypeFilter] = useState<"all" | "stitching" | "retail">("all");
   const [dateField, setDateField] = useState<"order" | "delivery">("order");
@@ -316,6 +328,38 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
               </table>
             </div>
           </>
+        )}
+
+        {showTerms && (
+          <div className="mt-4 rounded-xl border bg-muted/30 p-4 text-sm">
+            <p className="mb-1 font-medium">Terms & Conditions</p>
+            <p className="whitespace-pre-line text-muted-foreground">{template.terms}</p>
+          </div>
+        )}
+
+        {showBankDetails && (
+          <div className="mt-4 rounded-xl border bg-muted/30 p-4 text-sm">
+            <p className="mb-1 font-medium">Bank Details</p>
+            <p className="whitespace-pre-line text-muted-foreground">{template.bankDetails}</p>
+          </div>
+        )}
+
+        {showQrCode && (
+          <div className="mt-4 flex flex-col items-center gap-1.5 rounded-xl border bg-muted/30 p-4">
+            {/* eslint-disable-next-line @next/next/no-img-element -- data URL, not an optimizable remote image */}
+            <img src={template.qrCodeDataUrl!} alt="Scan to pay" className="size-24 object-contain" />
+            <p className="text-xs text-muted-foreground">Scan to pay</p>
+          </div>
+        )}
+
+        {showSignature && (
+          <div className="mt-4 flex justify-end rounded-xl border bg-muted/30 p-4">
+            <div className="flex flex-col items-center gap-1">
+              {/* eslint-disable-next-line @next/next/no-img-element -- data URL, not an optimizable remote image */}
+              <img src={template.signatureDataUrl!} alt="Authorized signature" className="h-10 w-24 object-contain" />
+              <p className="min-w-24 border-t pt-1 text-center text-xs text-muted-foreground">Authorized Signatory</p>
+            </div>
+          </div>
         )}
       </div>
     </div>

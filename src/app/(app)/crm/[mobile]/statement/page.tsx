@@ -2,7 +2,7 @@
 
 import { use, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Printer, Scissors } from "lucide-react";
+import { ArrowLeft, FileDown, Printer, Scissors } from "lucide-react";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useShopSettings } from "@/hooks/use-shop-settings";
@@ -108,6 +108,20 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
         </Link>
         <div className="flex gap-2">
           {whatsappUrl && <WhatsAppButton href={whatsappUrl} size="sm" label="Send on WhatsApp" />}
+          <Button
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            render={
+              <a
+                href={`/api/customers/${mobile}/statement/pdf?${new URLSearchParams({ type: typeFilter, ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString()}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              />
+            }
+          >
+            <FileDown className="size-4" /> Download PDF
+          </Button>
           <Button size="sm" onClick={() => window.print()}>
             <Printer className="size-4" /> Print / Save PDF
           </Button>

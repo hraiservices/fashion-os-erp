@@ -15,18 +15,19 @@ import {
   useUserHasPin,
   type UserRoleRow,
 } from "@/hooks/use-user-roles";
+import { useSetEmployeeDashboardAccess } from "@/hooks/use-employee-dashboard-access";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { useEmployees } from "@/hooks/use-employees";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { X, Check, ChevronDown, ChevronRight, Info, Link2, KeyRound, Search } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Check, ChevronRight, Info, Link2, KeyRound, Search, Plus, User, Mail, Phone, AlertTriangle, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
   ROLE_DEFAULTS,
@@ -52,7 +53,8 @@ function PermCheck({ on }: { on: boolean }) {
 
 /** "What can each role do?" reference table — live-editable: clicking a cell changes that
  *  role's shop-wide starting permission (stored in app_settings as roleDefaultOverrides), not
- *  just one person's. Per-user overrides below still take precedence over whatever's set here. */
+ *  just one person's. Per-user overrides in the wizard still take precedence over whatever's
+ *  set here. */
 function RoleReferenceCard() {
   const qc = useQueryClient();
   const { data: overrides, isLoading } = useAppSetting<RoleDefaultOverrides>("roleDefaultOverrides", DEFAULT_ROLE_DEFAULT_OVERRIDES);
@@ -134,7 +136,7 @@ function RoleReferenceCard() {
           </tbody>
         </table>
         <p className="mt-3 text-xs text-muted-foreground">
-          Click any checkmark to change that role&apos;s starting permission shop-wide. Expand any user below to override just that one person instead —
+          Click any checkmark to change that role&apos;s starting permission shop-wide. Open any user below to override just that one person instead —
           e.g. a tailor who should only change order stage, or a manager who shouldn&apos;t delete orders.
         </p>
       </CardContent>
@@ -225,14 +227,11 @@ function PhoneCheckCard() {
   );
 }
 
-/** Dashboard-login PIN control for one user, shown inside the expanded panel. Its own
- *  component (not inlined in the row .map()) because it needs useUserHasPin — a hook can't be
- *  called conditionally inside a list callback, only inside a real per-item component. Only
- *  ever mounted while that row is expanded, so the "is a PIN set?" fetch only ever happens for
- *  a row someone's actually looking at. */
+/** Dashboard-login PIN control for a standalone (non-employee-linked) login, shown inside the
+ *  wizard's Identity step. Its own component (not inlined) because it needs useUserHasPin — a
+ *  hook can't be called conditionally inside a list callback. */
 function PinSection({
-  row,
-  employeeName,
+  email,
   editing,
   pinVal,
   onEditValChange,
@@ -241,8 +240,7 @@ function PinSection({
   onSave,
   saving,
 }: {
-  row: UserRoleRow;
-  employeeName: string | undefined;
+  email: string;
   editing: boolean;
   pinVal: string;
   onEditValChange: (v: string) => void;
@@ -251,20 +249,12 @@ function PinSection({
   onSave: () => void;
   saving: boolean;
 }) {
-  const { data: hasPin, isLoading } = useUserHasPin(row.email, !row.linked_employee_id);
+  const { data: hasPin, isLoading } = useUserHasPin(email, true);
 
   return (
     <div>
       <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Dashboard PIN login</p>
-      {row.linked_employee_id ? (
-        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <KeyRound className="size-3.5" /> Managed from{" "}
-          <Link href={`/employees/${row.linked_employee_id}/edit`} className="underline hover:text-foreground">
-            {employeeName || "the linked employee"}&apos;s
-          </Link>{" "}
-          record — see &quot;Dashboard access&quot; there.
-        </p>
-      ) : editing ? (
+      {editing ? (
         <div className="flex max-w-xs gap-1">
           <Input
             inputMode="numeric"
@@ -291,396 +281,504 @@ function PinSection({
   );
 }
 
-/** UsersSection(), Stitching_Manager_Pro_v16.html ~line 13397. Admin only. */
-export function UsersSection() {
-  const { data: rows, isLoading } = useUserRoles();
-  const { data: entitlements } = useModuleEntitlements();
-  const { data: employees } = useEmployees();
-  const { data: roleDefaultOverrides } = useAppSetting<RoleDefaultOverrides>("roleDefaultOverrides", DEFAULT_ROLE_DEFAULT_OVERRIDES);
+type Identity = "employee" | "email" | "phone";
+const STEPS = ["Identity", "Role", "Permissions", "Review"] as const;
+
+interface WizardState {
+  mode: "add" | "edit";
+  editingRow: UserRoleRow | null;
+  step: number;
+  identity: Identity;
+  employeeId: string | null;
+  email: string;
+  mobile: string;
+  pin: string;
+  role: Role;
+  custom: Partial<Permissions>;
+}
+
+function blankWizardState(): WizardState {
+  return { mode: "add", editingRow: null, step: 0, identity: "employee", employeeId: null, email: "", mobile: "", pin: "", role: "tailor", custom: {} };
+}
+
+/** The onboarding/edit wizard — the one place a login's identity, role, and permissions get set,
+ *  whether it's a brand-new person or an existing row someone clicked on. Reuses the exact same
+ *  mutations the old flat form used underneath; only the presentation changed. */
+function UserWizard({
+  state,
+  onClose,
+  employees,
+  rows,
+  employeesById,
+  roleDefaultOverrides,
+  maxStaffAccounts,
+}: {
+  state: WizardState;
+  onClose: () => void;
+  employees: { id: string; name: string; mobile: string }[];
+  rows: UserRoleRow[];
+  employeesById: Map<string, { name: string; mobile: string }>;
+  roleDefaultOverrides: RoleDefaultOverrides | undefined;
+  maxStaffAccounts: number | null | undefined;
+}) {
+  const [s, setS] = useState<WizardState>(state);
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [phoneVal, setPhoneVal] = useState(s.editingRow?.phone || "");
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [emailVal, setEmailVal] = useState(s.editingRow?.email || "");
+  const [editingPin, setEditingPin] = useState(false);
+  const [pinVal, setPinVal] = useState("");
+
   const setRole = useSetUserRole();
   const renameEmail = useRenameUserEmail();
   const setPhone = useSetUserPhone();
   const linkEmployee = useLinkEmployeeToUser();
   const provisionPhone = useProvisionPhoneUser();
   const setPin = useSetUserPin();
+  const setEmployeeAccess = useSetEmployeeDashboardAccess();
+
+  const isEdit = s.mode === "edit";
+  const linkedEmployeeIds = new Set(rows.map((r) => r.linked_employee_id).filter((v): v is string => !!v));
+  const employeeOptions = employees
+    .filter((e) => !linkedEmployeeIds.has(e.id) || e.id === s.employeeId)
+    .map((e) => ({ value: e.id, label: e.name, sublabel: e.mobile }));
+
+  function permValue(key: keyof Permissions): boolean {
+    const roleDefault = ROLE_DEFAULTS[s.role][key];
+    const roleOverride = roleDefaultOverrides?.[s.role]?.[key];
+    return s.custom[key] ?? roleOverride ?? roleDefault;
+  }
+
+  function togglePerm(key: keyof Permissions) {
+    setS((prev) => ({ ...prev, custom: { ...prev.custom, [key]: !permValue(key) } }));
+  }
+
+  const step1Valid =
+    isEdit || (s.identity === "employee" && !!s.employeeId) || (s.identity === "email" && s.email.includes("@")) || (s.identity === "phone" && s.mobile.length === 10 && /^\d{4,6}$/.test(s.pin));
+
+  async function handleSave() {
+    try {
+      if (s.identity === "employee") {
+        const employeeId = isEdit ? s.editingRow!.linked_employee_id! : s.employeeId!;
+        await setEmployeeAccess.mutateAsync({ employeeId, enabled: true, role: s.role, custom: s.custom });
+      } else if (isEdit) {
+        await setRole.mutateAsync({ email: s.editingRow!.email, role: s.role, custom: s.custom });
+      } else if (s.identity === "email") {
+        const isNewUser = !rows.some((r) => r.email.toLowerCase() === s.email.trim().toLowerCase());
+        await setRole.mutateAsync({ email: s.email.trim(), role: s.role, custom: s.custom });
+        if (isNewUser && maxStaffAccounts != null && rows.length + 1 >= maxStaffAccounts) {
+          toast.warning(`You've reached your plan's staff account limit (${rows.length + 1}/${maxStaffAccounts}). Contact us to upgrade.`);
+        }
+      } else {
+        await provisionPhone.mutateAsync({ mobile: s.mobile, pin: s.pin, role: s.role, custom: s.custom });
+      }
+      toast.success(isEdit ? "Access updated" : "User added");
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save");
+    }
+  }
+
+  /** Only meaningful for an employee-linked login — unlinking removes their dashboard access
+   *  (see the dashboard-access route). There's no equivalent "revoke" for a standalone
+   *  email/phone login today (it has no employee record to unlink from), so this action isn't
+   *  offered there — only email/phone/PIN edits are, same as before this screen existed. */
+  async function handleRemoveAccess() {
+    if (!s.editingRow?.linked_employee_id) return;
+    try {
+      await setEmployeeAccess.mutateAsync({ employeeId: s.editingRow.linked_employee_id, enabled: false });
+      toast.success("Dashboard access removed");
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to remove access");
+    }
+  }
+
+  const saving = setRole.isPending || provisionPhone.isPending || setEmployeeAccess.isPending;
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-h-[85dvh] max-w-lg overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? employeesById.get(s.editingRow?.linked_employee_id || "")?.name || s.editingRow?.email : "Add a user"}</DialogTitle>
+        </DialogHeader>
+
+        <div className="flex gap-1 border-b pb-2 text-xs">
+          {STEPS.map((label, i) => (
+            <button
+              key={label}
+              type="button"
+              disabled={!isEdit && i > 0 && !step1Valid}
+              onClick={() => setS((prev) => ({ ...prev, step: i }))}
+              className={cn(
+                "flex-1 rounded-md px-2 py-1.5 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                s.step === i ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {s.step === 0 && (
+          <div className="space-y-3">
+            {!isEdit ? (
+              <>
+                <p className="text-xs text-muted-foreground">Who is this? Most staff should be linked to their employee record.</p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {(["employee", "email", "phone"] as Identity[]).map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setS((prev) => ({ ...prev, identity: v }))}
+                      className={cn(
+                        "flex flex-col items-center gap-1 rounded-lg border p-2.5 text-xs font-medium",
+                        s.identity === v ? "border-primary bg-primary/5 text-primary" : "text-muted-foreground hover:bg-muted"
+                      )}
+                    >
+                      {v === "employee" ? <User className="size-4" /> : v === "email" ? <Mail className="size-4" /> : <Phone className="size-4" />}
+                      {v === "employee" ? "Employee" : v === "email" ? "Email login" : "Phone + PIN"}
+                    </button>
+                  ))}
+                </div>
+
+                {s.identity === "employee" && (
+                  <SearchSelect
+                    placeholder="Type a name or mobile number…"
+                    value={s.employeeId || ""}
+                    options={employeeOptions}
+                    onSelect={(id) => setS((prev) => ({ ...prev, employeeId: id || null }))}
+                  />
+                )}
+                {s.identity === "email" && (
+                  <Input type="email" placeholder="user@email.com" value={s.email} onChange={(e) => setS((prev) => ({ ...prev, email: e.target.value }))} />
+                )}
+                {s.identity === "phone" && (
+                  <div className="flex gap-2">
+                    <Input
+                      inputMode="numeric"
+                      maxLength={10}
+                      placeholder="10-digit mobile number"
+                      value={s.mobile}
+                      onChange={(e) => setS((prev) => ({ ...prev, mobile: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+                    />
+                    <Input
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="4-6 digit PIN"
+                      value={s.pin}
+                      onChange={(e) => setS((prev) => ({ ...prev, pin: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                    />
+                  </div>
+                )}
+                {s.identity === "phone" && (
+                  <p className="text-xs text-muted-foreground">Creates a login with no email at all — this person signs in with just this mobile number and PIN.</p>
+                )}
+              </>
+            ) : s.identity === "employee" ? (
+              <div className="space-y-2">
+                <p className="flex items-center gap-1.5 text-sm">
+                  <Link2 className="size-3.5 text-emerald-600 dark:text-emerald-400" /> Linked to{" "}
+                  <Link href={`/employees/${s.editingRow!.linked_employee_id}/edit`} className="font-medium underline">
+                    {employeesById.get(s.editingRow!.linked_employee_id!)?.name || "this employee"}
+                  </Link>
+                </p>
+                <Button size="sm" variant="outline" className="gap-1.5 text-destructive" onClick={handleRemoveAccess} disabled={setEmployeeAccess.isPending}>
+                  <AlertTriangle className="size-3.5" /> Remove dashboard access
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Email</p>
+                  {editingEmail ? (
+                    <div className="flex gap-1">
+                      <Input value={emailVal} onChange={(e) => setEmailVal(e.target.value)} className="h-8" />
+                      <Button
+                        size="sm"
+                        onClick={async () => {
+                          const email = emailVal.trim().toLowerCase();
+                          if (!email || !email.includes("@")) return toast.error("Enter a valid email address");
+                          try {
+                            await renameEmail.mutateAsync({ oldEmail: s.editingRow!.email, newEmail: email, role: s.editingRow!.role, phone: s.editingRow!.phone, custom: s.editingRow!.custom_permissions });
+                            setS((prev) => ({ ...prev, editingRow: { ...prev.editingRow!, email } }));
+                            setEditingEmail(false);
+                            toast.success("Email updated");
+                          } catch (e) {
+                            toast.error(e instanceof Error ? e.message : "Failed to update email");
+                          }
+                        }}
+                      >
+                        <Check className="size-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingEmail(false)}>
+                        <X className="size-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button className="text-left text-sm hover:underline" onClick={() => { setEditingEmail(true); setEmailVal(s.editingRow!.email); }}>
+                      {s.editingRow!.email}
+                    </button>
+                  )}
+                </div>
+                <div>
+                  <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Phone</p>
+                  {editingPhone ? (
+                    <div className="flex gap-1">
+                      <Input value={phoneVal} onChange={(e) => setPhoneVal(e.target.value)} className="h-8" placeholder="10-digit" />
+                      <Button
+                        size="sm"
+                        onClick={async () => {
+                          const cleaned = phoneVal.replace(/\D/g, "").replace(/^91/, "").slice(-10);
+                          if (phoneVal.trim() !== "" && cleaned.length !== 10) return toast.error("Enter a valid 10-digit mobile number");
+                          try {
+                            await setPhone.mutateAsync({ email: s.editingRow!.email, phone: cleaned || null });
+                            setS((prev) => ({ ...prev, editingRow: { ...prev.editingRow!, phone: cleaned || null } }));
+                            setEditingPhone(false);
+                            toast.success(cleaned ? "Phone number saved" : "Phone number removed");
+                          } catch (e) {
+                            toast.error(e instanceof Error ? e.message : "Failed to save phone");
+                          }
+                        }}
+                      >
+                        <Check className="size-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingPhone(false)}>
+                        <X className="size-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button className="text-left text-sm text-muted-foreground hover:underline" onClick={() => { setEditingPhone(true); setPhoneVal(s.editingRow!.phone || ""); }}>
+                      {s.editingRow!.phone || "+ add phone"}
+                    </button>
+                  )}
+                </div>
+                <PinSection
+                  email={s.editingRow!.email}
+                  editing={editingPin}
+                  pinVal={pinVal}
+                  onEditValChange={setPinVal}
+                  onStartEdit={() => { setEditingPin(true); setPinVal(""); }}
+                  onCancelEdit={() => setEditingPin(false)}
+                  onSave={async () => {
+                    if (pinVal.trim() !== "" && !/^\d{4,6}$/.test(pinVal)) return toast.error("PIN must be 4-6 digits");
+                    try {
+                      await setPin.mutateAsync({ email: s.editingRow!.email, pin: pinVal.trim() || null });
+                      setEditingPin(false);
+                      toast.success(pinVal.trim() ? "PIN saved" : "PIN removed");
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Failed to save PIN");
+                    }
+                  }}
+                  saving={setPin.isPending}
+                />
+                <div>
+                  <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Link to an employee instead</p>
+                  <SearchSelect
+                    inputClassName="h-9"
+                    placeholder="Type a name or mobile number…"
+                    value=""
+                    options={employeeOptions}
+                    onSelect={async (id) => {
+                      if (!id) return;
+                      try {
+                        await linkEmployee.mutateAsync({ email: s.editingRow!.email, employeeId: id });
+                        toast.success("Linked to employee");
+                        onClose();
+                      } catch (e) {
+                        toast.error(e instanceof Error ? e.message : "Failed to link");
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {s.step === 1 && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">What role does this person have?</p>
+            <Select value={s.role} onValueChange={(v) => v && setS((prev) => ({ ...prev, role: v as Role }))}>
+              <SelectTrigger className="w-full">
+                <SelectValue>{roleLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {ROLE_OPTIONS.map(([v, l]) => (
+                  <SelectItem key={v} value={v}>
+                    {l}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {s.step === 2 && (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Starting from &quot;{roleLabel(s.role)}&quot; defaults — toggle anything specific to just this person.
+            </p>
+            {PERMISSION_GROUPS.map((group) => (
+              <div key={group.label}>
+                <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{group.label}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {group.keys.map((key) => {
+                    const on = permValue(key);
+                    const isOverridden = s.custom[key] !== undefined;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => togglePerm(key)}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs hover:text-foreground",
+                          isOverridden ? "border-primary/40 text-foreground" : "text-muted-foreground"
+                        )}
+                        title={isOverridden ? "Overridden from role default" : "Using role default"}
+                      >
+                        <span className={cn("flex size-3.5 items-center justify-center rounded-sm border", on ? "border-primary bg-primary text-primary-foreground" : "border-input")}>
+                          {on && <Check className="size-2.5" />}
+                        </span>
+                        {PERMISSION_LABELS[key]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            {Object.keys(s.custom).length > 0 && (
+              <Button size="sm" variant="ghost" onClick={() => setS((prev) => ({ ...prev, custom: {} }))} className="text-xs text-muted-foreground">
+                Reset to &quot;{roleLabel(s.role)}&quot; defaults
+              </Button>
+            )}
+          </div>
+        )}
+
+        {s.step === 3 && (
+          <div className="space-y-2 text-sm">
+            <p className="text-muted-foreground">Ready to save:</p>
+            <ul className="list-inside list-disc space-y-1">
+              <li>
+                {s.identity === "employee"
+                  ? `Employee: ${isEdit ? employeesById.get(s.editingRow?.linked_employee_id || "")?.name : employeesById.get(s.employeeId || "")?.name}`
+                  : s.identity === "email"
+                    ? `Email: ${isEdit ? s.editingRow!.email : s.email}`
+                    : `Phone: ${s.mobile}`}
+              </li>
+              <li>Role: {roleLabel(s.role)}</li>
+              <li>{Object.keys(s.custom).length > 0 ? `${Object.keys(s.custom).length} permission(s) customized` : "Using role defaults"}</li>
+            </ul>
+          </div>
+        )}
+
+        <DialogFooter className="flex items-center justify-between gap-2 sm:justify-between">
+          <Button variant="ghost" size="sm" disabled={s.step === 0} onClick={() => setS((prev) => ({ ...prev, step: prev.step - 1 }))}>
+            Back
+          </Button>
+          {s.step < 3 ? (
+            <Button size="sm" disabled={s.step === 0 && !step1Valid} onClick={() => setS((prev) => ({ ...prev, step: prev.step + 1 }))}>
+              Next <ChevronRight className="size-4" />
+            </Button>
+          ) : (
+            <Button size="sm" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving…" : isEdit ? "Save changes" : "Add user"}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** UsersSection() — "Users & Access". Admin only. Replaces the old flat assign-form + expandable
+ *  row list, and the separate Employees -> "Dashboard access" toggle, with one wizard that
+ *  handles onboarding a new login and editing an existing one the same way. */
+export function UsersSection() {
+  const { data: rows, isLoading } = useUserRoles();
+  const { data: entitlements } = useModuleEntitlements();
+  const { data: employees } = useEmployees();
+  const { data: roleDefaultOverrides } = useAppSetting<RoleDefaultOverrides>("roleDefaultOverrides", DEFAULT_ROLE_DEFAULT_OVERRIDES);
 
   const employeesById = new Map((employees || []).map((e) => [e.id, e]));
+  const [wizard, setWizard] = useState<WizardState | null>(null);
 
-  const [createMethod, setCreateMethod] = useState<"email" | "phone">("email");
-  const [newEmail, setNewEmail] = useState("");
-  const [newMobile, setNewMobile] = useState("");
-  const [newPin, setNewPin] = useState("");
-  const [newRole, setNewRole] = useState("tailor");
-  const [editingPhone, setEditingPhone] = useState<string | null>(null);
-  const [phoneVal, setPhoneVal] = useState("");
-  const [editingEmail, setEditingEmail] = useState<string | null>(null);
-  const [emailVal, setEmailVal] = useState("");
-  const [editingPin, setEditingPin] = useState<string | null>(null);
-  const [pinVal, setPinVal] = useState("");
-  const [expanded, setExpanded] = useState<string | null>(null);
-
-  async function assignRole() {
-    if (!newEmail.trim()) return toast.error("Enter email");
-    const isNewUser = !rows?.some((r) => r.email.toLowerCase() === newEmail.trim().toLowerCase());
-    try {
-      await setRole.mutateAsync({ email: newEmail.trim(), role: newRole });
-      setNewEmail("");
-      toast.success("Role assigned");
-      // Soft cap only — the assignment above already succeeded regardless of this check.
-      const maxStaff = entitlements?.limits?.maxStaffAccounts;
-      const newCount = (rows?.length || 0) + (isNewUser ? 1 : 0);
-      if (isNewUser && maxStaff != null && newCount >= maxStaff) {
-        toast.warning(`You've reached your plan's staff account limit (${newCount}/${maxStaff}). Contact us to upgrade.`);
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Error");
-    }
+  function openAdd() {
+    setWizard(blankWizardState());
   }
 
-  async function assignPhoneRole() {
-    const mobile = newMobile.replace(/\D/g, "").slice(-10);
-    if (mobile.length !== 10) return toast.error("Enter a valid 10-digit mobile number");
-    if (!/^\d{4,6}$/.test(newPin)) return toast.error("PIN must be 4-6 digits");
-    try {
-      await provisionPhone.mutateAsync({ mobile, pin: newPin, role: newRole });
-      setNewMobile("");
-      setNewPin("");
-      toast.success("Phone login created — share the mobile number and PIN with them");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Error");
-    }
-  }
-
-  async function savePin(row: UserRoleRow) {
-    if (pinVal.trim() !== "" && !/^\d{4,6}$/.test(pinVal)) return toast.error("PIN must be 4-6 digits");
-    try {
-      await setPin.mutateAsync({ email: row.email, pin: pinVal.trim() || null });
-      setEditingPin(null);
-      toast.success(pinVal.trim() ? "PIN saved" : "PIN removed");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save PIN");
-    }
-  }
-
-  async function updateRole(row: UserRoleRow, role: string) {
-    try {
-      await setRole.mutateAsync({ email: row.email, role, custom: row.custom_permissions || {} });
-      toast.success("Role updated");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Error");
-    }
-  }
-
-  function permValue(row: UserRoleRow, key: keyof Permissions): boolean {
-    const roleDefault = ROLE_DEFAULTS[row.role as Role]?.[key] ?? false;
-    const roleOverride = roleDefaultOverrides?.[row.role as Role]?.[key];
-    return row.custom_permissions?.[key] ?? roleOverride ?? roleDefault;
-  }
-
-  async function togglePerm(row: UserRoleRow, key: keyof Permissions) {
-    const current = permValue(row, key);
-    try {
-      await setRole.mutateAsync({ email: row.email, role: row.role, custom: { ...row.custom_permissions, [key]: !current } });
-      toast.success(`${PERMISSION_LABELS[key]} ${!current ? "granted" : "revoked"} for ${row.email}`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Error");
-    }
-  }
-
-  async function resetToRoleDefaults(row: UserRoleRow) {
-    try {
-      await setRole.mutateAsync({ email: row.email, role: row.role, custom: {} });
-      toast.success("Reset to role defaults");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Error");
-    }
-  }
-
-  async function saveEmail(row: UserRoleRow) {
-    const email = emailVal.trim().toLowerCase();
-    if (!email || !email.includes("@")) return toast.error("Enter a valid email address");
-    if (email === row.email) return setEditingEmail(null);
-    try {
-      await renameEmail.mutateAsync({ oldEmail: row.email, newEmail: email, role: row.role, phone: row.phone, custom: row.custom_permissions });
-      setEditingEmail(null);
-      toast.success("Email updated");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to update email");
-    }
-  }
-
-  async function savePhone(row: UserRoleRow) {
-    const cleaned = phoneVal.replace(/\D/g, "").replace(/^91/, "").slice(-10);
-    if (phoneVal.trim() !== "" && cleaned.length !== 10) return toast.error("Enter a valid 10-digit mobile number");
-    try {
-      await setPhone.mutateAsync({ email: row.email, phone: cleaned || null });
-      setEditingPhone(null);
-      toast.success(cleaned ? "Phone number saved" : "Phone number removed");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save phone");
-    }
-  }
-
-  async function linkToEmployee(row: UserRoleRow, employeeId: string | null) {
-    try {
-      await linkEmployee.mutateAsync({ email: row.email, employeeId });
-      toast.success(employeeId ? "Linked to employee" : "Unlinked from employee");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to update link");
-    }
+  function openEdit(row: UserRoleRow) {
+    setWizard({
+      mode: "edit",
+      editingRow: row,
+      step: 0,
+      identity: row.linked_employee_id ? "employee" : "email",
+      employeeId: row.linked_employee_id,
+      email: row.email,
+      mobile: row.phone || "",
+      pin: "",
+      role: row.role as Role,
+      custom: row.custom_permissions || {},
+    });
   }
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
 
   return (
     <div className="space-y-4">
-      <PhoneCheckCard />
-      <RoleReferenceCard />
-
       <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Assign role to user</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Tabs value={createMethod} onValueChange={(v) => v && setCreateMethod(v as "email" | "phone")}>
-            <TabsList>
-              <TabsTrigger value="email">Email</TabsTrigger>
-              <TabsTrigger value="phone">Phone + PIN</TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          {createMethod === "email" ? (
-            <div className="flex flex-wrap gap-2">
-              <Input className="min-w-40 flex-[2]" type="email" placeholder="user@email.com" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
-              <Select value={newRole} onValueChange={(v) => v && setNewRole(v)}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue>{roleLabel}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLE_OPTIONS.map(([v, l]) => (
-                    <SelectItem key={v} value={v}>
-                      {l}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button onClick={assignRole} disabled={setRole.isPending}>
-                Assign
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex flex-wrap gap-2">
-                <Input
-                  className="min-w-32 flex-1"
-                  inputMode="numeric"
-                  maxLength={10}
-                  placeholder="10-digit mobile number"
-                  value={newMobile}
-                  onChange={(e) => setNewMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                />
-                <Input
-                  className="min-w-28 flex-1"
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="4-6 digit PIN"
-                  value={newPin}
-                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                />
-                <Select value={newRole} onValueChange={(v) => v && setNewRole(v)}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue>{roleLabel}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ROLE_OPTIONS.map(([v, l]) => (
-                      <SelectItem key={v} value={v}>
-                        {l}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={assignPhoneRole} disabled={provisionPhone.isPending}>
-                  Create
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Creates a login with no email at all — this person signs into the dashboard with just this mobile number and PIN. Share both with them directly.
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
           <CardTitle className="text-sm">All users ({(rows || []).length})</CardTitle>
+          <Button size="sm" className="gap-1.5" onClick={openAdd}>
+            <Plus className="size-4" /> Add user
+          </Button>
         </CardHeader>
         <CardContent className="space-y-2">
+          {(rows || []).length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">No users yet — add the first one.</p>}
           {(rows || []).map((row) => {
-            const isExpanded = expanded === row.email;
             const hasOverrides = !!row.custom_permissions && Object.keys(row.custom_permissions).length > 0;
             return (
-              <div key={row.email} className="rounded-md border text-sm">
-                <div className="flex flex-wrap items-center gap-2 p-3">
-                  <button
-                    type="button"
-                    onClick={() => setExpanded(isExpanded ? null : row.email)}
-                    className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
-                    aria-label={isExpanded ? "Collapse permissions" : "Expand permissions"}
-                  >
-                    {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-                  </button>
-                  <div className="min-w-48 flex-1">
-                    {editingEmail === row.email ? (
-                      <div className="flex gap-1">
-                        <Input value={emailVal} onChange={(e) => setEmailVal(e.target.value)} className="h-8" />
-                        <Button size="sm" onClick={() => saveEmail(row)}>
-                          <Check className="size-4" />
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setEditingEmail(null)}>
-                          <X className="size-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <button
-                        className="text-left hover:underline"
-                        title={row.email}
-                        onClick={() => {
-                          setEditingEmail(row.email);
-                          setEmailVal(row.email);
-                        }}
-                      >
-                        {row.linked_employee_id ? employeesById.get(row.linked_employee_id)?.name || row.email : row.email}
-                      </button>
-                    )}
-                  </div>
-                  <div className="w-40">
-                    {editingPhone === row.email ? (
-                      <div className="flex gap-1">
-                        <Input value={phoneVal} onChange={(e) => setPhoneVal(e.target.value)} className="h-8" placeholder="10-digit" />
-                        <Button size="sm" onClick={() => savePhone(row)}>
-                          <Check className="size-4" />
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setEditingPhone(null)}>
-                          <X className="size-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <button
-                        className="text-left text-muted-foreground hover:underline"
-                        onClick={() => {
-                          setEditingPhone(row.email);
-                          setPhoneVal(row.phone || "");
-                        }}
-                      >
-                        {row.phone || "+ add phone"}
-                      </button>
-                    )}
-                  </div>
-                  <Select value={row.role} onValueChange={(v) => v && updateRole(row, v)}>
-                    <SelectTrigger className="w-40">
-                      <SelectValue>{roleLabel}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLE_OPTIONS.map(([v, l]) => (
-                        <SelectItem key={v} value={v}>
-                          {l}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Badge variant="secondary">{row.role}</Badge>
-                  {hasOverrides && (
-                    <Badge variant="outline" className="text-primary">
-                      Customized
-                    </Badge>
-                  )}
-                  {row.linked_employee_id && employeesById.get(row.linked_employee_id) && (
-                    <Badge variant="outline" className="gap-1 text-emerald-600 dark:text-emerald-400">
-                      <Link2 className="size-3" /> {employeesById.get(row.linked_employee_id)!.name}
-                    </Badge>
-                  )}
+              <button
+                key={row.email}
+                type="button"
+                onClick={() => openEdit(row)}
+                className="flex w-full flex-wrap items-center gap-2 rounded-md border p-3 text-left text-sm hover:bg-muted/40"
+              >
+                <div className="min-w-48 flex-1 truncate font-medium">
+                  {row.linked_employee_id ? employeesById.get(row.linked_employee_id)?.name || row.email : row.email}
                 </div>
-
-                {isExpanded && (
-                  <div className="space-y-3 border-t bg-muted/20 p-3">
-                    <div>
-                      <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Linked employee</p>
-                      <p className="mb-1.5 text-[11px] text-muted-foreground">
-                        For an account that already exists on its own (e.g. an email/password login). To give a staff member dashboard access from
-                        scratch, use &quot;Dashboard access&quot; on their own employee record instead — no need to come here at all.
-                      </p>
-                      <SearchSelect
-                        className="max-w-xs"
-                        inputClassName="h-9"
-                        placeholder="Type a name or mobile number…"
-                        value={row.linked_employee_id || ""}
-                        fallbackLabel={row.linked_employee_id ? employeesById.get(row.linked_employee_id)?.name : undefined}
-                        options={(employees || [])
-                          .filter((e) => e.id === row.linked_employee_id || !(rows || []).some((r) => r.linked_employee_id === e.id))
-                          .map((e) => ({ value: e.id, label: e.name, sublabel: e.mobile }))}
-                        onSelect={(id) => linkToEmployee(row, id || null)}
-                      />
-                      {row.linked_employee_id && (
-                        <button type="button" onClick={() => linkToEmployee(row, null)} className="mt-1 text-xs text-muted-foreground hover:text-destructive">
-                          Unlink
-                        </button>
-                      )}
-                    </div>
-                    <PinSection
-                      row={row}
-                      employeeName={row.linked_employee_id ? employeesById.get(row.linked_employee_id)?.name : undefined}
-                      editing={editingPin === row.email}
-                      pinVal={pinVal}
-                      onEditValChange={setPinVal}
-                      onStartEdit={() => {
-                        setEditingPin(row.email);
-                        setPinVal("");
-                      }}
-                      onCancelEdit={() => setEditingPin(null)}
-                      onSave={() => savePin(row)}
-                      saving={setPin.isPending}
-                    />
-                    {PERMISSION_GROUPS.map((group) => (
-                      <div key={group.label}>
-                        <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{group.label}</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {group.keys.map((key) => {
-                            const on = permValue(row, key);
-                            const isOverridden = row.custom_permissions?.[key] !== undefined;
-                            return (
-                              <button
-                                key={key}
-                                type="button"
-                                onClick={() => togglePerm(row, key)}
-                                className={cn(
-                                  "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs hover:text-foreground",
-                                  isOverridden ? "border-primary/40 text-foreground" : "text-muted-foreground"
-                                )}
-                                title={isOverridden ? "Overridden from role default" : "Using role default"}
-                              >
-                                <span className={cn("flex size-3.5 items-center justify-center rounded-sm border", on ? "border-primary bg-primary text-primary-foreground" : "border-input")}>
-                                  {on && <Check className="size-2.5" />}
-                                </span>
-                                {PERMISSION_LABELS[key]}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                    {hasOverrides && (
-                      <Button size="sm" variant="ghost" onClick={() => resetToRoleDefaults(row)} className="text-xs text-muted-foreground">
-                        Reset to &quot;{roleLabel(row.role)}&quot; defaults
-                      </Button>
-                    )}
-                  </div>
+                <Badge variant="secondary">{roleLabel(row.role)}</Badge>
+                {hasOverrides && (
+                  <Badge variant="outline" className="text-primary">
+                    Customized
+                  </Badge>
                 )}
-              </div>
+                {row.linked_employee_id && employeesById.get(row.linked_employee_id) && (
+                  <Badge variant="outline" className="gap-1 text-emerald-600 dark:text-emerald-400">
+                    <Link2 className="size-3" /> Employee
+                  </Badge>
+                )}
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground/50" />
+              </button>
             );
           })}
         </CardContent>
       </Card>
+
+      <PhoneCheckCard />
+      <RoleReferenceCard />
+
+      {wizard && (
+        <UserWizard
+          state={wizard}
+          onClose={() => setWizard(null)}
+          employees={employees || []}
+          rows={rows || []}
+          employeesById={employeesById}
+          roleDefaultOverrides={roleDefaultOverrides}
+          maxStaffAccounts={entitlements?.limits?.maxStaffAccounts}
+        />
+      )}
     </div>
   );
 }

@@ -116,6 +116,7 @@ export default function CheckInPage() {
   const [submitting, setSubmitting] = useState(false);
   const [workNoteOpen, setWorkNoteOpen] = useState(false);
   const [workNote, setWorkNote] = useState("");
+  const [workNoteError, setWorkNoteError] = useState(false);
 
   const [tab, setTab] = useState<MainTab>("attendance");
   const [earnings, setEarnings] = useState<EarningsResponse | null>(null);
@@ -258,6 +259,7 @@ export default function CheckInPage() {
     }
     if (action === "checkout" && !isTailor) {
       setWorkNote("");
+      setWorkNoteError(false);
       setWorkNoteOpen(true);
       return;
     }
@@ -267,7 +269,7 @@ export default function CheckInPage() {
 
   function submitWorkNote() {
     if (!workNote.trim()) {
-      toast.error("Add your work done today");
+      setWorkNoteError(true);
       return;
     }
     setWorkNoteOpen(false);
@@ -764,8 +766,12 @@ export default function CheckInPage() {
             rows={6}
             placeholder="A few lines about what you did today (5-10 lines)…"
             value={workNote}
-            onChange={(e) => setWorkNote(e.target.value)}
+            onChange={(e) => {
+              setWorkNote(e.target.value);
+              if (workNoteError) setWorkNoteError(false);
+            }}
           />
+          {workNoteError && <p className="text-sm font-medium text-red-600 dark:text-red-400">Fill your Today Work then Check-Out</p>}
           <DialogFooter>
             <Button variant="ghost" onClick={() => setWorkNoteOpen(false)}>Cancel</Button>
             <Button onClick={submitWorkNote}>Continue to Check Out</Button>

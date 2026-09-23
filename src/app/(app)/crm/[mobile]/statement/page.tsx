@@ -39,6 +39,7 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
   const { data: shop } = useShopSettings();
 
   const [typeFilter, setTypeFilter] = useState<"all" | "stitching" | "retail">("all");
+  const [dateField, setDateField] = useState<"order" | "delivery">("order");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
@@ -50,11 +51,14 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
   const filtered = useMemo(() => {
     return allTransactions.filter((t) => {
       if (typeFilter !== "all" && t.type !== typeFilter) return false;
-      if (from && t.date < from) return false;
-      if (to && t.date > to) return false;
+      // Delivery date only exists for stitching orders — a retail row (no equivalent field)
+      // falls back to its own document date rather than being silently excluded from the range.
+      const filterDate = dateField === "delivery" ? t.deliveryDate || t.date : t.date;
+      if (from && filterDate < from) return false;
+      if (to && filterDate > to) return false;
       return true;
     });
-  }, [allTransactions, typeFilter, from, to]);
+  }, [allTransactions, typeFilter, dateField, from, to]);
 
   const rows = useMemo(() => {
     return filtered.reduce<(typeof filtered[number] & { running: number })[]>((acc, t) => {
@@ -114,7 +118,7 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
             nativeButton={false}
             render={
               <a
-                href={`/api/customers/${mobile}/statement/pdf?${new URLSearchParams({ type: typeFilter, ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString()}`}
+                href={`/api/customers/${mobile}/statement/pdf?${new URLSearchParams({ type: typeFilter, dateField, ...(from ? { from } : {}), ...(to ? { to } : {}) }).toString()}`}
                 target="_blank"
                 rel="noopener noreferrer"
               />
@@ -141,6 +145,21 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
               )}
             >
               {v === "all" ? "All" : v === "stitching" ? "Stitching Orders" : "Product Sales"}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1">
+          {(["order", "delivery"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setDateField(v)}
+              className={cn(
+                "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
+                dateField === v ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              {v === "order" ? "Order Date" : "Delivery Date"}
             </button>
           ))}
         </div>
@@ -186,7 +205,7 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
             <p className="font-medium">{cust.name}</p>
             <p className="text-xs text-muted-foreground">
               {cust.mobile}
-              {from || to ? ` · ${from ? fmtDate(from) : "Start"} to ${to ? fmtDate(to) : "Today"}` : " · All time"}
+              {from || to ? ` · By ${dateField === "delivery" ? "delivery" : "order"} date: ${from ? fmtDate(from) : "Start"} to ${to ? fmtDate(to) : "Today"}` : " · All time"}
             </p>
           </div>
         </div>

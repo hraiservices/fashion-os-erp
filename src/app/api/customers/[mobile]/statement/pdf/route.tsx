@@ -30,6 +30,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ mobile: 
 
   const url = new URL(req.url);
   const typeFilter = (url.searchParams.get("type") || "all") as "all" | "stitching" | "retail";
+  const dateField = (url.searchParams.get("dateField") || "order") as "order" | "delivery";
   const from = url.searchParams.get("from") || "";
   const to = url.searchParams.get("to") || "";
 
@@ -82,12 +83,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ mobile: 
   const allTransactions = buildCustomerTransactions(orders, invoices);
   const transactions: LedgerTransaction[] = allTransactions.filter((t) => {
     if (typeFilter !== "all" && t.type !== typeFilter) return false;
-    if (from && t.date < from) return false;
-    if (to && t.date > to) return false;
+    // Delivery date only exists for stitching orders — a retail row (no equivalent field) falls
+    // back to its own document date rather than being silently excluded from the range.
+    const filterDate = dateField === "delivery" ? t.deliveryDate || t.date : t.date;
+    if (from && filterDate < from) return false;
+    if (to && filterDate > to) return false;
     return true;
   });
 
-  const filterParts = [typeFilter === "all" ? null : typeFilter === "stitching" ? "Stitching Orders only" : "Product Sales only", from || to ? `${from ? fmtDate(from) : "Start"} to ${to ? fmtDate(to) : "Today"}` : "All time"];
+  const filterParts = [
+    typeFilter === "all" ? null : typeFilter === "stitching" ? "Stitching Orders only" : "Product Sales only",
+    from || to ? `By ${dateField} date: ${from ? fmtDate(from) : "Start"} to ${to ? fmtDate(to) : "Today"}` : "All time",
+  ];
   const filterLabel = filterParts.filter(Boolean).join(" · ");
 
   const shop = (shopSetting?.value as { name?: string; phone?: string; address?: string } | null) || {};

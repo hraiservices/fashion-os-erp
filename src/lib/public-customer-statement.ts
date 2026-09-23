@@ -52,6 +52,7 @@ export async function fetchPublicCustomerStatement(supabase: SupabaseClient<Data
   const orderRows: LedgerTransaction[] = (result.orders || []).map((o) => ({
     id: `order-${o.id}`,
     date: o.inDate,
+    deliveryDate: null,
     type: "stitching",
     reference: o.id,
     description: o.description || "Stitching order",
@@ -64,6 +65,7 @@ export async function fetchPublicCustomerStatement(supabase: SupabaseClient<Data
   const invoiceRows: LedgerTransaction[] = (result.invoices || []).map((inv) => ({
     id: `invoice-${inv.id}`,
     date: inv.invoiceDate,
+    deliveryDate: null,
     type: "retail",
     reference: inv.invoiceNumber,
     description: inv.subject || "Product sale",

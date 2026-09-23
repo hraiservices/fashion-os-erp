@@ -10,6 +10,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { countLeaveDays } from "@/lib/leave";
 import type { LeaveBalanceSummary, LeaveRequest, LeaveType } from "@/lib/types";
 
@@ -113,6 +114,8 @@ export default function CheckInPage() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<Action>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [workNoteOpen, setWorkNoteOpen] = useState(false);
+  const [workNote, setWorkNote] = useState("");
 
   const [tab, setTab] = useState<MainTab>("attendance");
   const [earnings, setEarnings] = useState<EarningsResponse | null>(null);
@@ -243,12 +246,32 @@ export default function CheckInPage() {
     setTab("attendance");
   }
 
+  // Tailors already have their day's output tracked via order stage moves — everyone else must
+  // add a short "what did you do today" note before checking out (see checkout/route.ts, which
+  // enforces this same rule server-side).
+  const isTailor = (me?.employee.role || "").toLowerCase().includes("tailor");
+
   function startAction(action: Action) {
     if (!navigator.geolocation) {
       toast.error("This device doesn't support location — check-in requires it.");
       return;
     }
+    if (action === "checkout" && !isTailor) {
+      setWorkNote("");
+      setWorkNoteOpen(true);
+      return;
+    }
     setPendingAction(action);
+    setCameraOpen(true);
+  }
+
+  function submitWorkNote() {
+    if (!workNote.trim()) {
+      toast.error("Add your work done today");
+      return;
+    }
+    setWorkNoteOpen(false);
+    setPendingAction("checkout");
     setCameraOpen(true);
   }
 
@@ -266,6 +289,7 @@ export default function CheckInPage() {
               lng: position.coords.longitude,
               accuracy: position.coords.accuracy,
               photo,
+              ...(pendingAction === "checkout" ? { workNotes: workNote } : {}),
             }),
           });
           const data = await res.json();
@@ -274,6 +298,7 @@ export default function CheckInPage() {
             return;
           }
           toast.success(pendingAction === "checkin" ? "Checked in!" : "Checked out!");
+          setWorkNote("");
           await loadMe();
         } catch {
           toast.error("Network error — try again.");
@@ -728,6 +753,25 @@ export default function CheckInPage() {
         defaultFacing="user"
         onCapture={handlePhotoCapture}
       />
+
+      <Dialog open={workNoteOpen} onOpenChange={setWorkNoteOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add your work done today</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            autoFocus
+            rows={6}
+            placeholder="A few lines about what you did today (5-10 lines)…"
+            value={workNote}
+            onChange={(e) => setWorkNote(e.target.value)}
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setWorkNoteOpen(false)}>Cancel</Button>
+            <Button onClick={submitWorkNote}>Continue to Check Out</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

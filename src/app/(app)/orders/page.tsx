@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, LayoutList, KanbanSquare, CalendarDays, ArrowRight, Trash2, Upload, MessageCircle } from "lucide-react";
+import { Plus, Search, LayoutList, KanbanSquare, CalendarDays, ArrowRight, Trash2, Upload, MessageCircle, Printer } from "lucide-react";
 import { BulkWhatsAppDialog } from "@/components/orders/bulk-whatsapp-dialog";
 import { CalendarView } from "@/components/orders/calendar-view";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
@@ -427,6 +427,9 @@ function OrdersContent() {
               </Button>
             )}
             {user?.perms.managePayments && <NewPaymentButton className="hidden sm:inline-flex" />}
+            <Button variant="outline" nativeButton={false} render={<Link href="/orders/print" />} className="hidden sm:inline-flex">
+              <Printer className="size-4" /> Print list
+            </Button>
           </>
         }
       />

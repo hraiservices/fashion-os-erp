@@ -56,6 +56,9 @@ export function buildCustomerLedger(orders: Order[], invoices: SalesInvoiceWithB
 export interface LedgerTransaction {
   id: string;
   date: string;
+  /** Delivery date for a stitching order, null for a retail/invoice row (no equivalent field) —
+   *  lets the statement filter by delivery date instead of order/invoice date when asked to. */
+  deliveryDate: string | null;
   type: "stitching" | "retail";
   reference: string;
   description: string;
@@ -79,6 +82,7 @@ export function buildCustomerTransactions(orders: Order[], invoices: SalesInvoic
   const orderRows: LedgerTransaction[] = orders.map((o) => ({
     id: `order-${o.id}`,
     date: o.inDate,
+    deliveryDate: o.deliveryDate || null,
     type: "stitching",
     reference: o.id,
     description: (o.garments || []).map((g) => g.type).join(", ") || "Stitching order",
@@ -91,6 +95,7 @@ export function buildCustomerTransactions(orders: Order[], invoices: SalesInvoic
   const invoiceRows: LedgerTransaction[] = invoices.map((inv) => ({
     id: `invoice-${inv.id}`,
     date: inv.invoiceDate,
+    deliveryDate: null,
     type: "retail",
     reference: inv.invoiceNumber,
     description: inv.subject || `${inv.items.length} item(s)`,

@@ -6,6 +6,7 @@ import { mapOrderRow, mapSalesInvoiceRow } from "@/lib/types";
 import { buildCustomerTransactions, type LedgerTransaction } from "@/lib/customer-ledger";
 import { deriveInvoiceBalance, invoicePaymentStatus } from "@/lib/sales";
 import { CustomerStatementDocument } from "@/lib/pdf/customer-statement-document";
+import { DEFAULT_STITCHING_ORDER_TEMPLATES_SETTING, getDefaultStitchingOrderTemplate, type StitchingOrderTemplatesSetting } from "@/lib/stitching-order-template";
 import { istDateString } from "@/lib/ist-date";
 import { fmtDate } from "@/lib/format";
 import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
@@ -38,12 +39,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ mobile: 
     { data: paymentRows, error: paymentError },
     { data: creditRows, error: creditError },
     { data: shopSetting },
+    { data: templateSetting },
   ] = await Promise.all([
     db.from("orders").select("*").eq("mobile", mobile),
     db.from("sales_invoices").select("*").eq("customer_mobile", mobile),
     db.from("sales_payments").select("invoice_id, amount").eq("customer_mobile", mobile),
     db.from("sales_credit_notes").select("invoice_id, total").eq("customer_mobile", mobile),
     supabase.from("app_settings").select("value").eq("key", "shop").maybeSingle(),
+    supabase.from("app_settings").select("value").eq("key", "stitchingOrderTemplates").maybeSingle(),
   ]);
   if (orderError) return NextResponse.json({ error: orderError.message }, { status: 500 });
   if (invoiceError) return NextResponse.json({ error: invoiceError.message }, { status: 500 });
@@ -88,6 +91,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ mobile: 
   const filterLabel = filterParts.filter(Boolean).join(" · ");
 
   const shop = (shopSetting?.value as { name?: string; phone?: string; address?: string } | null) || {};
+  const template = getDefaultStitchingOrderTemplate((templateSetting?.value as StitchingOrderTemplatesSetting | null) || DEFAULT_STITCHING_ORDER_TEMPLATES_SETTING);
 
   const buffer = await renderToBuffer(
     <CustomerStatementDocument
@@ -99,6 +103,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ mobile: 
       shopPhone={shop.phone || ""}
       shopAddress={shop.address || ""}
       generatedAt={istDateString()}
+      template={template}
     />
   );
 

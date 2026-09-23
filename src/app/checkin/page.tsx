@@ -161,9 +161,21 @@ export default function CheckInPage() {
     }
   }
 
-  async function loadMe() {
+  async function loadMe(triedPortalLogin = false) {
     const res = await fetch("/api/attendance/me");
     if (res.status === 401) {
+      // No attendance-session cookie yet — if this browser is already logged into the main app
+      // (a normal Supabase Auth session) and that login is linked to an employee record
+      // (Settings -> Users), silently establish the attendance session instead of showing the
+      // separate mobile+PIN form. Only tried once, so a genuine shop-floor employee with no
+      // portal account falls straight through to the login form as before.
+      if (!triedPortalLogin) {
+        const portalRes = await fetch("/api/attendance/portal-login", { method: "POST" });
+        if (portalRes.ok) {
+          await loadMe(true);
+          return;
+        }
+      }
       setStep("login");
       return;
     }
@@ -200,10 +212,8 @@ export default function CheckInPage() {
   }
 
   useEffect(() => {
-    // loadMe is async — the setState calls inside it happen after the fetch resolves, not
-    // synchronously in this effect body (the linter's static analysis can't see past the await).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadMe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount only
   }, []);
 
   useEffect(() => {

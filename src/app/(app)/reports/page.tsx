@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, LayoutGrid, BarChart3, Scissors, ShoppingCart, Users, Package, Truck, Factory, Wallet, Star, type LucideIcon } from "lucide-react";
+import { ChevronRight, LayoutGrid, BarChart3, Scissors, ShoppingCart, Users, Package, Truck, Factory, Wallet, Star, Search, type LucideIcon } from "lucide-react";
 import { REPORTS_GROUP, resolveReportSection } from "@/components/app-shell/nav-config";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { isReportEnabled } from "@/lib/entitlements";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 const FAVORITES_CATEGORY = "__favorites__";
@@ -68,11 +69,19 @@ export default function ReportsIndexPage() {
   const favoriteCount = useMemo(() => allReports.filter((r) => favorites.has(r.href)).length, [allReports, favorites]);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const query = useMemo(() => search.trim().toLowerCase(), [search]);
+
+  function matchesSearch(r: ReportItem) {
+    if (!query) return true;
+    return r.label.toLowerCase().includes(query) || r.category.toLowerCase().includes(query);
+  }
 
   const filtered = useMemo(() => {
-    if (activeCategory === FAVORITES_CATEGORY) return allReports.filter((r) => favorites.has(r.href));
-    return allReports.filter((r) => !activeCategory || r.category === activeCategory);
-  }, [allReports, activeCategory, favorites]);
+    const base = activeCategory === FAVORITES_CATEGORY ? allReports.filter((r) => favorites.has(r.href)) : allReports.filter((r) => !activeCategory || r.category === activeCategory);
+    if (!query) return base;
+    return base.filter((r) => r.label.toLowerCase().includes(query) || r.category.toLowerCase().includes(query));
+  }, [allReports, activeCategory, favorites, query]);
 
   function toggleFavorite(href: string) {
     const current = favoriteHrefs || [];
@@ -95,6 +104,11 @@ export default function ReportsIndexPage() {
       <div className="flex-1 space-y-4 p-4 lg:hidden">
         <h1 className="px-1 text-lg font-semibold tracking-tight">Reports</h1>
 
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input placeholder="Search reports…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        </div>
+
         {/* Always shown first, even empty — Favourites is the whole point of a "pin what I use
             most" feature, so it shouldn't disappear until you've actually pinned something. */}
         <div className="overflow-hidden rounded-xl border bg-card">
@@ -104,7 +118,7 @@ export default function ReportsIndexPage() {
           {favoriteCount > 0 ? (
             <div className="divide-y">
               {allReports
-                .filter((r) => favorites.has(r.href))
+                .filter((r) => favorites.has(r.href) && matchesSearch(r))
                 .map((r) => (
                   <div key={r.href} className="flex items-center">
                     <button
@@ -124,15 +138,20 @@ export default function ReportsIndexPage() {
                 ))}
             </div>
           ) : (
-            <p className="px-4 py-4 text-sm text-muted-foreground">Tap the star next to any report below to pin it here.</p>
+            <p className="px-4 py-4 text-sm text-muted-foreground">
+              {query ? "No favourites match your search." : "Tap the star next to any report below to pin it here."}
+            </p>
           )}
         </div>
 
-        {categories.map((c) => (
+        {categories.map((c) => {
+          const rows = reportsFor(c.label).filter(matchesSearch);
+          if (query && rows.length === 0) return null;
+          return (
           <div key={c.label} className="overflow-hidden rounded-xl border bg-card">
             <div className="border-b bg-muted/40 px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{c.label}</div>
             <div className="divide-y">
-              {reportsFor(c.label).map((r) => (
+              {rows.map((r) => (
                 <div key={r.href} className="flex items-center">
                   <button
                     type="button"
@@ -151,7 +170,8 @@ export default function ReportsIndexPage() {
               ))}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Desktop: category rail */}
@@ -210,6 +230,10 @@ export default function ReportsIndexPage() {
             {activeCategory === FAVORITES_CATEGORY ? "Favourites" : activeCategory || "All Reports"}{" "}
             <span className="ml-1 text-sm font-normal text-muted-foreground">{filtered.length}</span>
           </h2>
+          <div className="relative w-full max-w-xs">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Search reports…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-xl border">
@@ -256,9 +280,11 @@ export default function ReportsIndexPage() {
           </div>
           {filtered.length === 0 && (
             <div className="p-8 text-center text-sm text-muted-foreground">
-              {activeCategory === FAVORITES_CATEGORY
-                ? "No favourites yet — click the star next to any report to add it here."
-                : "No reports in this category."}
+              {query
+                ? "No reports match your search."
+                : activeCategory === FAVORITES_CATEGORY
+                  ? "No favourites yet — click the star next to any report to add it here."
+                  : "No reports in this category."}
             </div>
           )}
         </div>

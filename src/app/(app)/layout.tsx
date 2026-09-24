@@ -8,6 +8,7 @@ import { MobileTabBar } from "@/components/app-shell/mobile-nav";
 import { ExpiryBanner } from "@/components/app-shell/expiry-banner";
 import { OfflineBanner } from "@/components/app-shell/offline-banner";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { usePresenceHeartbeat } from "@/hooks/use-presence";
 import { RESTRICTED_FALLBACK_ROUTE, isRestrictedRoute } from "@/lib/permissions";
 import { CopilotBubble } from "@/components/app-shell/copilot-bubble";
 import { CopilotOpenProvider } from "@/components/app-shell/copilot-context";
@@ -19,6 +20,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { collapsed: railCollapsed, toggle: toggleRail } = useUtilityRailCollapsed();
+  usePresenceHeartbeat(!!user);
 
   // Mirrors the old app's `_isRestrictedRole && _RESTRICTED_TABS.indexOf(tab) !== -1` guard
   // (line ~17686): a restricted role landing on a hidden route is bounced to Orders.

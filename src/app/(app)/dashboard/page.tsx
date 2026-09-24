@@ -18,6 +18,7 @@ import { DashboardGrid } from "@/components/dashboard/dashboard-grid";
 import { CustomizePanel } from "@/components/dashboard/customize-panel";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { DigitalClock } from "@/components/dashboard/digital-clock";
+import { LiveUsersCard } from "@/components/dashboard/live-users-card";
 import { isWidgetVisibleForRole, type WidgetInstance } from "@/lib/dashboard-widgets";
 
 export default function DashboardPage() {
@@ -71,6 +72,8 @@ export default function DashboardPage() {
           <DigitalClock />
         </div>
       )}
+
+      {user?.role === "admin" && <LiveUsersCard />}
 
       <OnboardingChecklist />
 

@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { countLeaveDays } from "@/lib/leave";
+import { usePresenceHeartbeat } from "@/hooks/use-presence";
 import type { LeaveBalanceSummary, LeaveRequest, LeaveType } from "@/lib/types";
 
 interface MeResponse {
@@ -215,6 +216,8 @@ export default function CheckInPage() {
     loadMe();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount only
   }, []);
+
+  usePresenceHeartbeat(step === "ready");
 
   useEffect(() => {
     if (step === "ready" && tab === "leave" && !leaveLoaded) {

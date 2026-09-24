@@ -45,9 +45,14 @@ export async function POST(request: Request) {
     // Cast needed until someone regenerates database.types.ts after running the migration below
     // (set_role_default_overrides doesn't exist in the DB yet at the time this route is written,
     // so the generated Functions union doesn't know it either — same situation any brand-new RPC
-    // is in before that regeneration, e.g. set_tailor_rates originally).
-    const rpc = serviceClient.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
-    const { error } = await rpc("set_role_default_overrides", { p_value: parsed.data });
+    // is in before that regeneration, e.g. set_tailor_rates originally). Must stay a method call on
+    // serviceClient itself (never detached into a standalone `const rpc = serviceClient.rpc`) —
+    // supabase-js's rpc() reads `this.rest` internally, so calling it detached from its receiver
+    // throws "Cannot read properties of undefined (reading 'rest')".
+    const { error } = await (serviceClient.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>)(
+      "set_role_default_overrides",
+      { p_value: parsed.data }
+    );
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     await logAction(supabase, user.email, "Role default permissions updated");

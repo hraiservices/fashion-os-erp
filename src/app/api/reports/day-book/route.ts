@@ -261,6 +261,17 @@ export async function GET(request: Request) {
     purchases: purchasesTotal,
     refunds: refundsTotal,
     profit,
+    // Profit folds in stitching-order economics (see the formula above) that the Sales/Expenses
+    // tiles never show on their own — Sales is retail invoices only, and none of Purchases/
+    // Expenses cover a stitching order's fabric/other/tailor-payable cost or completed-work-order
+    // labor. Without these three exposed, Profit looks disconnected from every other number on
+    // the page (e.g. Sales ₹0 with a positive Profit, from stitching orders created today).
+    // Same fields Combined P&L already shows (stitchingRevenue/stitchingCost/laborCost) so the
+    // two screens reconcile the same way.
+    stitchingRevenue,
+    stitchingCost,
+    laborCost,
+    salariesCost: payrollCostForProfit,
     payroll: payrollTotal,
     invoicesCreated: (invoicesRes.data || []).length,
     ordersCreated: (ordersRes.data || []).length,

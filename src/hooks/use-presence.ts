@@ -69,3 +69,24 @@ export function useLoginEvents(enabled = true) {
     enabled,
   });
 }
+
+export interface ActivityBucket {
+  hour: string;
+  count: number;
+}
+
+/** Hourly login-activity sparkline data, shared by the dashboard card and the Settings > Users &
+ *  Access section. Refetches on the same 20s cadence as useLiveUsers so both stay in sync. */
+export function useLoginActivity(enabled = true) {
+  return useQuery({
+    queryKey: ["login-activity"],
+    queryFn: async (): Promise<ActivityBucket[]> => {
+      const res = await fetch("/api/presence/activity");
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.buckets || [];
+    },
+    refetchInterval: 20_000,
+    enabled,
+  });
+}

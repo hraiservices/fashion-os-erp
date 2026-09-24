@@ -1075,6 +1075,22 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["user_presence"]["Row"]>;
         Relationships: [];
       };
+      whatsapp_gallery_links: {
+        Row: {
+          id: string;
+          token: string;
+          title: string | null;
+          image_paths: string[];
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["whatsapp_gallery_links"]["Row"]> & {
+          token: string;
+          image_paths: string[];
+        };
+        Update: Partial<Database["public"]["Tables"]["whatsapp_gallery_links"]["Row"]>;
+        Relationships: [];
+      };
       shop_locations: {
         Row: {
           id: string;

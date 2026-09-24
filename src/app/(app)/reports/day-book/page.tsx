@@ -133,7 +133,13 @@ export default function DayBookPage() {
         { name: "Purchases", value: data.totals.purchases, color: "#f59e0b" },
         { name: "Expenses", value: data.totals.expenses, color: "#ef4444" },
         { name: "Refunds", value: data.totals.refunds, color: "#a855f7" },
-        ...(canViewProfit ? [{ name: "Profit", value: data.totals.profit, color: data.totals.profit >= 0 ? "#059669" : "#ef4444" }] : []),
+        ...(canViewProfit
+          ? [
+              { name: "Stitching Rev", value: data.totals.stitchingRevenue, color: "#0ea5e9" },
+              { name: "Stitching Cost", value: data.totals.stitchingCost, color: "#ef4444" },
+              { name: "Profit", value: data.totals.profit, color: data.totals.profit >= 0 ? "#059669" : "#ef4444" },
+            ]
+          : []),
       ]
     : [];
 
@@ -205,6 +211,18 @@ export default function DayBookPage() {
               <StatCard label="Profit" value={inr(data.totals.profit)} icon={data.totals.profit >= 0 ? TrendingUp : TrendingDown} tone={data.totals.profit >= 0 ? "success" : "danger"} />
             )}
           </div>
+
+          {/* Profit above folds in stitching-order revenue/cost that Sales/Expenses never
+              show (Sales is retail invoices only) — these two make it traceable back to the
+              stitching orders created/costed today, same fields Combined P&L already shows. */}
+          {canViewProfit && (data.totals.stitchingRevenue > 0 || data.totals.stitchingCost > 0) && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              <StatCard label="Stitching Revenue" value={inr(data.totals.stitchingRevenue)} icon={Scissors} tone="default" />
+              <StatCard label="Stitching Cost" value={inr(data.totals.stitchingCost)} icon={Wallet} tone="danger" />
+              {data.totals.laborCost > 0 && <StatCard label="Mfg Labor" value={inr(data.totals.laborCost)} icon={Wallet} tone="danger" />}
+              {data.totals.salariesCost > 0 && <StatCard label="Salaries" value={inr(data.totals.salariesCost)} icon={Wallet} tone="danger" />}
+            </div>
+          )}
 
           {/* Operational KPIs */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

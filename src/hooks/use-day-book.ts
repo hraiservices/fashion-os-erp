@@ -8,6 +8,12 @@ export interface DayBookTotals {
   purchases: number;
   refunds: number;
   profit: number;
+  // The three components of `profit` that Sales/Purchases/Expenses never surface on their own —
+  // see route.ts's comment on why these are exposed alongside profit rather than left implicit.
+  stitchingRevenue: number;
+  stitchingCost: number;
+  laborCost: number;
+  salariesCost: number;
   payroll: number;
   invoicesCreated: number;
   ordersCreated: number;

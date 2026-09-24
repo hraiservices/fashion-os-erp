@@ -20,6 +20,19 @@ export interface Identity {
   role?: string | null;
 }
 
+/** A portal login's own email is often not human-readable — a phone-provisioned account has a
+ *  synthetic `emp-<uuid>@dashboard.local` address (see use-user-roles.ts's own comment on the
+ *  pattern) that means nothing to an admin reading the live list. Prefer the linked employee's
+ *  real name whenever one exists; only fall back to the raw email for a standalone login with
+ *  no employee link at all. */
+export async function resolvePortalDisplayName(serviceClient: SupabaseClient<Database>, email: string, employeeId?: string | null): Promise<string> {
+  if (employeeId) {
+    const { data: employee } = await serviceClient.from("employees").select("name").eq("id", employeeId).maybeSingle();
+    if (employee?.name) return employee.name;
+  }
+  return email;
+}
+
 /** portal logins are keyed by email (an employee-linked portal login is still ONE subject, not
  *  two, even though the same person also gets a `checkin`-typed presence row from /checkin
  *  itself if they use that separately) — checkin-only logins are keyed by employee id. */

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { recordLogin } from "@/lib/presence";
+import { recordLogin, resolvePortalDisplayName } from "@/lib/presence";
 
 const bodySchema = z.object({ method: z.enum(["email", "phone"]) });
 
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     method: parsed.data.method,
     email: user.email,
     employeeId: user.employeeId,
-    displayName: user.email,
+    displayName: await resolvePortalDisplayName(serviceClient, user.email, user.employeeId),
     role: user.role,
   });
 

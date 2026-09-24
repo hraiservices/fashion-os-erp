@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
 import { getAttendanceEmployeeId } from "@/lib/attendance-session-server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { touchPresence } from "@/lib/presence";
+import { touchPresence, resolvePortalDisplayName } from "@/lib/presence";
 
 /**
  * Pinged every ~30s by a mounted tab (see use-presence.ts's usePresenceHeartbeat) to keep that
@@ -28,7 +28,7 @@ export async function POST() {
       method: "email",
       email: user.email,
       employeeId: user.employeeId,
-      displayName: user.email,
+      displayName: await resolvePortalDisplayName(serviceClient, user.email, user.employeeId),
       role: user.role,
     });
     return NextResponse.json({ ok: true });

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, Users, UserPlus, LayoutGrid, LayoutList, ArrowUpDown, Upload, MessageSquare, MoreVertical } from "lucide-react";
+import { Search, Users, UserPlus, LayoutGrid, LayoutList, ArrowUpDown, Upload, MessageSquare, ImagePlus, MoreVertical } from "lucide-react";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -200,6 +200,9 @@ function CrmContent() {
                     <DropdownMenuItem render={<Link href="/crm/broadcast" />}>
                       <MessageSquare className="size-4" /> Broadcast
                     </DropdownMenuItem>
+                    <DropdownMenuItem render={<Link href="/crm/bulk-whatsapp" />}>
+                      <ImagePlus className="size-4" /> Bulk WhatsApp (Image)
+                    </DropdownMenuItem>
                     <DropdownMenuItem render={<Link href="/crm/import" />}>
                       <Upload className="size-4" /> Import
                     </DropdownMenuItem>
@@ -212,6 +215,11 @@ function CrmContent() {
               {canAdd && (
                 <Button variant="outline" nativeButton={false} render={<Link href="/crm/broadcast" />}>
                   <MessageSquare className="size-4" /> Broadcast
+                </Button>
+              )}
+              {canAdd && (
+                <Button variant="outline" nativeButton={false} render={<Link href="/crm/bulk-whatsapp" />}>
+                  <ImagePlus className="size-4" /> Bulk WhatsApp (Image)
                 </Button>
               )}
               {canAdd && (

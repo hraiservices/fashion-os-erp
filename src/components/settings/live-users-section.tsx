@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fmtDate, fmtTime } from "@/lib/format";
-import { useLiveUsers, useLoginEvents, type LiveUser, type LoginEvent } from "@/hooks/use-presence";
+import { useLiveUsers, useLoginEvents, useLoginActivity, type LiveUser, type LoginEvent } from "@/hooks/use-presence";
 import { roleLabelFor } from "@/lib/permissions";
+import { ActivitySparkline, PortalCheckinBreakdown, LivePulseRing } from "@/components/dashboard/live-users-charts";
 
 const METHOD_ICON = { email: Mail, phone: Phone, pin: KeyRound } as const;
 const METHOD_LABEL = { email: "Email", phone: "Phone + PIN", pin: "Check-in PIN" } as const;
@@ -23,10 +24,9 @@ function MethodBadge({ method }: { method: keyof typeof METHOD_ICON }) {
 function LiveRow({ row }: { row: LiveUser }) {
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-md border p-3 text-sm">
-      <span className="relative flex size-2 shrink-0">
-        <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-        <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-      </span>
+      <LivePulseRing>
+        <span className="relative inline-flex size-2 shrink-0 rounded-full bg-emerald-500" />
+      </LivePulseRing>
       <div className="min-w-40 flex-1 truncate font-medium">{row.displayName}</div>
       {row.role && (
         <Badge variant="secondary" className="capitalize">
@@ -61,6 +61,7 @@ function EventRow({ event }: { event: LoginEvent }) {
 export function LiveUsersSection() {
   const { data: liveData, isLoading: liveLoading } = useLiveUsers();
   const { data: events, isLoading: eventsLoading } = useLoginEvents();
+  const { data: activity } = useLoginActivity();
 
   const live = liveData?.live || [];
 
@@ -86,6 +87,17 @@ export function LiveUsersSection() {
             )}
           </p>
         )}
+
+        {live.length > 0 && (
+          <div className="pt-1">
+            <PortalCheckinBreakdown live={live} />
+          </div>
+        )}
+
+        <div>
+          <p className="pb-1 text-xs text-muted-foreground">Login activity, last 12 hours</p>
+          <ActivitySparkline buckets={activity || []} height={56} />
+        </div>
 
         <div className="flex items-center gap-2 pt-3">
           <History className="size-4 text-muted-foreground" />

@@ -6,7 +6,7 @@ import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, User, TrendingUp, Banknote, Save, MapPin, Camera, Loader2, X } from "lucide-react";
+import { ArrowLeft, User, TrendingUp, Banknote, Save, MapPin, Camera, Loader2, X, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useSaveEmployee } from "@/hooks/use-employee-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -23,6 +23,7 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { EmployeePinManager } from "@/components/employees/employee-pin-manager";
+import { EmployeeDocumentsManager } from "@/components/employees/employee-documents-manager";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { Employee, CommissionType, SalaryType } from "@/lib/types";
 import { SALARY_TYPE_LABELS } from "@/lib/payroll";
@@ -150,6 +151,7 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
   const willShowAsTailor = (roleValue || "").trim().toLowerCase() === "tailor";
   const [commissionOpen, setCommissionOpen] = useState(false);
   const [salaryOpen, setSalaryOpen] = useState(false);
+  const [documentsOpen, setDocumentsOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(existing?.photoUrl || null);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -459,6 +461,28 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
                     <Link href="/settings/attendance-payroll" className="underline hover:text-foreground">Settings → Attendance &amp; Payroll</Link>. It applies automatically to hours worked
                     beyond the standard shift, based on this employee&apos;s self check-in/out times.
                   </p>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+        )}
+
+        {/* Documents & KYC — admin-only, stricter than salary (a Manager granted managePayroll
+            still won't see this; only the literal admin role does). */}
+        {isEdit && user?.role === "admin" && (
+          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+            <Accordion value={documentsOpen ? ["documents"] : []} onValueChange={(v) => setDocumentsOpen(v.includes("documents"))}>
+              <AccordionItem value="documents" className="border-b-0">
+                <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                  <span className="flex items-center gap-2">
+                    <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                      <ShieldCheck className="size-3.5 text-primary" />
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Documents &amp; KYC</span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  {documentsOpen && <EmployeeDocumentsManager employeeId={existing!.id} />}
                 </AccordionContent>
               </AccordionItem>
             </Accordion>

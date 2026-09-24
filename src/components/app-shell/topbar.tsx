@@ -60,8 +60,15 @@ export function Topbar() {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuGroup>
               <DropdownMenuLabel className="font-normal">
-                {user?.employeeName && <p className="truncate text-sm font-medium">{user.employeeName}</p>}
-                <p className={user?.employeeName ? "truncate text-xs text-muted-foreground" : "truncate text-sm font-medium"}>{user?.email}</p>
+                {user?.employeeName ? (
+                  // An employee-linked login's own email is often a synthetic
+                  // emp-<uuid>@dashboard.local/p<mobile>@dashboard.local placeholder (phone+PIN
+                  // provisioning never asks for a real address) — meaningless here, so once we
+                  // have a real name to show, skip the email line entirely rather than surface it.
+                  <p className="truncate text-sm font-medium">{user.employeeName}</p>
+                ) : (
+                  <p className="truncate text-sm font-medium">{user?.email}</p>
+                )}
                 <p className="text-xs capitalize text-muted-foreground">{user?.role}</p>
               </DropdownMenuLabel>
             </DropdownMenuGroup>

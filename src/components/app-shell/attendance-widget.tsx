@@ -7,6 +7,7 @@ import { CameraModal } from "@/components/orders/camera-modal";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useCurrentUser } from "@/hooks/use-current-user";
 
 interface AttendanceMe {
@@ -19,12 +20,14 @@ interface AttendanceMe {
 type Action = "checkin" | "checkout" | null;
 
 /**
- * Topbar Check In/Out shortcut for a portal user whose login is linked to an employee record
+ * Check In/Out shortcut for a portal user whose login is linked to an employee record
  * (user_roles.linked_employee_id) — the "I need this in the app itself, not just at /checkin"
- * follow-up. Same rules as /checkin's own attendance tab (selfie + GPS geofence, and a required
- * "what did you do today" note before checkout for every role except tailors) — this is just a
- * second entry point into the exact same /api/attendance/* endpoints, not a relaxed one.
- * Renders nothing for a user with no linked employee record.
+ * follow-up. Lives as the first item in the account dropdown menu (above "My Attendance"),
+ * not the topbar row itself — narrow phones have no room to spare there. Same rules as
+ * /checkin's own attendance tab (selfie + GPS geofence, and a required "what did you do today"
+ * note before checkout for every role except tailors) — this is just a second entry point into
+ * the exact same /api/attendance/* endpoints, not a relaxed one. Renders nothing for a user
+ * with no linked employee record.
  */
 export function AttendanceWidget() {
   const { data: user } = useCurrentUser();
@@ -136,19 +139,19 @@ export function AttendanceWidget() {
   return (
     <>
       {!me?.checkedInAt && (
-        <Button size="sm" variant="outline" className="gap-1.5" disabled={submitting} onClick={() => startAction("checkin")}>
+        <DropdownMenuItem disabled={submitting} onClick={() => startAction("checkin")}>
           <LogIn className="size-4" /> Check In
-        </Button>
+        </DropdownMenuItem>
       )}
       {me?.checkedInAt && !me.checkedOutAt && (
-        <Button size="sm" className="gap-1.5" disabled={submitting} onClick={() => startAction("checkout")}>
+        <DropdownMenuItem disabled={submitting} onClick={() => startAction("checkout")}>
           <LogOut className="size-4" /> Check Out
-        </Button>
+        </DropdownMenuItem>
       )}
       {me?.checkedInAt && me.checkedOutAt && (
-        <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-          <CheckCircle2 className="size-3.5" /> Checked out
-        </span>
+        <DropdownMenuItem disabled className="text-emerald-700 dark:text-emerald-400">
+          <CheckCircle2 className="size-4" /> Checked out for today
+        </DropdownMenuItem>
       )}
 
       <CameraModal

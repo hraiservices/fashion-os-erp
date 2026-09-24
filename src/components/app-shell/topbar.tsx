@@ -42,7 +42,6 @@ export function Topbar() {
       </div>
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-        <AttendanceWidget />
         <PwaInstaller />
         <ThemeToggle />
         <NotificationBell />
@@ -69,6 +68,8 @@ export function Topbar() {
             <DropdownMenuSeparator />
             {!!user?.employeeId && (
               <>
+                <AttendanceWidget />
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push("/employees/my-attendance")}>
                   <CalendarCheck className="size-4" /> My Attendance
                 </DropdownMenuItem>

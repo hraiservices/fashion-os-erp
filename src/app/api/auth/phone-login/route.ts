@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { verifyPin } from "@/lib/attendance-auth";
 import { normalizePhone } from "@/lib/auth-errors";
-import { recordLogin } from "@/lib/presence";
+import { recordLogin, resolvePortalDisplayName } from "@/lib/presence";
 
 const bodySchema = z.object({ mobile: z.string().min(1), pin: z.string().min(1) });
 
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
     method: "phone",
     email: userRow.email,
     employeeId: userRow.linked_employee_id,
-    displayName: userRow.email,
+    displayName: await resolvePortalDisplayName(serviceClient, userRow.email, userRow.linked_employee_id),
     role: userRow.role,
   });
 

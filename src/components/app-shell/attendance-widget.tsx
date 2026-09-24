@@ -137,16 +137,16 @@ export function AttendanceWidget() {
     <>
       {!me?.checkedInAt && (
         <Button size="sm" variant="outline" className="gap-1.5" disabled={submitting} onClick={() => startAction("checkin")}>
-          <LogIn className="size-4" /> <span className="hidden sm:inline">Check In</span>
+          <LogIn className="size-4" /> Check In
         </Button>
       )}
       {me?.checkedInAt && !me.checkedOutAt && (
         <Button size="sm" className="gap-1.5" disabled={submitting} onClick={() => startAction("checkout")}>
-          <LogOut className="size-4" /> <span className="hidden sm:inline">Check Out</span>
+          <LogOut className="size-4" /> Check Out
         </Button>
       )}
       {me?.checkedInAt && me.checkedOutAt && (
-        <span className="hidden items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400 sm:flex">
+        <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
           <CheckCircle2 className="size-3.5" /> Checked out
         </span>
       )}

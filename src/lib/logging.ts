@@ -1,18 +1,20 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
-import { DASHBOARD_ACCESS_EMAIL_RE } from "@/lib/day-book";
 
-/** A tailor/employee who logs into the main app (rather than just the attendance PIN) is
- *  provisioned with a synthetic `emp-<id>@dashboard.local` email (see
- *  /api/employees/[id]/dashboard-access) — `user.email.split("@")[0]`, the convention used
- *  everywhere else to derive a display name, turns that into the raw employee id instead of a
- *  name. Call this wherever an order route is about to log/notify with the acting user's name
- *  (history lines, activity_log, admin_notifications) so a tailor's own name shows up instead. */
+/** Any login linked to an employee record (user_roles.linked_employee_id) — whether provisioned
+ *  with a synthetic `emp-<id>@dashboard.local` dashboard-access email, or logged in with the
+ *  employee's own real email — should show that employee's real name, not
+ *  `user.email.split("@")[0]` (the convention used elsewhere to derive a display name, which
+ *  only happens to work for a synthetic email; for a real email it shows a misleading fragment
+ *  like "connect" instead of the person's name). Mirrors resolvePortalDisplayName() in
+ *  lib/presence.ts, which gates on employeeId alone for the same reason. Call this wherever an
+ *  order route is about to log/notify with the acting user's name (history lines, activity_log,
+ *  admin_notifications). */
 export async function resolveActingUserName(
   supabase: SupabaseClient<Database>,
   user: { email: string; employeeId?: string | null }
 ): Promise<string> {
-  if (user.employeeId && DASHBOARD_ACCESS_EMAIL_RE.test(user.email)) {
+  if (user.employeeId) {
     const { data } = await supabase.from("employees").select("name").eq("id", user.employeeId).maybeSingle();
     if (data?.name) return data.name;
   }

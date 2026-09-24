@@ -62,10 +62,11 @@ export async function GET(request: Request) {
   if (orderIds.length === 0) return NextResponse.json({ rows: [], byStage: [], byEmployee: [], summary: { count: 0, avgMinutes: 0 } });
 
   // Step 2: those orders' FULL stage-change history (unbounded by date) plus their creation time.
-  const [{ data: fullHistoryRows, error: historyError }, { data: orderRows, error: orderError }, { data: employeeRows }] = await Promise.all([
+  const [{ data: fullHistoryRows, error: historyError }, { data: orderRows, error: orderError }, { data: employeeRows }, { data: userRoleRows }] = await Promise.all([
     db.from("activity_log").select("id, user_email, user_name, action, order_id, created_at").ilike("action", "%Stage changed:%").in("order_id", orderIds),
     db.from("orders").select("id, name, created_at").in("id", orderIds),
     db.from("employees").select("id, name"),
+    db.from("user_roles").select("email, linked_employee_id").not("linked_employee_id", "is", null),
   ]);
   if (historyError) return NextResponse.json({ error: historyError.message }, { status: 500 });
   if (orderError) return NextResponse.json({ error: orderError.message }, { status: 500 });
@@ -73,6 +74,20 @@ export async function GET(request: Request) {
   const employeeNameById = new Map((employeeRows || []).map((e) => [e.id, e.name]));
   const orderById = new Map((orderRows || []).map((o) => [o.id, o]));
   const inRangeIds = new Set((inRangeRows || []).map((r) => r.id));
+
+  // A login linked to an employee (user_roles.linked_employee_id) may still use its own real
+  // email rather than the synthetic emp-<id>@dashboard.local one that displayNameFromEmail()
+  // recognizes — without this, that account's stage changes showed as an email fragment (e.g.
+  // "connect") instead of the employee's real name.
+  const employeeIdByEmail = new Map((userRoleRows || []).map((r) => [(r.email || "").toLowerCase(), r.linked_employee_id as string]));
+  function resolveUserName(email: string | null): string {
+    if (email) {
+      const empId = employeeIdByEmail.get(email.toLowerCase());
+      const name = empId ? employeeNameById.get(empId) : undefined;
+      if (name) return name;
+    }
+    return displayNameFromEmail(email, employeeNameById);
+  }
 
   const byOrder = new Map<string, ActivityRow[]>();
   for (const r of (fullHistoryRows || []) as ActivityRow[]) {
@@ -122,7 +137,7 @@ export async function GET(request: Request) {
         changedAt,
         durationMinutes: durationMinutes != null && durationMinutes >= 0 ? durationMinutes : null,
         userEmail: r.user_email,
-        userName: displayNameFromEmail(r.user_email, employeeNameById),
+        userName: resolveUserName(r.user_email),
       });
     }
   }

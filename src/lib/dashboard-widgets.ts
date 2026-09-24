@@ -41,6 +41,7 @@ export const BUILTIN_WIDGETS: BuiltinWidgetMeta[] = [
   { key: "pipeline-velocity",           title: "Pipeline Velocity",    size: "full", href: "/reports/tailor-workload", description: "Live average days-to-Ready and on-time % trend — Week/Month/6 Months. Admin & manager only." },
   { key: "tailor-performance",          title: "Tailor Performance",   size: "full", href: "/reports/tailor-workload", description: "Live per-tailor revenue, order count and rework count leaderboard — Week/Month/6 Months. Admin & manager only." },
   { key: "live-report",                 title: "LIVE Report",          size: "full", href: "/reports/live",          description: "Orders ready but not picked up, and orders picked up but not paid, with a one-tap WhatsApp reminder" },
+  { key: "stage-timing",                title: "Stage Change Speed",   size: "full", href: "/reports/stage-timing",  description: "Live average minutes per stage change today, and today's fastest/slowest employee. Admin & manager only." },
 ];
 
 export const BUILTIN_WIDGET_BY_KEY = new Map(BUILTIN_WIDGETS.map((w) => [w.key, w]));
@@ -53,6 +54,7 @@ const WIDGET_ROLE_RESTRICTIONS: Record<string, Role[]> = {
   "profit-overview": ["admin", "manager"],
   "pipeline-velocity": ["admin", "manager"],
   "tailor-performance": ["admin", "manager"],
+  "stage-timing": ["admin", "manager"],
 };
 
 export function isWidgetVisibleForRole(builtinKey: string | undefined, role: string | undefined): boolean {

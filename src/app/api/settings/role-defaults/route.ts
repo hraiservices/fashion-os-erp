@@ -20,24 +20,39 @@ const bodySchema = z.partialRecord(z.enum(["admin", "manager", "sales", "tailor"
  * what an entire role can do app-wide, not one person).
  */
 export async function POST(request: Request) {
-  const { supabase, user } = await getServerUser();
-  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  if (!user.perms.manageUsers) return NextResponse.json({ error: "No permission to manage users" }, { status: 403 });
+  // Wrapped end-to-end: an uncaught throw anywhere here (a malformed request body, an auth
+  // lookup failure, a dropped RPC connection) previously escaped as a bodyless 500, which the
+  // client's `await res.json()` then failed on with "Unexpected end of JSON input" instead of
+  // showing the real error. Every exit must be a NextResponse.json, no exceptions.
+  try {
+    const { supabase, user } = await getServerUser();
+    if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    if (!user.perms.manageUsers) return NextResponse.json({ error: "No permission to manage users" }, { status: 403 });
 
-  const parsed = bodySchema.safeParse(await request.json());
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
 
-  const serviceClient = createServiceClient();
-  if (!serviceClient) return NextResponse.json({ error: "Server is not configured to manage users (missing service role key)" }, { status: 501 });
+    const parsed = bodySchema.safeParse(body);
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
 
-  // Cast needed until someone regenerates database.types.ts after running the migration below
-  // (set_role_default_overrides doesn't exist in the DB yet at the time this route is written,
-  // so the generated Functions union doesn't know it either — same situation any brand-new RPC
-  // is in before that regeneration, e.g. set_tailor_rates originally).
-  const rpc = serviceClient.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
-  const { error } = await rpc("set_role_default_overrides", { p_value: parsed.data });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const serviceClient = createServiceClient();
+    if (!serviceClient) return NextResponse.json({ error: "Server is not configured to manage users (missing service role key)" }, { status: 501 });
 
-  await logAction(supabase, user.email, "Role default permissions updated");
-  return NextResponse.json({ ok: true });
+    // Cast needed until someone regenerates database.types.ts after running the migration below
+    // (set_role_default_overrides doesn't exist in the DB yet at the time this route is written,
+    // so the generated Functions union doesn't know it either — same situation any brand-new RPC
+    // is in before that regeneration, e.g. set_tailor_rates originally).
+    const rpc = serviceClient.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
+    const { error } = await rpc("set_role_default_overrides", { p_value: parsed.data });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    await logAction(supabase, user.email, "Role default permissions updated");
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Unexpected server error" }, { status: 500 });
+  }
 }

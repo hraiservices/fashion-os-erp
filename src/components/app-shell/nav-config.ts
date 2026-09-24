@@ -243,7 +243,7 @@ export const EXPENSES_GROUP: NavGroup = {
   icon: Wallet,
   indexHref: "/expenses",
   children: [
-    { href: "/expenses", label: "All Expenses", newHref: "/expenses?new=1" },
+    { href: "/expenses", label: "All Expenses", newHref: "/expenses/new" },
     { href: "/expenses/categories", label: "Categories" },
   ],
 };

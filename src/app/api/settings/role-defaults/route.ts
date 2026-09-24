@@ -6,7 +6,11 @@ import { PERMISSION_LABELS } from "@/lib/permissions";
 import { logAction } from "@/lib/logging";
 
 const permissionKeySchema = z.enum(Object.keys(PERMISSION_LABELS) as [string, ...string[]]);
-const bodySchema = z.record(z.enum(["admin", "manager", "sales", "tailor"]), z.record(permissionKeySchema, z.boolean()));
+// partialRecord (not record) — the client only ever sends the roles/keys someone has actually
+// overridden from the built-in default, never every role × every permission. Zod 4's
+// z.record() with an enum key schema requires every enum member present (a v4 behavior change
+// from v3's implicit partial semantics); partialRecord restores that partial behavior.
+const bodySchema = z.partialRecord(z.enum(["admin", "manager", "sales", "tailor"]), z.partialRecord(permissionKeySchema, z.boolean()));
 
 /**
  * The only sanctioned way to write the roleDefaultOverrides app_settings key — see

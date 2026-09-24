@@ -1,0 +1,212 @@
+"use client";
+
+import { useMemo } from "react";
+import { Clock3, ArrowRight } from "lucide-react";
+import { useStageTiming } from "@/hooks/use-stage-timing";
+import { useReportDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
+import { fmtDate, fmtTime, fmtMinutes } from "@/lib/format";
+import { ReportShell, ReportCard, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
+import { StatCard } from "@/components/ui/stat-card";
+import { StageBadge } from "@/components/orders/stage-badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts";
+import Link from "next/link";
+
+const STAGE_BAR_COLOR = "#0ea5e9";
+
+/**
+ * Every stage-change activity_log line, turned into a duration by comparing it against
+ * whatever happened right before it for the same order (see the API route's own comment for why
+ * that has to be computed server-side from each order's full history, not filtered client-side
+ * from an already-fetched list like most reports here). Answers exactly what was asked: how long
+ * each stage takes, who made the change, and on which day — with the aggregate views (avg time
+ * per stage, per-employee speed) right alongside the raw audit trail.
+ */
+export default function StageTimingPage() {
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const { data, isLoading, isError, error } = useStageTiming(range);
+
+  const rows = useMemo(() => data?.rows || [], [data]);
+  const byStage = data?.byStage || [];
+  const byEmployee = data?.byEmployee || [];
+  const summary = data?.summary || { count: 0, avgMinutes: 0 };
+
+  const slowestStage = byStage[0]; // already sorted desc by avgMinutes
+  const fastestStage = byStage[byStage.length - 1];
+
+  const exportRows = rows.map((r) => ({
+    Date: fmtDate(r.changedAt),
+    Time: fmtTime(r.changedAt),
+    Order: r.orderId,
+    Customer: r.customerName,
+    From: r.fromLabel,
+    To: r.toLabel,
+    "Minutes taken": r.durationMinutes ?? "",
+    "Changed by": r.userName,
+  }));
+
+  return (
+    <ReportShell
+      title="Stage Change Speed"
+      description="How long each stage change takes, who made it, and when — a direct read on employee speed and where orders are getting stuck."
+      actions={
+        <ReportActionsMenu
+          rows={exportRows}
+          filename="stage-timing"
+          title="Stage Change Speed"
+          summaryLines={[`Range: ${DATE_RANGE_PRESET_LABELS[preset]}`, `Stage changes: ${summary.count}`, `Avg time per change: ${fmtMinutes(summary.avgMinutes)}`]}
+        />
+      }
+    >
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+      />
+
+      {isLoading && <Skeleton className="h-96 w-full" />}
+
+      {isError && <EmptyState icon={Clock3} title="Couldn't load this report" description={error instanceof Error ? error.message : "Try again."} />}
+
+      {data && (
+        <>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatCard label="Stage changes" value={summary.count} icon={Clock3} />
+            <StatCard label="Avg time per change" value={fmtMinutes(summary.avgMinutes)} icon={Clock3} tone="default" />
+            <StatCard label="Slowest stage" value={slowestStage ? `${slowestStage.label} (${fmtMinutes(slowestStage.avgMinutes)})` : "—"} icon={Clock3} tone="danger" />
+            <StatCard label="Fastest stage" value={fastestStage ? `${fastestStage.label} (${fmtMinutes(fastestStage.avgMinutes)})` : "—"} icon={Clock3} tone="success" />
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ReportCard className="p-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Avg time spent in each stage</p>
+              {byStage.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">No stage changes in this range.</p>
+              ) : (
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={byStage} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} />
+                      <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} />
+                      <YAxis tickLine={false} axisLine={false} fontSize={11} />
+                      <Tooltip
+                        formatter={(v, _n, item) => [fmtMinutes(Number(v)), `Avg (${item.payload.count} change${item.payload.count === 1 ? "" : "s"})`]}
+                        contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-popover)", fontSize: 12 }}
+                      />
+                      <Bar dataKey="avgMinutes" radius={[4, 4, 0, 0]}>
+                        {byStage.map((b) => (
+                          <Cell key={b.stage} fill={STAGE_BAR_COLOR} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </ReportCard>
+
+            <ReportCard className="p-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Employee speed (fastest → slowest avg)</p>
+              {byEmployee.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">No stage changes in this range.</p>
+              ) : (
+                <div className="space-y-2">
+                  {byEmployee.map((e, i) => (
+                    <div key={e.email || e.name} className="flex items-center gap-3 rounded-lg border p-2.5 text-sm">
+                      <span className="w-5 shrink-0 text-center text-xs font-semibold text-muted-foreground">#{i + 1}</span>
+                      <span className="min-w-0 flex-1 truncate font-medium">{e.name}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{e.count} change{e.count === 1 ? "" : "s"}</span>
+                      <span className="shrink-0 font-semibold tabular-nums">{fmtMinutes(e.avgMinutes)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ReportCard>
+          </div>
+
+          <ReportCard className="p-0">
+            <div className="flex items-center justify-between border-b p-4">
+              <p className="text-sm font-semibold">Every stage change</p>
+              <Link href="/orders?view=board" className="flex items-center gap-1 text-xs text-primary hover:underline">
+                View board <ArrowRight className="size-3" />
+              </Link>
+            </div>
+            {rows.length === 0 ? (
+              <EmptyState icon={Clock3} title="No stage changes in this range" className="border-0" />
+            ) : (
+              <>
+                <div className="hidden overflow-x-auto sm:block">
+                  <ReportTable>
+                    <thead className="border-b bg-muted/40">
+                      <tr>
+                        <Th>Date</Th>
+                        <Th>Order</Th>
+                        <Th>Customer</Th>
+                        <Th>From → To</Th>
+                        <Th align="right">Time taken</Th>
+                        <Th>Changed by</Th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {rows.map((r) => (
+                        <tr key={r.id} className="hover:bg-muted/30">
+                          <Td className="whitespace-nowrap text-muted-foreground">
+                            {fmtDate(r.changedAt)}, {fmtTime(r.changedAt)}
+                          </Td>
+                          <Td className="font-medium">{r.orderId}</Td>
+                          <Td>{r.customerName}</Td>
+                          <Td>
+                            <div className="flex items-center gap-1.5">
+                              {r.fromStage ? <StageBadge stage={r.fromStage} size="sm" /> : <span className="text-xs text-muted-foreground">{r.fromLabel}</span>}
+                              <ArrowRight className="size-3 text-muted-foreground/50" />
+                              {r.toStage ? <StageBadge stage={r.toStage} size="sm" /> : <span className="text-xs text-muted-foreground">{r.toLabel}</span>}
+                            </div>
+                          </Td>
+                          <Td align="right" className="font-semibold tabular-nums">
+                            {r.durationMinutes != null ? fmtMinutes(r.durationMinutes) : "—"}
+                          </Td>
+                          <Td>{r.userName}</Td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </ReportTable>
+                </div>
+
+                <MobileRecordList className="p-2">
+                  {rows.map((r) => (
+                    <MobileRecordCard key={r.id}>
+                      <MobileRecordHeader
+                        title={r.orderId}
+                        subtitle={r.customerName}
+                        value={r.durationMinutes != null ? fmtMinutes(r.durationMinutes) : "—"}
+                        showChevron={false}
+                      />
+                      <MobileRecordRow
+                        label="Stage"
+                        value={
+                          <div className="flex items-center gap-1.5">
+                            {r.fromStage ? <StageBadge stage={r.fromStage} size="sm" /> : r.fromLabel}
+                            <ArrowRight className="size-3 text-muted-foreground/50" />
+                            {r.toStage ? <StageBadge stage={r.toStage} size="sm" /> : r.toLabel}
+                          </div>
+                        }
+                      />
+                      <MobileRecordRow label="When" value={`${fmtDate(r.changedAt)}, ${fmtTime(r.changedAt)}`} />
+                      <MobileRecordRow label="Changed by" value={r.userName} />
+                    </MobileRecordCard>
+                  ))}
+                </MobileRecordList>
+              </>
+            )}
+          </ReportCard>
+        </>
+      )}
+    </ReportShell>
+  );
+}

@@ -1036,6 +1036,45 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["employee_documents"]["Row"]>;
         Relationships: [];
       };
+      login_events: {
+        Row: {
+          id: string;
+          occurred_at: string;
+          login_type: string;
+          method: string;
+          email: string | null;
+          employee_id: string | null;
+          display_name: string;
+          role: string | null;
+        };
+        Insert: Partial<Database["public"]["Tables"]["login_events"]["Row"]> & {
+          login_type: string;
+          method: string;
+          display_name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["login_events"]["Row"]>;
+        Relationships: [];
+      };
+      user_presence: {
+        Row: {
+          subject_key: string;
+          login_type: string;
+          method: string;
+          email: string | null;
+          employee_id: string | null;
+          display_name: string;
+          role: string | null;
+          last_seen: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["user_presence"]["Row"]> & {
+          subject_key: string;
+          login_type: string;
+          method: string;
+          display_name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["user_presence"]["Row"]>;
+        Relationships: [];
+      };
       shop_locations: {
         Row: {
           id: string;

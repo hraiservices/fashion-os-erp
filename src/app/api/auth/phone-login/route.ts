@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { verifyPin } from "@/lib/attendance-auth";
 import { normalizePhone } from "@/lib/auth-errors";
+import { recordLogin } from "@/lib/presence";
 
 const bodySchema = z.object({ mobile: z.string().min(1), pin: z.string().min(1) });
 
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
 
   const { data: userRow, error: userRowError } = await serviceClient
     .from("user_roles")
-    .select("email, linked_employee_id, pin_hash, failed_pin_attempts, pin_locked_until")
+    .select("email, role, linked_employee_id, pin_hash, failed_pin_attempts, pin_locked_until")
     .eq("phone", mobile)
     .maybeSingle();
   // maybeSingle() errors (rather than just returning null) when more than one row shares this
@@ -116,6 +117,15 @@ export async function POST(request: Request) {
   if (verifyError) {
     return NextResponse.json({ error: "Couldn't complete sign-in. Try again." }, { status: 500 });
   }
+
+  await recordLogin(serviceClient, {
+    loginType: "portal",
+    method: "phone",
+    email: userRow.email,
+    employeeId: userRow.linked_employee_id,
+    displayName: userRow.email,
+    role: userRow.role,
+  });
 
   return NextResponse.json({ ok: true });
 }

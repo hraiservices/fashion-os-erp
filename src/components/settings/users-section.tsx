@@ -19,6 +19,8 @@ import { useSetEmployeeDashboardAccess } from "@/hooks/use-employee-dashboard-ac
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { useEmployees } from "@/hooks/use-employees";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { LiveUsersSection } from "@/components/settings/live-users-section";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -695,6 +697,7 @@ function UserWizard({
  *  row list, and the separate Employees -> "Dashboard access" toggle, with one wizard that
  *  handles onboarding a new login and editing an existing one the same way. */
 export function UsersSection() {
+  const { data: currentUser } = useCurrentUser();
   const { data: rows, isLoading } = useUserRoles();
   const { data: entitlements } = useModuleEntitlements();
   const { data: employees } = useEmployees();
@@ -767,6 +770,7 @@ export function UsersSection() {
 
       <PhoneCheckCard />
       <RoleReferenceCard />
+      {currentUser?.role === "admin" && <LiveUsersSection />}
 
       {wizard && (
         <UserWizard

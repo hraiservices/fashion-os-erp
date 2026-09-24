@@ -146,6 +146,12 @@ export const ROLE_OPTIONS: [Role, string][] = [
   ["tailor", "Tailor"],
 ];
 
+/** "admin" -> "Admin", falling back to the raw value for a role string that isn't one of the
+ *  four known ones (e.g. a stale/free-typed employees.role value). */
+export function roleLabelFor(role: string | null | undefined): string {
+  return ROLE_OPTIONS.find(([val]) => val === role)?.[1] ?? String(role ?? "");
+}
+
 /** Shop-wide edits to a role's starting permissions — e.g. an admin unchecking "Delete Orders"
  *  for every Manager, not just one person (that's what custom_permissions on a single user_roles
  *  row is for). Stored in app_settings under "roleDefaultOverrides"; see

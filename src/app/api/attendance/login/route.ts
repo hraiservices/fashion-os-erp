@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { verifyPin, signAttendanceToken, isAttendanceConfigured, ATTENDANCE_COOKIE_NAME, ATTENDANCE_COOKIE_MAX_AGE } from "@/lib/attendance-auth";
+import { recordLogin } from "@/lib/presence";
 
 const bodySchema = z.object({ mobile: z.string().min(1), pin: z.string().min(1) });
 
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
 
   const { data: employee } = await supabase
     .from("employees")
-    .select("id, name, pin_hash, active, failed_pin_attempts, pin_locked_until")
+    .select("id, name, role, pin_hash, active, failed_pin_attempts, pin_locked_until")
     .eq("mobile", mobile.trim())
     .maybeSingle();
 
@@ -70,6 +71,14 @@ export async function POST(request: Request) {
     sameSite: "lax",
     path: "/",
     maxAge: ATTENDANCE_COOKIE_MAX_AGE,
+  });
+
+  await recordLogin(supabase, {
+    loginType: "checkin",
+    method: "pin",
+    employeeId: employee.id,
+    displayName: employee.name,
+    role: employee.role,
   });
 
   return NextResponse.json({ ok: true, employeeName: employee.name });

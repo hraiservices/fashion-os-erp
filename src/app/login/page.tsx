@@ -176,6 +176,8 @@ export default function LoginPage() {
       // `shop` app_settings row and starts its trial (ensureUserRole is a no-op for every
       // login after the first, so this can never overwrite an existing shop's name).
       await ensureUserRole(supabase, cleanEmail, undefined, { shopName: data.user?.user_metadata?.shop_name });
+      // Best-effort — a failed presence/history write should never block a successful sign-in.
+      fetch("/api/login-events/record", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ method: "email" }) }).catch(() => {});
       setLoading(false);
       setRedirecting(true);
     } else {

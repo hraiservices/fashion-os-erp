@@ -640,6 +640,26 @@ export function getDeliveredUnpaid(orders: Order[]): Order[] {
   return orders.filter((o) => o.status === "delivered" && o.balance > 0).sort((a, b) => b.balance - a.balance);
 }
 
+export interface OverdueInProductionRow extends Order {
+  daysLate: number;
+}
+
+// Still in production and already past the promised delivery date — distinct from
+// getReadyUncollected (garment is finished, waiting on the customer) and getAgingList (payment
+// promise, not the production one). "In production" = not yet Ready/Delivered/Payment, since
+// those stages are a pickup/payment problem, not a "the order itself is running late" one.
+const PRE_READY_STAGES = new Set(["received", "cutting", "stitching", "finishing"]);
+
+/** Orders whose delivery date has already passed while they're still stuck earlier in the
+ *  pipeline — sorted worst (most days late) first. A missing deliveryDate is excluded rather
+ *  than shown as falsely overdue, same reasoning as dueBadge(). */
+export function getOverdueInProduction(orders: Order[]): OverdueInProductionRow[] {
+  return orders
+    .filter((o) => PRE_READY_STAGES.has(o.status) && o.deliveryDate && daysLeft(o.deliveryDate) < 0)
+    .map((o) => ({ ...o, daysLate: Math.abs(daysLeft(o.deliveryDate)) }))
+    .sort((a, b) => b.daysLate - a.daysLate);
+}
+
 export interface ReworkRateRow {
   tailor: string;
   totalOrders: number;

@@ -1,29 +1,62 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
+import { useEmployees } from "@/hooks/use-employees";
+import { useShopSettings } from "@/hooks/use-shop-settings";
+import { useAppSetting } from "@/hooks/use-app-setting";
 import { getOverdueInProduction } from "@/lib/analytics";
-import { STAGE_META, type Stage } from "@/lib/business-rules";
+import { STAGE_META, buildWhatsAppUrl, type Stage } from "@/lib/business-rules";
+import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { fmtDate, inr } from "@/lib/format";
-import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { ReportShell, ReportCard, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StageBadge } from "@/components/orders/stage-badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
+import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts";
 
 const PRE_READY_STAGES: Stage[] = ["received", "cutting", "stitching", "finishing"];
+
+// 1-3 days: still fresh, amber. 4-7: getting serious, orange. 8+: critical, red — same 3-tier
+// escalation logic as dueBadge()'s urgent flag, just with more granularity since every row here
+// is already overdue (dueBadge only distinguishes overdue-or-not).
+function severityClass(daysLate: number): string {
+  if (daysLate >= 8) return "font-semibold text-red-700 dark:text-red-400";
+  if (daysLate >= 4) return "font-semibold text-orange-600 dark:text-orange-400";
+  return "font-semibold text-amber-600 dark:text-amber-400";
+}
+
+const SEVERITY_BUCKETS = [
+  { label: "1-3 days", min: 1, max: 3, color: "#D97706" },
+  { label: "4-7 days", min: 4, max: 7, color: "#EA580C" },
+  { label: "8-14 days", min: 8, max: 14, color: "#DC2626" },
+  { label: "15+ days", min: 15, max: Infinity, color: "#991B1B" },
+];
 
 /** "Overdue" here means the order itself is running late — still in production past its
  *  promised delivery date — not a payment problem (see getOverdueInProduction's own comment for
  *  why Ready/Delivered/Payment orders are excluded; those are the LIVE Report's job). Always a
  *  live snapshot of right now, same as the LIVE Report and Tailor Payables, since "is this order
- *  late today" isn't a question a date-range filter makes sense for. */
+ *  late today" isn't a question a date-range filter makes sense for.
+ *
+ *  No day-over-day trend line — that would need a daily snapshot of overdue counts persisted
+ *  somewhere, which doesn't exist yet (this report only ever reads live current state). The
+ *  severity-bucket chart below is the closest live-data equivalent: how bad is today's backlog,
+ *  broken into how-late-are-they instead of how it changed since yesterday. */
 export default function OverdueOrdersPage() {
   const { orders, isLoading } = useReportsData();
+  const { data: employees } = useEmployees();
+  const { data: shop } = useShopSettings();
+  const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
+
+  const employeeNameById = useMemo(() => new Map((employees || []).map((e) => [e.id, e.name])), [employees]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -33,8 +66,20 @@ export default function OverdueOrdersPage() {
     label: STAGE_META[stage].label,
     count: overdue.filter((o) => o.status === stage).length,
   })).filter((s) => s.count > 0);
+  const bySeverity = SEVERITY_BUCKETS.map((b) => ({
+    ...b,
+    count: overdue.filter((o) => o.daysLate >= b.min && o.daysLate <= b.max).length,
+  })).filter((b) => b.count > 0);
   const worstDaysLate = overdue[0]?.daysLate ?? 0;
   const totalBalance = overdue.reduce((s, o) => s + o.balance, 0);
+
+  function tailorName(id: string): string {
+    if (!id) return "Unassigned";
+    return employeeNameById.get(id) || id;
+  }
+  function garmentSummary(o: (typeof overdue)[number]): string {
+    return o.garments.map((g) => g.type).filter(Boolean).join(", ") || "—";
+  }
 
   return (
     <ReportShell
@@ -46,6 +91,8 @@ export default function OverdueOrdersPage() {
             Order: o.id,
             Customer: o.name,
             Stage: STAGE_META[o.status].label,
+            Tailor: tailorName(o.tailor),
+            Garments: garmentSummary(o),
             "Delivery date": fmtDate(o.deliveryDate),
             "Days late": o.daysLate,
             Balance: o.balance,
@@ -68,6 +115,30 @@ export default function OverdueOrdersPage() {
             ))}
           </div>
 
+          {bySeverity.length > 0 && (
+            <ReportCard className="p-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Overdue orders by how late they are</p>
+              <div className="h-52">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={bySeverity} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} />
+                    <YAxis tickLine={false} axisLine={false} fontSize={11} allowDecimals={false} />
+                    <Tooltip
+                      formatter={(v) => [v, "Orders"]}
+                      contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-popover)", fontSize: 12 }}
+                    />
+                    <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                      {bySeverity.map((b) => (
+                        <Cell key={b.label} fill={b.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </ReportCard>
+          )}
+
           <MobileRecordList>
             {overdue.map((o) => (
               <MobileRecordCard key={o.id}>
@@ -78,12 +149,17 @@ export default function OverdueOrdersPage() {
                     </Link>
                   }
                   subtitle={`${o.name} · ${o.mobile}`}
-                  value={<span className="font-semibold text-destructive">{o.daysLate}d late</span>}
+                  value={<span className={severityClass(o.daysLate)}>{o.daysLate}d late</span>}
                   showChevron={false}
                 />
                 <MobileRecordRow label="Stage" value={<StageBadge stage={o.status} size="sm" />} />
+                <MobileRecordRow label="Tailor" value={tailorName(o.tailor)} />
+                <MobileRecordRow label="Garments" value={garmentSummary(o)} />
                 <MobileRecordRow label="Delivery date" value={fmtDate(o.deliveryDate)} />
                 <MobileRecordRow label="Balance" value={o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"} />
+                <div className="flex justify-end border-t pt-1.5">
+                  <WhatsAppIconButton href={buildWhatsAppUrl(o, "overdue", shop, waTemplates)} label={`Delay update to ${o.name}`} tone="reminder" />
+                </div>
               </MobileRecordCard>
             ))}
           </MobileRecordList>
@@ -95,9 +171,12 @@ export default function OverdueOrdersPage() {
                   <Th>Order</Th>
                   <Th>Customer</Th>
                   <Th>Stage</Th>
+                  <Th>Tailor</Th>
+                  <Th>Garments</Th>
                   <Th>Delivery date</Th>
                   <Th align="right">Days late</Th>
                   <Th align="right">Balance</Th>
+                  <Th align="right">Actions</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -115,11 +194,16 @@ export default function OverdueOrdersPage() {
                     <Td>
                       <StageBadge stage={o.status} size="sm" />
                     </Td>
+                    <Td>{tailorName(o.tailor)}</Td>
+                    <Td className="max-w-[14rem] truncate">{garmentSummary(o)}</Td>
                     <Td>{fmtDate(o.deliveryDate)}</Td>
-                    <Td align="right" className="font-semibold text-destructive">
+                    <Td align="right" className={severityClass(o.daysLate)}>
                       {o.daysLate}d
                     </Td>
                     <Td align="right">{o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}</Td>
+                    <Td align="right">
+                      <WhatsAppIconButton href={buildWhatsAppUrl(o, "overdue", shop, waTemplates)} label={`Delay update to ${o.name}`} tone="reminder" />
+                    </Td>
                   </tr>
                 ))}
               </tbody>

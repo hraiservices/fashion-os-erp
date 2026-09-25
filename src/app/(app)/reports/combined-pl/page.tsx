@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useCombinedPl } from "@/hooks/use-combined-pl";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr } from "@/lib/format";
@@ -16,6 +16,35 @@ import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianG
 import { TrendingUp, TrendingDown, Wallet, Receipt } from "lucide-react";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange } from "@/lib/report-date-range";
+import { cn } from "@/lib/utils";
+
+type ProfitFilter = "all" | "profit" | "loss";
+const PROFIT_FILTERS: { value: ProfitFilter; label: string }[] = [
+  { value: "all", label: "All Months" },
+  { value: "profit", label: "Profit Months" },
+  { value: "loss", label: "Loss Months" },
+];
+
+function ProfitMonthFilter({ value, onChange }: { value: ProfitFilter; onChange: (v: ProfitFilter) => void }) {
+  return (
+    <div className="inline-flex flex-wrap gap-1" role="group" aria-label="Filter by month result">
+      {PROFIT_FILTERS.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          aria-pressed={value === o.value}
+          className={cn(
+            "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
+            value === o.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const COMBINED_PL_COLUMNS = [
   { key: "month", label: "Month", required: true },
@@ -39,10 +68,16 @@ const COMBINED_PL_AUTO_HIDE = { belowWidth: 1920, keys: ["laborCost", "payrollCo
  *  that hook reworked to accept one. The bar is shown for consistency; it doesn't filter yet. */
 export default function CombinedPlPage() {
   const { data: user } = useCurrentUser();
-  const { monthly, isLoading } = useCombinedPl();
+  const { monthly: monthlyAll, isLoading } = useCombinedPl();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo } = useReportDateRange();
   const columnTable = useColumnVisibility("combined-pl", COMBINED_PL_COLUMNS, COMBINED_PL_AUTO_HIDE);
   const isVisible = columnTable.isVisible;
+  const [profitFilter, setProfitFilter] = useState<ProfitFilter>("all");
+
+  const monthly = useMemo(
+    () => monthlyAll.filter((m) => (profitFilter === "profit" ? m.netProfit >= 0 : profitFilter === "loss" ? m.netProfit < 0 : true)),
+    [monthlyAll, profitFilter]
+  );
 
   const totals = useMemo(
     () => monthly.reduce((acc, m) => ({ revenue: acc.revenue + m.revenue, cost: acc.cost + m.totalCost, net: acc.net + m.netProfit }), { revenue: 0, cost: 0, net: 0 }),
@@ -105,6 +140,7 @@ export default function CombinedPlPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={<ProfitMonthFilter value={profitFilter} onChange={setProfitFilter} />}
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

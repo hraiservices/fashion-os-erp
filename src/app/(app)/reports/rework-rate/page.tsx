@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useTailorName } from "@/hooks/use-employees";
@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 /** Rework rate per tailor — driven entirely by the manually-set rework flag (order detail
  *  page's "Flag for rework" action), not an automatic quality signal. */
@@ -19,8 +20,17 @@ export default function ReworkRatePage() {
   const { orders, isLoading } = useReportsData();
   const tailorName = useTailorName();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [garmentType, setGarmentType] = useState("all");
 
-  const reworkRate = useMemo(() => getReworkRate(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
+  const inRangeOrders = useMemo(() => orders.filter((o) => isWithinDateRange(o.inDate, range)), [orders, range]);
+  const garmentTypes = useMemo(() => {
+    const set = new Set(inRangeOrders.flatMap((o) => o.garments.map((g) => g.type)).filter(Boolean));
+    return Array.from(set).sort();
+  }, [inRangeOrders]);
+  const reworkRate = useMemo(
+    () => getReworkRate(inRangeOrders.filter((o) => garmentType === "all" || o.garments.some((g) => g.type === garmentType))),
+    [inRangeOrders, garmentType]
+  );
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -47,6 +57,21 @@ export default function ReworkRatePage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <Select value={garmentType} onValueChange={(v) => v && setGarmentType(v)}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{garmentType === "all" ? "All Garments" : garmentType}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Garments</SelectItem>
+              {garmentTypes.map((g) => (
+                <SelectItem key={g} value={g}>
+                  {g}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {reworkRate.length === 0 ? (

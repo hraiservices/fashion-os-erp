@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Truck, Link2 } from "lucide-react";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
 import { avgDaysToPayVendor } from "@/lib/purchases";
 import { inr } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,11 +17,19 @@ import { BalanceDue } from "@/components/ui/money-text";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
+type BalanceStatus = "all" | "outstanding" | "settled";
+const STATUS_OPTIONS: { value: BalanceStatus; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "outstanding", label: "Outstanding" },
+  { value: "settled", label: "Settled" },
+];
+
 export default function VendorBalanceSummaryPage() {
   const { data: bills, isLoading: l1 } = usePurchaseBills();
   const { data: vendors, isLoading: l2 } = useVendors();
   const isLoading = l1 || l2;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [status, setStatus] = useState<BalanceStatus>("all");
 
   const vendorNameById = useMemo(() => new Map((vendors || []).map((v) => [v.id, v.name])), [vendors]);
 
@@ -38,8 +47,9 @@ export default function VendorBalanceSummaryPage() {
     });
     return Array.from(map.values())
       .map((r) => ({ ...r, avgDaysToPay: avgDaysToPayVendor(r.bills) }))
+      .filter((r) => status === "all" || (status === "outstanding" ? r.balance > 0 : r.balance <= 0))
       .sort((a, b) => b.balance - a.balance);
-  }, [bills, range]);
+  }, [bills, range, status]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -70,6 +80,24 @@ export default function VendorBalanceSummaryPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <div className="inline-flex flex-wrap gap-1" role="group" aria-label="Filter by balance status">
+            {STATUS_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => setStatus(o.value)}
+                aria-pressed={status === o.value}
+                className={cn(
+                  "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
+                  status === o.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        }
       />
 
       {rows.length === 0 ? (

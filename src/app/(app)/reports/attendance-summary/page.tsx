@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { CalendarCheck } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
 import { useAttendanceInRange } from "@/hooks/use-attendance";
@@ -12,16 +12,19 @@ import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { useReportDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function AttendanceSummaryReportPage() {
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange("this-month");
   const { data: employees, isLoading: employeesLoading } = useEmployees();
   const { data: attendance, isLoading: attendanceLoading } = useAttendanceInRange(range.from, range.to);
   const isLoading = employeesLoading || attendanceLoading;
+  const [employeeId, setEmployeeId] = useState("all");
 
   const rows = useMemo(() => {
     return (employees || [])
       .filter((e) => e.active)
+      .filter((e) => employeeId === "all" || e.id === employeeId)
       .map((e) => {
         const records = (attendance || []).filter((a) => a.employeeId === e.id);
         const counts = countAttendance(records);
@@ -34,7 +37,7 @@ export default function AttendanceSummaryReportPage() {
         return { employee: e, ...counts, markedDays, attendancePct, hoursWorked, overtimeHours, flaggedDays };
       })
       .sort((a, b) => a.employee.name.localeCompare(b.employee.name));
-  }, [employees, attendance]);
+  }, [employees, attendance, employeeId]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -77,7 +80,31 @@ export default function AttendanceSummaryReportPage() {
         />
       }
     >
-      <ReportFilterBar preset={preset} onPresetChange={setPreset} customFrom={customFrom} onCustomFromChange={setCustomFrom} customTo={customTo} onCustomToChange={setCustomTo} />
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+        category={
+          <Select value={employeeId} onValueChange={(v) => v && setEmployeeId(v)}>
+            <SelectTrigger className="h-9 w-44">
+              <SelectValue>{employeeId === "all" ? "All Employees" : (employees || []).find((e) => e.id === employeeId)?.name || "All Employees"}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Employees</SelectItem>
+              {(employees || [])
+                .filter((e) => e.active)
+                .map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        }
+      />
 
       {rows.length === 0 ? (
         <EmptyState icon={CalendarCheck} title="No active employees" description="Add employees in Employees to see attendance here." />

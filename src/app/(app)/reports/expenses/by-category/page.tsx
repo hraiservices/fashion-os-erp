@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { PieChart } from "lucide-react";
 import { useExpenses } from "@/hooks/use-expenses";
 import { inr } from "@/lib/format";
@@ -9,26 +9,33 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 export default function ExpensesByCategoryPage() {
   const { data: expenses, isLoading } = useExpenses();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [payMethod, setPayMethod] = useState("all");
+
+  const payMethods = useMemo(() => Array.from(new Set((expenses || []).map((e) => e.payMethod).filter(Boolean))).sort(), [expenses]);
 
   const rows = useMemo(() => {
     const map = new Map<string, { category: string; count: number; total: number }>();
-    (expenses || []).filter((e) => isWithinDateRange(e.date, range)).forEach((e) => {
-      const row = map.get(e.category) || { category: e.category, count: 0, total: 0 };
-      row.count += 1;
-      row.total += e.amount;
-      map.set(e.category, row);
-    });
+    (expenses || [])
+      .filter((e) => isWithinDateRange(e.date, range))
+      .filter((e) => payMethod === "all" || e.payMethod === payMethod)
+      .forEach((e) => {
+        const row = map.get(e.category) || { category: e.category, count: 0, total: 0 };
+        row.count += 1;
+        row.total += e.amount;
+        map.set(e.category, row);
+      });
     const grandTotal = Array.from(map.values()).reduce((s, r) => s + r.total, 0);
     return Array.from(map.values())
       .map((r) => ({ ...r, pct: grandTotal > 0 ? (r.total / grandTotal) * 100 : 0 }))
       .sort((a, b) => b.total - a.total);
-  }, [expenses, range]);
+  }, [expenses, range, payMethod]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -53,6 +60,21 @@ export default function ExpensesByCategoryPage() {
         customTo={customTo}
         onCustomToChange={setCustomTo}
         resultLabel={`${rows.length} categor${rows.length === 1 ? "y" : "ies"}`}
+        category={
+          <Select value={payMethod} onValueChange={(v) => v && setPayMethod(v)}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{payMethod === "all" ? "All Methods" : payMethod}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Methods</SelectItem>
+              {payMethods.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {m}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {rows.length === 0 ? (

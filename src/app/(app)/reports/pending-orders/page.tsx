@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
@@ -18,13 +18,21 @@ import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { STAGE_META } from "@/lib/business-rules";
 
 export default function PendingOrdersPage() {
   const { orders, isLoading } = useReportsData();
   const { data: shop } = useShopSettings();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [stage, setStage] = useState("all");
 
-  const pending = useMemo(() => getPendingOrders(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
+  const allPending = useMemo(() => getPendingOrders(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
+  const stages = useMemo(() => {
+    const set = new Set(allPending.map((o) => o.status).filter(Boolean));
+    return Array.from(set).sort();
+  }, [allPending]);
+  const pending = useMemo(() => allPending.filter((o) => stage === "all" || o.status === stage), [allPending, stage]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -50,6 +58,21 @@ export default function PendingOrdersPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <Select value={stage} onValueChange={(v) => v && setStage(v)}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{stage === "all" ? "All Stages" : STAGE_META[stage as keyof typeof STAGE_META]?.label || stage}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Stages</SelectItem>
+              {stages.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {STAGE_META[s as keyof typeof STAGE_META]?.label || s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {pending.length === 0 ? (

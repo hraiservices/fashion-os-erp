@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Megaphone } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { getBookingSourceBreakdown } from "@/lib/analytics";
@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 /** How customers found the shop — "Not recorded" is expected and honest for orders created
  *  before this field existed, or where it was left blank. See order-form.tsx's "How did they
@@ -19,10 +20,15 @@ import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 export default function BookingSourcesPage() {
   const { orders, isLoading } = useReportsData();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [source, setSource] = useState("all");
 
-  const bookingSourceBreakdown = useMemo(
+  const bookingSourceBreakdownAll = useMemo(
     () => getBookingSourceBreakdown(orders.filter((o) => isWithinDateRange(o.inDate, range))),
     [orders, range]
+  );
+  const bookingSourceBreakdown = useMemo(
+    () => bookingSourceBreakdownAll.filter((r) => source === "all" || r.source === source),
+    [bookingSourceBreakdownAll, source]
   );
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
@@ -56,6 +62,21 @@ export default function BookingSourcesPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <Select value={source} onValueChange={(v) => v && setSource(v)}>
+            <SelectTrigger className="h-9 w-44">
+              <SelectValue>{source === "all" ? "All Sources" : source}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sources</SelectItem>
+              {bookingSourceBreakdownAll.map((r) => (
+                <SelectItem key={r.source} value={r.source}>
+                  {r.source}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {bookingSourceBreakdown.length === 0 ? (

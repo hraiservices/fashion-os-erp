@@ -15,6 +15,7 @@ import { PipelineVelocityWidget } from "@/components/dashboard/widgets/pipeline-
 import { TailorPerformanceWidget } from "@/components/dashboard/widgets/tailor-performance-widget";
 import { LiveReportWidget } from "@/components/dashboard/widgets/live-report-widget";
 import { StageTimingWidget } from "@/components/dashboard/widgets/stage-timing-widget";
+import { OverdueOrdersWidget } from "@/components/dashboard/widgets/overdue-orders-widget";
 import {
   StitchingDuesWidget,
   SalesDuesWidget,
@@ -54,4 +55,5 @@ export const WIDGET_COMPONENTS: Record<string, React.ComponentType> = {
   "tailor-performance": TailorPerformanceWidget,
   "live-report": LiveReportWidget,
   "stage-timing": StageTimingWidget,
+  "overdue-orders": OverdueOrdersWidget,
 };

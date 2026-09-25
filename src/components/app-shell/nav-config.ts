@@ -107,6 +107,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/tailor-payable-details", label: "Tailor Payable Report" },
     { href: "/reports/aging", label: "Balance Aging" },
     { href: "/reports/pending-orders", label: "Pending Orders" },
+    { href: "/reports/overdue", label: "Overdue Orders" },
     { href: "/reports/ready-uncollected", label: "Ready & Uncollected" },
     { href: "/reports/today-deliverables", label: "Today Deliverables" },
     { href: "/reports/rework-rate", label: "Rework Rate" },

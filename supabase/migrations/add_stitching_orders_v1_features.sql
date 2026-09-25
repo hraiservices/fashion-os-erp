@@ -23,7 +23,7 @@ CREATE OR REPLACE FUNCTION set_order_stage(
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  IF p_new_status NOT IN ('received','cutting','stitching','ready','delivered','payment') THEN
+  IF p_new_status NOT IN ('received','cutting','stitching','finishing','ready','delivered','payment') THEN
     RAISE EXCEPTION 'Invalid stage: %', p_new_status;
   END IF;
 

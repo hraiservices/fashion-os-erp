@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BalanceDue } from "@/components/ui/money-text";
 import { CustomerSummarySheet } from "@/components/payments/customer-summary-sheet";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { usePaymentAccounts } from "@/hooks/use-payment-accounts";
@@ -324,39 +325,64 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
         {rows.length === 0 ? (
           <p className="rounded-lg border bg-muted/20 px-3 py-4 text-center text-sm text-muted-foreground">Nothing outstanding for this customer.</p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full text-sm">
-              <thead className="border-b bg-muted/40 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                <tr>
-                  <th className="px-3 py-2">Date</th>
-                  <th className="px-3 py-2">Number</th>
-                  <th className="px-3 py-2 text-right">Total</th>
-                  <th className="px-3 py-2 text-right">Due</th>
-                  <th className="px-3 py-2 text-right">Payment</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {rows.map((r) => (
-                  <tr key={`${r.kind}-${r.id}`}>
-                    <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{fmtDate(r.date)}</td>
-                    <td className="px-3 py-2 font-medium">
-                      {r.number} <span className="ml-1 text-xs font-normal text-muted-foreground">{r.kind === "order" ? "Order" : "Invoice"}</span>
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">{inr(r.total)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{inr(r.due)}</td>
-                    <td className="px-3 py-2">
-                      <div className="ml-auto flex max-w-40 flex-col items-end gap-0.5">
-                        <NumberInput min={0} max={r.due} value={rowPayments[r.id] || 0} onChange={(v) => setRowAmount(r.id, r.due, v)} className="h-9 w-32" />
-                        <button type="button" onClick={() => setRowAmount(r.id, r.due, r.due)} className="text-[11px] text-primary hover:underline">
-                          Pay in full
-                        </button>
-                      </div>
-                    </td>
+          <>
+            <div className="hidden overflow-x-auto rounded-xl border sm:block">
+              <table className="w-full text-sm">
+                <thead className="border-b bg-muted/40 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  <tr>
+                    <th className="px-3 py-2">Date</th>
+                    <th className="px-3 py-2">Number</th>
+                    <th className="px-3 py-2 text-right">Total</th>
+                    <th className="px-3 py-2 text-right">Due</th>
+                    <th className="px-3 py-2 text-right">Payment</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y">
+                  {rows.map((r) => (
+                    <tr key={`${r.kind}-${r.id}`}>
+                      <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{fmtDate(r.date)}</td>
+                      <td className="px-3 py-2 font-medium">
+                        {r.number} <span className="ml-1 text-xs font-normal text-muted-foreground">{r.kind === "order" ? "Order" : "Invoice"}</span>
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">{inr(r.total)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{inr(r.due)}</td>
+                      <td className="px-3 py-2">
+                        <div className="ml-auto flex max-w-40 flex-col items-end gap-0.5">
+                          <NumberInput min={0} max={r.due} value={rowPayments[r.id] || 0} onChange={(v) => setRowAmount(r.id, r.due, v)} className="h-9 w-32" />
+                          <button type="button" onClick={() => setRowAmount(r.id, r.due, r.due)} className="text-[11px] text-primary hover:underline">
+                            Pay in full
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <MobileRecordList>
+              {rows.map((r) => (
+                <MobileRecordCard key={`${r.kind}-${r.id}`}>
+                  <MobileRecordHeader
+                    title={r.number}
+                    subtitle={`${r.kind === "order" ? "Order" : "Invoice"} · ${fmtDate(r.date)}`}
+                    value={inr(r.due)}
+                    showChevron={false}
+                  />
+                  <MobileRecordRow label="Total" value={inr(r.total)} />
+                  <div className="flex items-center justify-between gap-2 border-t pt-1.5">
+                    <span className="text-xs text-muted-foreground">Payment</span>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => setRowAmount(r.id, r.due, r.due)} className="text-[11px] text-primary hover:underline">
+                        Pay in full
+                      </button>
+                      <NumberInput min={0} max={r.due} value={rowPayments[r.id] || 0} onChange={(v) => setRowAmount(r.id, r.due, v)} className="h-9 w-28" />
+                    </div>
+                  </div>
+                </MobileRecordCard>
+              ))}
+            </MobileRecordList>
+          </>
         )}
       </div>
 

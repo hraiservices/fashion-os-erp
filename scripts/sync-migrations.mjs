@@ -22,6 +22,16 @@
 // --owner-email fills in OWNER_EMAIL_PLACEHOLDER inside add_module_entitlements.sql, same as
 // onboard-customer.mjs does -- pass the demo/customer's own platform-owner email (usually the
 // same one you use everywhere else). --dry-run prints the file list without running anything.
+//
+// CONNECTION ISSUES: the direct db.<ref>.supabase.co:5432 host is IPv6-only and unreachable from
+// many home/office networks (ETIMEDOUT / ENOTFOUND). If that happens, open the same project's
+// Database settings page -> "Connection pooling" section, copy the pooler host (something like
+// aws-0-<region>.pooler.supabase.com) and its port (6543 for transaction mode, 5432 for session
+// mode), and pass them here to override the direct-connection default:
+//   node scripts/sync-migrations.mjs --ref=<project-ref> --db-password=<password> --owner-email=<...> \
+//     --host=aws-0-<region>.pooler.supabase.com --port=6543
+// The pooler's actual Postgres username is `postgres.<project-ref>` (not plain `postgres`) --
+// this script fills that in automatically whenever --host is passed.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -40,9 +50,14 @@ function flag(name) {
 const ref = flag("ref");
 const dbPassword = flag("db-password");
 const ownerEmail = flag("owner-email");
+const host = flag("host") || `db.${ref}.supabase.co`;
+const port = flag("port") || "5432";
+// The pooler authenticates as postgres.<project-ref>, not plain postgres -- direct-connection
+// mode keeps the plain username unless a pooler host was explicitly passed.
+const pgUser = flag("host") ? `postgres.${ref}` : "postgres";
 
 if (!ref || (!DRY_RUN && !dbPassword)) {
-  console.error("Usage: node scripts/sync-migrations.mjs --ref=<project-ref> --db-password=<password> --owner-email=<email> [--dry-run]");
+  console.error("Usage: node scripts/sync-migrations.mjs --ref=<project-ref> --db-password=<password> --owner-email=<email> [--host=<pooler-host> --port=<pooler-port>] [--dry-run]");
   process.exit(1);
 }
 
@@ -55,16 +70,18 @@ if (DRY_RUN) {
   process.exit(0);
 }
 
-const connectionString = `postgresql://postgres:${encodeURIComponent(dbPassword)}@db.${ref}.supabase.co:5432/postgres`;
+const connectionString = `postgresql://${pgUser}:${encodeURIComponent(dbPassword)}@${host}:${port}/postgres`;
 const client = new pg.Client({ connectionString, ssl: { rejectUnauthorized: false } });
 
 try {
   await client.connect();
 } catch (e) {
   console.error(
-    `Could not connect to db.${ref}.supabase.co:5432 -- some Supabase regions require the ` +
-      `pooler connection instead. If this keeps failing, run the migrations by hand via the ` +
-      `Supabase SQL Editor (copy/paste each file in supabase/migrations/, in filename order).\n` +
+    `Could not connect to ${host}:${port} -- some Supabase regions require the pooler ` +
+      `connection instead of the direct db.<ref>.supabase.co host (see the CONNECTION ISSUES ` +
+      `note at the top of this file for --host/--port). If this keeps failing, run the ` +
+      `migrations by hand via the Supabase SQL Editor (copy/paste each file in ` +
+      `supabase/migrations/, in filename order).\n` +
       `Original error: ${e.message}`
   );
   process.exit(1);

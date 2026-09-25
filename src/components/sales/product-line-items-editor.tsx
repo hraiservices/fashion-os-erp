@@ -244,7 +244,7 @@ export function ProductLineItemsEditor({
             </ul>
           )}
         </div>
-        <Button type="button" variant="outline" size="icon" onClick={() => setScannerOpen(true)} aria-label="Scan with camera">
+        <Button type="button" variant="outline" size="icon" className="size-11" onClick={() => setScannerOpen(true)} aria-label="Scan with camera">
           <Camera className="size-4" />
         </Button>
       </div>

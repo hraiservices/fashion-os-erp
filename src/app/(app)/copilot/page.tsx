@@ -230,7 +230,7 @@ export default function CopilotPage() {
           rows={1}
           className="max-h-32 min-h-11 flex-1 resize-none"
         />
-        <Button type="submit" disabled={!question.trim() || ask.isPending} size="icon" aria-label="Send">
+        <Button type="submit" disabled={!question.trim() || ask.isPending} size="icon" className="size-11" aria-label="Send">
           <Send className="size-4" />
         </Button>
       </form>

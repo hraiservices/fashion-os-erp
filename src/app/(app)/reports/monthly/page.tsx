@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { getMonthly } from "@/lib/analytics";
 import { inr } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { ReportShell, ReportCard, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,11 +14,19 @@ import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianG
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
+type ChartMetric = "both" | "billed" | "collected";
+const METRIC_OPTIONS: { value: ChartMetric; label: string }[] = [
+  { value: "both", label: "Billed & Collected" },
+  { value: "billed", label: "Billed Only" },
+  { value: "collected", label: "Collected Only" },
+];
+
 /** The month buckets shown are always the trailing 6 months (see getMonthly) — the date range
  *  narrows which orders count toward each bucket, not the window of months shown. */
 export default function MonthlyPnlPage() {
   const { orders, isLoading } = useReportsData();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [metric, setMetric] = useState<ChartMetric>("both");
 
   const monthly = useMemo(() => getMonthly(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
 
@@ -45,6 +54,24 @@ export default function MonthlyPnlPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <div className="inline-flex flex-wrap gap-1" role="group" aria-label="Chart metric">
+            {METRIC_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => setMetric(o.value)}
+                aria-pressed={metric === o.value}
+                className={cn(
+                  "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
+                  metric === o.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        }
       />
 
       <ReportCard className="p-4">
@@ -59,8 +86,12 @@ export default function MonthlyPnlPage() {
                 contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-popover)", fontSize: 12 }}
               />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Area type="monotone" dataKey="billed" name="Billed" stroke="var(--color-primary)" strokeWidth={2} fill="var(--color-primary)" fillOpacity={0.12} />
-              <Area type="monotone" dataKey="collected" name="Collected" stroke="#059669" strokeWidth={2} fill="#059669" fillOpacity={0.12} />
+              {metric !== "collected" && (
+                <Area type="monotone" dataKey="billed" name="Billed" stroke="var(--color-primary)" strokeWidth={2} fill="var(--color-primary)" fillOpacity={0.12} />
+              )}
+              {metric !== "billed" && (
+                <Area type="monotone" dataKey="collected" name="Collected" stroke="#059669" strokeWidth={2} fill="#059669" fillOpacity={0.12} />
+              )}
             </AreaChart>
           </ResponsiveContainer>
         </div>

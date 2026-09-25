@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Clock } from "lucide-react";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
@@ -14,6 +14,43 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { cn } from "@/lib/utils";
+
+type SpeedBucket = "all" | "fast" | "normal" | "slow";
+
+const SPEED_BUCKET_OPTIONS: { value: SpeedBucket; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "fast", label: "≤7d" },
+  { value: "normal", label: "8-30d" },
+  { value: "slow", label: ">30d" },
+];
+
+function bucketOf(days: number): Exclude<SpeedBucket, "all"> {
+  return days <= 7 ? "fast" : days <= 30 ? "normal" : "slow";
+}
+
+/** All/≤7d/8-30d/>30d segmented control — same fixed-set shape as SalesTypeFilter, over this
+ *  page's own "days to pay" buckets (which already color the table rows). */
+function SpeedBucketFilter({ value, onChange }: { value: SpeedBucket; onChange: (v: SpeedBucket) => void }) {
+  return (
+    <div className="inline-flex flex-wrap gap-1" role="group" aria-label="Filter by days to pay">
+      {SPEED_BUCKET_OPTIONS.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          aria-pressed={value === o.value}
+          className={cn(
+            "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
+            value === o.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /**
  * Only fully-paid invoices have a "time to get paid" — a partial payment means the invoice
@@ -23,6 +60,7 @@ import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 export default function TimeToGetPaidPage() {
   const { data: invoices, isLoading } = useSalesInvoices();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [speedBucket, setSpeedBucket] = useState<SpeedBucket>("all");
 
   const rows = useMemo(() => {
     return (invoices || [])
@@ -37,8 +75,9 @@ export default function TimeToGetPaidPage() {
         paymentStatus: inv.paymentStatus,
         days: Math.max(0, Math.round((new Date(inv.lastPaymentDate as string).getTime() - new Date(inv.invoiceDate).getTime()) / 86_400_000)),
       }))
+      .filter((r) => speedBucket === "all" || bucketOf(r.days) === speedBucket)
       .sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime());
-  }, [invoices, range]);
+  }, [invoices, range, speedBucket]);
 
   const avgDays = avgDaysToGetPaid(invoices || []);
 
@@ -64,6 +103,7 @@ export default function TimeToGetPaidPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={<SpeedBucketFilter value={speedBucket} onChange={setSpeedBucket} />}
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

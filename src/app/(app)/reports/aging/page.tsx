@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useShopSettings } from "@/hooks/use-shop-settings";
@@ -20,6 +20,7 @@ import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const BAND_STYLE: Record<string, string> = {
   Fresh: "bg-muted text-muted-foreground",
@@ -33,8 +34,10 @@ export default function BalanceAgingPage() {
   const { data: shop } = useShopSettings();
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [band, setBand] = useState("all");
 
-  const aging = useMemo(() => getAgingList(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
+  const agingAll = useMemo(() => getAgingList(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
+  const aging = useMemo(() => agingAll.filter((o) => band === "all" || o.agingBand === band), [agingAll, band]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -60,6 +63,21 @@ export default function BalanceAgingPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <Select value={band} onValueChange={(v) => v && setBand(v)}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{band === "all" ? "All Aging" : band}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Aging</SelectItem>
+              {Array.from(new Set(agingAll.map((o) => o.agingBand))).map((b) => (
+                <SelectItem key={b} value={b}>
+                  {b}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {aging.length === 0 ? (

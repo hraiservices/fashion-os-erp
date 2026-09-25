@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Wallet, ArrowDownCircle, ArrowUpCircle, Scale } from "lucide-react";
 import { useAllSalesPayments } from "@/hooks/use-sales-payments";
 import { useAllVendorPayments } from "@/hooks/use-vendor-payments";
 import { useAllOrderPayments } from "@/hooks/use-order-payments";
 import { inr } from "@/lib/format";
+import { type SaleTypeFilter } from "@/lib/unified-sales";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { SalesTypeFilter } from "@/components/reports/sales-type-filter";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -91,17 +93,18 @@ export default function PaymentMethodsReportPage() {
   const { data: orderPayments, isLoading: l3 } = useAllOrderPayments();
   const isLoading = l1 || l2 || l3;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  // This page IS the breakdown by method, so "category" here is the other axis already on the
+  // data: which revenue stream a received payment came from (product sale vs stitching order).
+  // Payments made to vendors have no sale-type notion, so this filter only narrows "received".
+  const [saleType, setSaleType] = useState<SaleTypeFilter>("all");
 
-  // Both revenue streams — sales_payments (product sales) and order_payments (stitching orders)
-  // both have a real `method` column now, so this report reflects every rupee to reconcile
-  // against a bank deposit, not just retail.
   const receivedByMethod = useMemo(
     () =>
       byMethod([
-        ...(salesPayments || []).filter((p) => isWithinDateRange(p.date, range)),
-        ...(orderPayments || []).filter((p) => isWithinDateRange(p.createdAt, range)),
+        ...(saleType === "stitching" ? [] : (salesPayments || []).filter((p) => isWithinDateRange(p.date, range))),
+        ...(saleType === "retail" ? [] : (orderPayments || []).filter((p) => isWithinDateRange(p.createdAt, range))),
       ]),
-    [salesPayments, orderPayments, range]
+    [salesPayments, orderPayments, range, saleType]
   );
   const madeByMethod = useMemo(() => byMethod((vendorPayments || []).filter((p) => isWithinDateRange(p.date, range))), [vendorPayments, range]);
   const totalReceived = useMemo(() => receivedByMethod.reduce((s, r) => s + r.amount, 0), [receivedByMethod]);
@@ -132,6 +135,7 @@ export default function PaymentMethodsReportPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={<SalesTypeFilter value={saleType} onChange={setSaleType} />}
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

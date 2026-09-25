@@ -70,11 +70,11 @@ function ExpensesPageContent() {
         description="Track your company's operating costs"
         actions={
           canAdd && (
-            <div className="flex gap-2">
-              <Button variant="outline" nativeButton={false} render={<Link href="/expenses/import" />}>
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+              <Button variant="outline" className="w-full sm:w-auto" nativeButton={false} render={<Link href="/expenses/import" />}>
                 <Upload className="size-4" /> Import
               </Button>
-              <Button nativeButton={false} render={<Link href="/expenses/new" />}>
+              <Button className="w-full sm:w-auto" nativeButton={false} render={<Link href="/expenses/new" />}>
                 <Plus className="size-4" /> Add Expense
               </Button>
             </div>

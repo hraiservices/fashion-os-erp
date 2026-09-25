@@ -60,7 +60,7 @@ export function CompleteWorkOrderDialog({ open, onOpenChange, wo }: { open: bool
           {rows.length === 0 ? (
             <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">No materials linked — completing will only add finished-goods stock.</p>
           ) : (
-            <div className="overflow-hidden rounded-lg border">
+            <div className="overflow-x-auto rounded-lg border">
               <table className="w-full text-sm">
                 <thead className="border-b bg-muted/40">
                   <tr>

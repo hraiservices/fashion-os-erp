@@ -321,9 +321,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <p className="mt-0.5 text-xs text-red-700/80 dark:text-red-400/80">Sent back {order.reworkCount} times total</p>
               )}
               {user?.perms.changeStage && (
-                <Button variant="outline" size="sm" className="mt-2" disabled={setRework.isPending} onClick={clearRework}>
-                  Clear rework flag
-                </Button>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" disabled={setRework.isPending} onClick={clearRework}>
+                    Clear rework flag
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={setRework.isPending} onClick={() => setReworkDialogOpen(true)}>
+                    Flag again
+                  </Button>
+                </div>
               )}
             </div>
           )}
@@ -691,7 +696,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       </div>
 
       <PaymentModal order={order} open={paymentOpen} onOpenChange={setPaymentOpen} />
-      <ReworkDialog orderId={id} open={reworkDialogOpen} onOpenChange={setReworkDialogOpen} />
+      <ReworkDialog orderId={id} open={reworkDialogOpen} onOpenChange={setReworkDialogOpen} alreadyFlagged={order.reworkFlag} />
 
       <AlertDialog open={!!deletePaymentId} onOpenChange={(v) => !v && setDeletePaymentId(null)}>
         <AlertDialogContent>

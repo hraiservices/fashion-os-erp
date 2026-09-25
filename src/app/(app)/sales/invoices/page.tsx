@@ -241,18 +241,18 @@ export default function SalesInvoicesPage() {
         description={`${invoices?.length ?? 0} invoices`}
         actions={
           (canManage || user?.perms.managePayments) && (
-            <div className="flex gap-2">
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
               {canManage && (
                 <>
-                  <Button variant="outline" nativeButton={false} render={<Link href="/sales/invoices/import" />}>
+                  <Button variant="outline" className="w-full sm:w-auto" nativeButton={false} render={<Link href="/sales/invoices/import" />}>
                     <Upload className="size-4" /> Import
                   </Button>
-                  <Button nativeButton={false} render={<Link href="/sales/invoices/new" />}>
+                  <Button className="w-full sm:w-auto" nativeButton={false} render={<Link href="/sales/invoices/new" />}>
                     <Plus className="size-4" /> New invoice
                   </Button>
                 </>
               )}
-              {user?.perms.managePayments && <NewPaymentButton />}
+              {user?.perms.managePayments && <NewPaymentButton className="col-span-2 w-full sm:w-auto" />}
             </div>
           )
         }

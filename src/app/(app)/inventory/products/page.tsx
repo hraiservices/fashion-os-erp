@@ -174,11 +174,11 @@ function ProductsPageContent() {
         description={`${filtered.length} of ${products?.length ?? 0} products`}
         actions={
           canManage && (
-            <div className="flex items-center gap-2">
-              <Button variant="outline" nativeButton={false} render={<Link href="/inventory/products/import" />}>
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+              <Button variant="outline" className="w-full sm:w-auto" nativeButton={false} render={<Link href="/inventory/products/import" />}>
                 <Upload className="size-4" /> Import
               </Button>
-              <Button nativeButton={false} render={<Link href="/inventory/products/new" />}>
+              <Button className="w-full sm:w-auto" nativeButton={false} render={<Link href="/inventory/products/new" />}>
                 <Plus className="size-4" /> Add product
               </Button>
             </div>

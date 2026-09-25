@@ -83,7 +83,7 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
 
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         <div className="space-y-4 lg:col-span-2">
-          <div className="overflow-hidden rounded-xl border">
+          <div className="overflow-x-auto rounded-xl border">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/40">
                 <tr>

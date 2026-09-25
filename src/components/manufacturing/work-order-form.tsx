@@ -250,7 +250,7 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
                         This product has no Bill of Materials set. Add one from Inventory → Products, or continue without material tracking.
                       </p>
                     ) : (
-                      <div className="overflow-hidden rounded-lg border">
+                      <div className="overflow-x-auto rounded-lg border">
                         <table className="w-full text-sm">
                           <thead className="border-b bg-muted/40">
                             <tr>

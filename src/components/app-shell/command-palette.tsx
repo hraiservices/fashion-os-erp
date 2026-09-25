@@ -7,6 +7,10 @@ import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, C
 import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, resolveReportSection, SETTINGS_GROUP, settingsLeafVisible, EMPLOYEES_GROUP, employeesLeafVisible, ORDERS_GROUP, ordersLeafVisible } from "@/components/app-shell/nav-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useOrders } from "@/hooks/use-orders";
+import { useCustomers } from "@/hooks/use-customers";
+import { useSalesInvoices } from "@/hooks/use-sales-invoices";
+import { useProducts } from "@/hooks/use-products";
+import { useEmployees } from "@/hooks/use-employees";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { isReportEnabled, isSettingEnabled } from "@/lib/entitlements";
 import { STAGE_META } from "@/lib/business-rules";
@@ -21,6 +25,13 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   const { data: orders } = useOrders();
   const { data: entitlements } = useModuleEntitlements();
   const restricted = !!user?.restricted;
+  // Same "restricted role" gate the Customers/Employees nav items themselves use — a
+  // record-search result is exactly as sensitive as the page it would otherwise require
+  // navigating to, so it's gated the same way rather than left as a search-only backdoor.
+  const { data: customers } = useCustomers();
+  const { data: invoices } = useSalesInvoices();
+  const { data: products } = useProducts();
+  const { data: employeeDirectory } = useEmployees();
   const isAdmin = user?.role === "admin";
   const isSuperAdmin = !!user?.isSuperAdmin;
 
@@ -54,8 +65,8 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   }
 
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange} title="Search" description="Jump to a page or an order">
-      <CommandInput placeholder="Search orders, customers, pages…" />
+    <CommandDialog open={open} onOpenChange={onOpenChange} title="Search" description="Jump to a page, an order, a customer, or anything else in the app">
+      <CommandInput placeholder="Search Anything…" />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
 
@@ -67,6 +78,50 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                 <span className="ml-2 shrink-0 text-xs text-muted-foreground">
                   {o.id} · {STAGE_META[o.status].label}
                 </span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {!restricted && (customers || []).length > 0 && (
+          <CommandGroup heading="Customers">
+            {(customers || []).slice(0, 50).map((c) => (
+              <CommandItem key={c.mobile} value={`${c.name} ${c.mobile}`} onSelect={() => go(`/crm/${c.mobile}`)}>
+                <span className="truncate">{c.name}</span>
+                <span className="ml-2 shrink-0 text-xs text-muted-foreground">{c.mobile}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {!restricted && (invoices || []).length > 0 && (
+          <CommandGroup heading="Sales Invoices">
+            {(invoices || []).slice(0, 50).map((inv) => (
+              <CommandItem key={inv.id} value={`${inv.invoiceNumber} ${inv.customerName}`} onSelect={() => go(`/sales/invoices/${inv.id}`)}>
+                <span className="truncate">{inv.customerName}</span>
+                <span className="ml-2 shrink-0 text-xs text-muted-foreground">{inv.invoiceNumber}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {!restricted && (products || []).length > 0 && (
+          <CommandGroup heading="Products">
+            {(products || []).slice(0, 50).map((p) => (
+              <CommandItem key={p.id} value={`${p.name} ${p.sku} ${p.barcode || ""}`} onSelect={() => go(`/inventory/products/${p.id}`)}>
+                <span className="truncate">{p.name}</span>
+                <span className="ml-2 shrink-0 text-xs text-muted-foreground">{p.sku}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {!restricted && (employeeDirectory || []).length > 0 && (
+          <CommandGroup heading="Employees">
+            {(employeeDirectory || []).slice(0, 50).map((e) => (
+              <CommandItem key={e.id} value={`${e.name} ${e.mobile}`} onSelect={() => go(`/employees/${e.id}`)}>
+                <span className="truncate">{e.name}</span>
+                <span className="ml-2 shrink-0 text-xs text-muted-foreground">{e.role}</span>
               </CommandItem>
             ))}
           </CommandGroup>
@@ -145,7 +200,7 @@ export function CommandTrigger() {
         className="flex h-9 w-full max-w-sm items-center gap-2 rounded-lg border bg-muted/40 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted"
       >
         <Search className="size-4 shrink-0" />
-        <span className="truncate">Search orders, customers…</span>
+        <span className="truncate">Search Anything…</span>
         <kbd className="ml-auto hidden shrink-0 rounded border bg-background px-1.5 font-sans text-[10px] text-muted-foreground sm:inline">⌘K</kbd>
       </button>
       <CommandPalette open={open} onOpenChange={setOpen} />

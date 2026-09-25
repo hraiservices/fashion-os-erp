@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ShieldAlert } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { getDepositCompliance } from "@/lib/analytics";
@@ -14,7 +14,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 /** Open orders with no deposit, or a deposit under 20% of the total — a common source of
  *  no-shows and lost revenue. Threshold is fixed for v1, not yet a Settings-configurable
@@ -23,13 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export default function DepositCompliancePage() {
   const { orders, isLoading } = useReportsData();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
-  const [stage, setStage] = useState("all");
 
-  const depositComplianceAll = useMemo(() => getDepositCompliance(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
-  const depositCompliance = useMemo(
-    () => depositComplianceAll.filter((o) => stage === "all" || o.status === stage),
-    [depositComplianceAll, stage]
-  );
+  const depositCompliance = useMemo(() => getDepositCompliance(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -63,21 +57,6 @@ export default function DepositCompliancePage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
-        category={
-          <Select value={stage} onValueChange={(v) => v && setStage(v)}>
-            <SelectTrigger className="h-9 w-40">
-              <SelectValue>{stage === "all" ? "All Stages" : stage}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Stages</SelectItem>
-              {Array.from(new Set(depositComplianceAll.map((o) => o.status))).map((s) => (
-                <SelectItem key={s} value={s}>
-                  {s}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
       />
 
       {depositCompliance.length === 0 ? (

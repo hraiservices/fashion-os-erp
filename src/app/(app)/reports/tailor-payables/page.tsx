@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { Wallet, AlertTriangle } from "lucide-react";
 import { useOrders } from "@/hooks/use-orders";
@@ -52,9 +52,8 @@ export default function TailorPayablesPage() {
   const { data: workOrders, isLoading: woLoading } = useWorkOrders();
   const isLoading = employeesLoading || ordersLoading || woLoading;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
-  const [paymentStatus, setPaymentStatus] = useState<"all" | "pending" | "settled">("all");
 
-  const { rows: allRows, unattributed, zeroRatedCount } = useMemo(() => {
+  const { rows, unattributed, zeroRatedCount } = useMemo(() => {
     const tailors = (employees || []).filter((e) => e.pieceRateEligible);
 
     // Every garment payable whose tailor doesn't resolve to a real employee record.
@@ -129,14 +128,6 @@ export default function TailorPayablesPage() {
     return { rows, unattributed, zeroRatedCount };
   }, [employees, orders, workOrders, range]);
 
-  const rows = useMemo(
-    () =>
-      paymentStatus === "all"
-        ? allRows
-        : allRows.filter((r) => (paymentStatus === "pending" ? r.rangePending > 0 : r.rangePending === 0)),
-    [allRows, paymentStatus]
-  );
-
   if (!user?.perms.managePayroll) {
     return (
       <div className="p-4 sm:p-6">
@@ -180,31 +171,7 @@ export default function TailorPayablesPage() {
         />
       }
     >
-      <ReportFilterBar
-        preset={preset}
-        onPresetChange={setPreset}
-        customFrom={customFrom}
-        onCustomFromChange={setCustomFrom}
-        customTo={customTo}
-        onCustomToChange={setCustomTo}
-        category={
-          <div className="inline-flex flex-wrap gap-1" role="group" aria-label="Filter by payment status">
-            {(["all", "pending", "settled"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setPaymentStatus(v)}
-                aria-pressed={paymentStatus === v}
-                className={`rounded-lg border px-3 py-1 text-xs font-medium transition-colors ${
-                  paymentStatus === v ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                {v === "all" ? "All" : v === "pending" ? "Has Pending" : "Fully Settled"}
-              </button>
-            ))}
-          </div>
-        }
-      />
+      <ReportFilterBar preset={preset} onPresetChange={setPreset} customFrom={customFrom} onCustomFromChange={setCustomFrom} customTo={customTo} onCustomToChange={setCustomTo} />
 
       {rows.length > 0 && (
         <p className="text-sm">

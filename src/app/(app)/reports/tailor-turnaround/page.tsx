@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Clock } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useTailorName } from "@/hooks/use-employees";
 import { getTailorTurnaround } from "@/lib/analytics";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
@@ -22,22 +21,8 @@ export default function TailorTurnaroundPage() {
   const { orders, isLoading } = useReportsData();
   const tailorName = useTailorName();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange("this-month");
-  const [garmentType, setGarmentType] = useState("all");
 
-  const garmentTypes = useMemo(() => {
-    const set = new Set(orders.flatMap((o) => o.garments.map((g) => g.type)).filter(Boolean));
-    return Array.from(set).sort();
-  }, [orders]);
-
-  const stats = useMemo(
-    () =>
-      getTailorTurnaround(
-        orders
-          .filter((o) => isWithinDateRange(o.readyAt, range))
-          .filter((o) => garmentType === "all" || o.garments.some((g) => g.type === garmentType))
-      ),
-    [orders, range, garmentType]
-  );
+  const stats = useMemo(() => getTailorTurnaround(orders.filter((o) => isWithinDateRange(o.readyAt, range))), [orders, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -65,29 +50,7 @@ export default function TailorTurnaroundPage() {
         />
       }
     >
-      <ReportFilterBar
-        preset={preset}
-        onPresetChange={setPreset}
-        customFrom={customFrom}
-        onCustomFromChange={setCustomFrom}
-        customTo={customTo}
-        onCustomToChange={setCustomTo}
-        category={
-          <Select value={garmentType} onValueChange={(v) => v && setGarmentType(v)}>
-            <SelectTrigger className="h-9 w-40">
-              <SelectValue>{garmentType === "all" ? "All Garment Types" : garmentType}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Garment Types</SelectItem>
-              {garmentTypes.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
-      />
+      <ReportFilterBar preset={preset} onPresetChange={setPreset} customFrom={customFrom} onCustomFromChange={setCustomFrom} customTo={customTo} onCustomToChange={setCustomTo} />
 
       {stats.length === 0 ? (
         <EmptyState icon={Clock} title="No completed orders yet" description="Once orders reach Ready in the selected range, turnaround times will show up here." />

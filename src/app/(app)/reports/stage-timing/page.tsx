@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Clock3, ArrowRight } from "lucide-react";
 import { useStageTiming } from "@/hooks/use-stage-timing";
 import { useReportDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
 import { fmtDate, fmtTime, fmtMinutes } from "@/lib/format";
 import { ReportShell, ReportCard, ReportTable, Th, Td } from "@/components/reports/report-shell";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
@@ -30,15 +29,8 @@ const STAGE_BAR_COLOR = "#0ea5e9";
 export default function StageTimingPage() {
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
   const { data, isLoading, isError, error } = useStageTiming(range);
-  const [toStage, setToStage] = useState("all");
 
-  const allRows = useMemo(() => data?.rows || [], [data]);
-  const stages = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const r of allRows) if (r.toStage) map.set(r.toStage, r.toLabel);
-    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-  }, [allRows]);
-  const rows = useMemo(() => (toStage === "all" ? allRows : allRows.filter((r) => r.toStage === toStage)), [allRows, toStage]);
+  const rows = useMemo(() => data?.rows || [], [data]);
   const byStage = data?.byStage || [];
   const byEmployee = data?.byEmployee || [];
   const summary = data?.summary || { count: 0, avgMinutes: 0 };
@@ -77,21 +69,6 @@ export default function StageTimingPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
-        category={
-          <Select value={toStage} onValueChange={(v) => v && setToStage(v)}>
-            <SelectTrigger className="h-9 w-40">
-              <SelectValue>{toStage === "all" ? "All Stages" : stages.find(([id]) => id === toStage)?.[1] || toStage}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Stages</SelectItem>
-              {stages.map(([id, label]) => (
-                <SelectItem key={id} value={id}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
       />
 
       {isLoading && <Skeleton className="h-96 w-full" />}

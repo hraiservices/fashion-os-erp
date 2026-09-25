@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { UserX } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useShopSettings } from "@/hooks/use-shop-settings";
@@ -15,7 +15,6 @@ import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const MONTHS_THRESHOLD = 6;
 
@@ -28,17 +27,8 @@ export default function ReorderCandidatesPage() {
   const { orders, isLoading } = useReportsData();
   const { data: shop } = useShopSettings();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
-  const [garmentType, setGarmentType] = useState("all");
 
-  const allReorderCandidates = useMemo(() => getReorderCandidates(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
-  const garmentTypes = useMemo(() => {
-    const set = new Set(allReorderCandidates.flatMap((c) => c.orders.flatMap((o) => o.garments.map((g) => g.type))).filter(Boolean));
-    return Array.from(set).sort();
-  }, [allReorderCandidates]);
-  const reorderCandidates = useMemo(
-    () => allReorderCandidates.filter((c) => garmentType === "all" || c.orders.some((o) => o.garments.some((g) => g.type === garmentType))),
-    [allReorderCandidates, garmentType]
-  );
+  const reorderCandidates = useMemo(() => getReorderCandidates(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -62,21 +52,6 @@ export default function ReorderCandidatesPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
-        category={
-          <Select value={garmentType} onValueChange={(v) => v && setGarmentType(v)}>
-            <SelectTrigger className="h-9 w-40">
-              <SelectValue>{garmentType === "all" ? "All Garments" : garmentType}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Garments</SelectItem>
-              {garmentTypes.map((g) => (
-                <SelectItem key={g} value={g}>
-                  {g}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
       />
 
       {reorderCandidates.length === 0 ? (

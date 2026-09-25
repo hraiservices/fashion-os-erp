@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Gift, Coins, TicketPercent, Users } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { getLoyaltyImpact } from "@/lib/analytics";
-import { loyaltyTier } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportCard } from "@/components/reports/report-shell";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
@@ -14,32 +13,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { useCustomers } from "@/hooks/use-customers";
-import { cn } from "@/lib/utils";
-
-const TIER_OPTIONS = ["all", "Bronze", "Silver", "Gold", "Platinum"] as const;
-type TierFilter = (typeof TIER_OPTIONS)[number];
-
-/** Shared All/Bronze/Silver/Gold/Platinum segmented control for the tier filter below. */
-function LoyaltyTierFilter({ value, onChange }: { value: TierFilter; onChange: (v: TierFilter) => void }) {
-  return (
-    <div className="inline-flex flex-wrap gap-1" role="group" aria-label="Filter by loyalty tier">
-      {TIER_OPTIONS.map((t) => (
-        <button
-          key={t}
-          type="button"
-          onClick={() => onChange(t)}
-          aria-pressed={value === t}
-          className={cn(
-            "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
-            value === t ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-          )}
-        >
-          {t === "all" ? "All Tiers" : t}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 /**
  * Loyalty Impact — an original construction for this rewrite (see getLoyaltyImpact() in
@@ -52,16 +25,10 @@ export default function LoyaltyImpactPage() {
   const { orders, loyaltyCfg, isLoading } = useReportsData();
   const { data: customers } = useCustomers();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
-  const [tier, setTier] = useState<TierFilter>("all");
-
-  const tierFilteredCustomers = useMemo(
-    () => (customers || []).filter((c) => tier === "all" || loyaltyTier(c.totalEarned, loyaltyCfg).label === tier),
-    [customers, loyaltyCfg, tier]
-  );
 
   const loyaltyImpact = useMemo(
-    () => getLoyaltyImpact(orders.filter((o) => isWithinDateRange(o.inDate, range)), tierFilteredCustomers, loyaltyCfg),
-    [orders, tierFilteredCustomers, loyaltyCfg, range]
+    () => getLoyaltyImpact(orders.filter((o) => isWithinDateRange(o.inDate, range)), customers || [], loyaltyCfg),
+    [orders, customers, loyaltyCfg, range]
   );
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
@@ -101,7 +68,6 @@ export default function LoyaltyImpactPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
-        category={<LoyaltyTierFilter value={tier} onChange={setTier} />}
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

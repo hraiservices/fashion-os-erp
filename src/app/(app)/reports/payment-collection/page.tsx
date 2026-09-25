@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { getPaymentStats } from "@/lib/analytics";
 import { inr } from "@/lib/format";
-import { cn } from "@/lib/utils";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,31 +11,11 @@ import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
 
-type PaymentStatus = "all" | "paid" | "partial" | "unpaid";
-const STATUS_OPTIONS: { value: PaymentStatus; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "paid", label: "Fully Paid" },
-  { value: "partial", label: "Partial" },
-  { value: "unpaid", label: "Unpaid" },
-];
-
 export default function PaymentCollectionPage() {
   const { orders, isLoading } = useReportsData();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
-  const [status, setStatus] = useState<PaymentStatus>("all");
 
-  const paymentStats = useMemo(() => {
-    const inRange = orders.filter((o) => isWithinDateRange(o.inDate, range));
-    const filtered =
-      status === "all"
-        ? inRange
-        : inRange.filter((o) => {
-            if (status === "paid") return (o.balance || 0) <= 0;
-            if (status === "partial") return (o.advance || 0) > 0 && (o.balance || 0) > 0;
-            return !(o.advance || 0);
-          });
-    return getPaymentStats(filtered);
-  }, [orders, range, status]);
+  const paymentStats = useMemo(() => getPaymentStats(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -73,24 +52,6 @@ export default function PaymentCollectionPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
-        category={
-          <div className="inline-flex flex-wrap gap-1" role="group" aria-label="Filter by payment status">
-            {STATUS_OPTIONS.map((o) => (
-              <button
-                key={o.value}
-                type="button"
-                onClick={() => setStatus(o.value)}
-                aria-pressed={status === o.value}
-                className={cn(
-                  "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
-                  status === o.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        }
       />
 
       <MobileRecordList>

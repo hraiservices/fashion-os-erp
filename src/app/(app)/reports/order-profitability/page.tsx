@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import Link from "next/link";
 import { TrendingUp } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
@@ -11,21 +10,8 @@ import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
-
-/** An order's garment "type" (e.g. Blouse, Saree Fall) is the best-fit dimension here — it's
- *  the one grouping already present on every order, and the natural way to ask "which garment
- *  types are most/least profitable". Orders with more than one distinct garment type are
- *  grouped under "Mixed" rather than picked apart per-garment, since profit is only known
- *  per-order, not per-garment. */
-function garmentTypeOf(garments: { type: string }[] | undefined): string {
-  const types = Array.from(new Set((garments || []).map((g) => g.type).filter(Boolean)));
-  if (types.length === 0) return "Unspecified";
-  if (types.length > 1) return "Mixed";
-  return types[0];
-}
 
 /** Profit = customer price − tailor cost − stitching expenses − fabric/other cost (order
  *  form's "Costs" section, gated to the same viewReports permission). Tailor cost is the real,
@@ -38,12 +24,6 @@ export default function OrderProfitabilityPage() {
   // managers also hold) — a shop-wide requirement, not just this one report.
   const canView = user?.role === "admin";
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
-  const [garmentType, setGarmentType] = useState("all");
-
-  const garmentTypes = useMemo(() => {
-    const set = new Set(orderProfitability.map((o) => garmentTypeOf(o.garments)));
-    return Array.from(set).sort();
-  }, [orderProfitability]);
 
   if (!canView) {
     return (
@@ -55,9 +35,7 @@ export default function OrderProfitabilityPage() {
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
-  const withCosts = orderProfitability.filter(
-    (o) => o.cost > 0 && isWithinDateRange(o.inDate, range) && (garmentType === "all" || garmentTypeOf(o.garments) === garmentType)
-  );
+  const withCosts = orderProfitability.filter((o) => o.cost > 0 && isWithinDateRange(o.inDate, range));
   const totalProfit = withCosts.reduce((s, o) => s + o.profit, 0);
 
   return (
@@ -85,21 +63,6 @@ export default function OrderProfitabilityPage() {
         customTo={customTo}
         onCustomToChange={setCustomTo}
         resultLabel={`${withCosts.length} order${withCosts.length === 1 ? "" : "s"}`}
-        category={
-          <Select value={garmentType} onValueChange={(v) => v && setGarmentType(v)}>
-            <SelectTrigger className="h-9 w-44">
-              <SelectValue>{garmentType === "all" ? "All Garment Types" : garmentType}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Garment Types</SelectItem>
-              {garmentTypes.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
       />
 
       {withCosts.length === 0 ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Users } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useWorkOrders } from "@/hooks/use-work-orders";
@@ -13,7 +13,6 @@ import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
@@ -23,22 +22,8 @@ export default function TailorPerformancePage() {
   const isLoading = reportsLoading || woLoading;
   const tailorName = useTailorName();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
-  const [garmentType, setGarmentType] = useState("all");
 
-  const garmentTypes = useMemo(() => {
-    const set = new Set(orders.flatMap((o) => o.garments.map((g) => g.type)).filter(Boolean));
-    return Array.from(set).sort();
-  }, [orders]);
-
-  const tailorStats = useMemo(
-    () =>
-      getTailorStats(
-        orders
-          .filter((o) => isWithinDateRange(o.inDate, range))
-          .filter((o) => garmentType === "all" || o.garments.some((g) => g.type === garmentType))
-      ),
-    [orders, range, garmentType]
-  );
+  const tailorStats = useMemo(() => getTailorStats(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
 
   const mfgByTailor = useMemo(() => {
     const stats = getManufacturingTailorStats(workOrders || []);
@@ -67,21 +52,6 @@ export default function TailorPerformancePage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
-        category={
-          <Select value={garmentType} onValueChange={(v) => v && setGarmentType(v)}>
-            <SelectTrigger className="h-9 w-40">
-              <SelectValue>{garmentType === "all" ? "All Garment Types" : garmentType}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Garment Types</SelectItem>
-              {garmentTypes.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
       />
 
       {tailorStats.length === 0 ? (

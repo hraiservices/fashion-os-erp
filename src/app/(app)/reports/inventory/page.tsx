@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Package, Boxes, ShoppingBag, AlertTriangle } from "lucide-react";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useProducts } from "@/hooks/use-products";
@@ -14,60 +14,15 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange } from "@/lib/report-date-range";
-import { cn } from "@/lib/utils";
-
-type StockStatusFilter = "all" | "low" | "ok";
-
-const STOCK_STATUS_OPTIONS: { value: StockStatusFilter; label: string }[] = [
-  { value: "all", label: "All Stock" },
-  { value: "low", label: "Low Stock" },
-  { value: "ok", label: "OK" },
-];
-
-/** Shared All/Low Stock/OK segmented control for the stock-status filter below. */
-function StockStatusFilterControl({ value, onChange }: { value: StockStatusFilter; onChange: (v: StockStatusFilter) => void }) {
-  return (
-    <div className="inline-flex flex-wrap gap-1" role="group" aria-label="Filter by stock status">
-      {STOCK_STATUS_OPTIONS.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          onClick={() => onChange(o.value)}
-          aria-pressed={value === o.value}
-          className={cn(
-            "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
-            value === o.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 /** Pure point-in-time stock/valuation snapshot — raw materials and products carry no date field
  *  at all (current stockQty/cost only), so there is no underlying transaction for a date range to
  *  filter. The bar is shown anyway for consistency with every other report; it has no effect here. */
 export default function InventoryReportPage() {
-  const { data: allRawMaterials, isLoading: loadingMaterials } = useRawMaterials();
-  const { data: allProducts, isLoading: loadingProducts } = useProducts();
+  const { data: rawMaterials, isLoading: loadingMaterials } = useRawMaterials();
+  const { data: products, isLoading: loadingProducts } = useProducts();
   const isLoading = loadingMaterials || loadingProducts;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo } = useReportDateRange();
-  const [stockStatus, setStockStatus] = useState<StockStatusFilter>("all");
-
-  const matchesStatus = useCallback(
-    (low: boolean) => stockStatus === "all" || (stockStatus === "low" && low) || (stockStatus === "ok" && !low),
-    [stockStatus]
-  );
-  const rawMaterials = useMemo(
-    () => (allRawMaterials || []).filter((m) => matchesStatus(isLowStock(m.stockQty, m.lowStockAlert))),
-    [allRawMaterials, matchesStatus]
-  );
-  const products = useMemo(
-    () => (allProducts || []).filter((p) => matchesStatus(isLowStock(p.stockQty, p.lowStockAlert))),
-    [allProducts, matchesStatus]
-  );
 
   const rawValue = useMemo(() => (rawMaterials || []).reduce((s, m) => s + m.stockQty * m.costPerUnit, 0), [rawMaterials]);
   // "Inventory Value" is cost-basis (what you paid) — the accounting-correct figure for a
@@ -106,7 +61,6 @@ export default function InventoryReportPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
-        category={<StockStatusFilterControl value={stockStatus} onChange={setStockStatus} />}
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">

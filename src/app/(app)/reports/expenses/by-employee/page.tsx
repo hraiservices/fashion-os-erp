@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Users } from "lucide-react";
 import { useExpenses } from "@/hooks/use-expenses";
 import { inr } from "@/lib/format";
@@ -9,7 +9,6 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
@@ -17,24 +16,18 @@ import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 export default function ExpensesByEmployeePage() {
   const { data: expenses, isLoading } = useExpenses();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
-  const [category, setCategory] = useState("all");
-
-  const categories = useMemo(() => Array.from(new Set((expenses || []).map((e) => e.category).filter(Boolean))).sort(), [expenses]);
 
   const rows = useMemo(() => {
     const map = new Map<string, { user: string; count: number; total: number }>();
-    (expenses || [])
-      .filter((e) => isWithinDateRange(e.date, range))
-      .filter((e) => category === "all" || e.category === category)
-      .forEach((e) => {
-        const key = e.createdBy || "Unknown";
-        const row = map.get(key) || { user: key, count: 0, total: 0 };
-        row.count += 1;
-        row.total += e.amount;
-        map.set(key, row);
-      });
+    (expenses || []).filter((e) => isWithinDateRange(e.date, range)).forEach((e) => {
+      const key = e.createdBy || "Unknown";
+      const row = map.get(key) || { user: key, count: 0, total: 0 };
+      row.count += 1;
+      row.total += e.amount;
+      map.set(key, row);
+    });
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [expenses, range, category]);
+  }, [expenses, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -59,21 +52,6 @@ export default function ExpensesByEmployeePage() {
         customTo={customTo}
         onCustomToChange={setCustomTo}
         resultLabel={`${rows.length} user${rows.length === 1 ? "" : "s"}`}
-        category={
-          <Select value={category} onValueChange={(v) => v && setCategory(v)}>
-            <SelectTrigger className="h-9 w-40">
-              <SelectValue>{category === "all" ? "All Categories" : category}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
       />
 
       {rows.length === 0 ? (

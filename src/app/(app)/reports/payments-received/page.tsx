@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
@@ -42,7 +41,6 @@ export default function PaymentsReceivedReportPage() {
 
   const [source, setSource] = useState<"all" | PaymentSource>("all");
   const [search, setSearch] = useState("");
-  const [method, setMethod] = useState("all");
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const rows = useMemo(() => {
@@ -53,12 +51,9 @@ export default function PaymentsReceivedReportPage() {
     return sortPaymentRows([...invoiceRows, ...orderRows], "desc");
   }, [salesPayments, invoices, orderPayments, orders]);
 
-  const methods = useMemo(() => Array.from(new Set(rows.map((r) => r.method).filter(Boolean))).sort(), [rows]);
-
   const filtered = useMemo(() => {
     let list = source === "all" ? rows : rows.filter((r) => r.source === source);
     list = list.filter((r) => isWithinDateRange(r.date, range));
-    if (method !== "all") list = list.filter((r) => r.method === method);
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter(
@@ -66,7 +61,7 @@ export default function PaymentsReceivedReportPage() {
       );
     }
     return list;
-  }, [rows, source, search, range, method]);
+  }, [rows, source, search, range]);
 
   const totalAll = useMemo(() => rows.reduce((s, r) => s + r.amount, 0), [rows]);
   const totalInvoice = useMemo(() => rows.filter((r) => r.source === "invoice").reduce((s, r) => s + r.amount, 0), [rows]);
@@ -101,21 +96,6 @@ export default function PaymentsReceivedReportPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
-        category={
-          <Select value={method} onValueChange={(v) => v && setMethod(v)}>
-            <SelectTrigger className="h-9 w-40">
-              <SelectValue>{method === "all" ? "All Methods" : method}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Methods</SelectItem>
-              {methods.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
       />
 
       <div className="flex flex-wrap items-center gap-2">

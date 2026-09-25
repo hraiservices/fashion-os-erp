@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { getSeasonalTrends } from "@/lib/analytics";
@@ -10,7 +10,6 @@ import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
@@ -20,22 +19,8 @@ import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 export default function SeasonalTrendsPage() {
   const { orders, isLoading } = useReportsData();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
-  const [garmentType, setGarmentType] = useState("all");
 
-  const garmentTypes = useMemo(() => {
-    const set = new Set(orders.flatMap((o) => o.garments.map((g) => g.type)).filter(Boolean));
-    return Array.from(set).sort();
-  }, [orders]);
-
-  const seasonal = useMemo(
-    () =>
-      getSeasonalTrends(
-        orders
-          .filter((o) => isWithinDateRange(o.inDate, range))
-          .filter((o) => garmentType === "all" || o.garments.some((g) => g.type === garmentType))
-      ),
-    [orders, range, garmentType]
-  );
+  const seasonal = useMemo(() => getSeasonalTrends(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-80 w-full" /></div>;
 
@@ -62,21 +47,6 @@ export default function SeasonalTrendsPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
-        category={
-          <Select value={garmentType} onValueChange={(v) => v && setGarmentType(v)}>
-            <SelectTrigger className="h-9 w-40">
-              <SelectValue>{garmentType === "all" ? "All Garment Types" : garmentType}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Garment Types</SelectItem>
-              {garmentTypes.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
       />
 
       <ReportCard className="p-4">

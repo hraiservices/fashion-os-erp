@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Users } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { getCustomerLifetime } from "@/lib/analytics";
@@ -12,6 +12,35 @@ import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { cn } from "@/lib/utils";
+
+type SegmentFilter = "all" | "repeat" | "one-time";
+const SEGMENT_FILTERS: { value: SegmentFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "repeat", label: "Repeat" },
+  { value: "one-time", label: "One-time" },
+];
+
+function CustomerSegmentFilter({ value, onChange }: { value: SegmentFilter; onChange: (v: SegmentFilter) => void }) {
+  return (
+    <div className="inline-flex flex-wrap gap-1" role="group" aria-label="Filter by customer segment">
+      {SEGMENT_FILTERS.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          aria-pressed={value === o.value}
+          className={cn(
+            "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
+            value === o.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /** ReportsView's `clvData`, Stitching_Manager_Pro_v16.html ~line 8071. The date range filters
  *  which orders (by inDate) feed each customer's lifetime totals — this is inherently a
@@ -19,8 +48,13 @@ import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 export default function CustomerLifetimePage() {
   const { orders, isLoading } = useReportsData();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [segment, setSegment] = useState<SegmentFilter>("all");
 
-  const clvData = useMemo(() => getCustomerLifetime(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
+  const clvDataAll = useMemo(() => getCustomerLifetime(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
+  const clvData = useMemo(
+    () => clvDataAll.filter((c) => (segment === "repeat" ? c.totalOrders > 1 : segment === "one-time" ? c.totalOrders <= 1 : true)),
+    [clvDataAll, segment]
+  );
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -52,6 +86,7 @@ export default function CustomerLifetimePage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={<CustomerSegmentFilter value={segment} onChange={setSegment} />}
       />
 
       {clvData.length === 0 ? (

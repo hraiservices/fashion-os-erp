@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Factory, Wallet, TrendingDown, Layers } from "lucide-react";
 import { useWorkOrders } from "@/hooks/use-work-orders";
-import { WO_STATUS_LABELS, WO_STAGES } from "@/lib/manufacturing";
+import { WO_STATUS_LABELS, WO_STAGES, type WoStatus } from "@/lib/manufacturing";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
@@ -12,14 +12,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
 export default function ManufacturingReportPage() {
   const { data: allWorkOrders, isLoading } = useWorkOrders();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [status, setStatus] = useState<WoStatus | "all">("all");
 
-  const workOrders = useMemo(() => (allWorkOrders || []).filter((w) => isWithinDateRange(w.startDate, range)), [allWorkOrders, range]);
+  const workOrders = useMemo(
+    () => (allWorkOrders || []).filter((w) => isWithinDateRange(w.startDate, range)).filter((w) => status === "all" || w.status === status),
+    [allWorkOrders, range, status]
+  );
 
   const statusCounts = useMemo(() => {
     const counts = { draft: 0, in_progress: 0, qc: 0, completed: 0 };
@@ -69,6 +74,21 @@ export default function ManufacturingReportPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <Select value={status} onValueChange={(v) => v && setStatus(v as WoStatus | "all")}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{status === "all" ? "All Statuses" : WO_STATUS_LABELS[status]}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              {WO_STAGES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {WO_STATUS_LABELS[s]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

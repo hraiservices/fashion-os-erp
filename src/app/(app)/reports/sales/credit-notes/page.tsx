@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { FileMinus } from "lucide-react";
 import { useSalesCreditNotes } from "@/hooks/use-sales-credit-notes";
@@ -14,15 +14,24 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function CreditNoteDetailsPage() {
   const { data: creditNotes, isLoading: l1 } = useSalesCreditNotes();
   const { data: invoices, isLoading: l2 } = useSalesInvoices();
   const isLoading = l1 || l2;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [reason, setReason] = useState("all");
 
   const invoiceById = useMemo(() => new Map((invoices || []).map((i) => [i.id, i])), [invoices]);
-  const rows = useMemo(() => (creditNotes || []).filter((c) => isWithinDateRange(c.date, range)), [creditNotes, range]);
+  const reasons = useMemo(() => {
+    const set = new Set((creditNotes || []).map((c) => c.reason).filter(Boolean));
+    return Array.from(set).sort();
+  }, [creditNotes]);
+  const rows = useMemo(
+    () => (creditNotes || []).filter((c) => isWithinDateRange(c.date, range)).filter((c) => reason === "all" || c.reason === reason),
+    [creditNotes, range, reason]
+  );
   const total = useMemo(() => rows.reduce((s, c) => s + c.total, 0), [rows]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
@@ -60,6 +69,21 @@ export default function CreditNoteDetailsPage() {
         customTo={customTo}
         onCustomToChange={setCustomTo}
         resultLabel={`${rows.length} credit note${rows.length === 1 ? "" : "s"}`}
+        category={
+          <Select value={reason} onValueChange={(v) => v && setReason(v)}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{reason === "all" ? "All Reasons" : reason}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Reasons</SelectItem>
+              {reasons.map((r) => (
+                <SelectItem key={r} value={r}>
+                  {r}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {rows.length === 0 ? (

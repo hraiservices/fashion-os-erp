@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Clock3, ArrowRight } from "lucide-react";
 import { useStageTiming } from "@/hooks/use-stage-timing";
 import { useReportDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
 import { fmtDate, fmtTime, fmtMinutes } from "@/lib/format";
 import { ReportShell, ReportCard, ReportTable, Th, Td } from "@/components/reports/report-shell";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
@@ -29,11 +30,56 @@ const STAGE_BAR_COLOR = "#0ea5e9";
 export default function StageTimingPage() {
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
   const { data, isLoading, isError, error } = useStageTiming(range);
+  const [toStage, setToStage] = useState("all");
 
-  const rows = useMemo(() => data?.rows || [], [data]);
-  const byStage = data?.byStage || [];
-  const byEmployee = data?.byEmployee || [];
-  const summary = data?.summary || { count: 0, avgMinutes: 0 };
+  const allRows = useMemo(() => data?.rows || [], [data]);
+  const stages = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of allRows) if (r.toStage) map.set(r.toStage, r.toLabel);
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [allRows]);
+  const rows = useMemo(() => (toStage === "all" ? allRows : allRows.filter((r) => r.toStage === toStage)), [allRows, toStage]);
+
+  // When a stage filter is active, the server's byStage/byEmployee/summary (computed over every
+  // row) would silently disagree with the now-narrower table — recompute them the same way the
+  // API route does (see its own byStage/byEmployee/summary block), but over the filtered rows,
+  // so the aggregate views never show numbers for rows the table isn't displaying.
+  const timedRows = useMemo(() => rows.filter((r) => r.durationMinutes != null) as (typeof rows[number] & { durationMinutes: number })[], [rows]);
+  const byStage = useMemo(() => {
+    if (toStage === "all") return data?.byStage || [];
+    const buckets = new Map<string, { stage: string; label: string; totalMinutes: number; count: number }>();
+    for (const r of timedRows) {
+      if (!r.fromStage) continue;
+      const bucket = buckets.get(r.fromStage) || { stage: r.fromStage, label: r.fromLabel, totalMinutes: 0, count: 0 };
+      bucket.totalMinutes += r.durationMinutes;
+      bucket.count += 1;
+      buckets.set(r.fromStage, bucket);
+    }
+    return Array.from(buckets.values())
+      .map((b) => ({ stage: b.stage, label: b.label, avgMinutes: Math.round(b.totalMinutes / b.count), count: b.count }))
+      .sort((a, b) => b.avgMinutes - a.avgMinutes);
+  }, [data, timedRows, toStage]);
+  const byEmployee = useMemo(() => {
+    if (toStage === "all") return data?.byEmployee || [];
+    const buckets = new Map<string, { email: string | null; name: string; totalMinutes: number; count: number }>();
+    for (const r of timedRows) {
+      const key = r.userEmail || r.userName;
+      const bucket = buckets.get(key) || { email: r.userEmail, name: r.userName, totalMinutes: 0, count: 0 };
+      bucket.totalMinutes += r.durationMinutes;
+      bucket.count += 1;
+      buckets.set(key, bucket);
+    }
+    return Array.from(buckets.values())
+      .map((b) => ({ email: b.email, name: b.name, avgMinutes: Math.round(b.totalMinutes / b.count), count: b.count }))
+      .sort((a, b) => a.avgMinutes - b.avgMinutes);
+  }, [data, timedRows, toStage]);
+  const summary = useMemo(() => {
+    if (toStage === "all") return data?.summary || { count: 0, avgMinutes: 0 };
+    return {
+      count: timedRows.length,
+      avgMinutes: timedRows.length > 0 ? Math.round(timedRows.reduce((s, r) => s + r.durationMinutes, 0) / timedRows.length) : 0,
+    };
+  }, [data, timedRows, toStage]);
 
   const slowestStage = byStage[0]; // already sorted desc by avgMinutes
   const fastestStage = byStage[byStage.length - 1];
@@ -69,6 +115,21 @@ export default function StageTimingPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <Select value={toStage} onValueChange={(v) => v && setToStage(v)}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{toStage === "all" ? "All Stages" : stages.find(([id]) => id === toStage)?.[1] || toStage}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Stages</SelectItem>
+              {stages.map(([id, label]) => (
+                <SelectItem key={id} value={id}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {isLoading && <Skeleton className="h-96 w-full" />}

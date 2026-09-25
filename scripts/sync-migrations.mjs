@@ -87,24 +87,46 @@ try {
   process.exit(1);
 }
 
+// Filenames are sorted alphabetically as a stand-in for chronological order, which mostly
+// works but isn't guaranteed -- a handful of migrations depend on a function/table a
+// later-sorted file creates (e.g. add_early_tailor_payables.sql needs
+// snapshot_tailor_payables() from add_tailor_payable_snapshot.sql, which sorts after it). A
+// file that fails for that reason also rolls back everything else it would have created in the
+// same statement batch, which can cascade into a second file failing too. Re-running the whole
+// failed set in extra passes lets a genuinely out-of-order dependency resolve itself once its
+// prerequisite has run, without having to guess which files depend on which up front. A file
+// that's failing because it's simply already applied just fails the same way every pass, so
+// this only costs a few harmless extra round-trips, not correctness.
 let applied = 0;
-let skipped = 0;
+let pending = files;
+let lastResults = [];
 
-for (const file of files) {
-  let sql = readFileSync(join(migrationsDir, file), "utf-8");
-  if (file === "add_module_entitlements.sql" && ownerEmail) {
-    sql = sql.replaceAll("OWNER_EMAIL_PLACEHOLDER", ownerEmail);
+for (let pass = 1; pending.length > 0; pass++) {
+  const stillPending = [];
+  lastResults = [];
+  for (const file of pending) {
+    let sql = readFileSync(join(migrationsDir, file), "utf-8");
+    if (file === "add_module_entitlements.sql" && ownerEmail) {
+      sql = sql.replaceAll("OWNER_EMAIL_PLACEHOLDER", ownerEmail);
+    }
+    try {
+      await client.query(sql);
+      if (pass > 1) console.log(`  ✓ ${file} (resolved on retry pass ${pass})`);
+      else console.log(`  ✓ ${file}`);
+      applied++;
+    } catch (e) {
+      stillPending.push(file);
+      lastResults.push({ file, message: e.message.split("\n")[0] });
+    }
   }
-  try {
-    await client.query(sql);
-    console.log(`  ✓ ${file}`);
-    applied++;
-  } catch (e) {
-    console.log(`  · ${file} -- skipped (${e.message.split("\n")[0]})`);
-    skipped++;
-  }
+  if (stillPending.length === pending.length) break; // no progress this pass -- stop retrying
+  pending = stillPending;
+}
+
+for (const { file, message } of lastResults) {
+  console.log(`  · ${file} -- skipped (${message})`);
 }
 
 await client.end();
-console.log(`\nDone. ${applied} applied cleanly, ${skipped} skipped (already applied or need manual review).`);
+console.log(`\nDone. ${applied} applied cleanly, ${lastResults.length} skipped (already applied or need manual review).`);
 console.log("Re-run with the same flags any time you add new migration files -- already-applied ones will just skip again.");

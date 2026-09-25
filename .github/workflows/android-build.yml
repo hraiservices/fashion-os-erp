@@ -31,7 +31,13 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      # Google removed the legacy standalone "tools" package from the SDK repository, which is
+      # what this action tries to install by default (sdkmanager now just errors "Failed to find
+      # package 'tools'") — override its package list to skip that package, since Gradle only
+      # ever needed platform-tools and a build-tools revision, never the old standalone tools.
       - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools build-tools;34.0.0"
 
       - uses: gradle/actions/setup-gradle@v4
 

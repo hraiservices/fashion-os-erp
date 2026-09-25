@@ -13,7 +13,6 @@ import { useReportDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Attendance, Employee } from "@/lib/types";
 
 function fmtTime(iso: string | null): string {
@@ -32,12 +31,10 @@ export default function DailyEmployeeActivityPage() {
   const { data: attendance, isLoading: attendanceLoading } = useAttendanceInRange(range.from, range.to);
   const isLoading = employeesLoading || attendanceLoading;
   const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
-  const [employeeId, setEmployeeId] = useState("all");
 
   const rows = useMemo(() => {
     return (employees || [])
       .filter((e) => e.active)
-      .filter((e) => employeeId === "all" || e.id === employeeId)
       .map((e) => {
         const records = (attendance || [])
           .filter((a) => a.employeeId === e.id)
@@ -50,7 +47,7 @@ export default function DailyEmployeeActivityPage() {
         return { employee: e, records, isTailor, daysCheckedOut, daysWithNote, hoursWorked, latestNote };
       })
       .sort((a, b) => a.employee.name.localeCompare(b.employee.name));
-  }, [employees, attendance, employeeId]);
+  }, [employees, attendance]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -75,31 +72,7 @@ export default function DailyEmployeeActivityPage() {
         />
       }
     >
-      <ReportFilterBar
-        preset={preset}
-        onPresetChange={setPreset}
-        customFrom={customFrom}
-        onCustomFromChange={setCustomFrom}
-        customTo={customTo}
-        onCustomToChange={setCustomTo}
-        category={
-          <Select value={employeeId} onValueChange={(v) => v && setEmployeeId(v)}>
-            <SelectTrigger className="h-9 w-44">
-              <SelectValue>{employeeId === "all" ? "All Employees" : (employees || []).find((e) => e.id === employeeId)?.name || "All Employees"}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Employees</SelectItem>
-              {(employees || [])
-                .filter((e) => e.active)
-                .map((e) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.name}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-        }
-      />
+      <ReportFilterBar preset={preset} onPresetChange={setPreset} customFrom={customFrom} onCustomFromChange={setCustomFrom} customTo={customTo} onCustomToChange={setCustomTo} />
 
       {rows.length === 0 ? (
         <EmptyState icon={ClipboardList} title="No active employees" description="Add employees in Employees to see daily activity here." />

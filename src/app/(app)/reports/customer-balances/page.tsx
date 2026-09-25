@@ -121,30 +121,26 @@ export default function CustomerBalancesPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
-        category={
-          <div className="inline-flex flex-wrap gap-1" role="group" aria-label="Filter by balance status">
-            {FILTERS.map((f) => (
-              <button
-                key={f.value}
-                type="button"
-                onClick={() => setFilter(f.value)}
-                aria-pressed={filter === f.value}
-                className={cn(
-                  "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
-                  filter === f.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        }
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative sm:max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input type="search" enterKeyHint="search" placeholder="Search name or mobile…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setFilter(f.value)}
+              className={cn(
+                "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
+                filter === f.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
         <ColumnCustomizerMenu table={columnTable} />
       </div>

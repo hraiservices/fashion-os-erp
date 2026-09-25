@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { Wallet } from "lucide-react";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
@@ -12,7 +12,6 @@ import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
@@ -23,23 +22,15 @@ export default function ApAgingDetailsPage() {
   const { data: vendors, isLoading: l2 } = useVendors();
   const isLoading = l1 || l2;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
-  const [vendorId, setVendorId] = useState("all");
 
   const vendorNameById = useMemo(() => new Map((vendors || []).map((v) => [v.id, v.name])), [vendors]);
 
-  const vendorOptions = useMemo(() => {
-    const ids = new Set((bills || []).filter((b) => b.balance > 0).map((b) => b.vendorId));
-    return Array.from(ids)
-      .map((id) => ({ id, name: vendorNameById.get(id) || "Unknown vendor" }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [bills, vendorNameById]);
-
   const rows = useMemo(() => {
     return (bills || [])
-      .filter((b) => b.balance > 0 && isWithinDateRange(b.billDate, range) && (vendorId === "all" || b.vendorId === vendorId))
+      .filter((b) => b.balance > 0 && isWithinDateRange(b.billDate, range))
       .map((b) => ({ ...b, daysOverdue: b.dueDate ? Math.max(0, -daysLeft(b.dueDate)) : 0 }))
       .sort((a, b) => b.daysOverdue - a.daysOverdue);
-  }, [bills, range, vendorId]);
+  }, [bills, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -69,21 +60,6 @@ export default function ApAgingDetailsPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
-        category={
-          <Select value={vendorId} onValueChange={(v) => v && setVendorId(v)}>
-            <SelectTrigger className="h-9 w-44">
-              <SelectValue>{vendorId === "all" ? "All Vendors" : vendorNameById.get(vendorId) || "Unknown vendor"}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Vendors</SelectItem>
-              {vendorOptions.map((v) => (
-                <SelectItem key={v.id} value={v.id}>
-                  {v.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
       />
 
       {rows.length === 0 ? (

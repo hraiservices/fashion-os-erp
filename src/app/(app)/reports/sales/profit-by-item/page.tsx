@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { TrendingUp } from "lucide-react";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useProducts } from "@/hooks/use-products";
@@ -14,7 +14,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 /** Product-only — margin/cost only exists for Product Sales; stitching orders have no product cost price to compare against. */
 export default function ProfitByItemPage() {
@@ -23,26 +22,18 @@ export default function ProfitByItemPage() {
   const { data: products, isLoading: l2 } = useProducts();
   const isLoading = l1 || l2;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
-  const [category, setCategory] = useState("all");
 
   const costPriceById = useMemo(() => new Map((products || []).map((p) => [p.id, p.costPrice])), [products]);
-  const categoryById = useMemo(() => new Map((products || []).map((p) => [p.id, p.category])), [products]);
-  const categories = useMemo(() => {
-    const set = new Set((products || []).map((p) => p.category).filter(Boolean));
-    return Array.from(set).sort();
-  }, [products]);
 
   const rows = useMemo(() => {
     const map = new Map<string, { productId: string; productName: string; qty: number; revenue: number }>();
     (invoices || []).filter((inv) => isWithinDateRange(inv.invoiceDate, range)).forEach((inv) => {
-      inv.items
-        .filter((item) => category === "all" || categoryById.get(item.productId) === category)
-        .forEach((item) => {
-          const row = map.get(item.productId) || { productId: item.productId, productName: item.productName, qty: 0, revenue: 0 };
-          row.qty += item.qty;
-          row.revenue += item.amount;
-          map.set(item.productId, row);
-        });
+      inv.items.forEach((item) => {
+        const row = map.get(item.productId) || { productId: item.productId, productName: item.productName, qty: 0, revenue: 0 };
+        row.qty += item.qty;
+        row.revenue += item.amount;
+        map.set(item.productId, row);
+      });
     });
     return Array.from(map.values())
       .map((r) => {
@@ -51,7 +42,7 @@ export default function ProfitByItemPage() {
         return { ...r, cost, margin, marginPct: r.revenue > 0 ? (margin / r.revenue) * 100 : 0 };
       })
       .sort((a, b) => b.margin - a.margin);
-  }, [invoices, costPriceById, categoryById, range, category]);
+  }, [invoices, costPriceById, range]);
 
   const totals = useMemo(() => rows.reduce((acc, r) => ({ revenue: acc.revenue + r.revenue, cost: acc.cost + r.cost, margin: acc.margin + r.margin }), { revenue: 0, cost: 0, margin: 0 }), [rows]);
 
@@ -86,21 +77,6 @@ export default function ProfitByItemPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
-        category={
-          <Select value={category} onValueChange={(v) => v && setCategory(v)}>
-            <SelectTrigger className="h-9 w-40">
-              <SelectValue>{category === "all" ? "All Categories" : category}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
       />
 
       <div className="grid grid-cols-3 gap-3">

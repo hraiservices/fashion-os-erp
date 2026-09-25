@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Truck } from "lucide-react";
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders";
 import { useVendors } from "@/hooks/use-vendors";
@@ -10,7 +10,6 @@ import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
@@ -19,29 +18,19 @@ export default function PurchaseOrdersByVendorPage() {
   const { data: vendors, isLoading: l2 } = useVendors();
   const isLoading = l1 || l2;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
-  const [vendorId, setVendorId] = useState("all");
 
   const vendorNameById = useMemo(() => new Map((vendors || []).map((v) => [v.id, v.name])), [vendors]);
 
-  const vendorOptions = useMemo(() => {
-    const ids = new Set((orders || []).map((po) => po.vendorId));
-    return Array.from(ids)
-      .map((id) => ({ id, name: vendorNameById.get(id) || "Unknown vendor" }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [orders, vendorNameById]);
-
   const rows = useMemo(() => {
     const map = new Map<string, { vendorId: string; count: number; total: number }>();
-    (orders || [])
-      .filter((po) => isWithinDateRange(po.date, range) && (vendorId === "all" || po.vendorId === vendorId))
-      .forEach((po) => {
-        const row = map.get(po.vendorId) || { vendorId: po.vendorId, count: 0, total: 0 };
-        row.count += 1;
-        row.total += po.total;
-        map.set(po.vendorId, row);
-      });
+    (orders || []).filter((po) => isWithinDateRange(po.date, range)).forEach((po) => {
+      const row = map.get(po.vendorId) || { vendorId: po.vendorId, count: 0, total: 0 };
+      row.count += 1;
+      row.total += po.total;
+      map.set(po.vendorId, row);
+    });
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [orders, range, vendorId]);
+  }, [orders, range]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -65,21 +54,6 @@ export default function PurchaseOrdersByVendorPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
-        category={
-          <Select value={vendorId} onValueChange={(v) => v && setVendorId(v)}>
-            <SelectTrigger className="h-9 w-44">
-              <SelectValue>{vendorId === "all" ? "All Vendors" : vendorNameById.get(vendorId) || "Unknown vendor"}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Vendors</SelectItem>
-              {vendorOptions.map((v) => (
-                <SelectItem key={v.id} value={v.id}>
-                  {v.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
       />
 
       {rows.length === 0 ? (

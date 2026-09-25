@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Wallet, FileDown } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
 import { usePayrollRuns, useAllPayslips } from "@/hooks/use-payroll";
@@ -16,7 +16,6 @@ import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const PAYROLL_SUMMARY_COLUMNS = [
   { key: "period", label: "Period", required: true },
@@ -47,24 +46,16 @@ export default function PayrollSummaryReportPage() {
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
   const columnTable = useColumnVisibility("payroll-summary", PAYROLL_SUMMARY_COLUMNS, PAYROLL_SUMMARY_AUTO_HIDE);
   const isVisible = columnTable.isVisible;
-  const [role, setRole] = useState("all");
 
   const employeeName = (id: string) => (employees || []).find((e) => e.id === id)?.name || "—";
-  const employeeById = useMemo(() => new Map((employees || []).map((e) => [e.id, e])), [employees]);
   const runById = useMemo(() => new Map((runs || []).map((r) => [r.id, r])), [runs]);
-
-  const roles = useMemo(() => {
-    const set = new Set((employees || []).map((e) => e.role).filter(Boolean));
-    return Array.from(set).sort();
-  }, [employees]);
 
   const rows = useMemo(() => {
     return (payslips || [])
       .map((p) => ({ payslip: p, run: runById.get(p.payrollRunId) }))
       .filter((r) => r.run && isWithinDateRange(r.run.periodStart, range))
-      .filter((r) => role === "all" || employeeById.get(r.payslip.employeeId)?.role === role)
       .sort((a, b) => (b.run!.periodStart || "").localeCompare(a.run!.periodStart || ""));
-  }, [payslips, runById, range, role, employeeById]);
+  }, [payslips, runById, range]);
 
   const totals = rows.reduce(
     (acc, r) => ({ gross: acc.gross + r.payslip.grossPay, deductions: acc.deductions + r.payslip.deductions, net: acc.net + r.payslip.netPay }),
@@ -108,21 +99,6 @@ export default function PayrollSummaryReportPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
-        category={
-          <Select value={role} onValueChange={(v) => v && setRole(v)}>
-            <SelectTrigger className="h-9 w-40">
-              <SelectValue>{role === "all" ? "All Roles" : role}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Roles</SelectItem>
-              {roles.map((r) => (
-                <SelectItem key={r} value={r}>
-                  {r}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
       />
 
       {rows.length === 0 ? (

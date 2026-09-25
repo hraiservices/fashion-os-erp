@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Wallet } from "lucide-react";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
-import { useVendors } from "@/hooks/use-vendors";
 import { daysLeft } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
@@ -12,7 +11,6 @@ import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
@@ -33,25 +31,13 @@ function bandOf(daysOverdue: number): BandKey {
 }
 
 export default function ApAgingSummaryPage() {
-  const { data: bills, isLoading: l1 } = usePurchaseBills();
-  const { data: vendors, isLoading: l2 } = useVendors();
-  const isLoading = l1 || l2;
+  const { data: bills, isLoading } = usePurchaseBills();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
-  const [vendorId, setVendorId] = useState("all");
-
-  const vendorNameById = useMemo(() => new Map((vendors || []).map((v) => [v.id, v.name])), [vendors]);
-
-  const vendorOptions = useMemo(() => {
-    const ids = new Set((bills || []).filter((b) => b.balance > 0).map((b) => b.vendorId));
-    return Array.from(ids)
-      .map((id) => ({ id, name: vendorNameById.get(id) || "Unknown vendor" }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [bills, vendorNameById]);
 
   const buckets = useMemo(() => {
     const map = new Map<BandKey, { count: number; total: number }>(BANDS.map((b) => [b.key, { count: 0, total: 0 }]));
     (bills || [])
-      .filter((b) => b.balance > 0 && isWithinDateRange(b.billDate, range) && (vendorId === "all" || b.vendorId === vendorId))
+      .filter((b) => b.balance > 0 && isWithinDateRange(b.billDate, range))
       .forEach((b) => {
         const daysOverdue = b.dueDate ? Math.max(0, -daysLeft(b.dueDate)) : 0;
         const band = map.get(bandOf(daysOverdue))!;
@@ -59,7 +45,7 @@ export default function ApAgingSummaryPage() {
         band.total += b.balance;
       });
     return map;
-  }, [bills, range, vendorId]);
+  }, [bills, range]);
 
   const totalPayable = useMemo(() => Array.from(buckets.values()).reduce((s, b) => s + b.total, 0), [buckets]);
 
@@ -85,21 +71,6 @@ export default function ApAgingSummaryPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
-        category={
-          <Select value={vendorId} onValueChange={(v) => v && setVendorId(v)}>
-            <SelectTrigger className="h-9 w-44">
-              <SelectValue>{vendorId === "all" ? "All Vendors" : vendorNameById.get(vendorId) || "Unknown vendor"}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Vendors</SelectItem>
-              {vendorOptions.map((v) => (
-                <SelectItem key={v.id} value={v.id}>
-                  {v.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

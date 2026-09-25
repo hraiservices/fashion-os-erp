@@ -1,11 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { Truck, Receipt, AlertTriangle, Wallet, ChevronRight, Package, FileMinus, Clock } from "lucide-react";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { daysLeft } from "@/lib/business-rules";
-import { purchaseItemType, type PurchaseItemType } from "@/lib/purchases";
 import { inr } from "@/lib/format";
 import { ReportShell } from "@/components/reports/report-shell";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
@@ -13,37 +12,6 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
-import { cn } from "@/lib/utils";
-
-type ItemTypeValue = "all" | PurchaseItemType;
-
-const ITEM_TYPE_OPTIONS: { value: ItemTypeValue; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "raw_material", label: "Raw Materials" },
-  { value: "product", label: "Products" },
-];
-
-/** All/Raw Materials/Products segmented control — mirrors SalesTypeFilter's shape for this page's own fixed set. */
-function ItemTypeFilter({ value, onChange }: { value: ItemTypeValue; onChange: (v: ItemTypeValue) => void }) {
-  return (
-    <div className="inline-flex flex-wrap gap-1" role="group" aria-label="Filter by item type">
-      {ITEM_TYPE_OPTIONS.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          onClick={() => onChange(o.value)}
-          aria-pressed={value === o.value}
-          className={cn(
-            "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
-            value === o.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 const SUB_REPORTS = [
   { href: "/reports/payables/vendor-balance-summary", label: "Vendor Balance Summary", description: "Billed, paid, and balance per vendor", icon: Truck },
@@ -61,15 +29,8 @@ const SUB_REPORTS = [
 export default function PayableSummaryPage() {
   const { data: bills, isLoading } = usePurchaseBills();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
-  const [itemType, setItemType] = useState<ItemTypeValue>("all");
 
-  const filteredBills = useMemo(
-    () =>
-      (bills || [])
-        .filter((b) => isWithinDateRange(b.billDate, range))
-        .filter((b) => itemType === "all" || b.items.some((i) => purchaseItemType(i) === itemType)),
-    [bills, range, itemType]
-  );
+  const filteredBills = useMemo(() => (bills || []).filter((b) => isWithinDateRange(b.billDate, range)), [bills, range]);
 
   const totalBilled = useMemo(() => filteredBills.reduce((s, b) => s + b.total, 0), [filteredBills]);
   const totalPayable = useMemo(() => filteredBills.reduce((s, b) => s + b.balance, 0), [filteredBills]);
@@ -98,7 +59,6 @@ export default function PayableSummaryPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
-        category={<ItemTypeFilter value={itemType} onChange={setItemType} />}
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

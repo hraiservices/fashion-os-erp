@@ -43,6 +43,7 @@ export const BUILTIN_WIDGETS: BuiltinWidgetMeta[] = [
   { key: "live-report",                 title: "LIVE Report",          size: "full", href: "/reports/live",          description: "Orders ready but not picked up, and orders picked up but not paid, with a one-tap WhatsApp reminder" },
   { key: "stage-timing",                title: "Stage Change Speed",   size: "full", href: "/reports/stage-timing",  description: "Live average minutes per stage change today, and today's fastest/slowest employee. Admin & manager only." },
   { key: "overdue-orders",              title: "Overdue Orders",       size: "lg",   href: "/reports/overdue",       description: "Orders still in production past their promised delivery date, worst delays first" },
+  { key: "order-status-cards",          title: "Order Pipeline",       size: "full", href: "/orders",                description: "Due Today / Overdue / and a live count per stage — click a card to jump straight to that filtered list" },
 ];
 
 export const BUILTIN_WIDGET_BY_KEY = new Map(BUILTIN_WIDGETS.map((w) => [w.key, w]));

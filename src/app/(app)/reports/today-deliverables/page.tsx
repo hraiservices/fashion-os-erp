@@ -20,6 +20,15 @@ import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import type { Order } from "@/lib/types";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+const DELIVERABLES_SORT_COMPARATORS: Record<string, (a: Order, b: Order) => number> = {
+  order: (a, b) => a.id.localeCompare(b.id),
+  customer: (a, b) => a.name.localeCompare(b.name),
+  delivery: (a, b) => (a.deliveryDate || "").localeCompare(b.deliveryDate || ""),
+  balance: (a, b) => a.balance - b.balance,
+};
+const DELIVERABLES_SORT_DESC_KEYS = new Set(["balance"]);
 
 /** What's actually promised for today (or whichever range is selected) — the flip side of
  *  Pending Orders, which is "everything still in progress" regardless of delivery date. The
@@ -40,6 +49,11 @@ export default function TodayDeliverablesPage() {
 
   const due = useMemo(() => (status === "all" ? allDue : allDue.filter((o) => o.status === status)), [allDue, status]);
   const overdue = useMemo(() => (status === "all" ? allOverdue : allOverdue.filter((o) => o.status === status)), [allOverdue, status]);
+
+  const dueSort = useTableSort<Order>("today-deliverables-due", DELIVERABLES_SORT_COMPARATORS, DELIVERABLES_SORT_DESC_KEYS);
+  const overdueSort = useTableSort<Order>("today-deliverables-overdue", DELIVERABLES_SORT_COMPARATORS, DELIVERABLES_SORT_DESC_KEYS);
+  const sortedDue = dueSort.applySort(due);
+  const sortedOverdue = overdueSort.applySort(overdue);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -97,7 +111,7 @@ export default function TodayDeliverablesPage() {
       description={`${due.length} order(s) due in the selected range, plus ${overdue.length} overdue`}
       actions={
         <ReportActionsMenu
-          rows={[...overdue, ...due].map((o) => ({ Order: o.id, Customer: o.name, Stage: o.status, Delivery: fmtDate(o.deliveryDate), Balance: o.balance }))}
+          rows={[...sortedOverdue, ...sortedDue].map((o) => ({ Order: o.id, Customer: o.name, Stage: o.status, Delivery: fmtDate(o.deliveryDate), Balance: o.balance }))}
           filename="today-deliverables"
           title="Today Deliverables"
           summaryLines={[`Due: ${due.length}`, `Overdue: ${overdue.length}`, `Total balance due: ${inr(dueBalance + overdueBalance)}`]}
@@ -135,11 +149,11 @@ export default function TodayDeliverablesPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Order</Th>
-                  <Th>Customer</Th>
+                  <Th sortKey="order" currentSort={{ key: overdueSort.sortKey, asc: overdueSort.sortAsc }} onSort={overdueSort.toggleSort}>Order</Th>
+                  <Th sortKey="customer" currentSort={{ key: overdueSort.sortKey, asc: overdueSort.sortAsc }} onSort={overdueSort.toggleSort}>Customer</Th>
                   <Th>Stage</Th>
-                  <Th>Delivery</Th>
-                  <Th align="right">Balance</Th>
+                  <Th sortKey="delivery" currentSort={{ key: overdueSort.sortKey, asc: overdueSort.sortAsc }} onSort={overdueSort.toggleSort}>Delivery</Th>
+                  <Th align="right" sortKey="balance" currentSort={{ key: overdueSort.sortKey, asc: overdueSort.sortAsc }} onSort={overdueSort.toggleSort}>Balance</Th>
                   <Th align="right">Actions</Th>
                 </tr>
               </thead>
@@ -149,7 +163,7 @@ export default function TodayDeliverablesPage() {
                   <Td align="right">{inr(overdueBalance)}</Td>
                   <Td align="right">—</Td>
                 </ReportTotalsRow>
-                {overdue.map(renderRow)}
+                {sortedOverdue.map(renderRow)}
               </tbody>
             </ReportTable>
           </div>
@@ -157,7 +171,7 @@ export default function TodayDeliverablesPage() {
             <MobileRecordCard className="bg-muted/40">
               <MobileRecordHeader title="Total" value={inr(overdueBalance)} showChevron={false} />
             </MobileRecordCard>
-            {overdue.map(renderMobileCard)}
+            {sortedOverdue.map(renderMobileCard)}
           </MobileRecordList>
         </div>
       )}
@@ -172,11 +186,11 @@ export default function TodayDeliverablesPage() {
               <ReportTable>
                 <thead className="border-b bg-muted/40">
                   <tr>
-                    <Th>Order</Th>
-                    <Th>Customer</Th>
+                    <Th sortKey="order" currentSort={{ key: dueSort.sortKey, asc: dueSort.sortAsc }} onSort={dueSort.toggleSort}>Order</Th>
+                    <Th sortKey="customer" currentSort={{ key: dueSort.sortKey, asc: dueSort.sortAsc }} onSort={dueSort.toggleSort}>Customer</Th>
                     <Th>Stage</Th>
-                    <Th>Delivery</Th>
-                    <Th align="right">Balance</Th>
+                    <Th sortKey="delivery" currentSort={{ key: dueSort.sortKey, asc: dueSort.sortAsc }} onSort={dueSort.toggleSort}>Delivery</Th>
+                    <Th align="right" sortKey="balance" currentSort={{ key: dueSort.sortKey, asc: dueSort.sortAsc }} onSort={dueSort.toggleSort}>Balance</Th>
                     <Th align="right">Actions</Th>
                   </tr>
                 </thead>
@@ -186,7 +200,7 @@ export default function TodayDeliverablesPage() {
                     <Td align="right">{inr(dueBalance)}</Td>
                     <Td align="right">—</Td>
                   </ReportTotalsRow>
-                  {due.map(renderRow)}
+                  {sortedDue.map(renderRow)}
                 </tbody>
               </ReportTable>
             </div>
@@ -194,7 +208,7 @@ export default function TodayDeliverablesPage() {
               <MobileRecordCard className="bg-muted/40">
                 <MobileRecordHeader title="Total" value={inr(dueBalance)} showChevron={false} />
               </MobileRecordCard>
-              {due.map(renderMobileCard)}
+              {sortedDue.map(renderMobileCard)}
             </MobileRecordList>
           </>
         )}

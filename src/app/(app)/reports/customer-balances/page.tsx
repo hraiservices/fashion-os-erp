@@ -24,6 +24,29 @@ import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { cn } from "@/lib/utils";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type CustomerBalanceRow = {
+  name: string;
+  mobile: string;
+  orderCount: number;
+  invoiceCount: number;
+  stitchDue: number;
+  salesDue: number;
+  totalDue: number;
+  lifetime: number;
+};
+
+const SORT_COMPARATORS: Record<string, (a: CustomerBalanceRow, b: CustomerBalanceRow) => number> = {
+  customer: (a, b) => (a.name || a.mobile).localeCompare(b.name || b.mobile),
+  orders: (a, b) => a.orderCount - b.orderCount,
+  invoices: (a, b) => a.invoiceCount - b.invoiceCount,
+  stitchDue: (a, b) => a.stitchDue - b.stitchDue,
+  salesDue: (a, b) => a.salesDue - b.salesDue,
+  totalDue: (a, b) => a.totalDue - b.totalDue,
+  lifetime: (a, b) => a.lifetime - b.lifetime,
+};
+const SORT_DESC_KEYS = new Set(["orders", "invoices", "stitchDue", "salesDue", "totalDue", "lifetime"]);
 
 type Filter = "all" | "due" | "paid";
 const FILTERS: { value: Filter; label: string }[] = [
@@ -91,6 +114,9 @@ export default function CustomerBalancesPage() {
     [filtered]
   );
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<CustomerBalanceRow>("customer-balances", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedFiltered = applySort(filtered);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
@@ -99,7 +125,7 @@ export default function CustomerBalancesPage() {
       description="Stitching order dues and product sales dues, shown separately, per customer"
       actions={
         <ReportActionsMenu
-          rows={filtered.map((r) => ({
+          rows={sortedFiltered.map((r) => ({
             Customer: r.name || r.mobile,
             Orders: r.orderCount,
             Invoices: r.invoiceCount,
@@ -157,13 +183,13 @@ export default function CustomerBalancesPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Customer</Th>
-                  <Th align="right">Orders</Th>
-                  {isVisible("invoices") && <Th align="right">Invoices</Th>}
-                  <Th align="right">Stitch Due</Th>
-                  <Th align="right">Product Sales Due</Th>
-                  <Th align="right">Total Due</Th>
-                  {isVisible("lifetime") && <Th align="right">Lifetime</Th>}
+                  <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th align="right" sortKey="orders" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Orders</Th>
+                  {isVisible("invoices") && <Th align="right" sortKey="invoices" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Invoices</Th>}
+                  <Th align="right" sortKey="stitchDue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Stitch Due</Th>
+                  <Th align="right" sortKey="salesDue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Product Sales Due</Th>
+                  <Th align="right" sortKey="totalDue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Total Due</Th>
+                  {isVisible("lifetime") && <Th align="right" sortKey="lifetime" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Lifetime</Th>}
                   <Th align="right">Actions</Th>
                 </tr>
               </thead>
@@ -176,7 +202,7 @@ export default function CustomerBalancesPage() {
                   {isVisible("lifetime") && <Td align="right">—</Td>}
                   <Td />
                 </ReportTotalsRow>
-                {filtered.map((r) => (
+                {sortedFiltered.map((r) => (
                   <tr key={r.mobile} className="hover:bg-muted/30">
                     <Td className="font-medium">
                       <Link href={`/crm/${r.mobile}`} className="hover:underline">
@@ -214,7 +240,7 @@ export default function CustomerBalancesPage() {
                 ]}
               />
             </MobileRecordCard>
-            {filtered.map((r) => (
+            {sortedFiltered.map((r) => (
               // onClick (not href) — the WhatsApp button below renders its own <a>, which can't
               // nest inside this card's anchor.
               <MobileRecordCard key={r.mobile} onClick={() => router.push(`/crm/${r.mobile}`)}>

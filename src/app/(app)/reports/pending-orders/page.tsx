@@ -20,6 +20,9 @@ import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { STAGE_META } from "@/lib/business-rules";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type PendingOrderRow = ReturnType<typeof getPendingOrders>[number];
 
 export default function PendingOrdersPage() {
   const { orders, isLoading } = useReportsData();
@@ -34,6 +37,16 @@ export default function PendingOrdersPage() {
   }, [allPending]);
   const pending = useMemo(() => allPending.filter((o) => stage === "all" || o.status === stage), [allPending, stage]);
 
+  const sortComparators: Record<string, (a: PendingOrderRow, b: PendingOrderRow) => number> = {
+    order: (a, b) => a.id.localeCompare(b.id),
+    customer: (a, b) => a.name.localeCompare(b.name),
+    stage: (a, b) => a.status.localeCompare(b.status),
+    delivery: (a, b) => a.deliveryDate.localeCompare(b.deliveryDate),
+    balance: (a, b) => a.balance - b.balance,
+  };
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<PendingOrderRow>("pending-orders", sortComparators, new Set(["balance"]));
+  const sortedPending = applySort(pending);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   const totalBalance = pending.reduce((s, o) => s + o.balance, 0);
@@ -44,7 +57,7 @@ export default function PendingOrdersPage() {
       description={`${pending.length} orders still in progress, soonest delivery first`}
       actions={
         <ReportActionsMenu
-          rows={pending.map((o) => ({ Order: o.id, Customer: o.name, Stage: o.status, Delivery: fmtDate(o.deliveryDate), Balance: o.balance }))}
+          rows={sortedPending.map((o) => ({ Order: o.id, Customer: o.name, Stage: o.status, Delivery: fmtDate(o.deliveryDate), Balance: o.balance }))}
           filename="pending-orders"
           title="Pending Orders"
           summaryLines={[`Orders: ${pending.length}`, `Total balance due: ${inr(totalBalance)}`]}
@@ -83,7 +96,7 @@ export default function PendingOrdersPage() {
             <MobileRecordCard className="bg-muted/40">
               <MobileRecordHeader title="Total" value={inr(totalBalance)} showChevron={false} />
             </MobileRecordCard>
-            {pending.map((o) => (
+            {sortedPending.map((o) => (
               <MobileRecordCard key={o.id}>
                 <MobileRecordHeader
                   title={
@@ -117,11 +130,11 @@ export default function PendingOrdersPage() {
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
-              <Th>Order</Th>
-              <Th>Customer</Th>
-              <Th>Stage</Th>
-              <Th>Delivery</Th>
-              <Th align="right">Balance</Th>
+              <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
+              <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+              <Th sortKey="stage" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Stage</Th>
+              <Th sortKey="delivery" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Delivery</Th>
+              <Th align="right" sortKey="balance" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Balance</Th>
               <Th align="right">Actions</Th>
             </tr>
           </thead>
@@ -131,7 +144,7 @@ export default function PendingOrdersPage() {
               <Td align="right">{inr(totalBalance)}</Td>
               <Td align="right">—</Td>
             </ReportTotalsRow>
-            {pending.map((o) => (
+            {sortedPending.map((o) => (
               <tr key={o.id} className="hover:bg-muted/30">
                 <Td>
                   <Link href={`/orders/${o.id}`} className="font-medium hover:underline">

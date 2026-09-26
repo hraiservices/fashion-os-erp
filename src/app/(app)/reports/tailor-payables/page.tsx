@@ -16,6 +16,7 @@ import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from 
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { useTableSort } from "@/hooks/use-table-sort";
 
 interface TailorPayableRow {
   id: string;
@@ -26,6 +27,15 @@ interface TailorPayableRow {
   rangeTotalCount: number;
   allTimePayable: number;
 }
+
+const SORT_COMPARATORS: Record<string, (a: TailorPayableRow, b: TailorPayableRow) => number> = {
+  tailor: (a, b) => a.name.localeCompare(b.name),
+  completed: (a, b) => a.rangeCompletedCount - b.rangeCompletedCount,
+  payable: (a, b) => a.rangePayable - b.rangePayable,
+  pending: (a, b) => a.rangePending - b.rangePending,
+  allTime: (a, b) => a.allTimePayable - b.allTimePayable,
+};
+const SORT_DESC_KEYS = new Set(["completed", "payable", "pending", "allTime"]);
 
 /** A garment carrying a payable whose `tailor` resolves to no employee — money that is owed to
  *  a real person but attributed to nobody, so it silently vanishes from every per-tailor total.
@@ -137,6 +147,9 @@ export default function TailorPayablesPage() {
     [allRows, paymentStatus]
   );
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<TailorPayableRow>("tailor-payables", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
+
   if (!user?.perms.managePayroll) {
     return (
       <div className="p-4 sm:p-6">
@@ -153,7 +166,7 @@ export default function TailorPayablesPage() {
   const allTimeTotal = rows.reduce((s, r) => s + r.allTimePayable, 0);
   const rangeCompletedCount = rows.reduce((s, r) => s + r.rangeCompletedCount, 0);
   const rangeTotalCount = rows.reduce((s, r) => s + r.rangeTotalCount, 0);
-  const exportRows = rows.map((r) => ({
+  const exportRows = sortedRows.map((r) => ({
     Tailor: r.name,
     [`Completed (${DATE_RANGE_PRESET_LABELS[preset]})`]: `${r.rangeCompletedCount}/${r.rangeTotalCount}`,
     [`Payable (${DATE_RANGE_PRESET_LABELS[preset]})`]: r.rangePayable,
@@ -230,11 +243,11 @@ export default function TailorPayablesPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Tailor</Th>
-                  <Th align="right">Completed</Th>
-                  <Th align="right">Payable ({DATE_RANGE_PRESET_LABELS[preset]})</Th>
-                  <Th align="right">Pending</Th>
-                  <Th align="right">All-time total</Th>
+                  <Th sortKey="tailor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Tailor</Th>
+                  <Th align="right" sortKey="completed" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Completed</Th>
+                  <Th align="right" sortKey="payable" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Payable ({DATE_RANGE_PRESET_LABELS[preset]})</Th>
+                  <Th align="right" sortKey="pending" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Pending</Th>
+                  <Th align="right" sortKey="allTime" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>All-time total</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -245,7 +258,7 @@ export default function TailorPayablesPage() {
                   <Td align="right">{inr(rangePendingTotal)}</Td>
                   <Td align="right">{inr(allTimeTotal)}</Td>
                 </ReportTotalsRow>
-                {rows.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.id} className="hover:bg-muted/30">
                     <Td className="font-medium">{r.name}</Td>
                     <Td align="right" className="text-muted-foreground">{r.rangeCompletedCount}/{r.rangeTotalCount}</Td>
@@ -264,7 +277,7 @@ export default function TailorPayablesPage() {
               <MobileRecordRow label="Pending (in progress)" value={inr(rangePendingTotal)} />
               <MobileRecordRow label="Completed" value={`${rangeCompletedCount}/${rangeTotalCount}`} />
             </MobileRecordCard>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <MobileRecordCard key={r.id}>
                 <MobileRecordHeader title={r.name} value={inr(r.allTimePayable)} valueClassName="font-semibold" showChevron={false} />
                 <MobileRecordRow label={`Payable (${DATE_RANGE_PRESET_LABELS[preset]})`} value={inr(r.rangePayable)} />

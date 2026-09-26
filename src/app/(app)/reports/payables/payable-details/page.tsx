@@ -14,6 +14,9 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type Bill = NonNullable<ReturnType<typeof usePurchaseBills>["data"]>[number];
 
 /** Every bill that still owes money, ranked by balance — the raw payable list (see AP Aging Details for the same bills ranked by overdue days instead). */
 export default function PayableDetailsPage() {
@@ -34,6 +37,18 @@ export default function PayableDetailsPage() {
     [bills, range, vendorId]
   );
 
+  const SORT_COMPARATORS: Record<string, (a: Bill, b: Bill) => number> = {
+    bill: (a, b) => a.billNumber.localeCompare(b.billNumber),
+    vendor: (a, b) => (vendorNameById.get(a.vendorId) || "").localeCompare(vendorNameById.get(b.vendorId) || ""),
+    billDate: (a, b) => a.billDate.localeCompare(b.billDate),
+    dueDate: (a, b) => (a.dueDate || "").localeCompare(b.dueDate || ""),
+    total: (a, b) => a.total - b.total,
+    balance: (a, b) => a.balance - b.balance,
+  };
+  const SORT_DESC_KEYS = new Set(["total", "balance"]);
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<Bill>("payable-details", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
@@ -42,7 +57,7 @@ export default function PayableDetailsPage() {
       description="Every bill with an outstanding balance, ranked by amount owed."
       actions={
         <ReportActionsMenu
-          rows={rows.map((b) => ({ Bill: b.billNumber, Vendor: vendorNameById.get(b.vendorId) || "", "Bill Date": b.billDate, "Due Date": b.dueDate || "", Total: b.total, Balance: b.balance }))}
+          rows={sortedRows.map((b) => ({ Bill: b.billNumber, Vendor: vendorNameById.get(b.vendorId) || "", "Bill Date": b.billDate, "Due Date": b.dueDate || "", Total: b.total, Balance: b.balance }))}
           filename="payable-details"
           title="Payable Details"
           summaryLines={[`Bills: ${rows.length}`, `Total balance: ${inr(rows.reduce((s, b) => s + b.balance, 0))}`]}
@@ -82,7 +97,7 @@ export default function PayableDetailsPage() {
             <MobileRecordHeader title="Total" value={inr(rows.reduce((s, b) => s + b.balance, 0))} showChevron={false} />
             <MobileRecordRow label="Total (billed)" value={inr(rows.reduce((s, b) => s + b.total, 0))} />
           </MobileRecordCard>
-          {rows.map((b) => (
+          {sortedRows.map((b) => (
             <MobileRecordCard key={b.id} href={`/purchases/bills/${b.id}`}>
               <MobileRecordHeader
                 title={b.billNumber}
@@ -99,12 +114,12 @@ export default function PayableDetailsPage() {
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
-              <Th>Bill</Th>
-              <Th>Vendor</Th>
-              <Th>Bill Date</Th>
-              <Th>Due Date</Th>
-              <Th align="right">Total</Th>
-              <Th align="right">Balance</Th>
+              <Th sortKey="bill" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Bill</Th>
+              <Th sortKey="vendor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Vendor</Th>
+              <Th sortKey="billDate" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Bill Date</Th>
+              <Th sortKey="dueDate" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Due Date</Th>
+              <Th align="right" sortKey="total" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Total</Th>
+              <Th align="right" sortKey="balance" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Balance</Th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -113,7 +128,7 @@ export default function PayableDetailsPage() {
               <Td align="right">{inr(rows.reduce((s, b) => s + b.total, 0))}</Td>
               <Td align="right">{inr(rows.reduce((s, b) => s + b.balance, 0))}</Td>
             </ReportTotalsRow>
-            {rows.map((b) => (
+            {sortedRows.map((b) => (
               <tr key={b.id} className="hover:bg-muted/30">
                 <Td className="font-medium">
                   <Link href={`/purchases/bills/${b.id}`} className="text-primary hover:underline">

@@ -12,6 +12,18 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type MonthlyRow = ReturnType<typeof getMonthly>[number];
+
+const SORT_COMPARATORS: Record<string, (a: MonthlyRow, b: MonthlyRow) => number> = {
+  month: (a, b) => a.label.localeCompare(b.label),
+  count: (a, b) => a.count - b.count,
+  billed: (a, b) => a.billed - b.billed,
+  collected: (a, b) => a.collected - b.collected,
+  pending: (a, b) => a.pending - b.pending,
+};
+const SORT_DESC_KEYS = new Set(["count", "billed", "collected", "pending"]);
 
 /** The month buckets shown are always the trailing 6 months (see getMonthly) — the date range
  *  narrows which orders count toward each bucket, not the window of months shown. */
@@ -20,6 +32,8 @@ export default function MonthlyPnlPage() {
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
 
   const monthly = useMemo(() => getMonthly(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<MonthlyRow>("reports-monthly", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedMonthly = applySort(monthly);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-80 w-full" /></div>;
 
@@ -31,7 +45,7 @@ export default function MonthlyPnlPage() {
       description="Stitching orders only — billed vs collected over the last 6 months. For both revenue streams combined, see Combined P&L."
       actions={
         <ReportActionsMenu
-          rows={monthly.map((m) => ({ Month: m.label, Orders: m.count, Billed: m.billed, Collected: m.collected, Pending: m.pending }))}
+          rows={sortedMonthly.map((m) => ({ Month: m.label, Orders: m.count, Billed: m.billed, Collected: m.collected, Pending: m.pending }))}
           filename="stitching-monthly-pl"
           title="Stitching Monthly P&L"
           summaryLines={[`Total billed: ${inr(totals.billed)}`, `Total collected: ${inr(totals.collected)}`]}
@@ -73,7 +87,7 @@ export default function MonthlyPnlPage() {
           <MobileRecordRow label="Collected" value={inr(totals.collected)} valueClassName="text-emerald-600 dark:text-emerald-400" />
           <MobileRecordRow label="Pending" value={inr(totals.pending)} />
         </MobileRecordCard>
-        {monthly.map((m) => (
+        {sortedMonthly.map((m) => (
           <MobileRecordCard key={m.month}>
             <MobileRecordHeader title={m.label} value={inr(m.billed)} showChevron={false} />
             <MobileRecordRow label="Orders" value={m.count} />
@@ -86,11 +100,11 @@ export default function MonthlyPnlPage() {
       <ReportTable>
         <thead className="border-b bg-muted/40">
           <tr>
-            <Th>Month</Th>
-            <Th align="right">Orders</Th>
-            <Th align="right">Billed</Th>
-            <Th align="right">Collected</Th>
-            <Th align="right">Pending</Th>
+            <Th sortKey="month" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Month</Th>
+            <Th align="right" sortKey="count" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Orders</Th>
+            <Th align="right" sortKey="billed" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Billed</Th>
+            <Th align="right" sortKey="collected" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Collected</Th>
+            <Th align="right" sortKey="pending" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Pending</Th>
           </tr>
         </thead>
         <tbody className="divide-y">
@@ -101,7 +115,7 @@ export default function MonthlyPnlPage() {
             <Td align="right">{inr(totals.collected)}</Td>
             <Td align="right">{inr(totals.pending)}</Td>
           </ReportTotalsRow>
-          {monthly.map((m) => (
+          {sortedMonthly.map((m) => (
             <tr key={m.month} className="hover:bg-muted/30">
               <Td className="font-medium">{m.label}</Td>
               <Td align="right">{m.count}</Td>

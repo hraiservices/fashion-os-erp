@@ -12,6 +12,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type PoByVendorRow = { vendorId: string; count: number; total: number };
 
 export default function PurchaseOrdersByVendorPage() {
   const { data: orders, isLoading: l1 } = usePurchaseOrders();
@@ -32,6 +35,17 @@ export default function PurchaseOrdersByVendorPage() {
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
   }, [orders, range]);
 
+  const sortComparators = useMemo<Record<string, (a: PoByVendorRow, b: PoByVendorRow) => number>>(
+    () => ({
+      vendor: (a, b) => (vendorNameById.get(a.vendorId) || "").localeCompare(vendorNameById.get(b.vendorId) || ""),
+      count: (a, b) => a.count - b.count,
+      total: (a, b) => a.total - b.total,
+    }),
+    [vendorNameById]
+  );
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<PoByVendorRow>("po-by-vendor", sortComparators, new Set(["count", "total"]));
+  const sortedRows = applySort(rows);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
@@ -40,7 +54,7 @@ export default function PurchaseOrdersByVendorPage() {
       description="Purchase order count and value per vendor."
       actions={
         <ReportActionsMenu
-          rows={rows.map((r) => ({ Vendor: vendorNameById.get(r.vendorId) || "", "PO Count": r.count, Total: r.total }))}
+          rows={sortedRows.map((r) => ({ Vendor: vendorNameById.get(r.vendorId) || "", "PO Count": r.count, Total: r.total }))}
           filename="po-by-vendor"
           title="Purchase Orders by Vendor"
           summaryLines={[`Vendors: ${rows.length}`, `Total value: ${inr(rows.reduce((s, r) => s + r.total, 0))}`]}
@@ -65,7 +79,7 @@ export default function PurchaseOrdersByVendorPage() {
             <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.total, 0))} showChevron={false} />
             <MobileRecordRow label="Purchase Orders" value={rows.reduce((s, r) => s + r.count, 0)} />
           </MobileRecordCard>
-          {rows.map((r) => (
+          {sortedRows.map((r) => (
             <MobileRecordCard key={r.vendorId}>
               <MobileRecordHeader title={vendorNameById.get(r.vendorId) || "Unknown vendor"} value={inr(r.total)} showChevron={false} />
               <MobileRecordRow label="Purchase Orders" value={r.count} />
@@ -76,9 +90,9 @@ export default function PurchaseOrdersByVendorPage() {
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
-              <Th>Vendor</Th>
-              <Th align="right">Purchase Orders</Th>
-              <Th align="right">Total Value</Th>
+              <Th sortKey="vendor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Vendor</Th>
+              <Th align="right" sortKey="count" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Purchase Orders</Th>
+              <Th align="right" sortKey="total" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Total Value</Th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -87,7 +101,7 @@ export default function PurchaseOrdersByVendorPage() {
               <Td align="right">{rows.reduce((s, r) => s + r.count, 0)}</Td>
               <Td align="right">{inr(rows.reduce((s, r) => s + r.total, 0))}</Td>
             </ReportTotalsRow>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <tr key={r.vendorId} className="hover:bg-muted/30">
                 <Td className="font-medium">{vendorNameById.get(r.vendorId) || "Unknown vendor"}</Td>
                 <Td align="right">{r.count}</Td>

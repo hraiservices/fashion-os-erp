@@ -7,7 +7,7 @@ import { useAllSalesPayments } from "@/hooks/use-sales-payments";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useAllOrderPayments } from "@/hooks/use-order-payments";
 import { useOrders } from "@/hooks/use-orders";
-import { buildInvoicePaymentRows, buildOrderPaymentRows, sortPaymentRows, type PaymentSource } from "@/lib/payments-received";
+import { buildInvoicePaymentRows, buildOrderPaymentRows, sortPaymentRows, type PaymentSource, type PaymentReceivedRow } from "@/lib/payments-received";
 import { inr, fmtDate } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { useTableSort } from "@/hooks/use-table-sort";
 
 const SOURCE_FILTERS: { key: "all" | PaymentSource; label: string }[] = [
   { key: "all", label: "All" },
@@ -73,6 +74,18 @@ export default function PaymentsReceivedReportPage() {
   const totalStitching = useMemo(() => rows.filter((r) => r.source === "stitching").reduce((s, r) => s + r.amount, 0), [rows]);
   const totalFiltered = useMemo(() => filtered.reduce((s, r) => s + r.amount, 0), [filtered]);
 
+  const sortComparators: Record<string, (a: PaymentReceivedRow, b: PaymentReceivedRow) => number> = {
+    date: (a, b) => a.date.localeCompare(b.date),
+    customer: (a, b) => a.customerName.localeCompare(b.customerName),
+    mobile: (a, b) => a.customerMobile.localeCompare(b.customerMobile),
+    method: (a, b) => a.method.localeCompare(b.method),
+    source: (a, b) => SOURCE_BADGE[a.source].label.localeCompare(SOURCE_BADGE[b.source].label),
+    reference: (a, b) => a.reference.localeCompare(b.reference),
+    amount: (a, b) => a.amount - b.amount,
+  };
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<PaymentReceivedRow>("payments-received", sortComparators, new Set(["amount"]));
+  const sortedFiltered = applySort(filtered);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
@@ -81,7 +94,7 @@ export default function PaymentsReceivedReportPage() {
       description="Every payment collected across both stitching orders and product sales, in one list"
       actions={
         <ReportActionsMenu
-          rows={filtered.map((r) => ({ Date: fmtDate(r.date), Customer: r.customerName || "—", Mobile: r.customerMobile || "—", Mode: r.method, Source: SOURCE_BADGE[r.source].label, Reference: r.reference, Amount: r.amount }))}
+          rows={sortedFiltered.map((r) => ({ Date: fmtDate(r.date), Customer: r.customerName || "—", Mobile: r.customerMobile || "—", Mode: r.method, Source: SOURCE_BADGE[r.source].label, Reference: r.reference, Amount: r.amount }))}
           filename="payments-received"
           title="Payments Received"
           summaryLines={[`Payments: ${filtered.length}`, `Total: ${inr(totalFiltered)}`]}
@@ -146,7 +159,7 @@ export default function PaymentsReceivedReportPage() {
             <MobileRecordCard className="bg-muted/40">
               <MobileRecordHeader title={`Total${source !== "all" || search ? " (filtered)" : ""}`} value={inr(totalFiltered)} showChevron={false} />
             </MobileRecordCard>
-            {filtered.map((r) => {
+            {sortedFiltered.map((r) => {
               const badge = SOURCE_BADGE[r.source];
               return (
                 <MobileRecordCard key={r.id} href={r.referenceHref}>
@@ -172,13 +185,13 @@ export default function PaymentsReceivedReportPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Date</Th>
-                  <Th>Customer</Th>
-                  <Th>Mobile</Th>
-                  <Th>Mode</Th>
-                  <Th>Source</Th>
-                  <Th>Reference</Th>
-                  <Th align="right">Amount</Th>
+                  <Th sortKey="date" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Date</Th>
+                  <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
+                  <Th sortKey="method" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mode</Th>
+                  <Th sortKey="source" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Source</Th>
+                  <Th sortKey="reference" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Reference</Th>
+                  <Th align="right" sortKey="amount" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Amount</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -186,7 +199,7 @@ export default function PaymentsReceivedReportPage() {
                   <Td colSpan={6}>Total{source !== "all" || search ? " (filtered)" : ""}</Td>
                   <Td align="right">{inr(totalFiltered)}</Td>
                 </ReportTotalsRow>
-                {filtered.map((r) => {
+                {sortedFiltered.map((r) => {
                   const badge = SOURCE_BADGE[r.source];
                   return (
                     <tr key={r.id} className="hover:bg-muted/30">

@@ -16,6 +16,9 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGri
 import { BalanceDue } from "@/components/ui/money-text";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type VendorBalanceRow = { vendorId: string; billCount: number; total: number; paid: number; balance: number; avgDaysToPay: number | null };
 
 type BalanceStatus = "all" | "outstanding" | "settled";
 const STATUS_OPTIONS: { value: BalanceStatus; label: string }[] = [
@@ -51,6 +54,24 @@ export default function VendorBalanceSummaryPage() {
       .sort((a, b) => b.balance - a.balance);
   }, [bills, range, status]);
 
+  const sortComparators = useMemo<Record<string, (a: VendorBalanceRow, b: VendorBalanceRow) => number>>(
+    () => ({
+      vendor: (a, b) => (vendorNameById.get(a.vendorId) || "").localeCompare(vendorNameById.get(b.vendorId) || ""),
+      billCount: (a, b) => a.billCount - b.billCount,
+      total: (a, b) => a.total - b.total,
+      paid: (a, b) => a.paid - b.paid,
+      balance: (a, b) => a.balance - b.balance,
+      avgDaysToPay: (a, b) => (a.avgDaysToPay ?? -1) - (b.avgDaysToPay ?? -1),
+    }),
+    [vendorNameById]
+  );
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<VendorBalanceRow>(
+    "vendor-balance-summary",
+    sortComparators,
+    new Set(["billCount", "total", "paid", "balance", "avgDaysToPay"])
+  );
+  const sortedRows = applySort(rows);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
@@ -59,7 +80,7 @@ export default function VendorBalanceSummaryPage() {
       description="Total billed, paid, outstanding balance, and average days to pay per vendor."
       actions={
         <ReportActionsMenu
-          rows={rows.map((r) => ({
+          rows={sortedRows.map((r) => ({
             Vendor: vendorNameById.get(r.vendorId) || "Unknown",
             Bills: r.billCount,
             Total: r.total,
@@ -116,7 +137,7 @@ export default function VendorBalanceSummaryPage() {
               ]}
             />
           </MobileRecordCard>
-          {rows.map((r) => (
+          {sortedRows.map((r) => (
             <MobileRecordCard key={r.vendorId} href={`/purchases/vendors/${r.vendorId}`}>
               <MobileRecordHeader
                 title={vendorNameById.get(r.vendorId) || "Unknown vendor"}
@@ -138,12 +159,12 @@ export default function VendorBalanceSummaryPage() {
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
-              <Th>Vendor</Th>
-              <Th align="right">Bills</Th>
-              <Th align="right">Total Billed</Th>
-              <Th align="right">Paid</Th>
-              <Th align="right">Balance</Th>
-              <Th align="right">Avg Days to Pay</Th>
+              <Th sortKey="vendor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Vendor</Th>
+              <Th align="right" sortKey="billCount" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Bills</Th>
+              <Th align="right" sortKey="total" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Total Billed</Th>
+              <Th align="right" sortKey="paid" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Paid</Th>
+              <Th align="right" sortKey="balance" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Balance</Th>
+              <Th align="right" sortKey="avgDaysToPay" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Avg Days to Pay</Th>
               <Th align="right">Actions</Th>
             </tr>
           </thead>
@@ -157,7 +178,7 @@ export default function VendorBalanceSummaryPage() {
               <Td align="right">—</Td>
               <Td align="right">—</Td>
             </ReportTotalsRow>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <tr key={r.vendorId} className="hover:bg-muted/30">
                 <Td className="font-medium">{vendorNameById.get(r.vendorId) || "Unknown vendor"}</Td>
                 <Td align="right">{r.billCount}</Td>

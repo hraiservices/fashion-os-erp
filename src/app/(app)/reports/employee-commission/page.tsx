@@ -14,6 +14,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+import type { Employee } from "@/lib/types";
+
+type CommissionRow = { employee: Employee; attributedOrders: number; attributedValue: number; commission: number };
+
+const SORT_COMPARATORS: Record<string, (a: CommissionRow, b: CommissionRow) => number> = {
+  employee: (a, b) => a.employee.name.localeCompare(b.employee.name),
+  orders: (a, b) => a.attributedOrders - b.attributedOrders,
+  value: (a, b) => a.attributedValue - b.attributedValue,
+  commission: (a, b) => a.commission - b.commission,
+};
+const SORT_DESC_KEYS = new Set(["orders", "value", "commission"]);
 
 export default function EmployeeCommissionReportPage() {
   const { data: employees, isLoading: employeesLoading } = useEmployees();
@@ -34,6 +46,9 @@ export default function EmployeeCommissionReportPage() {
       .sort((a, b) => b.commission - a.commission);
   }, [commissionEmployees, filteredOrders, employeeFilter]);
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<CommissionRow>("employee-commission", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   return (
@@ -42,7 +57,7 @@ export default function EmployeeCommissionReportPage() {
       description="All-time attributed orders and commission per employee — matched by tailor name"
       actions={
         <ReportActionsMenu
-          rows={rows.map((r) => ({ Employee: r.employee.name, Orders: r.attributedOrders, "Attributed Value": r.attributedValue, Commission: r.commission }))}
+          rows={sortedRows.map((r) => ({ Employee: r.employee.name, Orders: r.attributedOrders, "Attributed Value": r.attributedValue, Commission: r.commission }))}
           filename="employee-commission"
           title="Employee Commission"
           summaryLines={[`Employees: ${rows.length}`, `Total commission: ${inr(rows.reduce((s, r) => s + r.commission, 0))}`]}
@@ -81,10 +96,10 @@ export default function EmployeeCommissionReportPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Employee</Th>
-                  <Th align="right">Orders</Th>
-                  <Th align="right">Attributed Value</Th>
-                  <Th align="right">Commission</Th>
+                  <Th sortKey="employee" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Employee</Th>
+                  <Th align="right" sortKey="orders" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Orders</Th>
+                  <Th align="right" sortKey="value" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Attributed Value</Th>
+                  <Th align="right" sortKey="commission" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Commission</Th>
                 </tr>
               </thead>
               <tbody>
@@ -94,7 +109,7 @@ export default function EmployeeCommissionReportPage() {
                   <Td align="right">{inr(rows.reduce((s, r) => s + r.attributedValue, 0))}</Td>
                   <Td align="right">{inr(rows.reduce((s, r) => s + r.commission, 0))}</Td>
                 </ReportTotalsRow>
-                {rows.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.employee.id} className="border-b last:border-0">
                     <Td>{r.employee.name}</Td>
                     <Td align="right">{r.attributedOrders}</Td>
@@ -112,7 +127,7 @@ export default function EmployeeCommissionReportPage() {
               <MobileRecordRow label="Orders" value={rows.reduce((s, r) => s + r.attributedOrders, 0)} />
               <MobileRecordRow label="Attributed Value" value={inr(rows.reduce((s, r) => s + r.attributedValue, 0))} />
             </MobileRecordCard>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <MobileRecordCard key={r.employee.id}>
                 <MobileRecordHeader title={r.employee.name} value={inr(r.commission)} showChevron={false} />
                 <MobileRecordRow label="Orders" value={r.attributedOrders} />

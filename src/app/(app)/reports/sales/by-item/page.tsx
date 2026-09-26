@@ -13,6 +13,17 @@ import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type ByItemRow = { productId: string; productName: string; qty: number; revenue: number; orders: number };
+
+const SORT_COMPARATORS: Record<string, (a: ByItemRow, b: ByItemRow) => number> = {
+  product: (a, b) => a.productName.localeCompare(b.productName),
+  qty: (a, b) => a.qty - b.qty,
+  orders: (a, b) => a.orders - b.orders,
+  revenue: (a, b) => a.revenue - b.revenue,
+};
+const SORT_DESC_KEYS = new Set(["qty", "orders", "revenue"]);
 
 /** Product-only — stitching orders aren't broken down by product/item, only by garment type (see Garment Analysis). */
 export default function SalesByItemPage() {
@@ -39,6 +50,9 @@ export default function SalesByItemPage() {
     return Array.from(map.values()).sort((a, b) => b.revenue - a.revenue);
   }, [invoices, range, product]);
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<ByItemRow>("sales-by-item", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
@@ -47,7 +61,7 @@ export default function SalesByItemPage() {
       description="Quantity sold and revenue per product, from Product Sales invoices."
       actions={
         <ReportActionsMenu
-          rows={rows.map((r) => ({ Product: r.productName, "Qty sold": r.qty, Invoices: r.orders, Revenue: r.revenue }))}
+          rows={sortedRows.map((r) => ({ Product: r.productName, "Qty sold": r.qty, Invoices: r.orders, Revenue: r.revenue }))}
           filename="sales-by-item"
           title="Sales by Item"
           summaryLines={[`Products: ${rows.length}`, `Total revenue: ${inr(rows.reduce((s, r) => s + r.revenue, 0))}`]}
@@ -100,7 +114,7 @@ export default function SalesByItemPage() {
               <MobileRecordRow label="Qty sold" value={rows.reduce((s, r) => s + r.qty, 0)} />
               <MobileRecordRow label="Invoices" value={rows.reduce((s, r) => s + r.orders, 0)} />
             </MobileRecordCard>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <MobileRecordCard key={r.productId || r.productName}>
                 <MobileRecordHeader title={r.productName} value={inr(r.revenue)} showChevron={false} />
                 <MobileRecordRow label="Qty sold" value={r.qty} />
@@ -113,10 +127,10 @@ export default function SalesByItemPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Product</Th>
-                  <Th align="right">Qty sold</Th>
-                  <Th align="right">Invoices</Th>
-                  <Th align="right">Revenue</Th>
+                  <Th sortKey="product" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Product</Th>
+                  <Th align="right" sortKey="qty" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Qty sold</Th>
+                  <Th align="right" sortKey="orders" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Invoices</Th>
+                  <Th align="right" sortKey="revenue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Revenue</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -126,7 +140,7 @@ export default function SalesByItemPage() {
                   <Td align="right">{rows.reduce((s, r) => s + r.orders, 0)}</Td>
                   <Td align="right">{inr(rows.reduce((s, r) => s + r.revenue, 0))}</Td>
                 </ReportTotalsRow>
-                {rows.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.productId || r.productName} className="hover:bg-muted/30">
                     <Td className="font-medium">{r.productName}</Td>
                     <Td align="right">{r.qty}</Td>

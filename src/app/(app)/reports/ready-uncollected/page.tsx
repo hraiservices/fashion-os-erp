@@ -7,7 +7,7 @@ import { useReportsData } from "@/hooks/use-reports-data";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { buildWhatsAppUrl } from "@/lib/business-rules";
-import { getReadyUncollected } from "@/lib/analytics";
+import { getReadyUncollected, type ReadyUncollectedRow } from "@/lib/analytics";
 import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { fmtDate, inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
@@ -20,6 +20,15 @@ import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+const SORT_COMPARATORS: Record<string, (a: ReadyUncollectedRow, b: ReadyUncollectedRow) => number> = {
+  order: (a, b) => a.id.localeCompare(b.id),
+  customer: (a, b) => a.name.localeCompare(b.name),
+  daysWaiting: (a, b) => a.daysWaiting - b.daysWaiting,
+  balance: (a, b) => a.balance - b.balance,
+};
+const SORT_DESC_KEYS = new Set(["daysWaiting", "balance"]);
 
 /** Orders sitting in "ready" the longest without being picked up — distinct from Balance Aging,
  *  which tracks the delivery-date promise, not physical pickup. Excludes orders that reached
@@ -41,6 +50,9 @@ export default function ReadyUncollectedPage() {
     [allReadyUncollected, garmentType]
   );
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<ReadyUncollectedRow>("ready-uncollected", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(readyUncollected);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   const totalBalance = readyUncollected.reduce((s, o) => s + o.balance, 0);
@@ -51,7 +63,7 @@ export default function ReadyUncollectedPage() {
       description={`${readyUncollected.length} order(s) ready for pickup, longest-waiting first`}
       actions={
         <ReportActionsMenu
-          rows={readyUncollected.map((o) => ({ Order: o.id, Customer: o.name, "Days Waiting": o.daysWaiting, Balance: o.balance }))}
+          rows={sortedRows.map((o) => ({ Order: o.id, Customer: o.name, "Days Waiting": o.daysWaiting, Balance: o.balance }))}
           filename="ready-uncollected"
           title="Ready & Uncollected"
           summaryLines={[`Orders: ${readyUncollected.length}`, `Total balance: ${inr(totalBalance)}`]}
@@ -90,7 +102,7 @@ export default function ReadyUncollectedPage() {
             <MobileRecordCard className="bg-muted/40">
               <MobileRecordHeader title="Total" value={inr(totalBalance)} showChevron={false} />
             </MobileRecordCard>
-            {readyUncollected.map((o) => (
+            {sortedRows.map((o) => (
               <MobileRecordCard key={o.id}>
                 <MobileRecordHeader
                   title={
@@ -115,10 +127,10 @@ export default function ReadyUncollectedPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Order</Th>
-                  <Th>Customer</Th>
-                  <Th align="right">Days waiting</Th>
-                  <Th align="right">Balance</Th>
+                  <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
+                  <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th align="right" sortKey="daysWaiting" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Days waiting</Th>
+                  <Th align="right" sortKey="balance" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Balance</Th>
                   <Th align="right">Actions</Th>
                 </tr>
               </thead>
@@ -128,7 +140,7 @@ export default function ReadyUncollectedPage() {
                   <Td align="right">{inr(totalBalance)}</Td>
                   <Td align="right">—</Td>
                 </ReportTotalsRow>
-                {readyUncollected.map((o) => (
+                {sortedRows.map((o) => (
                   <tr key={o.id} className="hover:bg-muted/30">
                     <Td>
                       <Link href={`/orders/${o.id}`} className="font-medium hover:underline">

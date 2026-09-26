@@ -13,6 +13,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { cn } from "@/lib/utils";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type CustomGarmentRow = { label: string; isCustom: boolean; count: number; revenue: number };
+
+const SORT_COMPARATORS: Record<string, (a: CustomGarmentRow, b: CustomGarmentRow) => number> = {
+  garment: (a, b) => a.label.localeCompare(b.label),
+  type: (a, b) => Number(a.isCustom) - Number(b.isCustom),
+  count: (a, b) => a.count - b.count,
+  revenue: (a, b) => a.revenue - b.revenue,
+};
+const SORT_DESC_KEYS = new Set(["count", "revenue"]);
 
 type GarmentTypeFilter = "all" | "custom" | "standard";
 const GARMENT_TYPE_FILTERS: { value: GarmentTypeFilter; label: string }[] = [
@@ -57,6 +68,9 @@ export default function CustomGarmentRevPage() {
     [customGarRevAll, typeFilter]
   );
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<CustomGarmentRow>("custom-garment-rev", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedGarRev = applySort(customGarRev);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   const totalCount = customGarRev.reduce((s, g) => s + g.count, 0);
@@ -68,7 +82,7 @@ export default function CustomGarmentRevPage() {
       description="Revenue split between custom-named garments and standard rate-card types"
       actions={
         <ReportActionsMenu
-          rows={customGarRev.map((g) => ({ Garment: g.label, Type: g.isCustom ? "Custom" : "Standard", Count: g.count, Revenue: g.revenue }))}
+          rows={sortedGarRev.map((g) => ({ Garment: g.label, Type: g.isCustom ? "Custom" : "Standard", Count: g.count, Revenue: g.revenue }))}
           filename="custom-garment-revenue"
           title="Custom Garment Revenue"
           summaryLines={[`Total revenue: ${inr(totalRevenue)}`]}
@@ -93,10 +107,10 @@ export default function CustomGarmentRevPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Garment</Th>
-                  <Th>Type</Th>
-                  <Th align="right">Count</Th>
-                  <Th align="right">Revenue</Th>
+                  <Th sortKey="garment" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Garment</Th>
+                  <Th sortKey="type" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Type</Th>
+                  <Th align="right" sortKey="count" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Count</Th>
+                  <Th align="right" sortKey="revenue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Revenue</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -105,7 +119,7 @@ export default function CustomGarmentRevPage() {
                   <Td align="right">{totalCount}</Td>
                   <Td align="right">{inr(totalRevenue)}</Td>
                 </ReportTotalsRow>
-                {customGarRev.map((g) => (
+                {sortedGarRev.map((g) => (
                   <tr key={g.label} className="hover:bg-muted/30">
                     <Td className="font-medium">{g.label}</Td>
                     <Td>
@@ -130,7 +144,7 @@ export default function CustomGarmentRevPage() {
               <MobileRecordHeader title="Total" value={inr(totalRevenue)} showChevron={false} />
               <MobileRecordRow label="Count" value={totalCount} />
             </MobileRecordCard>
-            {customGarRev.map((g) => (
+            {sortedGarRev.map((g) => (
               <MobileRecordCard key={g.label}>
                 <MobileRecordHeader title={g.label} value={inr(g.revenue)} showChevron={false} />
                 <MobileRecordRow

@@ -13,8 +13,19 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
 
 const ITEM_TYPE_LABELS: Record<PurchaseItemType, string> = { raw_material: "Raw Material", product: "Finished Product" };
+
+type ByItemRow = { itemName: string; unitName: string; itemType: PurchaseItemType; qty: number; amount: number; poCount: number };
+
+const SORT_COMPARATORS: Record<string, (a: ByItemRow, b: ByItemRow) => number> = {
+  item: (a, b) => a.itemName.localeCompare(b.itemName),
+  qty: (a, b) => a.qty - b.qty,
+  poCount: (a, b) => a.poCount - b.poCount,
+  amount: (a, b) => a.amount - b.amount,
+};
+const SORT_DESC_KEYS = new Set(["qty", "poCount", "amount"]);
 
 export default function PurchaseOrderByItemPage() {
   const { data: orders, isLoading } = usePurchaseOrders();
@@ -41,6 +52,9 @@ export default function PurchaseOrderByItemPage() {
     return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
   }, [orders, range, itemType]);
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<ByItemRow>("payables-po-by-item", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
@@ -49,7 +63,7 @@ export default function PurchaseOrderByItemPage() {
       description="Quantity and value ordered per item, across every purchase order."
       actions={
         <ReportActionsMenu
-          rows={rows.map((r) => ({ Item: r.itemName, Unit: r.unitName, "Qty Ordered": r.qty, "Purchase Orders": r.poCount, "Total Value": r.amount }))}
+          rows={sortedRows.map((r) => ({ Item: r.itemName, Unit: r.unitName, "Qty Ordered": r.qty, "Purchase Orders": r.poCount, "Total Value": r.amount }))}
           filename="po-by-item"
           title="Purchase Order By Item"
           summaryLines={[`Items: ${rows.length}`, `Total value: ${inr(rows.reduce((s, r) => s + r.amount, 0))}`]}
@@ -87,7 +101,7 @@ export default function PurchaseOrderByItemPage() {
             <MobileRecordRow label="Qty Ordered" value={rows.reduce((s, r) => s + r.qty, 0)} />
             <MobileRecordRow label="Purchase Orders" value={rows.reduce((s, r) => s + r.poCount, 0)} />
           </MobileRecordCard>
-          {rows.map((r) => (
+          {sortedRows.map((r) => (
             <MobileRecordCard key={r.itemName}>
               <MobileRecordHeader title={r.itemName} value={inr(r.amount)} showChevron={false} />
               <MobileRecordRow label="Qty Ordered" value={`${r.qty} ${r.unitName}`} />
@@ -99,10 +113,10 @@ export default function PurchaseOrderByItemPage() {
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
-              <Th>Item</Th>
-              <Th align="right">Qty Ordered</Th>
-              <Th align="right">Purchase Orders</Th>
-              <Th align="right">Total Value</Th>
+              <Th sortKey="item" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Item</Th>
+              <Th align="right" sortKey="qty" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Qty Ordered</Th>
+              <Th align="right" sortKey="poCount" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Purchase Orders</Th>
+              <Th align="right" sortKey="amount" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Total Value</Th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -112,7 +126,7 @@ export default function PurchaseOrderByItemPage() {
               <Td align="right">{rows.reduce((s, r) => s + r.poCount, 0)}</Td>
               <Td align="right">{inr(rows.reduce((s, r) => s + r.amount, 0))}</Td>
             </ReportTotalsRow>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <tr key={r.itemName} className="hover:bg-muted/30">
                 <Td className="font-medium">{r.itemName}</Td>
                 <Td align="right">

@@ -14,6 +14,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type ProfitRow = ReturnType<typeof useReportsData>["orderProfitability"][number];
+
+const SORT_COMPARATORS: Record<string, (a: ProfitRow, b: ProfitRow) => number> = {
+  order: (a, b) => a.id.localeCompare(b.id),
+  customer: (a, b) => a.name.localeCompare(b.name),
+  price: (a, b) => a.total - b.total,
+  cost: (a, b) => a.cost - b.cost,
+  profit: (a, b) => a.profit - b.profit,
+  margin: (a, b) => a.marginPct - b.marginPct,
+};
+const SORT_DESC_KEYS = new Set(["price", "cost", "profit", "margin"]);
 
 /** An order's garment "type" (e.g. Blouse, Saree Fall) is the best-fit dimension here — it's
  *  the one grouping already present on every order, and the natural way to ask "which garment
@@ -45,6 +58,8 @@ export default function OrderProfitabilityPage() {
     return Array.from(set).sort();
   }, [orderProfitability]);
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<ProfitRow>("order-profitability", SORT_COMPARATORS, SORT_DESC_KEYS);
+
   if (!canView) {
     return (
       <div className="p-4 sm:p-6">
@@ -59,6 +74,7 @@ export default function OrderProfitabilityPage() {
     (o) => o.cost > 0 && isWithinDateRange(o.inDate, range) && (garmentType === "all" || garmentTypeOf(o.garments) === garmentType)
   );
   const totalProfit = withCosts.reduce((s, o) => s + o.profit, 0);
+  const sortedRows = applySort(withCosts);
 
   return (
     <ReportShell
@@ -70,7 +86,7 @@ export default function OrderProfitabilityPage() {
       }
       actions={
         <ReportActionsMenu
-          rows={withCosts.map((o) => ({ Order: o.id, Customer: o.name, Price: o.total, Cost: o.cost, Profit: o.profit, "Margin %": `${o.marginPct}%` }))}
+          rows={sortedRows.map((o) => ({ Order: o.id, Customer: o.name, Price: o.total, Cost: o.cost, Profit: o.profit, "Margin %": `${o.marginPct}%` }))}
           filename="order-profitability"
           title="Order Profitability"
           summaryLines={[`Orders: ${withCosts.length}`, `Total profit: ${inr(totalProfit)}`]}
@@ -112,7 +128,7 @@ export default function OrderProfitabilityPage() {
             <MobileRecordRow label="Price" value={inr(withCosts.reduce((s, o) => s + o.total, 0))} />
             <MobileRecordRow label="Cost" value={inr(withCosts.reduce((s, o) => s + o.cost, 0))} />
           </MobileRecordCard>
-          {withCosts.map((o) => (
+          {sortedRows.map((o) => (
             <MobileRecordCard key={o.id} href={`/orders/${o.id}`}>
               <MobileRecordHeader
                 title={o.id}
@@ -136,12 +152,12 @@ export default function OrderProfitabilityPage() {
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
-              <Th>Order</Th>
-              <Th>Customer</Th>
-              <Th align="right">Price</Th>
-              <Th align="right">Cost</Th>
-              <Th align="right">Profit</Th>
-              <Th align="right">Margin</Th>
+              <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
+              <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+              <Th align="right" sortKey="price" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Price</Th>
+              <Th align="right" sortKey="cost" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Cost</Th>
+              <Th align="right" sortKey="profit" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Profit</Th>
+              <Th align="right" sortKey="margin" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Margin</Th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -152,7 +168,7 @@ export default function OrderProfitabilityPage() {
               <Td align="right">{inr(totalProfit)}</Td>
               <Td align="right">—</Td>
             </ReportTotalsRow>
-            {withCosts.map((o) => (
+            {sortedRows.map((o) => (
               <tr key={o.id} className="hover:bg-muted/30">
                 <Td>
                   <Link href={`/orders/${o.id}`} className="font-medium hover:underline">

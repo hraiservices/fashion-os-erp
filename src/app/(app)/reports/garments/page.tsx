@@ -13,6 +13,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+import type { GarmentStat } from "@/lib/analytics";
+
+const SORT_COMPARATORS: Record<string, (a: GarmentStat, b: GarmentStat) => number> = {
+  type: (a, b) => a.type.localeCompare(b.type),
+  orders: (a, b) => a.orders - b.orders,
+  count: (a, b) => a.count - b.count,
+  rev: (a, b) => a.rev - b.rev,
+};
+const SORT_DESC_KEYS = new Set(["orders", "count", "rev"]);
 
 /** Garment-type performance: which garment types bring the most orders, quantity and revenue
  *  over a period — the number every "what should we push more of" conversation starts from. */
@@ -28,13 +38,16 @@ export default function GarmentAnalysisPage() {
     [dateFilteredOrders, tailor]
   );
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<GarmentStat>("garment-analysis", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedStats = applySort(garStats);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   const maxCount = Math.max(...garStats.map((g) => g.count), 1);
   const totalCount = garStats.reduce((s, g) => s + g.count, 0);
   const totalOrders = garStats.reduce((s, g) => s + g.orders, 0);
   const totalRev = garStats.reduce((s, g) => s + g.rev, 0);
-  const exportRows = garStats.map((g) => ({
+  const exportRows = sortedStats.map((g) => ({
     "Garment type": g.type,
     Orders: g.orders,
     "Qty stitched": g.count,
@@ -90,7 +103,7 @@ export default function GarmentAnalysisPage() {
             <MobileRecordRow label="Qty" value={totalCount} />
             <MobileRecordRow label="% of revenue" value="100%" />
           </MobileRecordCard>
-          {garStats.map((g) => (
+          {sortedStats.map((g) => (
             <MobileRecordCard key={g.type}>
               <MobileRecordHeader
                 title={g.type}
@@ -107,11 +120,11 @@ export default function GarmentAnalysisPage() {
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
-              <Th>Garment</Th>
+              <Th sortKey="type" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Garment</Th>
               <Th>Share</Th>
-              <Th align="right">Orders</Th>
-              <Th align="right">Qty</Th>
-              <Th align="right">Revenue</Th>
+              <Th align="right" sortKey="orders" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Orders</Th>
+              <Th align="right" sortKey="count" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Qty</Th>
+              <Th align="right" sortKey="rev" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Revenue</Th>
               <Th align="right">% of revenue</Th>
             </tr>
           </thead>
@@ -124,7 +137,7 @@ export default function GarmentAnalysisPage() {
               <Td align="right">{inr(totalRev)}</Td>
               <Td align="right">100%</Td>
             </ReportTotalsRow>
-            {garStats.map((g) => (
+            {sortedStats.map((g) => (
               <tr key={g.type} className="hover:bg-muted/30">
                 <Td className="font-medium">{g.type}</Td>
                 <Td className="w-40">

@@ -19,6 +19,7 @@ import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from 
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { useTableSort } from "@/hooks/use-table-sort";
 
 const PAYABLE_DETAILS_COLUMNS = [
   { key: "order", label: "Order", required: true },
@@ -53,6 +54,18 @@ interface PayableRow {
    *  explicit ask: pay only for completed work, but still see the full pipeline. */
   isPending: boolean;
 }
+
+const SORT_COMPARATORS: Record<string, (a: PayableRow, b: PayableRow) => number> = {
+  order: (a, b) => a.orderId.localeCompare(b.orderId),
+  orderDate: (a, b) => (a.inDate < b.inDate ? -1 : a.inDate > b.inDate ? 1 : 0),
+  customer: (a, b) => a.customerName.localeCompare(b.customerName),
+  tailor: (a, b) => a.tailorName.localeCompare(b.tailorName),
+  garment: (a, b) => a.garmentType.localeCompare(b.garmentType),
+  lining: (a, b) => a.lining.localeCompare(b.lining),
+  qty: (a, b) => a.qty - b.qty,
+  payable: (a, b) => a.amount - b.amount,
+};
+const SORT_DESC_KEYS = new Set(["orderDate", "qty", "payable"]);
 
 /** Per-garment breakdown of what each tailor is owed, one row per garment — the order/customer-
  *  level detail behind the Tailor Payables summary page's per-tailor totals. Same inclusion rule
@@ -129,6 +142,9 @@ export default function TailorPayableDetailsPage() {
       .sort((a, b) => (a.inDate < b.inDate ? 1 : a.inDate > b.inDate ? -1 : 0));
   }, [orders, workOrders, range, tailorFilter, tailorName]);
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<PayableRow>("tailor-payable-details", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
+
   const byTailor = useMemo(() => {
     const map = new Map<string, { tailorName: string; total: number; completedCount: number; totalCount: number }>();
     for (const r of rows) {
@@ -158,7 +174,7 @@ export default function TailorPayableDetailsPage() {
   // Every garment in range as if all of it were finished — the "before" number the owner wants
   // shown alongside the actual (completed-only) payable, so the gap is visible at a glance.
   const totalPayableAllGarments = rows.reduce((s, r) => s + r.amount, 0);
-  const exportRows = rows.map((r) => ({
+  const exportRows = sortedRows.map((r) => ({
     Tailor: r.tailorName,
     Order: r.orderId,
     "Order Date": fmtDate(r.inDate),
@@ -252,14 +268,14 @@ export default function TailorPayableDetailsPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Order</Th>
-                  {isVisible("orderDate") && <Th>Order Date</Th>}
-                  <Th>Customer</Th>
-                  <Th>Tailor</Th>
-                  {isVisible("garment") && <Th>Garment</Th>}
-                  {isVisible("lining") && <Th>Lining</Th>}
-                  {isVisible("qty") && <Th align="right">Qty</Th>}
-                  <Th align="right">Payable</Th>
+                  <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
+                  {isVisible("orderDate") && <Th sortKey="orderDate" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order Date</Th>}
+                  <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="tailor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Tailor</Th>
+                  {isVisible("garment") && <Th sortKey="garment" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Garment</Th>}
+                  {isVisible("lining") && <Th sortKey="lining" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Lining</Th>}
+                  {isVisible("qty") && <Th align="right" sortKey="qty" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Qty</Th>}
+                  <Th align="right" sortKey="payable" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Payable</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -267,7 +283,7 @@ export default function TailorPayableDetailsPage() {
                   <Td colSpan={3 + ["orderDate", "garment", "lining", "qty"].filter(isVisible).length}>Total</Td>
                   <Td align="right">{inr(grandTotal)}</Td>
                 </ReportTotalsRow>
-                {rows.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.key} className={`hover:bg-muted/30 ${r.isPending ? "opacity-60" : ""}`}>
                     <Td>
                       <Link href={r.orderHref} className="text-primary hover:underline">
@@ -298,7 +314,7 @@ export default function TailorPayableDetailsPage() {
             <MobileRecordCard className="bg-muted/40">
               <MobileRecordHeader title="Total" value={inr(grandTotal)} showChevron={false} />
             </MobileRecordCard>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <MobileRecordCard key={r.key} href={r.orderHref} className={r.isPending ? "opacity-60" : ""}>
                 <MobileRecordHeader
                   title={r.tailorName}

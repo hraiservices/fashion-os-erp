@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { Clock } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useTailorName } from "@/hooks/use-employees";
-import { getTailorTurnaround } from "@/lib/analytics";
+import { getTailorTurnaround, type TailorTurnaroundStat } from "@/lib/analytics";
+import { useTableSort } from "@/hooks/use-table-sort";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -18,6 +19,8 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGri
  *  not the promised delivery window (Tailor Performance's "Promised days" column). Filters on
  *  ready_at (when the order was actually finished), so the range picks "orders completed in
  *  this period," matching how a manager would ask "how were turnaround times last month." */
+const SORT_DESC_KEYS = new Set(["completed", "avgDays", "minDays", "maxDays", "onTimePct"]);
+
 export default function TailorTurnaroundPage() {
   const { orders, isLoading } = useReportsData();
   const tailorName = useTailorName();
@@ -29,6 +32,18 @@ export default function TailorTurnaroundPage() {
     return Array.from(set).sort();
   }, [orders]);
 
+  const sortComparators = useMemo<Record<string, (a: TailorTurnaroundStat, b: TailorTurnaroundStat) => number>>(
+    () => ({
+      tailor: (a, b) => tailorName(a.tailor).localeCompare(tailorName(b.tailor)),
+      completed: (a, b) => a.ordersCompleted - b.ordersCompleted,
+      avgDays: (a, b) => a.avgDays - b.avgDays,
+      minDays: (a, b) => a.minDays - b.minDays,
+      maxDays: (a, b) => a.maxDays - b.maxDays,
+      onTimePct: (a, b) => a.onTimePct - b.onTimePct,
+    }),
+    [tailorName]
+  );
+
   const stats = useMemo(
     () =>
       getTailorTurnaround(
@@ -39,11 +54,14 @@ export default function TailorTurnaroundPage() {
     [orders, range, garmentType]
   );
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<TailorTurnaroundStat>("tailor-turnaround", sortComparators, SORT_DESC_KEYS);
+  const sortedStats = applySort(stats);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   const totalCompleted = stats.reduce((s, t) => s + t.ordersCompleted, 0);
   const overallAvg = totalCompleted > 0 ? Math.round((stats.reduce((s, t) => s + t.avgDays * t.ordersCompleted, 0) / totalCompleted) * 10) / 10 : 0;
-  const exportRows = stats.map((t) => ({
+  const exportRows = sortedStats.map((t) => ({
     Tailor: tailorName(t.tailor),
     "Orders completed": t.ordersCompleted,
     "Avg days": t.avgDays,
@@ -97,12 +115,12 @@ export default function TailorTurnaroundPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Tailor</Th>
-                  <Th align="right">Orders completed</Th>
-                  <Th align="right">Avg days</Th>
-                  <Th align="right">Fastest</Th>
-                  <Th align="right">Slowest</Th>
-                  <Th align="right">On-time %</Th>
+                  <Th sortKey="tailor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Tailor</Th>
+                  <Th align="right" sortKey="completed" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Orders completed</Th>
+                  <Th align="right" sortKey="avgDays" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Avg days</Th>
+                  <Th align="right" sortKey="minDays" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Fastest</Th>
+                  <Th align="right" sortKey="maxDays" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Slowest</Th>
+                  <Th align="right" sortKey="onTimePct" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>On-time %</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -114,7 +132,7 @@ export default function TailorTurnaroundPage() {
                   <Td align="right">—</Td>
                   <Td align="right">—</Td>
                 </ReportTotalsRow>
-                {stats.map((t) => (
+                {sortedStats.map((t) => (
                   <tr key={t.tailor} className="hover:bg-muted/30">
                     <Td className="font-medium">{tailorName(t.tailor)}</Td>
                     <Td align="right">{t.ordersCompleted}</Td>
@@ -143,7 +161,7 @@ export default function TailorTurnaroundPage() {
                 ]}
               />
             </MobileRecordCard>
-            {stats.map((t) => (
+            {sortedStats.map((t) => (
               <MobileRecordCard key={t.tailor}>
                 <MobileRecordHeader
                   title={tailorName(t.tailor)}

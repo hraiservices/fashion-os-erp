@@ -13,6 +13,17 @@ import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type ReworkRateRow = { tailor: string; totalOrders: number; reworkCount: number; reworkRate: number };
+
+const SORT_COMPARATORS: Record<string, (a: ReworkRateRow, b: ReworkRateRow) => number> = {
+  tailor: (a, b) => a.tailor.localeCompare(b.tailor),
+  totalOrders: (a, b) => a.totalOrders - b.totalOrders,
+  reworkCount: (a, b) => a.reworkCount - b.reworkCount,
+  reworkRate: (a, b) => a.reworkRate - b.reworkRate,
+};
+const SORT_DESC_KEYS = new Set(["totalOrders", "reworkCount", "reworkRate"]);
 
 /** Rework rate per tailor — driven entirely by the manually-set rework flag (order detail
  *  page's "Flag for rework" action), not an automatic quality signal. */
@@ -32,6 +43,9 @@ export default function ReworkRatePage() {
     [inRangeOrders, garmentType]
   );
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<ReworkRateRow>("rework-rate", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(reworkRate);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   const totalOrders = reworkRate.reduce((s, r) => s + r.totalOrders, 0);
@@ -43,7 +57,7 @@ export default function ReworkRatePage() {
       description="Share of each tailor's orders flagged for rework"
       actions={
         <ReportActionsMenu
-          rows={reworkRate.map((r) => ({ Tailor: tailorName(r.tailor), "Total orders": r.totalOrders, "Rework count": r.reworkCount, "Rework rate": `${r.reworkRate}%` }))}
+          rows={sortedRows.map((r) => ({ Tailor: tailorName(r.tailor), "Total orders": r.totalOrders, "Rework count": r.reworkCount, "Rework rate": `${r.reworkRate}%` }))}
           filename="rework-rate"
           title="Rework Rate"
           summaryLines={[`Total orders: ${totalOrders}`, `Total rework: ${totalRework}`]}
@@ -84,7 +98,7 @@ export default function ReworkRatePage() {
               <MobileRecordRow label="Total orders" value={totalOrders} />
               <MobileRecordRow label="Rework count" value={totalRework} />
             </MobileRecordCard>
-            {reworkRate.map((r) => (
+            {sortedRows.map((r) => (
               <MobileRecordCard key={r.tailor}>
                 <MobileRecordHeader
                   title={tailorName(r.tailor)}
@@ -102,10 +116,10 @@ export default function ReworkRatePage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Tailor</Th>
-                  <Th align="right">Total orders</Th>
-                  <Th align="right">Rework count</Th>
-                  <Th align="right">Rework rate</Th>
+                  <Th sortKey="tailor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Tailor</Th>
+                  <Th align="right" sortKey="totalOrders" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Total orders</Th>
+                  <Th align="right" sortKey="reworkCount" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Rework count</Th>
+                  <Th align="right" sortKey="reworkRate" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Rework rate</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -115,7 +129,7 @@ export default function ReworkRatePage() {
                   <Td align="right">{totalRework}</Td>
                   <Td align="right">{totalOrders ? Math.round((totalRework / totalOrders) * 100) : 0}%</Td>
                 </ReportTotalsRow>
-                {reworkRate.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.tailor} className="hover:bg-muted/30">
                     <Td className="font-medium">{tailorName(r.tailor)}</Td>
                     <Td align="right">{r.totalOrders}</Td>

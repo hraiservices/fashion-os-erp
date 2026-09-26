@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ArrowUpDown } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { PrintButton } from "@/components/ui/print-button";
 import { ReportsNavRail } from "@/components/reports/reports-nav-rail";
+import { cn } from "@/lib/utils";
 
 /**
  * Consistent chrome for every /reports/* page. Crucially the table lives inside its own
@@ -71,10 +72,43 @@ export function ReportTable({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function Th({ children, align = "left" }: { children?: React.ReactNode; align?: "left" | "right" }) {
+/**
+ * Pass `sortKey` + `currentSort` + `onSort` together to make a header clickable, matching Orders
+ * List's SortableTh — omit all three (as most callers still do) for a plain, non-clickable header.
+ * Pair with the `useTableSort` hook, which supplies `currentSort`/`onSort` and a matching
+ * `applySort` for the rows themselves.
+ */
+export function Th({
+  children,
+  align = "left",
+  sortKey,
+  currentSort,
+  onSort,
+}: {
+  children?: React.ReactNode;
+  align?: "left" | "right";
+  sortKey?: string;
+  currentSort?: { key: string | null; asc: boolean };
+  onSort?: (key: string) => void;
+}) {
+  if (!sortKey || !onSort) {
+    return (
+      <th className={`whitespace-nowrap px-3 py-2.5 text-sm font-bold uppercase tracking-wide text-muted-foreground ${align === "right" ? "text-right" : "text-left"}`}>
+        {children}
+      </th>
+    );
+  }
+  const active = currentSort?.key === sortKey;
   return (
     <th className={`whitespace-nowrap px-3 py-2.5 text-sm font-bold uppercase tracking-wide text-muted-foreground ${align === "right" ? "text-right" : "text-left"}`}>
-      {children}
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={cn("inline-flex items-center gap-1 hover:text-foreground", align === "right" && "flex-row-reverse")}
+      >
+        {children}
+        <ArrowUpDown className={cn("size-3", active ? "text-foreground" : "text-muted-foreground/60", active && currentSort?.asc && "rotate-180")} />
+      </button>
     </th>
   );
 }

@@ -15,6 +15,26 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Attendance, Employee } from "@/lib/types";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type DailyActivityRow = {
+  employee: Employee;
+  records: Attendance[];
+  isTailor: boolean;
+  daysCheckedOut: number;
+  daysWithNote: number;
+  hoursWorked: number;
+  latestNote: string;
+};
+
+const SORT_COMPARATORS: Record<string, (a: DailyActivityRow, b: DailyActivityRow) => number> = {
+  employee: (a, b) => a.employee.name.localeCompare(b.employee.name),
+  daysCheckedOut: (a, b) => a.daysCheckedOut - b.daysCheckedOut,
+  hoursWorked: (a, b) => a.hoursWorked - b.hoursWorked,
+  workNotes: (a, b) => a.daysWithNote - b.daysWithNote,
+  latestNote: (a, b) => a.latestNote.localeCompare(b.latestNote),
+};
+const SORT_DESC_KEYS = new Set(["daysCheckedOut", "hoursWorked", "workNotes"]);
 
 function fmtTime(iso: string | null): string {
   return iso ? new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "—";
@@ -52,9 +72,12 @@ export default function DailyEmployeeActivityPage() {
       .sort((a, b) => a.employee.name.localeCompare(b.employee.name));
   }, [employees, attendance, employeeId]);
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<DailyActivityRow>("daily-employee-activity", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
-  const exportRows = rows.map((r) => ({
+  const exportRows = sortedRows.map((r) => ({
     Employee: r.employee.name,
     "Days Checked Out": r.daysCheckedOut,
     "Hours Worked": r.hoursWorked,
@@ -109,15 +132,15 @@ export default function DailyEmployeeActivityPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Employee</Th>
-                  <Th align="right">Days Checked Out</Th>
-                  <Th align="right">Hours Worked</Th>
-                  <Th>Work Notes</Th>
-                  <Th>Latest Note</Th>
+                  <Th sortKey="employee" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Employee</Th>
+                  <Th align="right" sortKey="daysCheckedOut" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Days Checked Out</Th>
+                  <Th align="right" sortKey="hoursWorked" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Hours Worked</Th>
+                  <Th sortKey="workNotes" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Work Notes</Th>
+                  <Th sortKey="latestNote" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Latest Note</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {rows.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.employee.id} className="cursor-pointer hover:bg-muted/30" onClick={() => setDetailEmployee(r.employee)}>
                     <Td className="font-medium">{r.employee.name}</Td>
                     <Td align="right">{r.daysCheckedOut}</Td>
@@ -139,7 +162,7 @@ export default function DailyEmployeeActivityPage() {
           </div>
 
           <MobileRecordList>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <MobileRecordCard key={r.employee.id} onClick={() => setDetailEmployee(r.employee)}>
                 <MobileRecordHeader title={r.employee.name} value={r.hoursWorked > 0 ? `${r.hoursWorked}h` : "—"} />
                 <MobileRecordGrid
@@ -160,7 +183,7 @@ export default function DailyEmployeeActivityPage() {
 
       <EmployeeNoteHistoryDialog
         employee={detailEmployee}
-        records={detailEmployee ? rows.find((r) => r.employee.id === detailEmployee.id)?.records || [] : []}
+        records={detailEmployee ? sortedRows.find((r) => r.employee.id === detailEmployee.id)?.records || [] : []}
         onOpenChange={(v) => !v && setDetailEmployee(null)}
       />
     </ReportShell>

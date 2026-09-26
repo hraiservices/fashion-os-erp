@@ -22,6 +22,7 @@ type SalesByCustomerRow = { customerMobile: string; customerName: string; count:
 
 const SORT_COMPARATORS: Record<string, (a: SalesByCustomerRow, b: SalesByCustomerRow) => number> = {
   customer: (a, b) => a.customerName.localeCompare(b.customerName),
+  mobile: (a, b) => a.customerMobile.localeCompare(b.customerMobile),
   transactions: (a, b) => a.count - b.count,
   billed: (a, b) => a.billed - b.billed,
   paid: (a, b) => a.paid - b.paid,
@@ -92,6 +93,7 @@ export default function SalesByCustomerPage() {
             {sortedRows.map((r) => (
               <MobileRecordCard key={r.customerMobile} href={r.customerMobile ? `/crm/${r.customerMobile}` : undefined}>
                 <MobileRecordHeader title={r.customerName} value={inr(r.billed)} />
+                <MobileRecordRow label="Mobile" value={r.customerMobile} />
                 <MobileRecordRow label="Transactions" value={r.count} />
                 <MobileRecordRow label="Paid" value={inr(r.paid)} valueClassName="text-emerald-600 dark:text-emerald-400" />
                 <MobileRecordRow label="Balance" value={r.balance > 0 ? <BalanceDue amount={r.balance} /> : <span className="text-muted-foreground">—</span>} />
@@ -104,6 +106,7 @@ export default function SalesByCustomerPage() {
               <thead className="border-b bg-muted/40">
                 <tr>
                   <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
                   <Th align="right" sortKey="transactions" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Transactions</Th>
                   <Th align="right" sortKey="billed" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Billed</Th>
                   <Th align="right" sortKey="paid" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Paid</Th>
@@ -113,7 +116,7 @@ export default function SalesByCustomerPage() {
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td>Total</Td>
+                  <Td colSpan={2}>Total</Td>
                   <Td align="right">{rows.reduce((s, r) => s + r.count, 0)}</Td>
                   <Td align="right">{inr(rows.reduce((s, r) => s + r.billed, 0))}</Td>
                   <Td align="right">{inr(rows.reduce((s, r) => s + r.paid, 0))}</Td>
@@ -123,6 +126,7 @@ export default function SalesByCustomerPage() {
                 {sortedRows.map((r) => (
                   <tr key={r.customerMobile} className="hover:bg-muted/30">
                     <Td className="font-medium">{r.customerName}</Td>
+                    <Td className="text-muted-foreground">{r.customerMobile}</Td>
                     <Td align="right">{r.count}</Td>
                     <Td align="right">{inr(r.billed)}</Td>
                     <Td align="right" className="text-emerald-600 dark:text-emerald-400">{inr(r.paid)}</Td>

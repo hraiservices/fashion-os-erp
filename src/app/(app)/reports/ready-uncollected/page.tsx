@@ -25,6 +25,7 @@ import { useTableSort } from "@/hooks/use-table-sort";
 const SORT_COMPARATORS: Record<string, (a: ReadyUncollectedRow, b: ReadyUncollectedRow) => number> = {
   order: (a, b) => a.id.localeCompare(b.id),
   customer: (a, b) => a.name.localeCompare(b.name),
+  mobile: (a, b) => a.mobile.localeCompare(b.mobile),
   daysWaiting: (a, b) => a.daysWaiting - b.daysWaiting,
   balance: (a, b) => a.balance - b.balance,
 };
@@ -63,7 +64,7 @@ export default function ReadyUncollectedPage() {
       description={`${readyUncollected.length} order(s) ready for pickup, longest-waiting first`}
       actions={
         <ReportActionsMenu
-          rows={sortedRows.map((o) => ({ Order: o.id, Customer: o.name, "Days Waiting": o.daysWaiting, Balance: o.balance }))}
+          rows={sortedRows.map((o) => ({ Order: o.id, Customer: o.name, Mobile: o.mobile, "Days Waiting": o.daysWaiting, Balance: o.balance }))}
           filename="ready-uncollected"
           title="Ready & Uncollected"
           summaryLines={[`Orders: ${readyUncollected.length}`, `Total balance: ${inr(totalBalance)}`]}
@@ -110,10 +111,11 @@ export default function ReadyUncollectedPage() {
                       {o.id}
                     </Link>
                   }
-                  subtitle={`${o.name} · ${o.mobile}`}
+                  subtitle={o.name}
                   value={o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}
                   showChevron={false}
                 />
+                <MobileRecordRow label="Mobile" value={o.mobile} />
                 <MobileRecordRow label="Ready since" value={fmtDate(o.readyAt!.slice(0, 10))} />
                 <MobileRecordRow label="Days waiting" value={`${o.daysWaiting}d`} valueClassName={o.daysWaiting >= 7 ? "font-medium text-destructive" : undefined} />
                 <div className="flex justify-end border-t pt-1.5">
@@ -129,6 +131,7 @@ export default function ReadyUncollectedPage() {
                 <tr>
                   <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
                   <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
                   <Th align="right" sortKey="daysWaiting" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Days waiting</Th>
                   <Th align="right" sortKey="balance" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Balance</Th>
                   <Th align="right">Actions</Th>
@@ -136,7 +139,7 @@ export default function ReadyUncollectedPage() {
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td colSpan={3}>Total</Td>
+                  <Td colSpan={4}>Total</Td>
                   <Td align="right">{inr(totalBalance)}</Td>
                   <Td align="right">—</Td>
                 </ReportTotalsRow>
@@ -150,8 +153,8 @@ export default function ReadyUncollectedPage() {
                     </Td>
                     <Td>
                       <p className="truncate">{o.name}</p>
-                      <p className="text-xs text-muted-foreground">{o.mobile}</p>
                     </Td>
+                    <Td className="text-muted-foreground">{o.mobile}</Td>
                     <Td align="right" className={o.daysWaiting >= 7 ? "font-medium text-destructive" : undefined}>
                       {o.daysWaiting}d
                     </Td>

@@ -12,7 +12,7 @@ import { useShopSettings } from "@/hooks/use-shop-settings";
 import { normalizeIndianMobile } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
-import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
@@ -39,6 +39,7 @@ type CustomerBalanceRow = {
 
 const SORT_COMPARATORS: Record<string, (a: CustomerBalanceRow, b: CustomerBalanceRow) => number> = {
   customer: (a, b) => (a.name || a.mobile).localeCompare(b.name || b.mobile),
+  mobile: (a, b) => a.mobile.localeCompare(b.mobile),
   orders: (a, b) => a.orderCount - b.orderCount,
   invoices: (a, b) => a.invoiceCount - b.invoiceCount,
   stitchDue: (a, b) => a.stitchDue - b.stitchDue,
@@ -126,7 +127,8 @@ export default function CustomerBalancesPage() {
       actions={
         <ReportActionsMenu
           rows={sortedFiltered.map((r) => ({
-            Customer: r.name || r.mobile,
+            Customer: r.name || "—",
+            Mobile: r.mobile,
             Orders: r.orderCount,
             Invoices: r.invoiceCount,
             "Stitch Due": r.stitchDue,
@@ -184,6 +186,7 @@ export default function CustomerBalancesPage() {
               <thead className="border-b bg-muted/40">
                 <tr>
                   <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
                   <Th align="right" sortKey="orders" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Orders</Th>
                   {isVisible("invoices") && <Th align="right" sortKey="invoices" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Invoices</Th>}
                   <Th align="right" sortKey="stitchDue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Stitch Due</Th>
@@ -195,7 +198,7 @@ export default function CustomerBalancesPage() {
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td colSpan={isVisible("invoices") ? 3 : 2}>Total</Td>
+                  <Td colSpan={isVisible("invoices") ? 4 : 3}>Total</Td>
                   <Td align="right">{inr(totals.stitchDue)}</Td>
                   <Td align="right">{inr(totals.salesDue)}</Td>
                   <Td align="right">{inr(totals.totalDue)}</Td>
@@ -206,9 +209,10 @@ export default function CustomerBalancesPage() {
                   <tr key={r.mobile} className="hover:bg-muted/30">
                     <Td className="font-medium">
                       <Link href={`/crm/${r.mobile}`} className="hover:underline">
-                        {r.name || r.mobile}
+                        {r.name || "—"}
                       </Link>
                     </Td>
+                    <Td className="text-muted-foreground">{r.mobile}</Td>
                     <Td align="right">{r.orderCount}</Td>
                     {isVisible("invoices") && <Td align="right">{r.invoiceCount}</Td>}
                     <Td align="right">{r.stitchDue > 0 ? <BalanceDue amount={r.stitchDue} /> : "—"}</Td>
@@ -245,10 +249,11 @@ export default function CustomerBalancesPage() {
               // nest inside this card's anchor.
               <MobileRecordCard key={r.mobile} onClick={() => router.push(`/crm/${r.mobile}`)}>
                 <MobileRecordHeader
-                  title={r.name || r.mobile}
+                  title={r.name || "—"}
                   value={r.totalDue > 0 ? <BalanceDue amount={r.totalDue} /> : "—"}
                   valueClassName="font-semibold"
                 />
+                <MobileRecordRow label="Mobile" value={r.mobile} />
                 <MobileRecordGrid
                   columns={3}
                   items={[

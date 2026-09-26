@@ -64,7 +64,7 @@ export async function GET(request: Request) {
   // Step 2: those orders' FULL stage-change history (unbounded by date) plus their creation time.
   const [{ data: fullHistoryRows, error: historyError }, { data: orderRows, error: orderError }, { data: employeeRows }, { data: userRoleRows }] = await Promise.all([
     db.from("activity_log").select("id, user_email, user_name, action, order_id, created_at").ilike("action", "%Stage changed:%").in("order_id", orderIds),
-    db.from("orders").select("id, name, created_at").in("id", orderIds),
+    db.from("orders").select("id, name, mobile, created_at").in("id", orderIds),
     db.from("employees").select("id, name"),
     db.from("user_roles").select("email, linked_employee_id").not("linked_employee_id", "is", null),
   ]);
@@ -100,6 +100,7 @@ export async function GET(request: Request) {
     id: number;
     orderId: string;
     customerName: string;
+    customerMobile: string;
     fromStage: Stage | null;
     fromLabel: string;
     toStage: Stage | null;
@@ -121,6 +122,7 @@ export async function GET(request: Request) {
       const fromLabel = m?.[1] || "";
       const toLabel = m?.[2] || "";
       const customerName = m?.[3] || order?.name || "";
+      const customerMobile = order?.mobile || "";
       const changedAt = r.created_at;
       const durationMinutes = prevTime ? Math.round((new Date(changedAt).getTime() - new Date(prevTime).getTime()) / 60_000) : null;
       prevTime = changedAt;
@@ -130,6 +132,7 @@ export async function GET(request: Request) {
         id: r.id,
         orderId,
         customerName,
+        customerMobile,
         fromStage: STAGE_BY_LABEL[fromLabel] ?? null,
         fromLabel,
         toStage: STAGE_BY_LABEL[toLabel] ?? null,

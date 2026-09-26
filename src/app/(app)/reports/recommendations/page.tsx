@@ -66,6 +66,7 @@ export default function RecommendationsReportPage() {
           <ReportActionsMenu
             rows={rows.map(({ rec, converted, convertedDate }) => ({
               Customer: rec.customerName,
+              Mobile: rec.customerMobile,
               Product: rec.productName,
               "Match %": rec.score,
               Channel: rec.channel === "whatsapp_api" ? "API" : "wa.me",
@@ -132,6 +133,7 @@ export default function RecommendationsReportPage() {
                   value={`${rec.score}%`}
                   showChevron={false}
                 />
+                <MobileRecordRow label="Mobile" value={rec.customerMobile} />
                 <MobileRecordRow
                   label="Product"
                   value={
@@ -164,6 +166,7 @@ export default function RecommendationsReportPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Customer</TableHead>
+                    <TableHead>Mobile</TableHead>
                     <TableHead>Product</TableHead>
                     <TableHead className="text-right">Match</TableHead>
                     <TableHead>Channel</TableHead>
@@ -173,7 +176,7 @@ export default function RecommendationsReportPage() {
                 </TableHeader>
                 <TableBody>
                   <TableRow className="border-b-2 bg-muted/40 font-semibold">
-                    <TableCell colSpan={4}>Total</TableCell>
+                    <TableCell colSpan={5}>Total</TableCell>
                     <TableCell>{totalSent} sent</TableCell>
                     <TableCell>{converted} converted ({conversionRate}%)</TableCell>
                   </TableRow>
@@ -182,6 +185,7 @@ export default function RecommendationsReportPage() {
                       <TableCell>
                         <Link href={`/crm/${rec.customerMobile}`} className="font-medium hover:underline">{rec.customerName}</Link>
                       </TableCell>
+                      <TableCell>{rec.customerMobile}</TableCell>
                       <TableCell>
                         <Link href={`/inventory/products/${rec.productId}/edit`} className="hover:underline">{rec.productName}</Link>
                       </TableCell>

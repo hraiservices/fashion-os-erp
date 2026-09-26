@@ -35,6 +35,7 @@ type AgingRow = Order & { agingBand: string; daysOver: number };
 const SORT_COMPARATORS: Record<string, (a: AgingRow, b: AgingRow) => number> = {
   order: (a, b) => a.id.localeCompare(b.id),
   customer: (a, b) => a.name.localeCompare(b.name),
+  mobile: (a, b) => a.mobile.localeCompare(b.mobile),
   aging: (a, b) => a.daysOver - b.daysOver,
   balance: (a, b) => a.balance - b.balance,
 };
@@ -105,6 +106,7 @@ export default function BalanceAgingPage() {
                 <tr>
                   <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
                   <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
                   <Th sortKey="aging" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Aging</Th>
                   <Th align="right" sortKey="balance" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Balance</Th>
                   <Th align="right">Actions</Th>
@@ -112,7 +114,7 @@ export default function BalanceAgingPage() {
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td colSpan={3}>Total</Td>
+                  <Td colSpan={4}>Total</Td>
                   <Td align="right">{inr(totalDue)}</Td>
                   <Td align="right">—</Td>
                 </ReportTotalsRow>
@@ -125,8 +127,8 @@ export default function BalanceAgingPage() {
                     </Td>
                     <Td>
                       <p className="truncate">{o.name}</p>
-                      <p className="text-xs text-muted-foreground">{o.mobile}</p>
                     </Td>
+                    <Td className="text-muted-foreground">{o.mobile}</Td>
                     <Td>
                       <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${BAND_STYLE[o.agingBand]}`}>
                         {o.agingBand}
@@ -153,7 +155,8 @@ export default function BalanceAgingPage() {
               // onClick (not href) — the WhatsApp button below renders its own <a>, which can't
               // nest inside this card's anchor.
               <MobileRecordCard key={o.id} onClick={() => router.push(`/orders/${o.id}`)}>
-                <MobileRecordHeader title={o.name} subtitle={o.mobile} value={<BalanceDue amount={o.balance} />} />
+                <MobileRecordHeader title={o.name} value={<BalanceDue amount={o.balance} />} />
+                <MobileRecordRow label="Mobile" value={o.mobile} />
                 <MobileRecordRow label="Order" value={o.id} />
                 <MobileRecordRow
                   label="Aging"

@@ -23,6 +23,7 @@ type DepositComplianceRow = Order;
 const SORT_COMPARATORS: Record<string, (a: DepositComplianceRow, b: DepositComplianceRow) => number> = {
   order: (a, b) => a.id.localeCompare(b.id),
   customer: (a, b) => a.name.localeCompare(b.name),
+  mobile: (a, b) => a.mobile.localeCompare(b.mobile),
   stage: (a, b) => a.status.localeCompare(b.status),
   total: (a, b) => a.total - b.total,
   advance: (a, b) => a.advance - b.advance,
@@ -62,6 +63,7 @@ export default function DepositCompliancePage() {
           rows={sortedCompliance.map((o) => ({
             Order: o.id,
             Customer: o.name,
+            Mobile: o.mobile,
             Stage: o.status,
             Total: o.total,
             Advance: o.advance,
@@ -107,6 +109,7 @@ export default function DepositCompliancePage() {
                 <tr>
                   <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
                   <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
                   <Th sortKey="stage" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Stage</Th>
                   <Th align="right" sortKey="total" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Total</Th>
                   <Th align="right" sortKey="advance" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Advance</Th>
@@ -115,7 +118,7 @@ export default function DepositCompliancePage() {
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td colSpan={3}>Total</Td>
+                  <Td colSpan={4}>Total</Td>
                   <Td align="right">{inr(totalAmount)}</Td>
                   <Td align="right">{inr(totalAdvance)}</Td>
                   <Td align="right">{totalAmount ? `${Math.round((totalAdvance / totalAmount) * 100)}%` : "0%"}</Td>
@@ -130,8 +133,8 @@ export default function DepositCompliancePage() {
                     </Td>
                     <Td>
                       <p className="truncate">{o.name}</p>
-                      <p className="text-xs text-muted-foreground">{o.mobile}</p>
                     </Td>
+                    <Td className="text-muted-foreground">{o.mobile}</Td>
                     <Td>
                       <StageBadge stage={o.status} size="sm" />
                     </Td>
@@ -154,7 +157,8 @@ export default function DepositCompliancePage() {
             </MobileRecordCard>
             {sortedCompliance.map((o) => (
               <MobileRecordCard key={o.id} href={`/orders/${o.id}`}>
-                <MobileRecordHeader title={o.name} subtitle={o.mobile} value={inr(o.total)} />
+                <MobileRecordHeader title={o.name} value={inr(o.total)} />
+                <MobileRecordRow label="Mobile" value={o.mobile} />
                 <MobileRecordRow label="Order" value={o.id} />
                 <MobileRecordRow label="Date" value={fmtDate(o.inDate)} />
                 <MobileRecordRow label="Stage" value={<StageBadge stage={o.status} size="sm" />} />

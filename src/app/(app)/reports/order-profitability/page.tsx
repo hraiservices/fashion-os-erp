@@ -21,6 +21,7 @@ type ProfitRow = ReturnType<typeof useReportsData>["orderProfitability"][number]
 const SORT_COMPARATORS: Record<string, (a: ProfitRow, b: ProfitRow) => number> = {
   order: (a, b) => a.id.localeCompare(b.id),
   customer: (a, b) => a.name.localeCompare(b.name),
+  mobile: (a, b) => a.mobile.localeCompare(b.mobile),
   price: (a, b) => a.total - b.total,
   cost: (a, b) => a.cost - b.cost,
   profit: (a, b) => a.profit - b.profit,
@@ -86,7 +87,7 @@ export default function OrderProfitabilityPage() {
       }
       actions={
         <ReportActionsMenu
-          rows={sortedRows.map((o) => ({ Order: o.id, Customer: o.name, Price: o.total, Cost: o.cost, Profit: o.profit, "Margin %": `${o.marginPct}%` }))}
+          rows={sortedRows.map((o) => ({ Order: o.id, Customer: o.name, Mobile: o.mobile, Price: o.total, Cost: o.cost, Profit: o.profit, "Margin %": `${o.marginPct}%` }))}
           filename="order-profitability"
           title="Order Profitability"
           summaryLines={[`Orders: ${withCosts.length}`, `Total profit: ${inr(totalProfit)}`]}
@@ -142,6 +143,7 @@ export default function OrderProfitabilityPage() {
                 valueClassName={o.profit < 0 ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}
               />
               <MobileRecordRow label="Customer" value={o.name} />
+              <MobileRecordRow label="Mobile" value={o.mobile} />
               <MobileRecordRow label="Price" value={inr(o.total)} />
               <MobileRecordRow label="Cost" value={inr(o.cost)} />
               <MobileRecordRow label="Margin" value={`${o.marginPct}%`} />
@@ -154,6 +156,7 @@ export default function OrderProfitabilityPage() {
             <tr>
               <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
               <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+              <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
               <Th align="right" sortKey="price" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Price</Th>
               <Th align="right" sortKey="cost" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Cost</Th>
               <Th align="right" sortKey="profit" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Profit</Th>
@@ -162,7 +165,7 @@ export default function OrderProfitabilityPage() {
           </thead>
           <tbody className="divide-y">
             <ReportTotalsRow>
-              <Td colSpan={2}>Total</Td>
+              <Td colSpan={3}>Total</Td>
               <Td align="right">{inr(withCosts.reduce((s, o) => s + o.total, 0))}</Td>
               <Td align="right">{inr(withCosts.reduce((s, o) => s + o.cost, 0))}</Td>
               <Td align="right">{inr(totalProfit)}</Td>
@@ -177,6 +180,7 @@ export default function OrderProfitabilityPage() {
                   <p className="text-xs text-muted-foreground">{fmtDate(o.inDate)}</p>
                 </Td>
                 <Td className="truncate">{o.name}</Td>
+                <Td className="text-muted-foreground">{o.mobile}</Td>
                 <Td align="right">{inr(o.total)}</Td>
                 <Td align="right">{inr(o.cost)}</Td>
                 <Td align="right" className={o.profit < 0 ? "font-medium text-destructive" : "font-medium text-emerald-600 dark:text-emerald-400"}>

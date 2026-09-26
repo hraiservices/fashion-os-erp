@@ -72,6 +72,7 @@ export default function OverdueOrdersPage() {
   const SORT_COMPARATORS: Record<string, (a: OverdueRow, b: OverdueRow) => number> = {
     order: (a, b) => a.id.localeCompare(b.id),
     customer: (a, b) => a.name.localeCompare(b.name),
+    mobile: (a, b) => a.mobile.localeCompare(b.mobile),
     stage: (a, b) => STAGE_META[a.status].label.localeCompare(STAGE_META[b.status].label),
     tailor: (a, b) => tailorName(a.tailor).localeCompare(tailorName(b.tailor)),
     garments: (a, b) => garmentSummary(a).localeCompare(garmentSummary(b)),
@@ -107,6 +108,7 @@ export default function OverdueOrdersPage() {
           rows={sortedOverdue.map((o) => ({
             Order: o.id,
             Customer: o.name,
+            Mobile: o.mobile,
             Stage: STAGE_META[o.status].label,
             Tailor: tailorName(o.tailor),
             Garments: garmentSummary(o),
@@ -165,10 +167,11 @@ export default function OverdueOrdersPage() {
                       {o.id}
                     </Link>
                   }
-                  subtitle={`${o.name} · ${o.mobile}`}
+                  subtitle={o.name}
                   value={<span className={severityClass(o.daysLate)}>{o.daysLate}d late</span>}
                   showChevron={false}
                 />
+                <MobileRecordRow label="Mobile" value={o.mobile} />
                 <MobileRecordRow label="Stage" value={<StageBadge stage={o.status} size="sm" />} />
                 <MobileRecordRow label="Tailor" value={tailorName(o.tailor)} />
                 <MobileRecordRow label="Garments" value={garmentSummary(o)} />
@@ -187,6 +190,7 @@ export default function OverdueOrdersPage() {
                 <tr>
                   <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
                   <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
                   <Th sortKey="stage" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Stage</Th>
                   <Th sortKey="tailor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Tailor</Th>
                   <Th sortKey="garments" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Garments</Th>
@@ -206,8 +210,8 @@ export default function OverdueOrdersPage() {
                     </Td>
                     <Td>
                       <p className="truncate">{o.name}</p>
-                      <p className="text-xs text-muted-foreground">{o.mobile}</p>
                     </Td>
+                    <Td className="text-muted-foreground">{o.mobile}</Td>
                     <Td>
                       <StageBadge stage={o.status} size="sm" />
                     </Td>

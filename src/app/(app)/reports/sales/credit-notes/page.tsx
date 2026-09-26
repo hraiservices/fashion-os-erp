@@ -42,6 +42,7 @@ export default function CreditNoteDetailsPage() {
       creditNumber: (a, b) => a.creditNumber.localeCompare(b.creditNumber),
       date: (a, b) => a.date.localeCompare(b.date),
       customer: (a, b) => (invoiceById.get(a.invoiceId)?.customerName || "").localeCompare(invoiceById.get(b.invoiceId)?.customerName || ""),
+      mobile: (a, b) => (invoiceById.get(a.invoiceId)?.customerMobile || "").localeCompare(invoiceById.get(b.invoiceId)?.customerMobile || ""),
       invoice: (a, b) => (invoiceById.get(a.invoiceId)?.invoiceNumber || "").localeCompare(invoiceById.get(b.invoiceId)?.invoiceNumber || ""),
       reason: (a, b) => (a.reason || "").localeCompare(b.reason || ""),
       amount: (a, b) => a.total - b.total,
@@ -63,6 +64,7 @@ export default function CreditNoteDetailsPage() {
             "Credit#": c.creditNumber,
             Date: c.date,
             Customer: invoiceById.get(c.invoiceId)?.customerName || "",
+            Mobile: invoiceById.get(c.invoiceId)?.customerMobile || "",
             Invoice: invoiceById.get(c.invoiceId)?.invoiceNumber || "",
             Amount: c.total,
             Reason: c.reason,
@@ -117,6 +119,7 @@ export default function CreditNoteDetailsPage() {
                 <MobileRecordCard key={c.id}>
                   <MobileRecordHeader title={c.creditNumber} subtitle={fmtDate(c.date)} value={inr(c.total)} showChevron={false} />
                   <MobileRecordRow label="Customer" value={inv?.customerName || "—"} />
+                  <MobileRecordRow label="Mobile" value={inv?.customerMobile || "—"} />
                   <MobileRecordRow
                     label="Invoice"
                     value={
@@ -142,6 +145,7 @@ export default function CreditNoteDetailsPage() {
                   <Th sortKey="creditNumber" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Credit#</Th>
                   <Th sortKey="date" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Date</Th>
                   <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
                   <Th sortKey="invoice" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Invoice</Th>
                   <Th sortKey="reason" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Reason</Th>
                   <Th align="right" sortKey="amount" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Amount</Th>
@@ -149,7 +153,7 @@ export default function CreditNoteDetailsPage() {
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td colSpan={5}>Total</Td>
+                  <Td colSpan={6}>Total</Td>
                   <Td align="right">{inr(total)}</Td>
                 </ReportTotalsRow>
                 {sortedRows.map((c) => {
@@ -159,6 +163,7 @@ export default function CreditNoteDetailsPage() {
                       <Td className="font-medium">{c.creditNumber}</Td>
                       <Td className="text-muted-foreground">{fmtDate(c.date)}</Td>
                       <Td>{inv?.customerName || "—"}</Td>
+                      <Td className="text-muted-foreground">{inv?.customerMobile || "—"}</Td>
                       <Td>
                         {inv ? (
                           <Link href={`/sales/invoices/${inv.id}`} className="text-primary hover:underline">

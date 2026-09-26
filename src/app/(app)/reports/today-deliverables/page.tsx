@@ -25,6 +25,7 @@ import { useTableSort } from "@/hooks/use-table-sort";
 const DELIVERABLES_SORT_COMPARATORS: Record<string, (a: Order, b: Order) => number> = {
   order: (a, b) => a.id.localeCompare(b.id),
   customer: (a, b) => a.name.localeCompare(b.name),
+  mobile: (a, b) => a.mobile.localeCompare(b.mobile),
   delivery: (a, b) => (a.deliveryDate || "").localeCompare(b.deliveryDate || ""),
   balance: (a, b) => a.balance - b.balance,
 };
@@ -70,8 +71,8 @@ export default function TodayDeliverablesPage() {
         </Td>
         <Td>
           <p className="truncate">{o.name}</p>
-          <p className="text-xs text-muted-foreground">{o.mobile}</p>
         </Td>
+        <Td className="text-muted-foreground">{o.mobile}</Td>
         <Td>
           <StageBadge stage={o.status} size="sm" />
         </Td>
@@ -89,9 +90,9 @@ export default function TodayDeliverablesPage() {
       <MobileRecordCard key={o.id} href={`/orders/${o.id}`}>
         <MobileRecordHeader
           title={o.name}
-          subtitle={o.mobile}
           value={o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}
         />
+        <MobileRecordRow label="Mobile" value={o.mobile} />
         <MobileRecordRow label="Order" value={o.id} />
         <MobileRecordRow label="Stage" value={<StageBadge stage={o.status} size="sm" />} />
         <MobileRecordRow label="Delivery" value={fmtDate(o.deliveryDate)} />
@@ -111,7 +112,7 @@ export default function TodayDeliverablesPage() {
       description={`${due.length} order(s) due in the selected range, plus ${overdue.length} overdue`}
       actions={
         <ReportActionsMenu
-          rows={[...sortedOverdue, ...sortedDue].map((o) => ({ Order: o.id, Customer: o.name, Stage: o.status, Delivery: fmtDate(o.deliveryDate), Balance: o.balance }))}
+          rows={[...sortedOverdue, ...sortedDue].map((o) => ({ Order: o.id, Customer: o.name, Mobile: o.mobile, Stage: o.status, Delivery: fmtDate(o.deliveryDate), Balance: o.balance }))}
           filename="today-deliverables"
           title="Today Deliverables"
           summaryLines={[`Due: ${due.length}`, `Overdue: ${overdue.length}`, `Total balance due: ${inr(dueBalance + overdueBalance)}`]}
@@ -151,6 +152,7 @@ export default function TodayDeliverablesPage() {
                 <tr>
                   <Th sortKey="order" currentSort={{ key: overdueSort.sortKey, asc: overdueSort.sortAsc }} onSort={overdueSort.toggleSort}>Order</Th>
                   <Th sortKey="customer" currentSort={{ key: overdueSort.sortKey, asc: overdueSort.sortAsc }} onSort={overdueSort.toggleSort}>Customer</Th>
+                  <Th sortKey="mobile" currentSort={{ key: overdueSort.sortKey, asc: overdueSort.sortAsc }} onSort={overdueSort.toggleSort}>Mobile</Th>
                   <Th>Stage</Th>
                   <Th sortKey="delivery" currentSort={{ key: overdueSort.sortKey, asc: overdueSort.sortAsc }} onSort={overdueSort.toggleSort}>Delivery</Th>
                   <Th align="right" sortKey="balance" currentSort={{ key: overdueSort.sortKey, asc: overdueSort.sortAsc }} onSort={overdueSort.toggleSort}>Balance</Th>
@@ -159,7 +161,7 @@ export default function TodayDeliverablesPage() {
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td colSpan={4}>Total</Td>
+                  <Td colSpan={5}>Total</Td>
                   <Td align="right">{inr(overdueBalance)}</Td>
                   <Td align="right">—</Td>
                 </ReportTotalsRow>
@@ -188,6 +190,7 @@ export default function TodayDeliverablesPage() {
                   <tr>
                     <Th sortKey="order" currentSort={{ key: dueSort.sortKey, asc: dueSort.sortAsc }} onSort={dueSort.toggleSort}>Order</Th>
                     <Th sortKey="customer" currentSort={{ key: dueSort.sortKey, asc: dueSort.sortAsc }} onSort={dueSort.toggleSort}>Customer</Th>
+                    <Th sortKey="mobile" currentSort={{ key: dueSort.sortKey, asc: dueSort.sortAsc }} onSort={dueSort.toggleSort}>Mobile</Th>
                     <Th>Stage</Th>
                     <Th sortKey="delivery" currentSort={{ key: dueSort.sortKey, asc: dueSort.sortAsc }} onSort={dueSort.toggleSort}>Delivery</Th>
                     <Th align="right" sortKey="balance" currentSort={{ key: dueSort.sortKey, asc: dueSort.sortAsc }} onSort={dueSort.toggleSort}>Balance</Th>
@@ -196,7 +199,7 @@ export default function TodayDeliverablesPage() {
                 </thead>
                 <tbody className="divide-y">
                   <ReportTotalsRow>
-                    <Td colSpan={4}>Total</Td>
+                    <Td colSpan={5}>Total</Td>
                     <Td align="right">{inr(dueBalance)}</Td>
                     <Td align="right">—</Td>
                   </ReportTotalsRow>

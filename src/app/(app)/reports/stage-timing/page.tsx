@@ -24,6 +24,7 @@ const SORT_COMPARATORS: Record<string, (a: StageTimingRow, b: StageTimingRow) =>
   date: (a, b) => new Date(a.changedAt).getTime() - new Date(b.changedAt).getTime(),
   order: (a, b) => a.orderId.localeCompare(b.orderId),
   customer: (a, b) => a.customerName.localeCompare(b.customerName),
+  mobile: (a, b) => a.customerMobile.localeCompare(b.customerMobile),
   minutes: (a, b) => (a.durationMinutes ?? -1) - (b.durationMinutes ?? -1),
   changedBy: (a, b) => a.userName.localeCompare(b.userName),
 };
@@ -102,6 +103,7 @@ export default function StageTimingPage() {
     Time: fmtTime(r.changedAt),
     Order: r.orderId,
     Customer: r.customerName,
+    Mobile: r.customerMobile,
     From: r.fromLabel,
     To: r.toLabel,
     "Minutes taken": r.durationMinutes ?? "",
@@ -222,6 +224,7 @@ export default function StageTimingPage() {
                         <Th sortKey="date" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Date</Th>
                         <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
                         <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                        <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
                         <Th>From → To</Th>
                         <Th align="right" sortKey="minutes" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Time taken</Th>
                         <Th sortKey="changedBy" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Changed by</Th>
@@ -235,6 +238,7 @@ export default function StageTimingPage() {
                           </Td>
                           <Td className="font-medium">{r.orderId}</Td>
                           <Td>{r.customerName}</Td>
+                          <Td className="text-muted-foreground">{r.customerMobile}</Td>
                           <Td>
                             <div className="flex items-center gap-1.5">
                               {r.fromStage ? <StageBadge stage={r.fromStage} size="sm" /> : <span className="text-xs text-muted-foreground">{r.fromLabel}</span>}
@@ -261,6 +265,7 @@ export default function StageTimingPage() {
                         value={r.durationMinutes != null ? fmtMinutes(r.durationMinutes) : "—"}
                         showChevron={false}
                       />
+                      <MobileRecordRow label="Mobile" value={r.customerMobile} />
                       <MobileRecordRow
                         label="Stage"
                         value={

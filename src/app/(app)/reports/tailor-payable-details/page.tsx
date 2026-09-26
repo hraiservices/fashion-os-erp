@@ -25,6 +25,7 @@ const PAYABLE_DETAILS_COLUMNS = [
   { key: "order", label: "Order", required: true },
   { key: "orderDate", label: "Order Date" },
   { key: "customer", label: "Customer", required: true },
+  { key: "mobile", label: "Mobile" },
   { key: "tailor", label: "Tailor", required: true },
   { key: "garment", label: "Garment" },
   { key: "lining", label: "Lining" },
@@ -35,7 +36,7 @@ const PAYABLE_DETAILS_COLUMNS = [
 // Below 1920px (a 14" laptop) the full 8-column table feels cramped — Order Date/Garment/
 // Lining/Qty are the least essential to have visible at a glance, so they default to hidden
 // there and reappear automatically on a wider monitor (still one click away via Columns).
-const PAYABLE_DETAILS_AUTO_HIDE = { belowWidth: 1920, keys: ["orderDate", "garment", "lining", "qty"] };
+const PAYABLE_DETAILS_AUTO_HIDE = { belowWidth: 1920, keys: ["orderDate", "mobile", "garment", "lining", "qty"] };
 
 interface PayableRow {
   key: string;
@@ -43,6 +44,7 @@ interface PayableRow {
   orderHref: string;
   inDate: string;
   customerName: string;
+  customerMobile: string;
   tailorId: string;
   tailorName: string;
   garmentType: string;
@@ -59,6 +61,7 @@ const SORT_COMPARATORS: Record<string, (a: PayableRow, b: PayableRow) => number>
   order: (a, b) => a.orderId.localeCompare(b.orderId),
   orderDate: (a, b) => (a.inDate < b.inDate ? -1 : a.inDate > b.inDate ? 1 : 0),
   customer: (a, b) => a.customerName.localeCompare(b.customerName),
+  mobile: (a, b) => a.customerMobile.localeCompare(b.customerMobile),
   tailor: (a, b) => a.tailorName.localeCompare(b.tailorName),
   garment: (a, b) => a.garmentType.localeCompare(b.garmentType),
   lining: (a, b) => a.lining.localeCompare(b.lining),
@@ -107,6 +110,7 @@ export default function TailorPayableDetailsPage() {
           orderHref: `/orders/${o.id}`,
           inDate: o.inDate,
           customerName: o.name,
+          customerMobile: o.mobile,
           tailorId: tid,
           tailorName: tailorName(tid),
           garmentType: g.type,
@@ -125,6 +129,7 @@ export default function TailorPayableDetailsPage() {
         orderHref: `/manufacturing/${w.id}`,
         inDate: w.completedAt || "",
         customerName: "— (Manufacturing)",
+        customerMobile: "",
         tailorId: w.tailor,
         tailorName: tailorName(w.tailor),
         garmentType: w.productName,
@@ -179,6 +184,7 @@ export default function TailorPayableDetailsPage() {
     Order: r.orderId,
     "Order Date": fmtDate(r.inDate),
     Customer: r.customerName,
+    Mobile: r.customerMobile,
     Garment: r.garmentType,
     Lining: r.lining,
     Qty: r.qty,
@@ -271,6 +277,7 @@ export default function TailorPayableDetailsPage() {
                   <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
                   {isVisible("orderDate") && <Th sortKey="orderDate" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order Date</Th>}
                   <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  {isVisible("mobile") && <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>}
                   <Th sortKey="tailor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Tailor</Th>
                   {isVisible("garment") && <Th sortKey="garment" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Garment</Th>}
                   {isVisible("lining") && <Th sortKey="lining" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Lining</Th>}
@@ -280,7 +287,7 @@ export default function TailorPayableDetailsPage() {
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td colSpan={3 + ["orderDate", "garment", "lining", "qty"].filter(isVisible).length}>Total</Td>
+                  <Td colSpan={3 + ["orderDate", "mobile", "garment", "lining", "qty"].filter(isVisible).length}>Total</Td>
                   <Td align="right">{inr(grandTotal)}</Td>
                 </ReportTotalsRow>
                 {sortedRows.map((r) => (
@@ -292,6 +299,7 @@ export default function TailorPayableDetailsPage() {
                     </Td>
                     {isVisible("orderDate") && <Td className="text-muted-foreground">{fmtDate(r.inDate)}</Td>}
                     <Td>{r.customerName}</Td>
+                    {isVisible("mobile") && <Td className="text-muted-foreground">{r.customerMobile || "—"}</Td>}
                     <Td className="font-medium">{r.tailorName}</Td>
                     {isVisible("garment") && <Td>{r.garmentType}</Td>}
                     {isVisible("lining") && <Td className="text-muted-foreground">{r.lining}</Td>}
@@ -327,6 +335,7 @@ export default function TailorPayableDetailsPage() {
                     )
                   }
                 />
+                <MobileRecordRow label="Mobile" value={r.customerMobile || "—"} />
                 <MobileRecordRow label="Order Date" value={fmtDate(r.inDate)} />
                 <MobileRecordRow label="Garment" value={`${r.garmentType}${r.lining !== "—" ? ` (${r.lining})` : ""}`} />
                 <MobileRecordRow label="Qty" value={r.qty} />

@@ -19,11 +19,12 @@ import { useTableSort } from "@/hooks/use-table-sort";
 
 type SpeedBucket = "all" | "fast" | "normal" | "slow";
 
-type TimeToGetPaidRow = { id: string; invoiceNumber: string; customerName: string; invoiceDate: string; lastPaymentDate: string; days: number };
+type TimeToGetPaidRow = { id: string; invoiceNumber: string; customerName: string; customerMobile: string; invoiceDate: string; lastPaymentDate: string; days: number };
 
 const SORT_COMPARATORS: Record<string, (a: TimeToGetPaidRow, b: TimeToGetPaidRow) => number> = {
   invoice: (a, b) => a.invoiceNumber.localeCompare(b.invoiceNumber),
   customer: (a, b) => a.customerName.localeCompare(b.customerName),
+  mobile: (a, b) => a.customerMobile.localeCompare(b.customerMobile),
   invoiceDate: (a, b) => a.invoiceDate.localeCompare(b.invoiceDate),
   lastPaymentDate: (a, b) => a.lastPaymentDate.localeCompare(b.lastPaymentDate),
   days: (a, b) => a.days - b.days,
@@ -82,6 +83,7 @@ export default function TimeToGetPaidPage() {
         id: inv.id,
         invoiceNumber: inv.invoiceNumber,
         customerName: inv.customerName,
+        customerMobile: inv.customerMobile,
         invoiceDate: inv.invoiceDate,
         lastPaymentDate: inv.lastPaymentDate as string,
         paymentStatus: inv.paymentStatus,
@@ -104,7 +106,7 @@ export default function TimeToGetPaidPage() {
       description="Days between invoice date and the payment that fully settled it."
       actions={
         <ReportActionsMenu
-          rows={sortedRows.map((r) => ({ Invoice: r.invoiceNumber, Customer: r.customerName, "Invoice Date": r.invoiceDate, "Last Payment": r.lastPaymentDate, "Days to Pay": r.days }))}
+          rows={sortedRows.map((r) => ({ Invoice: r.invoiceNumber, Customer: r.customerName, Mobile: r.customerMobile, "Invoice Date": r.invoiceDate, "Last Payment": r.lastPaymentDate, "Days to Pay": r.days }))}
           filename="time-to-get-paid"
           title="Time to Get Paid"
           summaryLines={[`Invoices: ${rows.length}`, `Avg days to get paid: ${avgDays != null ? `${avgDays}d` : "—"}`]}
@@ -135,6 +137,7 @@ export default function TimeToGetPaidPage() {
                 <tr>
                   <Th sortKey="invoice" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Invoice</Th>
                   <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
                   <Th sortKey="invoiceDate" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Invoice Date</Th>
                   <Th sortKey="lastPaymentDate" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Last Payment</Th>
                   <Th align="right" sortKey="days" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Days to Pay</Th>
@@ -142,7 +145,7 @@ export default function TimeToGetPaidPage() {
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td colSpan={4}>Average ({rows.length} invoice{rows.length === 1 ? "" : "s"})</Td>
+                  <Td colSpan={5}>Average ({rows.length} invoice{rows.length === 1 ? "" : "s"})</Td>
                   <Td align="right">{avgDays != null ? `${avgDays}d` : "—"}</Td>
                 </ReportTotalsRow>
                 {sortedRows.map((r) => (
@@ -153,6 +156,7 @@ export default function TimeToGetPaidPage() {
                       </Link>
                     </Td>
                     <Td>{r.customerName}</Td>
+                    <Td className="text-muted-foreground">{r.customerMobile}</Td>
                     <Td className="text-muted-foreground">{fmtDate(r.invoiceDate)}</Td>
                     <Td className="text-muted-foreground">{fmtDate(r.lastPaymentDate)}</Td>
                     <Td align="right" className={r.days <= 7 ? "text-emerald-600 dark:text-emerald-400" : r.days <= 30 ? "" : "text-red-600 dark:text-red-400"}>
@@ -175,6 +179,7 @@ export default function TimeToGetPaidPage() {
                   value={`${r.days}d`}
                   valueClassName={r.days <= 7 ? "text-emerald-600 dark:text-emerald-400" : r.days <= 30 ? "" : "text-red-600 dark:text-red-400"}
                 />
+                <MobileRecordRow label="Mobile" value={r.customerMobile} />
                 <MobileRecordRow label="Invoice Date" value={fmtDate(r.invoiceDate)} />
                 <MobileRecordRow label="Last Payment" value={fmtDate(r.lastPaymentDate)} />
               </MobileRecordCard>

@@ -6,7 +6,7 @@ import { useReportsData } from "@/hooks/use-reports-data";
 import { getCustomerLifetime } from "@/lib/analytics";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
-import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,6 +27,7 @@ type CustomerLifetimeRow = {
 
 const SORT_COMPARATORS: Record<string, (a: CustomerLifetimeRow, b: CustomerLifetimeRow) => number> = {
   customer: (a, b) => a.name.localeCompare(b.name),
+  mobile: (a, b) => a.mobile.localeCompare(b.mobile),
   orders: (a, b) => a.totalOrders - b.totalOrders,
   spent: (a, b) => a.totalSpent - b.totalSpent,
   avgOrder: (a, b) => a.avgOrder - b.avgOrder,
@@ -122,6 +123,7 @@ export default function CustomerLifetimePage() {
               <thead className="border-b bg-muted/40">
                 <tr>
                   <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
                   <Th align="right" sortKey="orders" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Orders</Th>
                   <Th align="right" sortKey="spent" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Spent</Th>
                   <Th align="right" sortKey="avgOrder" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Avg order</Th>
@@ -131,7 +133,7 @@ export default function CustomerLifetimePage() {
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td>Total</Td>
+                  <Td colSpan={2}>Total</Td>
                   <Td align="right">{clvData.reduce((s, c) => s + c.totalOrders, 0)}</Td>
                   <Td align="right">{inr(clvData.reduce((s, c) => s + c.totalSpent, 0))}</Td>
                   <Td align="right">—</Td>
@@ -142,8 +144,8 @@ export default function CustomerLifetimePage() {
                   <tr key={c.mobile} className="hover:bg-muted/30">
                     <Td>
                       <p className="truncate font-medium">{c.name}</p>
-                      <p className="text-xs text-muted-foreground">{c.mobile}</p>
                     </Td>
+                    <Td className="text-muted-foreground">{c.mobile}</Td>
                     <Td align="right">{c.totalOrders}</Td>
                     <Td align="right">{inr(c.totalSpent)}</Td>
                     <Td align="right">{inr(c.avgOrder)}</Td>
@@ -169,7 +171,8 @@ export default function CustomerLifetimePage() {
             </MobileRecordCard>
             {sortedClvData.map((c) => (
               <MobileRecordCard key={c.mobile}>
-                <MobileRecordHeader title={c.name} subtitle={c.mobile} value={c.clvScore} showChevron={false} />
+                <MobileRecordHeader title={c.name} value={c.clvScore} showChevron={false} />
+                <MobileRecordRow label="Mobile" value={c.mobile} />
                 <MobileRecordGrid
                   items={[
                     { label: "Orders", value: c.totalOrders },

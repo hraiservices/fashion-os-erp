@@ -22,6 +22,7 @@ const MONTHS_THRESHOLD = 6;
 
 const SORT_COMPARATORS: Record<string, (a: ReorderCandidateRow, b: ReorderCandidateRow) => number> = {
   customer: (a, b) => a.name.localeCompare(b.name),
+  mobile: (a, b) => a.mobile.localeCompare(b.mobile),
   lastOrder: (a, b) => a.lastOrderDate.localeCompare(b.lastOrderDate),
   monthsSince: (a, b) => a.monthsSince - b.monthsSince,
   totalOrders: (a, b) => a.orders.length - b.orders.length,
@@ -105,7 +106,8 @@ export default function ReorderCandidatesPage() {
             </MobileRecordCard>
             {sortedRows.map((c) => (
               <MobileRecordCard key={c.mobile}>
-                <MobileRecordHeader title={c.name} subtitle={c.mobile} value={`${c.monthsSince}mo`} valueClassName={c.monthsSince >= 12 ? "font-medium text-destructive" : undefined} showChevron={false} />
+                <MobileRecordHeader title={c.name} value={`${c.monthsSince}mo`} valueClassName={c.monthsSince >= 12 ? "font-medium text-destructive" : undefined} showChevron={false} />
+                <MobileRecordRow label="Mobile" value={c.mobile} />
                 <MobileRecordRow label="Last order" value={fmtDate(c.lastOrderDate)} />
                 <MobileRecordRow label="Total orders" value={c.orders.length} />
                 <div className="flex justify-end border-t pt-1.5">
@@ -120,6 +122,7 @@ export default function ReorderCandidatesPage() {
               <thead className="border-b bg-muted/40">
                 <tr>
                   <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
                   <Th sortKey="lastOrder" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Last order</Th>
                   <Th align="right" sortKey="monthsSince" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Months since</Th>
                   <Th align="right" sortKey="totalOrders" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Total orders</Th>
@@ -128,7 +131,7 @@ export default function ReorderCandidatesPage() {
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td colSpan={3}>{reorderCandidates.length} customer{reorderCandidates.length === 1 ? "" : "s"}</Td>
+                  <Td colSpan={4}>{reorderCandidates.length} customer{reorderCandidates.length === 1 ? "" : "s"}</Td>
                   <Td align="right">{reorderCandidates.reduce((s, c) => s + c.orders.length, 0)}</Td>
                   <Td align="right">—</Td>
                 </ReportTotalsRow>
@@ -136,8 +139,8 @@ export default function ReorderCandidatesPage() {
                   <tr key={c.mobile} className="hover:bg-muted/30">
                     <Td>
                       <p className="truncate font-medium">{c.name}</p>
-                      <p className="text-xs text-muted-foreground">{c.mobile}</p>
                     </Td>
+                    <Td className="text-muted-foreground">{c.mobile}</Td>
                     <Td>{fmtDate(c.lastOrderDate)}</Td>
                     <Td align="right" className={c.monthsSince >= 12 ? "font-medium text-destructive" : undefined}>
                       {c.monthsSince}mo

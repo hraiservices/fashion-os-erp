@@ -111,6 +111,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/ready-uncollected", label: "Ready & Uncollected" },
     { href: "/reports/today-deliverables", label: "Today Deliverables" },
     { href: "/reports/rework-rate", label: "Rework Rate" },
+    { href: "/reports/rework-instances", label: "Rework Report" },
     { href: "/reports/deposit-compliance", label: "Deposit Compliance" },
     { href: "/reports/order-profitability", label: "Order Profitability", adminOnly: true },
     { href: "/reports/booking-sources", label: "Booking Sources" },

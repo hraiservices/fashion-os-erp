@@ -24,6 +24,7 @@ import { useRowSelection } from "@/hooks/use-row-selection";
 import { KanbanBoard } from "@/components/orders/kanban-board";
 import { OrdersList } from "@/components/orders/orders-list";
 import { OrderFilters, EMPTY_FILTERS, type FilterState } from "@/components/orders/order-filters";
+import { OrderStatusCards } from "@/components/orders/order-status-cards";
 import { PaymentModal } from "@/components/orders/payment-modal";
 import type { Order } from "@/lib/types";
 import { PageHeader } from "@/components/ui/page-header";
@@ -433,6 +434,8 @@ function OrdersContent() {
           </>
         }
       />
+
+      {orders && <OrderStatusCards orders={orders} />}
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">

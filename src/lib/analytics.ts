@@ -660,6 +660,46 @@ export function getOverdueInProduction(orders: Order[]): OverdueInProductionRow[
     .sort((a, b) => b.daysLate - a.daysLate);
 }
 
+export interface OrderStatusCounts {
+  dueToday: number;
+  overdue: number;
+  received: number;
+  cutting: number;
+  stitching: number;
+  finishing: number;
+  ready: number;
+  delivered: number;
+}
+
+/** Powers the small clickable stage/due-date count cards (dashboard widget + top of Orders
+ *  list). "Due today" mirrors computeTodaySnapshot()'s definition (delivery date is today,
+ *  not yet delivered/paid off) and "overdue" mirrors getOverdueInProduction() above — reusing
+ *  both definitions rather than inventing a third notion of "today"/"late". Stage counts are a
+ *  live snapshot of the whole pipeline (no date restriction), one bucket per STAGES entry minus
+ *  "payment" (folded into "delivered" for this glance-level view). */
+export function getOrderStatusCounts(orders: Order[]): OrderStatusCounts {
+  let dueToday = 0;
+  let received = 0;
+  let cutting = 0;
+  let stitching = 0;
+  let finishing = 0;
+  let ready = 0;
+  let delivered = 0;
+
+  for (const o of orders) {
+    if (o.status === "delivered" || o.status === "payment") delivered++;
+    else if (o.status === "received") received++;
+    else if (o.status === "cutting") cutting++;
+    else if (o.status === "stitching") stitching++;
+    else if (o.status === "finishing") finishing++;
+    else if (o.status === "ready") ready++;
+
+    if (o.status !== "delivered" && o.status !== "payment" && o.deliveryDate && daysLeft(o.deliveryDate) === 0) dueToday++;
+  }
+
+  return { dueToday, overdue: getOverdueInProduction(orders).length, received, cutting, stitching, finishing, ready, delivered };
+}
+
 export interface ReworkRateRow {
   tailor: string;
   totalOrders: number;

@@ -1,29 +1,37 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Package } from "lucide-react";
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders";
 import { inr } from "@/lib/format";
-import { purchaseItemId, purchaseItemName } from "@/lib/purchases";
+import { purchaseItemId, purchaseItemName, purchaseItemType, type PurchaseItemType } from "@/lib/purchases";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+
+const ITEM_TYPE_LABELS: Record<PurchaseItemType, string> = { raw_material: "Raw Material", product: "Finished Product" };
 
 export default function PurchaseOrderByItemPage() {
   const { data: orders, isLoading } = usePurchaseOrders();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  // Items aren't tagged with a free-form category anywhere yet, so raw material vs finished
+  // product (the one classification every purchase line already carries) is the best-fit
+  // "category" dimension here.
+  const [itemType, setItemType] = useState<"all" | PurchaseItemType>("all");
 
   const rows = useMemo(() => {
-    const map = new Map<string, { itemName: string; unitName: string; qty: number; amount: number; poCount: number }>();
+    const map = new Map<string, { itemName: string; unitName: string; itemType: PurchaseItemType; qty: number; amount: number; poCount: number }>();
     (orders || []).filter((po) => isWithinDateRange(po.date, range)).forEach((po) => {
       po.items.forEach((item) => {
         const id = purchaseItemId(item);
         if (!id) return;
-        const row = map.get(id) || { itemName: purchaseItemName(item), unitName: item.unitName, qty: 0, amount: 0, poCount: 0 };
+        if (itemType !== "all" && purchaseItemType(item) !== itemType) return;
+        const row = map.get(id) || { itemName: purchaseItemName(item), unitName: item.unitName, itemType: purchaseItemType(item), qty: 0, amount: 0, poCount: 0 };
         row.qty += item.qty;
         row.amount += item.amount;
         row.poCount += 1;
@@ -31,7 +39,7 @@ export default function PurchaseOrderByItemPage() {
       });
     });
     return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
-  }, [orders, range]);
+  }, [orders, range, itemType]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -55,6 +63,18 @@ export default function PurchaseOrderByItemPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <Select value={itemType} onValueChange={(v) => v && setItemType(v as "all" | PurchaseItemType)}>
+            <SelectTrigger className="h-9 w-44">
+              <SelectValue>{itemType === "all" ? "All Categories" : ITEM_TYPE_LABELS[itemType]}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="raw_material">{ITEM_TYPE_LABELS.raw_material}</SelectItem>
+              <SelectItem value="product">{ITEM_TYPE_LABELS.product}</SelectItem>
+            </SelectContent>
+          </Select>
+        }
       />
 
       {rows.length === 0 ? (

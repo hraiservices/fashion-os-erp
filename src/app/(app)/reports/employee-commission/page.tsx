@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { UserCog } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
 import { useOrders } from "@/hooks/use-orders";
@@ -11,6 +11,7 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 
@@ -19,15 +20,19 @@ export default function EmployeeCommissionReportPage() {
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const isLoading = employeesLoading || ordersLoading;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [employeeFilter, setEmployeeFilter] = useState("all");
 
   const filteredOrders = useMemo(() => (orders || []).filter((o) => isWithinDateRange(o.inDate, range)), [orders, range]);
 
+  const commissionEmployees = useMemo(() => (employees || []).filter((e) => e.commissionType !== "none"), [employees]);
+  const employeeNames = useMemo(() => Array.from(new Set(commissionEmployees.map((e) => e.name))).sort(), [commissionEmployees]);
+
   const rows = useMemo(() => {
-    return (employees || [])
-      .filter((e) => e.commissionType !== "none")
+    return commissionEmployees
+      .filter((e) => employeeFilter === "all" || e.name === employeeFilter)
       .map((e) => ({ employee: e, ...computeCommission(e, filteredOrders) }))
       .sort((a, b) => b.commission - a.commission);
-  }, [employees, filteredOrders]);
+  }, [commissionEmployees, filteredOrders, employeeFilter]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -51,6 +56,21 @@ export default function EmployeeCommissionReportPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <Select value={employeeFilter} onValueChange={(v) => v && setEmployeeFilter(v)}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{employeeFilter === "all" ? "All Employees" : employeeFilter}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Employees</SelectItem>
+              {employeeNames.map((name) => (
+                <SelectItem key={name} value={name}>
+                  {name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {rows.length === 0 ? (

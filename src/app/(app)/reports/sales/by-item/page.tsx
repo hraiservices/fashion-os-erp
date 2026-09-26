@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ShoppingBag, Info } from "lucide-react";
 import Link from "next/link";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
@@ -12,16 +12,23 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 /** Product-only — stitching orders aren't broken down by product/item, only by garment type (see Garment Analysis). */
 export default function SalesByItemPage() {
   const { data: invoices, isLoading } = useSalesInvoices();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [product, setProduct] = useState("all");
+
+  const products = useMemo(() => {
+    const set = new Set((invoices || []).flatMap((inv) => inv.items.map((i) => i.productName)).filter(Boolean));
+    return Array.from(set).sort();
+  }, [invoices]);
 
   const rows = useMemo(() => {
     const map = new Map<string, { productId: string; productName: string; qty: number; revenue: number; orders: number }>();
     (invoices || []).filter((inv) => isWithinDateRange(inv.invoiceDate, range)).forEach((inv) => {
-      inv.items.forEach((item) => {
+      inv.items.filter((item) => product === "all" || item.productName === product).forEach((item) => {
         const row = map.get(item.productId) || { productId: item.productId, productName: item.productName, qty: 0, revenue: 0, orders: 0 };
         row.qty += item.qty;
         row.revenue += item.amount;
@@ -30,7 +37,7 @@ export default function SalesByItemPage() {
       });
     });
     return Array.from(map.values()).sort((a, b) => b.revenue - a.revenue);
-  }, [invoices, range]);
+  }, [invoices, range, product]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -66,6 +73,21 @@ export default function SalesByItemPage() {
         customTo={customTo}
         onCustomToChange={setCustomTo}
         resultLabel={`${rows.length} product${rows.length === 1 ? "" : "s"}`}
+        category={
+          <Select value={product} onValueChange={(v) => v && setProduct(v)}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{product === "all" ? "All Products" : product}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Products</SelectItem>
+              {products.map((p) => (
+                <SelectItem key={p} value={p}>
+                  {p}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {rows.length === 0 ? (

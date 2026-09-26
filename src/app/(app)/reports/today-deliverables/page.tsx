@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CalendarCheck2 } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
@@ -28,8 +29,17 @@ export default function TodayDeliverablesPage() {
   const { orders, isLoading } = useReportsData();
   const { data: shop } = useShopSettings();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange("today");
+  const [status, setStatus] = useState("all");
 
-  const { due, overdue } = useMemo(() => getTodayDeliverables(orders, range), [orders, range]);
+  const { due: allDue, overdue: allOverdue } = useMemo(() => getTodayDeliverables(orders, range), [orders, range]);
+
+  const statuses = useMemo(() => {
+    const set = new Set([...allDue, ...allOverdue].map((o) => o.status).filter(Boolean));
+    return Array.from(set).sort();
+  }, [allDue, allOverdue]);
+
+  const due = useMemo(() => (status === "all" ? allDue : allDue.filter((o) => o.status === status)), [allDue, status]);
+  const overdue = useMemo(() => (status === "all" ? allOverdue : allOverdue.filter((o) => o.status === status)), [allOverdue, status]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -101,6 +111,21 @@ export default function TodayDeliverablesPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <Select value={status} onValueChange={(v) => v && setStatus(v)}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{status === "all" ? "All Statuses" : status}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              {statuses.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {overdue.length > 0 && (

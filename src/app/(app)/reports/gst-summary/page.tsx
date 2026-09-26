@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Receipt, FileWarning } from "lucide-react";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { GST_TYPE_LABELS, type GstType } from "@/lib/gst";
@@ -12,6 +12,7 @@ import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from 
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
 
 interface RateGroup {
@@ -28,13 +29,17 @@ interface RateGroup {
 export default function GstSummaryReportPage() {
   const { data: invoices, isLoading } = useSalesInvoices();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange("this-month");
+  const [gstType, setGstType] = useState<GstType | "all">("all");
 
   // Drafts are not issued documents and carry no tax liability; credit notes reverse tax on a
   // sale that was refunded. Including drafts and ignoring credits overstated output tax on the
   // report used to file GSTR-1. Matches getCombinedMonthly's treatment (src/lib/combined-reports.ts).
   const monthInvoices = useMemo(
-    () => (invoices || []).filter((i) => isWithinDateRange(i.invoiceDate, range) && i.docStatus !== "draft"),
-    [invoices, range]
+    () =>
+      (invoices || [])
+        .filter((i) => isWithinDateRange(i.invoiceDate, range) && i.docStatus !== "draft")
+        .filter((i) => gstType === "all" || i.gstType === gstType),
+    [invoices, range, gstType]
   );
 
   const groups = useMemo(() => {
@@ -91,7 +96,29 @@ export default function GstSummaryReportPage() {
         />
       }
     >
-      <ReportFilterBar preset={preset} onPresetChange={setPreset} customFrom={customFrom} onCustomFromChange={setCustomFrom} customTo={customTo} onCustomToChange={setCustomTo} />
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+        category={
+          <Select value={gstType} onValueChange={(v) => v && setGstType(v as GstType | "all")}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{gstType === "all" ? "All GST Types" : GST_TYPE_LABELS[gstType]}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All GST Types</SelectItem>
+              {(Object.keys(GST_TYPE_LABELS) as GstType[]).map((t) => (
+                <SelectItem key={t} value={t}>
+                  {GST_TYPE_LABELS[t]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+      />
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
         <div className="flex gap-2">

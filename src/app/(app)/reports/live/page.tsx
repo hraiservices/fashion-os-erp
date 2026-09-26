@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Radio, PackageCheck, Wallet } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
@@ -15,10 +15,12 @@ import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { StageBadge } from "@/components/orders/stage-badge";
+import type { Stage } from "@/lib/business-rules";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
@@ -56,8 +58,15 @@ export default function LiveReportPage() {
   const isVisible = columnTable.isVisible;
 
   const inRange = useMemo(() => orders.filter((o) => isWithinDateRange(o.inDate, range)), [orders, range]);
-  const readyUncollected = useMemo(() => getReadyUncollected(inRange), [inRange]);
-  const deliveredUnpaid = useMemo(() => getDeliveredUnpaid(inRange), [inRange]);
+  const allReadyUncollected = useMemo(() => getReadyUncollected(inRange), [inRange]);
+  const allDeliveredUnpaid = useMemo(() => getDeliveredUnpaid(inRange), [inRange]);
+  const [stage, setStage] = useState<Stage | "all">("all");
+  const stages = useMemo(
+    () => Array.from(new Set([...allReadyUncollected.map((o) => o.status), ...allDeliveredUnpaid.map((o) => o.status)])),
+    [allReadyUncollected, allDeliveredUnpaid]
+  );
+  const readyUncollected = useMemo(() => (stage === "all" ? allReadyUncollected : allReadyUncollected.filter((o) => o.status === stage)), [allReadyUncollected, stage]);
+  const deliveredUnpaid = useMemo(() => (stage === "all" ? allDeliveredUnpaid : allDeliveredUnpaid.filter((o) => o.status === stage)), [allDeliveredUnpaid, stage]);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -90,6 +99,21 @@ export default function LiveReportPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <Select value={stage} onValueChange={(v) => v && setStage(v as Stage | "all")}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{stage === "all" ? "All Stages" : <StageBadge stage={stage} size="sm" />}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Stages</SelectItem>
+              {stages.map((s) => (
+                <SelectItem key={s} value={s}>
+                  <StageBadge stage={s} size="sm" />
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       <div className="flex flex-wrap items-center justify-between gap-2">

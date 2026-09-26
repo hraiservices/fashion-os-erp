@@ -11,6 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type MonthStatRow = ReturnType<typeof getPaymentStats>[number];
 
 type PaymentStatus = "all" | "paid" | "partial" | "unpaid";
 const STATUS_OPTIONS: { value: PaymentStatus; label: string }[] = [
@@ -38,6 +41,23 @@ export default function PaymentCollectionPage() {
     return getPaymentStats(filtered);
   }, [orders, range, status]);
 
+  const sortComparators: Record<string, (a: MonthStatRow, b: MonthStatRow) => number> = {
+    month: (a, b) => a.month.localeCompare(b.month),
+    count: (a, b) => a.count - b.count,
+    billed: (a, b) => a.billed - b.billed,
+    collected: (a, b) => a.collected - b.collected,
+    collectionPct: (a, b) => a.collectionPct - b.collectionPct,
+    fullyPaid: (a, b) => a.fullyPaid - b.fullyPaid,
+    partPaid: (a, b) => a.partPaid - b.partPaid,
+    unpaid: (a, b) => a.unpaid - b.unpaid,
+  };
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<MonthStatRow>(
+    "payment-collection",
+    sortComparators,
+    new Set(["count", "billed", "collected", "collectionPct", "fullyPaid", "partPaid", "unpaid"])
+  );
+  const sortedStats = applySort(paymentStats);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   const totals = paymentStats.reduce(
@@ -59,7 +79,7 @@ export default function PaymentCollectionPage() {
       description="Stitching orders only — how much of what you billed actually came in, month by month. For both revenue streams combined, see Combined P&L."
       actions={
         <ReportActionsMenu
-          rows={paymentStats.map((m) => ({ Month: m.label, Orders: m.count, Billed: m.billed, Collected: m.collected, "Collection %": `${m.collectionPct}%`, Paid: m.fullyPaid, Partial: m.partPaid, Unpaid: m.unpaid }))}
+          rows={sortedStats.map((m) => ({ Month: m.label, Orders: m.count, Billed: m.billed, Collected: m.collected, "Collection %": `${m.collectionPct}%`, Paid: m.fullyPaid, Partial: m.partPaid, Unpaid: m.unpaid }))}
           filename="payment-collection"
           title="Stitching Payment Collection"
           summaryLines={[`Total billed: ${inr(totals.billed)}`, `Total collected: ${inr(totals.collected)} (${collectionPct}%)`]}
@@ -107,7 +127,7 @@ export default function PaymentCollectionPage() {
             ]}
           />
         </MobileRecordCard>
-        {paymentStats.map((m) => (
+        {sortedStats.map((m) => (
           <MobileRecordCard key={m.month}>
             <MobileRecordHeader title={m.label} value={inr(m.billed)} showChevron={false} />
             <MobileRecordGrid
@@ -128,14 +148,14 @@ export default function PaymentCollectionPage() {
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
-              <Th>Month</Th>
-              <Th align="right">Orders</Th>
-              <Th align="right">Billed</Th>
-              <Th align="right">Collected</Th>
-              <Th>Collection</Th>
-              <Th align="right">Paid</Th>
-              <Th align="right">Partial</Th>
-              <Th align="right">Unpaid</Th>
+              <Th sortKey="month" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Month</Th>
+              <Th align="right" sortKey="count" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Orders</Th>
+              <Th align="right" sortKey="billed" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Billed</Th>
+              <Th align="right" sortKey="collected" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Collected</Th>
+              <Th sortKey="collectionPct" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Collection</Th>
+              <Th align="right" sortKey="fullyPaid" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Paid</Th>
+              <Th align="right" sortKey="partPaid" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Partial</Th>
+              <Th align="right" sortKey="unpaid" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Unpaid</Th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -149,7 +169,7 @@ export default function PaymentCollectionPage() {
               <Td align="right">{totals.partPaid}</Td>
               <Td align="right">{totals.unpaid}</Td>
             </ReportTotalsRow>
-            {paymentStats.map((m) => (
+            {sortedStats.map((m) => (
               <tr key={m.month} className="hover:bg-muted/30">
                 <Td className="font-medium">{m.label}</Td>
                 <Td align="right">{m.count}</Td>

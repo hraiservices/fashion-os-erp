@@ -17,6 +17,9 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGri
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type PayrollRow = { payslip: import("@/lib/types").Payslip; run: import("@/lib/types").PayrollRun | undefined };
 
 const PAYROLL_SUMMARY_COLUMNS = [
   { key: "period", label: "Period", required: true },
@@ -71,6 +74,22 @@ export default function PayrollSummaryReportPage() {
     { gross: 0, deductions: 0, net: 0 }
   );
 
+  const sortComparators: Record<string, (a: PayrollRow, b: PayrollRow) => number> = {
+    period: (a, b) => (a.run?.periodStart || "").localeCompare(b.run?.periodStart || ""),
+    employee: (a, b) => employeeName(a.payslip.employeeId).localeCompare(employeeName(b.payslip.employeeId)),
+    gross: (a, b) => a.payslip.grossPay - b.payslip.grossPay,
+    overtime: (a, b) => a.payslip.overtimePay - b.payslip.overtimePay,
+    deductions: (a, b) => a.payslip.deductions - b.payslip.deductions,
+    netPay: (a, b) => a.payslip.netPay - b.payslip.netPay,
+    status: (a, b) => a.payslip.status.localeCompare(b.payslip.status),
+  };
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<PayrollRow>(
+    "payroll-summary",
+    sortComparators,
+    new Set(["gross", "overtime", "deductions", "netPay"])
+  );
+  const sortedRows = applySort(rows);
+
   if (!canManagePayroll) {
     return (
       <div className="p-4 sm:p-6">
@@ -87,7 +106,7 @@ export default function PayrollSummaryReportPage() {
       description={`${rows.length} payslips across ${runs?.length || 0} payroll runs · Total net paid ${inr(totals.net)}`}
       actions={
         <ReportActionsMenu
-          rows={rows.map((r) => ({
+          rows={sortedRows.map((r) => ({
             Period: `${fmtDate(r.run!.periodStart)} – ${fmtDate(r.run!.periodEnd)}`,
             Employee: employeeName(r.payslip.employeeId),
             Gross: r.payslip.grossPay,
@@ -139,7 +158,7 @@ export default function PayrollSummaryReportPage() {
                 ]}
               />
             </MobileRecordCard>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <MobileRecordCard key={r.payslip.id}>
                 <MobileRecordHeader
                   title={employeeName(r.payslip.employeeId)}
@@ -171,13 +190,13 @@ export default function PayrollSummaryReportPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Period</Th>
-                  <Th>Employee</Th>
-                  <Th align="right">Gross</Th>
-                  {isVisible("overtime") && <Th align="right">Overtime</Th>}
-                  <Th align="right">Deductions</Th>
-                  <Th align="right">Net Pay</Th>
-                  <Th align="right">Status</Th>
+                  <Th sortKey="period" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Period</Th>
+                  <Th sortKey="employee" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Employee</Th>
+                  <Th align="right" sortKey="gross" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Gross</Th>
+                  {isVisible("overtime") && <Th align="right" sortKey="overtime" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Overtime</Th>}
+                  <Th align="right" sortKey="deductions" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Deductions</Th>
+                  <Th align="right" sortKey="netPay" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Net Pay</Th>
+                  <Th align="right" sortKey="status" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Status</Th>
                   <Th />
                 </tr>
               </thead>
@@ -191,7 +210,7 @@ export default function PayrollSummaryReportPage() {
                   <Td align="right">—</Td>
                   <Td />
                 </ReportTotalsRow>
-                {rows.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.payslip.id} className="border-b last:border-0">
                     <Td>
                       {fmtDate(r.run!.periodStart)} – {fmtDate(r.run!.periodEnd)}

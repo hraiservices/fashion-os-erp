@@ -13,6 +13,27 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { cn } from "@/lib/utils";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type CustomerLifetimeRow = {
+  name: string;
+  mobile: string;
+  totalOrders: number;
+  totalSpent: number;
+  avgOrder: number;
+  monthsActive: number;
+  clvScore: number;
+};
+
+const SORT_COMPARATORS: Record<string, (a: CustomerLifetimeRow, b: CustomerLifetimeRow) => number> = {
+  customer: (a, b) => a.name.localeCompare(b.name),
+  orders: (a, b) => a.totalOrders - b.totalOrders,
+  spent: (a, b) => a.totalSpent - b.totalSpent,
+  avgOrder: (a, b) => a.avgOrder - b.avgOrder,
+  months: (a, b) => a.monthsActive - b.monthsActive,
+  clvScore: (a, b) => a.clvScore - b.clvScore,
+};
+const SORT_DESC_KEYS = new Set(["orders", "spent", "avgOrder", "months", "clvScore"]);
 
 type SegmentFilter = "all" | "repeat" | "one-time";
 const SEGMENT_FILTERS: { value: SegmentFilter; label: string }[] = [
@@ -56,6 +77,9 @@ export default function CustomerLifetimePage() {
     [clvDataAll, segment]
   );
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<CustomerLifetimeRow>("customer-lifetime", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedClvData = applySort(clvData);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   return (
@@ -64,7 +88,7 @@ export default function CustomerLifetimePage() {
       description="Ranked by lifetime value (repeat customers weighted higher)"
       actions={
         <ReportActionsMenu
-          rows={clvData.map((c) => ({
+          rows={sortedClvData.map((c) => ({
             Name: c.name,
             Mobile: c.mobile,
             Orders: c.totalOrders,
@@ -97,12 +121,12 @@ export default function CustomerLifetimePage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Customer</Th>
-                  <Th align="right">Orders</Th>
-                  <Th align="right">Spent</Th>
-                  <Th align="right">Avg order</Th>
-                  <Th align="right">Months</Th>
-                  <Th align="right">CLV score</Th>
+                  <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th align="right" sortKey="orders" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Orders</Th>
+                  <Th align="right" sortKey="spent" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Spent</Th>
+                  <Th align="right" sortKey="avgOrder" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Avg order</Th>
+                  <Th align="right" sortKey="months" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Months</Th>
+                  <Th align="right" sortKey="clvScore" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>CLV score</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -114,7 +138,7 @@ export default function CustomerLifetimePage() {
                   <Td align="right">—</Td>
                   <Td align="right">—</Td>
                 </ReportTotalsRow>
-                {clvData.map((c) => (
+                {sortedClvData.map((c) => (
                   <tr key={c.mobile} className="hover:bg-muted/30">
                     <Td>
                       <p className="truncate font-medium">{c.name}</p>
@@ -143,7 +167,7 @@ export default function CustomerLifetimePage() {
                 ]}
               />
             </MobileRecordCard>
-            {clvData.map((c) => (
+            {sortedClvData.map((c) => (
               <MobileRecordCard key={c.mobile}>
                 <MobileRecordHeader title={c.name} subtitle={c.mobile} value={c.clvScore} showChevron={false} />
                 <MobileRecordGrid

@@ -5,7 +5,7 @@ import { UserX } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { buildReorderReminderUrl } from "@/lib/business-rules";
-import { getReorderCandidates } from "@/lib/analytics";
+import { getReorderCandidates, type ReorderCandidateRow } from "@/lib/analytics";
 import { fmtDate } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
@@ -16,8 +16,17 @@ import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTableSort } from "@/hooks/use-table-sort";
 
 const MONTHS_THRESHOLD = 6;
+
+const SORT_COMPARATORS: Record<string, (a: ReorderCandidateRow, b: ReorderCandidateRow) => number> = {
+  customer: (a, b) => a.name.localeCompare(b.name),
+  lastOrder: (a, b) => a.lastOrderDate.localeCompare(b.lastOrderDate),
+  monthsSince: (a, b) => a.monthsSince - b.monthsSince,
+  totalOrders: (a, b) => a.orders.length - b.orders.length,
+};
+const SORT_DESC_KEYS = new Set(["monthsSince", "totalOrders"]);
 
 /** Customers whose last stitching order is 6+ months old — a staff-review nudge list, no
  *  auto-send (see src/lib/analytics.ts getReorderCandidates). Stays populated until the
@@ -40,6 +49,9 @@ export default function ReorderCandidatesPage() {
     [allReorderCandidates, garmentType]
   );
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<ReorderCandidateRow>("reorder-candidates", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(reorderCandidates);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   return (
@@ -48,7 +60,7 @@ export default function ReorderCandidatesPage() {
       description={`${reorderCandidates.length} customer(s) with no order in ${MONTHS_THRESHOLD}+ months`}
       actions={
         <ReportActionsMenu
-          rows={reorderCandidates.map((c) => ({ Customer: c.name, Mobile: c.mobile, "Last Order": fmtDate(c.lastOrderDate), "Months Since": c.monthsSince, "Total Orders": c.orders.length }))}
+          rows={sortedRows.map((c) => ({ Customer: c.name, Mobile: c.mobile, "Last Order": fmtDate(c.lastOrderDate), "Months Since": c.monthsSince, "Total Orders": c.orders.length }))}
           filename="reorder-candidates"
           title="Reorder Candidates"
           summaryLines={[`Customers: ${reorderCandidates.length}`]}
@@ -91,7 +103,7 @@ export default function ReorderCandidatesPage() {
                 showChevron={false}
               />
             </MobileRecordCard>
-            {reorderCandidates.map((c) => (
+            {sortedRows.map((c) => (
               <MobileRecordCard key={c.mobile}>
                 <MobileRecordHeader title={c.name} subtitle={c.mobile} value={`${c.monthsSince}mo`} valueClassName={c.monthsSince >= 12 ? "font-medium text-destructive" : undefined} showChevron={false} />
                 <MobileRecordRow label="Last order" value={fmtDate(c.lastOrderDate)} />
@@ -107,10 +119,10 @@ export default function ReorderCandidatesPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Customer</Th>
-                  <Th>Last order</Th>
-                  <Th align="right">Months since</Th>
-                  <Th align="right">Total orders</Th>
+                  <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="lastOrder" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Last order</Th>
+                  <Th align="right" sortKey="monthsSince" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Months since</Th>
+                  <Th align="right" sortKey="totalOrders" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Total orders</Th>
                   <Th align="right">Send reminder</Th>
                 </tr>
               </thead>
@@ -120,7 +132,7 @@ export default function ReorderCandidatesPage() {
                   <Td align="right">{reorderCandidates.reduce((s, c) => s + c.orders.length, 0)}</Td>
                   <Td align="right">—</Td>
                 </ReportTotalsRow>
-                {reorderCandidates.map((c) => (
+                {sortedRows.map((c) => (
                   <tr key={c.mobile} className="hover:bg-muted/30">
                     <Td>
                       <p className="truncate font-medium">{c.name}</p>

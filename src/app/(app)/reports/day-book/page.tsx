@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDayBook } from "@/hooks/use-day-book";
-import { DAY_BOOK_MODULE_ICONS, DAY_BOOK_MODULE_LABELS, fmtTime, type DayBookModule, type TailorStageOrder } from "@/lib/day-book";
+import { DAY_BOOK_MODULE_ICONS, DAY_BOOK_MODULE_LABELS, fmtTime, type DayBookEntry, type DayBookModule, type TailorStageOrder } from "@/lib/day-book";
 import { StageBadge } from "@/components/orders/stage-badge";
 import { inr, fmtDate } from "@/lib/format";
 import { toISODate } from "@/components/ui/date-picker";
@@ -40,6 +40,20 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts";
 import { cn } from "@/lib/utils";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type DayBookRow = DayBookEntry;
+
+const SORT_COMPARATORS: Record<string, (a: DayBookRow, b: DayBookRow) => number> = {
+  time: (a, b) => a.time.localeCompare(b.time),
+  module: (a, b) => a.module.localeCompare(b.module),
+  activity: (a, b) => a.activity.localeCompare(b.activity),
+  details: (a, b) => a.description.localeCompare(b.description),
+  amount: (a, b) => (a.amount ?? 0) - (b.amount ?? 0),
+
+  user: (a, b) => a.user.localeCompare(b.user),
+};
+const SORT_DESC_KEYS = new Set(["amount"]);
 
 function todayISO() {
   return toISODate(new Date());
@@ -120,6 +134,9 @@ export default function DayBookPage() {
     return sortOrder === "desc" ? sorted.reverse() : sorted;
   }, [entries, moduleFilter, userFilter, sortOrder, search, minAmount, maxAmount]);
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<DayBookRow>("day-book", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedFiltered = applySort(filtered);
+
   const moduleCounts = useMemo(() => {
     const counts = new Map<DayBookModule, number>();
     for (const e of entries) counts.set(e.module, (counts.get(e.module) || 0) + 1);
@@ -151,7 +168,7 @@ export default function DayBookPage() {
     );
   }
 
-  const exportRows = filtered.map((e) => ({
+  const exportRows = sortedFiltered.map((e) => ({
     Date: date,
     Time: fmtTime(e.time),
     Module: DAY_BOOK_MODULE_LABELS[e.module],
@@ -344,12 +361,12 @@ export default function DayBookPage() {
                 <ReportTable>
                   <thead className="border-b bg-muted/40">
                     <tr>
-                      <Th>Time</Th>
-                      <Th>Module</Th>
-                      <Th>Activity</Th>
-                      <Th>Details</Th>
-                      <Th align="right">Amount</Th>
-                      <Th>User</Th>
+                      <Th sortKey="time" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Time</Th>
+                      <Th sortKey="module" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Module</Th>
+                      <Th sortKey="activity" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Activity</Th>
+                      <Th sortKey="details" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Details</Th>
+                      <Th align="right" sortKey="amount" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Amount</Th>
+                      <Th sortKey="user" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>User</Th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -358,7 +375,7 @@ export default function DayBookPage() {
                       <Td align="right">{inr(filtered.reduce((s, e) => s + (e.amount || 0), 0))}</Td>
                       <Td />
                     </ReportTotalsRow>
-                    {filtered.map((e) => {
+                    {sortedFiltered.map((e) => {
                       const Icon = DAY_BOOK_MODULE_ICONS[e.module];
                       return (
                         <tr key={e.id} className="hover:bg-muted/30">
@@ -399,7 +416,7 @@ export default function DayBookPage() {
                     showChevron={false}
                   />
                 </MobileRecordCard>
-                {filtered.map((e) => {
+                {sortedFiltered.map((e) => {
                   const Icon = DAY_BOOK_MODULE_ICONS[e.module];
                   return (
                     <MobileRecordCard key={e.id} href={e.referenceHref || undefined}>

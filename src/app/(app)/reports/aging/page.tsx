@@ -21,12 +21,24 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTableSort } from "@/hooks/use-table-sort";
+import type { Order } from "@/lib/types";
 
 const BAND_STYLE: Record<string, string> = {
   Fresh: "bg-muted text-muted-foreground",
   "1-30 days": "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
   "30+ days": "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
 };
+
+type AgingRow = Order & { agingBand: string; daysOver: number };
+
+const SORT_COMPARATORS: Record<string, (a: AgingRow, b: AgingRow) => number> = {
+  order: (a, b) => a.id.localeCompare(b.id),
+  customer: (a, b) => a.name.localeCompare(b.name),
+  aging: (a, b) => a.daysOver - b.daysOver,
+  balance: (a, b) => a.balance - b.balance,
+};
+const SORT_DESC_KEYS = new Set(["aging", "balance"]);
 
 export default function BalanceAgingPage() {
   const router = useRouter();
@@ -39,6 +51,9 @@ export default function BalanceAgingPage() {
   const agingAll = useMemo(() => getAgingList(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
   const aging = useMemo(() => agingAll.filter((o) => band === "all" || o.agingBand === band), [agingAll, band]);
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<AgingRow>("aging", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedAging = applySort(aging);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   const totalDue = aging.reduce((s, o) => s + o.balance, 0);
@@ -49,7 +64,7 @@ export default function BalanceAgingPage() {
       description={aging.length > 0 ? `${inr(totalDue)} outstanding across ${aging.length} orders` : undefined}
       actions={
         <ReportActionsMenu
-          rows={aging.map((o) => ({ Order: o.id, Name: o.name, Mobile: o.mobile, Balance: o.balance, Band: o.agingBand, DaysOverdue: o.daysOver }))}
+          rows={sortedAging.map((o) => ({ Order: o.id, Name: o.name, Mobile: o.mobile, Balance: o.balance, Band: o.agingBand, DaysOverdue: o.daysOver }))}
           filename="balance-aging"
           title="Balance Aging"
           summaryLines={[`Orders: ${aging.length}`, `Total outstanding: ${inr(totalDue)}`]}
@@ -88,10 +103,10 @@ export default function BalanceAgingPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Order</Th>
-                  <Th>Customer</Th>
-                  <Th>Aging</Th>
-                  <Th align="right">Balance</Th>
+                  <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
+                  <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="aging" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Aging</Th>
+                  <Th align="right" sortKey="balance" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Balance</Th>
                   <Th align="right">Actions</Th>
                 </tr>
               </thead>
@@ -101,7 +116,7 @@ export default function BalanceAgingPage() {
                   <Td align="right">{inr(totalDue)}</Td>
                   <Td align="right">—</Td>
                 </ReportTotalsRow>
-                {aging.map((o) => (
+                {sortedAging.map((o) => (
                   <tr key={o.id} className="hover:bg-muted/30">
                     <Td>
                       <Link href={`/orders/${o.id}`} className="font-medium hover:underline">
@@ -134,7 +149,7 @@ export default function BalanceAgingPage() {
             <MobileRecordCard className="bg-muted/40">
               <MobileRecordHeader title="Total" value={inr(totalDue)} showChevron={false} />
             </MobileRecordCard>
-            {aging.map((o) => (
+            {sortedAging.map((o) => (
               // onClick (not href) — the WhatsApp button below renders its own <a>, which can't
               // nest inside this card's anchor.
               <MobileRecordCard key={o.id} onClick={() => router.push(`/orders/${o.id}`)}>

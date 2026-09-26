@@ -16,6 +16,18 @@ import { BalanceDue } from "@/components/ui/money-text";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type SalesByCustomerRow = { customerMobile: string; customerName: string; count: number; billed: number; paid: number; balance: number };
+
+const SORT_COMPARATORS: Record<string, (a: SalesByCustomerRow, b: SalesByCustomerRow) => number> = {
+  customer: (a, b) => a.customerName.localeCompare(b.customerName),
+  transactions: (a, b) => a.count - b.count,
+  billed: (a, b) => a.billed - b.billed,
+  paid: (a, b) => a.paid - b.paid,
+  balance: (a, b) => a.balance - b.balance,
+};
+const SORT_DESC_KEYS = new Set(["transactions", "billed", "paid", "balance"]);
 
 export default function SalesByCustomerPage() {
   const { data: orders, isLoading: l1 } = useOrders();
@@ -38,6 +50,9 @@ export default function SalesByCustomerPage() {
     return Array.from(map.values()).sort((a, b) => b.billed - a.billed);
   }, [orders, invoices, filter, range]);
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<SalesByCustomerRow>("sales-by-customer", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
@@ -46,7 +61,7 @@ export default function SalesByCustomerPage() {
       description="Revenue ranked by customer, combining Stitching Orders and Product Sales."
       actions={
         <ReportActionsMenu
-          rows={rows.map((r) => ({ Customer: r.customerName, Mobile: r.customerMobile, Transactions: r.count, Billed: r.billed, Paid: r.paid, Balance: r.balance }))}
+          rows={sortedRows.map((r) => ({ Customer: r.customerName, Mobile: r.customerMobile, Transactions: r.count, Billed: r.billed, Paid: r.paid, Balance: r.balance }))}
           filename="sales-by-customer"
           title="Sales by Customer"
           summaryLines={[`Customers: ${rows.length}`, `Total billed: ${inr(rows.reduce((s, r) => s + r.billed, 0))}`]}
@@ -74,7 +89,7 @@ export default function SalesByCustomerPage() {
               <MobileRecordRow label="Paid" value={inr(rows.reduce((s, r) => s + r.paid, 0))} valueClassName="text-emerald-600 dark:text-emerald-400" />
               <MobileRecordRow label="Balance" value={inr(rows.reduce((s, r) => s + r.balance, 0))} />
             </MobileRecordCard>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <MobileRecordCard key={r.customerMobile} href={r.customerMobile ? `/crm/${r.customerMobile}` : undefined}>
                 <MobileRecordHeader title={r.customerName} value={inr(r.billed)} />
                 <MobileRecordRow label="Transactions" value={r.count} />
@@ -88,11 +103,11 @@ export default function SalesByCustomerPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Customer</Th>
-                  <Th align="right">Transactions</Th>
-                  <Th align="right">Billed</Th>
-                  <Th align="right">Paid</Th>
-                  <Th align="right">Balance</Th>
+                  <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th align="right" sortKey="transactions" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Transactions</Th>
+                  <Th align="right" sortKey="billed" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Billed</Th>
+                  <Th align="right" sortKey="paid" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Paid</Th>
+                  <Th align="right" sortKey="balance" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Balance</Th>
                   <Th align="right">Actions</Th>
                 </tr>
               </thead>
@@ -105,7 +120,7 @@ export default function SalesByCustomerPage() {
                   <Td align="right">{inr(rows.reduce((s, r) => s + r.balance, 0))}</Td>
                   <Td align="right">—</Td>
                 </ReportTotalsRow>
-                {rows.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.customerMobile} className="hover:bg-muted/30">
                     <Td className="font-medium">{r.customerName}</Td>
                     <Td align="right">{r.count}</Td>

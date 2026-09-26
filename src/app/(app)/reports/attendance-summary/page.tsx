@@ -13,6 +13,44 @@ import { useReportDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type AttendanceRow = {
+  employee: { id: string; name: string };
+  presentDays: number;
+  absentDays: number;
+  halfDays: number;
+  leaveDays: number;
+  markedDays: number;
+  attendancePct: number;
+  hoursWorked: number;
+  overtimeHours: number;
+  flaggedDays: number;
+};
+
+const SORT_COMPARATORS: Record<string, (a: AttendanceRow, b: AttendanceRow) => number> = {
+  employee: (a, b) => a.employee.name.localeCompare(b.employee.name),
+  presentDays: (a, b) => a.presentDays - b.presentDays,
+  absentDays: (a, b) => a.absentDays - b.absentDays,
+  halfDays: (a, b) => a.halfDays - b.halfDays,
+  leaveDays: (a, b) => a.leaveDays - b.leaveDays,
+  markedDays: (a, b) => a.markedDays - b.markedDays,
+  attendancePct: (a, b) => a.attendancePct - b.attendancePct,
+  hoursWorked: (a, b) => a.hoursWorked - b.hoursWorked,
+  overtimeHours: (a, b) => a.overtimeHours - b.overtimeHours,
+  flaggedDays: (a, b) => a.flaggedDays - b.flaggedDays,
+};
+const SORT_DESC_KEYS = new Set([
+  "presentDays",
+  "absentDays",
+  "halfDays",
+  "leaveDays",
+  "markedDays",
+  "attendancePct",
+  "hoursWorked",
+  "overtimeHours",
+  "flaggedDays",
+]);
 
 export default function AttendanceSummaryReportPage() {
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange("this-month");
@@ -39,6 +77,9 @@ export default function AttendanceSummaryReportPage() {
       .sort((a, b) => a.employee.name.localeCompare(b.employee.name));
   }, [employees, attendance, employeeId]);
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<AttendanceRow>("attendance-summary", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   const totals = rows.reduce(
@@ -55,7 +96,7 @@ export default function AttendanceSummaryReportPage() {
     { presentDays: 0, absentDays: 0, halfDays: 0, leaveDays: 0, markedDays: 0, hoursWorked: 0, overtimeHours: 0, flaggedDays: 0 }
   );
 
-  const exportRows = rows.map((r) => ({
+  const exportRows = sortedRows.map((r) => ({
     Employee: r.employee.name,
     Present: r.presentDays,
     Absent: r.absentDays,
@@ -114,16 +155,16 @@ export default function AttendanceSummaryReportPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Employee</Th>
-                  <Th align="right">Present</Th>
-                  <Th align="right">Absent</Th>
-                  <Th align="right">Half Day</Th>
-                  <Th align="right">Leave</Th>
-                  <Th align="right">Days Marked</Th>
-                  <Th align="right">Attendance %</Th>
-                  <Th align="right">Hours Worked</Th>
-                  <Th align="right">Overtime</Th>
-                  <Th align="right">Flagged</Th>
+                  <Th sortKey="employee" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Employee</Th>
+                  <Th align="right" sortKey="presentDays" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Present</Th>
+                  <Th align="right" sortKey="absentDays" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Absent</Th>
+                  <Th align="right" sortKey="halfDays" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Half Day</Th>
+                  <Th align="right" sortKey="leaveDays" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Leave</Th>
+                  <Th align="right" sortKey="markedDays" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Days Marked</Th>
+                  <Th align="right" sortKey="attendancePct" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Attendance %</Th>
+                  <Th align="right" sortKey="hoursWorked" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Hours Worked</Th>
+                  <Th align="right" sortKey="overtimeHours" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Overtime</Th>
+                  <Th align="right" sortKey="flaggedDays" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Flagged</Th>
                 </tr>
               </thead>
               <tbody>
@@ -139,7 +180,7 @@ export default function AttendanceSummaryReportPage() {
                   <Td align="right">{totals.overtimeHours > 0 ? `${totals.overtimeHours}h` : "—"}</Td>
                   <Td align="right">{totals.flaggedDays}</Td>
                 </ReportTotalsRow>
-                {rows.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.employee.id} className="border-b last:border-0">
                     <Td>{r.employee.name}</Td>
                     <Td align="right">{r.presentDays}</Td>
@@ -177,7 +218,7 @@ export default function AttendanceSummaryReportPage() {
                 ]}
               />
             </MobileRecordCard>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <MobileRecordCard key={r.employee.id}>
                 <MobileRecordHeader
                   title={r.employee.name}

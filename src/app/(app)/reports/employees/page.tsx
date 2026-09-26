@@ -16,6 +16,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+import type { Employee } from "@/lib/types";
+
+const SORT_COMPARATORS: Record<string, (a: Employee, b: Employee) => number> = {
+  name: (a, b) => a.name.localeCompare(b.name),
+  role: (a, b) => (a.role || "").localeCompare(b.role || ""),
+  mobile: (a, b) => (a.mobile || "").localeCompare(b.mobile || ""),
+  employment: (a, b) => a.employmentType.localeCompare(b.employmentType),
+  joined: (a, b) => (a.joinedDate || "").localeCompare(b.joinedDate || ""),
+  status: (a, b) => Number(a.active) - Number(b.active),
+};
+const SORT_DESC_KEYS = new Set(["joined"]);
 
 /** A pure roster, not a transaction log — the date range filters by joinedDate, so it reads as
  *  "who joined in this window" rather than "activity in this window" like other reports. */
@@ -37,6 +49,9 @@ export default function EmployeeDirectoryReportPage() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [employees, showInactive, roleFilter, range]);
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<Employee>("employee-directory", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   return (
@@ -49,7 +64,7 @@ export default function EmployeeDirectoryReportPage() {
             {showInactive ? "Hide inactive" : "Show inactive"}
           </Button>
           <ReportActionsMenu
-            rows={rows.map((e) => ({
+            rows={sortedRows.map((e) => ({
               Name: e.name,
               Role: e.role || "—",
               Mobile: e.mobile || "—",
@@ -96,13 +111,13 @@ export default function EmployeeDirectoryReportPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Name</Th>
-                  <Th>Role</Th>
-                  <Th>Mobile</Th>
-                  <Th>Employment</Th>
-                  <Th>Joined</Th>
+                  <Th sortKey="name" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Name</Th>
+                  <Th sortKey="role" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Role</Th>
+                  <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
+                  <Th sortKey="employment" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Employment</Th>
+                  <Th sortKey="joined" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Joined</Th>
                   {canSeeSalary && <Th align="right">Salary</Th>}
-                  <Th align="right">Status</Th>
+                  <Th align="right" sortKey="status" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Status</Th>
                 </tr>
               </thead>
               <tbody>
@@ -113,7 +128,7 @@ export default function EmployeeDirectoryReportPage() {
                   {canSeeSalary && <Td align="right">—</Td>}
                   <Td align="right">{rows.filter((e) => e.active).length} active</Td>
                 </ReportTotalsRow>
-                {rows.map((e) => (
+                {sortedRows.map((e) => (
                   <tr key={e.id} className="border-b last:border-0">
                     <Td>{e.name}</Td>
                     <Td>{e.role || "—"}</Td>
@@ -138,7 +153,7 @@ export default function EmployeeDirectoryReportPage() {
             <MobileRecordCard className="bg-muted/40">
               <MobileRecordHeader title="Total" value={`${rows.filter((e) => e.active).length} active`} showChevron={false} />
             </MobileRecordCard>
-            {rows.map((e) => (
+            {sortedRows.map((e) => (
               <MobileRecordCard key={e.id}>
                 <MobileRecordHeader
                   title={e.name}

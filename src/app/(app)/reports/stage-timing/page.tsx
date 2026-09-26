@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Clock3, ArrowRight } from "lucide-react";
-import { useStageTiming } from "@/hooks/use-stage-timing";
+import { useStageTiming, type StageTimingRow } from "@/hooks/use-stage-timing";
+import { useTableSort } from "@/hooks/use-table-sort";
 import { useReportDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
 import { fmtDate, fmtTime, fmtMinutes } from "@/lib/format";
 import { ReportShell, ReportCard, ReportTable, Th, Td } from "@/components/reports/report-shell";
@@ -18,6 +19,15 @@ import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGri
 import Link from "next/link";
 
 const STAGE_BAR_COLOR = "#0ea5e9";
+
+const SORT_COMPARATORS: Record<string, (a: StageTimingRow, b: StageTimingRow) => number> = {
+  date: (a, b) => new Date(a.changedAt).getTime() - new Date(b.changedAt).getTime(),
+  order: (a, b) => a.orderId.localeCompare(b.orderId),
+  customer: (a, b) => a.customerName.localeCompare(b.customerName),
+  minutes: (a, b) => (a.durationMinutes ?? -1) - (b.durationMinutes ?? -1),
+  changedBy: (a, b) => a.userName.localeCompare(b.userName),
+};
+const SORT_DESC_KEYS = new Set(["date", "minutes"]);
 
 /**
  * Every stage-change activity_log line, turned into a duration by comparing it against
@@ -84,7 +94,10 @@ export default function StageTimingPage() {
   const slowestStage = byStage[0]; // already sorted desc by avgMinutes
   const fastestStage = byStage[byStage.length - 1];
 
-  const exportRows = rows.map((r) => ({
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<StageTimingRow>("stage-timing", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
+
+  const exportRows = sortedRows.map((r) => ({
     Date: fmtDate(r.changedAt),
     Time: fmtTime(r.changedAt),
     Order: r.orderId,
@@ -206,16 +219,16 @@ export default function StageTimingPage() {
                   <ReportTable>
                     <thead className="border-b bg-muted/40">
                       <tr>
-                        <Th>Date</Th>
-                        <Th>Order</Th>
-                        <Th>Customer</Th>
+                        <Th sortKey="date" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Date</Th>
+                        <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
+                        <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
                         <Th>From → To</Th>
-                        <Th align="right">Time taken</Th>
-                        <Th>Changed by</Th>
+                        <Th align="right" sortKey="minutes" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Time taken</Th>
+                        <Th sortKey="changedBy" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Changed by</Th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {rows.map((r) => (
+                      {sortedRows.map((r) => (
                         <tr key={r.id} className="hover:bg-muted/30">
                           <Td className="whitespace-nowrap text-muted-foreground">
                             {fmtDate(r.changedAt)}, {fmtTime(r.changedAt)}
@@ -240,7 +253,7 @@ export default function StageTimingPage() {
                 </div>
 
                 <MobileRecordList className="p-2">
-                  {rows.map((r) => (
+                  {sortedRows.map((r) => (
                     <MobileRecordCard key={r.id}>
                       <MobileRecordHeader
                         title={r.orderId}

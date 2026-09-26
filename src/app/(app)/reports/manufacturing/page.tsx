@@ -15,6 +15,18 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type ByProductRow = { productName: string; woCount: number; qtyProduced: number; totalCost: number; avgCostPerUnit: number };
+
+const SORT_COMPARATORS: Record<string, (a: ByProductRow, b: ByProductRow) => number> = {
+  product: (a, b) => a.productName.localeCompare(b.productName),
+  woCount: (a, b) => a.woCount - b.woCount,
+  qtyProduced: (a, b) => a.qtyProduced - b.qtyProduced,
+  totalCost: (a, b) => a.totalCost - b.totalCost,
+  avgCostPerUnit: (a, b) => a.avgCostPerUnit - b.avgCostPerUnit,
+};
+const SORT_DESC_KEYS = new Set(["woCount", "qtyProduced", "totalCost", "avgCostPerUnit"]);
 
 export default function ManufacturingReportPage() {
   const { data: allWorkOrders, isLoading } = useWorkOrders();
@@ -52,6 +64,9 @@ export default function ManufacturingReportPage() {
       .sort((a, b) => b.totalCost - a.totalCost);
   }, [completed]);
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<ByProductRow>("reports-manufacturing", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedByProduct = applySort(byProduct);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
@@ -60,7 +75,7 @@ export default function ManufacturingReportPage() {
       description="Work order status, production cost and wastage"
       actions={
         <ReportActionsMenu
-          rows={byProduct.map((p) => ({ Product: p.productName, "Work orders": p.woCount, "Qty produced": p.qtyProduced, "Total cost": p.totalCost, "Avg cost/unit": p.avgCostPerUnit }))}
+          rows={sortedByProduct.map((p) => ({ Product: p.productName, "Work orders": p.woCount, "Qty produced": p.qtyProduced, "Total cost": p.totalCost, "Avg cost/unit": p.avgCostPerUnit }))}
           filename="manufacturing"
           title="Manufacturing"
           summaryLines={[`Production cost: ${inr(totalProductionCost)}`, `Wastage cost: ${inr(totalWastageCost)} (${wastagePct}%)`]}
@@ -121,7 +136,7 @@ export default function ManufacturingReportPage() {
               <MobileRecordRow label="Work orders" value={byProduct.reduce((s, p) => s + p.woCount, 0)} />
               <MobileRecordRow label="Qty produced" value={byProduct.reduce((s, p) => s + p.qtyProduced, 0)} />
             </MobileRecordCard>
-            {byProduct.map((p) => (
+            {sortedByProduct.map((p) => (
               <MobileRecordCard key={p.productName}>
                 <MobileRecordHeader title={p.productName} value={inr(p.totalCost)} showChevron={false} />
                 <MobileRecordRow label="Work orders" value={p.woCount} />
@@ -134,11 +149,11 @@ export default function ManufacturingReportPage() {
           <ReportTable>
             <thead className="border-b bg-muted/40">
               <tr>
-                <Th>Product</Th>
-                <Th align="right">Work orders</Th>
-                <Th align="right">Qty produced</Th>
-                <Th align="right">Total cost</Th>
-                <Th align="right">Avg cost/unit</Th>
+                <Th sortKey="product" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Product</Th>
+                <Th align="right" sortKey="woCount" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Work orders</Th>
+                <Th align="right" sortKey="qtyProduced" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Qty produced</Th>
+                <Th align="right" sortKey="totalCost" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Total cost</Th>
+                <Th align="right" sortKey="avgCostPerUnit" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Avg cost/unit</Th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -149,7 +164,7 @@ export default function ManufacturingReportPage() {
                 <Td align="right">{inr(byProduct.reduce((s, p) => s + p.totalCost, 0))}</Td>
                 <Td align="right">—</Td>
               </ReportTotalsRow>
-              {byProduct.map((p) => (
+              {sortedByProduct.map((p) => (
                 <tr key={p.productName} className="hover:bg-muted/30">
                   <Td className="font-medium">{p.productName}</Td>
                   <Td align="right">{p.woCount}</Td>

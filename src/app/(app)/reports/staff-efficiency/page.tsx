@@ -14,12 +14,28 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type StaffEfficiencyRow = { tailor: string; total: number; revenue: number; revPerOrder: number; efficiency: number };
+
+const SORT_COMPARATORS: Record<string, (a: StaffEfficiencyRow, b: StaffEfficiencyRow) => number> = {
+  orders: (a, b) => a.total - b.total,
+  revenue: (a, b) => a.revenue - b.revenue,
+  perOrder: (a, b) => a.revPerOrder - b.revPerOrder,
+  efficiency: (a, b) => a.efficiency - b.efficiency,
+};
+const SORT_DESC_KEYS = new Set(["orders", "revenue", "perOrder", "efficiency"]);
 
 export default function StaffEfficiencyPage() {
   const { orders, isLoading } = useReportsData();
   const tailorName = useTailorName();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
   const [garmentType, setGarmentType] = useState("all");
+
+  const sortComparators = useMemo<Record<string, (a: StaffEfficiencyRow, b: StaffEfficiencyRow) => number>>(
+    () => ({ ...SORT_COMPARATORS, tailor: (a, b) => tailorName(a.tailor).localeCompare(tailorName(b.tailor)) }),
+    [tailorName]
+  );
 
   const garmentTypes = useMemo(() => {
     const set = new Set(orders.flatMap((o) => o.garments.map((g) => g.type)).filter(Boolean));
@@ -36,6 +52,9 @@ export default function StaffEfficiencyPage() {
     [orders, range, garmentType]
   );
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<StaffEfficiencyRow>("staff-efficiency", sortComparators, SORT_DESC_KEYS);
+  const sortedRows = applySort(staffEff);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   const totalOrders = staffEff.reduce((s, t) => s + t.total, 0);
@@ -47,7 +66,7 @@ export default function StaffEfficiencyPage() {
       description="Revenue per order and on-time delivery rate"
       actions={
         <ReportActionsMenu
-          rows={staffEff.map((t) => ({ Tailor: tailorName(t.tailor), Orders: t.total, Revenue: t.revenue, "Per order": t.revPerOrder, "Efficiency %": `${t.efficiency}%` }))}
+          rows={sortedRows.map((t) => ({ Tailor: tailorName(t.tailor), Orders: t.total, Revenue: t.revenue, "Per order": t.revPerOrder, "Efficiency %": `${t.efficiency}%` }))}
           filename="staff-efficiency"
           title="Staff Efficiency"
           summaryLines={[`Orders: ${totalOrders}`, `Total revenue: ${inr(totalRevenue)}`]}
@@ -86,11 +105,11 @@ export default function StaffEfficiencyPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Tailor</Th>
-                  <Th align="right">Orders</Th>
-                  <Th align="right">Revenue</Th>
-                  <Th align="right">Per order</Th>
-                  <Th>Efficiency</Th>
+                  <Th sortKey="tailor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Tailor</Th>
+                  <Th align="right" sortKey="orders" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Orders</Th>
+                  <Th align="right" sortKey="revenue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Revenue</Th>
+                  <Th align="right" sortKey="perOrder" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Per order</Th>
+                  <Th sortKey="efficiency" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Efficiency</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -101,7 +120,7 @@ export default function StaffEfficiencyPage() {
                   <Td align="right">{totalOrders > 0 ? inr(Math.round(totalRevenue / totalOrders)) : "—"}</Td>
                   <Td>—</Td>
                 </ReportTotalsRow>
-                {staffEff.map((t) => (
+                {sortedRows.map((t) => (
                   <tr key={t.tailor} className="hover:bg-muted/30">
                     <Td className="font-medium">{tailorName(t.tailor)}</Td>
                     <Td align="right">{t.total}</Td>
@@ -129,7 +148,7 @@ export default function StaffEfficiencyPage() {
               <MobileRecordRow label="Orders" value={totalOrders} />
               <MobileRecordRow label="Per order" value={totalOrders > 0 ? inr(Math.round(totalRevenue / totalOrders)) : "—"} />
             </MobileRecordCard>
-            {staffEff.map((t) => (
+            {sortedRows.map((t) => (
               <MobileRecordCard key={t.tailor}>
                 <MobileRecordHeader title={tailorName(t.tailor)} value={inr(t.revenue)} showChevron={false} />
                 <MobileRecordRow label="Orders" value={t.total} />

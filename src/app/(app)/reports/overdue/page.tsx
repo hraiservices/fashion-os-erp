@@ -21,6 +21,9 @@ import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type OverdueRow = ReturnType<typeof getOverdueInProduction>[number];
 
 const PRE_READY_STAGES: Stage[] = ["received", "cutting", "stitching", "finishing"];
 
@@ -58,9 +61,31 @@ export default function OverdueOrdersPage() {
 
   const employeeNameById = useMemo(() => new Map((employees || []).map((e) => [e.id, e.name])), [employees]);
 
+  function tailorName(id: string): string {
+    if (!id) return "Unassigned";
+    return employeeNameById.get(id) || id;
+  }
+  function garmentSummary(o: OverdueRow): string {
+    return o.garments.map((g) => g.type).filter(Boolean).join(", ") || "—";
+  }
+
+  const SORT_COMPARATORS: Record<string, (a: OverdueRow, b: OverdueRow) => number> = {
+    order: (a, b) => a.id.localeCompare(b.id),
+    customer: (a, b) => a.name.localeCompare(b.name),
+    stage: (a, b) => STAGE_META[a.status].label.localeCompare(STAGE_META[b.status].label),
+    tailor: (a, b) => tailorName(a.tailor).localeCompare(tailorName(b.tailor)),
+    garments: (a, b) => garmentSummary(a).localeCompare(garmentSummary(b)),
+    deliveryDate: (a, b) => a.deliveryDate.localeCompare(b.deliveryDate),
+    daysLate: (a, b) => a.daysLate - b.daysLate,
+    balance: (a, b) => a.balance - b.balance,
+  };
+  const SORT_DESC_KEYS = new Set(["daysLate", "balance"]);
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<OverdueRow>("reports-overdue", SORT_COMPARATORS, SORT_DESC_KEYS);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   const overdue = getOverdueInProduction(orders);
+  const sortedOverdue = applySort(overdue);
   const byStage = PRE_READY_STAGES.map((stage) => ({
     stage,
     label: STAGE_META[stage].label,
@@ -73,21 +98,13 @@ export default function OverdueOrdersPage() {
   const worstDaysLate = overdue[0]?.daysLate ?? 0;
   const totalBalance = overdue.reduce((s, o) => s + o.balance, 0);
 
-  function tailorName(id: string): string {
-    if (!id) return "Unassigned";
-    return employeeNameById.get(id) || id;
-  }
-  function garmentSummary(o: (typeof overdue)[number]): string {
-    return o.garments.map((g) => g.type).filter(Boolean).join(", ") || "—";
-  }
-
   return (
     <ReportShell
       title="Overdue Orders"
       description="Still in production past the promised delivery date — worst delays first"
       actions={
         <ReportActionsMenu
-          rows={overdue.map((o) => ({
+          rows={sortedOverdue.map((o) => ({
             Order: o.id,
             Customer: o.name,
             Stage: STAGE_META[o.status].label,
@@ -140,7 +157,7 @@ export default function OverdueOrdersPage() {
           )}
 
           <MobileRecordList>
-            {overdue.map((o) => (
+            {sortedOverdue.map((o) => (
               <MobileRecordCard key={o.id}>
                 <MobileRecordHeader
                   title={
@@ -168,19 +185,19 @@ export default function OverdueOrdersPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Order</Th>
-                  <Th>Customer</Th>
-                  <Th>Stage</Th>
-                  <Th>Tailor</Th>
-                  <Th>Garments</Th>
-                  <Th>Delivery date</Th>
-                  <Th align="right">Days late</Th>
-                  <Th align="right">Balance</Th>
+                  <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
+                  <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="stage" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Stage</Th>
+                  <Th sortKey="tailor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Tailor</Th>
+                  <Th sortKey="garments" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Garments</Th>
+                  <Th sortKey="deliveryDate" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Delivery date</Th>
+                  <Th align="right" sortKey="daysLate" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Days late</Th>
+                  <Th align="right" sortKey="balance" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Balance</Th>
                   <Th align="right">Actions</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {overdue.map((o) => (
+                {sortedOverdue.map((o) => (
                   <tr key={o.id} className="hover:bg-muted/30">
                     <Td>
                       <Link href={`/orders/${o.id}`} className="font-medium hover:underline">

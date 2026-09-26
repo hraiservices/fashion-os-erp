@@ -13,6 +13,18 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type SeasonalTrendRow = { month: string; label: string; count: number; revenue: number; avgOrderVal: number; growth: number };
+
+const SORT_COMPARATORS: Record<string, (a: SeasonalTrendRow, b: SeasonalTrendRow) => number> = {
+  month: (a, b) => a.month.localeCompare(b.month),
+  orders: (a, b) => a.count - b.count,
+  revenue: (a, b) => a.revenue - b.revenue,
+  avgOrder: (a, b) => a.avgOrderVal - b.avgOrderVal,
+  growth: (a, b) => a.growth - b.growth,
+};
+const SORT_DESC_KEYS = new Set(["orders", "revenue", "avgOrder", "growth"]);
 
 /** The month buckets themselves are always the trailing 12 months (see getSeasonalTrends) — the
  *  date range narrows which orders count toward each bucket's revenue, not the window of months
@@ -37,6 +49,9 @@ export default function SeasonalTrendsPage() {
     [orders, range, garmentType]
   );
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<SeasonalTrendRow>("seasonal-trends", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(seasonal);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-80 w-full" /></div>;
 
   const totalOrders = seasonal.reduce((s, m) => s + m.count, 0);
@@ -48,7 +63,7 @@ export default function SeasonalTrendsPage() {
       description="Revenue and order volume across the last 12 months"
       actions={
         <ReportActionsMenu
-          rows={seasonal.map((m) => ({ Month: m.label, Orders: m.count, Revenue: m.revenue, "Avg order": m.avgOrderVal, "Growth %": `${m.growth}%` }))}
+          rows={sortedRows.map((m) => ({ Month: m.label, Orders: m.count, Revenue: m.revenue, "Avg order": m.avgOrderVal, "Growth %": `${m.growth}%` }))}
           filename="seasonal-trends"
           title="Seasonal Trends"
           summaryLines={[`Total orders: ${totalOrders}`, `Total revenue: ${inr(totalRevenue)}`]}
@@ -100,11 +115,11 @@ export default function SeasonalTrendsPage() {
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
-              <Th>Month</Th>
-              <Th align="right">Orders</Th>
-              <Th align="right">Revenue</Th>
-              <Th align="right">Avg order</Th>
-              <Th align="right">Growth</Th>
+              <Th sortKey="month" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Month</Th>
+              <Th align="right" sortKey="orders" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Orders</Th>
+              <Th align="right" sortKey="revenue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Revenue</Th>
+              <Th align="right" sortKey="avgOrder" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Avg order</Th>
+              <Th align="right" sortKey="growth" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Growth</Th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -115,7 +130,7 @@ export default function SeasonalTrendsPage() {
               <Td align="right">{totalOrders > 0 ? inr(Math.round(totalRevenue / totalOrders)) : "—"}</Td>
               <Td align="right">—</Td>
             </ReportTotalsRow>
-            {seasonal.map((m) => {
+            {sortedRows.map((m) => {
               const Icon = m.growth > 0 ? TrendingUp : m.growth < 0 ? TrendingDown : Minus;
               const tone = m.growth > 0 ? "text-emerald-600 dark:text-emerald-400" : m.growth < 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground";
               return (
@@ -143,7 +158,7 @@ export default function SeasonalTrendsPage() {
           <MobileRecordRow label="Avg order" value={totalOrders > 0 ? inr(Math.round(totalRevenue / totalOrders)) : "—"} />
           <MobileRecordRow label="Growth" value="—" />
         </MobileRecordCard>
-        {seasonal.map((m) => {
+        {sortedRows.map((m) => {
           const Icon = m.growth > 0 ? TrendingUp : m.growth < 0 ? TrendingDown : Minus;
           const tone = m.growth > 0 ? "text-emerald-600 dark:text-emerald-400" : m.growth < 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground";
           return (

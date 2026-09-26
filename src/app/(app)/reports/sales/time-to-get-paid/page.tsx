@@ -15,8 +15,20 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { cn } from "@/lib/utils";
+import { useTableSort } from "@/hooks/use-table-sort";
 
 type SpeedBucket = "all" | "fast" | "normal" | "slow";
+
+type TimeToGetPaidRow = { id: string; invoiceNumber: string; customerName: string; invoiceDate: string; lastPaymentDate: string; days: number };
+
+const SORT_COMPARATORS: Record<string, (a: TimeToGetPaidRow, b: TimeToGetPaidRow) => number> = {
+  invoice: (a, b) => a.invoiceNumber.localeCompare(b.invoiceNumber),
+  customer: (a, b) => a.customerName.localeCompare(b.customerName),
+  invoiceDate: (a, b) => a.invoiceDate.localeCompare(b.invoiceDate),
+  lastPaymentDate: (a, b) => a.lastPaymentDate.localeCompare(b.lastPaymentDate),
+  days: (a, b) => a.days - b.days,
+};
+const SORT_DESC_KEYS = new Set(["days"]);
 
 const SPEED_BUCKET_OPTIONS: { value: SpeedBucket; label: string }[] = [
   { value: "all", label: "All" },
@@ -81,6 +93,9 @@ export default function TimeToGetPaidPage() {
 
   const avgDays = avgDaysToGetPaid(invoices || []);
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<TimeToGetPaidRow>("sales-time-to-get-paid", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
@@ -89,7 +104,7 @@ export default function TimeToGetPaidPage() {
       description="Days between invoice date and the payment that fully settled it."
       actions={
         <ReportActionsMenu
-          rows={rows.map((r) => ({ Invoice: r.invoiceNumber, Customer: r.customerName, "Invoice Date": r.invoiceDate, "Last Payment": r.lastPaymentDate, "Days to Pay": r.days }))}
+          rows={sortedRows.map((r) => ({ Invoice: r.invoiceNumber, Customer: r.customerName, "Invoice Date": r.invoiceDate, "Last Payment": r.lastPaymentDate, "Days to Pay": r.days }))}
           filename="time-to-get-paid"
           title="Time to Get Paid"
           summaryLines={[`Invoices: ${rows.length}`, `Avg days to get paid: ${avgDays != null ? `${avgDays}d` : "—"}`]}
@@ -118,11 +133,11 @@ export default function TimeToGetPaidPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Invoice</Th>
-                  <Th>Customer</Th>
-                  <Th>Invoice Date</Th>
-                  <Th>Last Payment</Th>
-                  <Th align="right">Days to Pay</Th>
+                  <Th sortKey="invoice" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Invoice</Th>
+                  <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="invoiceDate" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Invoice Date</Th>
+                  <Th sortKey="lastPaymentDate" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Last Payment</Th>
+                  <Th align="right" sortKey="days" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Days to Pay</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -130,7 +145,7 @@ export default function TimeToGetPaidPage() {
                   <Td colSpan={4}>Average ({rows.length} invoice{rows.length === 1 ? "" : "s"})</Td>
                   <Td align="right">{avgDays != null ? `${avgDays}d` : "—"}</Td>
                 </ReportTotalsRow>
-                {rows.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.id} className="hover:bg-muted/30">
                     <Td className="font-medium">
                       <Link href={`/sales/invoices/${r.id}`} className="text-primary hover:underline">
@@ -152,7 +167,7 @@ export default function TimeToGetPaidPage() {
             <MobileRecordCard className="bg-muted/40">
               <MobileRecordHeader title={`Average (${rows.length} invoice${rows.length === 1 ? "" : "s"})`} value={avgDays != null ? `${avgDays}d` : "—"} showChevron={false} />
             </MobileRecordCard>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <MobileRecordCard key={r.id} href={`/sales/invoices/${r.id}`}>
                 <MobileRecordHeader
                   title={r.invoiceNumber}

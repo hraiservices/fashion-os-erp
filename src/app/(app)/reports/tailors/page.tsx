@@ -6,7 +6,8 @@ import { useReportsData } from "@/hooks/use-reports-data";
 import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useTailorName } from "@/hooks/use-employees";
 import { getManufacturingTailorStats } from "@/lib/manufacturing";
-import { getTailorStats } from "@/lib/analytics";
+import { getTailorStats, type TailorStat } from "@/lib/analytics";
+import { useTableSort } from "@/hooks/use-table-sort";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
@@ -45,6 +46,27 @@ export default function TailorPerformancePage() {
     return new Map(stats.map((s) => [s.tailor, s]));
   }, [workOrders]);
 
+  const sortComparators = useMemo<Record<string, (a: TailorStat, b: TailorStat) => number>>(
+    () => ({
+      tailor: (a, b) => tailorName(a.tailor).localeCompare(tailorName(b.tailor)),
+      active: (a, b) => a.active - b.active,
+      done: (a, b) => a.done - b.done,
+      overdue: (a, b) => a.overdue - b.overdue,
+      promisedDays: (a, b) => a.avg - b.avg,
+      revenue: (a, b) => a.revenue - b.revenue,
+      activeWOs: (a, b) => (mfgByTailor.get(a.tailor)?.activeWOs ?? 0) - (mfgByTailor.get(b.tailor)?.activeWOs ?? 0),
+      completedWOs: (a, b) => (mfgByTailor.get(a.tailor)?.completedWOs ?? 0) - (mfgByTailor.get(b.tailor)?.completedWOs ?? 0),
+      qtyProduced: (a, b) => (mfgByTailor.get(a.tailor)?.qtyProduced ?? 0) - (mfgByTailor.get(b.tailor)?.qtyProduced ?? 0),
+    }),
+    [tailorName, mfgByTailor]
+  );
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<TailorStat>(
+    "tailors",
+    sortComparators,
+    new Set(["active", "done", "overdue", "revenue", "activeWOs", "completedWOs", "qtyProduced"])
+  );
+  const sortedTailorStats = applySort(tailorStats);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   return (
@@ -53,7 +75,7 @@ export default function TailorPerformancePage() {
       description="Workload, turnaround and revenue per tailor"
       actions={
         <ReportActionsMenu
-          rows={tailorStats.map((t) => ({ Tailor: tailorName(t.tailor), Active: t.active, Done: t.done, Overdue: t.overdue, "Promised Days": t.avg, Revenue: t.revenue }))}
+          rows={sortedTailorStats.map((t) => ({ Tailor: tailorName(t.tailor), Active: t.active, Done: t.done, Overdue: t.overdue, "Promised Days": t.avg, Revenue: t.revenue }))}
           filename="tailor-performance"
           title="Tailor Performance"
           summaryLines={[`Tailors: ${tailorStats.length}`, `Total revenue: ${inr(tailorStats.reduce((s, t) => s + t.revenue, 0))}`]}
@@ -92,15 +114,15 @@ export default function TailorPerformancePage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Tailor</Th>
-                  <Th align="right">Active</Th>
-                  <Th align="right">Done</Th>
-                  <Th align="right">Overdue</Th>
-                  <Th align="right">Promised days</Th>
-                  <Th align="right">Revenue</Th>
-                  <Th align="right">Active WOs</Th>
-                  <Th align="right">Completed WOs</Th>
-                  <Th align="right">Qty produced</Th>
+                  <Th sortKey="tailor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Tailor</Th>
+                  <Th align="right" sortKey="active" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Active</Th>
+                  <Th align="right" sortKey="done" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Done</Th>
+                  <Th align="right" sortKey="overdue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Overdue</Th>
+                  <Th align="right" sortKey="promisedDays" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Promised days</Th>
+                  <Th align="right" sortKey="revenue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Revenue</Th>
+                  <Th align="right" sortKey="activeWOs" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Active WOs</Th>
+                  <Th align="right" sortKey="completedWOs" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Completed WOs</Th>
+                  <Th align="right" sortKey="qtyProduced" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Qty produced</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -115,7 +137,7 @@ export default function TailorPerformancePage() {
                   <Td align="right">—</Td>
                   <Td align="right">—</Td>
                 </ReportTotalsRow>
-                {tailorStats.map((t) => {
+                {sortedTailorStats.map((t) => {
                   const mfg = mfgByTailor.get(t.tailor);
                   return (
                     <tr key={t.tailor} className="hover:bg-muted/30">
@@ -156,7 +178,7 @@ export default function TailorPerformancePage() {
                 ]}
               />
             </MobileRecordCard>
-            {tailorStats.map((t) => {
+            {sortedTailorStats.map((t) => {
               const mfg = mfgByTailor.get(t.tailor);
               return (
                 <MobileRecordCard key={t.tailor}>

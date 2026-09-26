@@ -15,6 +15,19 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type ProfitByItemRow = { productId: string; productName: string; qty: number; revenue: number; cost: number; margin: number; marginPct: number };
+
+const SORT_COMPARATORS: Record<string, (a: ProfitByItemRow, b: ProfitByItemRow) => number> = {
+  product: (a, b) => a.productName.localeCompare(b.productName),
+  qty: (a, b) => a.qty - b.qty,
+  revenue: (a, b) => a.revenue - b.revenue,
+  cost: (a, b) => a.cost - b.cost,
+  margin: (a, b) => a.margin - b.margin,
+  marginPct: (a, b) => a.marginPct - b.marginPct,
+};
+const SORT_DESC_KEYS = new Set(["qty", "revenue", "cost", "margin", "marginPct"]);
 
 /** Product-only — margin/cost only exists for Product Sales; stitching orders have no product cost price to compare against. */
 export default function ProfitByItemPage() {
@@ -55,6 +68,9 @@ export default function ProfitByItemPage() {
 
   const totals = useMemo(() => rows.reduce((acc, r) => ({ revenue: acc.revenue + r.revenue, cost: acc.cost + r.cost, margin: acc.margin + r.margin }), { revenue: 0, cost: 0, margin: 0 }), [rows]);
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<ProfitByItemRow>("sales-profit-by-item", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
+
   // Profit/margin figures are restricted to the admin role specifically, everywhere in the app.
   if (user && user.role !== "admin") {
     return (
@@ -72,7 +88,7 @@ export default function ProfitByItemPage() {
       description="Revenue, cost, and margin per product — from Product Sales invoices, using each product's cost price."
       actions={
         <ReportActionsMenu
-          rows={rows.map((r) => ({ Product: r.productName, "Qty sold": r.qty, Revenue: r.revenue, Cost: r.cost, Margin: r.margin, "Margin %": r.marginPct.toFixed(1) }))}
+          rows={sortedRows.map((r) => ({ Product: r.productName, "Qty sold": r.qty, Revenue: r.revenue, Cost: r.cost, Margin: r.margin, "Margin %": r.marginPct.toFixed(1) }))}
           filename="profit-by-item"
           title="Profit by Item"
           summaryLines={[`Revenue: ${inr(totals.revenue)}`, `Cost: ${inr(totals.cost)}`, `Margin: ${inr(totals.margin)}`]}
@@ -123,12 +139,12 @@ export default function ProfitByItemPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Product</Th>
-                  <Th align="right">Qty sold</Th>
-                  <Th align="right">Revenue</Th>
-                  <Th align="right">Cost</Th>
-                  <Th align="right">Margin</Th>
-                  <Th align="right">Margin %</Th>
+                  <Th sortKey="product" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Product</Th>
+                  <Th align="right" sortKey="qty" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Qty sold</Th>
+                  <Th align="right" sortKey="revenue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Revenue</Th>
+                  <Th align="right" sortKey="cost" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Cost</Th>
+                  <Th align="right" sortKey="margin" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Margin</Th>
+                  <Th align="right" sortKey="marginPct" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Margin %</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -140,7 +156,7 @@ export default function ProfitByItemPage() {
                   <Td align="right">{inr(totals.margin)}</Td>
                   <Td align="right">{totals.revenue > 0 ? `${Math.round((totals.margin / totals.revenue) * 100)}%` : "0%"}</Td>
                 </ReportTotalsRow>
-                {rows.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.productId || r.productName} className="hover:bg-muted/30">
                     <Td className="font-medium">{r.productName}</Td>
                     <Td align="right">{r.qty}</Td>
@@ -163,7 +179,7 @@ export default function ProfitByItemPage() {
               <MobileRecordRow label="Cost" value={inr(totals.cost)} />
               <MobileRecordRow label="Margin %" value={totals.revenue > 0 ? `${Math.round((totals.margin / totals.revenue) * 100)}%` : "0%"} />
             </MobileRecordCard>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <MobileRecordCard key={r.productId || r.productName}>
                 <MobileRecordHeader
                   title={r.productName}

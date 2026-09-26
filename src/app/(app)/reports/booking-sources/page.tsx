@@ -13,6 +13,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type BookingSourceRow = { source: string; count: number; revenue: number };
+
+const SORT_COMPARATORS: Record<string, (a: BookingSourceRow, b: BookingSourceRow) => number> = {
+  source: (a, b) => a.source.localeCompare(b.source),
+  count: (a, b) => a.count - b.count,
+  revenue: (a, b) => a.revenue - b.revenue,
+};
+const SORT_DESC_KEYS = new Set(["count", "revenue"]);
 
 /** How customers found the shop — "Not recorded" is expected and honest for orders created
  *  before this field existed, or where it was left blank. See order-form.tsx's "How did they
@@ -31,6 +41,9 @@ export default function BookingSourcesPage() {
     [bookingSourceBreakdownAll, source]
   );
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<BookingSourceRow>("booking-sources", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedBreakdown = applySort(bookingSourceBreakdown);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   const totalOrders = bookingSourceBreakdown.reduce((s, r) => s + r.count, 0);
@@ -43,7 +56,7 @@ export default function BookingSourcesPage() {
       description={`${totalOrders} order(s), by how the customer found the company`}
       actions={
         <ReportActionsMenu
-          rows={bookingSourceBreakdown.map((r) => ({
+          rows={sortedBreakdown.map((r) => ({
             Source: r.source,
             Orders: r.count,
             Share: totalOrders ? `${Math.round((r.count / totalOrders) * 100)}%` : "0%",
@@ -87,10 +100,10 @@ export default function BookingSourcesPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Source</Th>
-                  <Th align="right">Orders</Th>
+                  <Th sortKey="source" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Source</Th>
+                  <Th align="right" sortKey="count" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Orders</Th>
                   <Th align="right">Share</Th>
-                  <Th align="right">Revenue</Th>
+                  <Th align="right" sortKey="revenue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Revenue</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -100,7 +113,7 @@ export default function BookingSourcesPage() {
                   <Td align="right">100%</Td>
                   <Td align="right">{inr(totalRevenue)}</Td>
                 </ReportTotalsRow>
-                {bookingSourceBreakdown.map((r) => (
+                {sortedBreakdown.map((r) => (
                   <tr key={r.source} className="hover:bg-muted/30">
                     <Td className={r.source === "Not recorded" ? "text-muted-foreground italic" : "font-medium"}>{r.source}</Td>
                     <Td align="right">{r.count}</Td>
@@ -118,7 +131,7 @@ export default function BookingSourcesPage() {
               <MobileRecordRow label="Orders" value={totalOrders} />
               <MobileRecordRow label="Share" value="100%" />
             </MobileRecordCard>
-            {bookingSourceBreakdown.map((r) => (
+            {sortedBreakdown.map((r) => (
               <MobileRecordCard key={r.source}>
                 <MobileRecordHeader
                   title={<span className={r.source === "Not recorded" ? "text-muted-foreground italic" : undefined}>{r.source}</span>}

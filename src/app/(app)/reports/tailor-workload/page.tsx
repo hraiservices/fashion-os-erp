@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { Users } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useTailorName } from "@/hooks/use-employees";
-import { getTailorWorkload } from "@/lib/analytics";
+import { getTailorWorkload, type WorkloadStat } from "@/lib/analytics";
+import { useTableSort } from "@/hooks/use-table-sort";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -21,6 +22,10 @@ const CAPACITY_STYLE: Record<string, string> = {
   Overloaded: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
 };
 
+const CAPACITY_RANK: Record<string, number> = { Low: 0, Normal: 1, High: 2, Overloaded: 3 };
+
+const SORT_DESC_KEYS = new Set(["active", "overdue", "capacity"]);
+
 export default function TailorWorkloadPage() {
   const { orders, isLoading } = useReportsData();
   const tailorName = useTailorName();
@@ -32,6 +37,16 @@ export default function TailorWorkloadPage() {
     return Array.from(set).sort();
   }, [orders]);
 
+  const sortComparators = useMemo<Record<string, (a: WorkloadStat, b: WorkloadStat) => number>>(
+    () => ({
+      tailor: (a, b) => tailorName(a.tailor).localeCompare(tailorName(b.tailor)),
+      active: (a, b) => a.active - b.active,
+      overdue: (a, b) => a.overdue - b.overdue,
+      capacity: (a, b) => CAPACITY_RANK[a.capacity] - CAPACITY_RANK[b.capacity],
+    }),
+    [tailorName]
+  );
+
   const workload = useMemo(
     () =>
       getTailorWorkload(
@@ -42,6 +57,9 @@ export default function TailorWorkloadPage() {
     [orders, range, garmentType]
   );
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<WorkloadStat>("tailor-workload", sortComparators, SORT_DESC_KEYS);
+  const sortedWorkload = applySort(workload);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
   return (
@@ -50,7 +68,7 @@ export default function TailorWorkloadPage() {
       description="Who has capacity and who is overloaded right now"
       actions={
         <ReportActionsMenu
-          rows={workload.map((t) => ({ Tailor: tailorName(t.tailor), "Active orders": t.active, Overdue: t.overdue, Capacity: t.capacity }))}
+          rows={sortedWorkload.map((t) => ({ Tailor: tailorName(t.tailor), "Active orders": t.active, Overdue: t.overdue, Capacity: t.capacity }))}
           filename="tailor-workload"
           title="Tailor Workload"
           summaryLines={[`Tailors: ${workload.length}`, `Total active orders: ${workload.reduce((s, t) => s + t.active, 0)}`]}
@@ -89,10 +107,10 @@ export default function TailorWorkloadPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Tailor</Th>
-                  <Th align="right">Active orders</Th>
-                  <Th align="right">Overdue</Th>
-                  <Th>Capacity</Th>
+                  <Th sortKey="tailor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Tailor</Th>
+                  <Th align="right" sortKey="active" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Active orders</Th>
+                  <Th align="right" sortKey="overdue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Overdue</Th>
+                  <Th sortKey="capacity" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Capacity</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -102,7 +120,7 @@ export default function TailorWorkloadPage() {
                   <Td align="right">{workload.reduce((s, t) => s + t.overdue, 0)}</Td>
                   <Td>—</Td>
                 </ReportTotalsRow>
-                {workload.map((t) => (
+                {sortedWorkload.map((t) => (
                   <tr key={t.tailor} className="hover:bg-muted/30">
                     <Td className="font-medium">{tailorName(t.tailor)}</Td>
                     <Td align="right">{t.active}</Td>
@@ -120,7 +138,7 @@ export default function TailorWorkloadPage() {
               <MobileRecordHeader title="Total" value={workload.reduce((s, t) => s + t.active, 0)} showChevron={false} />
               <MobileRecordRow label="Overdue" value={workload.reduce((s, t) => s + t.overdue, 0)} />
             </MobileRecordCard>
-            {workload.map((t) => (
+            {sortedWorkload.map((t) => (
               <MobileRecordCard key={t.tailor}>
                 <MobileRecordHeader title={tailorName(t.tailor)} value={t.active} showChevron={false} />
                 <MobileRecordRow

@@ -45,6 +45,7 @@ import { apportionAmount } from "@/lib/order-split";
 import { hydrateMeasurements, compactMeasurements, type MeasureLang } from "@/lib/measurements";
 import { inr, fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { hapticSuccess, hapticError } from "@/lib/haptics";
 import type { Order, OrderType, Employee, Customer } from "@/lib/types";
 import { MeasurementGrid } from "@/components/measurements/measurement-grid";
 import { useExtractMeasurements } from "@/hooks/use-measurement-extraction";
@@ -291,13 +292,16 @@ function OrderFormFields({
     try {
       const text = await transcribeVoiceNote.mutateAsync(audioDataUrl);
       if (text === "(could not transcribe)") {
+        hapticError();
         toast.error("Couldn't make out that recording — try re-recording somewhere quieter.");
         return;
       }
       const current = getValues("special");
       setValue("special", current ? `${current}\n🎤 ${text}` : text, { shouldDirty: true });
+      hapticSuccess();
       toast.success("Added to Special Instructions — review before saving.");
     } catch (e) {
+      hapticError();
       toast.error(e instanceof Error ? e.message : "Couldn't transcribe that recording");
     } finally {
       setTranscribingIndex(null);
@@ -685,10 +689,12 @@ function OrderFormFields({
           },
           userEmail: user?.email,
         });
+        hapticSuccess();
         toast.success("Order updated");
         router.push(`/orders/${existingOrder.id}`);
       } else if (splitOrders && totalPieceCount > 1) {
         const createdOrders = await submitSplitOrders(values, paymentMethod, measurementPayload);
+        hapticSuccess();
         toast.success(`Created ${createdOrders.length} orders — one per garment: ${createdOrders.map((o) => o.id).join(", ")}`);
         router.push("/orders");
       } else {
@@ -705,12 +711,14 @@ function OrderFormFields({
           paymentMethod: values.advance > 0 ? paymentMethod : undefined,
           couponCode: couponCode.trim() || undefined,
         });
+        hapticSuccess();
         toast.success(res.ptDiscount > 0 ? `Order ${res.order.id} created · ${inr(res.ptDiscount)} points discount applied` : `Order ${res.order.id} created`);
         if (res.limitWarning) toast.warning(res.limitWarning);
         if (res.paymentLedgerWarning) toast.warning(res.paymentLedgerWarning, { duration: 12_000 });
         router.push("/orders");
       }
     } catch (e) {
+      hapticError();
       toast.error(e instanceof Error ? e.message : "Failed to save order", { duration: 15_000 });
     }
   }

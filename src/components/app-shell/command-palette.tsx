@@ -113,7 +113,7 @@ export function CommandTrigger() {
             onValueChange={setQuery}
             onFocus={() => setOpen(true)}
             placeholder="Search Anything…"
-            className="h-9! text-sm"
+            className="text-sm"
           />
           {!open && !query && (
             <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded border bg-background px-1.5 font-sans text-[10px] text-muted-foreground sm:inline">

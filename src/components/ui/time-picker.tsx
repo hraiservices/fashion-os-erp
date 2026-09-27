@@ -57,10 +57,10 @@ export function TimePicker({
   }
 
   return (
-    <div className={cn("flex h-10 w-full min-w-0 items-center gap-1 rounded-lg border border-input bg-transparent pl-2.5 pr-1", className)}>
-      <Clock className="size-4 shrink-0 text-muted-foreground" />
+    <div className={cn("flex h-10 w-full min-w-0 items-center gap-0.5 rounded-lg border border-input bg-transparent pl-2 pr-1", className)}>
+      <Clock className="size-3.5 shrink-0 text-muted-foreground" />
       <Select value={value ? String(h12) : ""} onValueChange={(v) => v && set({ h12: parseInt(v, 10) })} disabled={disabled}>
-        <SelectTrigger className="h-8 w-14 border-0 px-1.5 shadow-none">
+        <SelectTrigger className="h-8 w-10 min-w-0 justify-center border-0 px-1 shadow-none [&>svg]:hidden">
           <SelectValue>{value ? h12 : "--"}</SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -73,7 +73,7 @@ export function TimePicker({
       </Select>
       <span className="text-muted-foreground">:</span>
       <Select value={value ? String(m) : ""} onValueChange={(v) => v && set({ m: parseInt(v, 10) })} disabled={disabled}>
-        <SelectTrigger className="h-8 w-14 border-0 px-1.5 shadow-none">
+        <SelectTrigger className="h-8 w-10 min-w-0 justify-center border-0 px-1 shadow-none [&>svg]:hidden">
           <SelectValue>{value ? pad2(m) : "--"}</SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -85,7 +85,7 @@ export function TimePicker({
         </SelectContent>
       </Select>
       <Select value={value ? ampm : ""} onValueChange={(v) => v && set({ ampm: v as "AM" | "PM" })} disabled={disabled}>
-        <SelectTrigger className="h-8 w-16 border-0 px-1.5 shadow-none">
+        <SelectTrigger className="h-8 w-12 min-w-0 justify-center border-0 px-1 shadow-none [&>svg]:hidden">
           <SelectValue>{value ? ampm : "--"}</SelectValue>
         </SelectTrigger>
         <SelectContent>

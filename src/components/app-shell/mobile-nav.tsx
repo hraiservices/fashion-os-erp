@@ -15,7 +15,6 @@ import { isModuleEnabled, DEFAULT_ENTITLEMENTS } from "@/lib/entitlements";
 import { buildSupportWhatsAppHref } from "@/components/app-shell/copilot-bubble";
 import { useCopilotOpen } from "@/components/app-shell/copilot-context";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
-import { hapticTap } from "@/lib/haptics";
 import { Sheet, SheetContent, SheetTitle, SheetHeader } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
@@ -162,10 +161,7 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
         <button
           type="button"
           aria-label="Create new…"
-          onClick={() => {
-            hapticTap();
-            setCreateOpen(true);
-          }}
+          onClick={() => setCreateOpen(true)}
           className="relative -top-3 mx-1 flex size-12 shrink-0 items-center justify-center self-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-transform active:scale-95"
         >
           <Plus className="size-6" />
@@ -180,7 +176,6 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
             href={supportHref}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => hapticTap()}
             className="flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-muted-foreground transition-colors"
           >
             <span className="flex items-center justify-center rounded-full px-3 py-0.5">
@@ -191,10 +186,7 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
           {canUseCopilot && (
             <button
               type="button"
-              onClick={() => {
-                hapticTap();
-                setCopilotOpen((o) => !o);
-              }}
+              onClick={() => setCopilotOpen((o) => !o)}
               aria-pressed={copilotOpen}
               className={cn("flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors", copilotOpen ? "text-primary" : "text-muted-foreground")}
             >

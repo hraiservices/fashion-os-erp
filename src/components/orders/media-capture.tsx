@@ -17,6 +17,7 @@ import {
   MAX_VIDEO_BYTES,
 } from "@/lib/media";
 import { CameraModal } from "@/components/orders/camera-modal";
+import { hapticTap, hapticError } from "@/lib/haptics";
 import { Button } from "@/components/ui/button";
 
 type Kind = "audio" | "video";
@@ -139,6 +140,7 @@ export function MediaCapture({
       };
 
       recorder.start();
+      hapticTap();
       setRecording(kind);
       setElapsed(0);
       timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
@@ -148,12 +150,14 @@ export function MediaCapture({
         await videoPreviewRef.current.play().catch(() => {});
       }
     } catch {
+      hapticError();
       toast.error(kind === "audio" ? "Could not access the microphone." : "Could not access the camera.");
       teardown();
     }
   }
 
   function stopRecording() {
+    hapticTap();
     if (recorderRef.current?.state === "recording") recorderRef.current.stop();
     else teardown();
   }

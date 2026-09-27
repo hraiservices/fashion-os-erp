@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { hapticSuccess, hapticError } from "@/lib/haptics";
 import type { Order } from "@/lib/types";
 
 /** A stitching-expense line item as submitted from the order form — server assigns id/created_by/
@@ -88,6 +89,8 @@ export function useAdvanceStage() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (orderId: string) => postJson<{ order: Order }>(`/api/orders/${orderId}/advance-stage`, {}),
+    onSuccess: () => hapticSuccess(),
+    onError: () => hapticError(),
     // onSettled, not onSuccess: a 409 ("Stage was already changed by another request") means the
     // server rejected OUR view of the order, not that nothing happened — someone else's request
     // won the race. Invalidating only on success left the board showing the stage as it was
@@ -106,6 +109,8 @@ export function useSetStage() {
   return useMutation({
     mutationFn: ({ orderId, stage }: { orderId: string; stage: string }) =>
       postJson<{ order: Order }>(`/api/orders/${orderId}/set-stage`, { stage }),
+    onSuccess: () => hapticSuccess(),
+    onError: () => hapticError(),
     // See useAdvanceStage — same reasoning: a conflict means the board's copy of this order is
     // stale, so it needs refetching exactly as much as a success does.
     onSettled: (_data, _error, vars) => {
@@ -145,7 +150,9 @@ export function useRecordPayment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ orderId, ...body }: PaymentInput) => postJson<{ order: Order }>(`/api/orders/${orderId}/payment`, body),
+    onError: () => hapticError(),
     onSuccess: (_data, vars) => {
+      hapticSuccess();
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["order", vars.orderId] });
       // Was missing — the order detail page's Payments section reads this exact key, so a
@@ -225,7 +232,9 @@ export function useDeleteOrder() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Delete failed");
     },
+    onError: () => hapticError(),
     onSuccess: () => {
+      hapticSuccess();
       qc.invalidateQueries({ queryKey: ["orders"] });
       // The DELETE route refunds loyalty points and reverses referral-bonus points on the
       // customer's row when the deleted order had a redemption or coupon — every sibling

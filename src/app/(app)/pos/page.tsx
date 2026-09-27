@@ -11,6 +11,7 @@ import { useOpenPosSession, useOpenRegister, useCloseRegister, useSessionCashTot
 import { genInvoiceNumber, computeLineItemsTotal, type SalesLineItem } from "@/lib/sales";
 import { computeInvoiceTotals } from "@/lib/invoice-totals";
 import { printThermalReceipt } from "@/lib/thermal-receipt";
+import { hapticSuccess, hapticError } from "@/lib/haptics";
 import { inr } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -235,6 +236,7 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
         payments,
       });
 
+      hapticSuccess();
       const balanceDue = Math.max(0, Math.round((totals.total - tenderTotal) * 100) / 100);
       toast.success(balanceDue > 0 ? `Sale complete · ${invoiceNumber} · ${inr(balanceDue)} balance due` : `Sale complete · ${invoiceNumber} · ${inr(totals.total)}`);
 
@@ -260,6 +262,7 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
       setTenders([{ method: "Cash", amount: "" }]);
       scanRef.current?.focus();
     } catch (e) {
+      hapticError();
       toast.error(e instanceof Error ? e.message : "Failed to complete sale");
     } finally {
       setSubmitting(false);

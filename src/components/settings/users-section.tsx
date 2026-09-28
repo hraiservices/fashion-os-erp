@@ -402,7 +402,11 @@ function UserWizard({
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-h-[85dvh] max-w-lg overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? employeesById.get(s.editingRow?.linked_employee_id || "")?.name || s.editingRow?.email : "Add a user"}</DialogTitle>
+          <DialogTitle>
+            {isEdit
+              ? employeesById.get(s.editingRow?.linked_employee_id || "")?.name || s.editingRow?.phone || s.editingRow?.email
+              : "Add a user"}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="flex gap-1 border-b pb-2 text-xs">
@@ -748,7 +752,9 @@ export function UsersSection() {
                 className="flex w-full flex-wrap items-center gap-2 rounded-md border p-3 text-left text-sm hover:bg-muted/40"
               >
                 <div className="min-w-48 flex-1 truncate font-medium">
-                  {row.linked_employee_id ? employeesById.get(row.linked_employee_id)?.name || row.email : row.email}
+                  {row.linked_employee_id
+                    ? employeesById.get(row.linked_employee_id)?.name || row.email
+                    : row.phone || row.email}
                 </div>
                 <Badge variant="secondary">{roleLabel(row.role)}</Badge>
                 {hasOverrides && (

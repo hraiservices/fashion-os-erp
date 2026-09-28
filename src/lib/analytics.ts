@@ -94,7 +94,13 @@ export function getStitchingPnl(orders: Order[], expenses: Expense[], employees:
       .filter((e) => e.category.toLowerCase().includes("tailor"))
       .reduce((s, e) => s + e.amount, 0);
     const tailorSalaryExpense = monthExpenses
-      .filter((e) => e.category.toLowerCase().includes("salar") && e.customerMobile && tailorMobiles.has(normalizePhone(e.customerMobile)))
+      .filter((e) => {
+        if (!e.category.toLowerCase().includes("salar")) return false;
+        // Prefer the real employee link; fall back to matching the Customer Link mobile number
+        // against a tailor's stored mobile for expenses recorded before that link existed.
+        if (e.employeeId) return tailorEmployeeIds.has(e.employeeId);
+        return !!e.customerMobile && tailorMobiles.has(normalizePhone(e.customerMobile));
+      })
       .reduce((s, e) => s + e.amount, 0);
     const tailorPayrollCost = payslips
       .filter((p) => p.status === "paid" && p.paidAt?.startsWith(m.month) && tailorEmployeeIds.has(p.employeeId))

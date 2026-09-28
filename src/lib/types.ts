@@ -15,6 +15,9 @@ export interface Expense {
   payMethod: string;
   customerMobile: string | null;
   customerName: string | null;
+  /** Employee this expense is paid to/for — the reliable link Salaries-category tailor
+   *  matching prefers over the free-text Customer Link mobile number (see getStitchingPnl). */
+  employeeId: string | null;
   createdBy: string | null;
   createdAt: string;
 }
@@ -29,6 +32,7 @@ export function mapExpenseRow(r: ExpenseRow): Expense {
     payMethod: r.pay_method,
     customerMobile: r.customer_mobile,
     customerName: r.customer_name,
+    employeeId: r.employee_id ?? null,
     createdBy: r.created_by,
     createdAt: r.created_at,
   };

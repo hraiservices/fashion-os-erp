@@ -182,6 +182,7 @@ export interface Database {
           pay_method: string;
           customer_mobile: string | null;
           customer_name: string | null;
+          employee_id: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;

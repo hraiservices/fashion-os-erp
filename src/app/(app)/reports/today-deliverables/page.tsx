@@ -11,6 +11,7 @@ import { fmtDate, inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StageBadge } from "@/components/orders/stage-badge";
+import { STAGE_META } from "@/lib/business-rules";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
@@ -112,7 +113,7 @@ export default function TodayDeliverablesPage() {
       description={`${due.length} order(s) due in the selected range, plus ${overdue.length} overdue`}
       actions={
         <ReportActionsMenu
-          rows={[...sortedOverdue, ...sortedDue].map((o) => ({ Order: o.id, Customer: o.name, Mobile: o.mobile, Stage: o.status, Delivery: fmtDate(o.deliveryDate), Balance: o.balance }))}
+          rows={[...sortedOverdue, ...sortedDue].map((o) => ({ Order: o.id, Customer: o.name, Mobile: o.mobile, Stage: STAGE_META[o.status as keyof typeof STAGE_META]?.label || o.status, Delivery: fmtDate(o.deliveryDate), Balance: o.balance }))}
           filename="today-deliverables"
           title="Today Deliverables"
           summaryLines={[`Due: ${due.length}`, `Overdue: ${overdue.length}`, `Total balance due: ${inr(dueBalance + overdueBalance)}`]}

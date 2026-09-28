@@ -139,12 +139,12 @@ export function AttendanceWidget() {
   return (
     <>
       {!me?.checkedInAt && (
-        <DropdownMenuItem disabled={submitting} onClick={() => startAction("checkin")}>
+        <DropdownMenuItem closeOnClick={false} disabled={submitting} onClick={() => startAction("checkin")}>
           <LogIn className="size-4" /> Check In
         </DropdownMenuItem>
       )}
       {me?.checkedInAt && !me.checkedOutAt && (
-        <DropdownMenuItem disabled={submitting} onClick={() => startAction("checkout")}>
+        <DropdownMenuItem closeOnClick={false} disabled={submitting} onClick={() => startAction("checkout")}>
           <LogOut className="size-4" /> Check Out
         </DropdownMenuItem>
       )}

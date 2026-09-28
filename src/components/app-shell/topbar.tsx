@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, User, Wallet, CalendarCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -24,6 +25,7 @@ import {
 export function Topbar() {
   const router = useRouter();
   const { data: user } = useCurrentUser();
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
   async function signOut() {
     const supabase = createClient();
@@ -46,7 +48,7 @@ export function Topbar() {
         <ThemeToggle />
         <NotificationBell />
 
-        <DropdownMenu>
+        <DropdownMenu open={accountMenuOpen} onOpenChange={setAccountMenuOpen}>
           <DropdownMenuTrigger
             render={
               <button type="button" aria-label="Account menu" className="rounded-full p-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
@@ -75,7 +77,7 @@ export function Topbar() {
             <DropdownMenuSeparator />
             {!!user?.employeeId && (
               <>
-                <AttendanceWidget />
+                <AttendanceWidget onDone={() => setAccountMenuOpen(false)} />
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push("/employees/my-attendance")}>
                   <CalendarCheck className="size-4" /> My Attendance

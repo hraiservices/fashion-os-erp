@@ -29,7 +29,7 @@ type Action = "checkin" | "checkout" | null;
  * the exact same /api/attendance/* endpoints, not a relaxed one. Renders nothing for a user
  * with no linked employee record.
  */
-export function AttendanceWidget() {
+export function AttendanceWidget({ onDone }: { onDone?: () => void }) {
   const { data: user } = useCurrentUser();
   const [me, setMe] = useState<AttendanceMe | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -116,6 +116,7 @@ export function AttendanceWidget() {
           toast.success(pendingAction === "checkin" ? "Checked in!" : "Checked out!");
           setWorkNote("");
           await loadMe(true);
+          onDone?.();
         } catch {
           toast.error("Network error — try again.");
         } finally {

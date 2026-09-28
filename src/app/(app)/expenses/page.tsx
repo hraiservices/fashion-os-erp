@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, Trash2, Pencil, Wallet, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useExpenses, useDeleteExpense, useBulkDeleteExpenses } from "@/hooks/use-expenses";
+import { useEmployees } from "@/hooks/use-employees";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRowSelection } from "@/hooks/use-row-selection";
 import { inr, fmtDateShort } from "@/lib/format";
@@ -27,6 +28,7 @@ import {
 
 function ExpensesPageContent() {
   const { data: expenses, isLoading } = useExpenses();
+  const { data: employees } = useEmployees();
   const { data: user } = useCurrentUser();
   const deleteExpense = useDeleteExpense();
   const bulkDeleteExpenses = useBulkDeleteExpenses();
@@ -34,6 +36,11 @@ function ExpensesPageContent() {
 
   const canAdd = user?.role === "admin" || user?.role === "manager";
   const selection = useRowSelection((expenses || []).map((e) => e.id));
+  const employeeNameById = new Map((employees || []).map((emp) => [emp.id, emp.name]));
+  function linkedNameFor(e: { employeeId: string | null; customerName: string | null }) {
+    if (e.employeeId) return employeeNameById.get(e.employeeId) || "—";
+    return e.customerName || "—";
+  }
 
   async function handleDelete(id: string) {
     try {
@@ -159,6 +166,7 @@ function ExpensesPageContent() {
                   )}
                   <th className="px-4 py-2.5 font-medium">Date</th>
                   <th className="px-4 py-2.5 font-medium">Category</th>
+                  <th className="px-4 py-2.5 font-medium">Customer/Employee</th>
                   <th className="px-4 py-2.5 font-medium">Description</th>
                   <th className="px-4 py-2.5 font-medium">Method</th>
                   <th className="px-4 py-2.5 text-right font-medium">Amount</th>
@@ -175,6 +183,7 @@ function ExpensesPageContent() {
                     )}
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">{fmtDateShort(e.date)}</td>
                     <td className="px-4 py-3 font-medium">{e.category}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{linkedNameFor(e)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{e.description || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{e.payMethod}</td>
                     <td className="px-4 py-3 text-right font-semibold tabular-nums">{inr(e.amount)}</td>
@@ -215,6 +224,7 @@ function ExpensesPageContent() {
               <MobileRecordCard key={e.id}>
                 <MobileRecordHeader title={e.category} subtitle={e.description || undefined} value={inr(e.amount)} showChevron={false} />
                 <MobileRecordRow label="Date" value={fmtDateShort(e.date)} />
+                <MobileRecordRow label="Customer/Employee" value={linkedNameFor(e)} />
                 <MobileRecordRow label="Method" value={e.payMethod} />
                 {canAdd && (
                   <div className="flex items-center justify-end gap-1 pt-1">

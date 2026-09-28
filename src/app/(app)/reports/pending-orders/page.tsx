@@ -58,7 +58,7 @@ export default function PendingOrdersPage() {
       description={`${pending.length} orders still in progress, soonest delivery first`}
       actions={
         <ReportActionsMenu
-          rows={sortedPending.map((o) => ({ Order: o.id, Customer: o.name, Mobile: o.mobile, Stage: o.status, Delivery: fmtDate(o.deliveryDate), Balance: o.balance }))}
+          rows={sortedPending.map((o) => ({ Order: o.id, Customer: o.name, Mobile: o.mobile, Stage: STAGE_META[o.status as keyof typeof STAGE_META]?.label || o.status, Delivery: fmtDate(o.deliveryDate), Balance: o.balance }))}
           filename="pending-orders"
           title="Pending Orders"
           summaryLines={[`Orders: ${pending.length}`, `Total balance due: ${inr(totalBalance)}`]}

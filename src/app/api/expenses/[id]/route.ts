@@ -14,6 +14,7 @@ const bodySchema = z.object({
   payMethod: z.string().min(1),
   customerMobile: z.string().optional().nullable(),
   customerName: z.string().optional().nullable(),
+  employeeId: z.string().optional().nullable(),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -39,6 +40,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       pay_method: fd.payMethod,
       customer_mobile: fd.customerMobile || null,
       customer_name: fd.customerName || null,
+      employee_id: fd.employeeId || null,
     })
     .eq("id", id)
     .select()

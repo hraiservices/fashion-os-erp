@@ -126,6 +126,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/tailor-payables", label: "Tailor Payables" },
 
     { href: "/reports/sales", label: "Sales Summary", section: "Sales" },
+    { href: "/reports/sales-pl", label: "Product Sales P&L", adminOnly: true },
     { href: "/reports/sales/by-customer", label: "Sales by Customer" },
     { href: "/reports/sales/by-item", label: "Sales by Item" },
     { href: "/reports/sales/profit-by-item", label: "Profit by Item", adminOnly: true },

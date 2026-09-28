@@ -6,9 +6,10 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, Receipt, User2, FileText, Save } from "lucide-react";
+import { ArrowLeft, Receipt, User2, Briefcase, FileText, Save } from "lucide-react";
 import Link from "next/link";
 import { useCreateExpense, useUpdateExpense } from "@/hooks/use-expenses";
+import { useEmployees } from "@/hooks/use-employees";
 import { Button } from "@/components/ui/button";
 import { FormActionBar } from "@/components/ui/form-action-bar";
 import { NumberInput } from "@/components/ui/number-input";
@@ -18,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePicker } from "@/components/ui/date-picker";
 import { CategoryPicker } from "@/components/expenses/category-picker";
 import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/customer-picker";
+import { SearchSelect } from "@/components/ui/search-select";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import type { Customer, Expense } from "@/lib/types";
 
@@ -63,12 +65,17 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
   const isEdit = !!existing;
   const today = new Date().toISOString().split("T")[0];
 
+  const { data: employees } = useEmployees();
+  const employeeOptions = (employees || []).map((e) => ({ value: e.id, label: e.name, sublabel: e.role }));
+
   const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
   const [customerLinkOpen, setCustomerLinkOpen] = useState(false);
+  const [employeeLinkOpen, setEmployeeLinkOpen] = useState(!!existing?.employeeId);
   const [notesOpen, setNotesOpen] = useState(false);
   const [customer, setCustomer] = useState<{ name: string; mobile: string } | null>(
     existing?.customerName ? { name: existing.customerName, mobile: existing.customerMobile || "" } : null
   );
+  const [employeeId, setEmployeeId] = useState<string | null>(existing?.employeeId || null);
 
   const {
     register,
@@ -88,7 +95,7 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
 
   async function onSubmit(values: FormValues) {
     try {
-      const payload = { ...values, description: values.description || "", customerName: customer?.name || null, customerMobile: customer?.mobile || null };
+      const payload = { ...values, description: values.description || "", customerName: customer?.name || null, customerMobile: customer?.mobile || null, employeeId };
       if (isEdit) {
         await updateExpense.mutateAsync({ id: existing!.id, ...payload });
         toast.success("Expense updated");
@@ -187,6 +194,45 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
                     </div>
                     {customer && (
                       <button type="button" onClick={() => setCustomer(null)} className="text-xs text-muted-foreground hover:text-foreground whitespace-nowrap">
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </FieldGroup>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
+
+        {/* Employee link */}
+        <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <Accordion value={employeeLinkOpen ? ["employee"] : []} onValueChange={(v) => setEmployeeLinkOpen(v.includes("employee"))}>
+            <AccordionItem value="employee" className="border-b-0">
+              <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                    <Briefcase className="size-3.5 text-primary" />
+                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Employee link</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <FieldGroup
+                  label="Employee"
+                  hint="Optional — link this expense to an employee (e.g. a salary payment), so reports like Stitching P&L can attribute it correctly."
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <SearchSelect
+                        inputClassName="h-10"
+                        placeholder="Type an employee name…"
+                        value={employeeId || ""}
+                        options={employeeOptions}
+                        onSelect={setEmployeeId}
+                      />
+                    </div>
+                    {employeeId && (
+                      <button type="button" onClick={() => setEmployeeId(null)} className="text-xs text-muted-foreground hover:text-foreground whitespace-nowrap">
                         Clear
                       </button>
                     )}

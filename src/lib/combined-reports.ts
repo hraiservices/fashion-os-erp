@@ -1,11 +1,12 @@
 // Combined P&L — every revenue stream (stitching + retail sales) against every cost stream
 // (purchases, manufacturing labor, shop expenses). Kept as its own module rather than folded
 // into lib/analytics.ts since it spans modules that evolved independently.
-import type { Order, Expense, OrderExpense, Payslip } from "@/lib/types";
+import type { Order, Expense, OrderExpense, Payslip, Employee } from "@/lib/types";
 import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import type { PurchaseBillWithBalance } from "@/hooks/use-purchase-bills";
 import type { WorkOrder } from "@/lib/types";
 import { last6MonthBuckets, lastNDayBuckets } from "@/lib/period-buckets";
+import { normalizePhone } from "@/lib/auth-errors";
 
 export interface CombinedMonthStat {
   month: string;
@@ -137,4 +138,60 @@ export function getCombinedDaily(
   return lastNDayBuckets(days).map(({ key, label }) =>
     computeBucket(key, label, orders, invoices, bills, workOrders, expenses, orderExpenseByOrderId, payslips)
   );
+}
+
+export interface SalesPnlStat {
+  month: string;
+  label: string;
+  count: number;
+  billed: number;
+  purchaseCost: number;
+  salesStaffCost: number;
+  totalCost: number;
+  netProfit: number;
+}
+
+/** Product Sales P&L — retail sales revenue against the costs that specifically belong to that
+ *  revenue stream, per explicit business rule:
+ *   1. Purchases/COGS — every purchase bill dated in the month, same period-cost convention
+ *      Combined P&L already uses for purchaseCost (not matched to specific invoices).
+ *   2. Sales Staff cost — expenses filed under a "Salaries and Wages"-type category (name
+ *      contains "salar") and linked to an employee whose role contains "sales" (by employee_id,
+ *      falling back to the Customer Link mobile number for expenses recorded before that link
+ *      existed — same convention as getStitchingPnl's tailor matching), plus any Payroll
+ *      payslip paid to a sales-role employee.
+ *  Deliberately does NOT include tailor payments of any kind (see getStitchingPnl for those) —
+ *  the two reports are meant to partition tailor vs. sales-staff cost, not double-count either.
+ *  Sales commission is not yet included: sales invoices have no field recording which Sales
+ *  Person made the sale, so per-invoice commission can't be attributed (see
+ *  computeCommission in commission.ts, which only attributes to stitching Orders via their
+ *  tailor field) — planned once a "Sold by" field exists on sales invoices.
+ *  Revenue is Billed (accrual), matching Stitching P&L's convention. */
+export function getSalesPnl(invoices: SalesInvoiceWithBalance[], bills: PurchaseBillWithBalance[], expenses: Expense[], employees: Employee[], payslips: Payslip[]): SalesPnlStat[] {
+  const salesMobiles = new Set(
+    employees.filter((e) => e.role.toLowerCase().includes("sales")).map((e) => normalizePhone(e.mobile))
+  );
+  const salesEmployeeIds = new Set(employees.filter((e) => e.role.toLowerCase().includes("sales")).map((e) => e.id));
+
+  return last6MonthBuckets().map(({ key, label }) => {
+    const monthInvoices = invoices.filter((i) => i.invoiceDate?.startsWith(key) && i.docStatus !== "draft");
+    const billed = monthInvoices.reduce((s, i) => s + Math.max(0, i.total - i.creditsTotal), 0);
+    const purchaseCost = bills.filter((b) => b.billDate?.startsWith(key)).reduce((s, b) => s + b.total, 0);
+
+    const monthExpenses = expenses.filter((e) => e.date?.startsWith(key));
+    const salesSalaryExpense = monthExpenses
+      .filter((e) => {
+        if (!e.category.toLowerCase().includes("salar")) return false;
+        if (e.employeeId) return salesEmployeeIds.has(e.employeeId);
+        return !!e.customerMobile && salesMobiles.has(normalizePhone(e.customerMobile));
+      })
+      .reduce((s, e) => s + e.amount, 0);
+    const salesPayrollCost = payslips
+      .filter((p) => p.status === "paid" && p.paidAt?.startsWith(key) && salesEmployeeIds.has(p.employeeId))
+      .reduce((s, p) => s + (p.netPay || 0), 0);
+    const salesStaffCost = salesSalaryExpense + salesPayrollCost;
+
+    const totalCost = purchaseCost + salesStaffCost;
+    return { month: key, label, count: monthInvoices.length, billed, purchaseCost, salesStaffCost, totalCost, netProfit: billed - totalCost };
+  });
 }

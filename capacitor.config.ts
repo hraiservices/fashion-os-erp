@@ -15,7 +15,7 @@ const config: CapacitorConfig = {
   // Required by the Capacitor CLI even in server.url mode — never actually loaded, see www/index.html.
   webDir: "www",
   server: {
-    url: "https://app.fashionflow.app",
+    url: "https://swaroop.fashionflow.app",
     // The production domain is already HTTPS — cleartext (plain HTTP) traffic stays disallowed.
     cleartext: false,
     // Bundled offline fallback with a retry button. Without it a failed load (dead zone, cold

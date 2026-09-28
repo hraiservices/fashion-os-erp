@@ -25,10 +25,12 @@ const SORT_COMPARATORS: Record<string, (a: MonthlyRow, b: MonthlyRow) => number>
   billed: (a, b) => a.billed - b.billed,
   collected: (a, b) => a.collected - b.collected,
   pending: (a, b) => a.pending - b.pending,
-  expenseCost: (a, b) => a.expenseCost - b.expenseCost,
+  tailoringExpense: (a, b) => a.tailoringExpense - b.tailoringExpense,
+  tailorSalaryExpense: (a, b) => a.tailorSalaryExpense - b.tailorSalaryExpense,
+  tailorPayrollCost: (a, b) => a.tailorPayrollCost - b.tailorPayrollCost,
   netProfit: (a, b) => a.netProfit - b.netProfit,
 };
-const SORT_DESC_KEYS = new Set(["count", "billed", "collected", "pending", "expenseCost", "netProfit"]);
+const SORT_DESC_KEYS = new Set(["count", "billed", "collected", "pending", "tailoringExpense", "tailorSalaryExpense", "tailorPayrollCost", "netProfit"]);
 
 /** The month buckets shown are always the trailing 6 months (see getStitchingPnl) — the date
  *  range narrows which orders/expenses/payslips count toward each bucket, not the window of
@@ -67,10 +69,12 @@ export default function MonthlyPnlPage() {
       billed: acc.billed + m.billed,
       collected: acc.collected + m.collected,
       pending: acc.pending + m.pending,
-      expenseCost: acc.expenseCost + m.expenseCost,
+      tailoringExpense: acc.tailoringExpense + m.tailoringExpense,
+      tailorSalaryExpense: acc.tailorSalaryExpense + m.tailorSalaryExpense,
+      tailorPayrollCost: acc.tailorPayrollCost + m.tailorPayrollCost,
       netProfit: acc.netProfit + m.netProfit,
     }),
-    { count: 0, billed: 0, collected: 0, pending: 0, expenseCost: 0, netProfit: 0 }
+    { count: 0, billed: 0, collected: 0, pending: 0, tailoringExpense: 0, tailorSalaryExpense: 0, tailorPayrollCost: 0, netProfit: 0 }
   );
 
   return (
@@ -85,7 +89,9 @@ export default function MonthlyPnlPage() {
             Billed: m.billed,
             Collected: m.collected,
             Pending: m.pending,
-            "Tailor Expenses": m.expenseCost,
+            "Tailoring Expense": m.tailoringExpense,
+            "Salary Paid to Tailor": m.tailorSalaryExpense,
+            "Tailor Payroll": m.tailorPayrollCost,
             "Net Profit": m.netProfit,
           }))}
           filename="stitching-monthly-pl"
@@ -93,7 +99,9 @@ export default function MonthlyPnlPage() {
           summaryLines={[
             `Total billed: ${inr(totals.billed)}`,
             `Total collected: ${inr(totals.collected)}`,
-            `Total tailor expenses: ${inr(totals.expenseCost)}`,
+            `Total tailoring expense: ${inr(totals.tailoringExpense)}`,
+            `Total salary paid to tailor: ${inr(totals.tailorSalaryExpense)}`,
+            `Total tailor payroll: ${inr(totals.tailorPayrollCost)}`,
             `Net profit: ${inr(totals.netProfit)}`,
           ]}
         />
@@ -122,8 +130,10 @@ export default function MonthlyPnlPage() {
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Area type="monotone" dataKey="billed" name="Billed" stroke="var(--color-primary)" strokeWidth={2} fill="var(--color-primary)" fillOpacity={0.12} />
               <Area type="monotone" dataKey="collected" name="Collected" stroke="#059669" strokeWidth={2} fill="#059669" fillOpacity={0.12} />
-              <Area type="monotone" dataKey="expenseCost" name="Tailor Expenses" stroke="#ef4444" strokeWidth={2} fill="#ef4444" fillOpacity={0.1} />
               <Area type="monotone" dataKey="netProfit" name="Net Profit" stroke="#7c3aed" strokeWidth={2} fill="#7c3aed" fillOpacity={0.1} />
+              <Area type="monotone" dataKey="tailoringExpense" name="Tailoring Expense" stroke="#ef4444" strokeWidth={2} fill="#ef4444" fillOpacity={0.08} />
+              <Area type="monotone" dataKey="tailorSalaryExpense" name="Salary Paid to Tailor" stroke="#f97316" strokeWidth={2} fill="#f97316" fillOpacity={0.08} />
+              <Area type="monotone" dataKey="tailorPayrollCost" name="Tailor Payroll" stroke="#d946ef" strokeWidth={2} fill="#d946ef" fillOpacity={0.08} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -136,7 +146,9 @@ export default function MonthlyPnlPage() {
           <MobileRecordRow label="Billed" value={inr(totals.billed)} />
           <MobileRecordRow label="Collected" value={inr(totals.collected)} valueClassName="text-emerald-600 dark:text-emerald-400" />
           <MobileRecordRow label="Pending" value={inr(totals.pending)} />
-          <MobileRecordRow label="Tailor Expenses" value={inr(totals.expenseCost)} valueClassName="text-red-600 dark:text-red-400" />
+          <MobileRecordRow label="Tailoring Expense" value={inr(totals.tailoringExpense)} valueClassName="text-red-600 dark:text-red-400" />
+          <MobileRecordRow label="Salary Paid to Tailor" value={inr(totals.tailorSalaryExpense)} valueClassName="text-red-600 dark:text-red-400" />
+          <MobileRecordRow label="Tailor Payroll" value={inr(totals.tailorPayrollCost)} valueClassName="text-red-600 dark:text-red-400" />
           <MobileRecordRow label="Net Profit" value={inr(totals.netProfit)} valueClassName={totals.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"} />
         </MobileRecordCard>
         {sortedMonthly.map((m) => (
@@ -146,7 +158,9 @@ export default function MonthlyPnlPage() {
             <MobileRecordRow label="Billed" value={inr(m.billed)} />
             <MobileRecordRow label="Collected" value={inr(m.collected)} valueClassName="text-emerald-600 dark:text-emerald-400" />
             <MobileRecordRow label="Pending" value={m.pending > 0 ? <BalanceDue amount={m.pending} /> : "—"} />
-            <MobileRecordRow label="Tailor Expenses" value={inr(m.expenseCost)} valueClassName="text-red-600 dark:text-red-400" />
+            <MobileRecordRow label="Tailoring Expense" value={inr(m.tailoringExpense)} valueClassName="text-red-600 dark:text-red-400" />
+            <MobileRecordRow label="Salary Paid to Tailor" value={inr(m.tailorSalaryExpense)} valueClassName="text-red-600 dark:text-red-400" />
+            <MobileRecordRow label="Tailor Payroll" value={inr(m.tailorPayrollCost)} valueClassName="text-red-600 dark:text-red-400" />
             <MobileRecordRow label="Net Profit" value={inr(m.netProfit)} valueClassName={m.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"} />
           </MobileRecordCard>
         ))}
@@ -160,7 +174,9 @@ export default function MonthlyPnlPage() {
             <Th align="right" sortKey="billed" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Billed</Th>
             <Th align="right" sortKey="collected" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Collected</Th>
             <Th align="right" sortKey="pending" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Pending</Th>
-            <Th align="right" sortKey="expenseCost" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Tailor Expenses</Th>
+            <Th align="right" sortKey="tailoringExpense" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Tailoring Expense</Th>
+            <Th align="right" sortKey="tailorSalaryExpense" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Salary Paid to Tailor</Th>
+            <Th align="right" sortKey="tailorPayrollCost" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Tailor Payroll</Th>
             <Th align="right" sortKey="netProfit" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Net Profit</Th>
           </tr>
         </thead>
@@ -171,7 +187,9 @@ export default function MonthlyPnlPage() {
             <Td align="right">{inr(totals.billed)}</Td>
             <Td align="right">{inr(totals.collected)}</Td>
             <Td align="right">{inr(totals.pending)}</Td>
-            <Td align="right" className="text-red-600 dark:text-red-400">{inr(totals.expenseCost)}</Td>
+            <Td align="right" className="text-red-600 dark:text-red-400">{inr(totals.tailoringExpense)}</Td>
+            <Td align="right" className="text-red-600 dark:text-red-400">{inr(totals.tailorSalaryExpense)}</Td>
+            <Td align="right" className="text-red-600 dark:text-red-400">{inr(totals.tailorPayrollCost)}</Td>
             <Td align="right" className={totals.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>{inr(totals.netProfit)}</Td>
           </ReportTotalsRow>
           {sortedMonthly.map((m) => (
@@ -183,7 +201,9 @@ export default function MonthlyPnlPage() {
                 {inr(m.collected)}
               </Td>
               <Td align="right">{m.pending > 0 ? <BalanceDue amount={m.pending} /> : "—"}</Td>
-              <Td align="right" className="text-red-600 dark:text-red-400">{inr(m.expenseCost)}</Td>
+              <Td align="right" className="text-red-600 dark:text-red-400">{inr(m.tailoringExpense)}</Td>
+              <Td align="right" className="text-red-600 dark:text-red-400">{inr(m.tailorSalaryExpense)}</Td>
+              <Td align="right" className="text-red-600 dark:text-red-400">{inr(m.tailorPayrollCost)}</Td>
               <Td align="right" className={m.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>{inr(m.netProfit)}</Td>
             </tr>
           ))}

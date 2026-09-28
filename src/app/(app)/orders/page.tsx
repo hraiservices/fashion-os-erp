@@ -435,7 +435,7 @@ function OrdersContent() {
         }
       />
 
-      {orders && <OrderStatusCards orders={orders} />}
+      {orders && <OrderStatusCards orders={orders} collapsible />}
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">

@@ -4,7 +4,8 @@ import { isOrderOutstanding } from "@/lib/balances";
 import { istDateString } from "@/lib/ist-date";
 import { isWithinDateRange, type DateRange } from "@/lib/report-date-range";
 import { computeOrderProfit } from "@/lib/order-profit";
-import type { Order, Customer, ReferralCoupon, OrderExpense } from "@/lib/types";
+import { normalizePhone } from "@/lib/auth-errors";
+import type { Order, Customer, ReferralCoupon, OrderExpense, Expense, Employee, Payslip } from "@/lib/types";
 
 function fmtMon(yyyyMm: string): string {
   const [y, m] = yyyyMm.split("-").map(Number);
@@ -57,6 +58,49 @@ export function getMonthly(orders: Order[]): MonthlyStat[] {
       pending: mo.reduce((s, o) => s + Math.max(0, o.balance ?? Math.max(0, (o.total || 0) - (o.advance || 0))), 0),
       count: mo.length,
     };
+  });
+}
+
+export interface StitchingPnlStat extends MonthlyStat {
+  tailoringExpense: number;
+  tailorSalaryExpense: number;
+  tailorPayrollCost: number;
+  expenseCost: number;
+  netProfit: number;
+}
+
+/** Stitching Monthly P&L's cost side. Only two things count as a "stitching cost" here, per
+ *  explicit business rule:
+ *   1. Any expense filed under a category whose name contains "tailor" (e.g. "Tailoring") —
+ *      counted in full, no employee link needed.
+ *   2. Of expenses filed under a "Salaries and Wages"-type category (name contains "salar"),
+ *      only the ones paid to a tailor — identified by matching the expense's Customer Link
+ *      mobile number against an employee whose role contains "tailor" (case-insensitive,
+ *      matching the isTailor convention used elsewhere, e.g. attendance-widget.tsx).
+ *   3. Payroll payslips (the formal payroll module, separate from manual Expense entries)
+ *      paid to a tailor, by the same role match — full netPay, since this report doesn't
+ *      otherwise account for any per-order piece-rate/labor cost that could double-count it.
+ *  Revenue stays "Billed" (accrual), matching the report's existing headline number — profit
+ *  is Billed minus the cost above, not Collected minus cost. */
+export function getStitchingPnl(orders: Order[], expenses: Expense[], employees: Employee[], payslips: Payslip[]): StitchingPnlStat[] {
+  const tailorMobiles = new Set(
+    employees.filter((e) => e.role.toLowerCase().includes("tailor")).map((e) => normalizePhone(e.mobile))
+  );
+  const tailorEmployeeIds = new Set(employees.filter((e) => e.role.toLowerCase().includes("tailor")).map((e) => e.id));
+
+  return getMonthly(orders).map((m) => {
+    const monthExpenses = expenses.filter((e) => e.date?.startsWith(m.month));
+    const tailoringExpense = monthExpenses
+      .filter((e) => e.category.toLowerCase().includes("tailor"))
+      .reduce((s, e) => s + e.amount, 0);
+    const tailorSalaryExpense = monthExpenses
+      .filter((e) => e.category.toLowerCase().includes("salar") && e.customerMobile && tailorMobiles.has(normalizePhone(e.customerMobile)))
+      .reduce((s, e) => s + e.amount, 0);
+    const tailorPayrollCost = payslips
+      .filter((p) => p.status === "paid" && p.paidAt?.startsWith(m.month) && tailorEmployeeIds.has(p.employeeId))
+      .reduce((s, p) => s + (p.netPay || 0), 0);
+    const expenseCost = tailoringExpense + tailorSalaryExpense + tailorPayrollCost;
+    return { ...m, tailoringExpense, tailorSalaryExpense, tailorPayrollCost, expenseCost, netProfit: m.billed - expenseCost };
   });
 }
 

@@ -76,7 +76,7 @@ export function LiveReportWidget() {
       <div className="flex flex-1 flex-col gap-2">
         <h3 className="shrink-0 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <Wallet className="size-3.5 text-amber-600" />
-          Picked up, not paid ({deliveredUnpaid.length}{unpaidBalance > 0 ? ` · ${inr(unpaidBalance)}` : ""})
+          Ready & Delivered Orders ( UnPaid ) ({deliveredUnpaid.length}{unpaidBalance > 0 ? ` · ${inr(unpaidBalance)}` : ""})
         </h3>
         {deliveredUnpaid.length === 0 ? (
           <p className="px-1 py-2 text-xs text-muted-foreground">Nothing unpaid.</p>

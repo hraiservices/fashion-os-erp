@@ -108,13 +108,13 @@ export default function LiveReportPage() {
         <ReportActionsMenu
           rows={[
             ...sortedReadyUncollected.map((o) => ({ Section: "Ready, not picked up", Order: o.id, Customer: o.name, "Days Waiting": o.daysWaiting, Balance: o.balance })),
-            ...sortedDeliveredUnpaid.map((o) => ({ Section: "Picked up, not paid", Order: o.id, Customer: o.name, "Days Waiting": "", Balance: o.balance })),
+            ...sortedDeliveredUnpaid.map((o) => ({ Section: "Ready & Delivered Orders ( UnPaid )", Order: o.id, Customer: o.name, "Days Waiting": "", Balance: o.balance })),
           ]}
           filename="live-report"
           title="LIVE Report"
           summaryLines={[
             `Ready, not picked up: ${readyUncollected.length} (${inr(readyBalance)})`,
-            `Picked up, not paid: ${deliveredUnpaid.length} (${inr(unpaidBalance)})`,
+            `Ready & Delivered Orders ( UnPaid ): ${deliveredUnpaid.length} (${inr(unpaidBalance)})`,
           ]}
         />
       }
@@ -251,7 +251,7 @@ export default function LiveReportPage() {
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
             <Wallet className="size-4 text-amber-600" />
-            Picked up, not paid
+            Ready & Delivered Orders ( UnPaid )
             <span className="text-xs font-normal text-muted-foreground">
               {deliveredUnpaid.length} order(s) · {inr(unpaidBalance)} pending balance
             </span>

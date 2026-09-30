@@ -19,7 +19,6 @@ import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
 import { computeOrderProfit } from "@/lib/order-profit";
 import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppUrl, isValidManualOrderNumber, type Lining } from "@/lib/business-rules";
 import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
-import { DEFAULT_ORDER_TAG_TEMPLATE, hydrateOrderTagTemplate, type OrderTagTemplateConfig } from "@/lib/order-tag-template";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
 import { inr, fmtDate } from "@/lib/format";
@@ -33,7 +32,7 @@ import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
 import { PaymentModal } from "@/components/orders/payment-modal";
 import { GarmentChecklistRow } from "@/components/orders/garment-checklist";
 import { ReworkDialog } from "@/components/orders/rework-dialog";
-import { printOrderTag } from "@/lib/order-tag";
+import { printTailorSheetLabel, printTailorSheetA4 } from "@/lib/tailor-sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,8 +78,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
-  const { data: rawTagTemplate } = useAppSetting<OrderTagTemplateConfig>("orderTagTemplate", DEFAULT_ORDER_TAG_TEMPLATE);
-  const tagTemplate = hydrateOrderTagTemplate(rawTagTemplate);
   const advanceStage = useAdvanceStage();
   const deleteOrder = useDeleteOrder();
   const renameOrder = useRenameOrder();
@@ -405,9 +402,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <span className="min-w-0 truncate">Rework</span>
             </Button>
           )}
-          <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print order tag" onClick={() => printOrderTag(order, shop, tailorName(order.tailor), tagTemplate)}>
+          <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print tailor sheet (label)" onClick={() => printTailorSheetLabel(order, shop, measureFields || [])}>
             <TagIcon className="size-4" />
-            <span className="min-w-0 truncate">Print tag</span>
+            <span className="min-w-0 truncate">Tailor Sheet (Label)</span>
+          </Button>
+          <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print tailor sheet (A4)" onClick={() => printTailorSheetA4(order, shop, measureFields || [])}>
+            <TagIcon className="size-4" />
+            <span className="min-w-0 truncate">Tailor Sheet (A4)</span>
           </Button>
           <PrintButton labelClassName="min-w-0 truncate" className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm" />
           <Button

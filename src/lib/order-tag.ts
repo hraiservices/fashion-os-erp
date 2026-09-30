@@ -34,6 +34,7 @@ export function printOrderTag(order: Order, shop?: Shop, tailorName?: string, te
   win.document.write(`<!doctype html>
 <html>
 <head>
+<meta charset="UTF-8" />
 <title>${escapeHtml(order.id)} — Order Tag</title>
 <style>
   @page { size: ${t.paperWidthMm}mm ${t.paperHeightMm}mm; margin: 4mm; }

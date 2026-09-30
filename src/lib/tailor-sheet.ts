@@ -65,24 +65,29 @@ export function printTailorSheetLabel(order: Order, shop: Shop | undefined, meas
 <meta charset="UTF-8" />
 <title>${escapeHtml(order.id)} — Tailor Work Order</title>
 <style>
-  @page { size: ${paperWidthMm}mm auto; margin: 3mm; }
-  body { font-family: sans-serif; padding: 6px; color: #000; font-size: 11px; }
+  @page { size: ${paperWidthMm}mm auto; margin: 2mm; }
+  * { box-sizing: border-box; }
+  body { font-family: sans-serif; padding: 4px; color: #000; font-size: 11px; max-width: 100%; overflow-wrap: break-word; }
   .shop { font-weight: 700; font-size: 12px; text-align: center; margin-bottom: 2px; }
   h1 { font-size: 12px; font-weight: 700; text-align: center; margin: 0 0 8px; }
   .rows { margin-bottom: 8px; }
   .row { display: flex; justify-content: space-between; gap: 6px; padding: 2px 0; border-bottom: 1px dashed #999; }
-  .label { color: #000; }
-  .value { font-weight: 700; text-align: right; }
-  table.garments { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 10px; }
-  table.garments th, table.garments td { border-bottom: 1px solid #999; padding: 3px 2px; text-align: left; }
+  .label { color: #000; flex-shrink: 0; }
+  .value { font-weight: 700; text-align: right; min-width: 0; overflow-wrap: break-word; }
+  table.garments { table-layout: fixed; width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 10px; }
+  table.garments th, table.garments td { border-bottom: 1px solid #999; padding: 3px 2px; text-align: left; overflow-wrap: break-word; word-break: break-word; }
   table.garments th:last-child, table.garments td:last-child { text-align: right; }
+  table.garments th:nth-child(1), table.garments td:nth-child(1) { width: 34%; }
+  table.garments th:nth-child(2), table.garments td:nth-child(2) { width: 12%; }
+  table.garments th:nth-child(3), table.garments td:nth-child(3) { width: 28%; }
+  table.garments th:nth-child(4), table.garments td:nth-child(4) { width: 26%; }
   .special { border-top: 1px dashed #666; margin-top: 8px; padding-top: 6px; }
   .special .label { text-transform: uppercase; font-size: 9px; letter-spacing: 0.4px; margin-bottom: 2px; }
   .mtitle { font-weight: 700; margin-top: 10px; margin-bottom: 4px; border-top: 1px dashed #666; padding-top: 6px; }
   .mgrid { display: grid; grid-template-columns: 1fr; gap: 2px; }
-  .mfield { display: flex; justify-content: space-between; border-bottom: 1px dotted #999; }
-  .mlabel { color: #000; }
-  .mvalue { font-weight: 700; }
+  .mfield { display: flex; justify-content: space-between; gap: 6px; border-bottom: 1px dotted #999; }
+  .mlabel { color: #000; flex-shrink: 0; }
+  .mvalue { font-weight: 700; min-width: 0; overflow-wrap: break-word; text-align: right; }
 </style>
 </head>
 <body>

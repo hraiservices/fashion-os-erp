@@ -523,6 +523,21 @@
   body {
     background: #fff !important;
   }
+  /* The app pins <body> to the viewport (fixed + overflow-hidden) and scrolls everything one
+     level down on #scroll-root instead, to contain mobile Safari's rubber-band bounce (see
+     layout.tsx) — but a fixed, overflow-hidden body clips print output to a single viewport-
+     height "page" no matter what any individual report does with its own overflow. Printing
+     needs the whole document to flow normally instead. */
+  body {
+    position: static !important;
+    inset: auto !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+  #scroll-root {
+    height: auto !important;
+    overflow: visible !important;
+  }
   /* Anything explicitly opted out (sidebar, topbar, mobile tab bar, action buttons,
      search bars, pagination, etc.) via Tailwind's print:hidden is already handled by
      that utility — these are the few things not easily reached with a class because

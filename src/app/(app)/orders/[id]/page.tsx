@@ -39,6 +39,7 @@ import { Input } from "@/components/ui/input";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { PrintButton } from "@/components/ui/print-button";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Garment } from "@/lib/types";
 import {
@@ -402,10 +403,20 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <span className="min-w-0 truncate">Rework</span>
             </Button>
           )}
-          <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print tailor sheet (label)" onClick={() => printTailorSheetLabel(order, shop, measureFields || [])}>
-            <TagIcon className="size-4" />
-            <span className="min-w-0 truncate">Tailor (Label)</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print tailor sheet (label)">
+                  <TagIcon className="size-4" />
+                  <span className="min-w-0 truncate">Tailor (Label)</span>
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => printTailorSheetLabel(order, shop, measureFields || [], 58)}>58mm roll</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => printTailorSheetLabel(order, shop, measureFields || [], 80)}>80mm roll</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print tailor sheet (A4)" onClick={() => printTailorSheetA4(order, shop, measureFields || [])}>
             <TagIcon className="size-4" />
             <span className="min-w-0 truncate">Tailor (A4)</span>

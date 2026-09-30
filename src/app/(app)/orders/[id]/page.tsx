@@ -404,11 +404,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           )}
           <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print tailor sheet (label)" onClick={() => printTailorSheetLabel(order, shop, measureFields || [])}>
             <TagIcon className="size-4" />
-            <span className="min-w-0 truncate">Tailor Sheet (Label)</span>
+            <span className="min-w-0 truncate">Tailor (Label)</span>
           </Button>
           <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print tailor sheet (A4)" onClick={() => printTailorSheetA4(order, shop, measureFields || [])}>
             <TagIcon className="size-4" />
-            <span className="min-w-0 truncate">Tailor Sheet (A4)</span>
+            <span className="min-w-0 truncate">Tailor (A4)</span>
           </Button>
           <PrintButton labelClassName="min-w-0 truncate" className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm" />
           <Button

@@ -71,6 +71,7 @@ export function printThermalReceipt(data: ThermalReceiptData) {
   win.document.write(`<!doctype html>
 <html>
 <head>
+<meta charset="UTF-8" />
 <title>Receipt ${data.invoiceNumber}</title>
 <style>
   @page { size: ${widthMm}mm auto; margin: 0; }

@@ -17,6 +17,7 @@ export function printBarcodeLabel(product: { name: string; sku: string; barcode:
   win.document.write(`<!doctype html>
 <html>
 <head>
+<meta charset="UTF-8" />
 <title>${product.name} — Barcode Label</title>
 <style>
   body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; text-align: center; }

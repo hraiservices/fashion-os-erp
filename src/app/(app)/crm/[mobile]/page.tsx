@@ -230,15 +230,21 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             <Plus className="size-4 shrink-0" /> <span className="truncate">Order</span>
           </Button>
           <Button variant="outline" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}&type=alteration`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
+            <Plus className="size-3.5 shrink-0" />
             <Scissors className="size-4 shrink-0" />
             <span className="truncate">Alteration</span>
           </Button>
           <Button variant="outline" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
+            <Plus className="size-3.5 shrink-0" />
             <Receipt className="size-4 shrink-0" />
             <span className="truncate">Invoice</span>
           </Button>
           <Button variant="outline" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
-            <FileText className="size-4 shrink-0" /> <span className="truncate">Statement</span>
+            <FileText className="size-4 shrink-0" />
+            <span className="truncate">
+              <span className="sm:hidden">S.Ment</span>
+              <span className="hidden sm:inline">Statement</span>
+            </span>
           </Button>
           {user?.perms.managePayments && combinedDue > 0 && (
             <NewPaymentButton customerMobile={cust.mobile} label="Payment" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" />

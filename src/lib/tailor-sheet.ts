@@ -49,20 +49,14 @@ function buildTailorSheetBody(order: Order, shop: Shop | undefined, measureField
 }
 
 /**
- * `paperWidthMm` sets the CSS @page width the ENTIRE sheet renders at — not just a "roll width"
- * label. Some thermal printer drivers report a nominal roll width (e.g. 58mm) that is wider than
- * what the print head can actually mark, and silently clip anything past their true printable
- * area regardless of Chrome's print-preview or scale setting (print preview uses the declared
- * @page size, not the driver's real head width, so preview can look perfect while the physical
- * printout still clips). There is no way to detect a printer's true safe width from the page —
- * if 58mm clips on a given printer, the fix is picking a smaller paperWidthMm here (44/40mm) so
- * the whole page — and therefore everything on it — is narrower than the real cutoff, not
- * relying on the driver to scale or clip cleanly. Label text is solid black rather than the
- * app's usual muted gray — thermal printers vary a lot in how faithfully they reproduce light
- * gray, and a field label that doesn't print is worse than one that's slightly less visually
- * quiet than on-screen.
+ * `paperWidthMm` must match the physical roll in the connected label/thermal printer — same
+ * reasoning as ThermalReceiptData.paperWidthMm. 58mm has no room for a second measurement
+ * column, so that layout is single-column regardless of width; 80mm just gets more breathing
+ * room per line. Label text is solid black rather than the app's usual muted gray — thermal
+ * printers vary a lot in how faithfully they reproduce light gray, and a field label that
+ * doesn't print is worse than one that's slightly less visually quiet than on-screen.
  */
-export function printTailorSheetLabel(order: Order, shop: Shop | undefined, measureFields: string[], paperWidthMm: 40 | 44 | 58 | 80 = 80) {
+export function printTailorSheetLabel(order: Order, shop: Shop | undefined, measureFields: string[], paperWidthMm: 58 | 80 = 80) {
   const win = window.open("", "_blank", "width=420,height=700");
   if (!win) return;
   win.document.write(`<!doctype html>

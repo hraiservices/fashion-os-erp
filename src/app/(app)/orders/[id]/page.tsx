@@ -413,10 +413,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               }
             />
             <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => printTailorSheetLabel(order, shop, measureFields || [], 80)}>80mm roll</DropdownMenuItem>
               <DropdownMenuItem onClick={() => printTailorSheetLabel(order, shop, measureFields || [], 58)}>58mm roll</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => printTailorSheetLabel(order, shop, measureFields || [], 44)}>58mm roll — narrow safe (44mm)</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => printTailorSheetLabel(order, shop, measureFields || [], 40)}>58mm roll — narrowest safe (40mm)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => printTailorSheetLabel(order, shop, measureFields || [], 80)}>80mm roll</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print tailor sheet (A4)" onClick={() => printTailorSheetA4(order, shop, measureFields || [])}>

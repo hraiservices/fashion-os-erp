@@ -1,5 +1,5 @@
 import { fmtDate, inr } from "@/lib/format";
-import { hydrateMeasurements } from "@/lib/measurements";
+import { hydrateMeasurements, toMKey } from "@/lib/measurements";
 import { LINING_LABELS, type Lining } from "@/lib/business-rules";
 import type { Order } from "@/lib/types";
 import type { Shop } from "@/lib/business-rules";
@@ -25,8 +25,8 @@ function buildTailorSheetBody(order: Order, shop: Shop | undefined, measureField
 
   const measurementValues = hydrateMeasurements(measureFields, order.measurements);
   const measurementRows = measureFields
-    .filter((label) => measurementValues[label])
-    .map((label) => `<div class="mfield"><div class="mlabel">${escapeHtml(label)}</div><div class="mvalue">${escapeHtml(measurementValues[label])}</div></div>`)
+    .filter((label) => measurementValues[toMKey(label)])
+    .map((label) => `<div class="mfield"><div class="mlabel">${escapeHtml(label)}</div><div class="mvalue">${escapeHtml(measurementValues[toMKey(label)])}</div></div>`)
     .join("");
 
   return `

@@ -378,12 +378,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           {order.balance > 0 ? (
             <WhatsAppButton
               href={paymentReminderUrl}
-              label={
-                <>
-                  <span className="sm:hidden">Remind</span>
-                  <span className="hidden sm:inline">Payment Reminder</span>
-                </>
-              }
+              label="Remind"
               labelClassName="min-w-0 truncate"
               className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm"
               tone="reminder"
@@ -408,7 +403,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               render={
                 <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print tailor sheet (label)">
                   <TagIcon className="size-4" />
-                  <span className="min-w-0 truncate">Tailor (Label)</span>
+                  <span className="min-w-0 truncate">Label</span>
                 </Button>
               }
             />
@@ -419,7 +414,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </DropdownMenu>
           <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print tailor sheet (A4)" onClick={() => printTailorSheetA4(order, shop, measureFields || [])}>
             <TagIcon className="size-4" />
-            <span className="min-w-0 truncate">Tailor (A4)</span>
+            <span className="min-w-0 truncate">A4</span>
           </Button>
           <PrintButton labelClassName="min-w-0 truncate" className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm" />
           <Button

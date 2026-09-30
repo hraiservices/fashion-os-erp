@@ -227,37 +227,26 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             with fewer buttons than that count left a gap instead of filling out. */}
         <div className="mt-4 flex flex-wrap gap-2">
           <Button nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
-            <Plus className="size-4 shrink-0" /> <span className="truncate">New order</span>
+            <Plus className="size-4 shrink-0" /> <span className="truncate">Order</span>
           </Button>
           <Button variant="outline" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}&type=alteration`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
             <Scissors className="size-4 shrink-0" />
-            <span className="truncate">
-              <span className="sm:hidden">Alteration</span>
-              <span className="hidden sm:inline">New alteration</span>
-            </span>
+            <span className="truncate">Alteration</span>
           </Button>
           <Button variant="outline" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
             <Receipt className="size-4 shrink-0" />
-            <span className="truncate">
-              <span className="sm:hidden">Invoice</span>
-              <span className="hidden sm:inline">New invoice</span>
-            </span>
+            <span className="truncate">Invoice</span>
           </Button>
           <Button variant="outline" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
             <FileText className="size-4 shrink-0" /> <span className="truncate">Statement</span>
           </Button>
           {user?.perms.managePayments && combinedDue > 0 && (
-            <NewPaymentButton customerMobile={cust.mobile} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" />
+            <NewPaymentButton customerMobile={cust.mobile} label="Payment" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" />
           )}
           {combinedDue > 0 && (
             <WhatsAppButton
               href={reminderUrl}
-              label={
-                <>
-                  <span className="sm:hidden">Remind</span>
-                  <span className="hidden sm:inline">Payment Reminder</span>
-                </>
-              }
+              label="Remind"
               labelClassName="min-w-0 truncate"
               className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm"
               tone="reminder"
@@ -266,12 +255,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           {custOrders.length > 0 && (
             <WhatsAppButton
               href={wardrobeUrl}
-              label={
-                <>
-                  <span className="sm:hidden">Wardrobe</span>
-                  <span className="hidden sm:inline">Send wardrobe summary</span>
-                </>
-              }
+              label="Wardrobe"
               labelClassName="min-w-0 truncate"
               className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm"
             />
@@ -279,10 +263,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           {user?.perms.manageCustomers && (
             <Button variant="outline" onClick={handleGiveCoupon} disabled={issueCoupon.isPending} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
               <Ticket className="size-4 shrink-0" />
-              <span className="truncate">
-                <span className="sm:hidden">Coupon</span>
-                <span className="hidden sm:inline">Give referral coupon</span>
-              </span>
+              <span className="truncate">Coupon</span>
             </Button>
           )}
           {user?.perms.manageCustomers && (

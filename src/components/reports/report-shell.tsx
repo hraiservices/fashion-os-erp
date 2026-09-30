@@ -52,7 +52,7 @@ export function ReportShell({
 }
 
 export function ReportCard({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={`overflow-hidden rounded-xl border bg-card ${className ?? ""}`}>{children}</div>;
+  return <div className={`overflow-hidden rounded-xl border bg-card print:overflow-visible ${className ?? ""}`}>{children}</div>;
 }
 
 /**
@@ -65,7 +65,7 @@ export function ReportCard({ children, className }: { children: React.ReactNode;
 export function ReportTable({ children }: { children: React.ReactNode }) {
   return (
     <ReportCard>
-      <div className="scrollbar-hide overflow-x-auto">
+      <div className="scrollbar-hide overflow-x-auto print:overflow-visible">
         <table className="report-table-pinned w-full text-sm">{children}</table>
       </div>
     </ReportCard>

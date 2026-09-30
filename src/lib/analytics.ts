@@ -1,5 +1,5 @@
 // Ported from Stitching_Manager_Pro_v16.html ~lines 2373-2524 (Analytics helpers).
-import { daysLeft, loyaltyDiscountOf, couponDiscountOf, loyaltyTier, DEFAULT_LOYALTY_CONFIG, type LoyaltyConfig } from "@/lib/business-rules";
+import { daysLeft, loyaltyDiscountOf, couponDiscountOf, loyaltyTier, DEFAULT_LOYALTY_CONFIG, STAGES, type LoyaltyConfig, type Stage } from "@/lib/business-rules";
 import { isOrderOutstanding } from "@/lib/balances";
 import { istDateString } from "@/lib/ist-date";
 import { isWithinDateRange, type DateRange } from "@/lib/report-date-range";
@@ -980,4 +980,24 @@ export function getOrderProfitability(
       return { ...o, cost, profit: breakdown.profit, marginPct: breakdown.marginPct ?? 0, tailorCostIsEstimate: breakdown.tailorCostIsEstimate };
     })
     .sort((a, b) => b.profit - a.profit);
+}
+
+export interface StageAmountRow {
+  stage: Stage;
+  count: number;
+  total: number;
+}
+
+/** Stages Wise Amount — a live snapshot, never historical: every order's CURRENT stage right
+ *  now, grouped and summed by billed total. The date range (applied by the caller, same
+ *  isWithinDateRange(o.inDate, range) convention as every other report) only narrows WHICH
+ *  orders count by when they were placed — it never asks "what stage was this order in as of
+ *  that date," which would need the order's full stage-history replayed and isn't something any
+ *  report in this app does. Includes every stage in STAGES (received through payment) even when
+ *  its count is 0, so the shape is stable for the UI to render a fixed set of cards/columns. */
+export function getStageAmounts(orders: Order[]): StageAmountRow[] {
+  return STAGES.map((stage) => {
+    const inStage = orders.filter((o) => o.status === stage);
+    return { stage, count: inStage.length, total: inStage.reduce((s, o) => s + (o.total || 0), 0) };
+  });
 }

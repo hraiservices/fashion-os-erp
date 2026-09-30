@@ -48,7 +48,15 @@ function buildTailorSheetBody(order: Order, shop: Shop | undefined, measureField
 `;
 }
 
-export function printTailorSheetLabel(order: Order, shop: Shop | undefined, measureFields: string[]) {
+/**
+ * `paperWidthMm` must match the physical roll in the connected label/thermal printer — same
+ * reasoning as ThermalReceiptData.paperWidthMm. 58mm has no room for a second measurement
+ * column, so that layout is single-column regardless of width; 80mm just gets more breathing
+ * room per line. Label text is solid black rather than the app's usual muted gray — thermal
+ * printers vary a lot in how faithfully they reproduce light gray, and a field label that
+ * doesn't print is worse than one that's slightly less visually quiet than on-screen.
+ */
+export function printTailorSheetLabel(order: Order, shop: Shop | undefined, measureFields: string[], paperWidthMm: 58 | 80 = 80) {
   const win = window.open("", "_blank", "width=420,height=700");
   if (!win) return;
   win.document.write(`<!doctype html>
@@ -57,24 +65,24 @@ export function printTailorSheetLabel(order: Order, shop: Shop | undefined, meas
 <meta charset="UTF-8" />
 <title>${escapeHtml(order.id)} — Tailor Work Order</title>
 <style>
-  @page { size: 80mm auto; margin: 4mm; }
-  body { font-family: sans-serif; padding: 6px; color: #111; font-size: 11px; }
+  @page { size: ${paperWidthMm}mm auto; margin: 3mm; }
+  body { font-family: sans-serif; padding: 6px; color: #000; font-size: 11px; }
   .shop { font-weight: 700; font-size: 12px; text-align: center; margin-bottom: 2px; }
   h1 { font-size: 12px; font-weight: 700; text-align: center; margin: 0 0 8px; }
   .rows { margin-bottom: 8px; }
-  .row { display: flex; justify-content: space-between; gap: 6px; padding: 2px 0; border-bottom: 1px dashed #ccc; }
-  .label { color: #666; }
-  .value { font-weight: 600; text-align: right; }
+  .row { display: flex; justify-content: space-between; gap: 6px; padding: 2px 0; border-bottom: 1px dashed #999; }
+  .label { color: #000; }
+  .value { font-weight: 700; text-align: right; }
   table.garments { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 10px; }
-  table.garments th, table.garments td { border-bottom: 1px solid #ddd; padding: 3px 2px; text-align: left; }
+  table.garments th, table.garments td { border-bottom: 1px solid #999; padding: 3px 2px; text-align: left; }
   table.garments th:last-child, table.garments td:last-child { text-align: right; }
-  .special { border-top: 1px dashed #999; margin-top: 8px; padding-top: 6px; }
+  .special { border-top: 1px dashed #666; margin-top: 8px; padding-top: 6px; }
   .special .label { text-transform: uppercase; font-size: 9px; letter-spacing: 0.4px; margin-bottom: 2px; }
-  .mtitle { font-weight: 700; margin-top: 10px; margin-bottom: 4px; border-top: 1px dashed #999; padding-top: 6px; }
-  .mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; }
-  .mfield { display: flex; justify-content: space-between; border-bottom: 1px dotted #ddd; }
-  .mlabel { color: #666; }
-  .mvalue { font-weight: 600; }
+  .mtitle { font-weight: 700; margin-top: 10px; margin-bottom: 4px; border-top: 1px dashed #666; padding-top: 6px; }
+  .mgrid { display: grid; grid-template-columns: 1fr; gap: 2px; }
+  .mfield { display: flex; justify-content: space-between; border-bottom: 1px dotted #999; }
+  .mlabel { color: #000; }
+  .mvalue { font-weight: 700; }
 </style>
 </head>
 <body>

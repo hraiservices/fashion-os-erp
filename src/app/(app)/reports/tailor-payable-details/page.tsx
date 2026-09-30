@@ -189,7 +189,7 @@ export default function TailorPayableDetailsPage() {
     Lining: r.lining,
     Qty: r.qty,
     Status: r.isPending ? "Pending" : "Completed",
-    Payable: r.isPending ? 0 : r.amount,
+    Payable: r.isPending ? "Pending" : inr(r.amount),
   }));
   const summaryLines = [
     `Range: ${DATE_RANGE_PRESET_LABELS[preset]}`,

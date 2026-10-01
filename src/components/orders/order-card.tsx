@@ -15,7 +15,7 @@ import { orderChecklistProgress } from "@/lib/garment-checklist";
 import { DueBadge, MoveToStageLabel } from "@/components/orders/stage-badge";
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
-import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import { WhatsAppButton, WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,7 +38,7 @@ import type { Shop } from "@/lib/settings";
  * order or select it first. Self-contained (own confirm dialog + mutation) so it drops into any
  * card/row type with no wiring through the parent list/board.
  */
-export function DeleteOrderButton({ order, compact }: { order: Order; compact?: boolean }) {
+export function DeleteOrderButton({ order, compact, showLabel }: { order: Order; compact?: boolean; showLabel?: boolean }) {
   const { data: user } = useCurrentUser();
   const deleteOrder = useDeleteOrder();
   const [open, setOpen] = useState(false);
@@ -61,8 +61,12 @@ export function DeleteOrderButton({ order, compact }: { order: Order; compact?: 
         render={
           <Button
             variant="outline"
-            size="icon-sm"
-            className={cn("size-9 shrink-0 text-destructive hover:bg-destructive/10", !compact && "sm:size-8")}
+            size={showLabel ? "sm" : "icon-sm"}
+            className={cn(
+              showLabel ? "h-9 w-full gap-1.5 px-2 text-[11px]" : "size-9 shrink-0",
+              "text-destructive hover:bg-destructive/10",
+              !compact && !showLabel && "sm:size-8"
+            )}
             aria-label={`Delete order ${order.id}`}
             title="Delete order"
             onClick={(e) => {
@@ -70,7 +74,8 @@ export function DeleteOrderButton({ order, compact }: { order: Order; compact?: 
               e.stopPropagation();
             }}
           >
-            <Trash2 className="size-4" />
+            <Trash2 className="size-4 shrink-0" />
+            {showLabel && <span className="truncate">Delete</span>}
           </Button>
         }
       />
@@ -222,44 +227,80 @@ export function OrderCard({
         </div>
       </Link>
 
-      <div className="flex items-center gap-1.5 border-t bg-muted/30 p-1.5">
-        {canChangeStage && next && (
-          <Button
+      <div className="border-t bg-muted/30 p-1.5">
+        <div className="flex items-center gap-1.5">
+          {canChangeStage && next && (
+            <Button
+              size="sm"
+              className={cn("h-8 min-w-0 flex-1 px-2 text-[11px]", STAGE_STYLE[next].solid)}
+              disabled={advancing}
+              onClick={(e) => {
+                e.preventDefault();
+                onAdvance?.(order.id);
+              }}
+            >
+              {/* min-w-0 + truncate: on sm+ this button shares a row with icon buttons (record
+                  payment, WhatsApp, delete) — a long stage name (e.g. "Move to Delivered") could
+                  otherwise force the row wider than the card. On mobile those icon buttons move to
+                  their own row below instead, each with room for a text label. */}
+              <span className="truncate">{advancing ? "…" : <MoveToStageLabel label={STAGE_META[next].label} />}</span>
+            </Button>
+          )}
+          {/* display:contents on sm+ so these render as ordinary flex siblings of the advance
+              button above; "hidden" below sm removes them from flow entirely (not just visually)
+              since the mobile-only labeled row below duplicates each action. */}
+          <span className="hidden sm:contents">
+            {onRecordPayment && order.balance > 0 && (
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="size-8 shrink-0"
+                aria-label={`Record payment for ${order.name}`}
+                title="Record payment"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onRecordPayment(order);
+                }}
+              >
+                <Wallet className="size-3.5" />
+              </Button>
+            )}
+            <WhatsAppIconButton
+              href={buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates)}
+              label={`WhatsApp ${order.name}`}
+              className="size-8"
+            />
+            <DeleteOrderButton order={order} compact />
+          </span>
+        </div>
+
+        {/* Mobile-only: Payment/WhatsApp/Delete get their own equal-width row with text labels
+            instead of squeezing into the advance button's row as bare icons. */}
+        <div className="mt-1.5 grid grid-cols-3 gap-1.5 sm:hidden">
+          {onRecordPayment && order.balance > 0 ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 min-w-0 gap-1.5 px-2 text-[11px]"
+              aria-label={`Record payment for ${order.name}`}
+              onClick={(e) => {
+                e.preventDefault();
+                onRecordPayment(order);
+              }}
+            >
+              <Wallet className="size-3.5 shrink-0" /> <span className="truncate">Payment</span>
+            </Button>
+          ) : (
+            <span />
+          )}
+          <WhatsAppButton
+            href={buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates)}
+            label="WhatsApp"
             size="sm"
-            className={cn("h-8 min-w-0 flex-1 px-2 text-[11px]", STAGE_STYLE[next].solid)}
-            disabled={advancing}
-            onClick={(e) => {
-              e.preventDefault();
-              onAdvance?.(order.id);
-            }}
-          >
-            {/* min-w-0 + truncate: this button shares a fixed-width row with two icon buttons
-                (record payment, WhatsApp) on a kanban card — a long stage name (e.g. "Move to
-                Delivered") could otherwise force the row wider than the card. */}
-            <span className="truncate">{advancing ? "…" : <MoveToStageLabel label={STAGE_META[next].label} />}</span>
-          </Button>
-        )}
-        {onRecordPayment && order.balance > 0 && (
-          <Button
-            variant="outline"
-            size="icon-sm"
-            className="size-8 shrink-0"
-            aria-label={`Record payment for ${order.name}`}
-            title="Record payment"
-            onClick={(e) => {
-              e.preventDefault();
-              onRecordPayment(order);
-            }}
-          >
-            <Wallet className="size-3.5" />
-          </Button>
-        )}
-        <WhatsAppIconButton
-          href={buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates)}
-          label={`WhatsApp ${order.name}`}
-          className="size-8"
-        />
-        <DeleteOrderButton order={order} compact />
+            className="h-9 min-w-0 px-2 text-[11px]"
+          />
+          <DeleteOrderButton order={order} showLabel />
+        </div>
       </div>
     </div>
   );

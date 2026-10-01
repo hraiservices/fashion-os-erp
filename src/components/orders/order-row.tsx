@@ -14,7 +14,7 @@ import { StageBadge, DueBadge, MoveToStageLabel } from "@/components/orders/stag
 import { AlterationBadge, ReworkBadge, DeleteOrderButton, GroupBadge } from "@/components/orders/order-card";
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
-import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import { WhatsAppButton, WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { Checkbox } from "@/components/ui/checkbox";
 import { hapticTap } from "@/lib/haptics";
@@ -88,15 +88,13 @@ function AdvanceButton({ order, onAdvance, advancing, compact }: RowProps & { co
   );
 }
 
-function OrderWhatsAppButton({ order, shop, compact, trackUrl }: { order: Order; shop?: Shop; compact?: boolean; trackUrl?: string }) {
+function OrderWhatsAppButton({ order, shop, compact, trackUrl, showLabel }: { order: Order; shop?: Shop; compact?: boolean; trackUrl?: string; showLabel?: boolean }) {
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
-  return (
-    <WhatsAppIconButton
-      href={buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates)}
-      label={`WhatsApp ${order.name}`}
-      className={cn("size-9", !compact && "sm:size-8")}
-    />
-  );
+  const href = buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates);
+  if (showLabel) {
+    return <WhatsAppButton href={href} label="WhatsApp" size="sm" className="h-9 min-w-0 px-2 text-[11px]" />;
+  }
+  return <WhatsAppIconButton href={href} label={`WhatsApp ${order.name}`} className={cn("size-9", !compact && "sm:size-8")} />;
 }
 
 /** Balance-due orders get a one-tap payment-reminder WhatsApp link next to the plain WhatsApp
@@ -105,32 +103,33 @@ function OrderWhatsAppButton({ order, shop, compact, trackUrl }: { order: Order;
  *  single widest thing in an already-crowded actions row (Advance/Record/WhatsApp/Reminder/Delete
  *  all in one row), and on a real phone it's what forces the primary "Move to X" button down to
  *  a few clipped letters. */
-function PaymentReminderButton({ order, shop, compact, trackUrl }: { order: Order; shop?: Shop; compact?: boolean; trackUrl?: string }) {
+function PaymentReminderButton({ order, shop, compact, trackUrl, showLabel }: { order: Order; shop?: Shop; compact?: boolean; trackUrl?: string; showLabel?: boolean }) {
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   if (order.balance <= 0) return null;
   const href = buildWhatsAppUrl({ ...order, trackUrl }, "paymentDue", shop, waTemplates);
   return (
     <Button
       variant="outline"
-      size="icon-sm"
-      className={cn("size-9 shrink-0", !compact && "sm:size-8")}
+      size={showLabel ? "sm" : "icon-sm"}
+      className={cn(showLabel ? "h-9 min-w-0 gap-1.5 px-2 text-[11px]" : cn("size-9 shrink-0", !compact && "sm:size-8"))}
       aria-label={`Payment reminder to ${order.name}`}
       title="Payment reminder"
       nativeButton={false}
       render={<a href={href} target="_blank" rel="noopener noreferrer" />}
     >
-      <WhatsAppIcon className="size-3.5 text-orange-400" />
+      <WhatsAppIcon className="size-3.5 shrink-0 text-orange-400" />
+      {showLabel && <span className="truncate">Remind</span>}
     </Button>
   );
 }
 
-function RecordPaymentButton({ order, onRecordPayment, compact }: { order: Order; onRecordPayment?: (order: Order) => void; compact?: boolean }) {
+function RecordPaymentButton({ order, onRecordPayment, compact, showLabel }: { order: Order; onRecordPayment?: (order: Order) => void; compact?: boolean; showLabel?: boolean }) {
   if (!onRecordPayment || order.balance <= 0) return null;
   return (
     <Button
       variant="outline"
-      size="icon-sm"
-      className={cn("size-9 shrink-0", !compact && "sm:size-8")}
+      size={showLabel ? "sm" : "icon-sm"}
+      className={cn(showLabel ? "h-9 min-w-0 gap-1.5 px-2 text-[11px]" : cn("size-9 shrink-0", !compact && "sm:size-8"))}
       aria-label={`Record payment for ${order.name}`}
       title="Record payment"
       onClick={(e) => {
@@ -139,7 +138,8 @@ function RecordPaymentButton({ order, onRecordPayment, compact }: { order: Order
         onRecordPayment(order);
       }}
     >
-      <Wallet className="size-4" />
+      <Wallet className="size-4 shrink-0" />
+      {showLabel && <span className="truncate">Payment</span>}
     </Button>
   );
 }
@@ -191,12 +191,21 @@ export function OrderCardRow(props: RowProps) {
         </div>
       </Link>
 
-      <div className="flex items-center gap-2 border-t bg-muted/30 p-2">
-        {canChangeStage && <AdvanceButton {...props} compact />}
-        <RecordPaymentButton order={order} onRecordPayment={onRecordPayment} compact />
-        <OrderWhatsAppButton order={order} shop={shop} compact trackUrl={trackUrl} />
-        <PaymentReminderButton order={order} shop={shop} compact trackUrl={trackUrl} />
-        <DeleteOrderButton order={order} compact />
+      <div className="border-t bg-muted/30 p-2">
+        {canChangeStage && (
+          <div className="flex items-center gap-2">
+            <AdvanceButton {...props} compact />
+          </div>
+        )}
+        {/* Mobile-only: Payment/WhatsApp/Reminder/Delete get their own labeled row instead of
+            squeezing in as bare icons next to the advance button — see order-card.tsx for the
+            same treatment on the kanban board card. */}
+        <div className={cn("grid grid-cols-2 gap-1.5", canChangeStage && "mt-1.5")}>
+          <RecordPaymentButton order={order} onRecordPayment={onRecordPayment} showLabel />
+          <OrderWhatsAppButton order={order} shop={shop} trackUrl={trackUrl} showLabel />
+          <PaymentReminderButton order={order} shop={shop} trackUrl={trackUrl} showLabel />
+          <DeleteOrderButton order={order} showLabel />
+        </div>
       </div>
     </div>
   );

@@ -15,7 +15,7 @@ import { orderChecklistProgress } from "@/lib/garment-checklist";
 import { DueBadge, MoveToStageLabel } from "@/components/orders/stage-badge";
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
-import { WhatsAppButton, WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -207,23 +207,23 @@ export function OrderCard({
       <ChecklistProgressBar order={order} />
       <Link href={`/orders/${order.id}`} className="block p-3">
         <div className="flex items-start justify-between gap-2">
-          <p className="min-w-0 flex-1 truncate text-base font-semibold leading-tight sm:text-sm sm:font-medium">{order.name}</p>
-          <span className="shrink-0 text-base font-semibold tabular-nums sm:text-sm">{inr(order.total)}</span>
+          <p className="min-w-0 flex-1 truncate text-base font-semibold leading-tight">{order.name}</p>
+          <span className="shrink-0 text-base font-semibold tabular-nums">{inr(order.total)}</span>
         </div>
-        <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground sm:text-[11px]">
+        <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
           <span className="min-w-0 shrink truncate">{order.id}</span>
           {order.orderType === "alteration" && <AlterationBadge />}
           {order.reworkFlag && <ReworkBadge />}
           <GroupBadge size={groupSize} groupTotal={groupTotal} />
         </p>
 
-        <p className="mt-2 truncate text-sm font-bold text-muted-foreground sm:text-xs sm:font-semibold">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>
+        <p className="mt-2 truncate text-sm font-bold text-muted-foreground">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="text-sm font-bold text-muted-foreground sm:text-[11px]">{fmtDateShort(order.deliveryDate)}</span>
+          <span className="text-sm font-bold text-muted-foreground">{fmtDateShort(order.deliveryDate)}</span>
           <DueBadge order={order} />
           <ChecklistProgressChip order={order} />
-          <BalanceDue amount={order.balance} suffix=" due" className="ml-auto text-sm font-semibold sm:text-[11px]" />
+          <BalanceDue amount={order.balance} suffix=" due" className="ml-auto text-sm font-semibold" />
         </div>
       </Link>
 
@@ -232,51 +232,21 @@ export function OrderCard({
           {canChangeStage && next && (
             <Button
               size="sm"
-              className={cn("h-11 min-w-0 flex-1 px-2 text-sm sm:h-8 sm:text-[11px]", STAGE_STYLE[next].solid)}
+              className={cn("h-11 min-w-0 flex-1 px-2 text-sm", STAGE_STYLE[next].solid)}
               disabled={advancing}
               onClick={(e) => {
                 e.preventDefault();
                 onAdvance?.(order.id);
               }}
             >
-              {/* min-w-0 + truncate: on sm+ this button shares a row with icon buttons (record
-                  payment, WhatsApp, delete) — a long stage name (e.g. "Move to Delivered") could
-                  otherwise force the row wider than the card. On mobile those icon buttons move to
-                  their own row below instead, each with room for a text label. */}
               <span className="truncate">{advancing ? "…" : <MoveToStageLabel label={STAGE_META[next].label} />}</span>
             </Button>
           )}
-          {/* display:contents on sm+ so these render as ordinary flex siblings of the advance
-              button above; "hidden" below sm removes them from flow entirely (not just visually)
-              since the mobile-only labeled row below duplicates each action. */}
-          <span className="hidden sm:contents">
-            {onRecordPayment && order.balance > 0 && (
-              <Button
-                variant="outline"
-                size="icon-sm"
-                className="size-8 shrink-0"
-                aria-label={`Record payment for ${order.name}`}
-                title="Record payment"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onRecordPayment(order);
-                }}
-              >
-                <Wallet className="size-3.5" />
-              </Button>
-            )}
-            <WhatsAppIconButton
-              href={buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates)}
-              label={`WhatsApp ${order.name}`}
-              className="size-8"
-            />
-            <DeleteOrderButton order={order} compact />
-          </span>
         </div>
 
-        {/* Mobile-only: Payment/WhatsApp/Delete get their own equal-width row with text labels
-            instead of squeezing into the advance button's row as bare icons. */}
-        <div className="mt-1.5 grid grid-cols-3 gap-1.5 sm:hidden">
+        {/* Payment/WhatsApp/Delete get their own equal-width row with text labels — same
+            treatment at every screen size, not just mobile. */}
+        <div className="mt-1.5 grid grid-cols-3 gap-1.5">
           {onRecordPayment && order.balance > 0 ? (
             <Button
               variant="outline"

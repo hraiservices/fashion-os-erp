@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ArrowLeft, ChevronRight, Mail, MapPin, Cake, Heart, ShoppingBag, FileText, Ticket, Shirt, Scissors, Wallet } from "lucide-react";
+import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ArrowLeft, ChevronRight, Mail, MapPin, Cake, Heart, ShoppingBag, FileText, Ticket, Shirt, Wallet } from "lucide-react";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -230,8 +230,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             <Plus className="size-4 shrink-0" /> <span className="truncate">Order</span>
           </Button>
           <Button variant="outline" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}&type=alteration`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
-            <Plus className="size-3.5 shrink-0" />
-            <Scissors className="size-4 shrink-0" />
+            <Plus className="size-4 shrink-0" />
             <span className="truncate">Alteration</span>
           </Button>
           <Button variant="outline" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">

@@ -56,7 +56,7 @@ function DeliveryCountdown({ order }: { order: Order }) {
   if (!order.deliveryDate || order.status === "delivered" || order.status === "payment") return null;
   const { text, overdue } = formatCountdownDHM(deliveryTarget(order.deliveryDate, order.deliveryTime) - now);
   return (
-    <p className="font-mono text-[11px] font-medium tabular-nums text-red-600 dark:text-red-400">
+    <p className="font-mono text-sm font-semibold tabular-nums text-red-600 dark:text-red-400">
       {overdue && "−"}
       {text}
     </p>
@@ -70,7 +70,7 @@ function AdvanceButton({ order, onAdvance, advancing, compact }: RowProps & { co
   return (
     <Button
       size="sm"
-      className={cn("h-9 px-2.5 text-xs sm:h-8", style.solid, compact && "min-w-0 flex-1")}
+      className={cn("h-11 px-2.5 text-sm sm:h-8 sm:text-xs", style.solid, compact && "min-w-0 flex-1")}
       disabled={advancing}
       onClick={(e) => {
         e.preventDefault();
@@ -92,7 +92,7 @@ function OrderWhatsAppButton({ order, shop, compact, trackUrl, showLabel }: { or
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   const href = buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates);
   if (showLabel) {
-    return <WhatsAppButton href={href} label="WhatsApp" size="sm" className="h-9 min-w-0 px-2 text-[11px]" />;
+    return <WhatsAppButton href={href} label="WhatsApp" size="sm" className="h-11 min-w-0 px-2 text-sm" />;
   }
   return <WhatsAppIconButton href={href} label={`WhatsApp ${order.name}`} className={cn("size-9", !compact && "sm:size-8")} />;
 }
@@ -111,13 +111,13 @@ function PaymentReminderButton({ order, shop, compact, trackUrl, showLabel }: { 
     <Button
       variant="outline"
       size={showLabel ? "sm" : "icon-sm"}
-      className={cn(showLabel ? "h-9 min-w-0 gap-1.5 px-2 text-[11px]" : cn("size-9 shrink-0", !compact && "sm:size-8"))}
+      className={cn(showLabel ? "h-11 min-w-0 gap-1.5 px-2 text-sm" : cn("size-9 shrink-0", !compact && "sm:size-8"))}
       aria-label={`Payment reminder to ${order.name}`}
       title="Payment reminder"
       nativeButton={false}
       render={<a href={href} target="_blank" rel="noopener noreferrer" />}
     >
-      <WhatsAppIcon className="size-3.5 shrink-0 text-orange-400" />
+      <WhatsAppIcon className="size-4 shrink-0 text-orange-400" />
       {showLabel && <span className="truncate">Remind</span>}
     </Button>
   );
@@ -129,7 +129,7 @@ function RecordPaymentButton({ order, onRecordPayment, compact, showLabel }: { o
     <Button
       variant="outline"
       size={showLabel ? "sm" : "icon-sm"}
-      className={cn(showLabel ? "h-9 min-w-0 gap-1.5 px-2 text-[11px]" : cn("size-9 shrink-0", !compact && "sm:size-8"))}
+      className={cn(showLabel ? "h-11 min-w-0 gap-1.5 px-2 text-sm" : cn("size-9 shrink-0", !compact && "sm:size-8"))}
       aria-label={`Record payment for ${order.name}`}
       title="Record payment"
       onClick={(e) => {
@@ -158,8 +158,8 @@ export function OrderCardRow(props: RowProps) {
         <div className="flex items-start gap-3">
           <span className={cn("mt-1 h-9 w-1 shrink-0 rounded-full", style.accent)} aria-hidden />
           <div className="min-w-0 flex-1">
-            <p className="truncate font-medium leading-tight">{order.name}</p>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            <p className="truncate text-lg font-semibold leading-tight">{order.name}</p>
+            <p className="mt-0.5 truncate text-sm text-muted-foreground">
               {order.id} · {order.mobile}
             </p>
           </div>
@@ -167,26 +167,26 @@ export function OrderCardRow(props: RowProps) {
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <StageBadge stage={order.status} size="sm" />
+          <StageBadge stage={order.status} />
           {order.orderType === "alteration" && <AlterationBadge />}
           {order.reworkFlag && <ReworkBadge />}
           <GroupBadge size={groupSize} groupTotal={groupTotal} />
           <DueBadge order={order} />
-          <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums">{inr(order.total)}</span>
+          <span className="ml-auto shrink-0 text-base font-semibold tabular-nums">{inr(order.total)}</span>
         </div>
 
         <DeliveryCountdown order={order} />
 
         {order.tailor && (
-          <p className="mt-1.5 truncate text-xs text-muted-foreground">
+          <p className="mt-1.5 truncate text-sm text-muted-foreground">
             Tailor: <span className="font-medium text-foreground">{tailorName?.(order.tailor) || order.tailor}</span>
           </p>
         )}
 
-        <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-          <span className="truncate">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</span>
+        <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
+          <span className="truncate font-bold">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</span>
           <span className="shrink-0 pl-2">
-            <BalanceDue amount={order.balance} suffix=" due" />
+            <BalanceDue amount={order.balance} suffix=" due" className="font-semibold" />
           </span>
         </div>
       </Link>

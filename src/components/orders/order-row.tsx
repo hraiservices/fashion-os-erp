@@ -10,7 +10,7 @@ import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { inr, fmtDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { deliveryTarget, formatCountdownDHM, useCountdownNow } from "@/lib/delivery-countdown";
-import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
+import { StageBadge, DueBadge, MoveToStageLabel } from "@/components/orders/stage-badge";
 import { AlterationBadge, ReworkBadge, DeleteOrderButton, GroupBadge } from "@/components/orders/order-card";
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
@@ -83,7 +83,7 @@ function AdvanceButton({ order, onAdvance, advancing, compact }: RowProps & { co
           the compact card row, where this button shares a fixed-width row with two icon buttons
           — a long stage name (e.g. "Move to Delivered") could otherwise force the row wider than
           the card instead of just ellipsizing. The non-compact table-row usage has room to spare. */}
-      <span className={compact ? "truncate" : "whitespace-nowrap"}>{advancing ? "…" : `Move to ${STAGE_META[next].label}`}</span>
+      <span className={compact ? "truncate" : "whitespace-nowrap"}>{advancing ? "…" : <MoveToStageLabel label={STAGE_META[next].label} />}</span>
     </Button>
   );
 }

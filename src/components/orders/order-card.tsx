@@ -12,7 +12,7 @@ import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { inr, fmtDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { orderChecklistProgress } from "@/lib/garment-checklist";
-import { DueBadge } from "@/components/orders/stage-badge";
+import { DueBadge, MoveToStageLabel } from "@/components/orders/stage-badge";
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
@@ -236,7 +236,7 @@ export function OrderCard({
             {/* min-w-0 + truncate: this button shares a fixed-width row with two icon buttons
                 (record payment, WhatsApp) on a kanban card — a long stage name (e.g. "Move to
                 Delivered") could otherwise force the row wider than the card. */}
-            <span className="truncate">{advancing ? "…" : `Move to ${STAGE_META[next].label}`}</span>
+            <span className="truncate">{advancing ? "…" : <MoveToStageLabel label={STAGE_META[next].label} />}</span>
           </Button>
         )}
         {onRecordPayment && order.balance > 0 && (

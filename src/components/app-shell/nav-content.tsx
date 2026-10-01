@@ -335,13 +335,13 @@ function NavContentInner({ onNavigate, collapsed }: { onNavigate?: () => void; c
       if (node.item.href === COPILOT_NAV_ITEM.href) return !!user?.perms.useChatbot && isModuleEnabled(entitlements!, "copilot");
       if (node.item.href === POS_NAV_ITEM.href) return !!user?.perms.usePOS && isModuleEnabled(entitlements!, "pos");
       if (node.item.href === PAYMENTS_RECEIVED_NAV_ITEM.href)
-        return !restricted && isModuleEnabled(entitlements!, "reports") && isReportEnabled(entitlements!, PAYMENTS_RECEIVED_NAV_ITEM.href, resolveReportSection(PAYMENTS_RECEIVED_NAV_ITEM.href));
+        return !restricted && !!user?.perms.viewReports && isModuleEnabled(entitlements!, "reports") && isReportEnabled(entitlements!, PAYMENTS_RECEIVED_NAV_ITEM.href, resolveReportSection(PAYMENTS_RECEIVED_NAV_ITEM.href));
       if (SECONDARY_NAV.some((i) => i.href === node.item.href)) return !restricted;
       return !(restricted && node.item.restricted);
     }
     switch (node.group.id) {
       case "reports":
-        return !restricted && isModuleEnabled(entitlements!, "reports") && REPORTS_GROUP.children.some((c) => isReportEnabled(entitlements!, c.href, resolveReportSection(c.href)));
+        return !restricted && !!user?.perms.viewReports && isModuleEnabled(entitlements!, "reports") && REPORTS_GROUP.children.some((c) => isReportEnabled(entitlements!, c.href, resolveReportSection(c.href)));
       case "expenses":
         return !restricted && isModuleEnabled(entitlements!, "expenses");
       case "sales":

@@ -24,8 +24,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Mirrors the old app's `_isRestrictedRole && _RESTRICTED_TABS.indexOf(tab) !== -1` guard
   // (line ~17686): a restricted role landing on a hidden route is bounced to Orders.
+  //
+  // A non-restricted role (admin/manager) with viewReports explicitly turned off is a separate
+  // case from the above: the Reports nav group already hides itself for that user (see
+  // nav-content.tsx), but hiding the link was the ONLY thing stopping them before this — typing
+  // a /reports/* URL directly still rendered every report page's data, since none of them (bar
+  // one) actually check the permission themselves. This closes that gap at the route level
+  // instead of auditing every report page individually.
   useEffect(() => {
     if (user?.restricted && isRestrictedRoute(pathname)) {
+      router.replace(RESTRICTED_FALLBACK_ROUTE);
+    } else if (user && !user.perms.viewReports && (pathname === "/reports" || pathname.startsWith("/reports/"))) {
       router.replace(RESTRICTED_FALLBACK_ROUTE);
     }
   }, [user, pathname, router]);

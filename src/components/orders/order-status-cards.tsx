@@ -1,5 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { CalendarClock, AlertTriangle, Inbox, Scissors, Shirt, Sparkles, PackageCheck, Truck } from "lucide-react";
+import { CalendarClock, AlertTriangle, Inbox, Scissors, Shirt, Sparkles, PackageCheck, Truck, ChevronDown, ChevronUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getOrderStatusCounts } from "@/lib/analytics";
 import type { Order } from "@/lib/types";
@@ -25,15 +28,47 @@ const CARDS: CardDef[] = [
   { key: "delivered", label: "Delivered", icon: Truck, href: "/orders?stage=delivered", border: "border-l-neutral-800 dark:border-l-neutral-300", iconClass: "text-neutral-700 dark:text-neutral-300" },
 ];
 
+const COLLAPSE_STORAGE_KEY = "order-status-cards-collapsed";
+
+/** Defaults to collapsed (per the confirmed design) until the user has explicitly toggled it at
+ *  least once — after that, their choice is remembered the same way column visibility and sort
+ *  preferences are (see use-column-visibility.ts / use-table-sort.ts). */
+function loadCollapsed(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const raw = localStorage.getItem(COLLAPSE_STORAGE_KEY);
+    return raw === null ? true : raw === "1";
+  } catch {
+    return true;
+  }
+}
+
 /** Small clickable at-a-glance counts for the order pipeline — Due Today/Overdue mirror the
  *  same definitions as their dedicated reports, the rest are a live snapshot of the whole
  *  pipeline (see getOrderStatusCounts()). Each card is a plain Link to the filtered view it
  *  describes rather than an inline preview, so there's exactly one place ("the real list") that
- *  ever needs to agree with what got counted here. */
-export function OrderStatusCards({ orders }: { orders: Order[] }) {
+ *  ever needs to agree with what got counted here.
+ *
+ *  `collapsible` opts into a Hide/Show toggle with its own remembered state — used on the Orders
+ *  page only; the dashboard widget always renders expanded with no toggle, since the widget grid
+ *  already has its own add/remove mechanism for whether it's shown at all. */
+export function OrderStatusCards({ orders, collapsible = false }: { orders: Order[]; collapsible?: boolean }) {
+  const [collapsed, setCollapsed] = useState(() => (collapsible ? loadCollapsed() : false));
   const counts = getOrderStatusCounts(orders);
 
-  return (
+  function toggle() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(COLLAPSE_STORAGE_KEY, next ? "1" : "0");
+      } catch {
+        // Storage can throw (private browsing, quota) — the toggle still works for this session.
+      }
+      return next;
+    });
+  }
+
+  const grid = (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
       {CARDS.map((c) => (
         <Link
@@ -51,6 +86,23 @@ export function OrderStatusCards({ orders }: { orders: Order[] }) {
           </p>
         </Link>
       ))}
+    </div>
+  );
+
+  if (!collapsible) return grid;
+
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={toggle}
+        className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+        aria-expanded={!collapsed}
+      >
+        {collapsed ? <ChevronDown className="size-3.5" /> : <ChevronUp className="size-3.5" />}
+        {collapsed ? "Show stage counts" : "Hide stage counts"}
+      </button>
+      {!collapsed && grid}
     </div>
   );
 }

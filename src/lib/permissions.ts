@@ -135,7 +135,8 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
 export const PERMISSION_GROUPS: { label: string; keys: (keyof Permissions)[] }[] = [
   { label: "Orders", keys: ["addOrder", "editOrder", "deleteOrder", "changeStage", "managePayments", "editMeasurements"] },
   { label: "Customers", keys: ["manageCustomers", "deleteCustomers"] },
-  { label: "Modules", keys: ["manageInventory", "managePurchases", "manageManufacturing", "manageSales"] },
+  { label: "Modules", keys: ["manageInventory", "managePurchases", "manageManufacturing", "manageSales", "usePOS"] },
+  { label: "Employees", keys: ["manageEmployees", "managePayroll"] },
   { label: "Admin", keys: ["viewReports", "manageUsers", "useChatbot"] },
 ];
 

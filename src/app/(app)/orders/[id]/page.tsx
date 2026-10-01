@@ -625,7 +625,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* Profitability — admin-only, not just viewReports (which managers also hold). Profit
           figures are restricted to the admin role specifically, everywhere in the app. */}
-      {user?.role === "admin" && (
+      {user?.perms.viewFinancialReports && (
         <section className="rounded-xl border bg-card">
           <div className="border-b px-4 py-3">
             <h2 className="flex items-center gap-1.5 text-sm font-semibold">

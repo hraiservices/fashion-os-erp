@@ -1407,7 +1407,7 @@ function OrderFormFields({
               {/* Profit margin is restricted to the admin role specifically — a manager entering
                   fabric/other cost above still needs those fields to do their job, but the
                   derived profit figure itself is admin-only, everywhere in the app. */}
-              {user?.role === "admin" && (
+              {user?.perms.viewFinancialReports && (
                 <div className="mt-5 space-y-1.5 border-t pt-4 text-sm">
                   <div className="flex justify-between text-muted-foreground">
                     <span>Order value</span>

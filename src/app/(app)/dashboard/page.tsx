@@ -48,8 +48,14 @@ export default function DashboardPage() {
 
   // Role-restricted builtins (e.g. Profit Overview — admin/manager only) are filtered out here
   // rather than baked into the saved layout itself, so a role change takes effect immediately
-  // without needing to touch anyone's stored widget list.
-  const roleVisibleWidgets = widgets.filter((w) => w.kind === "custom" || isWidgetVisibleForRole(w.builtinKey, user?.role));
+  // without needing to touch anyone's stored widget list. Profit Overview additionally needs
+  // viewFinancialReports specifically — it links straight to /reports/combined-pl, so a manager
+  // without that permission shouldn't see the same profit figures via a dashboard back door.
+  const roleVisibleWidgets = widgets.filter(
+    (w) =>
+      w.kind === "custom" ||
+      (isWidgetVisibleForRole(w.builtinKey, user?.role) && (w.builtinKey !== "profit-overview" || !!user?.perms.viewFinancialReports))
+  );
 
   return (
     <div className="space-y-5 p-4 sm:p-6">

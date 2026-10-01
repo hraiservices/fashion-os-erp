@@ -7,7 +7,7 @@ import { NavigationSection } from "@/components/settings/navigation-section";
 export default function Page() {
   return (
     <SettingsPage title="Sidebar Navigation" description="Hide, reorder, and regroup any sidebar menu — applies to everyone in the company">
-      <SettingsGuard allow={({ isAdmin }) => isAdmin}>
+      <SettingsGuard allow={({ perms }) => perms.manageNavigationSettings}>
         <NavigationSection />
       </SettingsGuard>
     </SettingsPage>

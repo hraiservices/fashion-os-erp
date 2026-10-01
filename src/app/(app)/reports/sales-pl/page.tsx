@@ -61,7 +61,7 @@ export default function SalesPnlPage() {
   const isLoading = invoicesLoading || billsLoading || expensesLoading || employeesLoading || payslipsLoading;
 
   // Profit & Loss is entirely profit data — restricted to admin, same as Combined P&L.
-  if (user && user.role !== "admin") {
+  if (user && !user.perms.viewFinancialReports) {
     return (
       <div className="p-4 sm:p-6">
         <EmptyState icon={Wallet} title="No access" description="Product Sales P&L is restricted to admins." />

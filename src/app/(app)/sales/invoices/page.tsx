@@ -91,7 +91,7 @@ export default function SalesInvoicesPage() {
   const canManage = !!user?.perms.manageSales;
   // Profit margin is restricted to the admin role specifically, not just viewReports (which
   // managers also hold) — a shop-wide requirement, not just this one table.
-  const canViewMargin = user?.role === "admin";
+  const canViewMargin = !!user?.perms.viewFinancialReports;
 
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date");

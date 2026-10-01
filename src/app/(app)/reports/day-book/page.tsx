@@ -106,7 +106,7 @@ export default function DayBookPage() {
   const canView = !!user?.perms.viewReports;
   // Profit is restricted to the admin role specifically — the rest of the Day Book (sales,
   // payments, expenses, activity) stays visible to any manager who can already view reports.
-  const canViewProfit = user?.role === "admin";
+  const canViewProfit = !!user?.perms.viewFinancialReports;
   const { data, isLoading, isError, error } = useDayBook(date);
 
   const entries = useMemo(() => data?.entries || [], [data]);

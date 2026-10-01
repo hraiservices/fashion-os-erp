@@ -134,7 +134,7 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
   const createOptions = [
     { href: "/orders/new", label: "New Order", icon: ClipboardList, show: user?.perms.addOrder },
     { href: "/sales/invoices/new", label: "New Invoice", icon: Receipt, show: user?.perms.manageSales },
-    { href: "/expenses/new", label: "New Expense", icon: Wallet, show: true },
+    { href: "/expenses/new", label: "New Expense", icon: Wallet, show: user?.perms.manageExpenses },
     { href: "/crm/new", label: "New Customer", icon: UserPlus, show: user?.perms.manageCustomers || user?.role === "admin" || user?.role === "manager" },
   ].filter((o) => o.show);
 

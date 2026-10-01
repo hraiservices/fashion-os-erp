@@ -7,7 +7,7 @@ import { InvoiceTemplateSection } from "@/components/settings/invoice-template-s
 export default function Page() {
   return (
     <SettingsPage title="Invoice Template" description="Colors, paper size, fields shown, logo, QR code, signature and bank details on invoice PDFs">
-      <SettingsGuard allow={({ isAdmin }) => isAdmin}>
+      <SettingsGuard allow={({ perms }) => perms.manageDocumentTemplates}>
         <InvoiceTemplateSection />
       </SettingsGuard>
     </SettingsPage>

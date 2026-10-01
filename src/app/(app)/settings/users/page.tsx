@@ -7,7 +7,7 @@ import { UsersSection } from "@/components/settings/users-section";
 export default function Page() {
   return (
     <SettingsPage title="Users \& Access" description="Add, link, and manage who can access the app and what they can do">
-      <SettingsGuard allow={({ isAdmin }) => isAdmin}>
+      <SettingsGuard allow={({ perms }) => perms.manageUsers}>
         <UsersSection />
       </SettingsGuard>
     </SettingsPage>

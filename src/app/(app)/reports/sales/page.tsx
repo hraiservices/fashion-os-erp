@@ -38,7 +38,7 @@ export default function SalesSummaryPage() {
   const [filter, setFilter] = useState<SaleTypeFilter>("all");
   // Profit by Item is restricted to the admin role specifically — hide the link itself, not
   // just the destination page.
-  const subReports = user?.role === "admin" ? SUB_REPORTS : SUB_REPORTS.filter((r) => r.href !== "/reports/sales/profit-by-item");
+  const subReports = user?.perms.viewFinancialReports ? SUB_REPORTS : SUB_REPORTS.filter((r) => r.href !== "/reports/sales/profit-by-item");
 
   const isLoading = ordersLoading || invoicesLoading;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();

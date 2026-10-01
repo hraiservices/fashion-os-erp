@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutGrid, Star } from "lucide-react";
-import { REPORTS_GROUP, resolveReportSection } from "@/components/app-shell/nav-config";
+import { REPORTS_GROUP, resolveReportSection, isReportAllowedForRole, DEFAULT_REPORT_ROLE_ACCESS, type ReportRoleAccess } from "@/components/app-shell/nav-config";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { isReportEnabled } from "@/lib/entitlements";
 import { useAppSetting } from "@/hooks/use-app-setting";
@@ -30,14 +30,16 @@ export function ReportsNavRail() {
   const { data: user } = useCurrentUser();
   const { data: favoriteHrefs } = useAppSetting<string[]>("favoriteReports", []);
   const favorites = useMemo(() => new Set(favoriteHrefs || []), [favoriteHrefs]);
+  const { data: reportAccess } = useAppSetting<ReportRoleAccess>("reportRoleAccess", DEFAULT_REPORT_ROLE_ACCESS);
 
   const allReports = useMemo<ReportItem[]>(() => {
     if (!entitlements) return [];
     return REPORTS_GROUP.children
       .filter((leaf) => !leaf.adminOnly || !!user?.perms.viewFinancialReports)
+      .filter((leaf) => isReportAllowedForRole(leaf.href, user?.role ?? "tailor", reportAccess))
       .map((leaf) => ({ href: leaf.href, label: leaf.label, category: resolveReportSection(leaf.href) || "" }))
       .filter((r) => isReportEnabled(entitlements, r.href, r.category));
-  }, [entitlements, user?.role]);
+  }, [entitlements, user?.role, reportAccess]);
 
   const categories = useMemo(() => {
     const seen = new Set<string>();

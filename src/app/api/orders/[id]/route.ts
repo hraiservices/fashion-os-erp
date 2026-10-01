@@ -122,6 +122,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     patch.garments = patch.garments.map((g) => ({ ...g, payableAmount: g.lineId ? payableByLineId.get(g.lineId) : undefined }));
   }
 
+  // Changing order/delivery date is a distinct, separately-toggleable action from editing the
+  // rest of the order — split from editOrder since backdating/rescheduling a production date
+  // has downstream effects (overdue/due-today reports, SLA tracking) a plain field correction
+  // doesn't. The edit form resubmits both dates on every save regardless of whether the user
+  // touched them, so this only blocks when the value is actually CHANGING, not merely present.
+  if (!user.perms.backdateOrders && (patch.inDate !== undefined || patch.deliveryDate !== undefined)) {
+    const { data: cur } = await db.from("orders").select("in_date,delivery_date").eq("id", id).maybeSingle();
+    const changingInDate = patch.inDate !== undefined && patch.inDate !== cur?.in_date;
+    const changingDeliveryDate = patch.deliveryDate !== undefined && patch.deliveryDate !== cur?.delivery_date;
+    if (changingInDate || changingDeliveryDate) {
+      return NextResponse.json({ error: "No permission to change order/delivery dates" }, { status: 403 });
+    }
+  }
+
   const financialSubmitted = patch.total !== undefined || patch.advance !== undefined;
   let historyLine: string | null = null;
 

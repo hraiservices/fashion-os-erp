@@ -187,7 +187,7 @@ function CrmContent() {
                 </Button>
               )}
               {user?.perms.managePayments && <NewPaymentButton variant="outline" label="" className="shrink-0 px-3" />}
-              {canAdd && (
+              {(canAdd || user?.perms.sendWhatsappBroadcast) && (
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
@@ -197,12 +197,16 @@ function CrmContent() {
                     }
                   />
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem render={<Link href="/crm/broadcast" />}>
-                      <MessageSquare className="size-4" /> Broadcast
-                    </DropdownMenuItem>
-                    <DropdownMenuItem render={<Link href="/crm/bulk-whatsapp" />}>
-                      <ImagePlus className="size-4" /> Bulk WhatsApp (Image)
-                    </DropdownMenuItem>
+                    {user?.perms.sendWhatsappBroadcast && (
+                      <DropdownMenuItem render={<Link href="/crm/broadcast" />}>
+                        <MessageSquare className="size-4" /> Broadcast
+                      </DropdownMenuItem>
+                    )}
+                    {user?.perms.sendWhatsappBroadcast && (
+                      <DropdownMenuItem render={<Link href="/crm/bulk-whatsapp" />}>
+                        <ImagePlus className="size-4" /> Bulk WhatsApp (Image)
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem render={<Link href="/crm/import" />}>
                       <Upload className="size-4" /> Import
                     </DropdownMenuItem>
@@ -212,12 +216,12 @@ function CrmContent() {
             </div>
 
             <div className="hidden items-center gap-2 sm:flex">
-              {canAdd && (
+              {user?.perms.sendWhatsappBroadcast && (
                 <Button variant="outline" nativeButton={false} render={<Link href="/crm/broadcast" />}>
                   <MessageSquare className="size-4" /> Broadcast
                 </Button>
               )}
-              {canAdd && (
+              {user?.perms.sendWhatsappBroadcast && (
                 <Button variant="outline" nativeButton={false} render={<Link href="/crm/bulk-whatsapp" />}>
                   <ImagePlus className="size-4" /> Bulk WhatsApp (Image)
                 </Button>

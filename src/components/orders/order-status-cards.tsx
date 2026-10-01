@@ -1,9 +1,24 @@
+import { useState } from "react";
 import Link from "next/link";
-import { CalendarClock, AlertTriangle, Inbox, Scissors, Shirt, Sparkles, PackageCheck, Truck } from "lucide-react";
+import { CalendarClock, AlertTriangle, Inbox, Scissors, Shirt, Sparkles, PackageCheck, Truck, ChevronDown } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getOrderStatusCounts } from "@/lib/analytics";
 import type { Order } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const STORAGE_KEY = "orderStatusCardsExpanded";
+
+/** Hidden by default on every device — a brand-new browser/device has never written this key,
+ *  so it reads as collapsed until someone explicitly expands it there. Once expanded, that
+ *  device remembers the choice (localStorage, not shared across devices/browsers). */
+function loadExpanded(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 interface CardDef {
   key: keyof ReturnType<typeof getOrderStatusCounts>;
@@ -32,25 +47,51 @@ const CARDS: CardDef[] = [
  *  ever needs to agree with what got counted here. */
 export function OrderStatusCards({ orders }: { orders: Order[] }) {
   const counts = getOrderStatusCounts(orders);
+  const [expanded, setExpanded] = useState(loadExpanded);
+
+  function toggle() {
+    setExpanded((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+      } catch {
+        // Private-browsing/storage-blocked — the toggle still works for this session.
+      }
+      return next;
+    });
+  }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
-      {CARDS.map((c) => (
-        <Link
-          key={c.key}
-          href={c.href}
-          className={cn(
-            "rounded-xl border border-l-4 bg-card p-3 transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-            c.border
-          )}
-        >
-          <p className="text-2xl font-bold tabular-nums tracking-tight">{counts[c.key]}</p>
-          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <c.icon className={cn("size-3.5 shrink-0", c.iconClass)} />
-            <span className="truncate">{c.label}</span>
-          </p>
-        </Link>
-      ))}
+    <div>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={expanded}
+        className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ChevronDown className={cn("size-4 transition-transform", expanded && "rotate-180")} />
+        Stage summary
+      </button>
+      {expanded && (
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+          {CARDS.map((c) => (
+            <Link
+              key={c.key}
+              href={c.href}
+              className={cn(
+                "rounded-xl border border-l-4 bg-card p-3 transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                c.border
+              )}
+            >
+              <p className="text-2xl font-bold tabular-nums tracking-tight">{counts[c.key]}</p>
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <c.icon className={cn("size-3.5 shrink-0", c.iconClass)} />
+                <span className="truncate">{c.label}</span>
+              </p>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

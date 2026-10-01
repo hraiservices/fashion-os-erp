@@ -34,7 +34,7 @@ export function ReportsNavRail() {
   const allReports = useMemo<ReportItem[]>(() => {
     if (!entitlements) return [];
     return REPORTS_GROUP.children
-      .filter((leaf) => !leaf.adminOnly || user?.role === "admin")
+      .filter((leaf) => !leaf.adminOnly || !!user?.perms.viewFinancialReports)
       .map((leaf) => ({ href: leaf.href, label: leaf.label, category: resolveReportSection(leaf.href) || "" }))
       .filter((r) => isReportEnabled(entitlements, r.href, r.category));
   }, [entitlements, user?.role]);

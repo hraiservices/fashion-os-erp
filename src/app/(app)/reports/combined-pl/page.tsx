@@ -90,7 +90,7 @@ export default function CombinedPlPage() {
 
   // Profit & Loss is entirely profit data — restricted to the admin role specifically,
   // everywhere in the app.
-  if (user && user.role !== "admin") {
+  if (user && !user.perms.viewFinancialReports) {
     return (
       <div className="p-4 sm:p-6">
         <EmptyState icon={Wallet} title="No access" description="Combined P&L is restricted to admins." />

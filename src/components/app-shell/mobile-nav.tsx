@@ -115,7 +115,18 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
   // Copilot — day-to-day is just the board, so Support/Copilot fill the space admin/manager
   // spends on Clients/Invoices/Reports.
   const left = restricted ? MOBILE_TABS_RESTRICTED_LEFT : MOBILE_TABS_ADMIN_LEFT;
-  const right = restricted ? [] : MOBILE_TABS_ADMIN_RIGHT;
+  // MOBILE_TABS_ADMIN_RIGHT rendered every item unconditionally for any non-restricted
+  // (admin/manager) user, with no permission check at all — same gap as the sidebar's Reports
+  // group had (see nav-content.tsx) before that was fixed. Invoices/Reports now respect the same
+  // manageSales/viewReports permissions the sidebar and the desktop route guard already use;
+  // Clients has no dedicated permission anywhere else in the app, so it stays ungated here too.
+  const right = restricted
+    ? []
+    : MOBILE_TABS_ADMIN_RIGHT.filter((t) => {
+        if (t.href === "/sales/invoices") return !!user?.perms.manageSales;
+        if (t.href === "/reports") return !!user?.perms.viewReports;
+        return true;
+      });
   const canAdd = user?.perms.addOrder;
   const canUseCopilot = !!user?.perms.useChatbot && isModuleEnabled(entitlements ?? DEFAULT_ENTITLEMENTS, "copilot");
   const supportHref = buildSupportWhatsAppHref(shop?.name);
@@ -123,7 +134,7 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
   const createOptions = [
     { href: "/orders/new", label: "New Order", icon: ClipboardList, show: user?.perms.addOrder },
     { href: "/sales/invoices/new", label: "New Invoice", icon: Receipt, show: user?.perms.manageSales },
-    { href: "/expenses/new", label: "New Expense", icon: Wallet, show: true },
+    { href: "/expenses/new", label: "New Expense", icon: Wallet, show: user?.perms.manageExpenses },
     { href: "/crm/new", label: "New Customer", icon: UserPlus, show: user?.perms.manageCustomers || user?.role === "admin" || user?.role === "manager" },
   ].filter((o) => o.show);
 

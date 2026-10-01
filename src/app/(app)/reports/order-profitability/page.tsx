@@ -50,7 +50,7 @@ export default function OrderProfitabilityPage() {
   const { orderProfitability, isLoading } = useReportsData();
   // Profit figures are restricted to the admin role specifically, not just viewReports (which
   // managers also hold) — a shop-wide requirement, not just this one report.
-  const canView = user?.role === "admin";
+  const canView = !!user?.perms.viewFinancialReports;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
   const [garmentType, setGarmentType] = useState("all");
 

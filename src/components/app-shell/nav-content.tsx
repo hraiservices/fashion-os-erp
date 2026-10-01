@@ -336,6 +336,8 @@ function NavContentInner({ onNavigate, collapsed }: { onNavigate?: () => void; c
       if (node.item.href === POS_NAV_ITEM.href) return !!user?.perms.usePOS && isModuleEnabled(entitlements!, "pos");
       if (node.item.href === PAYMENTS_RECEIVED_NAV_ITEM.href)
         return !restricted && !!user?.perms.viewReports && isModuleEnabled(entitlements!, "reports") && isReportEnabled(entitlements!, PAYMENTS_RECEIVED_NAV_ITEM.href, resolveReportSection(PAYMENTS_RECEIVED_NAV_ITEM.href));
+      if (node.item.href === "/activity-log") return !restricted && !!user?.perms.viewActivityLog;
+      if (node.item.href === "/cost-estimator") return !restricted && !!user?.perms.useCostEstimator;
       if (SECONDARY_NAV.some((i) => i.href === node.item.href)) return !restricted;
       return !(restricted && node.item.restricted);
     }
@@ -343,7 +345,7 @@ function NavContentInner({ onNavigate, collapsed }: { onNavigate?: () => void; c
       case "reports":
         return !restricted && !!user?.perms.viewReports && isModuleEnabled(entitlements!, "reports") && REPORTS_GROUP.children.some((c) => isReportEnabled(entitlements!, c.href, resolveReportSection(c.href)));
       case "expenses":
-        return !restricted && isModuleEnabled(entitlements!, "expenses");
+        return !restricted && !!user?.perms.manageExpenses && isModuleEnabled(entitlements!, "expenses");
       case "sales":
         return !!user?.perms.manageSales && isModuleEnabled(entitlements!, "sales");
       case "inventory":
@@ -370,9 +372,9 @@ function NavContentInner({ onNavigate, collapsed }: { onNavigate?: () => void; c
         }
         const filterLeaf =
           node.group.id === "settings"
-            ? (href: string) => settingsLeafVisible(href, isAdmin, canManageShop, isSuperAdmin) && (isSuperAdmin || isSettingEnabled(entitlements!, href))
+            ? (href: string) => settingsLeafVisible(href, isAdmin, canManageShop, isSuperAdmin, user!.perms) && (isSuperAdmin || isSettingEnabled(entitlements!, href))
             : node.group.id === "employees"
-              ? (href: string) => employeesLeafVisible(href, isAdmin) && (isSuperAdmin || isSettingEnabled(entitlements!, href))
+              ? (href: string) => employeesLeafVisible(href, user!.perms) && (isSuperAdmin || isSettingEnabled(entitlements!, href))
               : node.group.id === "orders"
                 ? (href: string) => ordersLeafVisible(href, canManageShop) && (isSuperAdmin || isSettingEnabled(entitlements!, href))
                 : undefined;

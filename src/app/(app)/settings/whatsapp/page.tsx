@@ -15,7 +15,7 @@ import { WhatsAppSendLogSection } from "@/components/settings/whatsapp-send-log-
 export default function Page() {
   return (
     <SettingsPage title="WhatsApp" description="Message templates, Cloud API credentials, and every automated WhatsApp send in one place">
-      <SettingsGuard allow={({ isAdmin }) => isAdmin}>
+      <SettingsGuard allow={({ perms }) => perms.manageWhatsappSettings}>
         <div className="space-y-5">
           <WhatsAppSalesSection />
           <WhatsAppStitchingSection />

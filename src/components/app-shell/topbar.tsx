@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { LogOut, User, Wallet, CalendarCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useAttendanceMe } from "@/hooks/use-attendance-me";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NotificationBell } from "@/components/app-shell/notification-bell";
 import { AttendanceWidget } from "@/components/app-shell/attendance-widget";
@@ -26,6 +27,11 @@ export function Topbar() {
   const router = useRouter();
   const { data: user } = useCurrentUser();
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  // Topbar is always mounted (unlike AttendanceWidget, which only mounts once this dropdown is
+  // actually open) — calling the same query here kicks its fetch off at page load instead of on
+  // menu-open, so by the time someone opens the menu the Check In/Out item is already resolved
+  // from cache rather than popping in ~2s later. Result intentionally unused here.
+  useAttendanceMe(user?.employeeId);
 
   async function signOut() {
     const supabase = createClient();

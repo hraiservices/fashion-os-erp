@@ -7,7 +7,7 @@ import { InvoiceTermsSection } from "@/components/settings/invoice-terms-section
 export default function Page() {
   return (
     <SettingsPage title="Invoice Terms" description="Default Terms & Conditions text shown on new sales invoices">
-      <SettingsGuard allow={({ isAdmin }) => isAdmin}>
+      <SettingsGuard allow={({ perms }) => perms.manageDocumentTemplates}>
         <InvoiceTermsSection />
       </SettingsGuard>
     </SettingsPage>

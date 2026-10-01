@@ -27,9 +27,11 @@ export interface NavLeaf {
   newHref?: string;
   /** When set, a small section header is rendered above this leaf whenever it differs from the previous leaf's section — groups a flat children list into categories without changing the data shape. */
   section?: string;
-  /** Profit/margin reports — restricted to the admin role specifically, not just viewReports
-   *  (which managers also hold). Hidden from the Reports index/sidebar entirely for non-admins;
-   *  the destination page enforces the same check independently in case of a direct link. */
+  /** Profit/margin reports — gated on perms.viewFinancialReports specifically, not just
+   *  viewReports (which every other report leaf uses). Hidden from the Reports index/sidebar
+   *  entirely without it; the destination page enforces the same check independently in case
+   *  of a direct link. Field name kept as `adminOnly` for historical reasons (it defaulted to
+   *  admin-only before viewFinancialReports existed) — it now means "needs viewFinancialReports". */
   adminOnly?: boolean;
 }
 
@@ -278,24 +280,41 @@ export const SETTINGS_GROUP: NavGroup = {
   ],
 };
 
-/** The policy/config leaves living under Employees stay admin-only, same as when they lived
- *  under Settings — everyone with manageEmployees can see Attendance/Leave/Payroll data, but
- *  only an admin should see the policy config links and Users & Roles (the pages themselves
- *  also enforce this via SettingsGuard). */
-export function employeesLeafVisible(href: string, isAdmin: boolean): boolean {
-  if (href === "/settings/attendance-payroll" || href === "/settings/leave-policy" || href === "/settings/users") return isAdmin;
+/** The policy/config leaves living under Employees — everyone with manageEmployees can see
+ *  Attendance/Leave/Payroll data, but the specific settings pages each need their own
+ *  permission (the pages themselves also enforce this via SettingsGuard). Payroll settings are
+ *  financial, so they ride on managePayroll rather than manageEmployees; Users & Roles edits the
+ *  permission system itself, so it rides on manageUsers specifically (previously hardcoded to
+ *  isAdmin, which made the manageUsers toggle meaningless for this one page). */
+export function employeesLeafVisible(href: string, perms: { manageEmployees: boolean; managePayroll: boolean; manageUsers: boolean }): boolean {
+  if (href === "/settings/attendance-payroll") return perms.managePayroll;
+  if (href === "/settings/leave-policy") return perms.manageEmployees;
+  if (href === "/settings/users") return perms.manageUsers;
   return true;
 }
 
-/** Per-section Settings gating, mirroring the old app's rules. Module Licensing is platform-owner-only — invisible to every shop's own admin, including "admin" role. Personalize merges Shop Profile/Account/Appearance/Document Numbering onto one page, so it stays visible to everyone the same way Account did — the page itself hides the admin/manager-only sections inline. */
-export function settingsLeafVisible(href: string, isAdmin: boolean, canManageShop: boolean, isSuperAdmin: boolean): boolean {
+/** Per-section Settings gating, mirroring the old app's rules. Module Licensing/Signup
+ *  Requests/Admin Console are platform-owner-only — invisible to every shop's own admin,
+ *  including the "admin" role. AI Copilot holds a live Gemini API key, so it's a deliberate
+ *  exception kept admin-only rather than permission-toggleable, same as the WhatsApp Cloud API
+ *  credentials page (not in this nav list, gated separately) — both hold secrets, not business
+ *  configuration. Personalize merges Shop Profile/Account/Appearance/Document Numbering onto one
+ *  page, so it stays visible to everyone the same way Account did — the page itself hides the
+ *  admin/manager-only sections inline. */
+export function settingsLeafVisible(
+  href: string,
+  isAdmin: boolean,
+  canManageShop: boolean,
+  isSuperAdmin: boolean,
+  perms: { manageWhatsappSettings: boolean; manageLoyaltySettings: boolean; manageDocumentTemplates: boolean; managePriceLists: boolean; manageNavigationSettings: boolean }
+): boolean {
   if (href === "/settings/module-licensing" || href === "/settings/signup-requests" || href === "/settings/admin-console") return isSuperAdmin;
-  if (
-    ["/settings/whatsapp", "/settings/loyalty", "/settings/invoice-terms", "/settings/invoice-template", "/settings/stitching-order-template", "/settings/price-lists", "/settings/copilot", "/settings/navigation"].includes(
-      href,
-    )
-  )
-    return isAdmin;
+  if (href === "/settings/copilot") return isAdmin;
+  if (href === "/settings/whatsapp") return perms.manageWhatsappSettings;
+  if (href === "/settings/loyalty") return perms.manageLoyaltySettings;
+  if (href === "/settings/invoice-terms" || href === "/settings/invoice-template" || href === "/settings/stitching-order-template") return perms.manageDocumentTemplates;
+  if (href === "/settings/price-lists") return perms.managePriceLists;
+  if (href === "/settings/navigation") return perms.manageNavigationSettings;
   return true; // /settings/personalize and /settings/account — everyone (canManageShop kept as a param for callers/backward compat)
 }
 

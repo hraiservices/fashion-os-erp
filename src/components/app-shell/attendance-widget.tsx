@@ -1,21 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { LogIn, LogOut, CheckCircle2 } from "lucide-react";
+import { LogIn, LogOut, CheckCircle2, Loader2 } from "lucide-react";
 import { CameraModal } from "@/components/orders/camera-modal";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useCurrentUser } from "@/hooks/use-current-user";
-
-interface AttendanceMe {
-  employee: { id: string; name: string; role: string };
-  checkedInAt: string | null;
-  checkedOutAt: string | null;
-  hoursWorked: number | null;
-}
+import { useAttendanceMe, useInvalidateAttendanceMe } from "@/hooks/use-attendance-me";
 
 type Action = "checkin" | "checkout" | null;
 
@@ -31,8 +25,8 @@ type Action = "checkin" | "checkout" | null;
  */
 export function AttendanceWidget({ onDone }: { onDone?: () => void }) {
   const { data: user } = useCurrentUser();
-  const [me, setMe] = useState<AttendanceMe | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const { data: me, isLoading } = useAttendanceMe(user?.employeeId);
+  const invalidateMe = useInvalidateAttendanceMe();
   const [cameraOpen, setCameraOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<Action>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -41,30 +35,6 @@ export function AttendanceWidget({ onDone }: { onDone?: () => void }) {
   const [workNoteError, setWorkNoteError] = useState(false);
 
   const isTailor = (me?.employee.role || "").toLowerCase().includes("tailor");
-
-  async function loadMe(triedPortalLogin = false) {
-    const res = await fetch("/api/attendance/me");
-    if (res.status === 401) {
-      if (!triedPortalLogin) {
-        const portalRes = await fetch("/api/attendance/portal-login", { method: "POST" });
-        if (portalRes.ok) {
-          await loadMe(true);
-          return;
-        }
-      }
-      setMe(null);
-      setLoaded(true);
-      return;
-    }
-    const data = await res.json();
-    if (res.ok) setMe(data);
-    setLoaded(true);
-  }
-
-  useEffect(() => {
-    if (user?.employeeId) loadMe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when the linked employee itself changes
-  }, [user?.employeeId]);
 
   function startAction(action: "checkin" | "checkout") {
     if (!navigator.geolocation) {
@@ -115,7 +85,7 @@ export function AttendanceWidget({ onDone }: { onDone?: () => void }) {
           }
           toast.success(pendingAction === "checkin" ? "Checked in!" : "Checked out!");
           setWorkNote("");
-          await loadMe(true);
+          await invalidateMe(user?.employeeId);
           onDone?.();
         } catch {
           toast.error("Network error — try again.");
@@ -133,9 +103,18 @@ export function AttendanceWidget({ onDone }: { onDone?: () => void }) {
     );
   }
 
-  // Nothing to show until we know whether this login is linked to an employee, and nothing at
-  // all if it isn't — most portal users (e.g. an owner with no attendance record) see no widget.
-  if (!user?.employeeId || !loaded) return null;
+  // Nothing at all for a login with no linked employee — most portal users (e.g. an owner with
+  // no attendance record) see no widget. While the (now-prefetched, see useAttendanceMe) status
+  // is still in flight, show a disabled placeholder rather than nothing — the item used to pop
+  // in and shift the menu's height once the fetch resolved; this keeps the slot reserved instead.
+  if (!user?.employeeId) return null;
+  if (isLoading) {
+    return (
+      <DropdownMenuItem disabled>
+        <Loader2 className="size-4 animate-spin" /> Checking status…
+      </DropdownMenuItem>
+    );
+  }
 
   return (
     <>

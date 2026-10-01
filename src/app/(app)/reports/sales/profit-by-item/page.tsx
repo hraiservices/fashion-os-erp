@@ -72,7 +72,7 @@ export default function ProfitByItemPage() {
   const sortedRows = applySort(rows);
 
   // Profit/margin figures are restricted to the admin role specifically, everywhere in the app.
-  if (user && user.role !== "admin") {
+  if (user && !user.perms.viewFinancialReports) {
     return (
       <div className="p-4 sm:p-6">
         <EmptyState icon={TrendingUp} title="No access" description="Profit by item is restricted to admins." />

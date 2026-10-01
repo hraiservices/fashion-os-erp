@@ -50,20 +50,22 @@ export function CommandTrigger() {
       restricted || !entitlements
         ? []
         : REPORTS_GROUP.children.filter((c) => isReportEnabled(entitlements, c.href, resolveReportSection(c.href))).map((c) => ({ href: c.href, label: `Reports · ${c.label}` }));
-    const settings = SETTINGS_GROUP.children
-      .filter((c) => settingsLeafVisible(c.href, isAdmin, !restricted, isSuperAdmin) && (isSuperAdmin || !entitlements || isSettingEnabled(entitlements, c.href)))
-      .map((c) => ({ href: c.href, label: `Settings · ${c.label}` }));
+    const settings = !user
+      ? []
+      : SETTINGS_GROUP.children
+          .filter((c) => settingsLeafVisible(c.href, isAdmin, !restricted, isSuperAdmin, user.perms) && (isSuperAdmin || !entitlements || isSettingEnabled(entitlements, c.href)))
+          .map((c) => ({ href: c.href, label: `Settings · ${c.label}` }));
     const employees =
-      restricted
+      restricted || !user
         ? []
         : EMPLOYEES_GROUP.children
-            .filter((c) => employeesLeafVisible(c.href, isAdmin) && (isSuperAdmin || !entitlements || isSettingEnabled(entitlements, c.href)))
+            .filter((c) => employeesLeafVisible(c.href, user.perms) && (isSuperAdmin || !entitlements || isSettingEnabled(entitlements, c.href)))
             .map((c) => ({ href: c.href, label: `Employees · ${c.label}` }));
     const orderSettings = ORDERS_GROUP.children
       .filter((c) => c.href.startsWith("/settings/") && ordersLeafVisible(c.href, !restricted) && (isSuperAdmin || !entitlements || isSettingEnabled(entitlements, c.href)))
       .map((c) => ({ href: c.href, label: `Stitching Orders · ${c.label}` }));
     return { flat, reports, settings, employees, orderSettings };
-  }, [restricted, isAdmin, isSuperAdmin, entitlements]);
+  }, [restricted, isAdmin, isSuperAdmin, entitlements, user]);
 
   function close() {
     setOpen(false);

@@ -93,6 +93,9 @@ interface SaveInvoiceInput {
    *  one atomic write (see save_sales_invoice RPC) instead of a separate payment call that
    *  could fail after stock was already deducted. Omit for the normal invoice-form flow. */
   payments?: { amount: number; method: string; date: string; note?: string; posSessionId?: string }[];
+  /** POS checkout only — see the API route's idempotencyKey handling. Null/undefined is fine
+   *  for every other caller (the normal invoice form never sends one). */
+  idempotencyKey?: string | null;
 }
 
 /**

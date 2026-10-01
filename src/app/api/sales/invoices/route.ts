@@ -59,6 +59,13 @@ const bodySchema = z.object({
   // atomic write (see save_sales_invoice RPC) instead of two separate mutations where a
   // network drop between them could leave stock deducted with no matching payment recorded.
   payments: z.array(paymentSchema).optional(),
+  // POS checkout only — a stable key the client generates once per checkout attempt and
+  // resends unchanged on retry (e.g. after a network timeout where the first request may have
+  // actually succeeded). Lets this route return the original invoice instead of creating a
+  // second one, deducting stock twice, and recording payment twice for one physical sale. Only
+  // meaningful on create — an edit's idempotency is already covered by payments/credit-notes
+  // blocking further financial changes.
+  idempotencyKey: z.string().min(1).optional(),
 });
 
 /**
@@ -82,6 +89,19 @@ export async function POST(request: Request) {
   const fd = parsed.data;
 
   const isEdit = !!fd.id;
+
+  // Idempotent replay: if this exact checkout attempt already succeeded (the client retried
+  // after a network drop that actually went through server-side), return the existing invoice
+  // instead of running the whole save again.
+  if (!isEdit && fd.idempotencyKey) {
+    const { data: existing, error: existingError } = await db
+      .from("sales_invoices")
+      .select("id, invoice_number")
+      .eq("idempotency_key", fd.idempotencyKey)
+      .maybeSingle();
+    if (existingError) return NextResponse.json({ error: `Could not check for a duplicate submission: ${existingError.message}` }, { status: 500 });
+    if (existing) return NextResponse.json({ ok: true, data: existing });
+  }
 
   // H-3: Block financial edits on invoices that have payments OR credit notes. Credit notes
   // were missing here — an invoice with a credit note but zero payments could still be edited,
@@ -228,6 +248,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "This quotation was already converted to an invoice." }, { status: 409 });
     }
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Stamp the idempotency key onto the row the RPC just created — a plain update, not part of
+  // the RPC's own transaction, so it can't create a competing overload of save_sales_invoice
+  // (see add_invoice_idempotency_key.sql). This closes the realistic failure mode: a sequential
+  // retry after a timeout, where the first request's own commit (including this stamp) is
+  // already done by the time the retry's upfront check runs above, so the retry never reaches
+  // the RPC at all. It is NOT a full guard against two requests in flight for the same key at
+  // the exact same instant (the client prevents that by disabling the submit button for the
+  // duration of a request, so it shouldn't occur in practice) — in that genuine-race case the
+  // unique index below only hides the duplicate invoice from this response, it doesn't undo
+  // the loser's already-committed stock/payment rows.
+  const newInvoiceId = (data as { id?: string } | null)?.id;
+  if (!isEdit && fd.idempotencyKey && newInvoiceId) {
+    const { error: stampError } = await db.from("sales_invoices").update({ idempotency_key: fd.idempotencyKey }).eq("id", newInvoiceId);
+    if (stampError?.code === "23505") {
+      const { data: winner } = await db.from("sales_invoices").select("id, invoice_number").eq("idempotency_key", fd.idempotencyKey).maybeSingle();
+      if (winner) {
+        await logAction(supabase, user.email, `Invoice created: ${invoiceNumber} (duplicate submission, returning existing)`, null, `₹${totals.total}`);
+        return NextResponse.json({ ok: true, data: winner });
+      }
+    }
   }
 
   await logAction(supabase, user.email, isEdit ? `Invoice updated: ${invoiceNumber}` : `Invoice created: ${invoiceNumber}`, null, `₹${totals.total}`);

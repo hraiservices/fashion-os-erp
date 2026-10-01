@@ -259,7 +259,7 @@ export function OrderTableRow(props: TableRowProps) {
       {isVisible("delivery") && (
         <td className="px-2.5 py-2.5">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-sm">{fmtDateShort(order.deliveryDate)}</span>
+            <span className="text-sm font-bold">{fmtDateShort(order.deliveryDate)}</span>
             <DueBadge order={order} />
           </div>
           <DeliveryCountdown order={order} />

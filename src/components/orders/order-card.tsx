@@ -215,7 +215,7 @@ export function OrderCard({
         <p className="mt-2 truncate text-xs font-semibold text-muted-foreground">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] text-muted-foreground">{fmtDateShort(order.deliveryDate)}</span>
+          <span className="text-[11px] font-bold text-muted-foreground">{fmtDateShort(order.deliveryDate)}</span>
           <DueBadge order={order} />
           <ChecklistProgressChip order={order} />
           <BalanceDue amount={order.balance} suffix=" due" className="ml-auto text-[11px] font-semibold" />

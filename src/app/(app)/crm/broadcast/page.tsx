@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, MessageSquare, Send } from "lucide-react";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useSendBroadcast, type BroadcastResult } from "@/hooks/use-whatsapp-broadcast";
 import { PageHeader } from "@/components/ui/page-header";
@@ -12,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -30,6 +32,7 @@ const MAX_MESSAGE_LENGTH = 900;
  *  just the existing customer tags (VIP, At-Risk, ...) — nothing new to configure per broadcast
  *  beyond the shared template set up under Settings → WhatsApp. */
 export default function BroadcastPage() {
+  const { data: user } = useCurrentUser();
   const { profiles, isLoading } = useCustomerProfiles();
   const sendBroadcast = useSendBroadcast();
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -64,6 +67,14 @@ export default function BroadcastPage() {
   }
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
+
+  if (!user?.perms.sendWhatsappBroadcast) {
+    return (
+      <div className="p-4 sm:p-6">
+        <EmptyState icon={MessageSquare} title="No access" description="Broadcast is restricted to users with permission to send WhatsApp broadcasts." />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4 sm:p-6">

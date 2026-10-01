@@ -301,9 +301,11 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
                 <Printer className="size-4" /> Reprint Last
               </Button>
             )}
-            <Button variant="outline" onClick={() => setCloseOpen(true)}>
-              <Lock className="size-4" /> Close Register
-            </Button>
+            {user?.perms.closeRegister && (
+              <Button variant="outline" onClick={() => setCloseOpen(true)}>
+                <Lock className="size-4" /> Close Register
+              </Button>
+            )}
           </>
         }
       />

@@ -30,6 +30,13 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
 
+  // Closing the register is the cash-reconciliation moment — kept separate from usePOS (which
+  // just lets someone take sales) so a cashier can run the till all day without being the one
+  // who's trusted to reconcile and close the drawer at the end of it.
+  if (parsed.data.action === "close" && !user.perms.closeRegister) {
+    return NextResponse.json({ error: "No permission to close the register" }, { status: 403 });
+  }
+
   // pos_sessions is write-locked for `authenticated` — see lockdown_operational_writes.sql.
   const db = createServiceClient();
   if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });

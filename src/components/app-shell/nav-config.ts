@@ -166,6 +166,21 @@ export const REPORTS_GROUP: NavGroup = {
   ],
 };
 
+/** Per-report, per-role visibility — alongside viewReports/viewFinancialReports (coarse,
+ *  all-or-nothing-ish toggles), lets an admin hide individual reports from a role (e.g. Sales
+ *  reports but not Employee reports for a given manager). Absent = visible, so adding a new
+ *  report to REPORTS_GROUP never silently hides it from everyone until someone opts it out.
+ *  Stored in app_settings.reportRoleAccess — see add_report_role_access_lockdown.sql for why
+ *  writes are routed through /api/settings/report-access rather than a direct app_settings
+ *  upsert (same sensitivity as roleDefaultOverrides). */
+export type ReportRoleAccess = Partial<Record<"admin" | "manager" | "sales" | "tailor", Record<string, boolean>>>;
+export const DEFAULT_REPORT_ROLE_ACCESS: ReportRoleAccess = {};
+
+export function isReportAllowedForRole(href: string, role: string, access: ReportRoleAccess | null | undefined): boolean {
+  const key = (["admin", "manager", "sales", "tailor"] as const).includes(role as "admin" | "manager" | "sales" | "tailor") ? (role as "admin" | "manager" | "sales" | "tailor") : "tailor";
+  return access?.[key]?.[href] !== false;
+}
+
 /** Resolves the effective section for a REPORTS_GROUP leaf, filling forward from the last `section`-tagged leaf — mirrors how the sidebar/Reports index visually group unlabeled leaves under the preceding section header. Needed anywhere a single leaf's conceptual category matters (module-licensing cascade), not just the sequential render. */
 export function resolveReportSection(href: string): string | undefined {
   let category: string | undefined;

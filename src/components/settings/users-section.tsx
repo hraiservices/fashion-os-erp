@@ -41,6 +41,13 @@ import {
   type Role,
   type RoleDefaultOverrides,
 } from "@/lib/permissions";
+import {
+  REPORTS_GROUP,
+  DEFAULT_REPORT_ROLE_ACCESS,
+  isReportAllowedForRole,
+  resolveReportSection,
+  type ReportRoleAccess,
+} from "@/components/app-shell/nav-config";
 
 /** Base UI renders the raw value unless given a formatter (would show "admin", not "Admin"). */
 const roleLabel = (v: unknown) => ROLE_OPTIONS.find(([val]) => val === v)?.[1] ?? String(v ?? "");
@@ -140,6 +147,113 @@ function RoleReferenceCard() {
         <p className="mt-3 text-xs text-muted-foreground">
           Click any checkmark to change that role&apos;s starting permission shop-wide. Open any user below to override just that one person instead —
           e.g. a tailor who should only change order stage, or a manager who shouldn&apos;t delete orders.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Per-report role toggles — one row per report under Reports, grouped by the same section
+ *  headers the sidebar/Reports index use (resolveReportSection). Separate from RoleReferenceCard
+ *  above because it's a different app_settings key (reportRoleAccess, not roleDefaultOverrides)
+ *  with its own lockdown RPC — see add_report_role_access_lockdown.sql. */
+function ReportAccessCard() {
+  const qc = useQueryClient();
+  const { data: access, isLoading } = useAppSetting<ReportRoleAccess>("reportRoleAccess", DEFAULT_REPORT_ROLE_ACCESS);
+  const [saving, setSaving] = useState<string | null>(null);
+
+  async function toggle(role: Role, href: string) {
+    if (role === "admin") return;
+    const current = isReportAllowedForRole(href, role, access);
+    const next: ReportRoleAccess = { ...access, [role]: { ...access?.[role], [href]: !current } };
+    setSaving(`${role}.${href}`);
+    try {
+      const res = await fetch("/api/settings/report-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save");
+      qc.setQueryData(["app-setting", "reportRoleAccess"], next);
+      qc.invalidateQueries({ queryKey: ["current-user"] });
+      const label = REPORTS_GROUP.children.find((c) => c.href === href)?.label ?? href;
+      toast.success(`"${label}" ${!current ? "granted" : "revoked"} for ${roleLabel(role)}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  let lastSection: string | undefined;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-1.5 text-sm">
+          <Info className="size-4 text-muted-foreground" /> Which reports can each role see?
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="overflow-x-auto">
+        <table className="w-full min-w-[520px] border-collapse text-sm">
+          <thead>
+            <tr className="border-b text-xs text-muted-foreground">
+              <th className="py-1.5 pr-2 text-left font-bold">Report</th>
+              {ROLE_OPTIONS.map(([v, l]) => (
+                <th key={v} className="px-2 py-1.5 text-center font-bold">
+                  {l}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {REPORTS_GROUP.children.map((leaf) => {
+              const section = resolveReportSection(leaf.href);
+              const showSectionHeader = section !== lastSection;
+              lastSection = section;
+              return (
+                <Fragment key={leaf.href}>
+                  {showSectionHeader && section ? (
+                    <tr>
+                      <td colSpan={ROLE_OPTIONS.length + 1} className="pt-3 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        {section}
+                      </td>
+                    </tr>
+                  ) : null}
+                  <tr className="border-b last:border-0">
+                    <td className="py-1.5 pr-2">{leaf.label}</td>
+                    {ROLE_OPTIONS.map(([v]) => {
+                      if (v === "admin") {
+                        return (
+                          <td key={v} className="px-2 py-1.5 text-center">
+                            <PermCheck on={true} />
+                          </td>
+                        );
+                      }
+                      const on = isReportAllowedForRole(leaf.href, v, access);
+                      return (
+                        <td key={v} className="px-2 py-1.5 text-center">
+                          <button
+                            type="button"
+                            disabled={isLoading || saving === `${v}.${leaf.href}`}
+                            onClick={() => toggle(v, leaf.href)}
+                            title="Click to toggle this report's visibility for this role"
+                            className="mx-auto block disabled:opacity-50"
+                          >
+                            <PermCheck on={on} />
+                          </button>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Admins always see every report. A report is hidden from Financial Reports-only sections too if the role doesn&apos;t have "View Financial Reports" for the profit/margin ones.
         </p>
       </CardContent>
     </Card>
@@ -776,6 +890,7 @@ export function UsersSection() {
 
       <PhoneCheckCard />
       <RoleReferenceCard />
+      <ReportAccessCard />
       {currentUser?.role === "admin" && <LiveUsersSection />}
 
       {wizard && (

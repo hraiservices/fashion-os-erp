@@ -67,6 +67,20 @@ export interface Permissions {
   viewActivityLog: boolean;
   /** Use the Cost Estimator tool. */
   useCostEstimator: boolean;
+  /** Change an order's order-date or delivery-date — split from editOrder since backdating or
+   *  rescheduling a production date has downstream effects (overdue/due-today reports, SLA
+   *  tracking) a plain field correction doesn't. */
+  backdateOrders: boolean;
+  /** Grant loyalty points to a customer — split from manageCustomers since it directly creates
+   *  redeemable value, unlike editing a customer's contact details. */
+  awardLoyaltyPoints: boolean;
+  /** Send a WhatsApp broadcast (text or image) to a customer segment — split from
+   *  manageCustomers since messaging many customers at once is a different risk than editing
+   *  one customer's own record. */
+  sendWhatsappBroadcast: boolean;
+  /** Close the POS cash register (the cash-reconciliation step) — split from usePOS so a
+   *  cashier can run the till all day without being the one trusted to reconcile and close it. */
+  closeRegister: boolean;
 }
 
 export const PERMISSION_LABELS: Record<keyof Permissions, string> = {
@@ -105,6 +119,10 @@ export const PERMISSION_LABELS: Record<keyof Permissions, string> = {
   manageNavigationSettings: "Settings: Sidebar Navigation",
   viewActivityLog: "View Activity Log",
   useCostEstimator: "Use Cost Estimator",
+  backdateOrders: "Change Order/Delivery Dates",
+  awardLoyaltyPoints: "Award Loyalty Points",
+  sendWhatsappBroadcast: "Send WhatsApp Broadcasts",
+  closeRegister: "Close POS Register",
 };
 
 export const ROLE_DEFAULTS: Record<Role, Permissions> = {
@@ -144,6 +162,10 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     manageNavigationSettings: true,
     viewActivityLog: true,
     useCostEstimator: true,
+    backdateOrders: true,
+    awardLoyaltyPoints: true,
+    sendWhatsappBroadcast: true,
+    closeRegister: true,
   },
   manager: {
     addOrder: true,
@@ -181,6 +203,10 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     manageNavigationSettings: false,
     viewActivityLog: true,
     useCostEstimator: true,
+    backdateOrders: true,
+    awardLoyaltyPoints: true,
+    sendWhatsappBroadcast: true,
+    closeRegister: true,
   },
   sales: {
     addOrder: true,
@@ -218,6 +244,10 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     manageNavigationSettings: false,
     viewActivityLog: false,
     useCostEstimator: false,
+    backdateOrders: false,
+    awardLoyaltyPoints: false,
+    sendWhatsappBroadcast: false,
+    closeRegister: false,
   },
   tailor: {
     addOrder: false,
@@ -255,15 +285,19 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     manageNavigationSettings: false,
     viewActivityLog: false,
     useCostEstimator: false,
+    backdateOrders: false,
+    awardLoyaltyPoints: false,
+    sendWhatsappBroadcast: false,
+    closeRegister: false,
   },
 };
 
 /** Groups PERMISSION_LABELS keys for a readable checklist, shown in both the role-reference
  *  table and any per-user permission override panel. */
 export const PERMISSION_GROUPS: { label: string; keys: (keyof Permissions)[] }[] = [
-  { label: "Orders", keys: ["addOrder", "editOrder", "deleteOrder", "changeStage", "managePayments", "editMeasurements"] },
-  { label: "Customers", keys: ["manageCustomers", "deleteCustomers"] },
-  { label: "Modules", keys: ["manageInventory", "adjustStock", "transferStock", "deleteInventory", "managePurchases", "cancelPurchases", "payVendors", "manageManufacturing", "manageSales", "voidSales", "manageCreditNotes", "usePOS"] },
+  { label: "Orders", keys: ["addOrder", "editOrder", "deleteOrder", "changeStage", "managePayments", "editMeasurements", "backdateOrders"] },
+  { label: "Customers", keys: ["manageCustomers", "deleteCustomers", "awardLoyaltyPoints", "sendWhatsappBroadcast"] },
+  { label: "Modules", keys: ["manageInventory", "adjustStock", "transferStock", "deleteInventory", "managePurchases", "cancelPurchases", "payVendors", "manageManufacturing", "manageSales", "voidSales", "manageCreditNotes", "usePOS", "closeRegister"] },
   { label: "Expenses", keys: ["manageExpenses"] },
   { label: "Employees", keys: ["manageEmployees", "approveLeave", "managePayroll"] },
   { label: "Reports", keys: ["viewReports", "viewFinancialReports", "viewActivityLog"] },

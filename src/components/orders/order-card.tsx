@@ -212,13 +212,13 @@ export function OrderCard({
           <GroupBadge size={groupSize} groupTotal={groupTotal} />
         </p>
 
-        <p className="mt-2 truncate text-xs text-muted-foreground">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>
+        <p className="mt-2 truncate text-xs font-semibold text-muted-foreground">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] text-muted-foreground">{fmtDateShort(order.deliveryDate)}</span>
           <DueBadge order={order} />
           <ChecklistProgressChip order={order} />
-          <BalanceDue amount={order.balance} suffix=" due" className="ml-auto text-[11px]" />
+          <BalanceDue amount={order.balance} suffix=" due" className="ml-auto text-[11px] font-semibold" />
         </div>
       </Link>
 

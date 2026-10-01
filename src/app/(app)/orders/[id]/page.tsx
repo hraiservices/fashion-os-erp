@@ -28,7 +28,7 @@ import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { MeasurementView } from "@/components/measurements/measurement-grid";
 import { OrderAttachments } from "@/components/orders/order-attachments";
 import { useResolvedMediaUrls } from "@/hooks/use-order-media";
-import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
+import { StageBadge, DueBadge, MoveToStageLabel } from "@/components/orders/stage-badge";
 import { PaymentModal } from "@/components/orders/payment-modal";
 import { GarmentChecklistRow } from "@/components/orders/garment-checklist";
 import { ReworkDialog } from "@/components/orders/rework-dialog";
@@ -364,7 +364,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <div className="flex flex-wrap gap-2">
           {user?.perms.changeStage && next && (
             <Button className={cn("h-12 min-w-0 flex-1 basis-36 text-base sm:h-10 sm:text-sm", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
-              <ArrowRight className="size-4 shrink-0" /> <span className="truncate">Move to {STAGE_META[next].label}</span>
+              <ArrowRight className="size-4 shrink-0" /> <span className="truncate"><MoveToStageLabel label={STAGE_META[next].label} /></span>
             </Button>
           )}
           {user?.perms.managePayments && order.balance > 0 && (

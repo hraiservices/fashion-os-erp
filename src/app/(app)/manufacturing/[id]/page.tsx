@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CompleteWorkOrderDialog } from "@/components/manufacturing/complete-work-order-dialog";
+import { MoveToStageLabel } from "@/components/orders/stage-badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -200,7 +201,7 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
                 <div className="space-y-1.5">
                   <Button className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" onClick={handleAdvance} disabled={advanceStatus.isPending}>
                     {next === "completed" ? <CheckCircle2 className="size-4" /> : <ArrowRight className="size-4" />}
-                    {next === "completed" ? "Complete work order" : `Move to ${next ? WO_STATUS_LABELS[next] : ""}`}
+                    {next === "completed" ? "Complete work order" : <MoveToStageLabel label={next ? WO_STATUS_LABELS[next] : ""} />}
                   </Button>
                   <Button variant="outline" className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" nativeButton={false} render={<Link href={`/manufacturing/${wo.id}/edit`} />}>
                     <Pencil className="size-4" /> Edit

@@ -23,6 +23,18 @@ export function StageBadge({ stage, className, size = "default" }: { stage: Stag
   );
 }
 
+/** "Move to CUTTING" label for a stage-advance button — the destination stage name is bold
+ *  caps so it reads at a glance on a crowded card/row, "Move to" stays normal weight/case as
+ *  just the lead-in word. Shared so every stage-advance button (board card, order list row,
+ *  order detail page, manufacturing work order) renders it identically. */
+export function MoveToStageLabel({ label }: { label: string }) {
+  return (
+    <>
+      Move to <span className="font-bold uppercase">{label}</span>
+    </>
+  );
+}
+
 /** Due-date urgency pill. Returns null for delivered/paid orders, same as dueBadge(). */
 export function DueBadge({ order, className }: { order: Pick<Order, "status" | "deliveryDate">; className?: string }) {
   const badge = dueBadge(order as Order);

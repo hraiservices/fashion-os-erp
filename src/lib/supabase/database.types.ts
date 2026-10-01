@@ -774,6 +774,7 @@ export interface Database {
           created_by: string | null;
           created_at: string;
           updated_at: string;
+          idempotency_key: string | null;
         };
         Insert: Partial<Database["public"]["Tables"]["sales_invoices"]["Row"]> & {
           invoice_number: string;

@@ -63,7 +63,7 @@ export function DeleteOrderButton({ order, compact, showLabel }: { order: Order;
             variant="outline"
             size={showLabel ? "sm" : "icon-sm"}
             className={cn(
-              showLabel ? "h-9 w-full gap-1.5 px-2 text-[11px]" : "size-9 shrink-0",
+              showLabel ? "h-11 w-full gap-1.5 px-2 text-sm" : "size-9 shrink-0",
               "text-destructive hover:bg-destructive/10",
               !compact && !showLabel && "sm:size-8"
             )}
@@ -207,23 +207,23 @@ export function OrderCard({
       <ChecklistProgressBar order={order} />
       <Link href={`/orders/${order.id}`} className="block p-3">
         <div className="flex items-start justify-between gap-2">
-          <p className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">{order.name}</p>
-          <span className="shrink-0 text-sm font-semibold tabular-nums">{inr(order.total)}</span>
+          <p className="min-w-0 flex-1 truncate text-base font-semibold leading-tight sm:text-sm sm:font-medium">{order.name}</p>
+          <span className="shrink-0 text-base font-semibold tabular-nums sm:text-sm">{inr(order.total)}</span>
         </div>
-        <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+        <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground sm:text-[11px]">
           <span className="min-w-0 shrink truncate">{order.id}</span>
           {order.orderType === "alteration" && <AlterationBadge />}
           {order.reworkFlag && <ReworkBadge />}
           <GroupBadge size={groupSize} groupTotal={groupTotal} />
         </p>
 
-        <p className="mt-2 truncate text-xs font-semibold text-muted-foreground">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>
+        <p className="mt-2 truncate text-sm font-bold text-muted-foreground sm:text-xs sm:font-semibold">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] font-bold text-muted-foreground">{fmtDateShort(order.deliveryDate)}</span>
+          <span className="text-sm font-bold text-muted-foreground sm:text-[11px]">{fmtDateShort(order.deliveryDate)}</span>
           <DueBadge order={order} />
           <ChecklistProgressChip order={order} />
-          <BalanceDue amount={order.balance} suffix=" due" className="ml-auto text-[11px] font-semibold" />
+          <BalanceDue amount={order.balance} suffix=" due" className="ml-auto text-sm font-semibold sm:text-[11px]" />
         </div>
       </Link>
 
@@ -232,7 +232,7 @@ export function OrderCard({
           {canChangeStage && next && (
             <Button
               size="sm"
-              className={cn("h-8 min-w-0 flex-1 px-2 text-[11px]", STAGE_STYLE[next].solid)}
+              className={cn("h-11 min-w-0 flex-1 px-2 text-sm sm:h-8 sm:text-[11px]", STAGE_STYLE[next].solid)}
               disabled={advancing}
               onClick={(e) => {
                 e.preventDefault();
@@ -281,14 +281,14 @@ export function OrderCard({
             <Button
               variant="outline"
               size="sm"
-              className="h-9 min-w-0 gap-1.5 px-2 text-[11px]"
+              className="h-11 min-w-0 gap-1.5 px-2 text-sm"
               aria-label={`Record payment for ${order.name}`}
               onClick={(e) => {
                 e.preventDefault();
                 onRecordPayment(order);
               }}
             >
-              <Wallet className="size-3.5 shrink-0" /> <span className="truncate">Payment</span>
+              <Wallet className="size-4 shrink-0" /> <span className="truncate">Payment</span>
             </Button>
           ) : (
             <span />
@@ -297,7 +297,7 @@ export function OrderCard({
             href={buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates)}
             label="WhatsApp"
             size="sm"
-            className="h-9 min-w-0 px-2 text-[11px]"
+            className="h-11 min-w-0 px-2 text-sm"
           />
           <DeleteOrderButton order={order} showLabel />
         </div>

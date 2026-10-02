@@ -20,10 +20,20 @@ type Action = "checkin" | "checkout" | null;
  * not the topbar row itself — narrow phones have no room to spare there. Same rules as
  * /checkin's own attendance tab (selfie + GPS geofence, and a required "what did you do today"
  * note before checkout for every role except tailors) — this is just a second entry point into
- * the exact same /api/attendance/* endpoints, not a relaxed one. Renders nothing for a user
- * with no linked employee record.
+ * the exact same /api/attendance/* endpoints, not a relaxed one.
+ *
+ * Split into a hook (all the state/handlers) plus two separate render pieces — menu items vs.
+ * modals — because the work-note Dialog and CameraModal must NOT be mounted as descendants of
+ * the account dropdown's DropdownMenuContent. Base UI's Menu keeps its own keyboard handling
+ * (roving focus, typeahead-to-select) live for as long as the menu is open/mounted, and that
+ * swallowed every keystroke typed into the dialog's textarea before it arrived (paste went
+ * through fine since it's a different event path — looked exactly like "typing is disabled").
+ * The dropdown uses closeOnClick={false} so clicking Check In/Out doesn't itself dismiss the
+ * menu, which used to mean the menu stayed open (and kept intercepting keys) for the entire
+ * dialog/camera flow. Rendering the modals as siblings of the menu instead of children fixes
+ * this regardless of the menu's own open/close state or animation timing.
  */
-export function AttendanceWidget({ onDone }: { onDone?: () => void }) {
+export function useAttendanceWidget({ onDone }: { onDone?: () => void } = {}) {
   const { data: user } = useCurrentUser();
   const { data: me, isLoading } = useAttendanceMe(user?.employeeId);
   const invalidateMe = useInvalidateAttendanceMe();
@@ -103,6 +113,33 @@ export function AttendanceWidget({ onDone }: { onDone?: () => void }) {
     );
   }
 
+  return {
+    user,
+    me,
+    isLoading,
+    submitting,
+    cameraOpen,
+    setCameraOpen,
+    pendingAction,
+    setPendingAction,
+    workNoteOpen,
+    setWorkNoteOpen,
+    workNote,
+    setWorkNote,
+    workNoteError,
+    setWorkNoteError,
+    startAction,
+    submitWorkNote,
+    handlePhotoCapture,
+  };
+}
+
+type AttendanceController = ReturnType<typeof useAttendanceWidget>;
+
+/** Renders inside the account dropdown's DropdownMenuContent — just the menu items, no modals. */
+export function AttendanceMenuItems({ controller }: { controller: AttendanceController }) {
+  const { user, me, isLoading, submitting, startAction } = controller;
+
   // Nothing at all for a login with no linked employee — most portal users (e.g. an owner with
   // no attendance record) see no widget. While the (now-prefetched, see useAttendanceMe) status
   // is still in flight, show a disabled placeholder rather than nothing — the item used to pop
@@ -133,7 +170,17 @@ export function AttendanceWidget({ onDone }: { onDone?: () => void }) {
           <CheckCircle2 className="size-4" /> Checked out for today
         </DropdownMenuItem>
       )}
+    </>
+  );
+}
 
+/** Renders as a sibling of the account dropdown (NOT inside DropdownMenuContent) — see the
+ *  file-level comment on why these can't be descendants of the menu. */
+export function AttendanceActionModals({ controller }: { controller: AttendanceController }) {
+  const { cameraOpen, setCameraOpen, setPendingAction, handlePhotoCapture, workNoteOpen, setWorkNoteOpen, workNote, setWorkNote, workNoteError, setWorkNoteError, submitWorkNote } = controller;
+
+  return (
+    <>
       <CameraModal
         open={cameraOpen}
         onOpenChange={(v) => {

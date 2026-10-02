@@ -24,11 +24,11 @@ async function fetchAttendanceMe(triedPortalLogin = false): Promise<AttendanceMe
 
 /**
  * Today's check-in/out status for a portal login linked to an employee record. Called from
- * Topbar (always mounted) as well as AttendanceWidget (only mounted once the account dropdown
- * is actually open) so the SAME query key gets its fetch kicked off at page load — by the time
- * someone opens the menu, this is already resolved from cache instead of a fresh ~2s round trip
- * (plus, on a 401, a second serial portal-login retry) visibly popping the item in after the
- * rest of the menu is already open and settled.
+ * useAttendanceWidget (attendance-widget.tsx), which Topbar runs unconditionally since Topbar
+ * itself is always mounted — so this fetch kicks off at page load instead of only once the
+ * account dropdown opens, meaning the Check In/Out item is already resolved from cache by the
+ * time someone opens the menu instead of a fresh ~2s round trip (plus, on a 401, a second serial
+ * portal-login retry) visibly popping the item in after the rest of the menu is already settled.
  */
 export function useAttendanceMe(employeeId: string | null | undefined) {
   return useQuery({

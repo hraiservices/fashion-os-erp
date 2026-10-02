@@ -5,10 +5,9 @@ import { useRouter } from "next/navigation";
 import { LogOut, User, Wallet, CalendarCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useAttendanceMe } from "@/hooks/use-attendance-me";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NotificationBell } from "@/components/app-shell/notification-bell";
-import { AttendanceWidget } from "@/components/app-shell/attendance-widget";
+import { useAttendanceWidget, AttendanceMenuItems, AttendanceActionModals } from "@/components/app-shell/attendance-widget";
 import { ThemeToggle } from "@/components/app-shell/theme-toggle";
 import { PwaInstaller } from "@/components/app-shell/pwa-installer";
 import { CommandTrigger } from "@/components/app-shell/command-palette";
@@ -27,11 +26,11 @@ export function Topbar() {
   const router = useRouter();
   const { data: user } = useCurrentUser();
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  // Topbar is always mounted (unlike AttendanceWidget, which only mounts once this dropdown is
-  // actually open) — calling the same query here kicks its fetch off at page load instead of on
-  // menu-open, so by the time someone opens the menu the Check In/Out item is already resolved
-  // from cache rather than popping in ~2s later. Result intentionally unused here.
-  useAttendanceMe(user?.employeeId);
+  // Topbar is always mounted, so calling this hook here (rather than only once the account
+  // dropdown opens) kicks its attendance-status fetch off at page load — by the time someone
+  // opens the menu the Check In/Out item is already resolved from cache rather than popping in
+  // ~2s later.
+  const attendance = useAttendanceWidget({ onDone: () => setAccountMenuOpen(false) });
 
   async function signOut() {
     const supabase = createClient();
@@ -83,7 +82,7 @@ export function Topbar() {
             <DropdownMenuSeparator />
             {!!user?.employeeId && (
               <>
-                <AttendanceWidget onDone={() => setAccountMenuOpen(false)} />
+                <AttendanceMenuItems controller={attendance} />
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push("/employees/my-attendance")}>
                   <CalendarCheck className="size-4" /> My Attendance
@@ -102,6 +101,10 @@ export function Topbar() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* Rendered as a sibling of the account dropdown, not inside its DropdownMenuContent — see
+          attendance-widget.tsx's file-level comment. */}
+      <AttendanceActionModals controller={attendance} />
     </header>
   );
 }

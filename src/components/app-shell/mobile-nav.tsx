@@ -235,7 +235,12 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
           <SheetHeader>
             <SheetTitle>Create new</SheetTitle>
           </SheetHeader>
-          <div className="grid grid-cols-2 gap-3 px-4 pb-4">
+          {/* Up to 4 tiles, each independently permission-gated (addOrder/manageSales/
+              manageExpenses/manageCustomers) — a plain grid-cols-2 leaves an odd one out alone
+              in its own row with a conspicuous empty cell beside it for any role missing one of
+              those permissions (Admin always has all 4, so this only ever showed up for other
+              roles). Same orphan-span fix as order-row.tsx's button row. */}
+          <div className="grid grid-cols-2 gap-3 px-4 pb-4 [&>*:last-child:nth-child(odd)]:col-span-2">
             {createOptions.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}

@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAttendanceMe, useInvalidateAttendanceMe } from "@/hooks/use-attendance-me";
+import { getAttendanceLocation } from "@/lib/attendance-location";
 
 type Action = "checkin" | "checkout" | null;
 
@@ -77,43 +78,47 @@ export function useAttendanceWidget({ onDone }: { onDone?: () => void } = {}) {
   async function handlePhotoCapture(photo?: string) {
     if (!pendingAction) return;
     setSubmitting(true);
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const res = await fetch(`/api/attendance/${pendingAction}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-              accuracy: position.coords.accuracy,
-              ...(photo ? { photo } : {}),
-              ...(pendingAction === "checkout" ? { workNotes: workNote } : {}),
-            }),
-          });
-          const data = await res.json();
-          if (!res.ok) {
-            toast.error(data.error || "Failed");
-            return;
-          }
-          toast.success(pendingAction === "checkin" ? "Checked in!" : "Checked out!");
-          setWorkNote("");
-          await invalidateMe(user?.employeeId);
-          onDone?.();
-        } catch {
-          toast.error("Network error — try again.");
-        } finally {
-          setSubmitting(false);
-          setPendingAction(null);
-        }
-      },
-      () => {
-        toast.error("Location permission is required to check in/out.");
-        setSubmitting(false);
-        setPendingAction(null);
-      },
-      { enableHighAccuracy: true, timeout: 15_000 }
-    );
+    // A loading toast (rather than nothing visible) during the location fix — getAttendanceLocation
+    // can still take a couple of seconds on poor GPS signal, and this was the single biggest
+    // source of "did my tap even register?" during that wait. Reused by id so it becomes the
+    // success/error toast in place rather than stacking a second one.
+    const toastId = toast.loading("Getting your location…");
+    let position: GeolocationPosition;
+    try {
+      position = await getAttendanceLocation();
+    } catch {
+      toast.error("Location permission is required to check in/out.", { id: toastId });
+      setSubmitting(false);
+      setPendingAction(null);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/attendance/${pendingAction}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          ...(photo ? { photo } : {}),
+          ...(pendingAction === "checkout" ? { workNotes: workNote } : {}),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Failed", { id: toastId });
+        return;
+      }
+      toast.success(pendingAction === "checkin" ? "Checked in!" : "Checked out!", { id: toastId });
+      setWorkNote("");
+      await invalidateMe(user?.employeeId);
+      onDone?.();
+    } catch {
+      toast.error("Network error — try again.", { id: toastId });
+    } finally {
+      setSubmitting(false);
+      setPendingAction(null);
+    }
   }
 
   return {

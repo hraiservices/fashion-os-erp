@@ -115,10 +115,10 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
 
-  // Cost/profitability data is internal-only, gated to the same viewReports permission as the
-  // order form's Costs section and the Order Profitability report — a caller without it can't
-  // smuggle cost figures in even though the rest of the order payload is otherwise accepted.
-  if (!user.perms.viewReports) {
+  // Cost/profitability data is internal-only, gated to the same viewFinancialReports permission
+  // as the order form's Costs section and the Order Profitability report — a caller without it
+  // can't smuggle cost figures in even though the rest of the order payload is otherwise accepted.
+  if (!user.perms.viewFinancialReports) {
     fd.fabricCost = 0;
     fd.otherCost = 0;
     fd.expenses = [];

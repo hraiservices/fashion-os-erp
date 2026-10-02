@@ -27,6 +27,8 @@ export function CameraModal({
   onOpenChange,
   onCapture,
   defaultFacing = "environment",
+  onSkip,
+  skipLabel = "Continue without photo",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -34,6 +36,12 @@ export function CameraModal({
   /** "user" = front/selfie camera. Defaults to "environment" (back camera) — unchanged for
    *  existing callers (order reference photos). */
   defaultFacing?: "environment" | "user";
+  /** Shown as an extra button alongside Cancel, only once camera access has actually failed
+   *  (not a general "skip the camera" escape hatch) — e.g. the attendance Check In/Out flow lets
+   *  someone continue without a selfie on a desktop with no webcam, rather than getting stuck.
+   *  Omitted entirely for callers that require a real photo (e.g. order reference photos). */
+  onSkip?: () => void;
+  skipLabel?: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -142,7 +150,22 @@ export function CameraModal({
         )}
 
         <div className="flex gap-2">
-          {preview ? (
+          {error && onSkip ? (
+            <>
+              <Button variant="outline" className="h-12 flex-1 text-base sm:h-8 sm:text-sm" onClick={() => onOpenChange(false)}>
+                <X className="size-4" /> Cancel
+              </Button>
+              <Button
+                className="h-12 flex-1 text-base sm:h-8 sm:text-sm"
+                onClick={() => {
+                  onSkip();
+                  onOpenChange(false);
+                }}
+              >
+                {skipLabel}
+              </Button>
+            </>
+          ) : preview ? (
             <>
               <Button variant="outline" className="h-12 flex-1 text-base sm:h-8 sm:text-sm" onClick={() => setPreview(null)}>
                 <RotateCcw className="size-4" /> Retake

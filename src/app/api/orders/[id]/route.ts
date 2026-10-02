@@ -104,9 +104,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const patch = parsed.data;
 
-  // Cost/profitability data is internal-only, gated to the same viewReports permission as the
-  // order form's Costs section — a caller without it can't smuggle cost changes through editOrder.
-  if (!user.perms.viewReports) {
+  // Cost/profitability data is internal-only, gated to the same viewFinancialReports permission
+  // as the order form's Costs section — a caller without it can't smuggle cost changes through editOrder.
+  if (!user.perms.viewFinancialReports) {
     patch.fabricCost = undefined;
     patch.otherCost = undefined;
     patch.expenses = undefined;

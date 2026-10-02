@@ -344,7 +344,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
               </div>
             </div>
 
-            {user?.perms.manageCustomers && (
+            {user?.perms.awardLoyaltyPoints && (
               <div className="flex gap-2">
                 <Input
                   type="number"

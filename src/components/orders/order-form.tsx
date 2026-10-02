@@ -1224,7 +1224,7 @@ function OrderFormFields({
             transcribingIndex={transcribingIndex}
           />
 
-          {user?.perms.viewReports && (
+          {user?.perms.viewFinancialReports && (
             <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
               <Accordion value={costsOpen ? ["costs"] : []} onValueChange={(v) => setCostsOpen(v.includes("costs"))}>
                 <AccordionItem value="costs" className="border-b-0">

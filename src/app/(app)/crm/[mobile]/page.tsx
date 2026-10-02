@@ -23,6 +23,7 @@ import { inr, fmtDate } from "@/lib/format";
 import { sumOrdersOutstanding } from "@/lib/balances";
 import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -69,6 +70,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
 
   const [editOpen, setEditOpen] = useState(false);
   const [bonusInput, setBonusInput] = useState("");
+  const [historyFilter, setHistoryFilter] = useState<"all" | "new" | "alteration">("all");
 
   if (isLoading) {
     return (
@@ -92,6 +94,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   // Outstanding balance — same semantics as the Dashboard's Balance Due.
   const outstanding = sumOrdersOutstanding(custOrders);
   const activeCount = custOrders.filter((o) => o.status !== "delivered" && o.status !== "payment").length;
+  const filteredHistoryOrders = historyFilter === "all" ? custOrders : custOrders.filter((o) => o.orderType === historyFilter);
 
   // Sales invoices for this customer — same customers table as stitching, joined by mobile.
   // Stitch Due and Sales Due are always shown separately; only "Combined" totals merge them.
@@ -414,14 +417,27 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
 
       <section className="rounded-xl border bg-card">
         <div className="border-b px-4 py-3">
-          <h2 className="text-sm font-semibold">Wardrobe & order history ({custOrders.length})</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">Wardrobe & order history ({filteredHistoryOrders.length})</h2>
+            {custOrders.length > 0 && (
+              <Tabs value={historyFilter} onValueChange={(v) => v && setHistoryFilter(v as typeof historyFilter)}>
+                <TabsList>
+                  <TabsTrigger value="all">All</TabsTrigger>
+                  <TabsTrigger value="new">Stitching</TabsTrigger>
+                  <TabsTrigger value="alteration">Alterations</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">Everything this customer has had stitched with us.</p>
         </div>
         {custOrders.length === 0 ? (
           <EmptyState icon={Receipt} title="No orders yet" className="border-0" />
+        ) : filteredHistoryOrders.length === 0 ? (
+          <EmptyState icon={Receipt} title={historyFilter === "alteration" ? "No alterations yet" : "No stitching orders yet"} className="border-0" />
         ) : (
           <ul className="divide-y">
-            {custOrders.map((o) => (
+            {filteredHistoryOrders.map((o) => (
               <li key={o.id}>
                 <Link href={`/orders/${o.id}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
                   {/* No thumbnail here by design — cust.orders comes from the list-sourced

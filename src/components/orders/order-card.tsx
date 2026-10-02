@@ -15,7 +15,7 @@ import { orderChecklistProgress } from "@/lib/garment-checklist";
 import { DueBadge, MoveToStageLabel } from "@/components/orders/stage-badge";
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
-import { WhatsAppButton } from "@/components/ui/whatsapp-button";
+import { WhatsAppButton, WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -232,21 +232,53 @@ export function OrderCard({
           {canChangeStage && next && (
             <Button
               size="sm"
-              className={cn("h-11 min-w-0 flex-1 px-2 text-sm", STAGE_STYLE[next].solid)}
+              className={cn("h-11 min-w-0 flex-1 px-2 text-sm sm:h-8 sm:text-[11px]", STAGE_STYLE[next].solid)}
               disabled={advancing}
               onClick={(e) => {
                 e.preventDefault();
                 onAdvance?.(order.id);
               }}
             >
+              {/* min-w-0 + truncate: on sm+ this button shares a row with icon buttons (record
+                  payment, WhatsApp, delete) — the fixed ~288px kanban column has no room for
+                  those as labeled buttons the way the full-width mobile card does, so they stay
+                  icon-only there (see the hidden sm:contents row below) and this one can take the
+                  rest of the row's width. */}
               <span className="truncate">{advancing ? "…" : <MoveToStageLabel label={STAGE_META[next].label} />}</span>
             </Button>
           )}
+          {/* display:contents on sm+ so these render as ordinary flex siblings of the advance
+              button above; "hidden" below sm removes them from flow entirely (not just visually)
+              since the mobile-only labeled row below duplicates each action. */}
+          <span className="hidden sm:contents">
+            {onRecordPayment && order.balance > 0 && (
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="size-8 shrink-0"
+                aria-label={`Record payment for ${order.name}`}
+                title="Record payment"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onRecordPayment(order);
+                }}
+              >
+                <Wallet className="size-3.5" />
+              </Button>
+            )}
+            <WhatsAppIconButton
+              href={buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates)}
+              label={`WhatsApp ${order.name}`}
+              className="size-8"
+            />
+            <DeleteOrderButton order={order} compact />
+          </span>
         </div>
 
-        {/* Payment/WhatsApp/Delete get their own equal-width row with text labels — same
-            treatment at every screen size, not just mobile. */}
-        <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+        {/* Mobile-only: Payment/WhatsApp/Delete get their own equal-width row with text labels —
+            the full-width card has room for this; the narrow kanban column on sm+ doesn't (labels
+            truncated to "Pay…"/"Dele…" there, which is what this reverts). */}
+        <div className="mt-1.5 grid grid-cols-3 gap-1.5 sm:hidden">
           {onRecordPayment && order.balance > 0 ? (
             <Button
               variant="outline"

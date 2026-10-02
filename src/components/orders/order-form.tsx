@@ -40,7 +40,7 @@ import {
   type TailorRateCard,
   type RateCard,
 } from "@/lib/business-rules";
-import { computeOrderProfit } from "@/lib/order-profit";
+import { computeOrderProfit, STITCHING_EXPENSE_FIXED_CATEGORIES } from "@/lib/order-profit";
 import { apportionAmount } from "@/lib/order-split";
 import { hydrateMeasurements, compactMeasurements, type MeasureLang } from "@/lib/measurements";
 import { inr, fmtDate } from "@/lib/format";
@@ -138,6 +138,23 @@ function todayISO(): string {
 function nowHHMM(): string {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+/** Always puts the 3 reserved Stitching Expenses rows (Lining Cost/Reels/Others) first, in a
+ *  fixed order, carrying over whatever amount an existing order already has stored for them (0
+ *  if it predates this feature or never had one) — followed by every other expense row as-is.
+ *  See STITCHING_EXPENSE_FIXED_CATEGORIES in lib/order-profit.ts for why these 3 are reserved. */
+function buildExpensesDefault(
+  existingExpenses: { category: string; qty: number | null; unit: string | null; rate: number | null; amount: number }[]
+) {
+  const fixed = STITCHING_EXPENSE_FIXED_CATEGORIES.map((category) => ({
+    category,
+    amount: existingExpenses.find((e) => e.category === category)?.amount || 0,
+  }));
+  const rest = existingExpenses
+    .filter((e) => !(STITCHING_EXPENSE_FIXED_CATEGORIES as readonly string[]).includes(e.category))
+    .map((e) => ({ category: e.category, qty: e.qty ?? undefined, unit: e.unit ?? undefined, rate: e.rate ?? undefined, amount: e.amount }));
+  return [...fixed, ...rest];
 }
 
 function SectionHeading({ icon: Icon, label, action }: { icon: React.ElementType; label: string; action?: React.ReactNode }) {
@@ -362,7 +379,7 @@ function OrderFormFields({
           bookingSource: existingOrder.bookingSource || "",
           fabricCost: existingOrder.fabricCost || 0,
           otherCost: existingOrder.otherCost || 0,
-          expenses: existingExpenses.map((e) => ({ category: e.category, qty: e.qty ?? undefined, unit: e.unit ?? undefined, rate: e.rate ?? undefined, amount: e.amount })),
+          expenses: buildExpensesDefault(existingExpenses),
         }
       : {
           name: "",
@@ -381,7 +398,7 @@ function OrderFormFields({
           bookingSource: "",
           fabricCost: 0,
           otherCost: 0,
-          expenses: [],
+          expenses: buildExpensesDefault([]),
         },
   });
 
@@ -403,7 +420,9 @@ function OrderFormFields({
   const fabricCost = useWatch({ control, name: "fabricCost" }) || 0;
   const otherCost = useWatch({ control, name: "otherCost" }) || 0;
   const total = garments.reduce((s, g) => s + (g.amount || 0) * (g.no || 1), 0);
-  const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+  const isFixedExpenseCategory = (cat?: string) => !!cat && (STITCHING_EXPENSE_FIXED_CATEGORIES as readonly string[]).includes(cat);
+  const fixedExpensesTotal = expenses.filter((e) => isFixedExpenseCategory(e.category)).reduce((s, e) => s + (e.amount || 0), 0);
+  const otherExpensesTotal = expenses.filter((e) => !isFixedExpenseCategory(e.category)).reduce((s, e) => s + (e.amount || 0), 0);
 
   // Live profit — the exact same computeOrderProfit() used by Order Details, the Stitching
   // Orders list, and the Order Profitability report (see src/lib/order-profit.ts), fed with
@@ -1257,30 +1276,50 @@ function OrderFormFields({
                     )}
                   />
                 </FieldGroup>
-                <FieldGroup label="Other cost" hint="Trims, lining fabric, outsourced work, etc.">
-                  <Controller
-                    control={control}
-                    name="otherCost"
-                    render={({ field }) => (
-                      <Input
-                        type="number"
-                        min={0}
-                        inputMode="numeric"
-                        placeholder="0"
-                        className="h-10"
-                        value={field.value ? String(field.value) : ""}
-                        onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
-                        onBlur={field.onBlur}
+              </div>
+
+              {/* Always-visible, non-removable — these 3 reserved rows are what "Stitching
+                  expenses" now means; everything else (the free-form add/remove list below)
+                  rolls up into "Other cost" instead. See STITCHING_EXPENSE_FIXED_CATEGORIES. */}
+              <div className="mt-5 border-t pt-4">
+                <SectionHeading icon={Wallet} label="Stitching expenses" />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  {STITCHING_EXPENSE_FIXED_CATEGORIES.map((category, index) => (
+                    <FieldGroup key={category} label={category}>
+                      <Controller
+                        control={control}
+                        name={`expenses.${index}.amount`}
+                        render={({ field }) => (
+                          <Input
+                            type="number"
+                            min={0}
+                            inputMode="numeric"
+                            placeholder="0"
+                            className="h-10"
+                            value={field.value ? String(field.value) : ""}
+                            onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
+                            onBlur={field.onBlur}
+                          />
+                        )}
                       />
-                    )}
-                  />
-                </FieldGroup>
+                    </FieldGroup>
+                  ))}
+                </div>
+                {fixedExpensesTotal > 0 && (
+                  <p className="mt-2 text-right text-sm">
+                    <span className="text-muted-foreground">Total stitching expenses </span>
+                    <span className="font-semibold tabular-nums">{inr(fixedExpensesTotal)}</span>
+                  </p>
+                )}
               </div>
 
               <div className="mt-5 border-t pt-4">
-                <SectionHeading icon={Wallet} label="Stitching expenses" />
+                <SectionHeading icon={Wallet} label="Other cost" />
+                <p className="mb-3 text-xs text-muted-foreground">Trims, lining fabric, outsourced work, etc.</p>
                 <div className="space-y-3">
-                  {expenseFields.map((field, index) => (
+                  {expenseFields.slice(STITCHING_EXPENSE_FIXED_CATEGORIES.length).map((field, i) => {
+                    const index = i + STITCHING_EXPENSE_FIXED_CATEGORIES.length;
+                    return (
                     <div key={field.id} className="rounded-lg border p-3">
                       <div className="grid gap-3 sm:grid-cols-12">
                         <FieldGroup label="Category" className="sm:col-span-3">
@@ -1384,7 +1423,8 @@ function OrderFormFields({
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
 
                   <Button
                     type="button"
@@ -1395,10 +1435,10 @@ function OrderFormFields({
                     <Plus className="size-4" /> Add expense
                   </Button>
 
-                  {expenseFields.length > 0 && (
+                  {expenseFields.length > STITCHING_EXPENSE_FIXED_CATEGORIES.length && (
                     <p className="text-right text-sm">
-                      <span className="text-muted-foreground">Total stitching expenses </span>
-                      <span className="font-semibold tabular-nums">{inr(totalExpenses)}</span>
+                      <span className="text-muted-foreground">Total other cost </span>
+                      <span className="font-semibold tabular-nums">{inr(otherExpensesTotal)}</span>
                     </p>
                   )}
                 </div>

@@ -971,7 +971,7 @@ export function getTopReferrers(coupons: ReferralCoupon[]): TopReferrerRow[] {
 
 export function getOrderProfitability(
   orders: Order[],
-  expensesByOrderId: Map<string, Pick<OrderExpense, "amount">[]>
+  expensesByOrderId: Map<string, Pick<OrderExpense, "amount" | "category">[]>
 ): OrderProfitabilityRow[] {
   return orders
     .map((o) => {

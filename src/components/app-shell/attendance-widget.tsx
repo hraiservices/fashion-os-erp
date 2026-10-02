@@ -71,7 +71,10 @@ export function useAttendanceWidget({ onDone }: { onDone?: () => void } = {}) {
     setCameraOpen(true);
   }
 
-  async function handlePhotoCapture(photo: string) {
+  // photo is omitted entirely on desktops with no camera/permission — see CameraModal's onSkip.
+  // The API routes accept a missing photo (GPS geofencing still gates the check-in/out either
+  // way); this just means the attendance record has no selfie attached for that one entry.
+  async function handlePhotoCapture(photo?: string) {
     if (!pendingAction) return;
     setSubmitting(true);
     navigator.geolocation.getCurrentPosition(
@@ -84,7 +87,7 @@ export function useAttendanceWidget({ onDone }: { onDone?: () => void } = {}) {
               lat: position.coords.latitude,
               lng: position.coords.longitude,
               accuracy: position.coords.accuracy,
-              photo,
+              ...(photo ? { photo } : {}),
               ...(pendingAction === "checkout" ? { workNotes: workNote } : {}),
             }),
           });
@@ -189,6 +192,7 @@ export function AttendanceActionModals({ controller }: { controller: AttendanceC
         }}
         defaultFacing="user"
         onCapture={handlePhotoCapture}
+        onSkip={() => handlePhotoCapture()}
       />
 
       <Dialog open={workNoteOpen} onOpenChange={setWorkNoteOpen}>

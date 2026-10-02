@@ -64,26 +64,56 @@ function PermCheck({ on }: { on: boolean }) {
  *  role's shop-wide starting permission (stored in app_settings as roleDefaultOverrides), not
  *  just one person's. Per-user overrides in the wizard still take precedence over whatever's
  *  set here. */
+const ALL_PERMISSION_KEYS = PERMISSION_GROUPS.flatMap((g) => g.keys);
+
 function RoleReferenceCard() {
   const qc = useQueryClient();
   const { data: overrides, isLoading } = useAppSetting<RoleDefaultOverrides>("roleDefaultOverrides", DEFAULT_ROLE_DEFAULT_OVERRIDES);
   const [saving, setSaving] = useState<string | null>(null);
+
+  async function save(next: RoleDefaultOverrides) {
+    const res = await fetch("/api/settings/role-defaults", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(next),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to save");
+    qc.setQueryData(["app-setting", "roleDefaultOverrides"], next);
+    qc.invalidateQueries({ queryKey: ["current-user"] });
+  }
 
   async function toggle(role: Role, key: keyof Permissions) {
     const current = overrides?.[role]?.[key] ?? ROLE_DEFAULTS[role][key];
     const next: RoleDefaultOverrides = { ...overrides, [role]: { ...overrides?.[role], [key]: !current } };
     setSaving(`${role}.${key}`);
     try {
-      const res = await fetch("/api/settings/role-defaults", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to save");
-      qc.setQueryData(["app-setting", "roleDefaultOverrides"], next);
-      qc.invalidateQueries({ queryKey: ["current-user"] });
+      await save(next);
       toast.success(`${PERMISSION_LABELS[key]} ${!current ? "granted" : "revoked"} for ${roleLabel(role)} by default`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  function isOnFor(role: Role, key: keyof Permissions) {
+    return overrides?.[role]?.[key] ?? ROLE_DEFAULTS[role][key];
+  }
+
+  /** Column header "Select all"/"Deselect all" — sets every permission key for that role in one
+   *  request rather than one toggle() call per key. Always drives toward "all on" unless the
+   *  column is already fully on, in which case it clears the whole column instead. */
+  async function toggleAllForRole(role: Role) {
+    const allOn = ALL_PERMISSION_KEYS.every((key) => isOnFor(role, key));
+    const nextValue = !allOn;
+    const roleOverrides = { ...overrides?.[role] };
+    for (const key of ALL_PERMISSION_KEYS) roleOverrides[key] = nextValue;
+    const next: RoleDefaultOverrides = { ...overrides, [role]: roleOverrides };
+    setSaving(`${role}.*`);
+    try {
+      await save(next);
+      toast.success(`${nextValue ? "Granted" : "Revoked"} every permission for ${roleLabel(role)} by default`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save");
     } finally {
@@ -103,11 +133,25 @@ function RoleReferenceCard() {
           <thead>
             <tr className="border-b text-xs text-muted-foreground">
               <th className="py-1.5 pr-2 text-left font-bold">Permission</th>
-              {ROLE_OPTIONS.map(([v, l]) => (
-                <th key={v} className="px-2 py-1.5 text-center font-bold">
-                  {l}
-                </th>
-              ))}
+              {ROLE_OPTIONS.map(([v, l]) => {
+                const allOn = ALL_PERMISSION_KEYS.every((key) => isOnFor(v, key));
+                return (
+                  <th key={v} className="px-2 py-1.5 text-center font-bold">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span>{l}</span>
+                      <button
+                        type="button"
+                        disabled={isLoading || saving === `${v}.*`}
+                        onClick={() => toggleAllForRole(v)}
+                        title={allOn ? `Deselect all for ${l}` : `Select all for ${l}`}
+                        className="text-[10px] font-normal text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-50"
+                      >
+                        {allOn ? "Deselect all" : "Select all"}
+                      </button>
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -157,28 +201,53 @@ function RoleReferenceCard() {
  *  headers the sidebar/Reports index use (resolveReportSection). Separate from RoleReferenceCard
  *  above because it's a different app_settings key (reportRoleAccess, not roleDefaultOverrides)
  *  with its own lockdown RPC — see add_report_role_access_lockdown.sql. */
+const ALL_REPORT_HREFS = REPORTS_GROUP.children.map((c) => c.href);
+
 function ReportAccessCard() {
   const qc = useQueryClient();
   const { data: access, isLoading } = useAppSetting<ReportRoleAccess>("reportRoleAccess", DEFAULT_REPORT_ROLE_ACCESS);
   const [saving, setSaving] = useState<string | null>(null);
 
+  async function save(next: ReportRoleAccess) {
+    const res = await fetch("/api/settings/report-access", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(next),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to save");
+    qc.setQueryData(["app-setting", "reportRoleAccess"], next);
+    qc.invalidateQueries({ queryKey: ["current-user"] });
+  }
+
   async function toggle(role: Role, href: string) {
-    if (role === "admin") return;
     const current = isReportAllowedForRole(href, role, access);
     const next: ReportRoleAccess = { ...access, [role]: { ...access?.[role], [href]: !current } };
     setSaving(`${role}.${href}`);
     try {
-      const res = await fetch("/api/settings/report-access", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to save");
-      qc.setQueryData(["app-setting", "reportRoleAccess"], next);
-      qc.invalidateQueries({ queryKey: ["current-user"] });
+      await save(next);
       const label = REPORTS_GROUP.children.find((c) => c.href === href)?.label ?? href;
       toast.success(`"${label}" ${!current ? "granted" : "revoked"} for ${roleLabel(role)}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  /** Column header "Select all"/"Deselect all" — sets every report for that role in one request.
+   *  Admin is included (not specially locked): reportRoleAccess can restrict admin's own report
+   *  list the same as any other role if an admin chooses to. */
+  async function toggleAllForRole(role: Role) {
+    const allOn = ALL_REPORT_HREFS.every((href) => isReportAllowedForRole(href, role, access));
+    const nextValue = !allOn;
+    const roleAccess = { ...access?.[role] };
+    for (const href of ALL_REPORT_HREFS) roleAccess[href] = nextValue;
+    const next: ReportRoleAccess = { ...access, [role]: roleAccess };
+    setSaving(`${role}.*`);
+    try {
+      await save(next);
+      toast.success(`${nextValue ? "Granted" : "Revoked"} every report for ${roleLabel(role)}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save");
     } finally {
@@ -200,11 +269,25 @@ function ReportAccessCard() {
           <thead>
             <tr className="border-b text-xs text-muted-foreground">
               <th className="py-1.5 pr-2 text-left font-bold">Report</th>
-              {ROLE_OPTIONS.map(([v, l]) => (
-                <th key={v} className="px-2 py-1.5 text-center font-bold">
-                  {l}
-                </th>
-              ))}
+              {ROLE_OPTIONS.map(([v, l]) => {
+                const allOn = ALL_REPORT_HREFS.every((href) => isReportAllowedForRole(href, v, access));
+                return (
+                  <th key={v} className="px-2 py-1.5 text-center font-bold">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span>{l}</span>
+                      <button
+                        type="button"
+                        disabled={isLoading || saving === `${v}.*`}
+                        onClick={() => toggleAllForRole(v)}
+                        title={allOn ? `Deselect all for ${l}` : `Select all for ${l}`}
+                        className="text-[10px] font-normal text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-50"
+                      >
+                        {allOn ? "Deselect all" : "Select all"}
+                      </button>
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -224,13 +307,6 @@ function ReportAccessCard() {
                   <tr className="border-b last:border-0">
                     <td className="py-1.5 pr-2">{leaf.label}</td>
                     {ROLE_OPTIONS.map(([v]) => {
-                      if (v === "admin") {
-                        return (
-                          <td key={v} className="px-2 py-1.5 text-center">
-                            <PermCheck on={true} />
-                          </td>
-                        );
-                      }
                       const on = isReportAllowedForRole(leaf.href, v, access);
                       return (
                         <td key={v} className="px-2 py-1.5 text-center">
@@ -253,7 +329,7 @@ function ReportAccessCard() {
           </tbody>
         </table>
         <p className="mt-3 text-xs text-muted-foreground">
-          Admins always see every report. A report is hidden from Financial Reports-only sections too if the role doesn&apos;t have "View Financial Reports" for the profit/margin ones.
+          Every role, including Admin, can be restricted here. A report is hidden from a role too if that role doesn&apos;t have "View Financial Reports" for the profit/margin ones.
         </p>
       </CardContent>
     </Card>

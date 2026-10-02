@@ -5,7 +5,14 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Menu, Plus, ClipboardList, Receipt, Wallet, UserPlus, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MOBILE_TABS_ADMIN_LEFT, MOBILE_TABS_ADMIN_RIGHT, MOBILE_TABS_RESTRICTED_LEFT, type NavFlatItem } from "@/components/app-shell/nav-config";
+import {
+  MOBILE_TABS_ADMIN_LEFT,
+  MOBILE_TABS_ADMIN_RIGHT,
+  MOBILE_TABS_ADMIN_RIGHT_BACKFILL,
+  MOBILE_TABS_RESTRICTED_LEFT,
+  MOBILE_TABS_RESTRICTED_FALLBACK,
+  type NavFlatItem,
+} from "@/components/app-shell/nav-config";
 import { NavContent, NavBrand } from "@/components/app-shell/nav-content";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
@@ -115,21 +122,27 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
   // Copilot — day-to-day is just the board, so Support/Copilot fill the space admin/manager
   // spends on Clients/Invoices/Reports.
   const left = restricted ? MOBILE_TABS_RESTRICTED_LEFT : MOBILE_TABS_ADMIN_LEFT;
-  // MOBILE_TABS_ADMIN_RIGHT rendered every item unconditionally for any non-restricted
-  // (admin/manager) user, with no permission check at all — same gap as the sidebar's Reports
-  // group had (see nav-content.tsx) before that was fixed. Invoices/Reports now respect the same
-  // manageSales/viewReports permissions the sidebar and the desktop route guard already use;
-  // Clients has no dedicated permission anywhere else in the app, so it stays ungated here too.
-  const right = restricted
-    ? []
-    : MOBILE_TABS_ADMIN_RIGHT.filter((t) => {
-        if (t.href === "/sales/invoices") return !!user?.perms.manageSales;
-        if (t.href === "/reports") return !!user?.perms.viewReports;
-        return true;
-      });
   const canAdd = user?.perms.addOrder;
   const canUseCopilot = !!user?.perms.useChatbot && isModuleEnabled(entitlements ?? DEFAULT_ENTITLEMENTS, "copilot");
   const supportHref = buildSupportWhatsAppHref(shop?.name);
+  // MOBILE_TABS_ADMIN_RIGHT's Invoices/Reports respect the same manageSales/viewReports
+  // permissions the sidebar and the desktop route guard already use (Clients has no dedicated
+  // permission anywhere else in the app, so it stays ungated here too) — but whichever of those
+  // gets filtered out is backfilled from MOBILE_TABS_ADMIN_RIGHT_BACKFILL (also permission-aware,
+  // with Account/Settings as an always-eligible floor) so the right side always ends up with the
+  // same item count as the fixed-size left side. A plain sequential flex row otherwise puts the
+  // centre "+" wherever the uneven left/right widths happen to leave it, instead of centred.
+  const adminRightBase = MOBILE_TABS_ADMIN_RIGHT.filter((t) => {
+    if (t.href === "/sales/invoices") return !!user?.perms.manageSales;
+    if (t.href === "/reports") return !!user?.perms.viewReports;
+    return true;
+  });
+  const adminRightBackfill = MOBILE_TABS_ADMIN_RIGHT_BACKFILL.filter((t) => {
+    if (t.href === "/expenses") return !!user?.perms.manageExpenses;
+    if (t.href === "/employees") return !!(user?.perms.manageEmployees || user?.perms.managePayroll || user?.perms.manageUsers);
+    return true; // Account and Settings — always eligible, guarantees enough to pad back up to 3
+  });
+  const right = restricted ? [] : [...adminRightBase, ...adminRightBackfill].slice(0, MOBILE_TABS_ADMIN_LEFT.length);
 
   const createOptions = [
     { href: "/orders/new", label: "New Order", icon: ClipboardList, show: user?.perms.addOrder },
@@ -194,7 +207,7 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
             </span>
             Support
           </a>
-          {canUseCopilot && (
+          {canUseCopilot ? (
             <button
               type="button"
               onClick={() => setCopilotOpen((o) => !o)}
@@ -206,6 +219,11 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
               </span>
               Copilot
             </button>
+          ) : (
+            // Keeps the right side at 2 items (matching Orders/Board on the left) even when
+            // Copilot isn't available, instead of leaving Support alone and pushing the centre
+            // "+" off to one side.
+            TabLink(MOBILE_TABS_RESTRICTED_FALLBACK)
           )}
         </>
       ) : (
@@ -217,7 +235,12 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
           <SheetHeader>
             <SheetTitle>Create new</SheetTitle>
           </SheetHeader>
-          <div className="grid grid-cols-2 gap-3 px-4 pb-4">
+          {/* Up to 4 tiles, each independently permission-gated (addOrder/manageSales/
+              manageExpenses/manageCustomers) — a plain grid-cols-2 leaves an odd one out alone
+              in its own row with a conspicuous empty cell beside it for any role missing one of
+              those permissions (Admin always has all 4, so this only ever showed up for other
+              roles). Same orphan-span fix as order-row.tsx's button row. */}
+          <div className="grid grid-cols-2 gap-3 px-4 pb-4 [&>*:last-child:nth-child(odd)]:col-span-2">
             {createOptions.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}

@@ -63,7 +63,7 @@ export function DeleteOrderButton({ order, compact, showLabel }: { order: Order;
             variant="outline"
             size={showLabel ? "sm" : "icon-sm"}
             className={cn(
-              showLabel ? "h-11 w-full gap-1.5 px-2 text-sm" : "size-9 shrink-0",
+              showLabel ? "h-11 min-w-0 flex-1 gap-1.5 px-2 text-sm" : "size-9 shrink-0",
               "text-destructive hover:bg-destructive/10",
               !compact && !showLabel && "sm:size-8"
             )}
@@ -275,15 +275,19 @@ export function OrderCard({
           </span>
         </div>
 
-        {/* Mobile-only: Payment/WhatsApp/Delete get their own equal-width row with text labels —
-            the full-width card has room for this; the narrow kanban column on sm+ doesn't (labels
-            truncated to "Pay…"/"Dele…" there, which is what this reverts). */}
-        <div className="mt-1.5 grid grid-cols-3 gap-1.5 sm:hidden">
-          {onRecordPayment && order.balance > 0 ? (
+        {/* Mobile-only: Payment/WhatsApp/Delete share a row with text labels — the full-width
+            card has room for this; the narrow kanban column on sm+ doesn't (labels truncated to
+            "Pay…"/"Dele…" there, which is what this reverts). A flex row (each button flex-1)
+            rather than a fixed-column grid: Payment and Delete are permission/condition-gated and
+            can be entirely absent for some roles — flex-1 lets the remaining buttons stretch to
+            fill the row evenly instead of a fixed grid leaving a dead empty column where a
+            missing button would have been. */}
+        <div className="mt-1.5 flex gap-1.5 sm:hidden">
+          {onRecordPayment && order.balance > 0 && (
             <Button
               variant="outline"
               size="sm"
-              className="h-11 min-w-0 gap-1.5 px-2 text-sm"
+              className="h-11 min-w-0 flex-1 gap-1.5 px-2 text-sm"
               aria-label={`Record payment for ${order.name}`}
               onClick={(e) => {
                 e.preventDefault();
@@ -292,14 +296,12 @@ export function OrderCard({
             >
               <Wallet className="size-4 shrink-0" /> <span className="truncate">Payment</span>
             </Button>
-          ) : (
-            <span />
           )}
           <WhatsAppButton
             href={buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates)}
             label="WhatsApp"
             size="sm"
-            className="h-11 min-w-0 px-2 text-sm"
+            className="h-11 min-w-0 flex-1 px-2 text-sm"
           />
           <DeleteOrderButton order={order} showLabel />
         </div>

@@ -199,8 +199,14 @@ export function OrderCardRow(props: RowProps) {
         )}
         {/* Mobile-only: Payment/WhatsApp/Reminder/Delete get their own labeled row instead of
             squeezing in as bare icons next to the advance button — see order-card.tsx for the
-            same treatment on the kanban board card. */}
-        <div className={cn("grid grid-cols-2 gap-1.5", canChangeStage && "mt-1.5")}>
+            same treatment on the kanban board card. Up to 4 of these can be hidden per order/role
+            (Payment+Reminder need a balance due, Delete needs deleteOrder permission), so a plain
+            2-column grid can leave an orphaned last button alone in its own row, undersized and
+            looking misaligned — [&>*:last-child:nth-child(odd)]: makes that lone trailing button
+            span the full row instead. Stays a 2-column grid (not a single flex row) rather than
+            letting all 4 share one row, which would be cramped on a narrow phone when every
+            button is present. */}
+        <div className={cn("grid grid-cols-2 gap-1.5 [&>*:last-child:nth-child(odd)]:col-span-2", canChangeStage && "mt-1.5")}>
           <RecordPaymentButton order={order} onRecordPayment={onRecordPayment} showLabel />
           <OrderWhatsAppButton order={order} shop={shop} trackUrl={trackUrl} showLabel />
           <PaymentReminderButton order={order} shop={shop} trackUrl={trackUrl} showLabel />

@@ -17,6 +17,8 @@ import {
   UserCog,
   ScanBarcode,
   FileText,
+  User,
+  CalendarCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -350,6 +352,19 @@ export const MOBILE_TABS_ADMIN_RIGHT: NavFlatItem[] = [
   { href: "/reports", label: "Reports", icon: BarChart3 },
 ];
 
+/** Backfill candidates for the right side of the admin/manager bottom tab bar — tried in order
+ *  whenever Invoices/Reports get filtered out by permissions (see MobileTabBarInner), so the
+ *  right side always ends up with the same item count as the fixed 3-item left side (Home/
+ *  Orders/Board) instead of drifting the centre "+" button off-centre. Account and Settings have
+ *  no permission gate (everyone reaches their own account/settings in some form), so there's
+ *  always enough here to pad back up to 3 regardless of which other permissions are missing. */
+export const MOBILE_TABS_ADMIN_RIGHT_BACKFILL: NavFlatItem[] = [
+  { href: "/expenses", label: "Expenses", icon: Wallet },
+  { href: "/employees", label: "Employees", icon: UserCog },
+  { href: "/settings/personalize", label: "Account", icon: User },
+  { href: "/settings", label: "Settings", icon: Settings },
+];
+
 /** Bottom tab bar on mobile for tailor/sales (restricted) logins — day-to-day work is just
  *  Orders/Board, so Support and Copilot (rendered separately in MobileTabBar, not part of this
  *  list) fill the space admin/manager instead spends on Clients/Invoices/Reports. */
@@ -357,3 +372,8 @@ export const MOBILE_TABS_RESTRICTED_LEFT: NavFlatItem[] = [
   { href: "/orders?view=list", label: "Orders", icon: Receipt },
   { href: "/orders?view=board", label: "Board", icon: KanbanSquare },
 ];
+
+/** Restricted role's right-side pairs with Support 1:1 — "My Attendance" fills the second slot
+ *  whenever Copilot isn't available (no useChatbot permission or the copilot module is off), so
+ *  the right side always has 2 items to match the 2-item left side (Orders/Board). */
+export const MOBILE_TABS_RESTRICTED_FALLBACK: NavFlatItem = { href: "/employees/my-attendance", label: "Attendance", icon: CalendarCheck };

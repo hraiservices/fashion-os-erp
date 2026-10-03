@@ -20,6 +20,37 @@ export function useInventoryLedger() {
   });
 }
 
+async function fetchFullLedger() {
+  const supabase = createClient();
+  // Unlike useInventoryLedger's most-recent-200 view, the Aging Inventory report needs every
+  // movement ever recorded per item to FIFO-replay current stock back to when each unsold unit
+  // actually entered — paginated in 1000-row pages since Supabase caps a single response there.
+  const pageSize = 1000;
+  const rows: { item_type: string; item_id: string; movement: number; created_at: string }[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("inventory_ledger")
+      .select("item_type, item_id, movement, created_at")
+      .order("created_at", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows.map((r) => ({ itemType: r.item_type as "raw_material" | "product", itemId: r.item_id, movement: r.movement, createdAt: r.created_at }));
+}
+
+/** Full stock-movement history for every item — feeds the Aging Inventory report's FIFO
+ *  replay. Not paged/filtered server-side beyond pagination itself since the shop-scale ledger
+ *  volume is small enough to fetch in full and simulate client-side. */
+export function useFullInventoryLedger() {
+  return useQuery({
+    queryKey: ["inventory-ledger-full"],
+    queryFn: fetchFullLedger,
+    staleTime: 60_000,
+  });
+}
+
 async function fetchRawMaterialConsumption(lookbackDays: number): Promise<Map<string, number>> {
   const supabase = createClient();
   const since = new Date(Date.now() - lookbackDays * 86400000).toISOString();

@@ -147,6 +147,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/recommendations", label: "Recommendation Performance" },
 
     { href: "/reports/inventory", label: "Inventory", section: "Inventory" },
+    { href: "/reports/inventory/aging", label: "Aging Inventory" },
 
     { href: "/reports/purchases", label: "Payable Summary", section: "Purchases" },
     { href: "/reports/payables/vendor-balance-summary", label: "Vendor Balance Summary" },

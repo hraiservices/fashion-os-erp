@@ -255,7 +255,15 @@ function ReportAccessCard() {
     }
   }
 
-  let lastSection: string | undefined;
+  const reportRows: { leaf: (typeof REPORTS_GROUP.children)[number]; section: string | undefined; showSectionHeader: boolean }[] = [];
+  {
+    let lastSection: string | undefined;
+    for (const leaf of REPORTS_GROUP.children) {
+      const section = resolveReportSection(leaf.href);
+      reportRows.push({ leaf, section, showSectionHeader: section !== lastSection });
+      lastSection = section;
+    }
+  }
 
   return (
     <Card>
@@ -291,10 +299,7 @@ function ReportAccessCard() {
             </tr>
           </thead>
           <tbody>
-            {REPORTS_GROUP.children.map((leaf) => {
-              const section = resolveReportSection(leaf.href);
-              const showSectionHeader = section !== lastSection;
-              lastSection = section;
+            {reportRows.map(({ leaf, section, showSectionHeader }) => {
               return (
                 <Fragment key={leaf.href}>
                   {showSectionHeader && section ? (
@@ -329,7 +334,7 @@ function ReportAccessCard() {
           </tbody>
         </table>
         <p className="mt-3 text-xs text-muted-foreground">
-          Every role, including Admin, can be restricted here. A report is hidden from a role too if that role doesn&apos;t have "View Financial Reports" for the profit/margin ones.
+          Every role, including Admin, can be restricted here. A report is hidden from a role too if that role doesn&apos;t have &ldquo;View Financial Reports&rdquo; for the profit/margin ones.
         </p>
       </CardContent>
     </Card>

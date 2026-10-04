@@ -7,10 +7,15 @@ export interface ShopConfig {
   phone: string;
   address: string;
   gstin: string;
+  /** Despite the name, a public Storage URL since the branding-media migration (see
+   *  src/lib/supabase/branding-storage.ts) — a legacy, not-yet-resaved shop may still have a raw
+   *  base64 `data:` URL here, which every consumer renders identically (`<img src>` and
+   *  react-pdf's `<Image src>` both accept either). */
   logoDataUrl: string | null;
   /** Browser tab icon — separate from logoDataUrl since a favicon usually wants a simpler,
    *  square-cropped mark rather than the full logo shown on the dashboard/invoices. Falls back
-   *  to logoDataUrl, then the default scissors icon, when unset — see /api/branding/icon. */
+   *  to logoDataUrl, then the default scissors icon, when unset — see /api/branding/icon. Same
+   *  "URL despite the name, may still be a legacy data: URL" note as logoDataUrl above. */
   faviconDataUrl: string | null;
   /** Shown as "Shop Online: <url>" in WhatsApp messages when set. Optional — omit to skip the line. */
   websiteUrl: string;

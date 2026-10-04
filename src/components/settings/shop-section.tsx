@@ -42,15 +42,32 @@ export function ShopSection() {
     }
   }
 
+  /** Resizes the file client-side, then uploads it to the branding-media Storage bucket and
+   *  swaps in the real public URL — nothing but that short URL ever reaches app_settings, unlike
+   *  the raw base64 data URL this used to store directly (see /api/settings/branding-image and
+   *  src/lib/supabase/branding-storage.ts for why: that data URL rides along on every
+   *  useShopSettings() fetch, across nearly every page in the app). */
+  async function uploadBrandingImage(key: "logo" | "favicon", file: File, maxDimension: number): Promise<string> {
+    const dataUrl = await fileToDataUrl(file, maxDimension);
+    const res = await fetch("/api/settings/branding-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, dataUrl }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Upload failed");
+    return json.url as string;
+  }
+
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
     try {
-      const dataUrl = await fileToDataUrl(file, 300);
-      setShop((s) => ({ ...s, logoDataUrl: dataUrl }));
-    } catch {
-      toast.error("Could not read image");
+      const url = await uploadBrandingImage("logo", file, 300);
+      setShop((s) => ({ ...s, logoDataUrl: url }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not upload image");
     }
   }
 
@@ -60,10 +77,10 @@ export function ShopSection() {
     if (!file) return;
     try {
       // Small — a favicon is only ever shown a few pixels wide.
-      const dataUrl = await fileToDataUrl(file, 64);
-      setShop((s) => ({ ...s, faviconDataUrl: dataUrl }));
-    } catch {
-      toast.error("Could not read image");
+      const url = await uploadBrandingImage("favicon", file, 64);
+      setShop((s) => ({ ...s, faviconDataUrl: url }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not upload image");
     }
   }
 

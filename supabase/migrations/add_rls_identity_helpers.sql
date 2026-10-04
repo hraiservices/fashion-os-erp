@@ -37,7 +37,14 @@ LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $fn$
       "manageCustomers": true, "manageUsers": true, "deleteCustomers": true,
       "manageInventory": true, "managePurchases": true, "manageManufacturing": true,
       "manageSales": true, "useChatbot": true, "manageEmployees": true, "usePOS": true,
-      "managePayroll": true
+      "managePayroll": true, "manageExpenses": true, "voidSales": true,
+      "manageCreditNotes": true, "cancelPurchases": true, "payVendors": true,
+      "adjustStock": true, "transferStock": true, "deleteInventory": true,
+      "approveLeave": true, "viewFinancialReports": true, "manageWhatsappSettings": true,
+      "manageLoyaltySettings": true, "manageDocumentTemplates": true, "managePriceLists": true,
+      "manageNavigationSettings": true, "viewActivityLog": true, "useCostEstimator": true,
+      "backdateOrders": true, "awardLoyaltyPoints": true, "sendWhatsappBroadcast": true,
+      "closeRegister": true
     },
     "manager": {
       "addOrder": true, "deleteOrder": false, "editOrder": true, "managePayments": true,
@@ -45,7 +52,14 @@ LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $fn$
       "manageCustomers": true, "manageUsers": false, "deleteCustomers": false,
       "manageInventory": true, "managePurchases": true, "manageManufacturing": true,
       "manageSales": true, "useChatbot": true, "manageEmployees": true, "usePOS": true,
-      "managePayroll": false
+      "managePayroll": false, "manageExpenses": true, "voidSales": false,
+      "manageCreditNotes": true, "cancelPurchases": false, "payVendors": true,
+      "adjustStock": true, "transferStock": true, "deleteInventory": false,
+      "approveLeave": true, "viewFinancialReports": false, "manageWhatsappSettings": false,
+      "manageLoyaltySettings": false, "manageDocumentTemplates": false, "managePriceLists": false,
+      "manageNavigationSettings": false, "viewActivityLog": true, "useCostEstimator": true,
+      "backdateOrders": true, "awardLoyaltyPoints": true, "sendWhatsappBroadcast": true,
+      "closeRegister": true
     },
     "sales": {
       "addOrder": true, "deleteOrder": false, "editOrder": true, "managePayments": false,
@@ -53,7 +67,14 @@ LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $fn$
       "manageCustomers": true, "manageUsers": false, "deleteCustomers": false,
       "manageInventory": false, "managePurchases": false, "manageManufacturing": false,
       "manageSales": true, "useChatbot": false, "manageEmployees": false, "usePOS": true,
-      "managePayroll": false
+      "managePayroll": false, "manageExpenses": false, "voidSales": false,
+      "manageCreditNotes": false, "cancelPurchases": false, "payVendors": false,
+      "adjustStock": false, "transferStock": false, "deleteInventory": false,
+      "approveLeave": false, "viewFinancialReports": false, "manageWhatsappSettings": false,
+      "manageLoyaltySettings": false, "manageDocumentTemplates": false, "managePriceLists": false,
+      "manageNavigationSettings": false, "viewActivityLog": false, "useCostEstimator": false,
+      "backdateOrders": false, "awardLoyaltyPoints": false, "sendWhatsappBroadcast": false,
+      "closeRegister": false
     },
     "tailor": {
       "addOrder": false, "deleteOrder": false, "editOrder": false, "managePayments": false,
@@ -61,7 +82,14 @@ LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $fn$
       "manageCustomers": false, "manageUsers": false, "deleteCustomers": false,
       "manageInventory": false, "managePurchases": false, "manageManufacturing": true,
       "manageSales": false, "useChatbot": false, "manageEmployees": false, "usePOS": false,
-      "managePayroll": false
+      "managePayroll": false, "manageExpenses": false, "voidSales": false,
+      "manageCreditNotes": false, "cancelPurchases": false, "payVendors": false,
+      "adjustStock": false, "transferStock": false, "deleteInventory": false,
+      "approveLeave": false, "viewFinancialReports": false, "manageWhatsappSettings": false,
+      "manageLoyaltySettings": false, "manageDocumentTemplates": false, "managePriceLists": false,
+      "manageNavigationSettings": false, "viewActivityLog": false, "useCostEstimator": false,
+      "backdateOrders": false, "awardLoyaltyPoints": false, "sendWhatsappBroadcast": false,
+      "closeRegister": false
     }
   }'::jsonb;
 $fn$;

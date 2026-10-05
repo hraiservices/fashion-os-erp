@@ -1,8 +1,11 @@
 /**
- * Resizes an image file client-side (via canvas) and returns it as a JPEG data URL.
- * There's no Supabase Storage bucket in this project — small branding images (logo, QR,
- * signature) are stored inline as data URLs inside app_settings JSONB instead, which is
- * fine as long as they stay small, hence the resize before encoding.
+ * Resizes an image file client-side (via canvas) and returns it as a JPEG data URL — the shop
+ * logo/favicon upload flow (src/components/settings/shop-section.tsx) immediately uploads this
+ * to the branding-media Storage bucket (see src/lib/supabase/branding-storage.ts) rather than
+ * keeping the data URL itself, but the resize still matters: it's what's actually uploaded, and
+ * a smaller file is a smaller/faster upload. Invoice/stitching-order template logos and
+ * signatures still use the raw data URL inline in app_settings JSONB — lower traffic (fetched
+ * only by settings pages and PDF generation, not on every navigation), not yet migrated.
  */
 export function fileToDataUrl(file: File, maxDimension = 400): Promise<string> {
   return new Promise((resolve, reject) => {

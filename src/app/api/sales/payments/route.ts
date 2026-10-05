@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -64,6 +64,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status });
   }
 
-  await logAction(supabase, user.email, `Payment received: ₹${fd.amount} for invoice ${fd.invoiceNumber}`);
+  // Deferred — the activity-log insert is a pure side effect the response doesn't depend on,
+  // and a payment split across several invoices awaits each one in sequence client-side (see
+  // record-payment-form.tsx), so this round-trip used to multiply by the row count. Same fix as
+  // src/app/api/orders/[id]/payment/route.ts.
+  after(async () => {
+    await logAction(supabase, user.email, `Payment received: ₹${fd.amount} for invoice ${fd.invoiceNumber}`);
+  });
   return NextResponse.json({ ok: true });
 }

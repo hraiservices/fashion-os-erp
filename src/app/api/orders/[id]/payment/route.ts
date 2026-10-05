@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -145,36 +145,44 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const newBalance = updatedRow.balance;
   const isFullyPaid = newBalance === 0;
 
-  await logAction(
-    supabase,
-    user.email,
-    `💰 Payment ₹${cashPaid} via ${payMethod}${ptDiscount > 0 ? ` + ₹${ptDiscount} pts` : ""} collected for ${id}`,
-    id,
-    `Balance: ₹${newBalance}`
-  );
+  // Both of these are pure side effects the response doesn't depend on (the payment itself is
+  // already committed above) — deferred via after() so the client gets the new balance back
+  // immediately instead of waiting out 2-3 more round-trips (the activity-log insert, plus the
+  // loyalty-award RPC and its own row lock) on every single payment. Matters most exactly when
+  // it was slowest: a payment split across several orders, where record-payment-form.tsx awaits
+  // each order's request in sequence, so these used to multiply by the row count.
+  after(async () => {
+    await logAction(
+      supabase,
+      user.email,
+      `💰 Payment ₹${cashPaid} via ${payMethod}${ptDiscount > 0 ? ` + ₹${ptDiscount} pts` : ""} collected for ${id}`,
+      id,
+      `Balance: ₹${newBalance}`
+    );
 
-  // H7: the earn-points award below runs after the payment is already committed in the DB.
-  // Wrap in try/catch — a loyalty RPC failure must not return HTTP 500 here (the payment
-  // is real and the client cache must be invalidated). Log for manual correction.
-  // H5: earn on net total (total - any loyalty discount already applied to this order).
-  // Redemption points were already deducted by reserve_loyalty_discount above — no separate
-  // awardLoyaltyPoints(..., "redeem", ...) call here, it would double-deduct.
-  try {
-    if (isFullyPaid && loyaltyCfg.enabled) {
-      // `order` was read before record_order_payment ran, so its history does not yet
-      // contain this payment's own discount line — add ptDiscount explicitly or the
-      // customer earns points on money they never paid. Also excludes any referral-coupon
-      // discount already applied to this order, same "not real cash" treatment.
-      const priorDiscount = loyaltyDiscountOf(order) + couponDiscountOf(order) + ptDiscount;
-      const netTotal = Math.max(0, order.total - priorDiscount);
-      const earnPts = computeEarnPoints(netTotal, loyaltyCfg);
-      if (earnPts > 0) {
-        await awardLoyaltyPoints(db, order.mobile, order.name, earnPts, "earn", id, `Full payment received ₹${order.total}`);
+    // H7: the earn-points award below runs after the payment is already committed in the DB.
+    // Wrap in try/catch — a loyalty RPC failure must not throw unhandled here (the payment is
+    // real; the response already went out). Log for manual correction.
+    // H5: earn on net total (total - any loyalty discount already applied to this order).
+    // Redemption points were already deducted by reserve_loyalty_discount above — no separate
+    // awardLoyaltyPoints(..., "redeem", ...) call here, it would double-deduct.
+    try {
+      if (isFullyPaid && loyaltyCfg.enabled) {
+        // `order` was read before record_order_payment ran, so its history does not yet
+        // contain this payment's own discount line — add ptDiscount explicitly or the
+        // customer earns points on money they never paid. Also excludes any referral-coupon
+        // discount already applied to this order, same "not real cash" treatment.
+        const priorDiscount = loyaltyDiscountOf(order) + couponDiscountOf(order) + ptDiscount;
+        const netTotal = Math.max(0, order.total - priorDiscount);
+        const earnPts = computeEarnPoints(netTotal, loyaltyCfg);
+        if (earnPts > 0) {
+          await awardLoyaltyPoints(db, order.mobile, order.name, earnPts, "earn", id, `Full payment received ₹${order.total}`);
+        }
       }
+    } catch (loyaltyErr) {
+      await logAction(supabase, user.email, `⚠️ Loyalty award failed for payment on ${id} — manual correction needed`, id, String(loyaltyErr));
     }
-  } catch (loyaltyErr) {
-    await logAction(supabase, user.email, `⚠️ Loyalty award failed for payment on ${id} — manual correction needed`, id, String(loyaltyErr));
-  }
+  });
 
   return NextResponse.json({ order: mapOrderRow(updatedRow) });
 }

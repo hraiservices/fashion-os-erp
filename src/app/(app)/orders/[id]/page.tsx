@@ -361,14 +361,17 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           empty instead of the row filling out. flex-1 lets each wrapped row's items share exactly
           that row's width, however many end up on it. */}
       <div className="space-y-2 print:hidden">
-        <div className="flex flex-wrap gap-2">
+        {/* Full-width stacked below `sm:` instead of flex-wrap's basis-36 — "Move to DELIVERED"
+         *  (and similarly long stage names) was truncating when squeezed two-to-a-row on a phone;
+         *  `sm:` restores the original side-by-side row once there's enough width for it. */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {user?.perms.changeStage && next && (
-            <Button className={cn("h-12 min-w-0 flex-1 basis-36 text-base sm:h-10 sm:text-sm", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
+            <Button className={cn("h-12 min-w-0 w-full text-base sm:h-10 sm:w-auto sm:flex-1 sm:basis-36 sm:text-sm", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
               <ArrowRight className="size-4 shrink-0" /> <span className="truncate"><MoveToStageLabel label={STAGE_META[next].label} /></span>
             </Button>
           )}
           {user?.perms.managePayments && order.balance > 0 && (
-            <Button variant="outline" className="h-12 min-w-0 flex-1 basis-36 text-base sm:h-10 sm:text-sm" onClick={() => setPaymentOpen(true)}>
+            <Button variant="outline" className="h-12 min-w-0 w-full text-base sm:h-10 sm:w-auto sm:flex-1 sm:basis-36 sm:text-sm" onClick={() => setPaymentOpen(true)}>
               <Wallet className="size-4 shrink-0" /> <span className="truncate">Collect payment</span>
             </Button>
           )}

@@ -16,11 +16,17 @@ import {
   Scissors,
   UserCog,
   ScanBarcode,
-  FileText,
   User,
   CalendarCheck,
   type LucideIcon,
 } from "lucide-react";
+import type { ComponentType } from "react";
+import { HouseDuotoneIcon, ClipboardTextDuotoneIcon, SquaresFourDuotoneIcon, UsersThreeDuotoneIcon, ReceiptDuotoneIcon, ChartBarDuotoneIcon } from "@/components/icons/duotone-icons";
+
+/** A LucideIcon value is already assignable here — this just widens the field beyond lucide's
+ *  own exact component type so the mobile tab bar's hand-rolled Phosphor-duotone icons (see
+ *  duotone-icons.tsx) can be used as drop-in NavFlatItem icons too. */
+export type IconComponent = LucideIcon | ComponentType<{ className?: string; fill?: string; fillOpacity?: number }>;
 
 export interface NavLeaf {
   href: string;
@@ -40,7 +46,7 @@ export interface NavLeaf {
 export interface NavGroup {
   id: string;
   label: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   children: NavLeaf[];
   /** When set, the group's own label is a link to this page (its landing/index), separate from the expand/collapse chevron. */
   indexHref?: string;
@@ -49,7 +55,7 @@ export interface NavGroup {
 export interface NavFlatItem {
   href: string;
   label: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   /** Hidden from restricted roles (tailor/sales) — mirrors _RESTRICTED_TABS. */
   restricted?: boolean;
   /** Deep-links straight to that module's create flow — powers the sidebar's "+" quick-add icon. */
@@ -343,15 +349,15 @@ export function settingsLeafVisible(
  *  admin/manager already has a full set of nav destinations competing for the bar's limited
  *  space. */
 export const MOBILE_TABS_ADMIN_LEFT: NavFlatItem[] = [
-  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { href: "/orders?view=list", label: "Orders", icon: Receipt },
-  { href: "/orders?view=board", label: "Board", icon: KanbanSquare },
+  { href: "/dashboard", label: "Home", icon: HouseDuotoneIcon },
+  { href: "/orders?view=list", label: "Orders", icon: ClipboardTextDuotoneIcon },
+  { href: "/orders?view=board", label: "Board", icon: SquaresFourDuotoneIcon },
 ];
 
 export const MOBILE_TABS_ADMIN_RIGHT: NavFlatItem[] = [
-  { href: "/crm", label: "Clients", icon: Users },
-  { href: "/sales/invoices", label: "Invoices", icon: FileText },
-  { href: "/reports", label: "Reports", icon: BarChart3 },
+  { href: "/crm", label: "Clients", icon: UsersThreeDuotoneIcon },
+  { href: "/sales/invoices", label: "Invoices", icon: ReceiptDuotoneIcon },
+  { href: "/reports", label: "Reports", icon: ChartBarDuotoneIcon },
 ];
 
 /** Backfill candidates for the right side of the admin/manager bottom tab bar — tried in order
@@ -371,8 +377,8 @@ export const MOBILE_TABS_ADMIN_RIGHT_BACKFILL: NavFlatItem[] = [
  *  Orders/Board, so Support and Copilot (rendered separately in MobileTabBar, not part of this
  *  list) fill the space admin/manager instead spends on Clients/Invoices/Reports. */
 export const MOBILE_TABS_RESTRICTED_LEFT: NavFlatItem[] = [
-  { href: "/orders?view=list", label: "Orders", icon: Receipt },
-  { href: "/orders?view=board", label: "Board", icon: KanbanSquare },
+  { href: "/orders?view=list", label: "Orders", icon: ClipboardTextDuotoneIcon },
+  { href: "/orders?view=board", label: "Board", icon: SquaresFourDuotoneIcon },
 ];
 
 /** Restricted role's right-side pairs with Support 1:1 — "My Attendance" fills the second slot

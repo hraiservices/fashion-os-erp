@@ -7,7 +7,8 @@ import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, User2, Shirt, Wallet, Ruler, Gift, Check, ClipboardList, AlertTriangle, Receipt, TrendingUp, TrendingDown, Sparkles, ScanLine } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Copy, User2, Shirt, Wallet, Ruler, Gift, Check, ClipboardList, AlertTriangle, Receipt, TrendingUp, TrendingDown, Sparkles, ScanLine } from "lucide-react";
+import { isNativePlatform } from "@/lib/capacitor";
 import { useCreateOrder, useUpdateOrder } from "@/hooks/use-order-mutations";
 import { useOrders } from "@/hooks/use-orders";
 import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
@@ -335,6 +336,16 @@ function OrderFormFields({
   const [measureOpen, setMeasureOpen] = useState(false);
   const [costsOpen, setCostsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // All seeded once, one-shot, same pattern as measureOpen/costsOpen above — collapsed/hidden
+  // by default for the common case, so a plain new order shows fewer fields up front.
+  const [showOrderNumber, setShowOrderNumber] = useState(false);
+  const [showExactTimes, setShowExactTimes] = useState(isEdit);
+  const [discountsOpen, setDiscountsOpen] = useState(false);
+  const [seedDetailsOpen, setSeedDetailsOpen] = useState(false);
+  // Once a customer is picked via search (or the "New" picker), Mobile/Name collapse into a
+  // compact read-only summary instead of staying two always-editable inputs — "Change" reopens
+  // them. Only for new orders; editing an existing order always shows the editable fields.
+  const [customerConfirmed, setCustomerConfirmed] = useState(false);
 
   const {
     register,
@@ -402,7 +413,7 @@ function OrderFormFields({
         },
   });
 
-  const { fields, append, remove } = useFieldArray({ control, name: "garments" });
+  const { fields, append, remove, insert } = useFieldArray({ control, name: "garments" });
   // True whenever this order loaded with zero real garment lines — the one seeded above
   // (existingOrder.total as its amount) looks identical to a real line otherwise, so a user who
   // adds genuine garment details alongside it without noticing/deleting it would silently
@@ -587,6 +598,7 @@ function OrderFormFields({
   function selectCustomer(c: Customer) {
     setValue("mobile", c.mobile, { shouldValidate: true });
     setValue("name", c.name, { shouldValidate: true });
+    setCustomerConfirmed(true);
     // The mobile/measurements/loyalty auto-prefill effect below watches `mobile` and fires the
     // moment it's a full 10 digits — picking a customer here just feeds that same effect
     // instead of duplicating its prefill logic.
@@ -755,37 +767,51 @@ function OrderFormFields({
             <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Order" : isAlteration ? "New Alteration" : "New Order"}</h1>
             {isEdit && <p className="text-[11px] text-muted-foreground font-mono">{existingOrder.id}</p>}
           </div>
-          {/* Duplicate of the summary card's primary action, mobile only — that card sits at
-             the end of a single-column stack on mobile, so this keeps Create/Save reachable
-             without scrolling all the way down on a long order form. */}
-          <div className="flex items-center gap-2 sm:hidden">
-            <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>
-              Cancel
-            </Button>
-            <Button size="sm" className="gap-1.5 bg-primary text-primary-foreground" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+          {/* Full Cancel/Create pair — native app only (always run at mobile widths). On mobile
+             web/PWA it's replaced by the slim Balance + Create strip below instead of stacking
+             a second full button row on top of the summary sidebar's own pair at the bottom. */}
+          {isNativePlatform() && (
+            <div className="flex items-center gap-2 sm:hidden">
+              <Button type="button" variant="outline" size="sm" onClick={() => router.back()} disabled={isSubmitting}>
+                Cancel
+              </Button>
+              <Button size="sm" className="gap-1.5 bg-primary text-primary-foreground" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+                {isSubmitting ? "Saving…" : isEdit ? "Save" : "Create"}
+              </Button>
+            </div>
+          )}
+        </div>
+        {/* Live Balance + primary action — mobile web/PWA only. The summary card (with the full
+           Cancel/Create pair) sits at the very end of a long, single-column form, so this keeps
+           the number that matters and a way to save it in view the whole time. */}
+        {!isNativePlatform() && (
+          <div className="flex items-center justify-between gap-3 border-t bg-muted/30 px-4 py-2 sm:hidden">
+            <div className="text-xs">
+              <span className="text-muted-foreground">Balance </span>
+              <span className="font-semibold tabular-nums">{inr(balance)}</span>
+            </div>
+            <Button type="button" size="sm" className="gap-1.5 bg-primary text-primary-foreground" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
               {isSubmitting ? "Saving…" : isEdit ? "Save" : "Create"}
             </Button>
           </div>
-        </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
         <div className="lg:col-span-2 space-y-5">
           {!isEdit && (
-            <label className="flex cursor-pointer items-start gap-2 rounded-xl border bg-white dark:bg-card shadow-sm p-4">
-              <Checkbox checked={splitOrders} onChange={(e) => setSplitOrders(e.target.checked)} className="mt-0.5" />
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border bg-white px-3 py-2 text-xs dark:bg-card">
+              <Checkbox checked={splitOrders} onChange={(e) => setSplitOrders(e.target.checked)} />
               <span>
-                <span className="block text-sm font-medium">Create a separate order for each garment</span>
-                <span className="block text-xs text-muted-foreground">
-                  {totalPieceCount > 1
-                    ? `This order has ${totalPieceCount} garments — with this on, you'll get ${totalPieceCount} separate orders (e.g. so a tailor can move one suit to Cutting without the others following). Payment and delivery date are split across them; recommended for most multi-garment orders.`
-                    : "Only matters once this order has more than one garment — add another garment line or increase a quantity to see it apply."}
-                </span>
+                <span className="font-medium">Separate order per garment</span>
+                {totalPieceCount > 1 && (
+                  <span className="text-muted-foreground"> — {totalPieceCount} garments → {totalPieceCount} orders, payment/delivery split across them.</span>
+                )}
               </span>
             </label>
           )}
           {/* Customer & dates */}
-          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <div className="rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
             <SectionHeading icon={User2} label="Customer & dates" />
 
             {!isEdit && (
@@ -826,30 +852,54 @@ function OrderFormFields({
               </FieldGroup>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FieldGroup label="Mobile" required error={errors.mobile?.message}>
-                <Input {...register("mobile")} maxLength={10} inputMode="numeric" placeholder="10-digit number" autoComplete="tel" className="h-10" />
-              </FieldGroup>
-              <FieldGroup label="Name" required error={errors.name?.message}>
-                <Input {...register("name")} placeholder="Customer name" autoComplete="name" className="h-10" />
-              </FieldGroup>
-              {!isEdit && (
-                <FieldGroup
-                  label="Order number"
-                  hint="Optional — leave blank to auto-generate. Set this to match an old system's numbering or a specific requirement."
-                  error={errors.orderNumber?.message}
-                  className="sm:col-span-2"
-                >
-                  <Input {...register("orderNumber")} placeholder="Leave blank to auto-generate" className="h-10" />
+            {!isEdit && customerConfirmed ? (
+              <div className="mb-4 flex items-center justify-between gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+                <span className="truncate">
+                  <span className="font-medium">{name || "Unnamed"}</span>
+                  <span className="text-muted-foreground"> · {mobile}</span>
+                </span>
+                <button type="button" onClick={() => setCustomerConfirmed(false)} className="shrink-0 text-xs font-medium text-primary hover:underline">
+                  Change
+                </button>
+              </div>
+            ) : (
+              <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FieldGroup label="Mobile" required error={errors.mobile?.message}>
+                  <Input {...register("mobile")} maxLength={10} inputMode="numeric" placeholder="10-digit number" autoComplete="tel" className="h-10" />
                 </FieldGroup>
+                <FieldGroup label="Name" required error={errors.name?.message}>
+                  <Input {...register("name")} placeholder="Customer name" autoComplete="name" className="h-10" />
+                </FieldGroup>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {!isEdit && (
+                <div className="sm:col-span-2">
+                  {showOrderNumber ? (
+                    <FieldGroup
+                      label="Order number"
+                      hint="Optional — leave blank to auto-generate. Set this to match an old system's numbering or a specific requirement."
+                      error={errors.orderNumber?.message}
+                    >
+                      <Input {...register("orderNumber")} placeholder="Leave blank to auto-generate" className="h-10" />
+                    </FieldGroup>
+                  ) : (
+                    <button type="button" onClick={() => setShowOrderNumber(true)} className="text-xs font-medium text-muted-foreground hover:text-foreground">
+                      + Set a custom order number
+                    </button>
+                  )}
+                </div>
               )}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:col-span-2">
                 <FieldGroup label="Order date" required>
                   <Controller control={control} name="inDate" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} />} />
                 </FieldGroup>
-                <FieldGroup label="Order time" hint="When the order was received">
-                  <Controller control={control} name="inTime" render={({ field }) => <TimePicker value={field.value} onChange={field.onChange} />} />
-                </FieldGroup>
+                {showExactTimes && (
+                  <FieldGroup label="Order time" hint="When the order was received">
+                    <Controller control={control} name="inTime" render={({ field }) => <TimePicker value={field.value} onChange={field.onChange} />} />
+                  </FieldGroup>
+                )}
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:col-span-2">
                 <FieldGroup label="Delivery date" required error={errors.deliveryDate?.message}>
@@ -874,10 +924,21 @@ function OrderFormFields({
                     </button>
                   )}
                 </FieldGroup>
-                <FieldGroup label="Delivery time" hint="Countdown uses this if set">
-                  <Controller control={control} name="deliveryTime" render={({ field }) => <TimePicker value={field.value} onChange={field.onChange} />} />
-                </FieldGroup>
+                {showExactTimes && (
+                  <FieldGroup label="Delivery time" hint="Countdown uses this if set">
+                    <Controller control={control} name="deliveryTime" render={({ field }) => <TimePicker value={field.value} onChange={field.onChange} />} />
+                  </FieldGroup>
+                )}
               </div>
+              {!showExactTimes && (
+                <button
+                  type="button"
+                  onClick={() => setShowExactTimes(true)}
+                  className="-mt-1 text-left text-xs font-medium text-muted-foreground hover:text-foreground sm:col-span-2"
+                >
+                  + Set exact order/delivery time
+                </button>
+              )}
               <FieldGroup label="Tailor" className="sm:col-span-2">
                 {tailors.length > 0 ? (
                   <Controller
@@ -921,30 +982,28 @@ function OrderFormFields({
                 )}
               </FieldGroup>
               {showCapacityWarning && tailorWorkload && (
-                <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-50 p-2.5 text-xs text-amber-800 sm:col-span-2 dark:bg-amber-950/40 dark:text-amber-300">
-                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                <p className="flex items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 sm:col-span-2 dark:bg-amber-950/40 dark:text-amber-300">
+                  <AlertTriangle className="size-3.5 shrink-0" />
                   <span>
-                    <span className="font-medium">{tailorName(selectedTailor)}</span> has {tailorWorkload.active} active order{tailorWorkload.active === 1 ? "" : "s"} —{" "}
-                    <span className="font-medium">{tailorWorkload.capacity}</span> load. Consider another tailor or a later delivery date.
+                    <span className="font-medium">{tailorName(selectedTailor)}</span> is {tailorWorkload.capacity.toLowerCase()} load ({tailorWorkload.active} active) — consider another tailor or a later delivery date.
                   </span>
-                </div>
+                </p>
               )}
               {showReworkRisk && reworkRisk && (
-                <div
-                  className={`flex items-start gap-2 rounded-lg border p-2.5 text-xs sm:col-span-2 ${
+                <p
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs sm:col-span-2",
                     reworkRisk.level === "high"
                       ? "border-red-500/30 bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-300"
                       : "border-amber-500/30 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
-                  }`}
+                  )}
                 >
-                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                  <AlertTriangle className="size-3.5 shrink-0" />
                   <span>
-                    <span className="font-medium">{reworkRisk.riskRate}%</span> of{" "}
-                    {reworkRisk.basis === "combo" ? "this tailor's past orders for these garments" : "this tailor's past orders"} ({reworkRisk.sampleSize} order
-                    {reworkRisk.sampleSize === 1 ? "" : "s"}) needed rework or ran late.{" "}
-                    {reworkRisk.level === "high" ? "Consider closer follow-up or an earlier delivery date." : "Worth a closer look."}
+                    <span className="font-medium">{reworkRisk.riskRate}%</span> rework/late rate ({reworkRisk.sampleSize} order{reworkRisk.sampleSize === 1 ? "" : "s"}) —{" "}
+                    {reworkRisk.level === "high" ? "consider closer follow-up." : "worth a look."}
                   </span>
-                </div>
+                </p>
               )}
               <FieldGroup label="How did they find us?" hint="Optional — helps track which channels bring in orders." className="sm:col-span-2">
                 <Controller
@@ -969,18 +1028,19 @@ function OrderFormFields({
             </div>
 
             {foundCustomer && !isEdit && (
-              <div className="mt-4 rounded-lg border bg-muted/40 p-3 text-sm">
-                <p className="font-medium">Returning customer</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {tier ? `${tier.label} · ` : ""}
-                  {foundCustomer.loyaltyPoints} points available
-                </p>
-              </div>
+              <p className="mt-4 flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs">
+                <Check className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="font-medium">Returning customer</span>
+                <span className="text-muted-foreground">
+                  — {tier ? `${tier.label} · ` : ""}
+                  {foundCustomer.loyaltyPoints} pts
+                </span>
+              </p>
             )}
           </div>
 
           {/* Garments */}
-          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <div className="rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
             <SectionHeading
               icon={Shirt}
               label="Garments"
@@ -995,17 +1055,23 @@ function OrderFormFields({
               }
             />
             {isSeededPlaceholderOrder && (
-              <p className="mb-3 rounded-lg border border-amber-500/30 bg-amber-50 p-2.5 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-                ⚠️ This order had no garment line details saved, so the line below stands in for its total (₹{(existingOrder!.total || 0).toLocaleString("en-IN")}) so nothing changes by
-                accident. If you&apos;re adding the real garment(s), either edit this line to match them or delete it first — leaving it in place alongside new lines will double-count
-                the order&apos;s value.
-              </p>
+              <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-50 p-2.5 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                <button type="button" onClick={() => setSeedDetailsOpen((o) => !o)} className="flex w-full items-center justify-between gap-2 text-left font-medium">
+                  <span>⚠️ Placeholder line stands in for this order&apos;s saved total (₹{(existingOrder!.total || 0).toLocaleString("en-IN")})</span>
+                  <span className="shrink-0 underline">{seedDetailsOpen ? "Hide" : "Details"}</span>
+                </button>
+                {seedDetailsOpen && (
+                  <p className="mt-1.5">
+                    If you&apos;re adding the real garment(s), either edit this line to match them or delete it first — leaving it in place alongside new lines will double-count the order&apos;s value.
+                  </p>
+                )}
+              </div>
             )}
             <div className="space-y-3">
               {fields.map((field, index) => (
                 <div key={field.id} className="rounded-lg border p-3">
-                  <div className="grid gap-3 sm:grid-cols-12">
-                    <FieldGroup label="Type" className="sm:col-span-2">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <FieldGroup label="Type">
                       <Controller
                         control={control}
                         name={`garments.${index}.type`}
@@ -1032,7 +1098,7 @@ function OrderFormFields({
                         )}
                       />
                     </FieldGroup>
-                    <FieldGroup label="Lining" className="sm:col-span-2">
+                    <FieldGroup label="Lining">
                       <Controller
                         control={control}
                         name={`garments.${index}.lining`}
@@ -1060,7 +1126,7 @@ function OrderFormFields({
                         )}
                       />
                     </FieldGroup>
-                    <FieldGroup label="Tailor" className="sm:col-span-2" hint={tailors.length === 0 ? "Add tailors in Employees" : undefined}>
+                    <FieldGroup label="Tailor" hint={tailors.length === 0 ? "Add tailors in Employees" : undefined}>
                       <Controller
                         control={control}
                         name={`garments.${index}.tailor`}
@@ -1081,18 +1147,34 @@ function OrderFormFields({
                         )}
                       />
                     </FieldGroup>
-                    <FieldGroup label="Qty" className="sm:col-span-1">
+                  </div>
+                  {/* Qty/Rate/Payable grouped compact — always side-by-side, even on mobile,
+                     same fix as the invoice item editor's Qty/Price row: these are short numbers,
+                     not fields that need a full-width row each. */}
+                  <div className="mt-3 flex flex-wrap items-end gap-2">
+                    <FieldGroup label="Qty" className="w-16 shrink-0">
                       <Input type="number" min={1} inputMode="numeric" className="h-10" {...register(`garments.${index}.no`, { valueAsNumber: true })} />
                     </FieldGroup>
-                    <FieldGroup label="Rate" className="sm:col-span-2">
+                    <FieldGroup label="Rate" className="w-24 shrink-0">
                       <Input type="number" min={0} inputMode="numeric" className="h-10" {...register(`garments.${index}.amount`, { valueAsNumber: true })} />
                     </FieldGroup>
                     {canEditPayable && (
-                      <FieldGroup label="Tailor Payable" className="sm:col-span-2" hint="What the tailor is paid">
+                      <FieldGroup label="Tailor Payable" className="w-28 shrink-0" hint="What the tailor is paid">
                         <Input type="number" min={0} inputMode="numeric" className="h-10" {...register(`garments.${index}.payableAmount`, { valueAsNumber: true })} />
                       </FieldGroup>
                     )}
-                    <div className="flex items-end sm:col-span-1">
+                    <div className="ml-auto flex shrink-0 gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="size-9 sm:size-8"
+                        aria-label={`Clone garment ${index + 1}`}
+                        title="Clone this garment"
+                        onClick={() => insert(index + 1, { ...garments[index], lineId: newLineId() })}
+                      >
+                        <Copy className="size-4" />
+                      </Button>
                       <Button
                         type="button"
                         variant="ghost"
@@ -1111,6 +1193,13 @@ function OrderFormFields({
                   </p>
                 </div>
               ))}
+
+              {fields.length > 1 && (
+                <p className="text-right text-sm">
+                  <span className="text-muted-foreground">Garments subtotal </span>
+                  <span className="font-semibold tabular-nums">{inr(total)}</span>
+                </p>
+              )}
 
               <Button
                 type="button"
@@ -1137,7 +1226,7 @@ function OrderFormFields({
             </div>
           </div>
 
-          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <div className="rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
             <Accordion value={measureOpen ? ["measurements"] : []} onValueChange={(v) => setMeasureOpen(v.includes("measurements"))}>
               <AccordionItem value="measurements" className="border-b-0">
                 <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
@@ -1149,58 +1238,60 @@ function OrderFormFields({
                   </span>
                 </AccordionTrigger>
                 <AccordionContent>
-                  {measureFields.length > 0 && (
+                  {(measureFields.length > 0 || measureProfiles.length >= 2) && (
                     <div className="-mt-2 mb-4 flex flex-wrap items-center justify-between gap-2">
                       {/* text-xs text-muted-foreground alone (11px, low-contrast gray) was too
                           subtle to notice as a hint — reported as looking "hidden" even though
                           the color itself was rendering exactly as specified. An icon + stronger
                           color make this actually readable at a glance instead of technically-
                           correct-but-invisible. */}
-                      {prefilled ? (
-                        <p className="flex items-center gap-1.5 text-sm font-medium text-sky-700 dark:text-sky-400">
-                          <Sparkles className="size-3.5 shrink-0" />
-                          Loaded from this customer&apos;s saved profile — edit as needed.
-                        </p>
-                      ) : (
-                        <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
-                          <Check className="size-3.5 shrink-0" />
-                          Saved to the customer for next time.
-                        </p>
-                      )}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={extractMeasurements.isPending}
-                        nativeButton={false}
-                        render={<label className="cursor-pointer" />}
-                      >
-                        <ScanLine className="size-3.5" />
-                        {extractMeasurements.isPending ? "Reading chart…" : "Scan chart"}
-                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScanChart} disabled={extractMeasurements.isPending} />
-                      </Button>
-                    </div>
-                  )}
-                  {/* Only surfaced once the customer actually has more than one saved profile —
-                      per the locked design, a customer with a single (or no) profile keeps
-                      seeing exactly the old, simpler single-measurements form. */}
-                  {measureProfiles.length >= 2 && (
-                    <div className="mb-3">
-                      <Label className="mb-1 block text-sm font-bold">Load measurements</Label>
-                      <Select value={measureProfileId ?? "__blank__"} onValueChange={(v) => v && handlePickProfile(v)}>
-                        <SelectTrigger className="w-full sm:w-72">
-                          <SelectValue placeholder="Choose a saved profile…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {measureProfiles.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name}
-                              {p.isDefault ? " (usual)" : ""}
-                            </SelectItem>
-                          ))}
-                          <SelectItem value="__blank__">+ Start blank</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {measureFields.length > 0 &&
+                        (prefilled ? (
+                          <p className="flex items-center gap-1.5 text-sm font-medium text-sky-700 dark:text-sky-400">
+                            <Sparkles className="size-3.5 shrink-0" />
+                            Loaded from this customer&apos;s saved profile — edit as needed.
+                          </p>
+                        ) : (
+                          <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                            <Check className="size-3.5 shrink-0" />
+                            Saved to the customer for next time.
+                          </p>
+                        ))}
+                      {/* Both merged into one toolbar row with the status line above — "Load
+                         measurements" only surfaces once the customer has 2+ saved profiles (a
+                         single/no-profile customer keeps the simpler single-measurements form). */}
+                      <div className="ml-auto flex flex-wrap items-center gap-2">
+                        {measureProfiles.length >= 2 && (
+                          <Select value={measureProfileId ?? "__blank__"} onValueChange={(v) => v && handlePickProfile(v)}>
+                            <SelectTrigger className="h-9 w-44">
+                              <SelectValue placeholder="Saved profile…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {measureProfiles.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.name}
+                                  {p.isDefault ? " (usual)" : ""}
+                                </SelectItem>
+                              ))}
+                              <SelectItem value="__blank__">+ Start blank</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                        {measureFields.length > 0 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={extractMeasurements.isPending}
+                            nativeButton={false}
+                            render={<label className="cursor-pointer" />}
+                          >
+                            <ScanLine className="size-3.5" />
+                            {extractMeasurements.isPending ? "Reading chart…" : "Scan chart"}
+                            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScanChart} disabled={extractMeasurements.isPending} />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   )}
                   <MeasurementGrid
@@ -1244,7 +1335,7 @@ function OrderFormFields({
           />
 
           {user?.perms.viewFinancialReports && (
-            <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+            <div className="rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
               <Accordion value={costsOpen ? ["costs"] : []} onValueChange={(v) => setCostsOpen(v.includes("costs"))}>
                 <AccordionItem value="costs" className="border-b-0">
                   <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
@@ -1257,33 +1348,32 @@ function OrderFormFields({
                   </AccordionTrigger>
                   <AccordionContent>
               <p className="mb-4 text-xs text-muted-foreground">Powers the order-profitability report. Leave blank if unknown.</p>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <FieldGroup label="Fabric cost">
-                  <Controller
-                    control={control}
-                    name="fabricCost"
-                    render={({ field }) => (
-                      <Input
-                        type="number"
-                        min={0}
-                        inputMode="numeric"
-                        placeholder="0"
-                        className="h-10"
-                        value={field.value ? String(field.value) : ""}
-                        onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
-                        onBlur={field.onBlur}
-                      />
-                    )}
-                  />
-                </FieldGroup>
-              </div>
 
-              {/* Always-visible, non-removable — these 3 reserved rows are what "Stitching
-                  expenses" now means; everything else (the free-form add/remove list below)
-                  rolls up into "Other cost" instead. See STITCHING_EXPENSE_FIXED_CATEGORIES. */}
-              <div className="mt-5 border-t pt-4">
+              {/* Fabric cost folded in alongside the 3 reserved Stitching Expenses rows — one
+                  grid, one heading, instead of its own separate mini-section above them. These 4
+                  are always-visible/non-removable; the free-form add/remove list below rolls up
+                  into "Other cost" instead. See STITCHING_EXPENSE_FIXED_CATEGORIES. */}
+              <div>
                 <SectionHeading icon={Wallet} label="Stitching expenses" />
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <FieldGroup label="Fabric cost">
+                    <Controller
+                      control={control}
+                      name="fabricCost"
+                      render={({ field }) => (
+                        <Input
+                          type="number"
+                          min={0}
+                          inputMode="numeric"
+                          placeholder="0"
+                          className="h-10"
+                          value={field.value ? String(field.value) : ""}
+                          onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
+                          onBlur={field.onBlur}
+                        />
+                      )}
+                    />
+                  </FieldGroup>
                   {STITCHING_EXPENSE_FIXED_CATEGORIES.map((category, index) => (
                     <FieldGroup key={category} label={category}>
                       <Controller
@@ -1321,28 +1411,30 @@ function OrderFormFields({
                     const index = i + STITCHING_EXPENSE_FIXED_CATEGORIES.length;
                     return (
                     <div key={field.id} className="rounded-lg border p-3">
-                      <div className="grid gap-3 sm:grid-cols-12">
-                        <FieldGroup label="Category" className="sm:col-span-3">
-                          <Controller
-                            control={control}
-                            name={`expenses.${index}.category`}
-                            render={({ field: f }) => (
-                              <Select value={f.value} onValueChange={(v) => v && f.onChange(v)}>
-                                <SelectTrigger className="h-10 w-full">
-                                  <SelectValue placeholder="Select" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {expenseCategories.map((c) => (
-                                    <SelectItem key={c} value={c}>
-                                      {c}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                          />
-                        </FieldGroup>
-                        <FieldGroup label="Qty" className="sm:col-span-2" hint="Optional">
+                      <FieldGroup label="Category">
+                        <Controller
+                          control={control}
+                          name={`expenses.${index}.category`}
+                          render={({ field: f }) => (
+                            <Select value={f.value} onValueChange={(v) => v && f.onChange(v)}>
+                              <SelectTrigger className="h-10 w-full">
+                                <SelectValue placeholder="Select" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {expenseCategories.map((c) => (
+                                  <SelectItem key={c} value={c}>
+                                    {c}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      </FieldGroup>
+                      {/* Qty/Unit/Rate/Amount grouped compact — always side-by-side, same fix
+                         as the garments' Qty/Rate/Payable row above. */}
+                      <div className="mt-3 flex flex-wrap items-end gap-2">
+                        <FieldGroup label="Qty" className="w-16 shrink-0" hint="Optional">
                           <Controller
                             control={control}
                             name={`expenses.${index}.qty`}
@@ -1365,10 +1457,10 @@ function OrderFormFields({
                             )}
                           />
                         </FieldGroup>
-                        <FieldGroup label="Unit" className="sm:col-span-2" hint="e.g. Meter">
+                        <FieldGroup label="Unit" className="w-20 shrink-0" hint="e.g. Meter">
                           <Input placeholder="—" className="h-10" {...register(`expenses.${index}.unit`)} />
                         </FieldGroup>
-                        <FieldGroup label="Rate" className="sm:col-span-2" hint="Optional">
+                        <FieldGroup label="Rate" className="w-20 shrink-0" hint="Optional">
                           <Controller
                             control={control}
                             name={`expenses.${index}.rate`}
@@ -1391,7 +1483,7 @@ function OrderFormFields({
                             )}
                           />
                         </FieldGroup>
-                        <FieldGroup label="Amount" className="sm:col-span-2">
+                        <FieldGroup label="Amount" className="w-24 shrink-0">
                           <Controller
                             control={control}
                             name={`expenses.${index}.amount`}
@@ -1409,18 +1501,16 @@ function OrderFormFields({
                             )}
                           />
                         </FieldGroup>
-                        <div className="flex items-end sm:col-span-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            className="size-9 sm:size-8"
-                            aria-label={`Remove expense ${index + 1}`}
-                            onClick={() => removeExpense(index)}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="ml-auto size-9 shrink-0 sm:size-8"
+                          aria-label={`Remove expense ${index + 1}`}
+                          onClick={() => removeExpense(index)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
                       </div>
                     </div>
                     );
@@ -1493,42 +1583,54 @@ function OrderFormFields({
             </div>
 
             <div className="px-5 py-4 space-y-3">
-              {!isEdit && redemption.canRedeem && (
-                <button
-                  type="button"
-                  onClick={() => setUsePoints((u) => !u)}
-                  className={cn(
-                    "flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors",
-                    usePoints ? "border-primary bg-primary/5" : "hover:bg-muted/50"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "flex size-5 shrink-0 items-center justify-center rounded border-2",
-                      usePoints ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40"
-                    )}
-                  >
-                    {usePoints && <Check className="size-3.5" />}
-                  </span>
-                  <Gift className="size-4 shrink-0 text-muted-foreground" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">Redeem loyalty points</p>
-                    <p className="text-xs text-muted-foreground">
-                      {availablePoints} available — saves {inr(redemption.maxPtDiscount)} using {redemption.ptsToRedeem} pts
-                    </p>
-                  </div>
-                </button>
-              )}
-
+              {/* Collapsed unless there's a real discount to claim — auto-open when this
+                 customer actually has redeemable points, so an eligible discount is never
+                 hidden; otherwise a plain toggle, so "nothing to apply" doesn't still cost a
+                 full loyalty-button + coupon-field's worth of space above Advance/Balance. */}
               {!isEdit && (
-                <FieldGroup label="Referral coupon code" hint={`Applies ₹${REFERRAL_COUPON_DISCOUNT} off if valid — checked when you create the order.`}>
-                  <Input
-                    placeholder="e.g. REF-AB12CD"
-                    className="h-10 uppercase"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  />
-                </FieldGroup>
+                <Accordion value={discountsOpen || redemption.canRedeem ? ["discounts"] : []} onValueChange={(v) => setDiscountsOpen(v.includes("discounts"))}>
+                  <AccordionItem value="discounts" className="rounded-lg border px-3">
+                    <AccordionTrigger className="text-xs font-medium text-foreground/80">
+                      {redemption.canRedeem || couponCode ? "Discounts & points" : "Discounts & points (none applied)"}
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-3 pb-1">
+                      {redemption.canRedeem && (
+                        <button
+                          type="button"
+                          onClick={() => setUsePoints((u) => !u)}
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+                            usePoints ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "flex size-5 shrink-0 items-center justify-center rounded border-2",
+                              usePoints ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40"
+                            )}
+                          >
+                            {usePoints && <Check className="size-3.5" />}
+                          </span>
+                          <Gift className="size-4 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium">Redeem loyalty points</p>
+                            <p className="text-xs text-muted-foreground">
+                              {availablePoints} available — saves {inr(redemption.maxPtDiscount)} using {redemption.ptsToRedeem} pts
+                            </p>
+                          </div>
+                        </button>
+                      )}
+                      <FieldGroup label="Referral coupon code" hint={`Applies ₹${REFERRAL_COUPON_DISCOUNT} off if valid — checked when you create the order.`}>
+                        <Input
+                          placeholder="e.g. REF-AB12CD"
+                          className="h-10 uppercase"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                        />
+                      </FieldGroup>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               )}
 
               <FieldGroup label="Advance received">
@@ -1552,14 +1654,16 @@ function OrderFormFields({
               {/* Only meaningful when creating an order — editing an existing order doesn't send
                   paymentMethod anywhere (advance changes on an existing order aren't a single new
                   payment event with one method), so showing this in edit mode would be a dropdown
-                  whose value is silently discarded on save. */}
-              {!isEdit && advance > 0 && (
+                  whose value is silently discarded on save. Always rendered (not conditionally
+                  mounted on advance > 0) once !isEdit, just disabled at 0 — otherwise typing an
+                  advance amount shifted Balance and the action buttons below it down the page. */}
+              {!isEdit && (
                 <FieldGroup label="Payment method">
                   <Controller
                     control={control}
                     name="paymentMethod"
                     render={({ field }) => (
-                      <Select value={field.value} onValueChange={(v) => v && field.onChange(v)}>
+                      <Select value={field.value} onValueChange={(v) => v && field.onChange(v)} disabled={advance <= 0}>
                         <SelectTrigger className="h-10 w-full">
                           <SelectValue />
                         </SelectTrigger>

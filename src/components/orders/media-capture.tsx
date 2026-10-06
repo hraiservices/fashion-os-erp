@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Paperclip, Camera, Upload, Mic, Video, Square, Trash2, Loader2, Captions } from "lucide-react";
+import { Paperclip, Camera, Upload, Mic, Video, Square, Trash2, Loader2, Captions, ChevronDown } from "lucide-react";
 import {
   blobToDataUrl,
   compressImage,
@@ -53,6 +53,11 @@ export function MediaCapture({
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState<Kind | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  // Collapsed by default on an order with nothing attached yet — the Photo/Upload/Voice/Video
+  // button row and the empty section below it otherwise stay fully expanded for the whole form,
+  // even though most orders never touch it. Seeded once from whatever the order already had, not
+  // kept in sync afterward — same one-shot pattern as the order form's other accordions.
+  const [expanded, setExpanded] = useState(images.length + audios.length + videos.length > 0);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -166,7 +171,7 @@ export function MediaCapture({
 
   return (
     <section className="rounded-xl border bg-card">
-      <div className="flex items-start gap-3 border-b px-4 py-3">
+      <button type="button" onClick={() => setExpanded((e) => !e)} className="flex w-full items-start gap-3 border-b px-4 py-3 text-left">
         <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted">
           <Paperclip className="size-4" />
         </span>
@@ -176,8 +181,10 @@ export function MediaCapture({
             {totalCount === 0 ? "Reference photos, voice notes or a short video" : `${totalCount} attached`}
           </p>
         </div>
-      </div>
+        <ChevronDown className={`mt-1 size-4 shrink-0 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`} />
+      </button>
 
+      {expanded && (
       <div className="space-y-4 p-4">
         {recording ? (
           <div className="space-y-3 rounded-lg border border-red-300 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/30">
@@ -283,6 +290,7 @@ export function MediaCapture({
           </div>
         )}
       </div>
+      )}
 
       <CameraModal
         open={cameraOpen}

@@ -32,6 +32,31 @@ export async function GET() {
         },
       });
     }
+
+    // Since the branding-media Storage migration (src/lib/supabase/branding-storage.ts),
+    // logoDataUrl/faviconDataUrl is a real https:// URL for any shop that's re-saved its
+    // branding — the regex above only ever matched the legacy base64 shape, so a migrated
+    // shop's custom icon was silently falling all the way through to the generic scissors SVG
+    // below. Proxy it through instead of redirecting: a redirect would still work for a browser
+    // tab, but this route is also what social link-preview crawlers resolve, and some of those
+    // don't reliably follow redirects for favicon/icon fetches.
+    if (iconDataUrl.startsWith("https://")) {
+      try {
+        const upstream = await fetch(iconDataUrl, { signal: AbortSignal.timeout(5000) });
+        if (upstream.ok) {
+          const bytes = await upstream.arrayBuffer();
+          return new NextResponse(bytes, {
+            headers: {
+              "Content-Type": upstream.headers.get("content-type") || "image/jpeg",
+              "Cache-Control": "public, max-age=300, must-revalidate",
+            },
+          });
+        }
+      } catch {
+        // Falls through to the generic icon below — same "never break the tab icon" fallback
+        // the base64 path already had.
+      }
+    }
   }
 
   const svg = await readFile(FALLBACK_SVG_PATH, "utf8");

@@ -129,6 +129,9 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
   const [taxOpen, setTaxOpen] = useState(
     !!(existing && (existing.gstType !== "none" || existing.shippingCharges || existing.discountValue))
   );
+  // Same collapsed-unless-already-populated rule — stays open when editing an invoice that
+  // already has a subject/notes/terms set.
+  const [notesOpen, setNotesOpen] = useState(!!(existing && (existing.subject || existing.notes || existing.terms)));
 
   useSyncFromSource(defaultTerms, (dt) => {
     if (!isEdit && dt && !terms) setTerms(dt);
@@ -415,26 +418,39 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
             </Accordion>
           </div>
 
-          {/* Notes & Terms */}
-          <div className="rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
-            <SectionHeading icon={FileText} label="Notes & Terms" />
-            <div className="space-y-4">
-              <FieldGroup label="Subject">
-                <Input placeholder="What this invoice is for…" value={subject} onChange={(e) => setSubject(e.target.value)} className="h-10" />
-              </FieldGroup>
-              <FieldGroup label="Customer notes" hint="Internal — not printed on the invoice">
-                <Textarea rows={2} placeholder="Order ref, special instructions…" value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none" />
-              </FieldGroup>
-              <Accordion className="rounded-lg border px-3">
-                <AccordionItem value="terms" className="border-b-0">
-                  <AccordionTrigger className="text-xs font-medium text-foreground/80">Terms &amp; Conditions</AccordionTrigger>
-                  <AccordionContent className="space-y-1.5">
-                    <Textarea rows={3} placeholder="Payment terms, return policy…" value={terms} onChange={(e) => setTerms(e.target.value)} className="resize-none" />
-                    <p className="text-[11px] text-muted-foreground">Printed on the invoice. Edit the shop-wide default in Settings → Invoice Terms.</p>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </div>
+          {/* Notes & Terms — same collapsed-by-default treatment as Tax, Shipping & Discount. */}
+          <div className="rounded-xl border bg-white shadow-none dark:bg-card sm:shadow-sm">
+            <Accordion value={notesOpen ? ["notes"] : []} onValueChange={(v) => setNotesOpen(v.includes("notes"))}>
+              <AccordionItem value="notes" className="border-b-0">
+                <AccordionTrigger className="px-4 py-3 hover:no-underline sm:px-5">
+                  <span className="flex items-center gap-2">
+                    <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                      <FileText className="size-3.5 text-primary" />
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes & Terms</span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4 sm:px-5 sm:pb-5">
+                  <div className="space-y-4">
+                    <FieldGroup label="Subject">
+                      <Input placeholder="What this invoice is for…" value={subject} onChange={(e) => setSubject(e.target.value)} className="h-10" />
+                    </FieldGroup>
+                    <FieldGroup label="Customer notes" hint="Internal — not printed on the invoice">
+                      <Textarea rows={2} placeholder="Order ref, special instructions…" value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none" />
+                    </FieldGroup>
+                    <Accordion className="rounded-lg border px-3">
+                      <AccordionItem value="terms" className="border-b-0">
+                        <AccordionTrigger className="text-xs font-medium text-foreground/80">Terms &amp; Conditions</AccordionTrigger>
+                        <AccordionContent className="space-y-1.5">
+                          <Textarea rows={3} placeholder="Payment terms, return policy…" value={terms} onChange={(e) => setTerms(e.target.value)} className="resize-none" />
+                          <p className="text-[11px] text-muted-foreground">Printed on the invoice. Edit the shop-wide default in Settings → Invoice Terms.</p>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
         </div>
 

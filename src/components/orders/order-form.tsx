@@ -339,6 +339,7 @@ function OrderFormFields({
   // All seeded once, one-shot, same pattern as measureOpen/costsOpen above — collapsed/hidden
   // by default for the common case, so a plain new order shows fewer fields up front.
   const [showOrderNumber, setShowOrderNumber] = useState(false);
+  const [showBookingSource, setShowBookingSource] = useState(!!existingOrder?.bookingSource);
   const [showExactTimes, setShowExactTimes] = useState(isEdit);
   const [discountsOpen, setDiscountsOpen] = useState(false);
   const [seedDetailsOpen, setSeedDetailsOpen] = useState(false);
@@ -834,7 +835,7 @@ function OrderFormFields({
         {/* Section-jump pills — mobile only. Tap to scroll straight to a section; the
            highlighted pill tracks whichever section is actually in view (see the
            IntersectionObserver effect above), not just which one was last tapped. */}
-        <div className="flex gap-1.5 overflow-x-auto border-t px-3 py-1.5 sm:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex flex-wrap gap-1.5 border-t px-3 py-1.5 sm:hidden">
           {jumpSections.map((s) => (
             <button
               key={s.id}
@@ -1059,26 +1060,34 @@ function OrderFormFields({
                   </span>
                 </p>
               )}
-              <FieldGroup label="How did they find us?" hint="Optional — helps track which channels bring in orders." className="sm:col-span-2">
-                <Controller
-                  control={control}
-                  name="bookingSource"
-                  render={({ field: f }) => (
-                    <Select value={f.value || ""} onValueChange={(v) => f.onChange(v || "")}>
-                      <SelectTrigger className="h-10 w-full">
-                        <SelectValue placeholder="Not recorded" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BOOKING_SOURCES.map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {s}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </FieldGroup>
+              <div className="sm:col-span-2">
+                {showBookingSource ? (
+                  <FieldGroup label="How did they find us?" hint="Optional — helps track which channels bring in orders.">
+                    <Controller
+                      control={control}
+                      name="bookingSource"
+                      render={({ field: f }) => (
+                        <Select value={f.value || ""} onValueChange={(v) => f.onChange(v || "")}>
+                          <SelectTrigger className="h-10 w-full">
+                            <SelectValue placeholder="Not recorded" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {BOOKING_SOURCES.map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {s}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </FieldGroup>
+                ) : (
+                  <button type="button" onClick={() => setShowBookingSource(true)} className="text-xs font-medium text-muted-foreground hover:text-foreground">
+                    + How did they find us?
+                  </button>
+                )}
+              </div>
             </div>
 
             {foundCustomer && !isEdit && (
@@ -1205,19 +1214,22 @@ function OrderFormFields({
                   {/* Qty/Rate/Payable grouped compact — always side-by-side, even on mobile,
                      same fix as the invoice item editor's Qty/Price row: these are short numbers,
                      not fields that need a full-width row each. */}
-                  <div className="mt-3 flex flex-wrap items-end gap-2">
-                    <FieldGroup label="Qty" className="w-16 shrink-0">
+                  {/* flex-nowrap + overflow-x-auto, not flex-wrap — a wrapped second row here
+                     defeats the point of grouping these compact; a short horizontal scroll on
+                     the very narrowest phones is the acceptable fallback instead. */}
+                  <div className="mt-3 flex flex-nowrap items-end gap-1.5 overflow-x-auto">
+                    <FieldGroup label="Qty" className="w-14 shrink-0">
                       <Input type="number" min={1} inputMode="numeric" className="h-10" {...register(`garments.${index}.no`, { valueAsNumber: true })} />
                     </FieldGroup>
-                    <FieldGroup label="Rate" className="w-24 shrink-0">
+                    <FieldGroup label="Rate" className="w-20 shrink-0">
                       <Input type="number" min={0} inputMode="numeric" className="h-10" {...register(`garments.${index}.amount`, { valueAsNumber: true })} />
                     </FieldGroup>
                     {canEditPayable && (
-                      <FieldGroup label="Tailor Payable" className="w-28 shrink-0" hint="What the tailor is paid">
+                      <FieldGroup label="Payable" className="w-20 shrink-0" hint="Tailor pay">
                         <Input type="number" min={0} inputMode="numeric" className="h-10" {...register(`garments.${index}.payableAmount`, { valueAsNumber: true })} />
                       </FieldGroup>
                     )}
-                    <div className="ml-auto flex shrink-0 gap-1">
+                    <div className="flex shrink-0 gap-0.5">
                       <Button
                         type="button"
                         variant="ghost"
@@ -1489,8 +1501,10 @@ function OrderFormFields({
                       </FieldGroup>
                       {/* Qty/Unit/Rate/Amount grouped compact — always side-by-side, same fix
                          as the garments' Qty/Rate/Payable row above. */}
-                      <div className="mt-3 flex flex-wrap items-end gap-2">
-                        <FieldGroup label="Qty" className="w-16 shrink-0" hint="Optional">
+                      {/* flex-nowrap + overflow-x-auto, not flex-wrap — same reasoning as the
+                         garments' Qty/Rate/Payable row above. */}
+                      <div className="mt-3 flex flex-nowrap items-end gap-1.5 overflow-x-auto">
+                        <FieldGroup label="Qty" className="w-14 shrink-0" hint="Optional">
                           <Controller
                             control={control}
                             name={`expenses.${index}.qty`}
@@ -1513,10 +1527,10 @@ function OrderFormFields({
                             )}
                           />
                         </FieldGroup>
-                        <FieldGroup label="Unit" className="w-20 shrink-0" hint="e.g. Meter">
+                        <FieldGroup label="Unit" className="w-16 shrink-0" hint="e.g. Meter">
                           <Input placeholder="—" className="h-10" {...register(`expenses.${index}.unit`)} />
                         </FieldGroup>
-                        <FieldGroup label="Rate" className="w-20 shrink-0" hint="Optional">
+                        <FieldGroup label="Rate" className="w-16 shrink-0" hint="Optional">
                           <Controller
                             control={control}
                             name={`expenses.${index}.rate`}
@@ -1539,7 +1553,7 @@ function OrderFormFields({
                             )}
                           />
                         </FieldGroup>
-                        <FieldGroup label="Amount" className="w-24 shrink-0">
+                        <FieldGroup label="Amount" className="w-20 shrink-0">
                           <Controller
                             control={control}
                             name={`expenses.${index}.amount`}

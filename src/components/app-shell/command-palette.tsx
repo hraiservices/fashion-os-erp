@@ -125,7 +125,14 @@ export function CommandTrigger() {
         </div>
 
         {open && (
-          <div className="absolute left-0 top-full z-50 mt-1.5 w-full overflow-hidden rounded-xl border bg-popover shadow-lg">
+          // Width decoupled from the input's own (often narrow on mobile, with the hamburger
+          // and account icons all sharing the topbar row) container — `w-full` here used to mean
+          // "exactly as narrow as the input," cramming every result's name/id/stage into that
+          // same tight box and clipping text. `min(24rem, calc(100vw - 3rem))` gives it room to
+          // breathe while staying inside the viewport (3rem accounts for the hamburger button
+          // plus a right-edge margin, which a plain 1.5rem subtraction — fine for a right-aligned
+          // popover like NotificationBell's — isn't enough of for this left-anchored one).
+          <div className="absolute left-0 top-full z-50 mt-1.5 w-[min(24rem,calc(100vw-3rem))] overflow-hidden rounded-xl border bg-popover shadow-lg sm:w-full">
             <CommandList className="max-h-[70vh] sm:max-h-96">
               {hasResults || pages.flat.length > 0 ? (
                 <>

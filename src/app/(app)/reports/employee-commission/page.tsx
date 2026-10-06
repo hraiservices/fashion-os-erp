@@ -123,13 +123,13 @@ export default function EmployeeCommissionReportPage() {
 
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.commission, 0))} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(rows.reduce((s, r) => s + r.commission, 0))} showChevron={false} />
               <MobileRecordRow label="Orders" value={rows.reduce((s, r) => s + r.attributedOrders, 0)} />
               <MobileRecordRow label="Attributed Value" value={inr(rows.reduce((s, r) => s + r.attributedValue, 0))} />
             </MobileRecordCard>
             {sortedRows.map((r) => (
               <MobileRecordCard key={r.employee.id}>
-                <MobileRecordHeader title={r.employee.name} value={inr(r.commission)} showChevron={false} />
+                <MobileRecordHeader boldTitle title={r.employee.name} value={inr(r.commission)} showChevron={false} />
                 <MobileRecordRow label="Orders" value={r.attributedOrders} />
                 <MobileRecordRow label="Attributed Value" value={inr(r.attributedValue)} />
               </MobileRecordCard>

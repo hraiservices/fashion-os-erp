@@ -138,7 +138,7 @@ export default function SalesPnlPage() {
 
       <MobileRecordList>
         <MobileRecordCard className="bg-muted/40">
-          <MobileRecordHeader title="Total" value={inr(totals.netProfit)} showChevron={false} />
+          <MobileRecordHeader boldTitle title="Total" value={inr(totals.netProfit)} showChevron={false} valueClassName="text-emerald-600 dark:text-emerald-400" />
           <MobileRecordRow label="Invoices" value={totals.count} />
           <MobileRecordRow label="Billed" value={inr(totals.billed)} />
           <MobileRecordRow label="Purchases/COGS" value={inr(totals.purchaseCost)} valueClassName="text-red-600 dark:text-red-400" />
@@ -147,7 +147,7 @@ export default function SalesPnlPage() {
         </MobileRecordCard>
         {sortedMonthly.map((m) => (
           <MobileRecordCard key={m.month}>
-            <MobileRecordHeader title={m.label} value={inr(m.netProfit)} showChevron={false} />
+            <MobileRecordHeader boldTitle title={m.label} value={inr(m.netProfit)} showChevron={false} valueClassName="text-emerald-600 dark:text-emerald-400" />
             <MobileRecordRow label="Invoices" value={m.count} />
             <MobileRecordRow label="Billed" value={inr(m.billed)} />
             <MobileRecordRow label="Purchases/COGS" value={inr(m.purchaseCost)} valueClassName="text-red-600 dark:text-red-400" />

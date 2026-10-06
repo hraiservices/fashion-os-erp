@@ -157,13 +157,13 @@ export default function PaymentsReceivedReportPage() {
         <>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title={`Total${source !== "all" || search ? " (filtered)" : ""}`} value={inr(totalFiltered)} showChevron={false} />
+              <MobileRecordHeader boldTitle title={`Total${source !== "all" || search ? " (filtered)" : ""}`} value={inr(totalFiltered)} showChevron={false} valueClassName="text-emerald-600 dark:text-emerald-400" />
             </MobileRecordCard>
             {sortedFiltered.map((r) => {
               const badge = SOURCE_BADGE[r.source];
               return (
                 <MobileRecordCard key={r.id} href={r.referenceHref}>
-                  <MobileRecordHeader title={r.customerName || "—"} subtitle={r.customerMobile || "—"} value={inr(r.amount)} />
+                  <MobileRecordHeader boldTitle title={r.customerName || "—"} subtitle={r.customerMobile || "—"} value={inr(r.amount)} valueClassName="text-emerald-600 dark:text-emerald-400" />
                   <MobileRecordRow label="Date" value={fmtDate(r.date)} />
                   <MobileRecordRow label="Mode" value={r.method} />
                   <MobileRecordRow

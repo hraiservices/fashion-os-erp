@@ -110,13 +110,13 @@ export default function SalesByItemPage() {
         <>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.revenue, 0))} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(rows.reduce((s, r) => s + r.revenue, 0))} showChevron={false} valueClassName="text-emerald-600 dark:text-emerald-400" />
               <MobileRecordRow label="Qty sold" value={rows.reduce((s, r) => s + r.qty, 0)} />
               <MobileRecordRow label="Invoices" value={rows.reduce((s, r) => s + r.orders, 0)} />
             </MobileRecordCard>
             {sortedRows.map((r) => (
               <MobileRecordCard key={r.productId || r.productName}>
-                <MobileRecordHeader title={r.productName} value={inr(r.revenue)} showChevron={false} />
+                <MobileRecordHeader boldTitle title={r.productName} value={inr(r.revenue)} showChevron={false} valueClassName="text-emerald-600 dark:text-emerald-400" />
                 <MobileRecordRow label="Qty sold" value={r.qty} />
                 <MobileRecordRow label="Invoices" value={r.orders} />
               </MobileRecordCard>

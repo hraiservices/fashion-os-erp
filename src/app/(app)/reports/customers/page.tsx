@@ -161,7 +161,7 @@ export default function CustomerLifetimePage() {
 
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" showChevron={false} />
               <MobileRecordGrid
                 items={[
                   { label: "Orders", value: clvData.reduce((s, c) => s + c.totalOrders, 0) },
@@ -171,7 +171,7 @@ export default function CustomerLifetimePage() {
             </MobileRecordCard>
             {sortedClvData.map((c) => (
               <MobileRecordCard key={c.mobile}>
-                <MobileRecordHeader title={c.name} value={c.clvScore} showChevron={false} />
+                <MobileRecordHeader boldTitle title={c.name} value={c.clvScore} showChevron={false} />
                 <MobileRecordRow label="Mobile" value={c.mobile} />
                 <MobileRecordGrid
                   items={[

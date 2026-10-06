@@ -121,12 +121,12 @@ export default function ExpensesByEmployeePage() {
 
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.total, 0))} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(rows.reduce((s, r) => s + r.total, 0))} showChevron={false} valueClassName="text-red-600 dark:text-red-400" />
               <MobileRecordRow label="Expenses" value={rows.reduce((s, r) => s + r.count, 0)} />
             </MobileRecordCard>
             {sortedRows.map((r) => (
               <MobileRecordCard key={r.user}>
-                <MobileRecordHeader title={r.user} value={inr(r.total)} showChevron={false} />
+                <MobileRecordHeader boldTitle title={r.user} value={inr(r.total)} showChevron={false} valueClassName="text-red-600 dark:text-red-400" />
                 <MobileRecordRow label="Expenses" value={r.count} />
               </MobileRecordCard>
             ))}

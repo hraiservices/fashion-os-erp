@@ -94,14 +94,14 @@ export default function ReworkRatePage() {
         <>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={`${totalOrders ? Math.round((totalRework / totalOrders) * 100) : 0}%`} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={`${totalOrders ? Math.round((totalRework / totalOrders) * 100) : 0}%`} showChevron={false} />
               <MobileRecordRow label="Total orders" value={totalOrders} />
               <MobileRecordRow label="Rework count" value={totalRework} />
             </MobileRecordCard>
             {sortedRows.map((r) => (
               <MobileRecordCard key={r.tailor}>
                 <MobileRecordHeader
-                  title={tailorName(r.tailor)}
+                  boldTitle title={tailorName(r.tailor)}
                   value={`${r.reworkRate}%`}
                   valueClassName={r.reworkRate >= 15 ? "font-medium text-destructive" : undefined}
                   showChevron={false}

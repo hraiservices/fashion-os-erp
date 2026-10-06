@@ -204,7 +204,7 @@ export default function AttendanceSummaryReportPage() {
 
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" showChevron={false} />
               <MobileRecordGrid
                 items={[
                   { label: "Present", value: totals.presentDays },
@@ -222,7 +222,7 @@ export default function AttendanceSummaryReportPage() {
             {sortedRows.map((r) => (
               <MobileRecordCard key={r.employee.id}>
                 <MobileRecordHeader
-                  title={r.employee.name}
+                  boldTitle title={r.employee.name}
                   value={`${r.attendancePct}%`}
                   valueClassName={r.attendancePct < 75 ? "text-red-600 dark:text-red-400" : undefined}
                   showChevron={false}

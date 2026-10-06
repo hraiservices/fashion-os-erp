@@ -132,14 +132,14 @@ export default function ApAgingSummaryPage() {
         <>
         <MobileRecordList>
           <MobileRecordCard className="bg-muted/40">
-            <MobileRecordHeader title="Total" value={inr(totalPayable)} showChevron={false} />
+            <MobileRecordHeader boldTitle title="Total" value={inr(totalPayable)} showChevron={false} valueClassName="text-red-600 dark:text-red-400" />
             <MobileRecordRow label="Bills" value={Array.from(buckets.values()).reduce((s, b) => s + b.count, 0)} />
             <MobileRecordRow label="% of Payable" value="100%" />
           </MobileRecordCard>
           {sortedBandRows.map((b) => (
             <MobileRecordCard key={b.key}>
               <MobileRecordHeader
-                title={b.label}
+                boldTitle title={b.label}
                 value={inr(b.total)}
                 valueClassName={b.key !== "current" && b.total > 0 ? "text-red-600 dark:text-red-400" : undefined}
                 showChevron={false}

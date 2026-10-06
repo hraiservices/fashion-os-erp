@@ -95,12 +95,12 @@ export default function PendingOrdersPage() {
         <>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(totalBalance)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(totalBalance)} showChevron={false} />
             </MobileRecordCard>
             {sortedPending.map((o) => (
               <MobileRecordCard key={o.id}>
                 <MobileRecordHeader
-                  title={
+                  boldTitle title={
                     <Link href={`/orders/${o.id}`} className="hover:underline">
                       {o.id}
                     </Link>

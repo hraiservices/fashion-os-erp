@@ -76,12 +76,12 @@ export default function PurchaseOrdersByVendorPage() {
         <>
         <MobileRecordList>
           <MobileRecordCard className="bg-muted/40">
-            <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.total, 0))} showChevron={false} />
+            <MobileRecordHeader boldTitle title="Total" value={inr(rows.reduce((s, r) => s + r.total, 0))} showChevron={false} />
             <MobileRecordRow label="Purchase Orders" value={rows.reduce((s, r) => s + r.count, 0)} />
           </MobileRecordCard>
           {sortedRows.map((r) => (
             <MobileRecordCard key={r.vendorId}>
-              <MobileRecordHeader title={vendorNameById.get(r.vendorId) || "Unknown vendor"} value={inr(r.total)} showChevron={false} />
+              <MobileRecordHeader boldTitle title={vendorNameById.get(r.vendorId) || "Unknown vendor"} value={inr(r.total)} showChevron={false} />
               <MobileRecordRow label="Purchase Orders" value={r.count} />
             </MobileRecordCard>
           ))}

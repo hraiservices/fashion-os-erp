@@ -152,12 +152,12 @@ export default function InventoryReportPage() {
           <>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total raw material value" value={inr(rawValue)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total raw material value" value={inr(rawValue)} showChevron={false} />
             </MobileRecordCard>
             {sortedRawMaterials.map((m) => (
               <MobileRecordCard key={m.id}>
                 <MobileRecordHeader
-                  title={m.name}
+                  boldTitle title={m.name}
                   subtitle={m.category || "—"}
                   value={inr(m.stockQty * m.costPerUnit)}
                   showChevron={false}
@@ -213,13 +213,13 @@ export default function InventoryReportPage() {
           <>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total finished-goods value" value={inr(finishedCostValue)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total finished-goods value" value={inr(finishedCostValue)} showChevron={false} />
               <MobileRecordRow label="Retail value" value={inr(finishedRetailValue)} />
             </MobileRecordCard>
             {sortedProducts.map((p) => (
               <MobileRecordCard key={p.id}>
                 <MobileRecordHeader
-                  title={p.name}
+                  boldTitle title={p.name}
                   subtitle={p.sku}
                   value={inr(p.stockQty * p.costPrice)}
                   showChevron={false}

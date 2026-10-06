@@ -272,14 +272,14 @@ export default function TailorPayablesPage() {
           </div>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(allTimeTotal)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(allTimeTotal)} showChevron={false} valueClassName="text-red-600 dark:text-red-400" />
               <MobileRecordRow label={`Payable (${DATE_RANGE_PRESET_LABELS[preset]})`} value={inr(rangeTotal)} />
               <MobileRecordRow label="Pending (in progress)" value={inr(rangePendingTotal)} />
               <MobileRecordRow label="Completed" value={`${rangeCompletedCount}/${rangeTotalCount}`} />
             </MobileRecordCard>
             {sortedRows.map((r) => (
               <MobileRecordCard key={r.id}>
-                <MobileRecordHeader title={r.name} value={inr(r.allTimePayable)} valueClassName="font-semibold" showChevron={false} />
+                <MobileRecordHeader boldTitle title={r.name} value={inr(r.allTimePayable)} valueClassName="font-semibold" showChevron={false} />
                 <MobileRecordRow label={`Payable (${DATE_RANGE_PRESET_LABELS[preset]})`} value={inr(r.rangePayable)} />
                 {r.rangePending > 0 && <MobileRecordRow label="Pending (in progress)" value={inr(r.rangePending)} />}
                 <MobileRecordRow label="Completed" value={`${r.rangeCompletedCount}/${r.rangeTotalCount}`} />
@@ -336,7 +336,7 @@ export default function TailorPayablesPage() {
           <MobileRecordList>
             {unattributed.map((u, i) => (
               <MobileRecordCard key={`${u.orderId}-${i}`} href={`/orders/${u.orderId}`}>
-                <MobileRecordHeader title={u.orderId} value={inr(u.amount)} />
+                <MobileRecordHeader boldTitle title={u.orderId} value={inr(u.amount)} valueClassName="text-red-600 dark:text-red-400" />
                 <MobileRecordRow label="Stored tailor" value={<span className="font-mono">{u.rawTailor}</span>} />
               </MobileRecordCard>
             ))}

@@ -99,14 +99,14 @@ export default function ReorderCandidatesPage() {
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
               <MobileRecordHeader
-                title={`${reorderCandidates.length} customer${reorderCandidates.length === 1 ? "" : "s"}`}
+                boldTitle title={`${reorderCandidates.length} customer${reorderCandidates.length === 1 ? "" : "s"}`}
                 value={reorderCandidates.reduce((s, c) => s + c.orders.length, 0)}
                 showChevron={false}
               />
             </MobileRecordCard>
             {sortedRows.map((c) => (
               <MobileRecordCard key={c.mobile}>
-                <MobileRecordHeader title={c.name} value={`${c.monthsSince}mo`} valueClassName={c.monthsSince >= 12 ? "font-medium text-destructive" : undefined} showChevron={false} />
+                <MobileRecordHeader boldTitle title={c.name} value={`${c.monthsSince}mo`} valueClassName={c.monthsSince >= 12 ? "font-medium text-destructive" : undefined} showChevron={false} />
                 <MobileRecordRow label="Mobile" value={c.mobile} />
                 <MobileRecordRow label="Last order" value={fmtDate(c.lastOrderDate)} />
                 <MobileRecordRow label="Total orders" value={c.orders.length} />

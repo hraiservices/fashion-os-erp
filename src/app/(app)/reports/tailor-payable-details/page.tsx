@@ -320,12 +320,12 @@ export default function TailorPayableDetailsPage() {
           </div>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(grandTotal)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(grandTotal)} showChevron={false} valueClassName="text-red-600 dark:text-red-400" />
             </MobileRecordCard>
             {sortedRows.map((r) => (
               <MobileRecordCard key={r.key} href={r.orderHref} className={r.isPending ? "opacity-60" : ""}>
                 <MobileRecordHeader
-                  title={r.tailorName}
+                  boldTitle title={r.tailorName}
                   subtitle={`${r.orderId} · ${r.customerName}`}
                   value={
                     r.isPending ? (
@@ -333,7 +333,7 @@ export default function TailorPayableDetailsPage() {
                     ) : (
                       inr(r.amount)
                     )
-                  }
+                  } valueClassName="text-red-600 dark:text-red-400"
                 />
                 <MobileRecordRow label="Mobile" value={r.customerMobile || "—"} />
                 <MobileRecordRow label="Order Date" value={fmtDate(r.inDate)} />

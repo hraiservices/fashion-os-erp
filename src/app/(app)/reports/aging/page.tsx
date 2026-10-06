@@ -149,13 +149,13 @@ export default function BalanceAgingPage() {
 
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(totalDue)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(totalDue)} showChevron={false} />
             </MobileRecordCard>
             {sortedAging.map((o) => (
               // onClick (not href) — the WhatsApp button below renders its own <a>, which can't
               // nest inside this card's anchor.
               <MobileRecordCard key={o.id} onClick={() => router.push(`/orders/${o.id}`)}>
-                <MobileRecordHeader title={o.name} value={<BalanceDue amount={o.balance} />} />
+                <MobileRecordHeader boldTitle title={o.name} value={<BalanceDue amount={o.balance} />} />
                 <MobileRecordRow label="Mobile" value={o.mobile} />
                 <MobileRecordRow label="Order" value={o.id} />
                 <MobileRecordRow

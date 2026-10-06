@@ -90,7 +90,7 @@ export default function TodayDeliverablesPage() {
     return (
       <MobileRecordCard key={o.id} href={`/orders/${o.id}`}>
         <MobileRecordHeader
-          title={o.name}
+          boldTitle title={o.name}
           value={o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}
         />
         <MobileRecordRow label="Mobile" value={o.mobile} />
@@ -172,7 +172,7 @@ export default function TodayDeliverablesPage() {
           </div>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(overdueBalance)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(overdueBalance)} showChevron={false} />
             </MobileRecordCard>
             {sortedOverdue.map(renderMobileCard)}
           </MobileRecordList>
@@ -210,7 +210,7 @@ export default function TodayDeliverablesPage() {
             </div>
             <MobileRecordList>
               <MobileRecordCard className="bg-muted/40">
-                <MobileRecordHeader title="Total" value={inr(dueBalance)} showChevron={false} />
+                <MobileRecordHeader boldTitle title="Total" value={inr(dueBalance)} showChevron={false} />
               </MobileRecordCard>
               {sortedDue.map(renderMobileCard)}
             </MobileRecordList>

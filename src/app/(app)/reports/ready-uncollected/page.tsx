@@ -101,11 +101,11 @@ export default function ReadyUncollectedPage() {
         <>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(totalBalance)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(totalBalance)} showChevron={false} />
             </MobileRecordCard>
             {sortedRows.map((o) => (
               <MobileRecordCard key={o.id}>
-                <MobileRecordHeader
+                <MobileRecordHeader boldTitle
                   title={
                     <Link href={`/orders/${o.id}`} className="hover:underline">
                       {o.id}

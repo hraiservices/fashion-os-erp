@@ -162,14 +162,14 @@ export default function OverdueOrdersPage() {
             {sortedOverdue.map((o) => (
               <MobileRecordCard key={o.id}>
                 <MobileRecordHeader
-                  title={
+                  boldTitle title={
                     <Link href={`/orders/${o.id}`} className="hover:underline">
                       {o.id}
                     </Link>
                   }
                   subtitle={o.name}
                   value={<span className={severityClass(o.daysLate)}>{o.daysLate}d late</span>}
-                  showChevron={false}
+                  showChevron={false} valueClassName="text-red-600 dark:text-red-400"
                 />
                 <MobileRecordRow label="Mobile" value={o.mobile} />
                 <MobileRecordRow label="Stage" value={<StageBadge stage={o.status} size="sm" />} />

@@ -119,13 +119,13 @@ export default function RecommendationsReportPage() {
 
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={`${totalSent} sent`} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={`${totalSent} sent`} showChevron={false} />
               <MobileRecordRow label="Converted" value={`${converted} (${conversionRate}%)`} />
             </MobileRecordCard>
             {rows.slice(0, 100).map(({ rec, converted, convertedDate }) => (
               <MobileRecordCard key={rec.id}>
                 <MobileRecordHeader
-                  title={
+                  boldTitle title={
                     <Link href={`/crm/${rec.customerMobile}`} className="hover:underline">
                       {rec.customerName}
                     </Link>

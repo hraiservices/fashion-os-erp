@@ -411,7 +411,7 @@ export default function DayBookPage() {
               <MobileRecordList>
                 <MobileRecordCard className="bg-muted/40">
                   <MobileRecordHeader
-                    title={`${filtered.length} ${filtered.length === 1 ? "entry" : "entries"}`}
+                    boldTitle title={`${filtered.length} ${filtered.length === 1 ? "entry" : "entries"}`}
                     value={inr(filtered.reduce((s, e) => s + (e.amount || 0), 0))}
                     showChevron={false}
                   />
@@ -421,7 +421,7 @@ export default function DayBookPage() {
                   return (
                     <MobileRecordCard key={e.id} href={e.referenceHref || undefined}>
                       <MobileRecordHeader
-                        title={e.activity}
+                        boldTitle title={e.activity}
                         subtitle={fmtTime(e.time)}
                         value={e.amount != null ? inr(e.amount) : "—"}
                         showChevron={!!e.referenceHref}

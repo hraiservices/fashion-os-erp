@@ -168,7 +168,7 @@ export default function PayrollSummaryReportPage() {
         <>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(totals.net)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(totals.net)} showChevron={false} />
               <MobileRecordGrid
                 items={[
                   { label: "Gross", value: inr(totals.gross) },
@@ -179,7 +179,7 @@ export default function PayrollSummaryReportPage() {
             {sortedRows.map((r) => (
               <MobileRecordCard key={r.payslip.id}>
                 <MobileRecordHeader
-                  title={employeeName(r.payslip.employeeId)}
+                  boldTitle title={employeeName(r.payslip.employeeId)}
                   subtitle={`${fmtDate(r.run!.periodStart)} – ${fmtDate(r.run!.periodEnd)}`}
                   value={inr(r.payslip.netPay)}
                   showChevron={false}

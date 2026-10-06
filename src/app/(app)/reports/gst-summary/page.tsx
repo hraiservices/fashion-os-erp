@@ -159,7 +159,7 @@ export default function GstSummaryReportPage() {
         <>
         <MobileRecordList>
           <MobileRecordCard className="bg-muted/40">
-            <MobileRecordHeader title="Total" value={inr(totalTax)} showChevron={false} />
+            <MobileRecordHeader boldTitle title="Total" value={inr(totalTax)} showChevron={false} />
             <MobileRecordGrid
               items={[
                 { label: "Invoices", value: totals.invoiceCount },
@@ -174,7 +174,7 @@ export default function GstSummaryReportPage() {
           {sortedGroups.map((g) => (
             <MobileRecordCard key={g.key}>
               <MobileRecordHeader
-                title={GST_TYPE_LABELS[g.gstType]}
+                boldTitle title={GST_TYPE_LABELS[g.gstType]}
                 subtitle={`${g.taxRate}%`}
                 value={inr(g.cgst + g.sgst + g.igst)}
                 showChevron={false}

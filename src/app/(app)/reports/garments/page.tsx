@@ -98,7 +98,7 @@ export default function GarmentAnalysisPage() {
         <>
         <MobileRecordList>
           <MobileRecordCard className="bg-muted/40">
-            <MobileRecordHeader title="Total" value={inr(totalRev)} showChevron={false} />
+            <MobileRecordHeader boldTitle title="Total" value={inr(totalRev)} showChevron={false} />
             <MobileRecordRow label="Orders" value={totalOrders} />
             <MobileRecordRow label="Qty" value={totalCount} />
             <MobileRecordRow label="% of revenue" value="100%" />
@@ -106,7 +106,7 @@ export default function GarmentAnalysisPage() {
           {sortedStats.map((g) => (
             <MobileRecordCard key={g.type}>
               <MobileRecordHeader
-                title={g.type}
+                boldTitle title={g.type}
                 value={inr(g.rev)}
                 showChevron={false}
               />

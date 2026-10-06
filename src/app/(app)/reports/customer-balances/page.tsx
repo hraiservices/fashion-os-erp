@@ -236,7 +236,7 @@ export default function CustomerBalancesPage() {
 
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(totals.totalDue)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(totals.totalDue)} showChevron={false} />
               <MobileRecordGrid
                 items={[
                   { label: "Stitch Due", value: inr(totals.stitchDue) },
@@ -248,7 +248,7 @@ export default function CustomerBalancesPage() {
               // onClick (not href) — the WhatsApp button below renders its own <a>, which can't
               // nest inside this card's anchor.
               <MobileRecordCard key={r.mobile} onClick={() => router.push(`/crm/${r.mobile}`)}>
-                <MobileRecordHeader
+                <MobileRecordHeader boldTitle
                   title={r.name || "—"}
                   subtitle={r.mobile}
                   value={r.totalDue > 0 ? <BalanceDue amount={r.totalDue} /> : "—"}

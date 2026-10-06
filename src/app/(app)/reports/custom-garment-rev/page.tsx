@@ -141,12 +141,12 @@ export default function CustomGarmentRevPage() {
 
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(totalRevenue)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(totalRevenue)} showChevron={false} valueClassName="text-emerald-600 dark:text-emerald-400" />
               <MobileRecordRow label="Count" value={totalCount} />
             </MobileRecordCard>
             {sortedGarRev.map((g) => (
               <MobileRecordCard key={g.label}>
-                <MobileRecordHeader title={g.label} value={inr(g.revenue)} showChevron={false} />
+                <MobileRecordHeader boldTitle title={g.label} value={inr(g.revenue)} showChevron={false} valueClassName="text-emerald-600 dark:text-emerald-400" />
                 <MobileRecordRow
                   label="Type"
                   value={

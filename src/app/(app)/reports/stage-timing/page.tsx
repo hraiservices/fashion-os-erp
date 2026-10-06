@@ -260,7 +260,7 @@ export default function StageTimingPage() {
                   {sortedRows.map((r) => (
                     <MobileRecordCard key={r.id}>
                       <MobileRecordHeader
-                        title={r.orderId}
+                        boldTitle title={r.orderId}
                         subtitle={r.customerName}
                         value={r.durationMinutes != null ? fmtMinutes(r.durationMinutes) : "—"}
                         showChevron={false}

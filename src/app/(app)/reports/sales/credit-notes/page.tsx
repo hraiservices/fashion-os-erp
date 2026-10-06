@@ -111,13 +111,13 @@ export default function CreditNoteDetailsPage() {
         <>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(total)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(total)} showChevron={false} />
             </MobileRecordCard>
             {sortedRows.map((c) => {
               const inv = invoiceById.get(c.invoiceId);
               return (
                 <MobileRecordCard key={c.id}>
-                  <MobileRecordHeader title={c.creditNumber} subtitle={fmtDate(c.date)} value={inr(c.total)} showChevron={false} />
+                  <MobileRecordHeader boldTitle title={c.creditNumber} subtitle={fmtDate(c.date)} value={inr(c.total)} showChevron={false} />
                   <MobileRecordRow label="Customer" value={inv?.customerName || "—"} />
                   <MobileRecordRow label="Mobile" value={inv?.customerMobile || "—"} />
                   <MobileRecordRow

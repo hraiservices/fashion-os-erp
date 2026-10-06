@@ -164,7 +164,7 @@ export default function DailyEmployeeActivityPage() {
           <MobileRecordList>
             {sortedRows.map((r) => (
               <MobileRecordCard key={r.employee.id} onClick={() => setDetailEmployee(r.employee)}>
-                <MobileRecordHeader title={r.employee.name} value={r.hoursWorked > 0 ? `${r.hoursWorked}h` : "—"} />
+                <MobileRecordHeader boldTitle title={r.employee.name} value={r.hoursWorked > 0 ? `${r.hoursWorked}h` : "—"} />
                 <MobileRecordGrid
                   items={[
                     { label: "Days Checked Out", value: r.daysCheckedOut },

@@ -165,7 +165,7 @@ export default function SalesVendorCostPage() {
               <MobileRecordHeader boldTitle title="Total" value={inr(totals.margin)} showChevron={false} valueClassName="text-emerald-600 dark:text-emerald-400" />
               <MobileRecordRow label="Revenue" value={inr(totals.revenue)} />
               <MobileRecordRow label="Cost basis" value={inr(totals.cost)} />
-              <MobileRecordRow label="Owed to vendors" value={inr(totals.owed)} />
+              <MobileRecordRow label="Owed to vendors" value={inr(totals.owed)} valueClassName="text-red-600 dark:text-red-400" />
             </MobileRecordCard>
             {rows.map((r) => (
               <MobileRecordCard key={r.invoiceId}>
@@ -181,7 +181,12 @@ export default function SalesVendorCostPage() {
                   <MobileRecordRow label="Vendor payable" value="No vendor bill traced" />
                 ) : (
                   r.dues.map((d, i) => (
-                    <MobileRecordRow key={i} label={`Owe ${d.vendorName}${d.billNumber ? ` (${d.billNumber})` : ""}`} value={`${inr(d.amount)} due ${d.dueDate || "—"}`} />
+                    <MobileRecordRow
+                      key={i}
+                      label={`Owe ${d.vendorName}${d.billNumber ? ` (${d.billNumber})` : ""}`}
+                      value={`${inr(d.amount)} due ${d.dueDate || "—"}`}
+                      valueClassName="text-red-600 dark:text-red-400"
+                    />
                   ))
                 )}
               </MobileRecordCard>
@@ -209,7 +214,7 @@ export default function SalesVendorCostPage() {
                       <Td>{r.invoiceDate}</Td>
                       <Td align="right">{inr(r.revenue)}</Td>
                       <Td align="right">{inr(r.costAmount)}</Td>
-                      <Td align="right">{inr(r.margin)}</Td>
+                      <Td align="right" className="font-medium text-emerald-600 dark:text-emerald-400">{inr(r.margin)}</Td>
                       <Td className="text-muted-foreground">No vendor bill traced</Td>
                       <Td>—</Td>
                     </tr>
@@ -222,10 +227,10 @@ export default function SalesVendorCostPage() {
                             <Td rowSpan={r.dues.length}>{r.invoiceDate}</Td>
                             <Td align="right" rowSpan={r.dues.length}>{inr(r.revenue)}</Td>
                             <Td align="right" rowSpan={r.dues.length}>{inr(r.costAmount)}</Td>
-                            <Td align="right" rowSpan={r.dues.length}>{inr(r.margin)}</Td>
+                            <Td align="right" rowSpan={r.dues.length} className="font-medium text-emerald-600 dark:text-emerald-400">{inr(r.margin)}</Td>
                           </>
                         ) : null}
-                        <Td>{d.vendorName}{d.billNumber ? ` (${d.billNumber})` : ""} — {inr(d.amount)}</Td>
+                        <Td className="font-medium text-red-600 dark:text-red-400">{d.vendorName}{d.billNumber ? ` (${d.billNumber})` : ""} — {inr(d.amount)}</Td>
                         <Td>{d.dueDate || "—"}</Td>
                       </tr>
                     ))

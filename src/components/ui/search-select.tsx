@@ -114,7 +114,10 @@ export function SearchSelect({
         }
       />
       {open && (matches.length > 0 || (query.trim() && matches.length === 0) || onCreateNew) && (
-        <ul className="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-lg border bg-popover shadow-lg">
+        // Wider than the (often narrow, in a cramped row) input itself on desktop — a short
+        // trigger field shouldn't force a short, hard-to-scan dropdown. Stays input-width on
+        // mobile, where the row has no room to spare.
+        <ul className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-lg border bg-popover shadow-lg sm:min-w-[22rem] sm:max-w-[80vw]">
           {matches.map((o, i) => (
             <li key={o.value}>
               <button

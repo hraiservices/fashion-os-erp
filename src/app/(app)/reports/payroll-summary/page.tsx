@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Wallet, FileDown } from "lucide-react";
+import { Wallet, FileDown, Search } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
 import { usePayrollRuns, useAllPayslips } from "@/hooks/use-payroll";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -10,6 +10,7 @@ import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
@@ -51,6 +52,7 @@ export default function PayrollSummaryReportPage() {
   const columnTable = useColumnVisibility("payroll-summary", PAYROLL_SUMMARY_COLUMNS, PAYROLL_SUMMARY_AUTO_HIDE);
   const isVisible = columnTable.isVisible;
   const [role, setRole] = useState("all");
+  const [search, setSearch] = useState("");
 
   const employeeName = (id: string) => (employees || []).find((e) => e.id === id)?.name || "—";
   const employeeById = useMemo(() => new Map((employees || []).map((e) => [e.id, e])), [employees]);
@@ -62,12 +64,14 @@ export default function PayrollSummaryReportPage() {
   }, [employees]);
 
   const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return (payslips || [])
       .map((p) => ({ payslip: p, run: runById.get(p.payrollRunId) }))
       .filter((r) => r.run && isWithinDateRange(r.run.periodStart, range))
       .filter((r) => role === "all" || employeeById.get(r.payslip.employeeId)?.role === role)
+      .filter((r) => !q || (employeeById.get(r.payslip.employeeId)?.name || "").toLowerCase().includes(q))
       .sort((a, b) => (b.run!.periodStart || "").localeCompare(a.run!.periodStart || ""));
-  }, [payslips, runById, range, role, employeeById]);
+  }, [payslips, runById, range, role, employeeById, search]);
 
   const totals = rows.reduce(
     (acc, r) => ({ gross: acc.gross + r.payslip.grossPay, deductions: acc.deductions + r.payslip.deductions, net: acc.net + r.payslip.netPay }),
@@ -144,8 +148,22 @@ export default function PayrollSummaryReportPage() {
         }
       />
 
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input type="search" enterKeyHint="search" placeholder="Search employee…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <div className="hidden sm:block">
+          <ColumnCustomizerMenu table={columnTable} />
+        </div>
+      </div>
+
       {rows.length === 0 ? (
-        <EmptyState icon={Wallet} title="No payslips yet" description="Run payroll from Employees → Payroll to see salary history here." />
+        <EmptyState
+          icon={Wallet}
+          title={search ? "No matching payslips" : "No payslips yet"}
+          description={search ? `No payslips found for "${search}".` : "Run payroll from Employees → Payroll to see salary history here."}
+        />
       ) : (
         <>
           <MobileRecordList>
@@ -166,26 +184,38 @@ export default function PayrollSummaryReportPage() {
                   value={inr(r.payslip.netPay)}
                   showChevron={false}
                 />
-                <MobileRecordGrid
-                  items={[
-                    { label: "Gross", value: inr(r.payslip.grossPay) },
-                    { label: "Overtime", value: r.payslip.overtimeHours > 0 ? `${r.payslip.overtimeHours}h · ${inr(r.payslip.overtimePay)}` : "—" },
-                    { label: "Deductions", value: r.payslip.deductions > 0 ? `− ${inr(r.payslip.deductions)}` : "—" },
-                    { label: "Status", value: <Badge variant={r.payslip.status === "paid" ? "secondary" : "outline"}>{r.payslip.status === "paid" ? "Paid" : "Draft"}</Badge> },
-                  ]}
-                />
-                <div className="flex justify-end border-t pt-1.5">
-                  <a href={`/api/employees/payslips/${r.payslip.id}/pdf`} target="_blank" rel="noopener noreferrer" aria-label="Download payslip" title="Download payslip" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-                    <FileDown className="size-3.5" /> Download
-                  </a>
+                {/* One line instead of a header + 4-cell grid + separate footer row — Overtime
+                 *  only shows up when it's actually nonzero (usually isn't), Status sits next to
+                 *  the figures instead of in its own grid cell, and Download is a plain icon
+                 *  instead of a labeled row of its own. */}
+                <div className="flex items-center justify-between gap-2 border-t pt-1.5 text-xs">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 text-muted-foreground">
+                    <span>Gross {inr(r.payslip.grossPay)}</span>
+                    {r.payslip.deductions > 0 && <span>− {inr(r.payslip.deductions)}</span>}
+                    {r.payslip.overtimeHours > 0 && (
+                      <span>
+                        OT {r.payslip.overtimeHours}h · {inr(r.payslip.overtimePay)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge variant={r.payslip.status === "paid" ? "secondary" : "outline"}>{r.payslip.status === "paid" ? "Paid" : "Draft"}</Badge>
+                    <a
+                      href={`/api/employees/payslips/${r.payslip.id}/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Download payslip"
+                      title="Download payslip"
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <FileDown className="size-3.5" />
+                    </a>
+                  </div>
                 </div>
               </MobileRecordCard>
             ))}
           </MobileRecordList>
 
-          <div className="hidden justify-end sm:flex">
-            <ColumnCustomizerMenu table={columnTable} />
-          </div>
           <div className="hidden sm:block">
             <ReportTable>
               <thead className="border-b bg-muted/40">

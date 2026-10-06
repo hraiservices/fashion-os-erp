@@ -122,6 +122,13 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
   const [discountValue, setDiscountValue] = useState(blankIfZero(existing?.discountValue));
   const [terms, setTerms] = useState(existing?.terms ?? "");
   const [notes, setNotes] = useState(existing?.notes || "");
+  // Collapsed by default when there's nothing in it yet (the common case for a new invoice) —
+  // open on mount only when editing an invoice that already has GST/shipping/discount set, so
+  // those values are never hidden from view. Seeded once from the initial values, not kept in
+  // sync afterward — same one-shot pattern as vendor-form.tsx's own tax/notes accordions.
+  const [taxOpen, setTaxOpen] = useState(
+    !!(existing && (existing.gstType !== "none" || existing.shippingCharges || existing.discountValue))
+  );
 
   useSyncFromSource(defaultTerms, (dt) => {
     if (!isEdit && dt && !terms) setTerms(dt);
@@ -264,22 +271,32 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
             <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Invoice" : "New Invoice"}</h1>
             <p className="text-[11px] text-muted-foreground font-mono truncate">{customNumberingOn ? "Assigned automatically on save" : invoiceNumber}</p>
           </div>
-          {/* Duplicate of the bottom FormActionBar — mobile only, so Save/Send is reachable
-             without scrolling all the way down on a long invoice. */}
-          <div className="flex shrink-0 items-center gap-1.5 sm:hidden">
-            <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveInvoice.isPending}>
-              Cancel
-            </Button>
-            {!isEdit && (
-              <Button variant="outline" size="sm" onClick={() => handleSave("draft")} disabled={saveInvoice.isPending}>
-                Draft
+          {/* Duplicate of the bottom FormActionBar — native app only. On mobile web/PWA
+             (isNativePlatform() false) the bottom bar is this device's only action row; showing
+             both here stacked two save bars on one screen for no reason. */}
+          {isNativePlatform() && (
+            <div className="flex shrink-0 items-center gap-1.5 sm:hidden">
+              <Button variant="outline" size="sm" onClick={() => router.back()} disabled={saveInvoice.isPending}>
+                Cancel
               </Button>
-            )}
-            <Button size="sm" className="gap-1.5 bg-primary text-primary-foreground" onClick={() => handleSave(isEdit ? existing!.docStatus : "sent")} disabled={saveInvoice.isPending}>
-              <Receipt className="size-3.5" />
-              {saveInvoice.isPending ? "Saving…" : isEdit ? "Save" : "Send"}
-            </Button>
-          </div>
+              {!isEdit && (
+                <Button variant="outline" size="sm" onClick={() => handleSave("draft")} disabled={saveInvoice.isPending}>
+                  Draft
+                </Button>
+              )}
+              <Button size="sm" className="gap-1.5 bg-primary text-primary-foreground" onClick={() => handleSave(isEdit ? existing!.docStatus : "sent")} disabled={saveInvoice.isPending}>
+                <Receipt className="size-3.5" />
+                {saveInvoice.isPending ? "Saving…" : isEdit ? "Save" : "Send"}
+              </Button>
+            </div>
+          )}
+        </div>
+        {/* Live running total — mobile only. The full Summary card sits at the very bottom of a
+           long invoice, so this keeps the number actually being watched in view without having
+           to scroll past every section to check it. */}
+        <div className="flex items-center justify-between border-t bg-muted/30 px-4 py-1.5 text-xs font-medium sm:hidden">
+          <span className="text-muted-foreground">Total</span>
+          <span className="tabular-nums font-semibold">{inr(totals.total)}</span>
         </div>
       </div>
 
@@ -288,7 +305,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
         <div className="lg:col-span-2 space-y-5">
 
           {/* Customer & Invoice Info */}
-          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <div className="rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
             <SectionHeading icon={User2} label="Customer & Invoice Info" />
 
             {/* Customer — full width, prominent. Type-and-search inline; "New" opens the
@@ -334,63 +351,77 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
               <FieldGroup label="Due date">
                 <DatePicker value={dueDate} onChange={setDueDate} />
               </FieldGroup>
-              <FieldGroup label="Subject">
-                <Input placeholder="What this invoice is for…" value={subject} onChange={(e) => setSubject(e.target.value)} className="h-10" />
-              </FieldGroup>
             </div>
           </div>
 
           {/* Line Items */}
-          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <div className="rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
             <SectionHeading icon={Package2} label="Items" />
             <ProductLineItemsEditor lines={lines} onChange={setLines} showDiscount showMargin={!!user?.perms.viewFinancialReports} priceOverrides={priceOverrides} />
           </div>
 
-          {/* Tax, Shipping & Discount */}
-          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-            <SectionHeading icon={Tag} label="Tax, Shipping & Discount" />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FieldGroup label="GST type">
-                <Select value={gstType} onValueChange={(v) => v && setGstType(v as GstType)}>
-                  <SelectTrigger className="h-10 w-full">
-                    <SelectValue>{gstTypeLabel}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No GST</SelectItem>
-                    <SelectItem value="intra">Intra-state (CGST + SGST)</SelectItem>
-                    <SelectItem value="inter">Inter-state (IGST)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FieldGroup>
-              <FieldGroup label="Tax rate (%)">
-                <Input type="number" inputMode="decimal" min={0} max={100} step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} disabled={gstType === "none"} className="h-10" />
-              </FieldGroup>
-              <FieldGroup label="Shipping charges (₹)">
-                <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="0" value={shippingCharges} onChange={(e) => setShippingCharges(e.target.value)} className="h-10" />
-              </FieldGroup>
-              <div className="grid grid-cols-2 gap-3">
-                <FieldGroup label="Discount type">
-                  <Select value={discountType} onValueChange={(v) => v && setDiscountType(v as DiscountType)}>
-                    <SelectTrigger className="h-10 w-full">
-                      <SelectValue>{discountType === "percent" ? "Percent (%)" : "Flat (₹)"}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="flat">Flat (₹)</SelectItem>
-                      <SelectItem value="percent">Percent (%)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FieldGroup>
-                <FieldGroup label="Discount value">
-                  <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="0" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} className="h-10" />
-                </FieldGroup>
-              </div>
-            </div>
+          {/* Tax, Shipping & Discount — collapsed by default for a plain no-GST/no-discount
+             invoice (the common case); stays open when editing one that already has values set. */}
+          <div className="rounded-xl border bg-white shadow-none dark:bg-card sm:shadow-sm">
+            <Accordion value={taxOpen ? ["tax"] : []} onValueChange={(v) => setTaxOpen(v.includes("tax"))}>
+              <AccordionItem value="tax" className="border-b-0">
+                <AccordionTrigger className="px-4 py-3 hover:no-underline sm:px-5">
+                  <span className="flex items-center gap-2">
+                    <span className="flex size-6 items-center justify-center rounded-md bg-primary/10">
+                      <Tag className="size-3.5 text-primary" />
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tax, Shipping & Discount</span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4 sm:px-5 sm:pb-5">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <FieldGroup label="GST type">
+                      <Select value={gstType} onValueChange={(v) => v && setGstType(v as GstType)}>
+                        <SelectTrigger className="h-10 w-full">
+                          <SelectValue>{gstTypeLabel}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No GST</SelectItem>
+                          <SelectItem value="intra">Intra-state (CGST + SGST)</SelectItem>
+                          <SelectItem value="inter">Inter-state (IGST)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FieldGroup>
+                    <FieldGroup label="Tax rate (%)">
+                      <Input type="number" inputMode="decimal" min={0} max={100} step="0.01" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} disabled={gstType === "none"} className="h-10" />
+                    </FieldGroup>
+                    <FieldGroup label="Shipping charges (₹)">
+                      <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="0" value={shippingCharges} onChange={(e) => setShippingCharges(e.target.value)} className="h-10" />
+                    </FieldGroup>
+                    <div className="grid grid-cols-2 gap-3">
+                      <FieldGroup label="Discount type">
+                        <Select value={discountType} onValueChange={(v) => v && setDiscountType(v as DiscountType)}>
+                          <SelectTrigger className="h-10 w-full">
+                            <SelectValue>{discountType === "percent" ? "Percent (%)" : "Flat (₹)"}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="flat">Flat (₹)</SelectItem>
+                            <SelectItem value="percent">Percent (%)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FieldGroup>
+                      <FieldGroup label="Discount value">
+                        <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="0" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} className="h-10" />
+                      </FieldGroup>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
 
           {/* Notes & Terms */}
-          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <div className="rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
             <SectionHeading icon={FileText} label="Notes & Terms" />
             <div className="space-y-4">
+              <FieldGroup label="Subject">
+                <Input placeholder="What this invoice is for…" value={subject} onChange={(e) => setSubject(e.target.value)} className="h-10" />
+              </FieldGroup>
               <FieldGroup label="Customer notes" hint="Internal — not printed on the invoice">
                 <Textarea rows={2} placeholder="Order ref, special instructions…" value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none" />
               </FieldGroup>

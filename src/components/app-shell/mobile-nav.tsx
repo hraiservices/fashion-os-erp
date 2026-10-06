@@ -122,7 +122,11 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
   // Copilot — day-to-day is just the board, so Support/Copilot fill the space admin/manager
   // spends on Clients/Invoices/Reports.
   const left = restricted ? MOBILE_TABS_RESTRICTED_LEFT : MOBILE_TABS_ADMIN_LEFT;
-  const canAdd = user?.perms.addOrder;
+  // Hidden on a create/edit form itself — it's already the "+" sheet's destination, so floating
+  // it there (right above that form's own Cancel/Save bar, per feedback on the Invoice form) is
+  // confusing rather than useful.
+  const hideCreateFab = pathname.endsWith("/new") || pathname.endsWith("/edit");
+  const canAdd = user?.perms.addOrder && !hideCreateFab;
   const canUseCopilot = !!user?.perms.useChatbot && isModuleEnabled(entitlements ?? DEFAULT_ENTITLEMENTS, "copilot");
   const supportHref = buildSupportWhatsAppHref(shop?.name);
   // MOBILE_TABS_ADMIN_RIGHT's Invoices/Reports respect the same manageSales/viewReports

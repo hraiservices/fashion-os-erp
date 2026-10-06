@@ -114,12 +114,12 @@ export default function StageAmountsPage() {
 
       <MobileRecordList>
         <MobileRecordCard className="bg-muted/40">
-          <MobileRecordHeader title="Total" value={inr(totalAmount)} showChevron={false} />
+          <MobileRecordHeader boldTitle title="Total" value={inr(totalAmount)} showChevron={false} />
           <MobileRecordRow label="Orders" value={totalOrders} />
         </MobileRecordCard>
         {rows.map((r) => (
           <MobileRecordCard key={r.stage}>
-            <MobileRecordHeader title={STAGE_META[r.stage].label} value={inr(r.total)} showChevron={false} />
+            <MobileRecordHeader boldTitle title={STAGE_META[r.stage].label} value={inr(r.total)} showChevron={false} />
             <MobileRecordRow label="Orders" value={r.count} />
           </MobileRecordCard>
         ))}

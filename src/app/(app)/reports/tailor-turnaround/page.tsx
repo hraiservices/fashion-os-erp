@@ -149,7 +149,7 @@ export default function TailorTurnaroundPage() {
           </div>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total / overall avg" value={`${overallAvg} avg`} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total / overall avg" value={`${overallAvg} avg`} showChevron={false} />
               <MobileRecordGrid
                 columns={3}
                 items={[
@@ -164,7 +164,7 @@ export default function TailorTurnaroundPage() {
             {sortedStats.map((t) => (
               <MobileRecordCard key={t.tailor}>
                 <MobileRecordHeader
-                  title={tailorName(t.tailor)}
+                  boldTitle title={tailorName(t.tailor)}
                   value={`${t.onTimePct}%`}
                   valueClassName={t.onTimePct < 70 ? "font-medium text-red-600 dark:text-red-400" : undefined}
                   showChevron={false}

@@ -173,7 +173,7 @@ export default function ProfitByItemPage() {
           </div>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(totals.margin)} valueClassName={totals.margin >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(totals.margin)} valueClassName={totals.margin >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"} showChevron={false} />
               <MobileRecordRow label="Qty sold" value={rows.reduce((s, r) => s + r.qty, 0)} />
               <MobileRecordRow label="Revenue" value={inr(totals.revenue)} />
               <MobileRecordRow label="Cost" value={inr(totals.cost)} />
@@ -182,7 +182,7 @@ export default function ProfitByItemPage() {
             {sortedRows.map((r) => (
               <MobileRecordCard key={r.productId || r.productName}>
                 <MobileRecordHeader
-                  title={r.productName}
+                  boldTitle title={r.productName}
                   value={inr(r.margin)}
                   valueClassName={r.margin >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
                   showChevron={false}

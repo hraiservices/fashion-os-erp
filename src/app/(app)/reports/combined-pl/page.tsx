@@ -239,7 +239,7 @@ export default function CombinedPlPage() {
       <MobileRecordList>
         <MobileRecordCard className="bg-muted/40">
           <MobileRecordHeader
-            title="Total"
+            boldTitle title="Total"
             value={inr(columnTotals.netProfit)}
             valueClassName={columnTotals.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
             showChevron={false}
@@ -258,7 +258,7 @@ export default function CombinedPlPage() {
         {sortedMonthly.map((m) => (
           <MobileRecordCard key={m.month}>
             <MobileRecordHeader
-              title={m.label}
+              boldTitle title={m.label}
               value={inr(m.netProfit)}
               valueClassName={m.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
               showChevron={false}

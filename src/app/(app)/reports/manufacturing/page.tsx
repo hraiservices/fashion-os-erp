@@ -132,13 +132,13 @@ export default function ManufacturingReportPage() {
           <>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(byProduct.reduce((s, p) => s + p.totalCost, 0))} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(byProduct.reduce((s, p) => s + p.totalCost, 0))} showChevron={false} />
               <MobileRecordRow label="Work orders" value={byProduct.reduce((s, p) => s + p.woCount, 0)} />
               <MobileRecordRow label="Qty produced" value={byProduct.reduce((s, p) => s + p.qtyProduced, 0)} />
             </MobileRecordCard>
             {sortedByProduct.map((p) => (
               <MobileRecordCard key={p.productName}>
-                <MobileRecordHeader title={p.productName} value={inr(p.totalCost)} showChevron={false} />
+                <MobileRecordHeader boldTitle title={p.productName} value={inr(p.totalCost)} showChevron={false} />
                 <MobileRecordRow label="Work orders" value={p.woCount} />
                 <MobileRecordRow label="Qty produced" value={p.qtyProduced} />
                 <MobileRecordRow label="Avg cost/unit" value={inr(p.avgCostPerUnit)} />

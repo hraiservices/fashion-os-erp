@@ -138,11 +138,11 @@ export default function ExpenseDetailsPage() {
 
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(total)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(total)} showChevron={false} valueClassName="text-red-600 dark:text-red-400" />
             </MobileRecordCard>
             {sortedRows.map((e) => (
               <MobileRecordCard key={e.id}>
-                <MobileRecordHeader title={e.category} subtitle={fmtDate(e.date)} value={inr(e.amount)} showChevron={false} />
+                <MobileRecordHeader boldTitle title={e.category} subtitle={fmtDate(e.date)} value={inr(e.amount)} showChevron={false} valueClassName="text-red-600 dark:text-red-400" />
                 <MobileRecordRow label="Description" value={e.description || "—"} />
                 <MobileRecordRow label="Method" value={e.payMethod} />
                 <MobileRecordRow label="Recorded By" value={e.createdBy || "—"} />

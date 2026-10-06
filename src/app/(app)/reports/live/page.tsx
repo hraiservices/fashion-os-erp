@@ -167,7 +167,7 @@ export default function LiveReportPage() {
               <MobileRecordList>
                 {sortedReadyUncollected.map((o) => (
                   <MobileRecordCard key={o.id}>
-                    <MobileRecordHeader
+                    <MobileRecordHeader boldTitle
                       title={
                         <Link href={`/orders/${o.id}`} className="hover:underline">
                           {o.id}
@@ -264,7 +264,7 @@ export default function LiveReportPage() {
               <MobileRecordList>
                 {sortedDeliveredUnpaid.map((o) => (
                   <MobileRecordCard key={o.id}>
-                    <MobileRecordHeader
+                    <MobileRecordHeader boldTitle
                       title={
                         <Link href={`/orders/${o.id}`} className="hover:underline">
                           {o.id}

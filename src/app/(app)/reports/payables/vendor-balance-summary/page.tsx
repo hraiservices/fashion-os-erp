@@ -127,7 +127,7 @@ export default function VendorBalanceSummaryPage() {
         <>
         <MobileRecordList>
           <MobileRecordCard className="bg-muted/40">
-            <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.balance, 0))} showChevron={false} />
+            <MobileRecordHeader boldTitle title="Total" value={inr(rows.reduce((s, r) => s + r.balance, 0))} showChevron={false} valueClassName="text-red-600 dark:text-red-400" />
             <MobileRecordGrid
               columns={3}
               items={[
@@ -140,7 +140,7 @@ export default function VendorBalanceSummaryPage() {
           {sortedRows.map((r) => (
             <MobileRecordCard key={r.vendorId} href={`/purchases/vendors/${r.vendorId}`}>
               <MobileRecordHeader
-                title={vendorNameById.get(r.vendorId) || "Unknown vendor"}
+                boldTitle title={vendorNameById.get(r.vendorId) || "Unknown vendor"}
                 value={r.balance > 0 ? inr(r.balance) : "—"}
                 valueClassName={r.balance > 0 ? "text-red-600 dark:text-red-400" : undefined}
               />

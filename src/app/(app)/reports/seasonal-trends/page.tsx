@@ -153,7 +153,7 @@ export default function SeasonalTrendsPage() {
       </div>
       <MobileRecordList>
         <MobileRecordCard className="bg-muted/40">
-          <MobileRecordHeader title="Total" value={inr(totalRevenue)} showChevron={false} />
+          <MobileRecordHeader boldTitle title="Total" value={inr(totalRevenue)} showChevron={false} />
           <MobileRecordRow label="Orders" value={totalOrders} />
           <MobileRecordRow label="Avg order" value={totalOrders > 0 ? inr(Math.round(totalRevenue / totalOrders)) : "—"} />
           <MobileRecordRow label="Growth" value="—" />
@@ -163,7 +163,7 @@ export default function SeasonalTrendsPage() {
           const tone = m.growth > 0 ? "text-emerald-600 dark:text-emerald-400" : m.growth < 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground";
           return (
             <MobileRecordCard key={m.month}>
-              <MobileRecordHeader title={m.label} value={inr(m.revenue)} showChevron={false} />
+              <MobileRecordHeader boldTitle title={m.label} value={inr(m.revenue)} showChevron={false} />
               <MobileRecordRow label="Orders" value={m.count} />
               <MobileRecordRow label="Avg order" value={inr(m.avgOrderVal)} />
               <MobileRecordRow

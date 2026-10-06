@@ -49,13 +49,13 @@ function MethodTable({ rows, total, emptyLabel, storageKey }: { rows: MethodRow[
     <>
       <MobileRecordList>
         <MobileRecordCard className="bg-muted/40">
-          <MobileRecordHeader title="Total" value={inr(total)} showChevron={false} />
+          <MobileRecordHeader boldTitle title="Total" value={inr(total)} showChevron={false} />
           <MobileRecordRow label="Transactions" value={rows.reduce((s, r) => s + r.count, 0)} />
           <MobileRecordRow label="% of Total" value="100%" />
         </MobileRecordCard>
         {sortedRows.map((r) => (
           <MobileRecordCard key={r.method}>
-            <MobileRecordHeader title={r.method} value={inr(r.amount)} showChevron={false} />
+            <MobileRecordHeader boldTitle title={r.method} value={inr(r.amount)} showChevron={false} />
             <MobileRecordRow label="Transactions" value={r.count} />
             <MobileRecordRow label="% of Total" value={`${total > 0 ? ((r.amount / total) * 100).toFixed(1) : "0.0"}%`} />
           </MobileRecordCard>

@@ -129,13 +129,13 @@ export default function TopReferrersPage() {
           </div>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={`${totalIssued > 0 ? Math.round((totalRedeemed / totalIssued) * 100) : 0}%`} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={`${totalIssued > 0 ? Math.round((totalRedeemed / totalIssued) * 100) : 0}%`} showChevron={false} />
               <MobileRecordRow label="Issued" value={totalIssued} />
               <MobileRecordRow label="Redeemed" value={totalRedeemed} />
             </MobileRecordCard>
             {sortedReferrers.map((r) => (
               <MobileRecordCard key={r.referrerMobile}>
-                <MobileRecordHeader title={r.referrerName || "—"} subtitle={r.referrerMobile} value={`${r.redemptionRate}%`} showChevron={false} />
+                <MobileRecordHeader boldTitle title={r.referrerName || "—"} subtitle={r.referrerMobile} value={`${r.redemptionRate}%`} showChevron={false} />
                 <MobileRecordRow label="Issued" value={r.issued} />
                 <MobileRecordRow label="Redeemed" value={r.redeemed} />
               </MobileRecordCard>

@@ -127,14 +127,14 @@ export default function BookingSourcesPage() {
 
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(totalRevenue)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(totalRevenue)} showChevron={false} />
               <MobileRecordRow label="Orders" value={totalOrders} />
               <MobileRecordRow label="Share" value="100%" />
             </MobileRecordCard>
             {sortedBreakdown.map((r) => (
               <MobileRecordCard key={r.source}>
                 <MobileRecordHeader
-                  title={<span className={r.source === "Not recorded" ? "text-muted-foreground italic" : undefined}>{r.source}</span>}
+                  boldTitle title={<span className={r.source === "Not recorded" ? "text-muted-foreground italic" : undefined}>{r.source}</span>}
                   value={inr(r.revenue)}
                   showChevron={false}
                 />

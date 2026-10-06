@@ -97,13 +97,13 @@ export default function PurchaseOrderByItemPage() {
         <>
         <MobileRecordList>
           <MobileRecordCard className="bg-muted/40">
-            <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.amount, 0))} showChevron={false} />
+            <MobileRecordHeader boldTitle title="Total" value={inr(rows.reduce((s, r) => s + r.amount, 0))} showChevron={false} />
             <MobileRecordRow label="Qty Ordered" value={rows.reduce((s, r) => s + r.qty, 0)} />
             <MobileRecordRow label="Purchase Orders" value={rows.reduce((s, r) => s + r.poCount, 0)} />
           </MobileRecordCard>
           {sortedRows.map((r) => (
             <MobileRecordCard key={r.itemName}>
-              <MobileRecordHeader title={r.itemName} value={inr(r.amount)} showChevron={false} />
+              <MobileRecordHeader boldTitle title={r.itemName} value={inr(r.amount)} showChevron={false} />
               <MobileRecordRow label="Qty Ordered" value={`${r.qty} ${r.unitName}`} />
               <MobileRecordRow label="Purchase Orders" value={r.poCount} />
             </MobileRecordCard>

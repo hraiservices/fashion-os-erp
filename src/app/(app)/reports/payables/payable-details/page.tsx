@@ -94,15 +94,15 @@ export default function PayableDetailsPage() {
         <>
         <MobileRecordList>
           <MobileRecordCard className="bg-muted/40">
-            <MobileRecordHeader title="Total" value={inr(rows.reduce((s, b) => s + b.balance, 0))} showChevron={false} />
+            <MobileRecordHeader boldTitle title="Total" value={inr(rows.reduce((s, b) => s + b.balance, 0))} showChevron={false} valueClassName="text-red-600 dark:text-red-400" />
             <MobileRecordRow label="Total (billed)" value={inr(rows.reduce((s, b) => s + b.total, 0))} />
           </MobileRecordCard>
           {sortedRows.map((b) => (
             <MobileRecordCard key={b.id} href={`/purchases/bills/${b.id}`}>
               <MobileRecordHeader
-                title={b.billNumber}
+                boldTitle title={b.billNumber}
                 subtitle={vendorNameById.get(b.vendorId) || "Unknown vendor"}
-                value={inr(b.balance)}
+                value={inr(b.balance)} valueClassName="text-red-600 dark:text-red-400"
               />
               <MobileRecordRow label="Bill Date" value={fmtDate(b.billDate)} />
               <MobileRecordRow label="Due Date" value={b.dueDate ? fmtDate(b.dueDate) : "—"} />

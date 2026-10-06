@@ -151,12 +151,12 @@ export default function EmployeeDirectoryReportPage() {
 
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={`${rows.filter((e) => e.active).length} active`} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={`${rows.filter((e) => e.active).length} active`} showChevron={false} />
             </MobileRecordCard>
             {sortedRows.map((e) => (
               <MobileRecordCard key={e.id}>
                 <MobileRecordHeader
-                  title={e.name}
+                  boldTitle title={e.name}
                   subtitle={e.mobile || "—"}
                   value={<Badge variant={e.active ? "secondary" : "outline"}>{e.active ? "Active" : "Inactive"}</Badge>}
                   showChevron={false}

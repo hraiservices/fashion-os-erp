@@ -144,13 +144,13 @@ export default function StaffEfficiencyPage() {
           </div>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(totalRevenue)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(totalRevenue)} showChevron={false} />
               <MobileRecordRow label="Orders" value={totalOrders} />
               <MobileRecordRow label="Per order" value={totalOrders > 0 ? inr(Math.round(totalRevenue / totalOrders)) : "—"} />
             </MobileRecordCard>
             {sortedRows.map((t) => (
               <MobileRecordCard key={t.tailor}>
-                <MobileRecordHeader title={tailorName(t.tailor)} value={inr(t.revenue)} showChevron={false} />
+                <MobileRecordHeader boldTitle title={tailorName(t.tailor)} value={inr(t.revenue)} showChevron={false} />
                 <MobileRecordRow label="Orders" value={t.total} />
                 <MobileRecordRow label="Per order" value={inr(t.revPerOrder)} />
                 <MobileRecordRow

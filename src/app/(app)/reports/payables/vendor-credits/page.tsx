@@ -116,14 +116,14 @@ export default function VendorCreditDetailsPage() {
         <>
         <MobileRecordList>
           <MobileRecordCard className="bg-muted/40">
-            <MobileRecordHeader title="Total" value={inr(total)} showChevron={false} />
+            <MobileRecordHeader boldTitle title="Total" value={inr(total)} showChevron={false} />
           </MobileRecordCard>
           {sortedRows.map((c) => {
             const bill = c.billId ? billById.get(c.billId) : undefined;
             return (
               <MobileRecordCard key={c.id}>
                 <MobileRecordHeader
-                  title={c.creditNumber}
+                  boldTitle title={c.creditNumber}
                   subtitle={fmtDate(c.date)}
                   value={inr(c.total)}
                   showChevron={false}

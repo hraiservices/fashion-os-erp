@@ -135,12 +135,12 @@ export default function TailorWorkloadPage() {
           </div>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={workload.reduce((s, t) => s + t.active, 0)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={workload.reduce((s, t) => s + t.active, 0)} showChevron={false} />
               <MobileRecordRow label="Overdue" value={workload.reduce((s, t) => s + t.overdue, 0)} />
             </MobileRecordCard>
             {sortedWorkload.map((t) => (
               <MobileRecordCard key={t.tailor}>
-                <MobileRecordHeader title={tailorName(t.tailor)} value={t.active} showChevron={false} />
+                <MobileRecordHeader boldTitle title={tailorName(t.tailor)} value={t.active} showChevron={false} />
                 <MobileRecordRow
                   label="Overdue"
                   value={t.overdue > 0 ? <span className="font-medium text-red-600 dark:text-red-400">{t.overdue}</span> : "0"}

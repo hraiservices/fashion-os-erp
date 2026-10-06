@@ -169,12 +169,12 @@ export default function TimeToGetPaidPage() {
           </div>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title={`Average (${rows.length} invoice${rows.length === 1 ? "" : "s"})`} value={avgDays != null ? `${avgDays}d` : "—"} showChevron={false} />
+              <MobileRecordHeader boldTitle title={`Average (${rows.length} invoice${rows.length === 1 ? "" : "s"})`} value={avgDays != null ? `${avgDays}d` : "—"} showChevron={false} />
             </MobileRecordCard>
             {sortedRows.map((r) => (
               <MobileRecordCard key={r.id} href={`/sales/invoices/${r.id}`}>
                 <MobileRecordHeader
-                  title={r.invoiceNumber}
+                  boldTitle title={r.invoiceNumber}
                   subtitle={r.customerName}
                   value={`${r.days}d`}
                   valueClassName={r.days <= 7 ? "text-emerald-600 dark:text-emerald-400" : r.days <= 30 ? "" : "text-red-600 dark:text-red-400"}

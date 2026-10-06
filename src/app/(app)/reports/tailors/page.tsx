@@ -164,7 +164,7 @@ export default function TailorPerformancePage() {
           </div>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(tailorStats.reduce((s, t) => s + t.revenue, 0))} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(tailorStats.reduce((s, t) => s + t.revenue, 0))} showChevron={false} />
               <MobileRecordGrid
                 items={[
                   { label: "Active", value: tailorStats.reduce((s, t) => s + t.active, 0) },
@@ -177,7 +177,7 @@ export default function TailorPerformancePage() {
               const mfg = mfgByTailor.get(t.tailor);
               return (
                 <MobileRecordCard key={t.tailor}>
-                  <MobileRecordHeader title={tailorName(t.tailor)} value={inr(t.revenue)} showChevron={false} />
+                  <MobileRecordHeader boldTitle title={tailorName(t.tailor)} value={inr(t.revenue)} showChevron={false} />
                   <MobileRecordGrid
                     items={[
                       { label: "Active", value: t.active },

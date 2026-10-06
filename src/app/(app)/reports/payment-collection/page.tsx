@@ -115,7 +115,7 @@ export default function PaymentCollectionPage() {
 
       <MobileRecordList>
         <MobileRecordCard className="bg-muted/40">
-          <MobileRecordHeader title="Total" value={inr(totals.billed)} showChevron={false} />
+          <MobileRecordHeader boldTitle title="Total" value={inr(totals.billed)} showChevron={false} valueClassName="text-emerald-600 dark:text-emerald-400" />
           <MobileRecordGrid
             items={[
               { label: "Orders", value: totals.count },
@@ -129,7 +129,7 @@ export default function PaymentCollectionPage() {
         </MobileRecordCard>
         {sortedStats.map((m) => (
           <MobileRecordCard key={m.month}>
-            <MobileRecordHeader title={m.label} value={inr(m.billed)} showChevron={false} />
+            <MobileRecordHeader boldTitle title={m.label} value={inr(m.billed)} showChevron={false} valueClassName="text-emerald-600 dark:text-emerald-400" />
             <MobileRecordGrid
               items={[
                 { label: "Orders", value: m.count },

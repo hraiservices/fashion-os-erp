@@ -125,13 +125,14 @@ export default function OrderProfitabilityPage() {
         <>
         <MobileRecordList>
           <MobileRecordCard className="bg-muted/40">
-            <MobileRecordHeader title="Total" value={inr(totalProfit)} showChevron={false} />
+            <MobileRecordHeader boldTitle title="Total" value={inr(totalProfit)} showChevron={false} />
             <MobileRecordRow label="Price" value={inr(withCosts.reduce((s, o) => s + o.total, 0))} />
             <MobileRecordRow label="Cost" value={inr(withCosts.reduce((s, o) => s + o.cost, 0))} />
           </MobileRecordCard>
           {sortedRows.map((o) => (
             <MobileRecordCard key={o.id} href={`/orders/${o.id}`}>
               <MobileRecordHeader
+                boldTitle
                 title={o.id}
                 subtitle={fmtDate(o.inDate)}
                 value={

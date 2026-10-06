@@ -85,14 +85,14 @@ export default function SalesByCustomerPage() {
         <>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.billed, 0))} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(rows.reduce((s, r) => s + r.billed, 0))} showChevron={false} valueClassName="text-emerald-600 dark:text-emerald-400" />
               <MobileRecordRow label="Transactions" value={rows.reduce((s, r) => s + r.count, 0)} />
               <MobileRecordRow label="Paid" value={inr(rows.reduce((s, r) => s + r.paid, 0))} valueClassName="text-emerald-600 dark:text-emerald-400" />
               <MobileRecordRow label="Balance" value={inr(rows.reduce((s, r) => s + r.balance, 0))} />
             </MobileRecordCard>
             {sortedRows.map((r) => (
               <MobileRecordCard key={r.customerMobile} href={r.customerMobile ? `/crm/${r.customerMobile}` : undefined}>
-                <MobileRecordHeader title={r.customerName} value={inr(r.billed)} />
+                <MobileRecordHeader boldTitle title={r.customerName} value={inr(r.billed)} valueClassName="text-emerald-600 dark:text-emerald-400" />
                 <MobileRecordRow label="Mobile" value={r.customerMobile} />
                 <MobileRecordRow label="Transactions" value={r.count} />
                 <MobileRecordRow label="Paid" value={inr(r.paid)} valueClassName="text-emerald-600 dark:text-emerald-400" />

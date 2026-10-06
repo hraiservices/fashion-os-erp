@@ -192,14 +192,14 @@ export default function ReworkInstancesPage() {
 
               <MobileRecordList>
                 <MobileRecordCard className="bg-muted/40">
-                  <MobileRecordHeader title="Total" value={`${rows.length} instance${rows.length === 1 ? "" : "s"}`} showChevron={false} />
+                  <MobileRecordHeader boldTitle title="Total" value={`${rows.length} instance${rows.length === 1 ? "" : "s"}`} showChevron={false} />
                   <MobileRecordRow label="Still open" value={openCount} />
                   <MobileRecordRow label="Orders affected" value={distinctOrders} />
                 </MobileRecordCard>
                 {sortedRows.map((r) => (
                   <MobileRecordCard key={r.id} href={`/orders/${r.orderId}`}>
                     <MobileRecordHeader
-                      title={r.orderId}
+                      boldTitle title={r.orderId}
                       subtitle={r.customerName}
                       value={r.resolvedAt ? "Resolved" : "Still open"}
                       valueClassName={r.resolvedAt ? "text-emerald-600 dark:text-emerald-400" : "font-medium text-amber-600 dark:text-amber-400"}

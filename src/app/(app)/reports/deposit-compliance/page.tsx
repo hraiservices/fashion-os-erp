@@ -151,13 +151,13 @@ export default function DepositCompliancePage() {
 
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(totalAmount)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(totalAmount)} showChevron={false} />
               <MobileRecordRow label="Advance" value={inr(totalAdvance)} />
               <MobileRecordRow label="Deposit %" value={totalAmount ? `${Math.round((totalAdvance / totalAmount) * 100)}%` : "0%"} />
             </MobileRecordCard>
             {sortedCompliance.map((o) => (
               <MobileRecordCard key={o.id} href={`/orders/${o.id}`}>
-                <MobileRecordHeader title={o.name} value={inr(o.total)} />
+                <MobileRecordHeader boldTitle title={o.name} value={inr(o.total)} />
                 <MobileRecordRow label="Mobile" value={o.mobile} />
                 <MobileRecordRow label="Order" value={o.id} />
                 <MobileRecordRow label="Date" value={fmtDate(o.inDate)} />

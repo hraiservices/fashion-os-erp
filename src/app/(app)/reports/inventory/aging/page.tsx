@@ -176,7 +176,7 @@ export default function AgingInventoryReportPage() {
                   const meta = nameByKey.get(stockKey(i.itemType, i.itemId));
                   return (
                     <MobileRecordCard key={stockKey(i.itemType, i.itemId)}>
-                      <MobileRecordHeader title={meta?.name || "—"} subtitle={meta?.category} value={inr(i.stockValue)} showChevron={false} />
+                      <MobileRecordHeader boldTitle title={meta?.name || "—"} subtitle={meta?.category} value={inr(i.stockValue)} showChevron={false} />
                       <MobileRecordRow label="Stock" value={`${i.stockQty} ${meta?.unit || ""}`} />
                       <MobileRecordRow label="Oldest unsold since" value={`${i.oldestBatchAgeDays} days ago`} valueClassName={BUCKET_TONE[i.bucket]} />
                       <MobileRecordRow label="Bucket" value={i.bucket} valueClassName={BUCKET_TONE[i.bucket]} />
@@ -235,7 +235,7 @@ export default function AgingInventoryReportPage() {
                   const meta = nameByKey.get(stockKey(i.itemType, i.itemId));
                   return (
                     <MobileRecordCard key={stockKey(i.itemType, i.itemId)}>
-                      <MobileRecordHeader title={meta?.name || "—"} subtitle={meta?.category} value={inr(i.accruedHoldingLoss)} showChevron={false} />
+                      <MobileRecordHeader boldTitle title={meta?.name || "—"} subtitle={meta?.category} value={inr(i.accruedHoldingLoss)} showChevron={false} />
                       <MobileRecordRow label="Stock value" value={inr(i.stockValue)} />
                       <MobileRecordRow label="Age" value={`${i.oldestBatchAgeDays} days`} />
                       <MobileRecordRow label="Loss / month if unsold" value={inr(i.monthlyLossRate)} />

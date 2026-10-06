@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Building2, Package2, Tag, FileText, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Building2, Package2, Tag, FileText, ShoppingCart, Plus } from "lucide-react";
 import Link from "next/link";
 import { useVendors } from "@/hooks/use-vendors";
+import { AddVendorDialog } from "@/components/purchases/add-vendor-dialog";
 import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
 import { useSaveBill } from "@/hooks/use-purchase-mutations";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
@@ -28,6 +29,7 @@ import { istDateString } from "@/lib/ist-date";
 
 const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
 const paymentTermLabel = (v: unknown) => PAYMENT_TERM_LABELS[v as PaymentTerm] ?? "";
+const ADD_VENDOR = "__add_vendor__";
 
 function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
@@ -59,6 +61,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
   const { data: prefillPo } = usePurchaseOrder(prefillPoId || "");
   const saveBill = useSaveBill();
   const isEdit = !!existing;
+  const [addVendorOpen, setAddVendorOpen] = useState(false);
 
   const [billNumber] = useState(existing?.billNumber || genBillNumber());
   const [vendorId, setVendorId] = useState(existing?.vendorId || "");
@@ -158,7 +161,13 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
             <SectionHeading icon={Building2} label="Vendor & dates" />
             <div className="mb-4">
               <FieldGroup label="Vendor" required>
-                <Select value={vendorId} onValueChange={(v) => v && setVendorId(v)}>
+                <Select
+                  value={vendorId}
+                  onValueChange={(v) => {
+                    if (v === ADD_VENDOR) setAddVendorOpen(true);
+                    else if (v) setVendorId(v);
+                  }}
+                >
                   <SelectTrigger className="h-10 w-full">
                     <SelectValue placeholder="Select vendor…">{vendorLabel}</SelectValue>
                   </SelectTrigger>
@@ -166,8 +175,16 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
                     {(vendors || []).map((v) => (
                       <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
                     ))}
+                    <SelectItem value={ADD_VENDOR}>
+                      <Plus className="size-3.5" /> Add new vendor…
+                    </SelectItem>
                   </SelectContent>
                 </Select>
+                <AddVendorDialog
+                  open={addVendorOpen}
+                  onOpenChange={setAddVendorOpen}
+                  onCreated={(id) => setVendorId(id)}
+                />
               </FieldGroup>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

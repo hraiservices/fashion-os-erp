@@ -113,9 +113,9 @@ export function Th({
   );
 }
 
-export function Td({ children, align = "left", className, colSpan }: { children?: React.ReactNode; align?: "left" | "right"; className?: string; colSpan?: number }) {
+export function Td({ children, align = "left", className, colSpan, rowSpan }: { children?: React.ReactNode; align?: "left" | "right"; className?: string; colSpan?: number; rowSpan?: number }) {
   return (
-    <td colSpan={colSpan} className={`px-3 py-2.5 ${align === "right" ? "text-right tabular-nums" : ""} ${className ?? ""}`}>
+    <td colSpan={colSpan} rowSpan={rowSpan} className={`px-3 py-2.5 ${align === "right" ? "text-right tabular-nums" : ""} ${className ?? ""}`}>
       {children}
     </td>
   );

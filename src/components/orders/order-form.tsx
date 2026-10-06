@@ -347,6 +347,15 @@ function OrderFormFields({
   // them. Only for new orders; editing an existing order always shows the editable fields.
   const [customerConfirmed, setCustomerConfirmed] = useState(false);
 
+  // Section-jump pill bar (mobile only) — lets a long scroll jump straight to a section instead
+  // of scrolling past ones already filled in, with scrollspy highlighting whichever section is
+  // currently at the top of the viewport.
+  const [activeSection, setActiveSection] = useState("sec-customer");
+  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  function jumpToSection(id: string) {
+    sectionRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   const {
     register,
     control,
@@ -754,6 +763,33 @@ function OrderFormFields({
     }
   }
 
+  const jumpSections = [
+    { id: "sec-customer", label: "Customer" },
+    { id: "sec-garments", label: "Garments" },
+    { id: "sec-measurements", label: "Measurements" },
+    { id: "sec-attachments", label: "Attachments" },
+    ...(user?.perms.viewFinancialReports ? [{ id: "sec-costs", label: "Costs" }] : []),
+  ];
+
+  // rootMargin shrinks the observed viewport to a thin band just below the sticky header/pill
+  // bar — whichever section's top is in that band is "current," so the pill highlights the
+  // section actually in view, not whatever merely overlaps the whole screen.
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]) setActiveSection(visible[0].target.id);
+      },
+      { rootMargin: "-140px 0px -70% 0px", threshold: 0 }
+    );
+    jumpSections.forEach((s) => {
+      const el = sectionRefs.current[s.id];
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jumpSections.length]);
+
   return (
     <div className="min-h-screen bg-muted/30">
       {/* ── Page header bar ───────────────────────────────────────────────── */}
@@ -795,6 +831,24 @@ function OrderFormFields({
             </Button>
           </div>
         )}
+        {/* Section-jump pills — mobile only. Tap to scroll straight to a section; the
+           highlighted pill tracks whichever section is actually in view (see the
+           IntersectionObserver effect above), not just which one was last tapped. */}
+        <div className="flex gap-1.5 overflow-x-auto border-t px-3 py-1.5 sm:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {jumpSections.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => jumpToSection(s.id)}
+              className={cn(
+                "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                activeSection === s.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              )}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
@@ -811,7 +865,7 @@ function OrderFormFields({
             </label>
           )}
           {/* Customer & dates */}
-          <div className="rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
+          <div id="sec-customer" ref={(el) => { sectionRefs.current["sec-customer"] = el; }} className="scroll-mt-36 rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
             <SectionHeading icon={User2} label="Customer & dates" />
 
             {!isEdit && (
@@ -1040,7 +1094,7 @@ function OrderFormFields({
           </div>
 
           {/* Garments */}
-          <div className="rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
+          <div id="sec-garments" ref={(el) => { sectionRefs.current["sec-garments"] = el; }} className="scroll-mt-36 rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
             <SectionHeading
               icon={Shirt}
               label="Garments"
@@ -1226,7 +1280,7 @@ function OrderFormFields({
             </div>
           </div>
 
-          <div className="rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
+          <div id="sec-measurements" ref={(el) => { sectionRefs.current["sec-measurements"] = el; }} className="scroll-mt-36 rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
             <Accordion value={measureOpen ? ["measurements"] : []} onValueChange={(v) => setMeasureOpen(v.includes("measurements"))}>
               <AccordionItem value="measurements" className="border-b-0">
                 <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">
@@ -1323,19 +1377,21 @@ function OrderFormFields({
             </Accordion>
           </div>
 
-          <MediaCapture
-            images={displayImages}
-            audios={audios}
-            videos={videos}
-            onImagesChange={(next) => setImages(adaptMediaChange(images, displayImages, next))}
-            onAudiosChange={setAudios}
-            onVideosChange={setVideos}
-            onTranscribe={handleTranscribe}
-            transcribingIndex={transcribingIndex}
-          />
+          <div id="sec-attachments" ref={(el) => { sectionRefs.current["sec-attachments"] = el; }} className="scroll-mt-36">
+            <MediaCapture
+              images={displayImages}
+              audios={audios}
+              videos={videos}
+              onImagesChange={(next) => setImages(adaptMediaChange(images, displayImages, next))}
+              onAudiosChange={setAudios}
+              onVideosChange={setVideos}
+              onTranscribe={handleTranscribe}
+              transcribingIndex={transcribingIndex}
+            />
+          </div>
 
           {user?.perms.viewFinancialReports && (
-            <div className="rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
+            <div id="sec-costs" ref={(el) => { sectionRefs.current["sec-costs"] = el; }} className="scroll-mt-36 rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
               <Accordion value={costsOpen ? ["costs"] : []} onValueChange={(v) => setCostsOpen(v.includes("costs"))}>
                 <AccordionItem value="costs" className="border-b-0">
                   <AccordionTrigger className="border-b pb-2 mb-4 hover:no-underline">

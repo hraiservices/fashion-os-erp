@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, Users, UserPlus, LayoutGrid, LayoutList, ArrowUpDown, Upload, MessageSquare, ImagePlus, MoreVertical } from "lucide-react";
+import { Search, UserPlus, LayoutGrid, LayoutList, ArrowUpDown, Upload, MessageSquare, ImagePlus, MoreVertical } from "lucide-react";
+import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -314,7 +315,7 @@ function CrmContent() {
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState
-          icon={Users}
+          icon={UsersDuotoneIcon}
           title={search ? "No customers match your search" : "No customers yet"}
           description={
             search

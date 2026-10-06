@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Wallet, ArrowDownCircle, ArrowUpCircle, Scale } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Scale } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useAllSalesPayments } from "@/hooks/use-sales-payments";
 import { useAllVendorPayments } from "@/hooks/use-vendor-payments";
 import { useAllOrderPayments } from "@/hooks/use-order-payments";
@@ -44,7 +45,7 @@ const METHOD_SORT_COMPARATORS: Record<string, (a: MethodRow, b: MethodRow) => nu
 function MethodTable({ rows, total, emptyLabel, storageKey }: { rows: MethodRow[]; total: number; emptyLabel: string; storageKey: string }) {
   const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<MethodRow>(storageKey, METHOD_SORT_COMPARATORS, new Set(["count", "amount"]));
   const sortedRows = applySort(rows);
-  if (rows.length === 0) return <EmptyState icon={Wallet} title={emptyLabel} className="border-0" />;
+  if (rows.length === 0) return <EmptyState icon={WalletDuotoneIcon} title={emptyLabel} className="border-0" />;
   return (
     <>
       <MobileRecordList>
@@ -151,7 +152,7 @@ export default function PaymentMethodsReportPage() {
         <StatCard label="Payments Received" value={inr(totalReceived)} icon={ArrowDownCircle} />
         <StatCard label="Payments Made" value={inr(totalMade)} icon={ArrowUpCircle} />
         <StatCard label="Net Cash Flow" value={inr(totalReceived - totalMade)} icon={Scale} tone={totalReceived - totalMade >= 0 ? "success" : "danger"} />
-        <StatCard label="Transactions" value={receivedByMethod.reduce((s, r) => s + r.count, 0) + madeByMethod.reduce((s, r) => s + r.count, 0)} icon={Wallet} />
+        <StatCard label="Transactions" value={receivedByMethod.reduce((s, r) => s + r.count, 0) + madeByMethod.reduce((s, r) => s + r.count, 0)} icon={WalletDuotoneIcon} />
       </div>
 
       <div>

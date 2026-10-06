@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import Link from "next/link";
-import { Wallet } from "lucide-react";
+
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
 import { inr, fmtDate } from "@/lib/format";
@@ -89,7 +90,7 @@ export default function PayableDetailsPage() {
       />
 
       {rows.length === 0 ? (
-        <EmptyState icon={Wallet} title="No outstanding bills" description="Everything is paid up." />
+        <EmptyState icon={WalletDuotoneIcon} title="No outstanding bills" description="Everything is paid up." />
       ) : (
         <>
         <MobileRecordList>

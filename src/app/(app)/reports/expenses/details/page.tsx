@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Wallet, Search } from "lucide-react";
+import { Search } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useExpenses } from "@/hooks/use-expenses";
 import { inr, fmtDate } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
@@ -68,7 +69,7 @@ export default function ExpenseDetailsPage() {
       }
     >
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Total Expenses" value={inr(total)} icon={Wallet} />
+        <StatCard label="Total Expenses" value={inr(total)} icon={WalletDuotoneIcon} />
       </div>
 
       <ReportFilterBar
@@ -102,7 +103,7 @@ export default function ExpenseDetailsPage() {
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState icon={Wallet} title="No expenses yet" />
+        <EmptyState icon={WalletDuotoneIcon} title="No expenses yet" />
       ) : (
         <>
           <div className="hidden sm:block">

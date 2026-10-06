@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { TrendUpDuotoneIcon } from "@/components/icons/duotone-icons";
 import Link from "next/link";
-import { TrendingUp } from "lucide-react";
+
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr, fmtDate } from "@/lib/format";
@@ -64,7 +65,7 @@ export default function OrderProfitabilityPage() {
   if (!canView) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={TrendingUp} title="No access" description="Order profitability is restricted to admins." />
+        <EmptyState icon={TrendUpDuotoneIcon} title="No access" description="Order profitability is restricted to admins." />
       </div>
     );
   }
@@ -120,7 +121,7 @@ export default function OrderProfitabilityPage() {
       />
 
       {withCosts.length === 0 ? (
-        <EmptyState icon={TrendingUp} title="No cost data yet" description="Add fabric/other cost on an order to see its profitability here." />
+        <EmptyState icon={TrendUpDuotoneIcon} title="No cost data yet" description="Add fabric/other cost on an order to see its profitability here." />
       ) : (
         <>
         <MobileRecordList>

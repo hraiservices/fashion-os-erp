@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Gift, Coins, TicketPercent, Users } from "lucide-react";
+import { Gift, Coins, TicketPercent } from "lucide-react";
+import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { getLoyaltyImpact } from "@/lib/analytics";
 import { loyaltyTier } from "@/lib/business-rules";
@@ -112,7 +113,7 @@ export default function LoyaltyImpactPage() {
           label="Have redeemed"
           value={`${loyaltyImpact.redeemingCustomers}/${loyaltyImpact.totalCustomers}`}
           hint="customers using points"
-          icon={Users}
+          icon={UsersDuotoneIcon}
         />
       </div>
 

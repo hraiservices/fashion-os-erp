@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import type { IconComponent } from "@/components/icons/duotone-icons";
 import { cn } from "@/lib/utils";
 
 /** Consistent empty state — replaces bare "No results" table rows / muted <p> tags. */
@@ -9,7 +9,7 @@ export function EmptyState({
   action,
   className,
 }: {
-  icon?: LucideIcon;
+  icon?: IconComponent;
   title: string;
   description?: string;
   action?: React.ReactNode;

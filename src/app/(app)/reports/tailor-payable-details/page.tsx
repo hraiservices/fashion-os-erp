@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import Link from "next/link";
-import { Wallet } from "lucide-react";
+
 import { useOrders } from "@/hooks/use-orders";
 import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useActiveTailors, useTailorName } from "@/hooks/use-employees";
@@ -167,7 +168,7 @@ export default function TailorPayableDetailsPage() {
   if (!user?.perms.managePayroll) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={Wallet} title="Not available" description="Only payroll managers can view tailor payables." />
+        <EmptyState icon={WalletDuotoneIcon} title="Not available" description="Only payroll managers can view tailor payables." />
       </div>
     );
   }
@@ -264,7 +265,7 @@ export default function TailorPayableDetailsPage() {
       </p>
 
       {rows.length === 0 ? (
-        <EmptyState icon={Wallet} title="No payables in range" description="No garment with a tailor assigned falls in the selected date range/filter." />
+        <EmptyState icon={WalletDuotoneIcon} title="No payables in range" description="No garment with a tailor assigned falls in the selected date range/filter." />
       ) : (
         <>
           <div className="hidden justify-end sm:flex">

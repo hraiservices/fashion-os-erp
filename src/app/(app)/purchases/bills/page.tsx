@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Receipt, ChevronRight, Trash2, Search } from "lucide-react";
+import { Plus, ChevronRight, Trash2, Search } from "lucide-react";
+import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -115,7 +116,7 @@ export default function PurchaseBillsPage() {
         </div>
       ) : !bills || bills.length === 0 ? (
         <EmptyState
-          icon={Receipt}
+          icon={ReceiptDuotoneIcon}
           title="No bills yet"
           description="Recording a bill is what actually receives stock into your raw materials inventory."
           action={
@@ -127,7 +128,7 @@ export default function PurchaseBillsPage() {
           }
         />
       ) : filtered.length === 0 ? (
-        <EmptyState icon={Receipt} title="No matching bills" description={`No bills found for "${search}".`} />
+        <EmptyState icon={ReceiptDuotoneIcon} title="No matching bills" description={`No bills found for "${search}".`} />
       ) : (
         <div className="space-y-2">
           {canManage && filtered.length > 0 && (

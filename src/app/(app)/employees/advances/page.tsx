@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, Wallet, Banknote } from "lucide-react";
+import { ArrowLeft, Banknote } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useBulkAdvanceCandidates } from "@/hooks/use-payroll";
 import { useAddBulkAdvances } from "@/hooks/use-payroll-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -39,7 +40,7 @@ export default function WeeklyAdvancesPage() {
   if (!canManagePayroll) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={Wallet} title="No access" description="Advances are restricted to admins." />
+        <EmptyState icon={WalletDuotoneIcon} title="No access" description="Advances are restricted to admins." />
       </div>
     );
   }
@@ -114,7 +115,7 @@ export default function WeeklyAdvancesPage() {
           ))}
         </div>
       ) : !employees || employees.length === 0 ? (
-        <EmptyState icon={Wallet} title="No active employees" />
+        <EmptyState icon={WalletDuotoneIcon} title="No active employees" />
       ) : (
         <div className="divide-y overflow-hidden rounded-xl border bg-card">
           {employees.map((e) => (

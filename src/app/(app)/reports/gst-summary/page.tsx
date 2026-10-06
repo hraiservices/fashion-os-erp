@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Receipt, FileWarning } from "lucide-react";
+import { FileWarning } from "lucide-react";
+import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { GST_TYPE_LABELS, type GstType } from "@/lib/gst";
 import { inr } from "@/lib/format";
@@ -147,14 +148,14 @@ export default function GstSummaryReportPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Invoices" value={totals.invoiceCount} icon={Receipt} />
-        <StatCard label="Taxable Value" value={inr(totals.taxableValue)} icon={Receipt} />
-        <StatCard label="Total GST" value={inr(totalTax)} icon={Receipt} />
-        <StatCard label="Total Billed" value={inr(totals.taxableValue + totalTax)} icon={Receipt} />
+        <StatCard label="Invoices" value={totals.invoiceCount} icon={ReceiptDuotoneIcon} />
+        <StatCard label="Taxable Value" value={inr(totals.taxableValue)} icon={ReceiptDuotoneIcon} />
+        <StatCard label="Total GST" value={inr(totalTax)} icon={ReceiptDuotoneIcon} />
+        <StatCard label="Total Billed" value={inr(totals.taxableValue + totalTax)} icon={ReceiptDuotoneIcon} />
       </div>
 
       {groups.length === 0 ? (
-        <EmptyState icon={Receipt} title="No invoices in this period" description="Pick a different month above." />
+        <EmptyState icon={ReceiptDuotoneIcon} title="No invoices in this period" description="Pick a different month above." />
       ) : (
         <>
         <MobileRecordList>

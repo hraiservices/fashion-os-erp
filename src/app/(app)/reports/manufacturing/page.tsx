@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Factory, Wallet, TrendingDown, Layers } from "lucide-react";
+import { Factory, TrendingDown, Layers } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useWorkOrders } from "@/hooks/use-work-orders";
 import { WO_STATUS_LABELS, WO_STAGES, type WoStatus } from "@/lib/manufacturing";
 import { inr } from "@/lib/format";
@@ -108,7 +109,7 @@ export default function ManufacturingReportPage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Active Work Orders" value={statusCounts.draft + statusCounts.in_progress + statusCounts.qc} icon={Factory} />
-        <StatCard label="Production Cost" value={inr(totalProductionCost)} icon={Wallet} />
+        <StatCard label="Production Cost" value={inr(totalProductionCost)} icon={WalletDuotoneIcon} />
         <StatCard label="Wastage Cost" value={inr(totalWastageCost)} icon={TrendingDown} tone={totalWastageCost > 0 ? "warning" : "default"} />
         <StatCard label="Wastage %" value={`${wastagePct}%`} icon={Layers} tone={wastagePct > 10 ? "danger" : "default"} />
       </div>

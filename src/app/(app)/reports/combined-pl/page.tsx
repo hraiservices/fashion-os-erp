@@ -13,7 +13,8 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
-import { TrendingUp, TrendingDown, Wallet, Receipt } from "lucide-react";
+import { TrendingDown } from "lucide-react";
+import { ReceiptDuotoneIcon, TrendUpDuotoneIcon, WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange } from "@/lib/report-date-range";
 import { useTableSort } from "@/hooks/use-table-sort";
@@ -93,7 +94,7 @@ export default function CombinedPlPage() {
   if (user && !user.perms.viewFinancialReports) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={Wallet} title="No access" description="Combined P&L is restricted to admins." />
+        <EmptyState icon={WalletDuotoneIcon} title="No access" description="Combined P&L is restricted to admins." />
       </div>
     );
   }
@@ -147,10 +148,10 @@ export default function CombinedPlPage() {
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Total Revenue" value={inr(totals.revenue)} icon={TrendingUp} tone="success" />
+        <StatCard label="Total Revenue" value={inr(totals.revenue)} icon={TrendUpDuotoneIcon} tone="success" />
         <StatCard label="Total Cost" value={inr(totals.cost)} icon={TrendingDown} tone="danger" />
-        <StatCard label="Net Profit" value={inr(totals.net)} icon={Wallet} tone={totals.net >= 0 ? "success" : "danger"} />
-        <StatCard label="Margin" value={totals.revenue > 0 ? `${Math.round((totals.net / totals.revenue) * 100)}%` : "—"} icon={Receipt} />
+        <StatCard label="Net Profit" value={inr(totals.net)} icon={WalletDuotoneIcon} tone={totals.net >= 0 ? "success" : "danger"} />
+        <StatCard label="Margin" value={totals.revenue > 0 ? `${Math.round((totals.net / totals.revenue) * 100)}%` : "—"} icon={ReceiptDuotoneIcon} />
       </div>
 
       <ReportCard className="p-4">

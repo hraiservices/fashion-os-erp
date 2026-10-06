@@ -3,7 +3,8 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, Wallet, CheckCircle2, Trash2, FileDown, PencilLine, MessageCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Trash2, FileDown, PencilLine, MessageCircle } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePayrollRun, usePayslipsForRun } from "@/hooks/use-payroll";
 import { useFinalizePayrollRun, useMarkPayslipPaid, useDeletePayrollRun, useAdjustPayslip } from "@/hooks/use-payroll-mutations";
 import { useEmployees } from "@/hooks/use-employees";
@@ -145,7 +146,7 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
   if (!run) {
     return (
       <div className="p-6">
-        <EmptyState icon={Wallet} title="Payroll run not found" />
+        <EmptyState icon={WalletDuotoneIcon} title="Payroll run not found" />
       </div>
     );
   }
@@ -189,7 +190,7 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
       />
 
       {!payslips || payslips.length === 0 ? (
-        <EmptyState icon={Wallet} title="No payslips" description="No active employees at the time this run was generated." />
+        <EmptyState icon={WalletDuotoneIcon} title="No payslips" description="No active employees at the time this run was generated." />
       ) : (
         <div className="overflow-hidden rounded-xl border">
           <div className="hidden justify-end p-2 pb-0 sm:flex">

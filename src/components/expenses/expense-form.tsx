@@ -6,7 +6,8 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, Receipt, User2, Briefcase, FileText, Save } from "lucide-react";
+import { ArrowLeft, User2, Briefcase, FileText, Save } from "lucide-react";
+import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import Link from "next/link";
 import { useCreateExpense, useUpdateExpense } from "@/hooks/use-expenses";
 import { useEmployees } from "@/hooks/use-employees";
@@ -138,7 +139,7 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
       <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 space-y-5">
         {/* Expense details */}
         <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
-          <SectionHeading icon={Receipt} label="Expense details" />
+          <SectionHeading icon={ReceiptDuotoneIcon} label="Expense details" />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FieldGroup label="Date" required error={errors.date?.message}>
               <Controller control={control} name="date" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} />} />

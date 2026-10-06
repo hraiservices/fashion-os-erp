@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
+import type { IconComponent } from "@/components/icons/duotone-icons";
 import { cn } from "@/lib/utils";
 
 /** Glanceable KPI tile. Tone conveys urgency without relying on colour alone (icon + label carry meaning too). */
@@ -24,7 +24,7 @@ export function StatCard({
   label: string;
   value: string | number;
   hint?: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   tone?: StatTone;
   href?: string;
   /** Optional collected/settled-vs-total readout — percent (0-100) of the underlying total

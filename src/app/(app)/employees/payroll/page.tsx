@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Wallet, Plus, ChevronRight } from "lucide-react";
+import { ArrowLeft, Plus, ChevronRight } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePayrollRuns } from "@/hooks/use-payroll";
 import { useRunPayroll } from "@/hooks/use-payroll-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -51,7 +52,7 @@ export default function PayrollRunsPage() {
   if (!canManagePayroll) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={Wallet} title="No access" description="Payroll is restricted to admins." />
+        <EmptyState icon={WalletDuotoneIcon} title="No access" description="Payroll is restricted to admins." />
       </div>
     );
   }
@@ -78,7 +79,7 @@ export default function PayrollRunsPage() {
           ))}
         </div>
       ) : !runs || runs.length === 0 ? (
-        <EmptyState icon={Wallet} title="No payroll runs yet" description="Click 'Run Payroll' to generate payslips for a pay period." />
+        <EmptyState icon={WalletDuotoneIcon} title="No payroll runs yet" description="Click 'Run Payroll' to generate payslips for a pay period." />
       ) : (
         <div className="space-y-2">
           {runs.map((r) => (

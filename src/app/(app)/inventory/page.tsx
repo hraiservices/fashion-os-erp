@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { Package, ShoppingBag, AlertTriangle, Boxes } from "lucide-react";
+import { Package, Boxes } from "lucide-react";
+import { ShoppingBagDuotoneIcon, WarningDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useProducts } from "@/hooks/use-products";
 import { isLowStock } from "@/lib/inventory";
@@ -44,15 +45,15 @@ export default function InventoryOverviewPage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Raw Materials" value={rawMaterials?.length ?? 0} icon={Package} href="/inventory/raw-materials" />
-        <StatCard label="Products" value={products?.length ?? 0} icon={ShoppingBag} href="/inventory/products" />
+        <StatCard label="Products" value={products?.length ?? 0} icon={ShoppingBagDuotoneIcon} href="/inventory/products" />
         <StatCard label="Inventory Value" value={inr(rawMaterialValue + finishedGoodsValue)} icon={Boxes} />
-        <StatCard label="Low Stock Items" value={lowStockCount} icon={AlertTriangle} tone={lowStockCount > 0 ? "warning" : "default"} />
+        <StatCard label="Low Stock Items" value={lowStockCount} icon={WarningDuotoneIcon} tone={lowStockCount > 0 ? "warning" : "default"} />
       </div>
 
       <div>
         <h2 className="mb-2 text-sm font-semibold">Low stock alerts</h2>
         {lowStockCount === 0 ? (
-          <EmptyState icon={AlertTriangle} title="Nothing low on stock" description="All raw materials and products are above their alert thresholds." />
+          <EmptyState icon={WarningDuotoneIcon} title="Nothing low on stock" description="All raw materials and products are above their alert thresholds." />
         ) : (
           <div className="space-y-2">
             {lowStockMaterials.map((m) => (

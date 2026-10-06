@@ -4,7 +4,8 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ArrowLeft, ChevronRight, Mail, MapPin, Cake, Heart, ShoppingBag, FileText, Ticket, Shirt, Wallet } from "lucide-react";
+import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ArrowLeft, ChevronRight, Mail, MapPin, Cake, Heart, FileText, Ticket, Shirt, Wallet } from "lucide-react";
+import { ReceiptDuotoneIcon, ShoppingBagDuotoneIcon, WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -85,7 +86,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   if (!cust) {
     return (
       <div className="p-6">
-        <EmptyState icon={Receipt} title="Customer not found" action={<Button nativeButton={false} render={<Link href="/crm" />}>Back to customers</Button>} />
+        <EmptyState icon={ReceiptDuotoneIcon} title="Customer not found" action={<Button nativeButton={false} render={<Link href="/crm" />}>Back to customers</Button>} />
       </div>
     );
   }
@@ -389,7 +390,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           {totalPaid > 0 && <span className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{inr(totalPaid)}</span>}
         </div>
         {paymentRows.length === 0 ? (
-          <EmptyState icon={Wallet} title="No payments recorded yet" className="border-0" />
+          <EmptyState icon={WalletDuotoneIcon} title="No payments recorded yet" className="border-0" />
         ) : (
           <ul className="divide-y">
             {paymentRows.map((p) => (
@@ -432,9 +433,9 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           <p className="text-xs text-muted-foreground">Everything this customer has had stitched with us.</p>
         </div>
         {custOrders.length === 0 ? (
-          <EmptyState icon={Receipt} title="No orders yet" className="border-0" />
+          <EmptyState icon={ReceiptDuotoneIcon} title="No orders yet" className="border-0" />
         ) : filteredHistoryOrders.length === 0 ? (
-          <EmptyState icon={Receipt} title={historyFilter === "alteration" ? "No alterations yet" : "No stitching orders yet"} className="border-0" />
+          <EmptyState icon={ReceiptDuotoneIcon} title={historyFilter === "alteration" ? "No alterations yet" : "No stitching orders yet"} className="border-0" />
         ) : (
           <ul className="divide-y">
             {filteredHistoryOrders.map((o) => (
@@ -475,7 +476,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           {salesDue > 0 && <BalanceDue amount={salesDue} suffix=" due" paidLabel="" className="text-xs" />}
         </div>
         {custInvoices.length === 0 ? (
-          <EmptyState icon={ShoppingBag} title="No product sales invoices yet" description="Products bought by this customer will appear here." className="border-0" />
+          <EmptyState icon={ShoppingBagDuotoneIcon} title="No product sales invoices yet" description="Products bought by this customer will appear here." className="border-0" />
         ) : (
           <ul className="divide-y">
             {custInvoices.map((inv) => (

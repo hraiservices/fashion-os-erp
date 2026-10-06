@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Wallet, FileDown, Search } from "lucide-react";
+import { FileDown, Search } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useEmployees } from "@/hooks/use-employees";
 import { usePayrollRuns, useAllPayslips } from "@/hooks/use-payroll";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -97,7 +98,7 @@ export default function PayrollSummaryReportPage() {
   if (!canManagePayroll) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={Wallet} title="No access" description="Payroll reports are restricted to admins." />
+        <EmptyState icon={WalletDuotoneIcon} title="No access" description="Payroll reports are restricted to admins." />
       </div>
     );
   }
@@ -160,7 +161,7 @@ export default function PayrollSummaryReportPage() {
 
       {rows.length === 0 ? (
         <EmptyState
-          icon={Wallet}
+          icon={WalletDuotoneIcon}
           title={search ? "No matching payslips" : "No payslips yet"}
           description={search ? `No payslips found for "${search}".` : "Run payroll from Employees → Payroll to see salary history here."}
         />

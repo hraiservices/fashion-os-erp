@@ -5,16 +5,12 @@ import Link from "next/link";
 import {
   TrendingUp,
   TrendingDown,
-  Wallet,
-  Receipt,
   RotateCcw,
   Banknote,
   ChevronLeft,
   ChevronRight,
   CalendarDays,
-  FileText,
   ShoppingCart,
-  Users,
   Clock,
   Activity as ActivityIcon,
   ArrowUpDown,
@@ -22,6 +18,7 @@ import {
   Scissors,
   CheckCircle2,
 } from "lucide-react";
+import { FileTextDuotoneIcon, ReceiptDuotoneIcon, UsersDuotoneIcon, WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDayBook } from "@/hooks/use-day-book";
 import { DAY_BOOK_MODULE_ICONS, DAY_BOOK_MODULE_LABELS, fmtTime, type DayBookEntry, type DayBookModule, type TailorStageOrder } from "@/lib/day-book";
@@ -219,10 +216,10 @@ export default function DayBookPage() {
         <>
           {/* Financial KPIs */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <StatCard label="Sales" value={inr(data.totals.sales)} icon={Receipt} tone="default" />
+            <StatCard label="Sales" value={inr(data.totals.sales)} icon={ReceiptDuotoneIcon} tone="default" />
             <StatCard label="Payments Received" value={inr(data.totals.payments)} icon={Banknote} tone="success" />
             <StatCard label="Purchases" value={inr(data.totals.purchases)} icon={ShoppingCart} tone="default" />
-            <StatCard label="Expenses" value={inr(data.totals.expenses)} icon={Wallet} tone="danger" />
+            <StatCard label="Expenses" value={inr(data.totals.expenses)} icon={WalletDuotoneIcon} tone="danger" />
             <StatCard label="Refunds" value={inr(data.totals.refunds)} icon={RotateCcw} tone="warning" />
             {canViewProfit && (
               <StatCard label="Profit" value={inr(data.totals.profit)} icon={data.totals.profit >= 0 ? TrendingUp : TrendingDown} tone={data.totals.profit >= 0 ? "success" : "danger"} />
@@ -235,17 +232,17 @@ export default function DayBookPage() {
           {canViewProfit && (data.totals.stitchingRevenue > 0 || data.totals.stitchingCost > 0) && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               <StatCard label="Stitching Revenue" value={inr(data.totals.stitchingRevenue)} icon={Scissors} tone="default" />
-              <StatCard label="Stitching Cost" value={inr(data.totals.stitchingCost)} icon={Wallet} tone="danger" />
-              {data.totals.laborCost > 0 && <StatCard label="Mfg Labor" value={inr(data.totals.laborCost)} icon={Wallet} tone="danger" />}
-              {data.totals.salariesCost > 0 && <StatCard label="Salaries" value={inr(data.totals.salariesCost)} icon={Wallet} tone="danger" />}
+              <StatCard label="Stitching Cost" value={inr(data.totals.stitchingCost)} icon={WalletDuotoneIcon} tone="danger" />
+              {data.totals.laborCost > 0 && <StatCard label="Mfg Labor" value={inr(data.totals.laborCost)} icon={WalletDuotoneIcon} tone="danger" />}
+              {data.totals.salariesCost > 0 && <StatCard label="Salaries" value={inr(data.totals.salariesCost)} icon={WalletDuotoneIcon} tone="danger" />}
             </div>
           )}
 
           {/* Operational KPIs */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            <StatCard label="Invoices Created" value={data.totals.invoicesCreated} icon={FileText} />
-            <StatCard label="Orders Created" value={data.totals.ordersCreated} icon={Receipt} />
-            <StatCard label="Customers Added" value={data.totals.customersAdded} icon={Users} />
+            <StatCard label="Invoices Created" value={data.totals.invoicesCreated} icon={FileTextDuotoneIcon} />
+            <StatCard label="Orders Created" value={data.totals.ordersCreated} icon={ReceiptDuotoneIcon} />
+            <StatCard label="Customers Added" value={data.totals.customersAdded} icon={UsersDuotoneIcon} />
             <StatCard label="Attendance Events" value={data.totals.attendanceEvents} icon={Clock} />
             <StatCard label="Total Activities" value={data.totals.totalActivities} icon={ActivityIcon} />
           </div>

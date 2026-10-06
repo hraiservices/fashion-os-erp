@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, Wallet, AlertTriangle } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useSalesInvoice, useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useRecordSalesPayment } from "@/hooks/use-sales-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -88,7 +89,7 @@ export default function RecordSalesPaymentPage({ params }: { params: Promise<{ i
   if (!user?.perms.managePayments) {
     return (
       <div className="mx-auto max-w-6xl p-4 sm:p-6">
-        <EmptyState icon={Wallet} title="Not available" description="Only users with payment permissions can record a payment." />
+        <EmptyState icon={WalletDuotoneIcon} title="Not available" description="Only users with payment permissions can record a payment." />
       </div>
     );
   }

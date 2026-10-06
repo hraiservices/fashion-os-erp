@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useExpenses } from "@/hooks/use-expenses";
@@ -13,7 +14,7 @@ import { ReportShell, ReportCard, ReportTable, ReportTotalsRow, Th, Td } from "@
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Wallet } from "lucide-react";
+
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -64,7 +65,7 @@ export default function SalesPnlPage() {
   if (user && !user.perms.viewFinancialReports) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={Wallet} title="No access" description="Product Sales P&L is restricted to admins." />
+        <EmptyState icon={WalletDuotoneIcon} title="No access" description="Product Sales P&L is restricted to admins." />
       </div>
     );
   }

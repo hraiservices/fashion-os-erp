@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useExpenses } from "@/hooks/use-expenses";
 import { inr, inrCompact } from "@/lib/format";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Wallet } from "lucide-react";
+
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 const DONUT_COLORS = ["#0ea5e9", "#f97316", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4"];
@@ -32,7 +33,7 @@ export function TopExpensesWidget() {
         <span className="text-xs text-muted-foreground">View all</span>
       </div>
       {topExp.length === 0 ? (
-        <EmptyState icon={Wallet} title="No expenses yet" className="border-0 py-8" />
+        <EmptyState icon={WalletDuotoneIcon} title="No expenses yet" className="border-0 py-8" />
       ) : (
         // Stacked below `sm` — side-by-side on a ~350px mobile card left only ~140px for the
         // legend, which is what was clipping category names ("S..", "T...") and the total

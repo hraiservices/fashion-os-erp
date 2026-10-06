@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
+import { WarningDuotoneIcon } from "@/components/icons/duotone-icons";
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useEmployees } from "@/hooks/use-employees";
 import { useShopSettings } from "@/hooks/use-shop-settings";
@@ -123,14 +124,14 @@ export default function OverdueOrdersPage() {
       }
     >
       {overdue.length === 0 ? (
-        <EmptyState icon={AlertTriangle} title="Nothing overdue" description="Every in-production order is still within its delivery date." />
+        <EmptyState icon={WarningDuotoneIcon} title="Nothing overdue" description="Every in-production order is still within its delivery date." />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatCard label="Overdue orders" value={overdue.length} icon={AlertTriangle} tone="danger" />
-            <StatCard label="Worst delay" value={`${worstDaysLate} day${worstDaysLate === 1 ? "" : "s"}`} icon={AlertTriangle} tone="danger" />
+            <StatCard label="Overdue orders" value={overdue.length} icon={WarningDuotoneIcon} tone="danger" />
+            <StatCard label="Worst delay" value={`${worstDaysLate} day${worstDaysLate === 1 ? "" : "s"}`} icon={WarningDuotoneIcon} tone="danger" />
             {byStage.map((s) => (
-              <StatCard key={s.stage} label={`Stuck in ${s.label}`} value={s.count} icon={AlertTriangle} />
+              <StatCard key={s.stage} label={`Stuck in ${s.label}`} value={s.count} icon={WarningDuotoneIcon} />
             ))}
           </div>
 

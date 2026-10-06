@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Users } from "lucide-react";
+import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
+
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useTailorName } from "@/hooks/use-employees";
 import { getStaffEfficiency } from "@/lib/analytics";
@@ -98,7 +99,7 @@ export default function StaffEfficiencyPage() {
       />
 
       {staffEff.length === 0 ? (
-        <EmptyState icon={Users} title="No staff data yet" description="Assign tailors to orders to see efficiency here." />
+        <EmptyState icon={UsersDuotoneIcon} title="No staff data yet" description="Assign tailors to orders to see efficiency here." />
       ) : (
         <>
           <div className="hidden sm:block">

@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Receipt, Search, ArrowUpDown, Copy, Upload, Wallet, Send, Trash2 } from "lucide-react";
+import { Plus, Search, ArrowUpDown, Copy, Upload, Wallet, Send, Trash2 } from "lucide-react";
+import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useSalesInvoices, type SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
 import { useSalesQuotations } from "@/hooks/use-sales-quotations";
@@ -262,10 +263,10 @@ export default function SalesInvoicesPage() {
         <Skeleton className="h-24 w-full" />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Total Outstanding" value={inr(summary.totalOutstanding)} icon={Receipt} tone={summary.totalOutstanding > 0 ? "warning" : "default"} />
-          <StatCard label="Due Within 30 Days" value={inr(summary.dueWithin30)} icon={Receipt} />
-          <StatCard label="Overdue" value={inr(summary.overdue)} icon={Receipt} tone={summary.overdue > 0 ? "danger" : "default"} />
-          <StatCard label="Avg. Days to Get Paid" value={summary.avgDaysToPay != null ? `${summary.avgDaysToPay}d` : "—"} icon={Receipt} />
+          <StatCard label="Total Outstanding" value={inr(summary.totalOutstanding)} icon={ReceiptDuotoneIcon} tone={summary.totalOutstanding > 0 ? "warning" : "default"} />
+          <StatCard label="Due Within 30 Days" value={inr(summary.dueWithin30)} icon={ReceiptDuotoneIcon} />
+          <StatCard label="Overdue" value={inr(summary.overdue)} icon={ReceiptDuotoneIcon} tone={summary.overdue > 0 ? "danger" : "default"} />
+          <StatCard label="Avg. Days to Get Paid" value={summary.avgDaysToPay != null ? `${summary.avgDaysToPay}d` : "—"} icon={ReceiptDuotoneIcon} />
         </div>
       )}
 
@@ -313,7 +314,7 @@ export default function SalesInvoicesPage() {
         // empty-state message could read as "customer owes nothing" when the real answer is
         // "we don't know," which matters a lot more here than on most list pages.
         <EmptyState
-          icon={Receipt}
+          icon={ReceiptDuotoneIcon}
           title="Couldn't load invoices"
           description="Something went wrong fetching your invoices — this is not the same as having none."
           action={
@@ -324,7 +325,7 @@ export default function SalesInvoicesPage() {
         />
       ) : !invoices || invoices.length === 0 ? (
         <EmptyState
-          icon={Receipt}
+          icon={ReceiptDuotoneIcon}
           title="No invoices yet"
           description="Creating an invoice is what deducts sold products from your finished-goods inventory."
           action={

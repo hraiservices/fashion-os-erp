@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { ArrowRight, AlertTriangle } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { WarningDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useOrders } from "@/hooks/use-orders";
 import { getOverdueInProduction } from "@/lib/analytics";
 import { StageBadge } from "@/components/orders/stage-badge";
@@ -35,7 +36,7 @@ export function OverdueOrdersWidget() {
       </div>
 
       {overdue.length === 0 ? (
-        <EmptyState icon={AlertTriangle} title="Nothing overdue" description="Every in-production order is still within its delivery date." className="border-0 flex-1" />
+        <EmptyState icon={WarningDuotoneIcon} title="Nothing overdue" description="Every in-production order is still within its delivery date." className="border-0 flex-1" />
       ) : (
         <ul className="flex-1 divide-y overflow-y-auto rounded-lg border">
           {overdue.slice(0, MAX_ROWS).map((o) => (

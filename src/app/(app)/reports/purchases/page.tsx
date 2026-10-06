@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Truck, Receipt, AlertTriangle, Wallet, ChevronRight, Package, FileMinus, Clock } from "lucide-react";
+import { ReceiptDuotoneIcon, WalletDuotoneIcon, WarningDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { daysLeft } from "@/lib/business-rules";
 import { purchaseItemType, type PurchaseItemType } from "@/lib/purchases";
@@ -102,10 +103,10 @@ export default function PayableSummaryPage() {
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Total Billed" value={inr(totalBilled)} icon={Receipt} />
-        <StatCard label="Total Payable" value={inr(totalPayable)} icon={Wallet} tone={totalPayable > 0 ? "warning" : "default"} />
+        <StatCard label="Total Billed" value={inr(totalBilled)} icon={ReceiptDuotoneIcon} />
+        <StatCard label="Total Payable" value={inr(totalPayable)} icon={WalletDuotoneIcon} tone={totalPayable > 0 ? "warning" : "default"} />
         <StatCard label="GST Paid" value={inr(totalGst)} icon={Truck} />
-        <StatCard label="Overdue Bills" value={overdueCount} icon={AlertTriangle} tone={overdueCount > 0 ? "danger" : "default"} />
+        <StatCard label="Overdue Bills" value={overdueCount} icon={WarningDuotoneIcon} tone={overdueCount > 0 ? "danger" : "default"} />
       </div>
 
       <div>

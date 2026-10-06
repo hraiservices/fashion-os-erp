@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Users } from "lucide-react";
+import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
+
 import { useReportsData } from "@/hooks/use-reports-data";
 import { getCustomerLifetime } from "@/lib/analytics";
 import { inr } from "@/lib/format";
@@ -115,7 +116,7 @@ export default function CustomerLifetimePage() {
       />
 
       {clvData.length === 0 ? (
-        <EmptyState icon={Users} title="No customer data yet" />
+        <EmptyState icon={UsersDuotoneIcon} title="No customer data yet" />
       ) : (
         <>
           <div className="hidden sm:block">

@@ -6,7 +6,8 @@ import { useSalesInvoice } from "@/hooks/use-sales-invoices";
 import { InvoiceForm } from "@/components/sales/invoice-form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ArrowLeft, Receipt } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 
 export default function EditInvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -18,7 +19,7 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
         <ArrowLeft className="size-4" /> Invoices
       </Link>
       <h1 className="text-xl font-semibold">Edit invoice</h1>
-      {isLoading ? <Skeleton className="h-96 w-full" /> : !invoice ? <EmptyState icon={Receipt} title="Invoice not found" /> : <InvoiceForm existing={invoice} />}
+      {isLoading ? <Skeleton className="h-96 w-full" /> : !invoice ? <EmptyState icon={ReceiptDuotoneIcon} title="Invoice not found" /> : <InvoiceForm existing={invoice} />}
     </div>
   );
 }

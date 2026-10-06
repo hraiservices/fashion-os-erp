@@ -4,7 +4,8 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Receipt, Wallet, Undo2, Trash2, Pencil, Send, Download, Copy, Link2, Printer } from "lucide-react";
+import { ArrowLeft, Wallet, Undo2, Trash2, Pencil, Send, Download, Copy, Link2, Printer } from "lucide-react";
+import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { printThermalReceipt } from "@/lib/thermal-receipt";
 import { useSalesInvoice } from "@/hooks/use-sales-invoices";
 import { useSalesPaymentsForInvoice } from "@/hooks/use-sales-payments";
@@ -127,7 +128,7 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
   if (!invoice) {
     return (
       <div className="p-6">
-        <EmptyState icon={Receipt} title="Invoice not found" />
+        <EmptyState icon={ReceiptDuotoneIcon} title="Invoice not found" />
       </div>
     );
   }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Plus, Search, ShoppingBag, Pencil, Trash2, AlertTriangle, Printer, Upload, Archive, ArchiveRestore } from "lucide-react";
+import { ShoppingBagDuotoneIcon } from "@/components/icons/duotone-icons";
 import { printBarcodeLabel } from "@/lib/barcode";
 import { useProducts } from "@/hooks/use-products";
 import { useDeleteProduct, useBulkDeleteProducts, useQuickUpdateProduct, useArchiveProduct } from "@/hooks/use-inventory-mutations";
@@ -216,7 +217,7 @@ function ProductsPageContent() {
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState
-          icon={ShoppingBag}
+          icon={ShoppingBagDuotoneIcon}
           title="No products yet"
           description="Add the finished goods you sell — sizes, styles, SKUs — and link their bill of materials."
           action={

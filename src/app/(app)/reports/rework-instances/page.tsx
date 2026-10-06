@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { RotateCcw, CheckCircle2, AlertTriangle } from "lucide-react";
+import { RotateCcw, CheckCircle2 } from "lucide-react";
+import { WarningDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useReworkInstances, type ReworkInstanceRow } from "@/hooks/use-rework-instances";
 import { useTableSort } from "@/hooks/use-table-sort";
 import { useReportDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
@@ -129,7 +130,7 @@ export default function ReworkInstancesPage() {
         <>
           <div className="grid grid-cols-3 gap-3">
             <StatCard label="Rework instances" value={rows.length} icon={RotateCcw} />
-            <StatCard label="Still open" value={openCount} icon={AlertTriangle} tone={openCount > 0 ? "danger" : "default"} />
+            <StatCard label="Still open" value={openCount} icon={WarningDuotoneIcon} tone={openCount > 0 ? "danger" : "default"} />
             <StatCard label="Orders affected" value={distinctOrders} icon={CheckCircle2} />
           </div>
 

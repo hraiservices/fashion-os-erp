@@ -3,7 +3,8 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Menu, Plus, ClipboardList, Receipt, Wallet, UserPlus, Sparkles, X, CreditCard } from "lucide-react";
+import { Menu, ClipboardList, Receipt, Wallet, UserPlus, Sparkles, X, CreditCard } from "lucide-react";
+import { PlusGlyphIcon } from "@/components/icons/duotone-icons";
 import { cn } from "@/lib/utils";
 import {
   MOBILE_TABS_ADMIN_LEFT,
@@ -193,7 +194,7 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
           onClick={() => setCreateOpen(true)}
           className="relative -top-3 mx-1 flex size-12 shrink-0 items-center justify-center self-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-transform active:scale-95"
         >
-          <Plus className="size-6" />
+          <PlusGlyphIcon className="size-6" />
         </button>
       )}
       {restricted ? (

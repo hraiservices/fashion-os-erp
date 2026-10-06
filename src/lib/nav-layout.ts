@@ -16,7 +16,7 @@
 // Anything new added to NAV_CONFIG later (a new report, a new group) that isn't yet
 // mentioned in a saved layout is appended at the end automatically — old saved layouts
 // never hide new items by accident.
-import type { LucideIcon } from "lucide-react";
+import type { IconComponent } from "@/components/app-shell/nav-config";
 import {
   PRIMARY_NAV,
   SECONDARY_NAV,
@@ -83,7 +83,7 @@ export function findLeafAnywhere(href: string): NavLeaf | undefined {
 
 export interface RootMeta {
   label: string;
-  icon: LucideIcon;
+  icon: IconComponent;
 }
 
 /** Label/icon for a root id (flat href or `group:<id>`) — for the admin editor, which doesn't otherwise know what an id refers to. */

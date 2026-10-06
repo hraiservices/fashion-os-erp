@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BalanceDue, PaidAmount } from "@/components/ui/money-text";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader } from "@/components/ui/mobile-record-list";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { PrintButton } from "@/components/ui/print-button";
 import { RaiseSalesCreditDialog } from "@/components/sales/raise-sales-credit-dialog";
@@ -162,7 +163,11 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         {/* Main column: line items, terms, payments, credits, notes */}
         <div className="space-y-4 lg:col-span-2">
-          <div className="overflow-x-auto rounded-xl border">
+          {/* Line items — a bare 5-column table forced horizontal scroll on mobile with no
+           *  alternative; the totals below stay a single always-visible table since colSpan
+           *  already collapses them to an effective 2 columns (label/amount) that fits a phone
+           *  screen fine as-is. */}
+          <div className="hidden overflow-x-auto rounded-xl border sm:block">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/40">
                 <tr>
@@ -184,6 +189,23 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
                   </tr>
                 ))}
               </tbody>
+            </table>
+          </div>
+
+          <MobileRecordList>
+            {invoice.items.map((item, i) => (
+              <MobileRecordCard key={i}>
+                <MobileRecordHeader title={item.productName} value={inr(item.amount)} showChevron={false} />
+                <p className="text-xs text-muted-foreground">
+                  Qty {item.qty} × {inr(item.unitPrice)}
+                  {item.discountPercent > 0 && ` · ${item.discountPercent}% off`}
+                </p>
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
+
+          <div className="overflow-x-auto rounded-xl border">
+            <table className="w-full text-sm">
               <tfoot>
                 {invoice.discountValue > 0 && (
                   <tr className="border-t bg-muted/30">

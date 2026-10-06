@@ -245,17 +245,15 @@ export default function CombinedPlPage() {
             showChevron={false}
           />
           <MobileRecordGrid
-            columns={3}
             items={[
               { label: "Stitching Rev", value: inr(columnTotals.stitchingRevenue) },
               { label: "Product Sales Rev", value: inr(columnTotals.salesRevenue) },
-              { label: "Purchases", value: inr(columnTotals.purchaseCost) },
-              { label: "Stitching Cost", value: inr(columnTotals.stitchingCost) },
-              { label: "Mfg Labor", value: inr(columnTotals.laborCost) },
-              { label: "Expenses", value: inr(columnTotals.expenseCost) },
-              { label: "Salaries", value: inr(columnTotals.payrollCost) },
             ]}
           />
+          <p className="border-t pt-1.5 text-xs text-muted-foreground">
+            Purchases {inr(columnTotals.purchaseCost)} · Stitching {inr(columnTotals.stitchingCost)} · Mfg Labor {inr(columnTotals.laborCost)} · Expenses {inr(columnTotals.expenseCost)} · Salaries{" "}
+            {inr(columnTotals.payrollCost)}
+          </p>
         </MobileRecordCard>
         {sortedMonthly.map((m) => (
           <MobileRecordCard key={m.month}>
@@ -265,18 +263,18 @@ export default function CombinedPlPage() {
               valueClassName={m.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
               showChevron={false}
             />
+            {/* Revenue kept as the grid (what a glance actually needs); the 5 cost categories —
+             *  all already muted-colored, i.e. secondary — fold into one line instead of filling
+             *  out a 7-cell 3-col grid. */}
             <MobileRecordGrid
-              columns={3}
               items={[
                 { label: "Stitching Rev", value: inr(m.stitchingRevenue) },
                 { label: "Product Sales Rev", value: inr(m.salesRevenue) },
-                { label: "Purchases", value: inr(m.purchaseCost), valueClassName: "text-muted-foreground" },
-                { label: "Stitching Cost", value: inr(m.stitchingCost), valueClassName: "text-muted-foreground" },
-                { label: "Mfg Labor", value: inr(m.laborCost), valueClassName: "text-muted-foreground" },
-                { label: "Expenses", value: inr(m.expenseCost), valueClassName: "text-muted-foreground" },
-                { label: "Salaries", value: inr(m.payrollCost), valueClassName: "text-muted-foreground" },
               ]}
             />
+            <p className="border-t pt-1.5 text-xs text-muted-foreground">
+              Purchases {inr(m.purchaseCost)} · Stitching {inr(m.stitchingCost)} · Mfg Labor {inr(m.laborCost)} · Expenses {inr(m.expenseCost)} · Salaries {inr(m.payrollCost)}
+            </p>
           </MobileRecordCard>
         ))}
       </MobileRecordList>

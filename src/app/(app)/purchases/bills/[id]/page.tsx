@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { PaidAmount, BalanceDue } from "@/components/ui/money-text";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader } from "@/components/ui/mobile-record-list";
 import { RecordVendorPaymentDialog } from "@/components/purchases/record-vendor-payment-dialog";
 import { RaiseVendorCreditDialog } from "@/components/purchases/raise-vendor-credit-dialog";
 import {
@@ -98,7 +99,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
 
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         <div className="space-y-4 lg:col-span-2">
-          <div className="overflow-x-auto rounded-xl border">
+          <div className="hidden overflow-x-auto rounded-xl border sm:block">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/40">
                 <tr>
@@ -120,6 +121,22 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
                   </tr>
                 ))}
               </tbody>
+            </table>
+          </div>
+
+          <MobileRecordList>
+            {bill.items.map((item, i) => (
+              <MobileRecordCard key={i}>
+                <MobileRecordHeader title={purchaseItemName(item)} value={inr(item.amount)} showChevron={false} />
+                <p className="text-xs text-muted-foreground">
+                  {item.qty} {item.unitName} × {inr(item.unitCost)}
+                </p>
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
+
+          <div className="overflow-x-auto rounded-xl border">
+            <table className="w-full text-sm">
               <tfoot>
                 <tr className="border-t bg-muted/30">
                   <td className="p-2 text-muted-foreground" colSpan={3}>

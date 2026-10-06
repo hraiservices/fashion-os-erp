@@ -12,7 +12,7 @@ import { useShopSettings } from "@/hooks/use-shop-settings";
 import { normalizeIndianMobile } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
-import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
@@ -250,23 +250,24 @@ export default function CustomerBalancesPage() {
               <MobileRecordCard key={r.mobile} onClick={() => router.push(`/crm/${r.mobile}`)}>
                 <MobileRecordHeader
                   title={r.name || "—"}
+                  subtitle={r.mobile}
                   value={r.totalDue > 0 ? <BalanceDue amount={r.totalDue} /> : "—"}
                   valueClassName="font-semibold"
                 />
-                <MobileRecordRow label="Mobile" value={r.mobile} />
+                {/* Mobile number folded into the header subtitle (was its own row), and
+                 *  Orders/Invoices combined into one grid cell — was a separate Mobile row plus a
+                 *  5-item 3-col grid plus this action row, same over-stacked-card problem the
+                 *  Payroll Summary payslip card had. */}
                 <MobileRecordGrid
-                  columns={3}
                   items={[
-                    { label: "Orders", value: r.orderCount },
-                    { label: "Invoices", value: r.invoiceCount },
+                    { label: "Orders · Invoices", value: `${r.orderCount} · ${r.invoiceCount}` },
+                    { label: "Lifetime", value: inr(r.lifetime), valueClassName: "text-muted-foreground" },
                     { label: "Stitch Due", value: r.stitchDue > 0 ? inr(r.stitchDue) : "—" },
                     { label: "Product Sales Due", value: r.salesDue > 0 ? inr(r.salesDue) : "—" },
-                    { label: "Lifetime", value: inr(r.lifetime), valueClassName: "text-muted-foreground" },
                   ]}
                 />
                 {r.totalDue > 0 && (
-                  <div className="flex items-center justify-between border-t pt-1.5 text-xs" onClick={(e) => e.stopPropagation()}>
-                    <span className="text-muted-foreground">Actions</span>
+                  <div className="flex justify-end border-t pt-1.5" onClick={(e) => e.stopPropagation()}>
                     <WhatsAppIconButton href={reminderUrl(r.name, r.mobile, r.totalDue)} label={`Payment reminder to ${r.name || r.mobile}`} tone="reminder" />
                   </div>
                 )}

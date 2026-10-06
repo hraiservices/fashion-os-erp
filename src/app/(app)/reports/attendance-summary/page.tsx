@@ -211,12 +211,13 @@ export default function AttendanceSummaryReportPage() {
                   { label: "Absent", value: totals.absentDays },
                   { label: "Half Day", value: totals.halfDays },
                   { label: "Leave", value: totals.leaveDays },
-                  { label: "Days Marked", value: totals.markedDays },
-                  { label: "Hours Worked", value: totals.hoursWorked > 0 ? `${totals.hoursWorked}h` : "—" },
-                  { label: "Overtime", value: totals.overtimeHours > 0 ? `${totals.overtimeHours}h` : "—" },
-                  { label: "Flagged", value: totals.flaggedDays },
                 ]}
               />
+              <p className="border-t pt-1.5 text-xs text-muted-foreground">
+                {totals.markedDays}d marked · {totals.hoursWorked > 0 ? `${totals.hoursWorked}h worked` : "no hours logged"}
+                {totals.overtimeHours > 0 && ` · ${totals.overtimeHours}h OT`}
+                {totals.flaggedDays > 0 && <span className="font-medium text-red-600 dark:text-red-400"> · {totals.flaggedDays} flagged</span>}
+              </p>
             </MobileRecordCard>
             {sortedRows.map((r) => (
               <MobileRecordCard key={r.employee.id}>
@@ -226,22 +227,22 @@ export default function AttendanceSummaryReportPage() {
                   valueClassName={r.attendancePct < 75 ? "text-red-600 dark:text-red-400" : undefined}
                   showChevron={false}
                 />
+                {/* 8-cell grid collapsed to the 4 daily-status counts that matter most at a
+                 *  glance, plus a muted summary line for hours/overtime/flagged (still shown in
+                 *  red when nonzero) — was the single densest card in the app. */}
                 <MobileRecordGrid
                   items={[
                     { label: "Present", value: r.presentDays },
                     { label: "Absent", value: r.absentDays },
                     { label: "Half Day", value: r.halfDays },
                     { label: "Leave", value: r.leaveDays },
-                    { label: "Days Marked", value: r.markedDays },
-                    { label: "Hours Worked", value: r.hoursWorked > 0 ? `${r.hoursWorked}h` : "—" },
-                    { label: "Overtime", value: r.overtimeHours > 0 ? `${r.overtimeHours}h` : "—" },
-                    {
-                      label: "Flagged",
-                      value: r.flaggedDays > 0 ? r.flaggedDays : "—",
-                      valueClassName: r.flaggedDays > 0 ? "text-red-600 dark:text-red-400" : undefined,
-                    },
                   ]}
                 />
+                <p className="border-t pt-1.5 text-xs text-muted-foreground">
+                  {r.markedDays}d marked · {r.hoursWorked > 0 ? `${r.hoursWorked}h worked` : "no hours logged"}
+                  {r.overtimeHours > 0 && ` · ${r.overtimeHours}h OT`}
+                  {r.flaggedDays > 0 && <span className="font-medium text-red-600 dark:text-red-400"> · {r.flaggedDays} flagged</span>}
+                </p>
               </MobileRecordCard>
             ))}
           </MobileRecordList>

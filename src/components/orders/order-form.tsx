@@ -843,7 +843,7 @@ function OrderFormFields({
                   <Input {...register("orderNumber")} placeholder="Leave blank to auto-generate" className="h-10" />
                 </FieldGroup>
               )}
-              <div className="grid grid-cols-2 gap-3 sm:col-span-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:col-span-2">
                 <FieldGroup label="Order date" required>
                   <Controller control={control} name="inDate" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} />} />
                 </FieldGroup>
@@ -851,7 +851,7 @@ function OrderFormFields({
                   <Controller control={control} name="inTime" render={({ field }) => <TimePicker value={field.value} onChange={field.onChange} />} />
                 </FieldGroup>
               </div>
-              <div className="grid grid-cols-2 gap-3 sm:col-span-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:col-span-2">
                 <FieldGroup label="Delivery date" required error={errors.deliveryDate?.message}>
                   <Controller control={control} name="deliveryDate" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} placeholder="Pick delivery date" />} />
                   {showDeliverySuggestion && (

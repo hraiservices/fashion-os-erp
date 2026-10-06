@@ -138,6 +138,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/sales/payments", label: "Payments Received" },
     { href: "/reports/sales/time-to-get-paid", label: "Time to Get Paid" },
     { href: "/reports/sales/credit-notes", label: "Credit Note Details" },
+    { href: "/reports/sales/vendor-cost", label: "Sale → Vendor Payable" },
     { href: "/reports/gst-summary", label: "GST Summary" },
     { href: "/reports/payment-methods", label: "Payment Methods" },
 

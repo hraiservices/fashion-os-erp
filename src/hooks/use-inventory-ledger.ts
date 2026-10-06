@@ -51,6 +51,38 @@ export function useFullInventoryLedger() {
   });
 }
 
+async function fetchProductLedgerWithRefs() {
+  const supabase = createClient();
+  // Same full-history/paginated shape as fetchFullLedger, but scoped to products and carrying
+  // ref_type/ref_id — what computeSaleVendorTrace needs to tell "this stock came from purchase
+  // bill X" apart from "this stock left via sale Y", which the plain item/movement/created_at
+  // shape useFullInventoryLedger fetches doesn't carry.
+  const pageSize = 1000;
+  const rows: { item_id: string; movement: number; ref_type: string | null; ref_id: string | null; created_at: string }[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("inventory_ledger")
+      .select("item_id, movement, ref_type, ref_id, created_at")
+      .eq("item_type", "product")
+      .order("created_at", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows.map((r) => ({ itemId: r.item_id, movement: r.movement, refType: r.ref_type || "", refId: r.ref_id, createdAt: r.created_at }));
+}
+
+/** Full product stock-movement history including ref_type/ref_id — feeds the Sale Vendor
+ *  Traceability report's FIFO replay (computeSaleVendorTrace in src/lib/inventory.ts). */
+export function useProductLedgerWithRefs() {
+  return useQuery({
+    queryKey: ["inventory-ledger-product-refs"],
+    queryFn: fetchProductLedgerWithRefs,
+    staleTime: 60_000,
+  });
+}
+
 async function fetchRawMaterialConsumption(lookbackDays: number): Promise<Map<string, number>> {
   const supabase = createClient();
   const since = new Date(Date.now() - lookbackDays * 86400000).toISOString();

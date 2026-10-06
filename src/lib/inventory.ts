@@ -212,3 +212,118 @@ export function priceAgingInventory(batchResults: AgingBatchResult[], costByKey:
       };
     });
 }
+
+// ── Sale → vendor-bill traceability ─────────────────────────────────────────────────────────
+// For a shop that buys finished products on vendor credit and resells them: "I sold this for
+// ₹3200, I owe the vendor some of that, by when?" isn't answerable from products.cost_price
+// alone (one averaged figure, no memory of which specific bill supplied which unit). This FIFO-
+// replays the SAME product ledger the Aging Inventory report uses, but instead of reporting
+// what's left unsold, it reports what each 'sale' ref_type movement actually consumed — which
+// purchase bill(s) (possibly more than one, if a sale's quantity spanned two deliveries), at
+// that bill's own recorded unit cost, due on that bill's own due date.
+
+/** One purchase bill's worth of a single product line — what priceSaleVendorTrace joins FIFO
+ *  batches against to find the vendor/cost/due-date a consumed unit actually came from. */
+export interface PurchaseBillProductLine {
+  billId: string;
+  billNumber: string;
+  vendorId: string;
+  dueDate: string | null;
+  unitCost: number;
+}
+
+/** A portion of one sale's quantity traced back to one purchase bill (or `billId: null` when no
+ *  purchase batch could be found to attribute it to — e.g. sold before any bill was recorded in
+ *  the ledger, or manufactured in-house rather than bought in). */
+export interface SaleVendorAllocation {
+  billId: string | null;
+  billNumber: string | null;
+  vendorId: string | null;
+  dueDate: string | null;
+  qty: number;
+  unitCost: number;
+  costAmount: number;
+}
+
+/** saleRefId -> productId -> its allocations. A sale line's total cost is the sum of its
+ *  allocations' costAmount; its vendor payable is grouped by vendorId/dueDate from there. */
+export type SaleVendorTrace = Map<string, Map<string, SaleVendorAllocation[]>>;
+
+export function computeSaleVendorTrace(
+  ledgerEntries: { itemId: string; movement: number; refType: string; refId: string | null; createdAt: string }[],
+  billLinesByProduct: Map<string, PurchaseBillProductLine[]>,
+  fallbackUnitCost: Map<string, number>
+): SaleVendorTrace {
+  const byProduct = new Map<string, typeof ledgerEntries>();
+  for (const entry of ledgerEntries) {
+    const list = byProduct.get(entry.itemId);
+    if (list) list.push(entry);
+    else byProduct.set(entry.itemId, [entry]);
+  }
+
+  const trace: SaleVendorTrace = new Map();
+
+  for (const [productId, entries] of byProduct) {
+    entries.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    // Purchase bill lines for this product, oldest first, each consumed at most once — a bill
+    // that bought this product twice (two lines) gets two separate batch entries.
+    const billLines = [...(billLinesByProduct.get(productId) || [])];
+    const batches: { qty: number; billId: string | null; billNumber: string | null; vendorId: string | null; dueDate: string | null; unitCost: number }[] = [];
+    let billLineCursor = 0;
+
+    for (const entry of entries) {
+      if (entry.movement > 0) {
+        if (entry.refType === "purchase" && billLineCursor < billLines.length) {
+          const line = billLines[billLineCursor++];
+          batches.push({ qty: entry.movement, billId: line.billId, billNumber: line.billNumber, vendorId: line.vendorId, dueDate: line.dueDate, unitCost: line.unitCost });
+        } else {
+          // Opening stock, a manual adjustment, or manufacturing output — no vendor bill funded
+          // this batch. Falls back to the product's own cost_price so it's still priced, just
+          // with no vendor/due date to pay.
+          batches.push({ qty: entry.movement, billId: null, billNumber: null, vendorId: null, dueDate: null, unitCost: fallbackUnitCost.get(productId) || 0 });
+        }
+        continue;
+      }
+
+      let remaining = -entry.movement;
+      const allocations: SaleVendorAllocation[] = [];
+      while (remaining > 0 && batches.length > 0) {
+        const oldest = batches[0];
+        const consumed = Math.min(oldest.qty, remaining);
+        allocations.push({
+          billId: oldest.billId,
+          billNumber: oldest.billNumber,
+          vendorId: oldest.vendorId,
+          dueDate: oldest.dueDate,
+          qty: consumed,
+          unitCost: oldest.unitCost,
+          costAmount: Math.round(consumed * oldest.unitCost * 100) / 100,
+        });
+        oldest.qty -= consumed;
+        remaining -= consumed;
+        if (oldest.qty <= 0) batches.shift();
+      }
+      // Ran out of batches entirely (stock ledger has more consumption than recorded purchases —
+      // shouldn't happen, but an untracked opening balance predating this feature could cause
+      // it) — attribute the remainder at the product's fallback cost, no vendor to pay.
+      if (remaining > 0) {
+        allocations.push({ billId: null, billNumber: null, vendorId: null, dueDate: null, qty: remaining, unitCost: fallbackUnitCost.get(productId) || 0, costAmount: Math.round(remaining * (fallbackUnitCost.get(productId) || 0) * 100) / 100 });
+      }
+
+      if (entry.refType === "sale" && entry.refId) {
+        let perProduct = trace.get(entry.refId);
+        if (!perProduct) {
+          perProduct = new Map();
+          trace.set(entry.refId, perProduct);
+        }
+        const existing = perProduct.get(productId) || [];
+        perProduct.set(productId, [...existing, ...allocations]);
+      }
+      // Any other negative movement (adjustment, transfer_out, return, work_order_consume) just
+      // drains the FIFO queue silently — it's real consumption, but not a sale to attribute to
+      // an invoice.
+    }
+  }
+
+  return trace;
+}

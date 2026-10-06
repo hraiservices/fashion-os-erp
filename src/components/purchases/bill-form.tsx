@@ -63,8 +63,11 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
   const [billNumber] = useState(existing?.billNumber || genBillNumber());
   const [vendorId, setVendorId] = useState(existing?.vendorId || "");
   const [billDate, setBillDate] = useState(existing?.billDate || istDateString());
-  const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>("due_on_receipt");
-  const [dueDate, setDueDate] = useState(existing?.dueDate || "");
+  // Net 35 default — matches "I took products from vendors on 35 days credit," the actual
+  // terms this shop buys on. Previously defaulted to "Due on Receipt" and left Due date
+  // optional, which is exactly how a bill's payment deadline kept going unrecorded.
+  const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>(existing ? "custom" : "net_35");
+  const [dueDate, setDueDate] = useState(existing?.dueDate || (!existing ? dueDateFromTerm(istDateString(), "net_35") : ""));
   const [lines, setLines] = useState<EditableLine[]>(
     existing ? existing.items.map((item, i) => lineFromItem(item, `existing-${i}`)) : [blankLine()]
   );
@@ -97,6 +100,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
   async function handleSave() {
     if (!vendorId) return toast.error("Select a vendor");
     if (items.length === 0) return toast.error("Add at least one item");
+    if (!dueDate) return toast.error("Set a due date — when you have to pay this vendor");
 
     try {
       const res = await saveBill.mutateAsync({
@@ -182,7 +186,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
                   </SelectContent>
                 </Select>
               </FieldGroup>
-              <FieldGroup label="Due date">
+              <FieldGroup label="Due date" required hint="When you must pay the vendor for this bill">
                 <DatePicker value={dueDate} onChange={setDueDate} />
               </FieldGroup>
             </div>

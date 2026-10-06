@@ -1218,7 +1218,7 @@ function OrderFormFields({
                   {/* flex-nowrap + overflow-x-auto, not flex-wrap — a wrapped second row here
                      defeats the point of grouping these compact; a short horizontal scroll on
                      the very narrowest phones is the acceptable fallback instead. */}
-                  <div className="mt-3 flex flex-nowrap items-end gap-1.5 overflow-x-auto">
+                  <div className="mt-3 flex flex-nowrap items-start gap-1.5 overflow-x-auto">
                     <FieldGroup label="Qty" className="w-14 shrink-0">
                       <Input type="number" min={1} inputMode="numeric" className="h-10" {...register(`garments.${index}.no`, { valueAsNumber: true })} />
                     </FieldGroup>
@@ -1230,7 +1230,12 @@ function OrderFormFields({
                         <Input type="number" min={0} inputMode="numeric" className="h-10" {...register(`garments.${index}.payableAmount`, { valueAsNumber: true })} />
                       </FieldGroup>
                     )}
-                    <div className="flex shrink-0 gap-0.5">
+                    {/* items-start on the row keeps every label top-aligned regardless of which
+                       field has a hint below it (Payable's "Tailor pay" made the row taller,
+                       which items-end was bottom-aligning everything against — pushing the
+                       shorter Qty/Rate columns' labels down instead of lining up with Payable's).
+                       The button pair alone still wants to sit near the inputs, not the labels. */}
+                    <div className="mt-[22px] flex shrink-0 gap-0.5">
                       <Button
                         type="button"
                         variant="ghost"
@@ -1504,7 +1509,7 @@ function OrderFormFields({
                          as the garments' Qty/Rate/Payable row above. */}
                       {/* flex-nowrap + overflow-x-auto, not flex-wrap — same reasoning as the
                          garments' Qty/Rate/Payable row above. */}
-                      <div className="mt-3 flex flex-nowrap items-end gap-1.5 overflow-x-auto">
+                      <div className="mt-3 flex flex-nowrap items-start gap-1.5 overflow-x-auto">
                         <FieldGroup label="Qty" className="w-14 shrink-0" hint="Optional">
                           <Controller
                             control={control}
@@ -1576,7 +1581,7 @@ function OrderFormFields({
                           type="button"
                           variant="ghost"
                           size="icon-sm"
-                          className="ml-auto size-9 shrink-0 sm:size-8"
+                          className="ml-auto mt-[22px] size-9 shrink-0 sm:size-8"
                           aria-label={`Remove expense ${index + 1}`}
                           onClick={() => removeExpense(index)}
                         >

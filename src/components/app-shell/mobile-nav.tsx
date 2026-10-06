@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Menu, Plus, ClipboardList, Receipt, Wallet, UserPlus, Sparkles, X } from "lucide-react";
+import { Menu, Plus, ClipboardList, Receipt, Wallet, UserPlus, Sparkles, X, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   MOBILE_TABS_ADMIN_LEFT,
@@ -148,6 +148,7 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
     { href: "/orders/new", label: "New Order", icon: ClipboardList, show: user?.perms.addOrder },
     { href: "/sales/invoices/new", label: "New Invoice", icon: Receipt, show: user?.perms.manageSales },
     { href: "/expenses/new", label: "New Expense", icon: Wallet, show: user?.perms.manageExpenses },
+    { href: "/payments/new", label: "New Payment", icon: CreditCard, show: user?.perms.managePayments },
     { href: "/crm/new", label: "New Customer", icon: UserPlus, show: user?.perms.manageCustomers || user?.role === "admin" || user?.role === "manager" },
   ].filter((o) => o.show);
 

@@ -86,6 +86,12 @@ export default function DashboardPage() {
       <PageHeader
         title="Dashboard"
         description="Today's snapshot of your company"
+        // Sticky on desktop only (sm+) — mirrors the Topbar's own sticky/backdrop-blur treatment
+        // and sits just below it (top-14 = Topbar's min-h-14) so the quick-action buttons stay
+        // reachable while scrolling the widget grid, instead of scrolling away with the title.
+        // Mobile keeps the normal in-flow header — its actions are hidden here anyway (shown via
+        // the bottom tab bar instead), so there's nothing worth pinning.
+        className="sm:sticky sm:top-14 sm:z-20 sm:-mx-6 sm:border-b sm:bg-background/95 sm:px-6 sm:py-3 sm:backdrop-blur"
         actions={
           <>
             {user?.perms.addOrder && (

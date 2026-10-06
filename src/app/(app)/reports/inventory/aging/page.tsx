@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Clock3, AlertTriangle, TrendingDown, Boxes } from "lucide-react";
+import { TrendingDown, Boxes } from "lucide-react";
+import { ClockDuotoneIcon, WarningDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useProducts } from "@/hooks/use-products";
 import { useFullInventoryLedger } from "@/hooks/use-inventory-ledger";
@@ -150,8 +151,8 @@ export default function AgingInventoryReportPage() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Stock Value (aging)" value={inr(totalValue)} icon={Boxes} />
         <StatCard label="Accrued Holding Loss" value={inr(totalAccruedLoss)} icon={TrendingDown} tone={totalAccruedLoss > 0 ? "warning" : "default"} />
-        <StatCard label="Projected Loss / Month" value={inr(totalMonthlyLoss)} icon={Clock3} />
-        <StatCard label="Items Aged 90+ Days" value={over90Count} icon={AlertTriangle} tone={over90Count > 0 ? "warning" : "default"} />
+        <StatCard label="Projected Loss / Month" value={inr(totalMonthlyLoss)} icon={ClockDuotoneIcon} />
+        <StatCard label="Items Aged 90+ Days" value={over90Count} icon={WarningDuotoneIcon} tone={over90Count > 0 ? "warning" : "default"} />
       </div>
 
       <Tabs defaultValue="aging">
@@ -163,7 +164,7 @@ export default function AgingInventoryReportPage() {
         <TabsContent value="aging" className="space-y-3 pt-3">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {AGING_BUCKETS.map((b) => (
-              <StatCard key={b} label={b} value={inr(bucketTotals.get(b) || 0)} icon={Clock3} tone={b === "90+ days" && (bucketTotals.get(b) || 0) > 0 ? "warning" : "default"} />
+              <StatCard key={b} label={b} value={inr(bucketTotals.get(b) || 0)} icon={ClockDuotoneIcon} tone={b === "90+ days" && (bucketTotals.get(b) || 0) > 0 ? "warning" : "default"} />
             ))}
           </div>
 

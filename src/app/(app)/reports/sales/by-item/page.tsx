@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ShoppingBag, Info } from "lucide-react";
+import { Info } from "lucide-react";
+import { ShoppingBagDuotoneIcon } from "@/components/icons/duotone-icons";
 import Link from "next/link";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { inr } from "@/lib/format";
@@ -105,7 +106,7 @@ export default function SalesByItemPage() {
       />
 
       {rows.length === 0 ? (
-        <EmptyState icon={ShoppingBag} title="No product sales yet" />
+        <EmptyState icon={ShoppingBagDuotoneIcon} title="No product sales yet" />
       ) : (
         <>
           <MobileRecordList>

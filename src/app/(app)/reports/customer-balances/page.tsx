@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Users } from "lucide-react";
+import { Search } from "lucide-react";
+import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useOrders } from "@/hooks/use-orders";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useCustomers } from "@/hooks/use-customers";
@@ -178,7 +179,7 @@ export default function CustomerBalancesPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState icon={Users} title="No customers found" />
+        <EmptyState icon={UsersDuotoneIcon} title="No customers found" />
       ) : (
         <>
           <div className="hidden sm:block">

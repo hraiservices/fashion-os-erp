@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { useTailorName } from "@/hooks/use-employees";
 import { inr } from "@/lib/format";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users } from "lucide-react";
+
 
 export function TailorLoadWidget() {
   const { stats, isLoading } = useDashboardStats();
@@ -22,7 +23,7 @@ export function TailorLoadWidget() {
         </Link>
       </div>
       {stats.tailorStats.length === 0 ? (
-        <EmptyState icon={Users} title="No tailors assigned yet" className="border-0 flex-1" />
+        <EmptyState icon={UsersDuotoneIcon} title="No tailors assigned yet" className="border-0 flex-1" />
       ) : (
         <ul className="flex-1 divide-y overflow-y-auto">
           {stats.tailorStats.map((t) => (

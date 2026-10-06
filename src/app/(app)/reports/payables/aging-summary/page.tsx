@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Wallet } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
+
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
 import { daysLeft } from "@/lib/business-rules";
@@ -123,11 +124,11 @@ export default function ApAgingSummaryPage() {
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Total Payable" value={inr(totalPayable)} icon={Wallet} tone={totalPayable > 0 ? "warning" : "default"} />
+        <StatCard label="Total Payable" value={inr(totalPayable)} icon={WalletDuotoneIcon} tone={totalPayable > 0 ? "warning" : "default"} />
       </div>
 
       {totalPayable === 0 ? (
-        <EmptyState icon={Wallet} title="No outstanding bills" description="Everything is paid up." />
+        <EmptyState icon={WalletDuotoneIcon} title="No outstanding bills" description="Everything is paid up." />
       ) : (
         <>
         <MobileRecordList>

@@ -1,19 +1,36 @@
-// Phosphor "duotone" glyphs for the mobile bottom tab bar — a bold outer outline plus a soft
-// ~22%-opacity tint, instead of Lucide's plain 2px-stroke outline the rest of the app uses.
-// Scoped to just the tab bar (see nav-config.ts's MOBILE_TABS_* arrays) per the user's request;
-// sidebar/drawer nav keeps its existing Lucide icons. Paths are Phosphor's own duotone SVG data
-// (phosphor-icons/core, MIT) inlined directly — no new runtime dependency for six glyphs.
+import type { ComponentType } from "react";
+
+// Phosphor "duotone" glyphs — a bold outer outline plus a soft ~20-22%-opacity tint, instead of
+// Lucide's plain 2px-stroke outline the rest of the app uses. Paths are Phosphor's own duotone
+// SVG data (phosphor-icons/core, MIT) inlined directly — no new runtime dependency.
 //
-// Each component ignores the `fill`/`fillOpacity` props TabLink passes (that toggle was how the
-// old Lucide icons went from outline to filled on the active tab) — a duotone icon is already
-// two-toned at rest; only its color changes between active/inactive, via `currentColor`
-// inherited from the tab's own text-primary/text-muted-foreground class.
+// Originally built for the mobile bottom tab bar (House/ClipboardText/SquaresFour/UsersThree/
+// Receipt/ChartBar/Plus); extended to cover the app's most-reused "identity icon" surfaces —
+// StatCard, EmptyState, and the sidebar/drawer nav — specifically the handful of icons that are
+// each reused 10+ times (per an actual grep count, not a guess): Wallet, Receipt, Users,
+// AlertTriangle→Warning, TrendingUp, ShoppingBag, FileText, Clock. The long tail of icons used
+// only once or twice (Banknote, MapPin, ShieldCheck, …) stays plain Lucide — not worth hand-
+// drawing a duotone version for a single call site. Action/button icons (Trash2, Pencil, Save,
+// Plus-inside-a-button, …) also stay Lucide on purpose: an illustrative duotone icon on a button
+// reads as decoration, not affordance — every mature app (Linear, Gmail, Notion) keeps button
+// icons thin even where nav/identity icons are bolder.
+//
+// Components here ignore any `fill`/`fillOpacity` props a caller passes (that toggle was how
+// the old Lucide tab icons went from outline to filled on the active tab) — a duotone icon is
+// already two-toned at rest; only its color changes, via `currentColor` inherited from the
+// parent's text-* class.
 
 interface DuotoneIconProps {
   className?: string;
   fill?: string;
   fillOpacity?: number;
 }
+
+/** Shared icon-prop type for anywhere a Lucide icon component or one of these hand-rolled
+ *  duotone ones needs to be accepted interchangeably (StatCard, EmptyState, nav config, …) — a
+ *  LucideIcon value is already assignable to this, so widening a field from the exact LucideIcon
+ *  type to this is purely additive and never breaks an existing caller. */
+export type IconComponent = ComponentType<DuotoneIconProps>;
 
 export function HouseDuotoneIcon({ className }: DuotoneIconProps) {
   return (
@@ -80,6 +97,77 @@ export function ChartBarDuotoneIcon({ className }: DuotoneIconProps) {
     <svg viewBox="0 0 256 256" fill="currentColor" className={className}>
       <path d="M208,40V208H152V40Z" opacity="0.22" />
       <path d="M224,200h-8V40a8,8,0,0,0-8-8H152a8,8,0,0,0-8,8V80H96a8,8,0,0,0-8,8v40H48a8,8,0,0,0-8,8v64H32a8,8,0,0,0,0,16H224a8,8,0,0,0,0-16ZM160,48h40V200H160ZM104,96h40V200H104ZM56,144H88v56H56Z" />
+    </svg>
+  );
+}
+
+// ── StatCard / EmptyState / sidebar — icons reused 10+ times app-wide ─────────────────────────
+
+export function WalletDuotoneIcon({ className }: DuotoneIconProps) {
+  return (
+    <svg viewBox="0 0 256 256" fill="currentColor" className={className}>
+      <path d="M224,80V192a8,8,0,0,1-8,8H56a16,16,0,0,1-16-16V56A16,16,0,0,0,56,72H216A8,8,0,0,1,224,80Z" opacity="0.2" />
+      <path d="M216,64H56a8,8,0,0,1,0-16H192a8,8,0,0,0,0-16H56A24,24,0,0,0,32,56V184a24,24,0,0,0,24,24H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64Zm0,128H56a8,8,0,0,1-8-8V78.63A23.84,23.84,0,0,0,56,80H216Zm-48-60a12,12,0,1,1,12,12A12,12,0,0,1,168,132Z" />
+    </svg>
+  );
+}
+
+/** Two-person "Users" (distinct from UsersThreeDuotoneIcon above, which is the bolder 3-person
+ *  mark used on the tab bar) — matches Lucide's `Users`, the one actually used across
+ *  StatCard/EmptyState call sites. */
+export function UsersDuotoneIcon({ className }: DuotoneIconProps) {
+  return (
+    <svg viewBox="0 0 256 256" fill="currentColor" className={className}>
+      <path d="M136,108A52,52,0,1,1,84,56,52,52,0,0,1,136,108Z" opacity="0.2" />
+      <path d="M117.25,157.92a60,60,0,1,0-66.5,0A95.83,95.83,0,0,0,3.53,195.63a8,8,0,1,0,13.4,8.74,80,80,0,0,1,134.14,0,8,8,0,0,0,13.4-8.74A95.83,95.83,0,0,0,117.25,157.92ZM40,108a44,44,0,1,1,44,44A44.05,44.05,0,0,1,40,108Zm210.14,98.7a8,8,0,0,1-11.07-2.33A79.83,79.83,0,0,0,172,168a8,8,0,0,1,0-16,44,44,0,1,0-16.34-84.87,8,8,0,1,1-5.94-14.85,60,60,0,0,1,55.53,105.64,95.83,95.83,0,0,1,47.22,37.71A8,8,0,0,1,250.14,206.7Z" />
+    </svg>
+  );
+}
+
+/** Phosphor's "Warning" triangle — the duotone match for Lucide's `AlertTriangle`. */
+export function WarningDuotoneIcon({ className }: DuotoneIconProps) {
+  return (
+    <svg viewBox="0 0 256 256" fill="currentColor" className={className}>
+      <path d="M215.46,216H40.54C27.92,216,20,202.79,26.13,192.09L113.59,40.22c6.3-11,22.52-11,28.82,0l87.46,151.87C236,202.79,228.08,216,215.46,216Z" opacity="0.2" />
+      <path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z" />
+    </svg>
+  );
+}
+
+export function TrendUpDuotoneIcon({ className }: DuotoneIconProps) {
+  return (
+    <svg viewBox="0 0 256 256" fill="currentColor" className={className}>
+      <path d="M232,56v64L168,56Z" opacity="0.2" />
+      <path d="M232,48H168a8,8,0,0,0-5.66,13.66L188.69,88,136,140.69l-34.34-34.35a8,8,0,0,0-11.32,0l-72,72a8,8,0,0,0,11.32,11.32L96,123.31l34.34,34.35a8,8,0,0,0,11.32,0L200,99.31l26.34,26.35A8,8,0,0,0,240,120V56A8,8,0,0,0,232,48Zm-8,52.69L187.31,64H224Z" />
+    </svg>
+  );
+}
+
+export function ShoppingBagDuotoneIcon({ className }: DuotoneIconProps) {
+  return (
+    <svg viewBox="0 0 256 256" fill="currentColor" className={className}>
+      <path d="M224,56V200a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V56a8,8,0,0,1,8-8H216A8,8,0,0,1,224,56Z" opacity="0.2" />
+      <path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm0,160H40V56H216V200ZM176,88a48,48,0,0,1-96,0,8,8,0,0,1,16,0,32,32,0,0,0,64,0,8,8,0,0,1,16,0Z" />
+    </svg>
+  );
+}
+
+/** Phosphor's plain "File Text" (a dog-eared page) — distinct from ClipboardTextDuotoneIcon
+ *  above (a clipboard holding a page), matching Lucide's `FileText` specifically. */
+export function FileTextDuotoneIcon({ className }: DuotoneIconProps) {
+  return (
+    <svg viewBox="0 0 256 256" fill="currentColor" className={className}>
+      <path d="M208,88H152V32Z" opacity="0.2" />
+      <path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-32-80a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,136Zm0,32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,168Z" />
+    </svg>
+  );
+}
+
+export function ClockDuotoneIcon({ className }: DuotoneIconProps) {
+  return (
+    <svg viewBox="0 0 256 256" fill="currentColor" className={className}>
+      <path d="M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z" opacity="0.2" />
+      <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z" />
     </svg>
   );
 }

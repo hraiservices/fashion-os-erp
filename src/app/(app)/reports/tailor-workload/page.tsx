@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Users } from "lucide-react";
+import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
+
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useTailorName } from "@/hooks/use-employees";
 import { getTailorWorkload, type WorkloadStat } from "@/lib/analytics";
@@ -100,7 +101,7 @@ export default function TailorWorkloadPage() {
       />
 
       {workload.length === 0 ? (
-        <EmptyState icon={Users} title="No workload data yet" description="Assign tailors to orders to see capacity here." />
+        <EmptyState icon={UsersDuotoneIcon} title="No workload data yet" description="Assign tailors to orders to see capacity here." />
       ) : (
         <>
           <div className="hidden sm:block">

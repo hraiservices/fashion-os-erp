@@ -1,13 +1,7 @@
 import {
-  LayoutDashboard,
-  KanbanSquare,
-  Receipt,
-  Users,
-  BarChart3,
   History,
   Calculator,
   Settings,
-  Wallet,
   Package,
   Truck,
   Factory,
@@ -18,15 +12,20 @@ import {
   ScanBarcode,
   User,
   CalendarCheck,
-  type LucideIcon,
 } from "lucide-react";
-import type { ComponentType } from "react";
-import { HouseDuotoneIcon, ClipboardTextDuotoneIcon, SquaresFourDuotoneIcon, UsersThreeDuotoneIcon, ReceiptDuotoneIcon, ChartBarDuotoneIcon } from "@/components/icons/duotone-icons";
+import {
+  HouseDuotoneIcon,
+  ClipboardTextDuotoneIcon,
+  SquaresFourDuotoneIcon,
+  UsersThreeDuotoneIcon,
+  UsersDuotoneIcon,
+  ReceiptDuotoneIcon,
+  ChartBarDuotoneIcon,
+  WalletDuotoneIcon,
+  type IconComponent,
+} from "@/components/icons/duotone-icons";
 
-/** A LucideIcon value is already assignable here — this just widens the field beyond lucide's
- *  own exact component type so the mobile tab bar's hand-rolled Phosphor-duotone icons (see
- *  duotone-icons.tsx) can be used as drop-in NavFlatItem icons too. */
-export type IconComponent = LucideIcon | ComponentType<{ className?: string; fill?: string; fillOpacity?: number }>;
+export type { IconComponent };
 
 export interface NavLeaf {
   href: string;
@@ -63,17 +62,17 @@ export interface NavFlatItem {
 }
 
 export const PRIMARY_NAV: NavFlatItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, restricted: true },
-  { href: "/orders?view=board", label: "Board", icon: KanbanSquare },
+  { href: "/dashboard", label: "Dashboard", icon: HouseDuotoneIcon, restricted: true },
+  { href: "/orders?view=board", label: "Board", icon: SquaresFourDuotoneIcon },
   { href: "/orders?type=alteration", label: "Alterations", icon: Scissors, newHref: "/orders/new?type=alteration" },
-  { href: "/crm", label: "Customers", icon: Users, restricted: true, newHref: "/crm/new" },
+  { href: "/crm", label: "Customers", icon: UsersDuotoneIcon, restricted: true, newHref: "/crm/new" },
 ];
 
 /** Stitching Orders as a dropdown: the order list itself plus the measurement search tool. */
 export const ORDERS_GROUP: NavGroup = {
   id: "orders",
   label: "Stitching Orders",
-  icon: Receipt,
+  icon: ClipboardTextDuotoneIcon,
   children: [
     { href: "/orders?view=list", label: "All Orders", newHref: "/orders/new" },
     { href: "/orders/measurements", label: "Search Measurement" },
@@ -95,7 +94,7 @@ export function ordersLeafVisible(href: string, canManageShop: boolean): boolean
 export const REPORTS_GROUP: NavGroup = {
   id: "reports",
   label: "Reports",
-  icon: BarChart3,
+  icon: ChartBarDuotoneIcon,
   indexHref: "/reports",
   children: [
     { href: "/reports/live", label: "LIVE Report", section: "Summary" },
@@ -239,7 +238,7 @@ export const POS_NAV_ITEM: NavFlatItem = { href: "/pos", label: "POS", icon: Sca
 
 /** Also lives under Reports (nested), but surfaced here too as a top-level shortcut since it's
  *  cross-module and used often. Gated on user.perms.viewReports in nav-content.tsx. */
-export const PAYMENTS_RECEIVED_NAV_ITEM: NavFlatItem = { href: "/reports/payments-received", label: "Payments Received", icon: Wallet };
+export const PAYMENTS_RECEIVED_NAV_ITEM: NavFlatItem = { href: "/reports/payments-received", label: "Payments Received", icon: WalletDuotoneIcon };
 
 export const EMPLOYEES_GROUP: NavGroup = {
   id: "employees",
@@ -272,7 +271,7 @@ export const SALES_GROUP: NavGroup = {
 export const EXPENSES_GROUP: NavGroup = {
   id: "expenses",
   label: "Expenses",
-  icon: Wallet,
+  icon: WalletDuotoneIcon,
   indexHref: "/expenses",
   children: [
     { href: "/expenses", label: "All Expenses", newHref: "/expenses/new" },
@@ -367,7 +366,7 @@ export const MOBILE_TABS_ADMIN_RIGHT: NavFlatItem[] = [
  *  no permission gate (everyone reaches their own account/settings in some form), so there's
  *  always enough here to pad back up to 3 regardless of which other permissions are missing. */
 export const MOBILE_TABS_ADMIN_RIGHT_BACKFILL: NavFlatItem[] = [
-  { href: "/expenses", label: "Expenses", icon: Wallet },
+  { href: "/expenses", label: "Expenses", icon: WalletDuotoneIcon },
   { href: "/employees", label: "Employees", icon: UserCog },
   { href: "/settings/personalize", label: "Account", icon: User },
   { href: "/settings", label: "Settings", icon: Settings },

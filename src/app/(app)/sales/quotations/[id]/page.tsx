@@ -3,7 +3,8 @@
 import { use } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, FileText, Receipt, Ban, Pencil } from "lucide-react";
+import { ArrowLeft, Receipt, Ban, Pencil } from "lucide-react";
+import { FileTextDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useSalesQuotation } from "@/hooks/use-sales-quotations";
 import { useSetQuotationStatus } from "@/hooks/use-sales-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -59,7 +60,7 @@ export default function QuotationDetailPage({ params }: { params: Promise<{ id: 
   if (!quote) {
     return (
       <div className="p-6">
-        <EmptyState icon={FileText} title="Quotation not found" />
+        <EmptyState icon={FileTextDuotoneIcon} title="Quotation not found" />
       </div>
     );
   }

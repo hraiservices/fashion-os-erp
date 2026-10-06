@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, Trash2, Pencil, Wallet, Upload, ArrowUpDown } from "lucide-react";
+import { Plus, Trash2, Pencil, Upload, ArrowUpDown } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { toast } from "sonner";
 import { useExpenses, useDeleteExpense, useBulkDeleteExpenses } from "@/hooks/use-expenses";
 import { useEmployees } from "@/hooks/use-employees";
@@ -178,7 +179,7 @@ function ExpensesPageContent() {
           </div>
         ) : !expenses?.length ? (
           <EmptyState
-            icon={Wallet}
+            icon={WalletDuotoneIcon}
             title="No expenses yet"
             description="Add your first expense to start tracking costs."
             className="border-0"

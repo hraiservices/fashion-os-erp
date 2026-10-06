@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, FileText, ChevronRight, Search } from "lucide-react";
+import { Plus, ChevronRight, Search } from "lucide-react";
+import { FileTextDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders";
 import { useVendors } from "@/hooks/use-vendors";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -59,7 +60,7 @@ export default function PurchaseOrdersPage() {
         </div>
       ) : !orders || orders.length === 0 ? (
         <EmptyState
-          icon={FileText}
+          icon={FileTextDuotoneIcon}
           title="No purchase orders yet"
           description="Create a PO to plan what you're ordering from a vendor before the bill arrives."
           action={
@@ -71,7 +72,7 @@ export default function PurchaseOrdersPage() {
           }
         />
       ) : filtered.length === 0 ? (
-        <EmptyState icon={FileText} title="No matching purchase orders" description={`No purchase orders found for "${search}".`} />
+        <EmptyState icon={FileTextDuotoneIcon} title="No matching purchase orders" description={`No purchase orders found for "${search}".`} />
       ) : (
         <div className="space-y-2">
           {filtered.map((o) => (

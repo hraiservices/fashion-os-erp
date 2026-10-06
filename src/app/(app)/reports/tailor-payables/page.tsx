@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Wallet, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useOrders } from "@/hooks/use-orders";
 import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useEmployees } from "@/hooks/use-employees";
@@ -153,7 +154,7 @@ export default function TailorPayablesPage() {
   if (!user?.perms.managePayroll) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={Wallet} title="Not available" description="Only payroll managers can view tailor payables." />
+        <EmptyState icon={WalletDuotoneIcon} title="Not available" description="Only payroll managers can view tailor payables." />
       </div>
     );
   }
@@ -236,7 +237,7 @@ export default function TailorPayablesPage() {
       )}
 
       {rows.length === 0 ? (
-        <EmptyState icon={Wallet} title="No piece-rate tailors yet" description="Mark a tailor 'Piece-rate eligible' on their employee record to see them here." />
+        <EmptyState icon={WalletDuotoneIcon} title="No piece-rate tailors yet" description="Mark a tailor 'Piece-rate eligible' on their employee record to see them here." />
       ) : (
         <>
           <div className="hidden sm:block">

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Radio, Clock3 } from "lucide-react";
+import { ArrowRight, Radio } from "lucide-react";
+import { ClockDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useStageTiming } from "@/hooks/use-stage-timing";
 import { istDateString } from "@/lib/ist-date";
 import { fmtMinutes } from "@/lib/format";
@@ -55,7 +56,7 @@ export function StageTimingWidget() {
       </div>
 
       {byStage.length === 0 ? (
-        <EmptyState icon={Clock3} title="No stage changes today" className="border-0 flex-1" />
+        <EmptyState icon={ClockDuotoneIcon} title="No stage changes today" className="border-0 flex-1" />
       ) : (
         <>
           <div className="min-h-40 flex-1">

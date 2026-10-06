@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ShoppingBag, Receipt, Wallet, TrendingUp, ChevronRight, Users, Clock, FileMinus } from "lucide-react";
+import { ShoppingBag, Wallet, TrendingUp, ChevronRight, Users, Clock, FileMinus } from "lucide-react";
+import { ReceiptDuotoneIcon, ShoppingBagDuotoneIcon, TrendUpDuotoneIcon, WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useOrders } from "@/hooks/use-orders";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -85,10 +86,10 @@ export default function SalesSummaryPage() {
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Total Billed" value={inr(totalBilled)} icon={Receipt} />
-        <StatCard label="Collected" value={inr(totalCollected)} icon={TrendingUp} hint={`${collectionPct}% of billed`} />
-        <StatCard label="Receivable" value={inr(totalReceivable)} icon={Wallet} tone={totalReceivable > 0 ? "warning" : "default"} />
-        <StatCard label="GST Collected" value={inr(totalGst)} icon={ShoppingBag} hint={filter === "stitching" ? "N/A for stitching orders" : undefined} />
+        <StatCard label="Total Billed" value={inr(totalBilled)} icon={ReceiptDuotoneIcon} />
+        <StatCard label="Collected" value={inr(totalCollected)} icon={TrendUpDuotoneIcon} hint={`${collectionPct}% of billed`} />
+        <StatCard label="Receivable" value={inr(totalReceivable)} icon={WalletDuotoneIcon} tone={totalReceivable > 0 ? "warning" : "default"} />
+        <StatCard label="GST Collected" value={inr(totalGst)} icon={ShoppingBagDuotoneIcon} hint={filter === "stitching" ? "N/A for stitching orders" : undefined} />
       </div>
 
       <div>

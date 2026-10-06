@@ -1,7 +1,8 @@
 "use client";
 
 import { use } from "react";
-import { ShoppingBag } from "lucide-react";
+import { ShoppingBagDuotoneIcon } from "@/components/icons/duotone-icons";
+
 import { useProduct } from "@/hooks/use-products";
 import { ProductForm } from "@/components/inventory/product-form";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +13,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const { data: product, isLoading } = useProduct(id);
 
   if (isLoading) return <Skeleton className="h-screen w-full" />;
-  if (!product) return <EmptyState icon={ShoppingBag} title="Product not found" />;
+  if (!product) return <EmptyState icon={ShoppingBagDuotoneIcon} title="Product not found" />;
   return <ProductForm existing={product} />;
 }

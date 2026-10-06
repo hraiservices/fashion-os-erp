@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Radio, Users } from "lucide-react";
+import { ArrowRight, Radio } from "lucide-react";
+import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useOrders } from "@/hooks/use-orders";
 import { useTailorName } from "@/hooks/use-employees";
@@ -81,7 +82,7 @@ export function TailorPerformanceWidget() {
       </div>
 
       {chartData.length === 0 ? (
-        <EmptyState icon={Users} title="No tailor activity in this range" className="border-0 flex-1" />
+        <EmptyState icon={UsersDuotoneIcon} title="No tailor activity in this range" className="border-0 flex-1" />
       ) : (
         <>
           <div className="mb-1 flex flex-wrap items-center gap-4">

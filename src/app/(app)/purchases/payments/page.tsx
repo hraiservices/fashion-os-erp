@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Search, Wallet, Trash2 } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useAllVendorPayments } from "@/hooks/use-vendor-payments";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
@@ -142,7 +143,7 @@ export default function VendorPaymentsPage() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState icon={Wallet} title="No payments recorded yet" description="Payments recorded against any purchase bill will appear here." />
+        <EmptyState icon={WalletDuotoneIcon} title="No payments recorded yet" description="Payments recorded against any purchase bill will appear here." />
       ) : (
         <div className="hidden overflow-hidden rounded-xl border sm:block">
           <Table>

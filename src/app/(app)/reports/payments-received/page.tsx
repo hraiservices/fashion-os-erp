@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Wallet, Receipt, Scissors, Search } from "lucide-react";
+import { Receipt, Scissors, Search } from "lucide-react";
+import { ReceiptDuotoneIcon, WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useAllSalesPayments } from "@/hooks/use-sales-payments";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useAllOrderPayments } from "@/hooks/use-order-payments";
@@ -102,8 +103,8 @@ export default function PaymentsReceivedReportPage() {
       }
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <StatCard label="Total Payments" value={inr(totalAll)} icon={Wallet} />
-        <StatCard label="Invoice Payments" value={inr(totalInvoice)} icon={Receipt} />
+        <StatCard label="Total Payments" value={inr(totalAll)} icon={WalletDuotoneIcon} />
+        <StatCard label="Invoice Payments" value={inr(totalInvoice)} icon={ReceiptDuotoneIcon} />
         <StatCard label="Stitching Payments" value={inr(totalStitching)} icon={Scissors} />
       </div>
 
@@ -152,7 +153,7 @@ export default function PaymentsReceivedReportPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState icon={Wallet} title={search ? "No payments match your search" : "No payments recorded yet"} className="border-0" />
+        <EmptyState icon={WalletDuotoneIcon} title={search ? "No payments match your search" : "No payments recorded yet"} className="border-0" />
       ) : (
         <>
           <MobileRecordList>

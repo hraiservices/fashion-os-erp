@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Phone, Briefcase, ArrowLeft, Pencil, CalendarCheck, Wallet, Plus, Trash2 } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useEmployee } from "@/hooks/use-employees";
 import { useAttendanceForEmployee } from "@/hooks/use-attendance";
 import { useAdvancesForEmployee } from "@/hooks/use-payroll";
@@ -175,7 +176,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
             </Button>
           </div>
           {!advances || advances.length === 0 ? (
-            <EmptyState icon={Wallet} title="No advances recorded" className="border-0" />
+            <EmptyState icon={WalletDuotoneIcon} title="No advances recorded" className="border-0" />
           ) : (
             <ul className="divide-y">
               {advances.map((a) => (

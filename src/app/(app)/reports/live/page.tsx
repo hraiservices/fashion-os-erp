@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Radio, PackageCheck, Wallet } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useAppSetting } from "@/hooks/use-app-setting";
@@ -258,7 +259,7 @@ export default function LiveReportPage() {
           </h2>
 
           {deliveredUnpaid.length === 0 ? (
-            <EmptyState icon={Wallet} title="Nothing unpaid" description="Every collected order has been fully paid." />
+            <EmptyState icon={WalletDuotoneIcon} title="Nothing unpaid" description="Every collected order has been fully paid." />
           ) : (
             <>
               <MobileRecordList>

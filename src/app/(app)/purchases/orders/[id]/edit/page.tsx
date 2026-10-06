@@ -1,7 +1,8 @@
 "use client";
 
 import { use } from "react";
-import { FileText } from "lucide-react";
+import { FileTextDuotoneIcon } from "@/components/icons/duotone-icons";
+
 import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
 import { PurchaseOrderForm } from "@/components/purchases/purchase-order-form";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +13,6 @@ export default function EditPurchaseOrderPage({ params }: { params: Promise<{ id
   const { data: po, isLoading } = usePurchaseOrder(id);
 
   if (isLoading) return <Skeleton className="h-screen w-full" />;
-  if (!po) return <EmptyState icon={FileText} title="Purchase order not found" />;
+  if (!po) return <EmptyState icon={FileTextDuotoneIcon} title="Purchase order not found" />;
   return <PurchaseOrderForm existing={po} />;
 }

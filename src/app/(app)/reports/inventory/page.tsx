@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Package, Boxes, ShoppingBag, AlertTriangle } from "lucide-react";
+import { Package, Boxes } from "lucide-react";
+import { ShoppingBagDuotoneIcon, WarningDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useProducts } from "@/hooks/use-products";
 import { isLowStock } from "@/lib/inventory";
@@ -138,10 +139,10 @@ export default function InventoryReportPage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <StatCard label="Raw Materials" value={rawMaterials?.length ?? 0} icon={Package} />
-        <StatCard label="Products" value={products?.length ?? 0} icon={ShoppingBag} />
+        <StatCard label="Products" value={products?.length ?? 0} icon={ShoppingBagDuotoneIcon} />
         <StatCard label="Inventory Value (cost)" value={inr(rawValue + finishedCostValue)} icon={Boxes} />
         <StatCard label="Retail Value (finished goods)" value={inr(finishedRetailValue)} icon={Boxes} />
-        <StatCard label="Low Stock Items" value={lowStockCount} icon={AlertTriangle} tone={lowStockCount > 0 ? "warning" : "default"} />
+        <StatCard label="Low Stock Items" value={lowStockCount} icon={WarningDuotoneIcon} tone={lowStockCount > 0 ? "warning" : "default"} />
       </div>
 
       <div>
@@ -208,7 +209,7 @@ export default function InventoryReportPage() {
       <div>
         <h2 className="mb-2 text-sm font-semibold">Finished goods</h2>
         {!products || products.length === 0 ? (
-          <EmptyState icon={ShoppingBag} title="No products yet" />
+          <EmptyState icon={ShoppingBagDuotoneIcon} title="No products yet" />
         ) : (
           <>
           <MobileRecordList>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlarmClock, Wallet } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useOrders } from "@/hooks/use-orders";
 import { isOrderOutstanding } from "@/lib/balances";
 import { inr } from "@/lib/format";
@@ -148,7 +149,7 @@ export function UpcomingPaymentsWidget() {
         </Link>
       </div>
       {rows.length === 0 ? (
-        <EmptyState icon={Wallet} title="All payments collected" description="No outstanding balances on any order." className="border-0 flex-1" />
+        <EmptyState icon={WalletDuotoneIcon} title="All payments collected" description="No outstanding balances on any order." className="border-0 flex-1" />
       ) : (
         <ul className="flex-1 divide-y overflow-y-auto">
           {rows.map(({ order, target }) => (

@@ -1,6 +1,7 @@
 "use client";
 
-import { FileDown, Wallet } from "lucide-react";
+import { FileDown } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useMyPayslips } from "@/hooks/use-payroll";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr, fmtDate } from "@/lib/format";
@@ -30,7 +31,7 @@ export default function MyPayslipsPage() {
   if (!user?.employeeId) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={Wallet} title="No employee record linked" description="Your login isn't linked to a staff record, so there are no payslips to show here. Ask an admin to link your account." />
+        <EmptyState icon={WalletDuotoneIcon} title="No employee record linked" description="Your login isn't linked to a staff record, so there are no payslips to show here. Ask an admin to link your account." />
       </div>
     );
   }
@@ -43,7 +44,7 @@ export default function MyPayslipsPage() {
       <PageHeader title="My Payslips" description="Your salary history" />
 
       {payslips.length === 0 ? (
-        <EmptyState icon={Wallet} title="No payslips yet" description="Payslips appear here once payroll has been run for a period that includes you." />
+        <EmptyState icon={WalletDuotoneIcon} title="No payslips yet" description="Payslips appear here once payroll has been run for a period that includes you." />
       ) : (
         <div className="overflow-hidden rounded-xl border">
           <div className="hidden overflow-x-auto sm:block">

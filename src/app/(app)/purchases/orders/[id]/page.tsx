@@ -3,7 +3,8 @@
 import { use } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, FileText, Receipt, Ban, Pencil } from "lucide-react";
+import { ArrowLeft, Receipt, Ban, Pencil } from "lucide-react";
+import { FileTextDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
 import { useVendor } from "@/hooks/use-vendors";
 import { useCancelPurchaseOrder } from "@/hooks/use-purchase-mutations";
@@ -61,7 +62,7 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
   if (!po) {
     return (
       <div className="p-6">
-        <EmptyState icon={FileText} title="Purchase order not found" />
+        <EmptyState icon={FileTextDuotoneIcon} title="Purchase order not found" />
       </div>
     );
   }

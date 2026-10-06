@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { TrendingUp } from "lucide-react";
+import { TrendUpDuotoneIcon } from "@/components/icons/duotone-icons";
+
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useProducts } from "@/hooks/use-products";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -75,7 +76,7 @@ export default function ProfitByItemPage() {
   if (user && !user.perms.viewFinancialReports) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={TrendingUp} title="No access" description="Profit by item is restricted to admins." />
+        <EmptyState icon={TrendUpDuotoneIcon} title="No access" description="Profit by item is restricted to admins." />
       </div>
     );
   }
@@ -120,19 +121,19 @@ export default function ProfitByItemPage() {
       />
 
       <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Revenue" value={inr(totals.revenue)} icon={TrendingUp} />
-        <StatCard label="Cost" value={inr(totals.cost)} icon={TrendingUp} />
+        <StatCard label="Revenue" value={inr(totals.revenue)} icon={TrendUpDuotoneIcon} />
+        <StatCard label="Cost" value={inr(totals.cost)} icon={TrendUpDuotoneIcon} />
         <StatCard
           label="Margin"
           value={inr(totals.margin)}
-          icon={TrendingUp}
+          icon={TrendUpDuotoneIcon}
           hint={totals.revenue > 0 ? `${Math.round((totals.margin / totals.revenue) * 100)}% of revenue` : undefined}
           tone={totals.margin >= 0 ? "success" : "danger"}
         />
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState icon={TrendingUp} title="No product sales yet" />
+        <EmptyState icon={TrendUpDuotoneIcon} title="No product sales yet" />
       ) : (
         <>
           <div className="hidden sm:block">

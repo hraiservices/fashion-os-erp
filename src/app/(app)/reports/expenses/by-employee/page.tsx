@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Users } from "lucide-react";
+import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useExpenses } from "@/hooks/use-expenses";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
@@ -90,7 +90,7 @@ export default function ExpensesByEmployeePage() {
       />
 
       {rows.length === 0 ? (
-        <EmptyState icon={Users} title="No expenses yet" />
+        <EmptyState icon={UsersDuotoneIcon} title="No expenses yet" />
       ) : (
         <>
           <div className="hidden sm:block">

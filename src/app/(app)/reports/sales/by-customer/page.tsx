@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Link2, Receipt } from "lucide-react";
+import { Link2 } from "lucide-react";
+import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import Link from "next/link";
 import { useOrders } from "@/hooks/use-orders";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
@@ -80,7 +81,7 @@ export default function SalesByCustomerPage() {
       />
 
       {rows.length === 0 ? (
-        <EmptyState icon={Receipt} title="No sales yet" />
+        <EmptyState icon={ReceiptDuotoneIcon} title="No sales yet" />
       ) : (
         <>
           <MobileRecordList>

@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Sparkles, Send, CheckCircle2, TrendingUp } from "lucide-react";
+import { Sparkles, Send, CheckCircle2 } from "lucide-react";
+import { TrendUpDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useCustomerRecommendations } from "@/hooks/use-customer-recommendations";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { ReportShell, ReportCard } from "@/components/reports/report-shell";
@@ -114,7 +115,7 @@ export default function RecommendationsReportPage() {
             <StatCard label="Recommendations sent" value={totalSent} icon={Send} />
             <StatCard label="Via WhatsApp API" value={viaApi} hint={`${viaWaMe} via wa.me`} icon={Sparkles} />
             <StatCard label="Converted to a sale" value={converted} icon={CheckCircle2} tone="success" />
-            <StatCard label="Conversion rate" value={`${conversionRate}%`} icon={TrendingUp} tone={conversionRate > 0 ? "success" : "default"} />
+            <StatCard label="Conversion rate" value={`${conversionRate}%`} icon={TrendUpDuotoneIcon} tone={conversionRate > 0 ? "success" : "default"} />
           </div>
 
           <MobileRecordList>

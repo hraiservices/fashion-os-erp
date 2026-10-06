@@ -3,7 +3,8 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, Receipt, Wallet, Undo2, Trash2, Pencil } from "lucide-react";
+import { ArrowLeft, Wallet, Undo2, Trash2, Pencil } from "lucide-react";
+import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePurchaseBill } from "@/hooks/use-purchase-bills";
 import { useVendor } from "@/hooks/use-vendors";
 import { useVendorPaymentsForBill } from "@/hooks/use-vendor-payments";
@@ -75,7 +76,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
   if (!bill) {
     return (
       <div className="p-6">
-        <EmptyState icon={Receipt} title="Bill not found" />
+        <EmptyState icon={ReceiptDuotoneIcon} title="Bill not found" />
       </div>
     );
   }

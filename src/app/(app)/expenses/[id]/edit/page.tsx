@@ -1,7 +1,8 @@
 "use client";
 
 import { use } from "react";
-import { Wallet } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
+
 import { useExpense } from "@/hooks/use-expenses";
 import { ExpenseForm } from "@/components/expenses/expense-form";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +13,6 @@ export default function EditExpensePage({ params }: { params: Promise<{ id: stri
   const { data: expense, isLoading } = useExpense(id);
 
   if (isLoading) return <Skeleton className="h-screen w-full" />;
-  if (!expense) return <EmptyState icon={Wallet} title="Expense not found" />;
+  if (!expense) return <EmptyState icon={WalletDuotoneIcon} title="Expense not found" />;
   return <ExpenseForm existing={expense} />;
 }

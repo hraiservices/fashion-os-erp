@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Clock3, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { ClockDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useStageTiming, type StageTimingRow } from "@/hooks/use-stage-timing";
 import { useTableSort } from "@/hooks/use-table-sort";
 import { useReportDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
@@ -149,15 +150,15 @@ export default function StageTimingPage() {
 
       {isLoading && <Skeleton className="h-96 w-full" />}
 
-      {isError && <EmptyState icon={Clock3} title="Couldn't load this report" description={error instanceof Error ? error.message : "Try again."} />}
+      {isError && <EmptyState icon={ClockDuotoneIcon} title="Couldn't load this report" description={error instanceof Error ? error.message : "Try again."} />}
 
       {data && (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatCard label="Stage changes" value={summary.count} icon={Clock3} />
-            <StatCard label="Avg time per change" value={fmtMinutes(summary.avgMinutes)} icon={Clock3} tone="default" />
-            <StatCard label="Slowest stage" value={slowestStage ? `${slowestStage.label} (${fmtMinutes(slowestStage.avgMinutes)})` : "—"} icon={Clock3} tone="danger" />
-            <StatCard label="Fastest stage" value={fastestStage ? `${fastestStage.label} (${fmtMinutes(fastestStage.avgMinutes)})` : "—"} icon={Clock3} tone="success" />
+            <StatCard label="Stage changes" value={summary.count} icon={ClockDuotoneIcon} />
+            <StatCard label="Avg time per change" value={fmtMinutes(summary.avgMinutes)} icon={ClockDuotoneIcon} tone="default" />
+            <StatCard label="Slowest stage" value={slowestStage ? `${slowestStage.label} (${fmtMinutes(slowestStage.avgMinutes)})` : "—"} icon={ClockDuotoneIcon} tone="danger" />
+            <StatCard label="Fastest stage" value={fastestStage ? `${fastestStage.label} (${fmtMinutes(fastestStage.avgMinutes)})` : "—"} icon={ClockDuotoneIcon} tone="success" />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
@@ -214,7 +215,7 @@ export default function StageTimingPage() {
               </Link>
             </div>
             {rows.length === 0 ? (
-              <EmptyState icon={Clock3} title="No stage changes in this range" className="border-0" />
+              <EmptyState icon={ClockDuotoneIcon} title="No stage changes in this range" className="border-0" />
             ) : (
               <>
                 <div className="hidden overflow-x-auto sm:block">

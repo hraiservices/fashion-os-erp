@@ -7,7 +7,8 @@ import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, Copy, User2, Shirt, Wallet, Ruler, Gift, Check, ClipboardList, AlertTriangle, Receipt, TrendingUp, TrendingDown, Sparkles, ScanLine } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Copy, User2, Shirt, Ruler, Gift, Check, ClipboardList, AlertTriangle, Receipt, TrendingUp, TrendingDown, Sparkles, ScanLine } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { isNativePlatform } from "@/lib/capacitor";
 import { useCreateOrder, useUpdateOrder } from "@/hooks/use-order-mutations";
 import { useOrders } from "@/hooks/use-orders";
@@ -1422,7 +1423,7 @@ function OrderFormFields({
                   are always-visible/non-removable; the free-form add/remove list below rolls up
                   into "Other cost" instead. See STITCHING_EXPENSE_FIXED_CATEGORIES. */}
               <div>
-                <SectionHeading icon={Wallet} label="Stitching expenses" />
+                <SectionHeading icon={WalletDuotoneIcon} label="Stitching expenses" />
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <FieldGroup label="Fabric cost">
                     <Controller
@@ -1472,7 +1473,7 @@ function OrderFormFields({
               </div>
 
               <div className="mt-5 border-t pt-4">
-                <SectionHeading icon={Wallet} label="Other cost" />
+                <SectionHeading icon={WalletDuotoneIcon} label="Other cost" />
                 <p className="mb-3 text-xs text-muted-foreground">Trims, lining fabric, outsourced work, etc.</p>
                 <div className="space-y-3">
                   {expenseFields.slice(STITCHING_EXPENSE_FIXED_CATEGORIES.length).map((field, i) => {

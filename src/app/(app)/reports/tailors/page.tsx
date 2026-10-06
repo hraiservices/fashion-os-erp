@@ -166,15 +166,10 @@ export default function TailorPerformancePage() {
             <MobileRecordCard className="bg-muted/40">
               <MobileRecordHeader title="Total" value={inr(tailorStats.reduce((s, t) => s + t.revenue, 0))} showChevron={false} />
               <MobileRecordGrid
-                columns={3}
                 items={[
                   { label: "Active", value: tailorStats.reduce((s, t) => s + t.active, 0) },
                   { label: "Done", value: tailorStats.reduce((s, t) => s + t.done, 0) },
                   { label: "Overdue", value: tailorStats.reduce((s, t) => s + t.overdue, 0) },
-                  { label: "Promised days", value: "—" },
-                  { label: "Active WOs", value: "—" },
-                  { label: "Completed WOs", value: "—" },
-                  { label: "Qty produced", value: "—" },
                 ]}
               />
             </MobileRecordCard>
@@ -184,17 +179,18 @@ export default function TailorPerformancePage() {
                 <MobileRecordCard key={t.tailor}>
                   <MobileRecordHeader title={tailorName(t.tailor)} value={inr(t.revenue)} showChevron={false} />
                   <MobileRecordGrid
-                    columns={3}
                     items={[
                       { label: "Active", value: t.active },
                       { label: "Done", value: t.done },
                       { label: "Overdue", value: t.overdue > 0 ? <span className="font-medium text-red-600 dark:text-red-400">{t.overdue}</span> : "0" },
-                      { label: "Promised days", value: t.avg },
-                      { label: "Active WOs", value: mfg?.activeWOs ?? 0, valueClassName: "text-muted-foreground" },
-                      { label: "Completed WOs", value: mfg?.completedWOs ?? 0, valueClassName: "text-muted-foreground" },
-                      { label: "Qty produced", value: mfg?.qtyProduced ?? 0, valueClassName: "text-muted-foreground" },
                     ]}
                   />
+                  {/* Manufacturing stats folded into one muted line instead of 4 more grid cells
+                   *  (7 cells total was the densest card in the app) — still all present, just
+                   *  de-emphasized relative to the order-stage stats above. */}
+                  <p className="border-t pt-1.5 text-xs text-muted-foreground">
+                    Promised {t.avg}d avg · {mfg?.activeWOs ?? 0} active WO · {mfg?.completedWOs ?? 0} completed · {mfg?.qtyProduced ?? 0} pcs produced
+                  </p>
                 </MobileRecordCard>
               );
             })}

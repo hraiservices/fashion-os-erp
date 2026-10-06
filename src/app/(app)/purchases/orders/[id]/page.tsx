@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader } from "@/components/ui/mobile-record-list";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -83,7 +84,7 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
 
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         <div className="space-y-4 lg:col-span-2">
-          <div className="overflow-x-auto rounded-xl border">
+          <div className="hidden overflow-x-auto rounded-xl border sm:block">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/40">
                 <tr>
@@ -115,6 +116,20 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
               </tfoot>
             </table>
           </div>
+
+          <MobileRecordList>
+            {po.items.map((item, i) => (
+              <MobileRecordCard key={i}>
+                <MobileRecordHeader title={purchaseItemName(item)} value={inr(item.amount)} showChevron={false} />
+                <p className="text-xs text-muted-foreground">
+                  {item.qty} {item.unitName} × {inr(item.unitCost)}
+                </p>
+              </MobileRecordCard>
+            ))}
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(po.total)} showChevron={false} />
+            </MobileRecordCard>
+          </MobileRecordList>
 
           {po.notes && (
             <div className="rounded-xl border bg-muted/30 p-4 text-sm">

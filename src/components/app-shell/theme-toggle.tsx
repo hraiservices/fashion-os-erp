@@ -21,7 +21,7 @@ export function ThemeToggle() {
   // Avoid rendering theme-dependent UI before hydration to prevent a mismatch flash.
   const mounted = useSyncExternalStore(noopSubscribe, getMountedSnapshot, getServerSnapshot);
 
-  if (!mounted) return <Button variant="ghost" size="icon-sm" className="size-9 sm:size-8" aria-label="Toggle theme" disabled />;
+  if (!mounted) return <Button variant="ghost" size="icon-sm" className="size-8" aria-label="Toggle theme" disabled />;
 
   const isDark = resolvedTheme === "dark";
 
@@ -29,7 +29,7 @@ export function ThemeToggle() {
     <Button
       variant="ghost"
       size="icon-sm"
-      className="size-9 sm:size-8"
+      className="size-8"
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
       onClick={() => setTheme(isDark ? "light" : "dark")}

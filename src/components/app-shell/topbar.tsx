@@ -42,13 +42,17 @@ export function Topbar() {
   const initial = (user?.employeeName || user?.email)?.[0]?.toUpperCase() || "?";
 
   return (
-    <header className="sticky top-0 z-30 flex min-h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur sm:px-4 lg:px-6">
+    <header className="sticky top-0 z-30 flex min-h-14 shrink-0 items-center gap-1.5 border-b bg-background/95 px-2 pt-[env(safe-area-inset-top)] backdrop-blur sm:gap-2 sm:px-4 lg:px-6">
       <MobileNavTrigger />
       <div className="min-w-0 flex-1">
         <CommandTrigger />
       </div>
 
-      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+      {/* Every icon here is a little smaller below `sm` than it's always been (36px -> 32px,
+       *  avatar 44px -> 36px) and the gaps between them are tighter — freeing real width for the
+       *  search bar beside them, which was cramped into whatever was left over. Still well within
+       *  a comfortable tap target. */}
+      <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
         <PwaInstaller />
         <ThemeToggle />
         <NotificationBell />
@@ -57,7 +61,7 @@ export function Topbar() {
           <DropdownMenuTrigger
             render={
               <button type="button" aria-label="Account menu" className="rounded-full p-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
-                <Avatar className="size-11 sm:size-8">
+                <Avatar className="size-9 sm:size-8">
                   {user?.employeePhotoUrl && <AvatarImage src={user.employeePhotoUrl} alt="" />}
                   <AvatarFallback className="text-xs">{initial}</AvatarFallback>
                 </Avatar>

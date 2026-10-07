@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Plus, ClipboardList, Receipt, FileText, Repeat, CreditCard, UserPlus, Truck, ShoppingCart, FileSpreadsheet, Package, Boxes, Users, Wallet, Hammer, Calculator } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 
 interface QuickCreateItem {
@@ -86,14 +86,18 @@ export function QuickCreateMenu() {
       <DropdownMenuContent align="start" className="w-[560px] max-w-[90vw] p-3">
         <div className="grid grid-cols-4 gap-x-4">
           {groups.map((group) => (
-            <div key={group.label} className="space-y-0.5">
+            // DropdownMenuLabel (Base UI's Menu.GroupLabel) throws at render time — "Base UI:
+            // MenuGroupContext is missing" — unless it's inside a DropdownMenuGroup (Menu.Group)
+            // ancestor; a plain wrapping <div> doesn't supply that context. That's exactly what
+            // crashed this menu the instant it opened (every "+ New" group has its own label).
+            <DropdownMenuGroup key={group.label} className="space-y-0.5">
               <DropdownMenuLabel className="px-1.5 uppercase tracking-wide">{group.label}</DropdownMenuLabel>
               {group.items.map(({ href, label, icon: Icon }) => (
                 <DropdownMenuItem key={href} render={<Link href={href} />}>
                   <Icon className="size-4 text-muted-foreground" /> {label}
                 </DropdownMenuItem>
               ))}
-            </div>
+            </DropdownMenuGroup>
           ))}
         </div>
       </DropdownMenuContent>

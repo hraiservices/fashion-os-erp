@@ -231,6 +231,10 @@ export function useDeleteOrder() {
       const res = await fetch(`/api/orders/${id}`, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Delete failed");
+      // Set only when an admin-override delete had money collected against the order — see
+      // the DELETE route: that payment is converted to a customer credit rather than erased,
+      // and the caller surfaces this note so it isn't silent.
+      return { creditIssuedNote: data.creditIssuedNote as string | null };
     },
     onError: () => hapticError(),
     onSuccess: () => {

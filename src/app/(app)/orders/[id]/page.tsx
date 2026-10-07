@@ -184,8 +184,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   async function doDelete() {
     try {
-      await deleteOrder.mutateAsync({ id, name: orderName, userEmail: user?.email });
+      const { creditIssuedNote } = await deleteOrder.mutateAsync({ id, name: orderName, userEmail: user?.email });
       toast.success("Order deleted");
+      if (creditIssuedNote) toast.info(creditIssuedNote, { duration: 8000 });
       router.push("/orders");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to delete order");

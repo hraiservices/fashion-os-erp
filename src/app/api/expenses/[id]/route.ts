@@ -59,9 +59,14 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
 
   const { id } = await params;
+  // Fetched before deleting purely so the audit-trail entry below records what was actually
+  // lost — expenses aren't summed into any cached/derived balance, so there's nothing to
+  // reverse, but "Expense deleted" with no amount or category made the activity log useless
+  // for reconstructing what happened after the fact.
+  const { data: row } = await db.from("expenses").select("category, amount").eq("id", id).maybeSingle();
   const { error } = await db.from("expenses").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await logAction(supabase, user.email, `🗑️ Expense deleted`);
+  await logAction(supabase, user.email, `🗑️ Expense deleted: ${row?.category || id}${row ? ` — ₹${row.amount}` : ""}`);
   return NextResponse.json({ ok: true });
 }

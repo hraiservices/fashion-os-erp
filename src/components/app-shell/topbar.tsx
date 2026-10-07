@@ -12,6 +12,7 @@ import { ThemeToggle } from "@/components/app-shell/theme-toggle";
 import { PwaInstaller } from "@/components/app-shell/pwa-installer";
 import { CommandTrigger } from "@/components/app-shell/command-palette";
 import { MobileNavTrigger } from "@/components/app-shell/mobile-nav";
+import { QuickCreateMenu } from "@/components/app-shell/quick-create-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,6 +54,7 @@ export function Topbar() {
        *  search bar beside them, which was cramped into whatever was left over. Still well within
        *  a comfortable tap target. */}
       <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
+        <QuickCreateMenu />
         <PwaInstaller />
         <ThemeToggle />
         <NotificationBell />

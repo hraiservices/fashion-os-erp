@@ -275,37 +275,49 @@ function CrmContent() {
             aria-label="Search customers"
           />
         </div>
-        {allTags.length > 0 && (
-          <Select value={tagFilter} onValueChange={(v) => v && setTagFilter(v)}>
-            <SelectTrigger className="h-10 w-40">
-              <SelectValue>{tagFilterLabel}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_TAGS}>All tags</SelectItem>
-              {allTags.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        {segmentOptions.length > 0 && (
-          <Select value={segmentFilter} onValueChange={(v) => v && setSegmentFilter(v)}>
-            <SelectTrigger className="h-10 w-44">
-              <SelectValue>{(v: unknown) => (v === ALL_SEGMENTS ? "All segments" : segmentOptions.find(([k]) => k === v)?.[1] ?? String(v))}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_SEGMENTS}>All segments</SelectItem>
-              {segmentOptions.map(([key, label]) => (
-                <SelectItem key={key} value={key}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
       </div>
+
+      {/* Own row, separate from the view toggle/search above — those two plus the Cards/List
+          toggle used to all share one flex-wrap row, which on a narrow phone left the two
+          fixed-width selects with nowhere to land beside each other: the search bar (flex-1)
+          claimed an entire wrapped line by itself, bumping tags and segments to wrap onto their
+          own separate lines below it one at a time instead of sitting side by side. flex-1 here
+          (replacing the old fixed w-40/w-44) means the two always evenly share one row's width,
+          at any screen size, instead of leaving it to flex-wrap's packing order to decide. */}
+      {(allTags.length > 0 || segmentOptions.length > 0) && (
+        <div className="flex gap-2">
+          {allTags.length > 0 && (
+            <Select value={tagFilter} onValueChange={(v) => v && setTagFilter(v)}>
+              <SelectTrigger className="h-10 flex-1 min-w-0">
+                <SelectValue>{tagFilterLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_TAGS}>All tags</SelectItem>
+                {allTags.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {segmentOptions.length > 0 && (
+            <Select value={segmentFilter} onValueChange={(v) => v && setSegmentFilter(v)}>
+              <SelectTrigger className="h-10 flex-1 min-w-0">
+                <SelectValue>{(v: unknown) => (v === ALL_SEGMENTS ? "All segments" : segmentOptions.find(([k]) => k === v)?.[1] ?? String(v))}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_SEGMENTS}>All segments</SelectItem>
+                {segmentOptions.map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">

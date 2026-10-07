@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ArrowLeft, ChevronRight, Mail, MapPin, Cake, Heart, FileText, Ticket, Shirt, Wallet } from "lucide-react";
 import { ReceiptDuotoneIcon, ShoppingBagDuotoneIcon, WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
+import { useCustomerCredit } from "@/hooks/use-customer-credit";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDeleteCustomerAndOrders, useGiveLoyaltyBonus } from "@/hooks/use-customer-mutations";
@@ -67,6 +68,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   const { data: allOrderPayments } = useAllOrderPayments();
   const { data: allSalesPayments } = useAllSalesPayments();
   const { data: shop } = useShopSettings();
+  const { data: creditBalance } = useCustomerCredit(mobile);
   const issueCoupon = useIssueReferralCoupon();
 
   const [editOpen, setEditOpen] = useState(false);
@@ -202,6 +204,14 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
               Lifetime value: {inr(combinedLifetime)}
               <span className="ml-1 text-xs font-normal"> (stitching {inr(cust.spent)} + product sales {inr(salesSpent)})</span>
             </p>
+            {/* Prepaid balance — e.g. a payment that outlived the order/invoice it was recorded
+                against (see order DELETE route) and got converted here instead of being lost.
+                Shown only when non-zero so most customers never see an empty "Credit: ₹0" line. */}
+            {!!creditBalance && (
+              <p className="mt-1 text-sm font-medium text-sky-600 dark:text-sky-400">
+                Credit balance: {inr(creditBalance)} <span className="font-normal text-muted-foreground">(apply it from the Record Payment page)</span>
+              </p>
+            )}
           </div>
         </div>
 

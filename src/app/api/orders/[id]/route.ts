@@ -378,10 +378,33 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
         { status: 409 }
       );
     }
-  } else if ((row.advance || 0) > 0) {
-    // Bypassing the money guard above still requires clearing order_payments rows first —
-    // the table has no ON DELETE CASCADE, so leaving them would fail the delete below with a
-    // foreign key error instead of a guard message.
+  }
+
+  // Admin override with money already collected: bypassing the guard above still requires
+  // clearing order_payments rows first (the table has no ON DELETE CASCADE, so leaving them
+  // would fail the delete below with a foreign key error instead of a guard message) — but
+  // simply deleting those rows used to erase real cash the shop had actually received with no
+  // trace of it anywhere (Total Paid silently dropped by that amount). The money the customer
+  // paid doesn't stop existing just because the order it was recorded against does, so it's
+  // converted to a customer credit (customer_credit_balances — the same prepaid-balance ledger
+  // Record Payment uses for overpayments) before the payment rows are removed.
+  let creditIssuedNote: string | null = null;
+  if (isAdmin && (row.advance || 0) > 0) {
+    const { data: payments, error: paymentsFetchError } = await db.from("order_payments").select("amount").eq("order_id", id);
+    if (paymentsFetchError) return NextResponse.json({ error: paymentsFetchError.message }, { status: 500 });
+    const paidTotal = (payments || []).reduce((s, p) => s + (p.amount || 0), 0);
+
+    if (paidTotal > 0) {
+      const { error: creditError } = await db.rpc("issue_customer_credit", {
+        p_mobile: row.mobile,
+        p_amount: paidTotal,
+        p_note: `Order ${id} deleted — ₹${paidTotal} already paid against it preserved as credit`,
+        p_created_by: user.email,
+      });
+      if (creditError) return NextResponse.json({ error: creditError.message }, { status: 500 });
+      creditIssuedNote = `💳 ₹${paidTotal} already paid on this order was converted to a customer credit, visible next time you record a payment for them, rather than lost.`;
+    }
+
     const { error: deletePaymentsError } = await db.from("order_payments").delete().eq("order_id", id);
     if (deletePaymentsError) return NextResponse.json({ error: deletePaymentsError.message }, { status: 500 });
   }
@@ -411,6 +434,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const { error: deleteError } = await db.from("orders").delete().eq("id", id);
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
 
+  const deleteDetailsNote = [creditIssuedNote, lostPayableNote].filter(Boolean).join(" ") || null;
   await logAction(
     supabase,
     user.email,
@@ -418,7 +442,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       ? `🗑️ Order deleted (admin override — bypassed payable/payment guards): ${row.name}`
       : `🗑️ Order deleted: ${row.name}`,
     id,
-    lostPayableNote
+    deleteDetailsNote
   );
 
   // L3: refund any loyalty points the customer spent as a redemption discount on this order.
@@ -464,5 +488,5 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     await logAction(supabase, user.email, `⚠️ Referral coupon release failed after deleting ${id} — manual correction may be needed`, id);
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, creditIssuedNote });
 }

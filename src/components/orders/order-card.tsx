@@ -46,8 +46,9 @@ export function DeleteOrderButton({ order, compact, showLabel }: { order: Order;
 
   async function doDelete() {
     try {
-      await deleteOrder.mutateAsync({ id: order.id, name: order.name, userEmail: user?.email });
+      const { creditIssuedNote } = await deleteOrder.mutateAsync({ id: order.id, name: order.name, userEmail: user?.email });
       toast.success("Order deleted");
+      if (creditIssuedNote) toast.info(creditIssuedNote, { duration: 8000 });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to delete order");
     } finally {

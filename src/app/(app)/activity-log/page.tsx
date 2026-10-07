@@ -8,6 +8,14 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { DatePicker, toISODate } from "@/components/ui/date-picker";
+
+function daysAgoISO(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return toISODate(d);
+}
 
 /**
  * actionColor(), Stitching_Manager_Pro_v16.html ~line 12089 — the old app keyed off emoji
@@ -30,8 +38,14 @@ function cleanAction(action: string): string {
 }
 
 export default function ActivityLogPage() {
-  const { data: logs, isLoading } = useActivityLog();
+  // Defaults to the last 30 days — not the old hardcoded "most recent 300 rows ever" cap, which
+  // quietly made older history invisible and unsearchable with no indication anything was
+  // missing. "All time" (clear both dates) is one click away for a full audit.
+  const [from, setFrom] = useState(daysAgoISO(30));
+  const [to, setTo] = useState(toISODate(new Date()));
+  const { data: logs, isLoading } = useActivityLog({ from: from || undefined, to: to || undefined });
   const [filter, setFilter] = useState("");
+  const isAllTime = !from && !to;
 
   const filtered = useMemo(() => {
     if (!logs) return [];
@@ -68,9 +82,36 @@ export default function ActivityLogPage() {
         }
       />
 
-      <div className="relative max-w-md">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input type="search" enterKeyHint="search" placeholder="Search actions, users, order IDs…" className="h-10 pl-9" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Search log" />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-48 flex-1 sm:max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input type="search" enterKeyHint="search" placeholder="Search actions, users, order IDs…" className="h-10 pl-9" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Search log" />
+        </div>
+        <DatePicker value={from} onChange={setFrom} placeholder="From" className="w-36" />
+        <span className="text-sm text-muted-foreground">to</span>
+        <DatePicker value={to} onChange={setTo} placeholder="To" className="w-36" />
+        <Button
+          variant={isAllTime ? "default" : "outline"}
+          size="sm"
+          onClick={() => {
+            setFrom("");
+            setTo("");
+          }}
+        >
+          All time
+        </Button>
+        {!isAllTime && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setFrom(daysAgoISO(30));
+              setTo(toISODate(new Date()));
+            }}
+          >
+            Last 30 days
+          </Button>
+        )}
       </div>
 
       {isLoading ? (

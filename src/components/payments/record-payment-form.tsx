@@ -141,6 +141,23 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
     setRowPayments((prev) => ({ ...prev, [id]: Math.max(0, Math.min(value, due)) }));
   }
 
+  // A row's own "Pay in full" only ever touched rowPayments, never cashAmount — so "Amount
+  // received" (and `pool`, which gates the Save button below) stayed at 0 even after fully
+  // paying every row this way, and the form looked permanently stuck. This keeps "Amount
+  // received" in sync by nudging it the same amount the row's own allocation just moved by.
+  function payRowInFull(row: Row) {
+    const prevAlloc = rowPayments[row.id] || 0;
+    const delta = Math.round((row.due - prevAlloc) * 100) / 100;
+    setRowPayments((prev) => ({ ...prev, [row.id]: row.due }));
+    setCashAmount((prev) => Math.max(0, Math.round((prev + delta) * 100) / 100));
+  }
+
+  // Top-level shortcut — pays every outstanding row in full in one tap instead of hitting
+  // "Pay in full" on each row individually. Tops up only what credit doesn't already cover.
+  function payAllInFull() {
+    setCash(Math.max(0, Math.round((totalDue - creditToApply) * 100) / 100));
+  }
+
   function clearApplied() {
     setRowPayments({});
   }
@@ -249,7 +266,14 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-2">
-          <Label>Amount received</Label>
+          <div className="flex items-center justify-between">
+            <Label>Amount received</Label>
+            {totalDue > 0 && (
+              <button type="button" onClick={payAllInFull} className="text-xs text-primary hover:underline">
+                Pay in full
+              </button>
+            )}
+          </div>
           <NumberInput min={0} value={cashAmount} onChange={setCash} className="h-10" />
         </div>
         <div className="space-y-2">
@@ -349,7 +373,7 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
                       <td className="px-3 py-2">
                         <div className="ml-auto flex max-w-40 flex-col items-end gap-0.5">
                           <NumberInput min={0} max={r.due} value={rowPayments[r.id] || 0} onChange={(v) => setRowAmount(r.id, r.due, v)} className="h-9 w-32" />
-                          <button type="button" onClick={() => setRowAmount(r.id, r.due, r.due)} className="text-[11px] text-primary hover:underline">
+                          <button type="button" onClick={() => payRowInFull(r)} className="text-[11px] text-primary hover:underline">
                             Pay in full
                           </button>
                         </div>
@@ -373,7 +397,7 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
                   <div className="flex items-center justify-between gap-2 border-t pt-1.5">
                     <span className="text-xs text-muted-foreground">Payment</span>
                     <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => setRowAmount(r.id, r.due, r.due)} className="text-[11px] text-primary hover:underline">
+                      <button type="button" onClick={() => payRowInFull(r)} className="text-[11px] text-primary hover:underline">
                         Pay in full
                       </button>
                       <NumberInput min={0} max={r.due} value={rowPayments[r.id] || 0} onChange={(v) => setRowAmount(r.id, r.due, v)} className="h-9 w-28" />

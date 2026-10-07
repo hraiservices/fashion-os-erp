@@ -14,12 +14,26 @@ export interface ActivityLogEntry {
   created_at: string;
 }
 
-async function fetchActivityLog(): Promise<ActivityLogEntry[]> {
+// A growth safety net, not real pagination — same convention as use-orders.ts's SAFETY_LIMIT.
+// The page itself defaults to a bounded date range (last 30 days) so a normal "what happened
+// recently" view never gets near this; it only matters when someone picks "All time" on a shop
+// with years of history, where this is still far beyond realistic daily activity-log volume.
+const SAFETY_LIMIT = 50_000;
+
+export interface ActivityLogRange {
+  /** Inclusive, yyyy-mm-dd (local). Omit for no lower bound. */
+  from?: string;
+  /** Inclusive, yyyy-mm-dd (local) — queried as < the next day since created_at is a timestamp. */
+  to?: string;
+}
+
+async function fetchActivityLog(range: ActivityLogRange): Promise<ActivityLogEntry[]> {
   const supabase = createClient();
-  const [{ data, error }, { data: employees }] = await Promise.all([
-    supabase.from("activity_log").select("*").order("created_at", { ascending: false }).limit(300),
-    supabase.from("employees").select("id, name"),
-  ]);
+  let query = supabase.from("activity_log").select("*").order("created_at", { ascending: false }).limit(SAFETY_LIMIT);
+  if (range.from) query = query.gte("created_at", `${range.from}T00:00:00`);
+  if (range.to) query = query.lt("created_at", `${range.to}T23:59:59.999`);
+
+  const [{ data, error }, { data: employees }] = await Promise.all([query, supabase.from("employees").select("id, name")]);
   if (error) throw error;
   // A tailor/employee who logs into the main app (rather than just the attendance PIN) is
   // provisioned with a synthetic `emp-<id>@dashboard.local` email — resolve it back to their
@@ -39,10 +53,10 @@ async function fetchActivityLog(): Promise<ActivityLogEntry[]> {
   });
 }
 
-export function useActivityLog() {
+export function useActivityLog(range: ActivityLogRange = {}) {
   return useQuery({
-    queryKey: ["activity-log"],
-    queryFn: fetchActivityLog,
+    queryKey: ["activity-log", range.from, range.to],
+    queryFn: () => fetchActivityLog(range),
     staleTime: 30_000,
   });
 }

@@ -56,8 +56,18 @@ export function CameraModal({
 
   const captureNative = useCallback(async () => {
     try {
-      const { Camera, CameraResultType, CameraSource } = await import("@capacitor/camera");
-      const photo = await Camera.getPhoto({ resultType: CameraResultType.DataUrl, source: CameraSource.Camera, quality: 90 });
+      const { Camera, CameraResultType, CameraSource, CameraDirection } = await import("@capacitor/camera");
+      const photo = await Camera.getPhoto({
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Camera,
+        quality: 90,
+        // Unlike the getUserMedia path below, the native Camera plugin ignores `facing` state
+        // entirely unless told otherwise — it was always opening the OS camera app's own default
+        // (rear) regardless of defaultFacing="user", so a selfie-required flow like Check In/Out
+        // opened the back camera on the installed app even though it correctly defaulted to
+        // front on the website/PWA.
+        direction: defaultFacing === "user" ? CameraDirection.Front : CameraDirection.Rear,
+      });
       if (!photo.dataUrl) return onOpenChange(false);
       // fetch() understands data: URLs fine in a Chromium WebView — reuses the same
       // resize/recompress path as every other capture route instead of storing the raw shot.
@@ -68,8 +78,7 @@ export function CameraModal({
     } finally {
       onOpenChange(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [defaultFacing, onCapture, onOpenChange]);
 
   useEffect(() => {
     if (!open) {

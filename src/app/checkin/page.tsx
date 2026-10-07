@@ -302,11 +302,11 @@ export default function CheckInPage() {
     // source of "did my tap even register?" during that wait. Reused by id so it becomes the
     // success/error toast in place rather than stacking a second one.
     const toastId = toast.loading("Getting your location…");
-    let position: GeolocationPosition;
+    let position: Awaited<ReturnType<typeof getAttendanceLocation>>;
     try {
       position = await getAttendanceLocation();
     } catch {
-      toast.error("Location permission is required to check in/out.", { id: toastId });
+      toast.error("Couldn't get your location — check location permission and try again.", { id: toastId });
       setSubmitting(false);
       setPendingAction(null);
       return;

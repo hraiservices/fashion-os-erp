@@ -402,27 +402,41 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
         {paymentRows.length === 0 ? (
           <EmptyState icon={WalletDuotoneIcon} title="No payments recorded yet" className="border-0" />
         ) : (
-          <ul className="divide-y">
-            {paymentRows.map((p) => (
-              <li key={p.id}>
-                <Link href={p.referenceHref} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Badge variant="outline" className={PAYMENT_SOURCE_BADGE[p.source].className}>
-                        {PAYMENT_SOURCE_BADGE[p.source].label}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">{p.method}</span>
-                    </div>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {p.reference} · {fmtDate(p.date)}
-                    </p>
-                  </div>
-                  <p className="shrink-0 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{inr(p.amount)}</p>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                </Link>
-              </li>
-            ))}
-          </ul>
+          // Grouped by date with a subtotal per day — "how much did I pay on the 7th" used to mean
+          // manually adding up however many rows shared that date by eye. paymentRows is already
+          // date-desc sorted (sortPaymentRows above), so a same-date run is always contiguous.
+          Object.entries(
+            paymentRows.reduce<Record<string, typeof paymentRows>>((acc, p) => {
+              (acc[p.date] ||= []).push(p);
+              return acc;
+            }, {})
+          ).map(([date, rows]) => (
+            <div key={date}>
+              <div className="flex items-center justify-between bg-muted/30 px-4 py-1.5 text-xs font-medium text-muted-foreground">
+                <span>{fmtDate(date)}</span>
+                <span className="tabular-nums">{inr(rows.reduce((s, r) => s + r.amount, 0))}</span>
+              </div>
+              <ul className="divide-y">
+                {rows.map((p) => (
+                  <li key={p.id}>
+                    <Link href={p.referenceHref} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge variant="outline" className={PAYMENT_SOURCE_BADGE[p.source].className}>
+                            {PAYMENT_SOURCE_BADGE[p.source].label}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">{p.method}</span>
+                        </div>
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">{p.reference}</p>
+                      </div>
+                      <p className="shrink-0 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{inr(p.amount)}</p>
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
         )}
       </section>
 

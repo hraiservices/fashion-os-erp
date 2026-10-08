@@ -24,6 +24,7 @@
     "@capacitor/core": "^8.5.1",
     "@capacitor/geolocation": "^8.2.3",
     "@capacitor/haptics": "^8.0.2",
+    "@capacitor/preferences": "^8.0.1",
     "@capacitor/push-notifications": "^8.1.2",
     "@capacitor/status-bar": "^8.0.3",
     "@google/genai": "^2.16.0",

@@ -12,7 +12,12 @@ import { getCachedAppSetting } from "@/lib/supabase/app-settings-cache";
 // entry, every unauthenticated visit to /checkin was server-redirected to /login before the
 // page could even render its own PIN login form — silently making self-service check-in (and
 // the leave-management self-service tab) completely unreachable.
-const PUBLIC_PATHS = ["/login", "/signup", "/checkin", "/invoice/view", "/track", "/api/public", "/api/recurring-invoices/generate"];
+// /launch is the native app's actual entry point (src/app/launch/page.tsx, capacitor.config.ts's
+// server.url) — it has to run for a logged-out install same as /login/checkin, since its whole
+// job is picking which shop's login page to send a brand-new install to. Missing from this list,
+// it got the same treatment as any other unauthenticated protected-route hit: redirected straight
+// to /login before the page's own code ever ran, silently skipping the shop picker entirely.
+const PUBLIC_PATHS = ["/login", "/signup", "/launch", "/checkin", "/invoice/view", "/track", "/api/public", "/api/recurring-invoices/generate"];
 
 function isSuperAdminEmail(email: string | undefined): boolean {
   const ownerEmail = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL;

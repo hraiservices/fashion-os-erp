@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, User, Wallet, CalendarCheck } from "lucide-react";
+import { LogOut, User, Wallet, CalendarCheck, Store } from "lucide-react";
+import { Preferences } from "@capacitor/preferences";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { isNativePlatform } from "@/lib/capacitor";
+import { APP_GATEWAY_URL, SHOP_URL_PREFERENCE_KEY } from "@/lib/app-launch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NotificationBell } from "@/components/app-shell/notification-bell";
 import { useAttendanceWidget, AttendanceMenuItems, AttendanceActionModals } from "@/components/app-shell/attendance-widget";
@@ -38,6 +41,15 @@ export function Topbar() {
     await supabase.auth.signOut();
     router.push("/login");
     router.refresh();
+  }
+
+  // Native-only (see src/lib/app-launch.ts): the installed app remembers which shop's
+  // deployment it's pointed at via @capacitor/preferences so it can skip straight past the
+  // gateway on every later open — this is the only way back to it, for someone switching
+  // devices between two shops or who picked the wrong one.
+  async function switchShop() {
+    await Preferences.remove({ key: SHOP_URL_PREFERENCE_KEY });
+    window.location.href = APP_GATEWAY_URL;
   }
 
   const initial = (user?.employeeName || user?.email)?.[0]?.toUpperCase() || "?";
@@ -101,6 +113,11 @@ export function Topbar() {
             <DropdownMenuItem onClick={() => router.push("/settings/personalize")}>
               <User className="size-4" /> Account
             </DropdownMenuItem>
+            {isNativePlatform() && (
+              <DropdownMenuItem onClick={switchShop}>
+                <Store className="size-4" /> Switch shop
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={signOut}>
               <LogOut className="size-4" /> Sign out
             </DropdownMenuItem>

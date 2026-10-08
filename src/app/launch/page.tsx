@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Store, ArrowRight, Loader2 } from "lucide-react";
 import { Preferences } from "@capacitor/preferences";
-import { isNativePlatform } from "@/lib/capacitor";
 import { resolveShopUrl, SHOP_URL_PREFERENCE_KEY } from "@/lib/app-launch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,10 +10,20 @@ import { Label } from "@/components/ui/label";
 
 /**
  * The native app's actual entry point (capacitor.config.ts's server.url) — see
- * src/lib/app-launch.ts for why this exists and how a shop gets resolved/remembered. Plain web
- * visitors (this deployment's own staff opening fashionflow.app/launch in a browser by mistake,
- * or a search crawler) have no business here, so they're bounced straight to "/" without ever
- * seeing the form below.
+ * src/lib/app-launch.ts for why this exists and how a shop gets resolved/remembered.
+ *
+ * Does NOT gate on isNativePlatform() — an earlier version bounced non-native visitors straight
+ * to "/", but Capacitor.isNativePlatform() checks window.androidBridge (a native-injected
+ * object), and on this page specifically — the very first thing the WebView ever loads on cold
+ * start — that check can still read false this early, confirmed by a real device log capture:
+ * Android's own Capacitor log shows this exact URL loading inside the native shell, yet the page
+ * had already redirected itself to /login by the time anything else ran, which only that bounce
+ * branch could produce. A false "this must be a stray web visitor" here sent real native users
+ * straight past the shop picker and into whatever session (or lack of one) happened to be sitting
+ * at the shared gateway domain — the opposite of what this page exists to prevent. Skipping that
+ * check isn't a real loss: Preferences' web fallback is plain localStorage, so the exact same
+ * logic below already behaves sanely for an actual stray browser visitor too (shows the form; a
+ * no-op for virtually everyone since nobody browses to this URL directly).
  */
 export default function LaunchPage() {
   const [checking, setChecking] = useState(true);
@@ -23,10 +32,6 @@ export default function LaunchPage() {
   const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
-    if (!isNativePlatform()) {
-      window.location.replace("/");
-      return;
-    }
     Preferences.get({ key: SHOP_URL_PREFERENCE_KEY }).then(({ value }) => {
       if (value) {
         window.location.replace(value);

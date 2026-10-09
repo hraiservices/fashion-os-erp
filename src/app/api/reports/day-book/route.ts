@@ -97,7 +97,7 @@ export async function GET(request: Request) {
     db.from("employee_attendance").select("id, employee_id, status, check_in_at, check_out_at, hours_worked, overtime_hours, created_by").eq("date", date),
     db.from("leave_requests").select("id, employee_id, from_date, to_date, days, status, requested_by, requested_at, decided_by, decided_at").gte("requested_at", startUtc).lt("requested_at", endUtc),
     db.from("leave_requests").select("id, employee_id, from_date, to_date, days, status, requested_by, requested_at, decided_by, decided_at").gte("decided_at", startUtc).lt("decided_at", endUtc),
-    db.from("employees").select("id, name"),
+    db.from("employees").select("id, name, role, active"),
     db.from("vendors").select("id, name"),
     // Mirrors getCombinedMonthly's laborCost — completed work orders' labor cost, bucketed by
     // completedAt, the same date basis Combined P&L uses for this category.
@@ -113,6 +113,11 @@ export async function GET(request: Request) {
 
   const employeeNameById = new Map((employeesRes.data || []).map((e) => [e.id, e.name]));
   const vendorNameById = new Map((vendorsRes.data || []).map((v) => [v.id, v.name]));
+  // Same "active + role === tailor" convention as useActiveTailors() (src/hooks/use-employees.ts)
+  // — every tailor who should be accountable for today's activity, including the ones who did
+  // nothing, so buildTailorStageProgress can seed them in at zero rather than them being simply
+  // absent from the list.
+  const activeTailors = (employeesRes.data || []).filter((e) => e.active && e.role.toLowerCase() === "tailor").map((e) => ({ id: e.id, name: e.name }));
 
   // Payroll is sensitive HR data (same rule as employee salary fields elsewhere in this app) —
   // only fetched/included when the requester actually holds managePayroll, not just viewReports.
@@ -200,7 +205,7 @@ export async function GET(request: Request) {
       },
     ])
   );
-  const tailorActivity = buildTailorStageProgress(orderActivityRes.data || [], stageChangeOrdersById, employeeNameById);
+  const tailorActivity = buildTailorStageProgress(orderActivityRes.data || [], stageChangeOrdersById, employeeNameById, activeTailors);
 
   const entries: DayBookEntry[] = [
     ...buildSalesInvoiceEntries(invoicesRes.data || [], employeeNameById),

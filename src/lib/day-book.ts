@@ -622,14 +622,22 @@ export interface TailorStageOrder {
 export interface TailorStageActivity {
   tailorId: string;
   tailorName: string;
+  cuttingToStitching: number;
   stitchingToFinishing: number;
   finishingToReady: number;
+  cuttingToStitchingOrders: TailorStageOrder[];
   stitchingToFinishingOrders: TailorStageOrder[];
   finishingToReadyOrders: TailorStageOrder[];
   /** Sum of this tailor's own garments' payableAmount, for orders that reached Ready today —
    *  the moment a garment's payableAmount freezes permanently (see business-rules.ts). Only
    *  counts Finishing → Ready orders, not the full running total across every stage. */
   payableToday: number;
+  /** cuttingToStitching + stitchingToFinishing + finishingToReady — a tailor sitting at 0 here
+   *  did nothing production-wise today, which is exactly the signal a day-to-day accountability
+   *  check needs (a tailor simply absent from an activity list reads the same as one who worked
+   *  but every action happened to land on another day's order — this makes "did nothing today"
+   *  unambiguous instead of inferred from absence). */
+  totalActions: number;
 }
 
 interface StageChangeOrder {
@@ -638,29 +646,38 @@ interface StageChangeOrder {
   garments: { tailor?: string; payableAmount?: number }[];
 }
 
-/** "Stage changed: Stitching → Finishing for X" — same STAGE_META labels
- *  advance-stage/route.ts and set-stage/route.ts both build the logged line from, so this
- *  matches regardless of which route triggered the change. */
+/** "Stage changed: Cutting → Stitching for X" / "Stitching → Finishing for X" / "Finishing →
+ *  Ready for X" — same STAGE_META labels advance-stage/route.ts and set-stage/route.ts both
+ *  build the logged line from, so these match regardless of which route triggered the change. */
+const CUTTING_TO_STITCHING = `Stage changed: ${STAGE_META.cutting.label} → ${STAGE_META.stitching.label} for`;
 const STITCHING_TO_FINISHING = `Stage changed: ${STAGE_META.stitching.label} → ${STAGE_META.finishing.label} for`;
 const FINISHING_TO_READY = `Stage changed: ${STAGE_META.finishing.label} → ${STAGE_META.ready.label} for`;
 
 /**
- * Per-tailor counts (plus the underlying order list and today's payable) of the two stage
- * transitions a tailor can point to as "what I did today": Stitching -> Finishing (their own
- * stitching work finished) and Finishing -> Ready (a garment they finished is now ready for
- * pickup) — "ready to deliver" and "moved to Ready" are the same count, so there is no separate
- * metric for it.
+ * Per-tailor counts (plus the underlying order list and today's payable) of the three stage
+ * transitions a tailor can point to as "what I did today": Cutting -> Stitching (they picked up
+ * a cut piece), Stitching -> Finishing (their own stitching work finished), and Finishing ->
+ * Ready (a garment they finished is now ready for pickup) — "ready to deliver" and "moved to
+ * Ready" are the same count, so there is no separate metric for it. Received -> Cutting and
+ * Ready -> Delivered are deliberately excluded: those are typically shop-floor/front-desk
+ * handling, not the tailor's own production work.
  *
  * Stage is tracked per ORDER, but a tailor is assigned per GARMENT — an order with garments split
  * across tailors credits every distinct tailor on it once for that order's transition (not once
  * per garment), since the ask is "how many orders", not "how many garments". Same reasoning for
  * payableToday: only that tailor's own garments within a Finishing → Ready order count toward
  * their payable, even if the order also has garments belonging to other tailors.
+ *
+ * `allTailors` (every active employee with role "tailor", see useActiveTailors) is seeded into
+ * the result up front with all-zero counts — without this, a tailor who did nothing today was
+ * simply absent from the list, indistinguishable from one who was never asked to do anything;
+ * seeding makes "did nothing today" a visible, countable fact instead of an inferred absence.
  */
 export function buildTailorStageProgress(
   activityRows: ActivityLogRow[],
   ordersById: Map<string, StageChangeOrder>,
-  employeeNameById: Map<string, string>
+  employeeNameById: Map<string, string>,
+  allTailors: { id: string; name: string }[] = []
 ): TailorStageActivity[] {
   const byTailor = new Map<string, TailorStageActivity>();
 
@@ -671,23 +688,30 @@ export function buildTailorStageProgress(
     const created: TailorStageActivity = {
       tailorId,
       tailorName: name,
+      cuttingToStitching: 0,
       stitchingToFinishing: 0,
       finishingToReady: 0,
+      cuttingToStitchingOrders: [],
       stitchingToFinishingOrders: [],
       finishingToReadyOrders: [],
       payableToday: 0,
+      totalActions: 0,
     };
     byTailor.set(tailorId, created);
     return created;
   }
 
+  for (const t of allTailors) entryFor(t.id);
+
   for (const r of activityRows) {
     if (!r.order_id) continue;
-    const field = r.action.includes(STITCHING_TO_FINISHING)
-      ? "stitchingToFinishing"
-      : r.action.includes(FINISHING_TO_READY)
-        ? "finishingToReady"
-        : null;
+    const field = r.action.includes(CUTTING_TO_STITCHING)
+      ? "cuttingToStitching"
+      : r.action.includes(STITCHING_TO_FINISHING)
+        ? "stitchingToFinishing"
+        : r.action.includes(FINISHING_TO_READY)
+          ? "finishingToReady"
+          : null;
     if (!field) continue;
 
     const order = ordersById.get(r.order_id);
@@ -705,5 +729,12 @@ export function buildTailorStageProgress(
     }
   }
 
-  return Array.from(byTailor.values()).sort((a, b) => a.tailorName.localeCompare(b.tailorName));
+  for (const entry of byTailor.values()) {
+    entry.totalActions = entry.cuttingToStitching + entry.stitchingToFinishing + entry.finishingToReady;
+  }
+
+  // Zero-activity tailors first (ascending totalActions) — this list exists to answer "who
+  // didn't work today" at a glance, so that's the top of it, not alphabetical noise. Ties
+  // (including the common all-zero case) fall back to name order.
+  return Array.from(byTailor.values()).sort((a, b) => a.totalActions - b.totalActions || a.tailorName.localeCompare(b.tailorName));
 }

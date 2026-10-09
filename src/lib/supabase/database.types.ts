@@ -26,6 +26,42 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["signup_requests"]["Row"]>;
         Relationships: [];
       };
+      day_book_cash_adjustments: {
+        Row: {
+          id: string;
+          adj_date: string;
+          kind: string;
+          amount: number;
+          reason: string;
+          note: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["day_book_cash_adjustments"]["Row"]> & {
+          adj_date: string;
+          kind: string;
+          amount: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["day_book_cash_adjustments"]["Row"]>;
+        Relationships: [];
+      };
+      day_book_closings: {
+        Row: {
+          close_date: string;
+          opening_cash: number;
+          expected_cash: number;
+          counted_cash: number;
+          variance: number;
+          note: string;
+          closed_by: string | null;
+          closed_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["day_book_closings"]["Row"]> & {
+          close_date: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["day_book_closings"]["Row"]>;
+        Relationships: [];
+      };
       tailor_worksheet_snapshots: {
         Row: {
           id: string;

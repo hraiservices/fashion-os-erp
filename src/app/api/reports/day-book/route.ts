@@ -23,9 +23,12 @@ import {
   buildAdvanceEntries,
   buildOtherActivityLogEntries,
   buildTailorStageProgress,
+  emptyTailorActivity,
   sortEntries,
   type DayBookEntry,
 } from "@/lib/day-book";
+import { buildCollections, buildDeliveryBoard, buildReviewFlags, computeCashAndMethods, quickTotals, shiftDays } from "@/lib/day-book-server";
+import { buildAttendanceBoard, buildDiscountSummary, buildSoldToday } from "@/lib/day-book-insights";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -79,10 +82,10 @@ export async function GET(request: Request) {
     vendorsRes,
     completedWorkOrdersRes,
   ] = await Promise.all([
-    db.from("sales_invoices").select("id, invoice_number, customer_name, customer_mobile, total, doc_status, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
+    db.from("sales_invoices").select("id, invoice_number, customer_name, customer_mobile, total, doc_status, items, discount_type, discount_value, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
     db.from("sales_payments").select("id, invoice_id, customer_mobile, amount, method, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
     db.from("sales_credit_notes").select("id, credit_number, invoice_id, total, reason, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
-    db.from("expenses").select("id, category, description, amount, pay_method, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
+    db.from("expenses").select("id, category, description, amount, pay_method, date, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
     db.from("purchase_bills").select("id, bill_number, vendor_id, total, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
     db.from("vendor_payments").select("id, bill_id, vendor_id, amount, method, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
     db.from("vendor_credits").select("id, credit_number, vendor_id, bill_id, total, reason, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
@@ -97,7 +100,7 @@ export async function GET(request: Request) {
     db.from("employee_attendance").select("id, employee_id, status, check_in_at, check_out_at, hours_worked, overtime_hours, created_by").eq("date", date),
     db.from("leave_requests").select("id, employee_id, from_date, to_date, days, status, requested_by, requested_at, decided_by, decided_at").gte("requested_at", startUtc).lt("requested_at", endUtc),
     db.from("leave_requests").select("id, employee_id, from_date, to_date, days, status, requested_by, requested_at, decided_by, decided_at").gte("decided_at", startUtc).lt("decided_at", endUtc),
-    db.from("employees").select("id, name"),
+    db.from("employees").select("id, name, active"),
     db.from("vendors").select("id, name"),
     // Mirrors getCombinedMonthly's laborCost — completed work orders' labor cost, bucketed by
     // completedAt, the same date basis Combined P&L uses for this category.
@@ -120,6 +123,8 @@ export async function GET(request: Request) {
   let advanceEntries: DayBookEntry[] = [];
   let payrollTotal = 0;
   let payrollCostForProfit = 0;
+  // Piece-rate actually paid out today per employee (tailor) — payroll-gated like the rest.
+  const pieceRatePaidByEmployee = new Map<string, number>();
   if (canSeePayroll) {
     const [payslipsRes, advancesRes] = await Promise.all([
       db.from("payslips").select("id, employee_id, net_pay, piece_rate_pay, status, paid_at").eq("status", "paid").gte("paid_at", startUtc).lt("paid_at", endUtc),
@@ -127,6 +132,9 @@ export async function GET(request: Request) {
     ]);
     if (payslipsRes.error) return NextResponse.json({ error: payslipsRes.error.message }, { status: 500 });
     if (advancesRes.error) return NextResponse.json({ error: advancesRes.error.message }, { status: 500 });
+    for (const ps of payslipsRes.data || []) {
+      if ((ps.piece_rate_pay || 0) > 0) pieceRatePaidByEmployee.set(ps.employee_id, (pieceRatePaidByEmployee.get(ps.employee_id) || 0) + ps.piece_rate_pay);
+    }
     payslipEntries = buildPayslipPaidEntries(payslipsRes.data || [], employeeNameById);
     advanceEntries = buildAdvanceEntries(advancesRes.data || [], employeeNameById);
     payrollTotal = payslipEntries.reduce((s, e) => s + (e.amount || 0), 0);
@@ -196,11 +204,19 @@ export async function GET(request: Request) {
         // Same legacy "trial" -> "ready" fold mapOrderRow does (src/lib/types.ts) — a raw
         // 'trial' row would otherwise render an unrecognized stage badge here.
         status: (o.status === "trial" ? "ready" : o.status) as Stage,
-        garments: (o.garments as unknown as { tailor?: string; payableAmount?: number }[]) || [],
+        garments: (o.garments as unknown as { tailor?: string; payableAmount?: number; no?: number }[]) || [],
       },
     ])
   );
   const tailorActivity = buildTailorStageProgress(orderActivityRes.data || [], stageChangeOrdersById, employeeNameById);
+  if (canSeePayroll) {
+    // Tailors paid piece-rate today but who moved nothing forward today still deserve a row.
+    for (const [employeeId, paid] of pieceRatePaidByEmployee) {
+      const existing = tailorActivity.find((t) => t.tailorId === employeeId);
+      if (existing) existing.paidToday = paid;
+      else tailorActivity.push({ ...emptyTailorActivity(employeeId, employeeNameById.get(employeeId) || "Unknown"), paidToday: paid });
+    }
+  }
 
   const entries: DayBookEntry[] = [
     ...buildSalesInvoiceEntries(invoicesRes.data || [], employeeNameById),
@@ -254,7 +270,45 @@ export async function GET(request: Request) {
 
   const profit = stitchingRevenue + salesTotal - salesCreditsTotal - purchasesTotal - expensesTotal - stitchingCost - laborCost - payrollCostForProfit;
 
+  // Extras: payment-method split + cash drawer, day-over-day comparison, deliveries board.
+  const orderMobiles = Array.from(new Set((ordersRes.data || []).map((o) => o.mobile).filter(Boolean)));
+  const [cashAndMethods, yesterdayTotals, lastWeekTotals, deliveries, collections, approvedLeaveRes, orderCustomersRes] = await Promise.all([
+    computeCashAndMethods(db, date),
+    quickTotals(db, shiftDays(date, -1)),
+    quickTotals(db, shiftDays(date, -7)),
+    buildDeliveryBoard(db, date, orderActivityRes.data || []),
+    buildCollections(db, date),
+    db.from("leave_requests").select("employee_id").eq("status", "approved").lte("from_date", date).gte("to_date", date),
+    orderMobiles.length ? db.from("customers").select("mobile, created_at").in("mobile", orderMobiles) : Promise.resolve({ data: [] as { mobile: string; created_at: string }[] }),
+  ]);
+  const attendance = buildAttendanceBoard(
+    (employeesRes.data || []) as { id: string; name: string; active: boolean }[],
+    attendanceRes.data || [],
+    new Set((approvedLeaveRes.data || []).map((l) => l.employee_id))
+  );
+  const discounts = buildDiscountSummary(
+    (invoicesRes.data || []) as Parameters<typeof buildDiscountSummary>[0],
+    orderPaymentsRes.data || [],
+    employeeNameById
+  );
+  const newCustomerMobiles = new Set(
+    (orderCustomersRes.data || []).filter((c) => c.created_at >= startUtc && c.created_at < endUtc).map((c) => c.mobile)
+  );
+  const soldToday = buildSoldToday(ordersRes.data || [], (invoicesRes.data || []) as Parameters<typeof buildSoldToday>[1], newCustomerMobiles);
+  const reviewFlags = buildReviewFlags({
+    date,
+    activityRows: [...(orderActivityRes.data || []), ...(unlinkedActivityRes.data || [])],
+    creditNotes: creditNotesRes.data || [],
+    vendorCredits: vendorCreditsRes.data || [],
+    expenses: expensesRes.data || [],
+    closing: cashAndMethods.closing,
+    entries,
+  });
+
   const totals = {
+    // Total billed = stitching orders created + non-draft retail invoices. Unlike profit, it
+    // carries no cost data, so it's safe for every viewReports holder (not just admins).
+    totalBilled: stitchingRevenue + salesTotal,
     sales: salesTotal,
     payments: paymentsTotal,
     expenses: expensesTotal,
@@ -286,5 +340,16 @@ export async function GET(request: Request) {
     totals,
     tailorActivity,
     canSeePayroll,
+    paymentMethods: cashAndMethods.split,
+    cash: cashAndMethods.cash,
+    closing: cashAndMethods.closing,
+    comparison: { yesterday: yesterdayTotals, lastWeek: lastWeekTotals },
+    deliveries,
+    reviewFlags,
+    adjustments: cashAndMethods.adjustments,
+    collections,
+    attendance,
+    discounts,
+    soldToday,
   });
 }

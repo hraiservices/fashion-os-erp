@@ -622,25 +622,52 @@ export interface TailorStageOrder {
 export interface TailorStageActivity {
   tailorId: string;
   tailorName: string;
+  receivedToCutting: number;
+  cuttingToStitching: number;
   stitchingToFinishing: number;
   finishingToReady: number;
+  receivedToCuttingOrders: TailorStageOrder[];
+  cuttingToStitchingOrders: TailorStageOrder[];
   stitchingToFinishingOrders: TailorStageOrder[];
   finishingToReadyOrders: TailorStageOrder[];
+  /** Garments (pieces, not orders) this tailor's Finishing → Ready orders carried today. */
+  piecesReady: number;
+  /** Piece-rate paid out to this tailor today via payroll (only populated for payroll viewers). */
+  paidToday?: number;
   /** Sum of this tailor's own garments' payableAmount, for orders that reached Ready today —
    *  the moment a garment's payableAmount freezes permanently (see business-rules.ts). Only
    *  counts Finishing → Ready orders, not the full running total across every stage. */
   payableToday: number;
 }
 
+export function emptyTailorActivity(tailorId: string, tailorName: string): TailorStageActivity {
+  return {
+    tailorId,
+    tailorName,
+    receivedToCutting: 0,
+    cuttingToStitching: 0,
+    stitchingToFinishing: 0,
+    finishingToReady: 0,
+    receivedToCuttingOrders: [],
+    cuttingToStitchingOrders: [],
+    stitchingToFinishingOrders: [],
+    finishingToReadyOrders: [],
+    piecesReady: 0,
+    payableToday: 0,
+  };
+}
+
 interface StageChangeOrder {
   name: string;
   status: Stage;
-  garments: { tailor?: string; payableAmount?: number }[];
+  garments: { tailor?: string; payableAmount?: number; no?: number }[];
 }
 
 /** "Stage changed: Stitching → Finishing for X" — same STAGE_META labels
  *  advance-stage/route.ts and set-stage/route.ts both build the logged line from, so this
  *  matches regardless of which route triggered the change. */
+const RECEIVED_TO_CUTTING = `Stage changed: ${STAGE_META.received.label} → ${STAGE_META.cutting.label} for`;
+const CUTTING_TO_STITCHING = `Stage changed: ${STAGE_META.cutting.label} → ${STAGE_META.stitching.label} for`;
 const STITCHING_TO_FINISHING = `Stage changed: ${STAGE_META.stitching.label} → ${STAGE_META.finishing.label} for`;
 const FINISHING_TO_READY = `Stage changed: ${STAGE_META.finishing.label} → ${STAGE_META.ready.label} for`;
 
@@ -671,10 +698,15 @@ export function buildTailorStageProgress(
     const created: TailorStageActivity = {
       tailorId,
       tailorName: name,
+      receivedToCutting: 0,
+      cuttingToStitching: 0,
       stitchingToFinishing: 0,
       finishingToReady: 0,
+      receivedToCuttingOrders: [],
+      cuttingToStitchingOrders: [],
       stitchingToFinishingOrders: [],
       finishingToReadyOrders: [],
+      piecesReady: 0,
       payableToday: 0,
     };
     byTailor.set(tailorId, created);
@@ -683,11 +715,15 @@ export function buildTailorStageProgress(
 
   for (const r of activityRows) {
     if (!r.order_id) continue;
-    const field = r.action.includes(STITCHING_TO_FINISHING)
-      ? "stitchingToFinishing"
-      : r.action.includes(FINISHING_TO_READY)
-        ? "finishingToReady"
-        : null;
+    const field = r.action.includes(RECEIVED_TO_CUTTING)
+      ? "receivedToCutting"
+      : r.action.includes(CUTTING_TO_STITCHING)
+        ? "cuttingToStitching"
+        : r.action.includes(STITCHING_TO_FINISHING)
+          ? "stitchingToFinishing"
+          : r.action.includes(FINISHING_TO_READY)
+            ? "finishingToReady"
+            : null;
     if (!field) continue;
 
     const order = ordersById.get(r.order_id);
@@ -700,6 +736,7 @@ export function buildTailorStageProgress(
       entry[field] += 1;
       entry[`${field}Orders`].push(orderDetail);
       if (field === "finishingToReady") {
+        entry.piecesReady += garments.filter((g) => (g.tailor || "") === tailorId).reduce((n, g) => n + (g.no || 1), 0);
         entry.payableToday += garments.filter((g) => (g.tailor || "") === tailorId).reduce((s, g) => s + (g.payableAmount || 0), 0);
       }
     }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import {
   TrendingUp,
   TrendingDown,
@@ -21,9 +22,37 @@ import {
   Search,
   Scissors,
   CheckCircle2,
+  CalendarRange,
+  MessageCircle,
+  Copy,
+  PackageCheck,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useDayBook } from "@/hooks/use-day-book";
+import { useDayBook, useDayBookRange, useCloseDay, useClosingHistory, useAddCashAdjustment, useRemoveCashAdjustment } from "@/hooks/use-day-book";
+import { useAppSetting } from "@/hooks/use-app-setting";
+import { exportXLSXMultiSheet } from "@/lib/export";
+import { buildAccountantSheets } from "@/lib/day-book-insights";
+import { useShopSettings } from "@/hooks/use-shop-settings";
+import { buildEndOfDaySummary, pctChange, summarizeByUser, type RangeDay } from "@/lib/day-book-extras";
+import {
+  AttendanceCard,
+  BestWorstDays,
+  CashAdjustmentsCard,
+  CashPositionCard,
+  CollectionsCard,
+  DeliveriesCard,
+  DiscountsCard,
+  PaymentMethodsCard,
+  ReviewStrip,
+  SoldTodayCard,
+  StaffSummaryCard,
+  TargetCard,
+  UnclosedBanner,
+  VarianceHistoryCard,
+  type DayBookTargets,
+} from "@/components/reports/day-book-panels";
+import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { DAY_BOOK_MODULE_ICONS, DAY_BOOK_MODULE_LABELS, fmtTime, type DayBookModule, type TailorStageOrder } from "@/lib/day-book";
 import { StageBadge } from "@/components/orders/stage-badge";
 import { inr, fmtDate } from "@/lib/format";
@@ -51,6 +80,35 @@ function shiftDate(iso: string, days: number): string {
   dt.setDate(dt.getDate() + days);
   return toISODate(dt);
 }
+
+type ViewMode = "day" | "week" | "month";
+type CompareBase = "yesterday" | "lastWeek";
+
+function parseISO(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Inclusive date bounds of the week (Mon–Sun) or month containing `iso`. */
+function rangeFor(iso: string, mode: ViewMode): { from: string; to: string } {
+  const d = parseISO(iso);
+  if (mode === "month") return { from: toISODate(new Date(d.getFullYear(), d.getMonth(), 1)), to: toISODate(new Date(d.getFullYear(), d.getMonth() + 1, 0)) };
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { from: toISODate(monday), to: toISODate(sunday) };
+}
+
+function stepDate(iso: string, mode: ViewMode, dir: -1 | 1): string {
+  if (mode === "day") return shiftDate(iso, dir);
+  if (mode === "week") return shiftDate(iso, 7 * dir);
+  const d = parseISO(iso);
+  return toISODate(new Date(d.getFullYear(), d.getMonth() + dir, 1));
+}
+
+/** Financial-chart bar label → the Day Book module its click filters the timeline to. */
+const CHART_MODULE: Record<string, DayBookModule> = { Sales: "sales", Payments: "payments", Purchases: "purchases", Expenses: "expenses" };
 
 const MODULES: DayBookModule[] = ["sales", "payments", "expenses", "purchases", "stitching", "customers", "attendance", "payroll", "other"];
 
@@ -88,12 +146,31 @@ export default function DayBookPage() {
   const [search, setSearch] = useState("");
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
+  const [mode, setMode] = useState<ViewMode>("day");
+  const [compare, setCompare] = useState<CompareBase>("yesterday");
+  const { data: shop } = useShopSettings();
+  const closeDay = useCloseDay();
+  const addAdjustment = useAddCashAdjustment();
+  const history = useClosingHistory();
+  const { data: targets, save: saveTargets } = useAppSetting<DayBookTargets>("dayBookTargets", { billed: 0, collected: 0 });
+  const timelineRef = useRef<HTMLDivElement>(null);
 
   const canView = !!user?.perms.viewReports;
   // Profit is restricted to the admin role specifically — the rest of the Day Book (sales,
   // payments, expenses, activity) stays visible to any manager who can already view reports.
   const canViewProfit = user?.role === "admin";
   const { data, isLoading, isError, error } = useDayBook(date);
+  const range = useMemo(() => rangeFor(date, mode), [date, mode]);
+  const rangeQuery = useDayBookRange(range.from, range.to, mode !== "day");
+  const removeAdjustment = useRemoveCashAdjustment(date);
+  const isAdmin = user?.role === "admin";
+  const canClose = !!user?.perms.managePayments || isAdmin;
+  // Trend data for the KPI sparklines (last 7 days ending on the selected date) and the
+  // best/slowest-day line (the selected date's month) — only needed in single-day mode.
+  const sparkRange = useDayBookRange(shiftDate(date, -6), date, mode === "day");
+  const monthRange = useDayBookRange(rangeFor(date, "month").from, rangeFor(date, "month").to, mode === "day");
+  const isToday = date === todayISO();
+  const staffRows = useMemo(() => summarizeByUser(data?.entries || []), [data]);
 
   const entries = useMemo(() => data?.entries || [], [data]);
 
@@ -143,6 +220,76 @@ export default function DayBookPage() {
       ]
     : [];
 
+  function delta(key: "totalBilled" | "sales" | "payments" | "purchases" | "expenses" | "refunds", current: number, goodWhenUp = true) {
+    if (!data) return undefined;
+    const base = compare === "yesterday" ? data.comparison.yesterday : data.comparison.lastWeek;
+    return { pct: pctChange(current, base[key]), label: compare === "yesterday" ? "yesterday" : "last week", goodWhenUp };
+  }
+
+  /** Series for a KPI sparkline from the 7-day range query. */
+  function spark(key: "totalBilled" | "sales" | "payments" | "purchases" | "expenses" | "refunds"): number[] | undefined {
+    return sparkRange.data?.days.map((d) => d[key]);
+  }
+
+  /** Click a KPI card / chart bar → filter the timeline to that module and jump to it. */
+  function focusModule(m: DayBookModule) {
+    setModuleFilter(m);
+    setTimeout(() => timelineRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  }
+
+  async function downloadAccountantPack() {
+    if (!data) return;
+    const sheets = buildAccountantSheets({
+      date,
+      entries, // the full day, not whatever the on-screen filters currently show
+      summary: [
+        { label: "Date", value: date },
+        { label: "Total billed", value: data.totals.totalBilled },
+        { label: "Retail sales", value: data.totals.sales },
+        { label: "Stitching billed", value: data.totals.stitchingRevenue },
+        { label: "Payments received", value: data.totals.payments },
+        { label: "Purchases", value: data.totals.purchases },
+        { label: "Expenses", value: data.totals.expenses },
+        { label: "Refunds / credits", value: data.totals.refunds },
+        { label: "Discounts given", value: data.discounts.total },
+      ],
+      split: data.paymentMethods,
+      cash: data.cash,
+      closing: data.closing,
+      adjustments: data.adjustments,
+    });
+    await exportXLSXMultiSheet(sheets, `day-book-accountant-${date}`);
+  }
+
+  function copySummary(openWhatsApp: boolean) {
+    if (!data) return;
+    const text = buildEndOfDaySummary({
+      date,
+      shopName: shop?.name,
+      sales: data.totals.sales,
+      stitchingBilled: data.totals.stitchingRevenue,
+      payments: data.totals.payments,
+      expenses: data.totals.expenses,
+      purchases: data.totals.purchases,
+      split: data.paymentMethods,
+      cash: data.cash,
+      closing: data.closing,
+      ordersCreated: data.totals.ordersCreated,
+      deliveredToday: data.deliveries.deliveredToday.length,
+      dueToday: data.deliveries.dueToday.length,
+      overdue: data.deliveries.overdue.length,
+      unpaidOnDelivered: data.deliveries.unpaidOnDeliveredToday,
+    });
+    if (openWhatsApp) {
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+    } else {
+      navigator.clipboard?.writeText(text).then(
+        () => toast.success("Summary copied"),
+        () => toast.error("Couldn't copy — select and copy manually")
+      );
+    }
+  }
+
   if (!canView) {
     return (
       <div className="p-4 sm:p-6">
@@ -171,11 +318,21 @@ export default function DayBookPage() {
       description="Everything that happened in the system on the selected date, across every module."
       actions={
         <div className="flex flex-wrap items-center gap-2 print:hidden">
-          <Button variant="outline" size="sm" onClick={() => setDate((d) => shiftDate(d, -1))} aria-label="Previous day">
+          <SegmentedToggle
+            ariaLabel="Day book range"
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: "day", label: "Day", icon: CalendarDays },
+              { value: "week", label: "Week", icon: CalendarRange },
+              { value: "month", label: "Month", icon: CalendarRange },
+            ]}
+          />
+          <Button variant="outline" size="sm" onClick={() => setDate((d) => stepDate(d, mode, -1))} aria-label="Previous">
             <ChevronLeft className="size-4" />
           </Button>
           <DatePicker value={date} onChange={setDate} className="w-40" />
-          <Button variant="outline" size="sm" onClick={() => setDate((d) => shiftDate(d, 1))} aria-label="Next day">
+          <Button variant="outline" size="sm" onClick={() => setDate((d) => stepDate(d, mode, 1))} aria-label="Next">
             <ChevronRight className="size-4" />
           </Button>
           <Button variant="outline" size="sm" onClick={() => setDate(todayISO())}>
@@ -185,28 +342,86 @@ export default function DayBookPage() {
             rows={exportRows}
             filename={`day-book-${date}`}
             title={`Day Book — ${fmtDate(date)}`}
-            summaryLines={[`Date: ${fmtDate(date)}`, `Sales: ${inr(data?.totals.sales ?? 0)}`, `Payments: ${inr(data?.totals.payments ?? 0)}`, `Expenses: ${inr(data?.totals.expenses ?? 0)}`]}
+            summaryLines={[
+              `Date: ${fmtDate(date)}`,
+              `Total billed: ${inr(data?.totals.totalBilled ?? 0)}`,
+              `Sales: ${inr(data?.totals.sales ?? 0)}`,
+              `Payments: ${inr(data?.totals.payments ?? 0)}`,
+              `Expenses: ${inr(data?.totals.expenses ?? 0)}`,
+              ...(data ? [`Expected cash: ${inr(data.cash.expected)}`, ...(data.closing ? [`Counted cash: ${inr(data.closing.countedCash)}`] : [])] : []),
+            ]}
           />
         </div>
       }
     >
       <p className="text-sm font-medium text-muted-foreground print:block hidden">{fmtDate(date)}</p>
 
-      {isLoading && <Skeleton className="h-96 w-full" />}
+      {mode !== "day" && (
+        <>
+          <p className="text-sm font-medium text-muted-foreground">
+            {fmtDate(range.from)} – {fmtDate(range.to)}
+          </p>
+          {rangeQuery.isLoading && <Skeleton className="h-96 w-full" />}
+          {rangeQuery.isError && (
+            <EmptyState icon={CalendarDays} title="Couldn't load this range" description={rangeQuery.error instanceof Error ? rangeQuery.error.message : "Try again."} />
+          )}
+          {rangeQuery.data && (
+            <RangeView
+              days={rangeQuery.data.days}
+              onPickDay={(d) => {
+                setDate(d);
+                setMode("day");
+              }}
+            />
+          )}
+        </>
+      )}
 
-      {isError && (
+      {mode === "day" && isLoading && <Skeleton className="h-96 w-full" />}
+
+      {mode === "day" && isError && (
         <EmptyState icon={CalendarDays} title="Couldn't load the Day Book" description={error instanceof Error ? error.message : "Try again."} />
       )}
 
-      {data && (
+      {mode === "day" && data && (
         <>
+          <UnclosedBanner
+            days={(history.data?.unclosedDays || []).filter((d) => d !== date)}
+            onPick={(d) => setDate(d)}
+          />
+
+          {/* End-of-day tools + comparison basis */}
+          <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
+            <SegmentedToggle
+              ariaLabel="Compare against"
+              value={compare}
+              onChange={setCompare}
+              options={[
+                { value: "yesterday", label: "vs yesterday" },
+                { value: "lastWeek", label: "vs last week" },
+              ]}
+            />
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={downloadAccountantPack}>
+                <FileSpreadsheet className="size-4" /> Accountant Excel
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => copySummary(false)}>
+                <Copy className="size-4" /> Copy summary
+              </Button>
+              <Button size="sm" onClick={() => copySummary(true)}>
+                <MessageCircle className="size-4" /> Send on WhatsApp
+              </Button>
+            </div>
+          </div>
+
           {/* Financial KPIs */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <StatCard label="Sales" value={inr(data.totals.sales)} icon={Receipt} tone="default" />
-            <StatCard label="Payments Received" value={inr(data.totals.payments)} icon={Banknote} tone="success" />
-            <StatCard label="Purchases" value={inr(data.totals.purchases)} icon={ShoppingCart} tone="default" />
-            <StatCard label="Expenses" value={inr(data.totals.expenses)} icon={Wallet} tone="danger" />
-            <StatCard label="Refunds" value={inr(data.totals.refunds)} icon={RotateCcw} tone="warning" />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+            <StatCard label="Total Billed" value={inr(data.totals.totalBilled)} icon={FileText} tone="default" delta={delta("totalBilled", data.totals.totalBilled)} spark={spark("totalBilled")} />
+            <StatCard label="Sales" value={inr(data.totals.sales)} icon={Receipt} tone="default" delta={delta("sales", data.totals.sales)} spark={spark("sales")} onClick={() => focusModule("sales")} />
+            <StatCard label="Payments Received" value={inr(data.totals.payments)} icon={Banknote} tone="success" delta={delta("payments", data.totals.payments)} spark={spark("payments")} onClick={() => focusModule("payments")} />
+            <StatCard label="Purchases" value={inr(data.totals.purchases)} icon={ShoppingCart} tone="default" delta={delta("purchases", data.totals.purchases, false)} spark={spark("purchases")} onClick={() => focusModule("purchases")} />
+            <StatCard label="Expenses" value={inr(data.totals.expenses)} icon={Wallet} tone="danger" delta={delta("expenses", data.totals.expenses, false)} spark={spark("expenses")} onClick={() => focusModule("expenses")} />
+            <StatCard label="Refunds" value={inr(data.totals.refunds)} icon={RotateCcw} tone="warning" delta={delta("refunds", data.totals.refunds, false)} spark={spark("refunds")} />
             {canViewProfit && (
               <StatCard label="Profit" value={inr(data.totals.profit)} icon={data.totals.profit >= 0 ? TrendingUp : TrendingDown} tone={data.totals.profit >= 0 ? "success" : "danger"} />
             )}
@@ -227,11 +442,84 @@ export default function DayBookPage() {
           {/* Operational KPIs */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <StatCard label="Invoices Created" value={data.totals.invoicesCreated} icon={FileText} />
-            <StatCard label="Orders Created" value={data.totals.ordersCreated} icon={Receipt} />
-            <StatCard label="Customers Added" value={data.totals.customersAdded} icon={Users} />
-            <StatCard label="Attendance Events" value={data.totals.attendanceEvents} icon={Clock} />
+            <StatCard label="Orders Created" value={data.totals.ordersCreated} icon={Receipt} onClick={() => focusModule("stitching")} />
+            <StatCard label="Customers Added" value={data.totals.customersAdded} icon={Users} onClick={() => focusModule("customers")} />
+            <StatCard label="Attendance Events" value={data.totals.attendanceEvents} icon={Clock} onClick={() => focusModule("attendance")} />
             <StatCard label="Total Activities" value={data.totals.totalActivities} icon={ActivityIcon} />
           </div>
+
+          {monthRange.data && <BestWorstDays days={monthRange.data.days} today={todayISO()} />}
+
+          <TargetCard
+            billed={data.totals.totalBilled}
+            collected={data.totals.payments}
+            targets={targets || { billed: 0, collected: 0 }}
+            canEdit={isAdmin}
+            onSave={(t) => saveTargets.mutate(t, { onSuccess: () => toast.success("Targets saved"), onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't save targets") })}
+          />
+
+          <ReviewStrip flags={data.reviewFlags} />
+
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            <div className="space-y-4">
+            <CashPositionCard
+              date={date}
+              cash={data.cash}
+              closing={data.closing}
+              canClose={canClose}
+              isAdmin={isAdmin}
+              busy={closeDay.isPending}
+              onClose={(countedCash, note) =>
+                closeDay.mutate(
+                  { date, countedCash, note },
+                  {
+                    onSuccess: (r) => toast.success(r.variance === 0 ? "Day closed — cash matches" : `Day closed — ${r.variance > 0 ? "over" : "short"} by ${inr(Math.abs(r.variance))}`),
+                    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to close the day"),
+                  }
+                )
+              }
+            />
+            <CashAdjustmentsCard
+              date={date}
+              adjustments={data.adjustments}
+              closed={!!data.closing}
+              canEdit={canClose}
+              isAdmin={isAdmin}
+              busy={addAdjustment.isPending || removeAdjustment.isPending}
+              onAdd={(a) =>
+                addAdjustment.mutate(
+                  { date, ...a },
+                  {
+                    onSuccess: () => toast.success("Cash entry recorded"),
+                    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to record"),
+                  }
+                )
+              }
+              onRemove={(id) =>
+                removeAdjustment.mutate(id, {
+                  onSuccess: () => toast.success("Removed"),
+                  onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to remove"),
+                })
+              }
+            />
+            </div>
+            <div className="space-y-4">
+              <PaymentMethodsCard split={data.paymentMethods} />
+              <VarianceHistoryCard history={history.data} />
+            </div>
+          </div>
+
+          <DeliveriesCard board={data.deliveries} isToday={isToday} />
+
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            <CollectionsCard data={data.collections} date={date} shopName={shop?.name} shopPhone={shop?.phone} />
+            <div className="space-y-4">
+              <SoldTodayCard sold={data.soldToday} />
+              <DiscountsCard discounts={data.discounts} />
+            </div>
+          </div>
+
+          <AttendanceCard board={data.attendance} />
 
           {/* Tailor activity — what each tailor moved forward today, so it can be read out to
               them directly ("you moved N to Finishing and M to Ready today, ₹X payable"). */}
@@ -242,10 +530,18 @@ export default function DayBookPage() {
                 <div key={t.tailorId} className="space-y-3 rounded-lg border p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-semibold">{t.tailorName}</p>
-                    {t.payableToday > 0 && (
-                      <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{inr(t.payableToday)} payable today</span>
-                    )}
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      {t.piecesReady > 0 && (
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <PackageCheck className="size-3.5" /> {t.piecesReady} {t.piecesReady === 1 ? "piece" : "pieces"} ready
+                        </span>
+                      )}
+                      {t.payableToday > 0 && <span className="font-semibold text-emerald-600 dark:text-emerald-400">{inr(t.payableToday)} payable today</span>}
+                      {(t.paidToday ?? 0) > 0 && <span className="font-semibold text-sky-600 dark:text-sky-400">{inr(t.paidToday ?? 0)} paid out</span>}
+                    </div>
                   </div>
+                  <TailorOrderList label="Received → Cutting" icon={Scissors} orders={t.receivedToCuttingOrders} />
+                  <TailorOrderList label="Cutting → Stitching" icon={Scissors} orders={t.cuttingToStitchingOrders} />
                   <TailorOrderList label="Stitching → Finishing" icon={Scissors} orders={t.stitchingToFinishingOrders} />
                   <TailorOrderList label="Finishing → Ready (ready to deliver)" icon={CheckCircle2} orders={t.finishingToReadyOrders} />
                 </div>
@@ -264,7 +560,15 @@ export default function DayBookPage() {
                     <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={11} />
                     <YAxis tickLine={false} axisLine={false} fontSize={11} />
                     <Tooltip formatter={(v) => inr(Number(v))} contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-popover)", fontSize: 12 }} />
-                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    <Bar
+                      dataKey="value"
+                      radius={[4, 4, 0, 0]}
+                      cursor="pointer"
+                      onClick={(d: unknown) => {
+                        const m = CHART_MODULE[(d as { name?: string }).name || ""];
+                        if (m) focusModule(m);
+                      }}
+                    >
                       {financialChartData.map((d) => (
                         <Cell key={d.name} fill={d.color} />
                       ))}
@@ -283,12 +587,25 @@ export default function DayBookPage() {
                     <XAxis type="number" tickLine={false} axisLine={false} fontSize={11} allowDecimals={false} />
                     <YAxis type="category" dataKey="label" tickLine={false} axisLine={false} fontSize={11} width={80} />
                     <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-popover)", fontSize: 12 }} />
-                    <Bar dataKey="count" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
+                    <Bar
+                      dataKey="count"
+                      fill="#0ea5e9"
+                      radius={[0, 4, 4, 0]}
+                      cursor="pointer"
+                      onClick={(d: unknown) => {
+                        const m = (d as { module?: DayBookModule }).module;
+                        if (m) focusModule(m);
+                      }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </ReportCard>
           </div>
+
+          <StaffSummaryCard rows={staffRows} />
+
+          <div ref={timelineRef} className="scroll-mt-20" />
 
           {/* Filters */}
           <ReportCard className="flex flex-wrap items-center gap-2 p-3 print:hidden">
@@ -426,8 +743,112 @@ export default function DayBookPage() {
               </MobileRecordList>
             </>
           )}
+
+          {/* Print-only closing block — the signed sheet for the accountant. */}
+          <div className="mt-10 hidden space-y-6 print:block">
+            <p className="text-sm">
+              Cash: opening {inr(data.cash.opening)} + received {inr(data.cash.cashIn)} − paid out {inr(data.cash.cashOut)} = expected {inr(data.cash.expected)}
+              {data.closing ? ` · counted ${inr(data.closing.countedCash)} · ${data.closing.variance === 0 ? "matches" : `${data.closing.variance > 0 ? "over" : "short"} by ${inr(Math.abs(data.closing.variance))}`}` : " · day not closed"}
+            </p>
+            <div className="grid grid-cols-3 gap-8 pt-8 text-xs text-muted-foreground">
+              {["Prepared by", "Verified by", "Owner"].map((label) => (
+                <div key={label} className="border-t border-foreground/40 pt-1.5">
+                  {label}
+                </div>
+              ))}
+            </div>
+          </div>
         </>
       )}
     </ReportShell>
+  );
+}
+
+function RangeView({ days, onPickDay }: { days: RangeDay[]; onPickDay: (date: string) => void }) {
+  const totals = days.reduce(
+    (t, d) => ({
+      totalBilled: t.totalBilled + d.totalBilled,
+      sales: t.sales + d.sales,
+      payments: t.payments + d.payments,
+      expenses: t.expenses + d.expenses,
+      purchases: t.purchases + d.purchases,
+      refunds: t.refunds + d.refunds,
+      cashIn: t.cashIn + d.cashIn,
+    }),
+    { totalBilled: 0, sales: 0, payments: 0, expenses: 0, purchases: 0, refunds: 0, cashIn: 0 }
+  );
+  const chart = days.map((d) => ({ ...d, label: `${d.date.slice(8)}/${d.date.slice(5, 7)}` }));
+  const exportRows = days.map((d) => ({ Date: d.date, "Total billed": d.totalBilled, Sales: d.sales, Payments: d.payments, "Cash in": d.cashIn, Expenses: d.expenses, Purchases: d.purchases, Refunds: d.refunds }));
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+        <StatCard label="Total Billed" value={inr(totals.totalBilled)} icon={FileText} />
+        <StatCard label="Sales" value={inr(totals.sales)} icon={Receipt} />
+        <StatCard label="Payments Received" value={inr(totals.payments)} icon={Banknote} tone="success" />
+        <StatCard label="Cash In" value={inr(totals.cashIn)} icon={Wallet} tone="success" />
+        <StatCard label="Purchases" value={inr(totals.purchases)} icon={ShoppingCart} />
+        <StatCard label="Expenses" value={inr(totals.expenses)} icon={Wallet} tone="danger" />
+        <StatCard label="Refunds" value={inr(totals.refunds)} icon={RotateCcw} tone="warning" />
+      </div>
+
+      <ReportCard className="p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Daily billed vs collected vs spent</p>
+          <ReportActionsMenu
+            rows={exportRows}
+            filename={`day-book-${days[0]?.date}-to-${days[days.length - 1]?.date}`}
+            title="Day Book — range"
+            summaryLines={[`Billed: ${inr(totals.totalBilled)}`, `Collected: ${inr(totals.payments)}`, `Expenses: ${inr(totals.expenses)}`]}
+          />
+        </div>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chart} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} interval="preserveStartEnd" />
+              <YAxis tickLine={false} axisLine={false} fontSize={11} />
+              <Tooltip formatter={(v) => inr(Number(v))} contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-popover)", fontSize: 12 }} />
+              <Bar dataKey="totalBilled" name="Billed" fill="#0ea5e9" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="payments" name="Collected" fill="#059669" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="expenses" name="Expenses" fill="#ef4444" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </ReportCard>
+
+      <ReportTable>
+        <thead className="border-b bg-muted/40">
+          <tr>
+            <Th>Date</Th>
+            <Th align="right">Billed</Th>
+            <Th align="right">Collected</Th>
+            <Th align="right">Cash in</Th>
+            <Th align="right">Expenses</Th>
+            <Th align="right">Purchases</Th>
+          </tr>
+        </thead>
+        <tbody className="divide-y">
+          <ReportTotalsRow>
+            <Td>Total</Td>
+            <Td align="right">{inr(totals.totalBilled)}</Td>
+            <Td align="right">{inr(totals.payments)}</Td>
+            <Td align="right">{inr(totals.cashIn)}</Td>
+            <Td align="right">{inr(totals.expenses)}</Td>
+            <Td align="right">{inr(totals.purchases)}</Td>
+          </ReportTotalsRow>
+          {days.map((d) => (
+            <tr key={d.date} className="cursor-pointer hover:bg-muted/30" onClick={() => onPickDay(d.date)}>
+              <Td className="whitespace-nowrap font-medium text-primary">{fmtDate(d.date)}</Td>
+              <Td align="right">{inr(d.totalBilled)}</Td>
+              <Td align="right">{inr(d.payments)}</Td>
+              <Td align="right">{inr(d.cashIn)}</Td>
+              <Td align="right">{inr(d.expenses)}</Td>
+              <Td align="right">{inr(d.purchases)}</Td>
+            </tr>
+          ))}
+        </tbody>
+      </ReportTable>
+      <p className="text-xs text-muted-foreground print:hidden">Tap a date to open that day in full.</p>
+    </>
   );
 }

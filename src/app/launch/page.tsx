@@ -1,12 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Store, ArrowRight, Loader2 } from "lucide-react";
 import { Preferences } from "@capacitor/preferences";
 import { resolveShopUrl, SHOP_URL_PREFERENCE_KEY } from "@/lib/app-launch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+/**
+ * Every cold app open loads this page first (it's capacitor.config.ts's server.url), so the
+ * common case — a device that already has a saved shop — pays for it on literally every single
+ * open, forever. When the saved shop happens to be this same origin (true for every install
+ * today, since the one shared deployment currently doubles as its own gateway), a full
+ * window.location navigation to it means a second entire cold page load: new document fetch, new
+ * JS bundle fetch, new Provider tree init, on top of the one this page itself just paid for — the
+ * dominant cost on a real phone's CPU, not network speed (confirmed slow on both fast WiFi and
+ * 5G). router.replace() instead keeps it a single in-page transition: no second document/bundle
+ * fetch, same proxy-driven /login-vs-/dashboard outcome. A different customer's own domain still
+ * needs a real cross-origin navigation — the browser can't soft-route there.
+ */
+function goToShop(router: ReturnType<typeof useRouter>, url: string, replaceHistory: boolean) {
+  if (typeof window !== "undefined" && new URL(url, window.location.href).origin === window.location.origin) {
+    // /login resolves to /dashboard via the proxy for an already-authenticated session, so this
+    // is never a dead end — see src/lib/supabase/session.ts's AUTH_AWARE_PUBLIC_PATHS.
+    router.replace("/login");
+    return;
+  }
+  if (replaceHistory) window.location.replace(url);
+  else window.location.href = url;
+}
 
 /**
  * The native app's actual entry point (capacitor.config.ts's server.url) — see
@@ -26,6 +50,7 @@ import { Label } from "@/components/ui/label";
  * no-op for virtually everyone since nobody browses to this URL directly).
  */
 export default function LaunchPage() {
+  const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -34,12 +59,12 @@ export default function LaunchPage() {
   useEffect(() => {
     Preferences.get({ key: SHOP_URL_PREFERENCE_KEY }).then(({ value }) => {
       if (value) {
-        window.location.replace(value);
+        goToShop(router, value, true);
         return;
       }
       setChecking(false);
     });
-  }, []);
+  }, [router]);
 
   async function go() {
     const url = resolveShopUrl(input);
@@ -54,7 +79,7 @@ export default function LaunchPage() {
     // @capacitor/preferences is native storage the whole app shares regardless of which site's
     // JS is currently running, so it survives the jump and every later app open reads it back.
     await Preferences.set({ key: SHOP_URL_PREFERENCE_KEY, value: url });
-    window.location.href = url;
+    goToShop(router, url, false);
   }
 
   if (checking) {

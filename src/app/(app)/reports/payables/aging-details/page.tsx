@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import Link from "next/link";
-import { Wallet } from "lucide-react";
+
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
 import { daysLeft } from "@/lib/business-rules";
@@ -12,8 +13,13 @@ import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type Bill = NonNullable<ReturnType<typeof usePurchaseBills>["data"]>[number];
+type AgingDetailRow = Bill & { daysOverdue: number };
 
 /** Point-in-time snapshot ("outstanding as of today") — the date range filters which bills
  *  (by billDate) feed the list, not the "days overdue" math, which stays as-of-now. */
@@ -22,15 +28,34 @@ export default function ApAgingDetailsPage() {
   const { data: vendors, isLoading: l2 } = useVendors();
   const isLoading = l1 || l2;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [vendorId, setVendorId] = useState("all");
 
   const vendorNameById = useMemo(() => new Map((vendors || []).map((v) => [v.id, v.name])), [vendors]);
 
+  const vendorOptions = useMemo(() => {
+    const ids = new Set((bills || []).filter((b) => b.balance > 0).map((b) => b.vendorId));
+    return Array.from(ids)
+      .map((id) => ({ id, name: vendorNameById.get(id) || "Unknown vendor" }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [bills, vendorNameById]);
+
   const rows = useMemo(() => {
     return (bills || [])
-      .filter((b) => b.balance > 0 && isWithinDateRange(b.billDate, range))
+      .filter((b) => b.balance > 0 && isWithinDateRange(b.billDate, range) && (vendorId === "all" || b.vendorId === vendorId))
       .map((b) => ({ ...b, daysOverdue: b.dueDate ? Math.max(0, -daysLeft(b.dueDate)) : 0 }))
       .sort((a, b) => b.daysOverdue - a.daysOverdue);
-  }, [bills, range]);
+  }, [bills, range, vendorId]);
+
+  const SORT_COMPARATORS: Record<string, (a: AgingDetailRow, b: AgingDetailRow) => number> = {
+    bill: (a, b) => a.billNumber.localeCompare(b.billNumber),
+    vendor: (a, b) => (vendorNameById.get(a.vendorId) || "").localeCompare(vendorNameById.get(b.vendorId) || ""),
+    dueDate: (a, b) => (a.dueDate || "").localeCompare(b.dueDate || ""),
+    balance: (a, b) => a.balance - b.balance,
+    daysOverdue: (a, b) => a.daysOverdue - b.daysOverdue,
+  };
+  const SORT_DESC_KEYS = new Set(["balance", "daysOverdue"]);
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<AgingDetailRow>("ap-aging-details", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -40,7 +65,7 @@ export default function ApAgingDetailsPage() {
       description="Every outstanding bill, ranked by how overdue it is."
       actions={
         <ReportActionsMenu
-          rows={rows.map((b) => ({
+          rows={sortedRows.map((b) => ({
             Bill: b.billNumber,
             Vendor: vendorNameById.get(b.vendorId) || "",
             "Due Date": b.dueDate || "",
@@ -60,22 +85,37 @@ export default function ApAgingDetailsPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <Select value={vendorId} onValueChange={(v) => v && setVendorId(v)}>
+            <SelectTrigger className="h-9 w-44">
+              <SelectValue>{vendorId === "all" ? "All Vendors" : vendorNameById.get(vendorId) || "Unknown vendor"}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Vendors</SelectItem>
+              {vendorOptions.map((v) => (
+                <SelectItem key={v.id} value={v.id}>
+                  {v.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {rows.length === 0 ? (
-        <EmptyState icon={Wallet} title="No outstanding bills" description="Everything is paid up." />
+        <EmptyState icon={WalletDuotoneIcon} title="No outstanding bills" description="Everything is paid up." />
       ) : (
         <>
         <MobileRecordList>
           <MobileRecordCard className="bg-muted/40">
-            <MobileRecordHeader title="Total" value={inr(rows.reduce((s, b) => s + b.balance, 0))} showChevron={false} />
+            <MobileRecordHeader boldTitle title="Total" value={inr(rows.reduce((s, b) => s + b.balance, 0))} showChevron={false} valueClassName="text-red-600 dark:text-red-400" />
           </MobileRecordCard>
-          {rows.map((b) => (
+          {sortedRows.map((b) => (
             <MobileRecordCard key={b.id} href={`/purchases/bills/${b.id}`}>
               <MobileRecordHeader
-                title={b.billNumber}
+                boldTitle title={b.billNumber}
                 subtitle={vendorNameById.get(b.vendorId) || "Unknown vendor"}
-                value={inr(b.balance)}
+                value={inr(b.balance)} valueClassName="text-red-600 dark:text-red-400"
               />
               <MobileRecordRow label="Due Date" value={b.dueDate ? fmtDate(b.dueDate) : "—"} />
               <MobileRecordRow
@@ -90,11 +130,11 @@ export default function ApAgingDetailsPage() {
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
-              <Th>Bill</Th>
-              <Th>Vendor</Th>
-              <Th>Due Date</Th>
-              <Th align="right">Balance</Th>
-              <Th align="right">Days Overdue</Th>
+              <Th sortKey="bill" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Bill</Th>
+              <Th sortKey="vendor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Vendor</Th>
+              <Th sortKey="dueDate" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Due Date</Th>
+              <Th align="right" sortKey="balance" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Balance</Th>
+              <Th align="right" sortKey="daysOverdue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Days Overdue</Th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -103,7 +143,7 @@ export default function ApAgingDetailsPage() {
               <Td align="right">{inr(rows.reduce((s, b) => s + b.balance, 0))}</Td>
               <Td align="right">—</Td>
             </ReportTotalsRow>
-            {rows.map((b) => (
+            {sortedRows.map((b) => (
               <tr key={b.id} className="hover:bg-muted/30">
                 <Td className="font-medium">
                   <Link href={`/purchases/bills/${b.id}`} className="text-primary hover:underline">

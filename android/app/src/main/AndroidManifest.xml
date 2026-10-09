@@ -32,4 +32,11 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Check In/Out's "am I actually at the shop" geofence — without these the WebView's
+         navigator.geolocation bridge has no OS permission to grant, and on Android it silently
+         never calls either the success or error callback instead of failing cleanly. That hung
+         the location fix forever right after the selfie step, looking like the whole Check In/Out
+         flow was frozen. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 </manifest>

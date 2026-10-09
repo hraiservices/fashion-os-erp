@@ -2,12 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, Trash2, Pencil, Wallet, Upload } from "lucide-react";
+import { Plus, Trash2, Pencil, Upload, ArrowUpDown } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { toast } from "sonner";
 import { useExpenses, useDeleteExpense, useBulkDeleteExpenses } from "@/hooks/use-expenses";
+import { useEmployees } from "@/hooks/use-employees";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRowSelection } from "@/hooks/use-row-selection";
+import { useTableSort } from "@/hooks/use-table-sort";
+import { cn } from "@/lib/utils";
 import { inr, fmtDateShort } from "@/lib/format";
+import type { Expense } from "@/lib/types";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,8 +30,35 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+function SortTh({
+  label,
+  sortableKey,
+  align,
+  sortKey,
+  sortAsc,
+  onSort,
+}: {
+  label: string;
+  sortableKey: string;
+  align?: "right";
+  sortKey: string | null;
+  sortAsc: boolean;
+  onSort: (key: string) => void;
+}) {
+  const active = sortKey === sortableKey;
+  return (
+    <th className={cn("px-4 py-2.5 font-medium", align === "right" && "text-right")}>
+      <button type="button" onClick={() => onSort(sortableKey)} className={cn("inline-flex items-center gap-1 hover:text-foreground", align === "right" && "flex-row-reverse")}>
+        {label}
+        <ArrowUpDown className={cn("size-3", active ? "text-foreground" : "text-muted-foreground/60", active && sortAsc && "rotate-180")} />
+      </button>
+    </th>
+  );
+}
+
 function ExpensesPageContent() {
   const { data: expenses, isLoading } = useExpenses();
+  const { data: employees } = useEmployees();
   const { data: user } = useCurrentUser();
   const deleteExpense = useDeleteExpense();
   const bulkDeleteExpenses = useBulkDeleteExpenses();
@@ -34,6 +66,26 @@ function ExpensesPageContent() {
 
   const canAdd = user?.role === "admin" || user?.role === "manager";
   const selection = useRowSelection((expenses || []).map((e) => e.id));
+  const employeeNameById = new Map((employees || []).map((emp) => [emp.id, emp.name]));
+  function linkedNameFor(e: { employeeId: string | null; customerName: string | null }) {
+    if (e.employeeId) return employeeNameById.get(e.employeeId) || "—";
+    return e.customerName || "—";
+  }
+
+  // Same shape as the Expense Details report's SORT_COMPARATORS (reports/expenses/details) plus
+  // the "customer" column this list has and that report doesn't — rebuilt each render since it
+  // closes over linkedNameFor/employeeNameById, cheap enough not to memoize.
+  const sortComparators: Record<string, (a: Expense, b: Expense) => number> = {
+    date: (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    category: (a, b) => a.category.localeCompare(b.category),
+    customer: (a, b) => linkedNameFor(a).localeCompare(linkedNameFor(b)),
+    description: (a, b) => (a.description || "").localeCompare(b.description || ""),
+    method: (a, b) => a.payMethod.localeCompare(b.payMethod),
+    amount: (a, b) => a.amount - b.amount,
+  };
+  const sortDescKeys = new Set(["date", "amount"]);
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<Expense>("expenses-list", sortComparators, sortDescKeys);
+  const sortedExpenses = applySort(expenses || []);
 
   async function handleDelete(id: string) {
     try {
@@ -70,11 +122,11 @@ function ExpensesPageContent() {
         description="Track your company's operating costs"
         actions={
           canAdd && (
-            <div className="flex gap-2">
-              <Button variant="outline" nativeButton={false} render={<Link href="/expenses/import" />}>
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+              <Button variant="outline" className="w-full sm:w-auto" nativeButton={false} render={<Link href="/expenses/import" />}>
                 <Upload className="size-4" /> Import
               </Button>
-              <Button nativeButton={false} render={<Link href="/expenses/new" />}>
+              <Button className="w-full sm:w-auto" nativeButton={false} render={<Link href="/expenses/new" />}>
                 <Plus className="size-4" /> Add Expense
               </Button>
             </div>
@@ -127,7 +179,7 @@ function ExpensesPageContent() {
           </div>
         ) : !expenses?.length ? (
           <EmptyState
-            icon={Wallet}
+            icon={WalletDuotoneIcon}
             title="No expenses yet"
             description="Add your first expense to start tracking costs."
             className="border-0"
@@ -157,16 +209,17 @@ function ExpensesPageContent() {
                       />
                     </th>
                   )}
-                  <th className="px-4 py-2.5 font-medium">Date</th>
-                  <th className="px-4 py-2.5 font-medium">Category</th>
-                  <th className="px-4 py-2.5 font-medium">Description</th>
-                  <th className="px-4 py-2.5 font-medium">Method</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Amount</th>
+                  <SortTh label="Date" sortableKey="date" sortKey={sortKey} sortAsc={sortAsc} onSort={toggleSort} />
+                  <SortTh label="Category" sortableKey="category" sortKey={sortKey} sortAsc={sortAsc} onSort={toggleSort} />
+                  <SortTh label="Customer/Employee" sortableKey="customer" sortKey={sortKey} sortAsc={sortAsc} onSort={toggleSort} />
+                  <SortTh label="Description" sortableKey="description" sortKey={sortKey} sortAsc={sortAsc} onSort={toggleSort} />
+                  <SortTh label="Method" sortableKey="method" sortKey={sortKey} sortAsc={sortAsc} onSort={toggleSort} />
+                  <SortTh label="Amount" sortableKey="amount" align="right" sortKey={sortKey} sortAsc={sortAsc} onSort={toggleSort} />
                   {canAdd && <th className="px-4 py-2.5" />}
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {expenses.map((e) => (
+                {sortedExpenses.map((e) => (
                   <tr key={e.id} className="transition-colors hover:bg-muted/30">
                     {canAdd && (
                       <td className="px-4 py-3">
@@ -175,6 +228,7 @@ function ExpensesPageContent() {
                     )}
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">{fmtDateShort(e.date)}</td>
                     <td className="px-4 py-3 font-medium">{e.category}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{linkedNameFor(e)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{e.description || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{e.payMethod}</td>
                     <td className="px-4 py-3 text-right font-semibold tabular-nums">{inr(e.amount)}</td>
@@ -211,10 +265,11 @@ function ExpensesPageContent() {
           </div>
 
           <MobileRecordList className="p-2">
-            {expenses.map((e) => (
+            {sortedExpenses.map((e) => (
               <MobileRecordCard key={e.id}>
                 <MobileRecordHeader title={e.category} subtitle={e.description || undefined} value={inr(e.amount)} showChevron={false} />
                 <MobileRecordRow label="Date" value={fmtDateShort(e.date)} />
+                <MobileRecordRow label="Customer/Employee" value={linkedNameFor(e)} />
                 <MobileRecordRow label="Method" value={e.payMethod} />
                 {canAdd && (
                   <div className="flex items-center justify-end gap-1 pt-1">

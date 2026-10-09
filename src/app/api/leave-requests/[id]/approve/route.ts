@@ -14,7 +14,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const { supabase, user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  if (!user.perms.manageEmployees) return NextResponse.json({ error: "No permission to manage employees" }, { status: 403 });
+  if (!user.perms.approveLeave) return NextResponse.json({ error: "No permission to approve leave requests" }, { status: 403 });
 
   const db = createServiceClient();
   if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });

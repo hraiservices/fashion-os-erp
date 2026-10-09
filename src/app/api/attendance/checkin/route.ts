@@ -12,7 +12,10 @@ const bodySchema = z.object({
   lat: z.number(),
   lng: z.number(),
   accuracy: z.number().optional(),
-  photo: z.string().min(1, "A selfie is required"),
+  // Optional — desktop browsers without a webcam (or with permission denied/no device) have no
+  // way to produce a live selfie; the client lets someone continue without one in that case
+  // rather than getting permanently stuck. GPS geofencing still gates the check-in either way.
+  photo: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -77,12 +80,15 @@ export async function POST(request: Request) {
 
   // Order-media-style Storage migration for attendance selfies (see
   // supabase/migrations/create_employee_media_storage_bucket.sql): uploads the raw base64
-  // photo to Storage and stores its object path instead.
-  let photoPath: string;
-  try {
-    photoPath = await migrateAttendancePhoto(supabase, employeeId, photo);
-  } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Could not save check-in photo" }, { status: 500 });
+  // photo to Storage and stores its object path instead. Skipped entirely when no photo was
+  // submitted (desktop, no camera available).
+  let photoPath: string | null = null;
+  if (photo) {
+    try {
+      photoPath = await migrateAttendancePhoto(supabase, employeeId, photo);
+    } catch (e) {
+      return NextResponse.json({ error: e instanceof Error ? e.message : "Could not save check-in photo" }, { status: 500 });
+    }
   }
 
   const { error } = await supabase.from("employee_attendance").upsert(

@@ -3,7 +3,8 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, Receipt, Wallet, Undo2, Trash2, Pencil } from "lucide-react";
+import { Wallet, Undo2, Trash2, Pencil } from "lucide-react";
+import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePurchaseBill } from "@/hooks/use-purchase-bills";
 import { useVendor } from "@/hooks/use-vendors";
 import { useVendorPaymentsForBill } from "@/hooks/use-vendor-payments";
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { PaidAmount, BalanceDue } from "@/components/ui/money-text";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader } from "@/components/ui/mobile-record-list";
 import { RecordVendorPaymentDialog } from "@/components/purchases/record-vendor-payment-dialog";
 import { RaiseVendorCreditDialog } from "@/components/purchases/raise-vendor-credit-dialog";
 import {
@@ -32,6 +34,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
+import { BackLink } from "@/components/ui/back-link";
 
 export default function BillDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -74,16 +77,14 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
   if (!bill) {
     return (
       <div className="p-6">
-        <EmptyState icon={Receipt} title="Bill not found" />
+        <EmptyState icon={ReceiptDuotoneIcon} title="Bill not found" />
       </div>
     );
   }
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
-      <Link href="/purchases/bills" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Bills
-      </Link>
+      <BackLink href="/purchases/bills">Bills</BackLink>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -98,7 +99,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
 
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         <div className="space-y-4 lg:col-span-2">
-          <div className="overflow-hidden rounded-xl border">
+          <div className="hidden overflow-x-auto rounded-xl border sm:block">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/40">
                 <tr>
@@ -120,6 +121,22 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
                   </tr>
                 ))}
               </tbody>
+            </table>
+          </div>
+
+          <MobileRecordList>
+            {bill.items.map((item, i) => (
+              <MobileRecordCard key={i}>
+                <MobileRecordHeader title={purchaseItemName(item)} value={inr(item.amount)} showChevron={false} />
+                <p className="text-xs text-muted-foreground">
+                  {item.qty} {item.unitName} × {inr(item.unitCost)}
+                </p>
+              </MobileRecordCard>
+            ))}
+          </MobileRecordList>
+
+          <div className="overflow-x-auto rounded-xl border">
+            <table className="w-full text-sm">
               <tfoot>
                 <tr className="border-t bg-muted/30">
                   <td className="p-2 text-muted-foreground" colSpan={3}>

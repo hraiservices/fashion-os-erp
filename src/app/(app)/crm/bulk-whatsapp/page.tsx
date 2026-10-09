@@ -40,7 +40,7 @@ export default function BulkWhatsAppPage() {
   const [galleryUrl, setGalleryUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const canSend = user?.perms.manageCustomers || user?.role === "admin" || user?.role === "manager";
+  const canSend = !!user?.perms.sendWhatsappBroadcast;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -81,7 +81,7 @@ export default function BulkWhatsAppPage() {
   if (!canSend) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={ImagePlus} title="No access" description="Bulk WhatsApp is restricted to users who can manage customers." />
+        <EmptyState icon={ImagePlus} title="No access" description="Bulk WhatsApp is restricted to users with permission to send WhatsApp broadcasts." />
       </div>
     );
   }

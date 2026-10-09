@@ -3,7 +3,8 @@
 import { use } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, FileText, Receipt, Ban, Pencil } from "lucide-react";
+import { Receipt, Ban, Pencil } from "lucide-react";
+import { FileTextDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
 import { useVendor } from "@/hooks/use-vendors";
 import { useCancelPurchaseOrder } from "@/hooks/use-purchase-mutations";
@@ -14,6 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader } from "@/components/ui/mobile-record-list";
+import { BackLink } from "@/components/ui/back-link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,16 +63,14 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
   if (!po) {
     return (
       <div className="p-6">
-        <EmptyState icon={FileText} title="Purchase order not found" />
+        <EmptyState icon={FileTextDuotoneIcon} title="Purchase order not found" />
       </div>
     );
   }
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
-      <Link href="/purchases/orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Purchase Orders
-      </Link>
+      <BackLink href="/purchases/orders">Purchase Orders</BackLink>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -83,7 +84,7 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
 
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         <div className="space-y-4 lg:col-span-2">
-          <div className="overflow-hidden rounded-xl border">
+          <div className="hidden overflow-x-auto rounded-xl border sm:block">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/40">
                 <tr>
@@ -115,6 +116,20 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
               </tfoot>
             </table>
           </div>
+
+          <MobileRecordList>
+            {po.items.map((item, i) => (
+              <MobileRecordCard key={i}>
+                <MobileRecordHeader title={purchaseItemName(item)} value={inr(item.amount)} showChevron={false} />
+                <p className="text-xs text-muted-foreground">
+                  {item.qty} {item.unitName} × {inr(item.unitCost)}
+                </p>
+              </MobileRecordCard>
+            ))}
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(po.total)} showChevron={false} />
+            </MobileRecordCard>
+          </MobileRecordList>
 
           {po.notes && (
             <div className="rounded-xl border bg-muted/30 p-4 text-sm">

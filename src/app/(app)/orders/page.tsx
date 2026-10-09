@@ -24,6 +24,7 @@ import { useRowSelection } from "@/hooks/use-row-selection";
 import { KanbanBoard } from "@/components/orders/kanban-board";
 import { OrdersList } from "@/components/orders/orders-list";
 import { OrderFilters, EMPTY_FILTERS, type FilterState } from "@/components/orders/order-filters";
+import { OrderStatusCards } from "@/components/orders/order-status-cards";
 import { PaymentModal } from "@/components/orders/payment-modal";
 import type { Order } from "@/lib/types";
 import { PageHeader } from "@/components/ui/page-header";
@@ -158,17 +159,17 @@ function OrdersContent() {
   // report all use — one Profit column that can never disagree with those. Profit figures are
   // restricted to the admin role specifically, not just viewReports (which managers also hold).
   const profitByOrderId = useMemo(() => {
-    if (user?.role !== "admin" || !orders) return undefined;
+    if (!user?.perms.viewFinancialReports || !orders) return undefined;
     const map = new Map<string, OrderProfitBreakdown>();
     for (const o of orders) {
       map.set(o.id, computeOrderProfit(o, expensesByOrderId.get(o.id) || []));
     }
     return map;
-  }, [orders, user?.role, expensesByOrderId]);
+  }, [orders, user?.perms.viewFinancialReports, expensesByOrderId]);
 
   const orderColumns = useMemo(
-    () => (user?.role === "admin" ? ORDER_COLUMNS : ORDER_COLUMNS.filter((c) => !PROFIT_SENSITIVE_COLUMNS.has(c.key))),
-    [user?.role]
+    () => (user?.perms.viewFinancialReports ? ORDER_COLUMNS : ORDER_COLUMNS.filter((c) => !PROFIT_SENSITIVE_COLUMNS.has(c.key))),
+    [user?.perms.viewFinancialReports]
   );
   const columnTable = useColumnVisibility("orders", orderColumns, ORDERS_AUTO_HIDE);
   const tailorName = useTailorName();
@@ -433,6 +434,8 @@ function OrdersContent() {
           </>
         }
       />
+
+      {orders && <OrderStatusCards orders={orders} />}
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">

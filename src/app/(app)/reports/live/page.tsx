@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Radio, PackageCheck, Wallet } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useAppSetting } from "@/hooks/use-app-setting";
@@ -15,13 +16,37 @@ import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { StageBadge } from "@/components/orders/stage-badge";
+import type { Stage } from "@/lib/business-rules";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type ReadyRow = ReturnType<typeof getReadyUncollected>[number];
+type UnpaidRow = ReturnType<typeof getDeliveredUnpaid>[number];
+
+const READY_SORT_COMPARATORS: Record<string, (a: ReadyRow, b: ReadyRow) => number> = {
+  order: (a, b) => a.id.localeCompare(b.id),
+  customer: (a, b) => a.name.localeCompare(b.name),
+  stage: (a, b) => a.status.localeCompare(b.status),
+  waiting: (a, b) => a.daysWaiting - b.daysWaiting,
+  balance: (a, b) => a.balance - b.balance,
+};
+const READY_SORT_DESC_KEYS = new Set(["waiting", "balance"]);
+
+const UNPAID_SORT_COMPARATORS: Record<string, (a: UnpaidRow, b: UnpaidRow) => number> = {
+  order: (a, b) => a.id.localeCompare(b.id),
+  customer: (a, b) => a.name.localeCompare(b.name),
+  stage: (a, b) => a.status.localeCompare(b.status),
+  delivery: (a, b) => a.deliveryDate.localeCompare(b.deliveryDate),
+  balance: (a, b) => a.balance - b.balance,
+};
+const UNPAID_SORT_DESC_KEYS = new Set(["balance"]);
 
 /** "1 day" vs "5 days" — plain count, no abbreviation. */
 function daysLabel(n: number): string {
@@ -56,10 +81,22 @@ export default function LiveReportPage() {
   const isVisible = columnTable.isVisible;
 
   const inRange = useMemo(() => orders.filter((o) => isWithinDateRange(o.inDate, range)), [orders, range]);
-  const readyUncollected = useMemo(() => getReadyUncollected(inRange), [inRange]);
-  const deliveredUnpaid = useMemo(() => getDeliveredUnpaid(inRange), [inRange]);
+  const allReadyUncollected = useMemo(() => getReadyUncollected(inRange), [inRange]);
+  const allDeliveredUnpaid = useMemo(() => getDeliveredUnpaid(inRange), [inRange]);
+  const [stage, setStage] = useState<Stage | "all">("all");
+  const stages = useMemo(
+    () => Array.from(new Set([...allReadyUncollected.map((o) => o.status), ...allDeliveredUnpaid.map((o) => o.status)])),
+    [allReadyUncollected, allDeliveredUnpaid]
+  );
+  const readyUncollected = useMemo(() => (stage === "all" ? allReadyUncollected : allReadyUncollected.filter((o) => o.status === stage)), [allReadyUncollected, stage]);
+  const deliveredUnpaid = useMemo(() => (stage === "all" ? allDeliveredUnpaid : allDeliveredUnpaid.filter((o) => o.status === stage)), [allDeliveredUnpaid, stage]);
+  const readySort = useTableSort<ReadyRow>("live-report-ready", READY_SORT_COMPARATORS, READY_SORT_DESC_KEYS);
+  const unpaidSort = useTableSort<UnpaidRow>("live-report-unpaid", UNPAID_SORT_COMPARATORS, UNPAID_SORT_DESC_KEYS);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
+
+  const sortedReadyUncollected = readySort.applySort(readyUncollected);
+  const sortedDeliveredUnpaid = unpaidSort.applySort(deliveredUnpaid);
 
   const readyBalance = readyUncollected.reduce((s, o) => s + o.balance, 0);
   const unpaidBalance = deliveredUnpaid.reduce((s, o) => s + o.balance, 0);
@@ -71,8 +108,8 @@ export default function LiveReportPage() {
       actions={
         <ReportActionsMenu
           rows={[
-            ...readyUncollected.map((o) => ({ Section: "Ready, not picked up", Order: o.id, Customer: o.name, "Days Waiting": o.daysWaiting, Balance: o.balance })),
-            ...deliveredUnpaid.map((o) => ({ Section: "Picked up, not paid", Order: o.id, Customer: o.name, "Days Waiting": "", Balance: o.balance })),
+            ...sortedReadyUncollected.map((o) => ({ Section: "Ready, not picked up", Order: o.id, Customer: o.name, "Days Waiting": o.daysWaiting, Balance: o.balance })),
+            ...sortedDeliveredUnpaid.map((o) => ({ Section: "Picked up, not paid", Order: o.id, Customer: o.name, "Days Waiting": "", Balance: o.balance })),
           ]}
           filename="live-report"
           title="LIVE Report"
@@ -90,6 +127,21 @@ export default function LiveReportPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <Select value={stage} onValueChange={(v) => v && setStage(v as Stage | "all")}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{stage === "all" ? "All Stages" : <StageBadge stage={stage} size="sm" />}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Stages</SelectItem>
+              {stages.map((s) => (
+                <SelectItem key={s} value={s}>
+                  <StageBadge stage={s} size="sm" />
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -114,9 +166,9 @@ export default function LiveReportPage() {
           ) : (
             <>
               <MobileRecordList>
-                {readyUncollected.map((o) => (
+                {sortedReadyUncollected.map((o) => (
                   <MobileRecordCard key={o.id}>
-                    <MobileRecordHeader
+                    <MobileRecordHeader boldTitle
                       title={
                         <Link href={`/orders/${o.id}`} className="hover:underline">
                           {o.id}
@@ -146,11 +198,11 @@ export default function LiveReportPage() {
                 <ReportTable>
                   <thead className="border-b bg-muted/40">
                     <tr>
-                      <Th>Order</Th>
-                      <Th>Customer</Th>
-                      <Th>Stage</Th>
-                      {isVisible("waiting") && <Th align="right">Days waiting</Th>}
-                      <Th align="right">Balance</Th>
+                      <Th sortKey="order" currentSort={{ key: readySort.sortKey, asc: readySort.sortAsc }} onSort={readySort.toggleSort}>Order</Th>
+                      <Th sortKey="customer" currentSort={{ key: readySort.sortKey, asc: readySort.sortAsc }} onSort={readySort.toggleSort}>Customer</Th>
+                      <Th sortKey="stage" currentSort={{ key: readySort.sortKey, asc: readySort.sortAsc }} onSort={readySort.toggleSort}>Stage</Th>
+                      {isVisible("waiting") && <Th align="right" sortKey="waiting" currentSort={{ key: readySort.sortKey, asc: readySort.sortAsc }} onSort={readySort.toggleSort}>Days waiting</Th>}
+                      <Th align="right" sortKey="balance" currentSort={{ key: readySort.sortKey, asc: readySort.sortAsc }} onSort={readySort.toggleSort}>Balance</Th>
                       <Th align="right">Actions</Th>
                     </tr>
                   </thead>
@@ -160,7 +212,7 @@ export default function LiveReportPage() {
                       <Td align="right">{inr(readyBalance)}</Td>
                       <Td align="right">—</Td>
                     </ReportTotalsRow>
-                    {readyUncollected.map((o) => (
+                    {sortedReadyUncollected.map((o) => (
                       <tr key={o.id} className="hover:bg-muted/30">
                         <Td>
                           <Link href={`/orders/${o.id}`} className="font-medium hover:underline">
@@ -207,13 +259,13 @@ export default function LiveReportPage() {
           </h2>
 
           {deliveredUnpaid.length === 0 ? (
-            <EmptyState icon={Wallet} title="Nothing unpaid" description="Every collected order has been fully paid." />
+            <EmptyState icon={WalletDuotoneIcon} title="Nothing unpaid" description="Every collected order has been fully paid." />
           ) : (
             <>
               <MobileRecordList>
-                {deliveredUnpaid.map((o) => (
+                {sortedDeliveredUnpaid.map((o) => (
                   <MobileRecordCard key={o.id}>
-                    <MobileRecordHeader
+                    <MobileRecordHeader boldTitle
                       title={
                         <Link href={`/orders/${o.id}`} className="hover:underline">
                           {o.id}
@@ -236,11 +288,11 @@ export default function LiveReportPage() {
                 <ReportTable>
                   <thead className="border-b bg-muted/40">
                     <tr>
-                      <Th>Order</Th>
-                      <Th>Customer</Th>
-                      <Th>Stage</Th>
-                      {isVisible("delivery") && <Th>Delivery date</Th>}
-                      <Th align="right">Balance</Th>
+                      <Th sortKey="order" currentSort={{ key: unpaidSort.sortKey, asc: unpaidSort.sortAsc }} onSort={unpaidSort.toggleSort}>Order</Th>
+                      <Th sortKey="customer" currentSort={{ key: unpaidSort.sortKey, asc: unpaidSort.sortAsc }} onSort={unpaidSort.toggleSort}>Customer</Th>
+                      <Th sortKey="stage" currentSort={{ key: unpaidSort.sortKey, asc: unpaidSort.sortAsc }} onSort={unpaidSort.toggleSort}>Stage</Th>
+                      {isVisible("delivery") && <Th sortKey="delivery" currentSort={{ key: unpaidSort.sortKey, asc: unpaidSort.sortAsc }} onSort={unpaidSort.toggleSort}>Delivery date</Th>}
+                      <Th align="right" sortKey="balance" currentSort={{ key: unpaidSort.sortKey, asc: unpaidSort.sortAsc }} onSort={unpaidSort.toggleSort}>Balance</Th>
                       <Th align="right">Actions</Th>
                     </tr>
                   </thead>
@@ -250,7 +302,7 @@ export default function LiveReportPage() {
                       <Td align="right">{inr(unpaidBalance)}</Td>
                       <Td align="right">—</Td>
                     </ReportTotalsRow>
-                    {deliveredUnpaid.map((o) => (
+                    {sortedDeliveredUnpaid.map((o) => (
                       <tr key={o.id} className="hover:bg-muted/30">
                         <Td>
                           <Link href={`/orders/${o.id}`} className="font-medium hover:underline">

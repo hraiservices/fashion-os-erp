@@ -45,10 +45,35 @@ async function fetchShopBranding(): Promise<{ name?: string; logoDataUrl?: strin
   }
 }
 
+/**
+ * Since the branding-media Storage migration (src/lib/supabase/branding-storage.ts),
+ * logoDataUrl is a real https:// URL for any shop that's re-saved its branding, not the inline
+ * base64 data: URL this route was written against. Satori (next/og's renderer) CAN fetch a
+ * remote <img> itself, but link-preview crawlers already time out fast (see the comment above on
+ * `revalidate`) — adding a second, un-timed-out remote fetch inside image generation on every
+ * cold render was turning "shows a thumbnail" into "shows nothing," silently, with no error
+ * surfaced anywhere. Resolving it to a data: URI ourselves first, with a hard timeout and a
+ * graceful null on failure, makes the Satori render itself fetch-free and deterministic again —
+ * same zero-latency shape it had before the migration either way.
+ */
+async function resolveLogoAsDataUrl(logoDataUrl: string | null | undefined): Promise<string | null> {
+  if (!logoDataUrl) return null;
+  if (logoDataUrl.startsWith("data:")) return logoDataUrl;
+  try {
+    const res = await fetch(logoDataUrl, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return null;
+    const contentType = res.headers.get("content-type") || "image/jpeg";
+    const base64 = Buffer.from(await res.arrayBuffer()).toString("base64");
+    return `data:${contentType};base64,${base64}`;
+  } catch {
+    return null;
+  }
+}
+
 export default async function Image() {
   const shop = await fetchShopBranding();
   const shopName = shop?.name || APP_NAME;
-  const logoDataUrl = shop?.logoDataUrl;
+  const logoDataUrl = await resolveLogoAsDataUrl(shop?.logoDataUrl);
 
   return new ImageResponse(
     (

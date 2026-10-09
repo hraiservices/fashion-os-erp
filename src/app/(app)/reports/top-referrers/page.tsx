@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Ticket } from "lucide-react";
 import { useReferralCoupons } from "@/hooks/use-referral-coupons";
-import { getTopReferrers } from "@/lib/analytics";
+import { getTopReferrers, type TopReferrerRow } from "@/lib/analytics";
+import { useTableSort } from "@/hooks/use-table-sort";
+import { cn } from "@/lib/utils";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -12,15 +14,38 @@ import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 
+const REDEMPTION_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "redeemed", label: "Redeemed" },
+  { value: "unredeemed", label: "Unredeemed" },
+] as const;
+
+const SORT_COMPARATORS: Record<string, (a: TopReferrerRow, b: TopReferrerRow) => number> = {
+  referrer: (a, b) => (a.referrerName || a.referrerMobile).localeCompare(b.referrerName || b.referrerMobile),
+  issued: (a, b) => a.issued - b.issued,
+  redeemed: (a, b) => a.redeemed - b.redeemed,
+  redemptionRate: (a, b) => a.redemptionRate - b.redemptionRate,
+};
+const SORT_DESC_KEYS = new Set(["issued", "redeemed", "redemptionRate"]);
+
 /** Which customers' referral coupons actually convert — see src/lib/analytics.ts getTopReferrers. */
 export default function TopReferrersPage() {
   const { data: coupons, isLoading } = useReferralCoupons();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [redemption, setRedemption] = useState<(typeof REDEMPTION_OPTIONS)[number]["value"]>("all");
 
   const topReferrers = useMemo(
-    () => getTopReferrers((coupons || []).filter((c) => isWithinDateRange(c.issuedAt, range))),
-    [coupons, range]
+    () =>
+      getTopReferrers(
+        (coupons || [])
+          .filter((c) => isWithinDateRange(c.issuedAt, range))
+          .filter((c) => redemption === "all" || (redemption === "redeemed" ? !!c.redeemedAt : !c.redeemedAt))
+      ),
+    [coupons, range, redemption]
   );
+
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<TopReferrerRow>("top-referrers", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedReferrers = applySort(topReferrers);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -33,7 +58,7 @@ export default function TopReferrersPage() {
       description="Coupons issued vs. redeemed, by who referred them"
       actions={
         <ReportActionsMenu
-          rows={topReferrers.map((r) => ({ Referrer: r.referrerName || r.referrerMobile, Issued: r.issued, Redeemed: r.redeemed, "Redemption rate": `${r.redemptionRate}%` }))}
+          rows={sortedReferrers.map((r) => ({ Referrer: r.referrerName || r.referrerMobile, Issued: r.issued, Redeemed: r.redeemed, "Redemption rate": `${r.redemptionRate}%` }))}
           filename="top-referrers"
           title="Top Referrers"
           summaryLines={[`Referrers: ${topReferrers.length}`, `Total issued: ${totalIssued}`, `Total redeemed: ${totalRedeemed}`]}
@@ -47,6 +72,24 @@ export default function TopReferrersPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <div className="inline-flex flex-wrap gap-1" role="group" aria-label="Filter by redemption status">
+            {REDEMPTION_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => setRedemption(o.value)}
+                aria-pressed={redemption === o.value}
+                className={cn(
+                  "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
+                  redemption === o.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        }
       />
 
       {topReferrers.length === 0 ? (
@@ -57,10 +100,10 @@ export default function TopReferrersPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Referrer</Th>
-                  <Th align="right">Issued</Th>
-                  <Th align="right">Redeemed</Th>
-                  <Th align="right">Redemption rate</Th>
+                  <Th sortKey="referrer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Referrer</Th>
+                  <Th align="right" sortKey="issued" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Issued</Th>
+                  <Th align="right" sortKey="redeemed" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Redeemed</Th>
+                  <Th align="right" sortKey="redemptionRate" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Redemption rate</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -70,7 +113,7 @@ export default function TopReferrersPage() {
                   <Td align="right">{totalRedeemed}</Td>
                   <Td align="right">{totalIssued > 0 ? Math.round((totalRedeemed / totalIssued) * 100) : 0}%</Td>
                 </ReportTotalsRow>
-                {topReferrers.map((r) => (
+                {sortedReferrers.map((r) => (
                   <tr key={r.referrerMobile} className="hover:bg-muted/30">
                     <Td>
                       <p className="truncate font-medium">{r.referrerName || "—"}</p>
@@ -86,13 +129,13 @@ export default function TopReferrersPage() {
           </div>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={`${totalIssued > 0 ? Math.round((totalRedeemed / totalIssued) * 100) : 0}%`} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={`${totalIssued > 0 ? Math.round((totalRedeemed / totalIssued) * 100) : 0}%`} showChevron={false} />
               <MobileRecordRow label="Issued" value={totalIssued} />
               <MobileRecordRow label="Redeemed" value={totalRedeemed} />
             </MobileRecordCard>
-            {topReferrers.map((r) => (
+            {sortedReferrers.map((r) => (
               <MobileRecordCard key={r.referrerMobile}>
-                <MobileRecordHeader title={r.referrerName || "—"} subtitle={r.referrerMobile} value={`${r.redemptionRate}%`} showChevron={false} />
+                <MobileRecordHeader boldTitle title={r.referrerName || "—"} subtitle={r.referrerMobile} value={`${r.redemptionRate}%`} showChevron={false} />
                 <MobileRecordRow label="Issued" value={r.issued} />
                 <MobileRecordRow label="Redeemed" value={r.redeemed} />
               </MobileRecordCard>

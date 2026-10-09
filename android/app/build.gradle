@@ -1,5 +1,23 @@
 apply plugin: 'com.android.application'
 
+// Release signing: local dev reads android/keystore.properties (untracked, see
+// android/keystore.properties.example); CI supplies the same four values via env vars
+// (RELEASE_STORE_FILE points at a keystore decoded from a secret) since no such file exists
+// in the checkout there. Debug builds are unaffected and keep using the auto-generated debug key.
+def keystorePropertiesFile = rootProject.file("app/keystore.properties")
+def keystoreProperties = new Properties()
+def hasReleaseSigning = false
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    hasReleaseSigning = true
+} else if (System.getenv("RELEASE_STORE_FILE")) {
+    keystoreProperties.put("storeFile", System.getenv("RELEASE_STORE_FILE"))
+    keystoreProperties.put("storePassword", System.getenv("RELEASE_STORE_PASSWORD"))
+    keystoreProperties.put("keyAlias", System.getenv("RELEASE_KEY_ALIAS"))
+    keystoreProperties.put("keyPassword", System.getenv("RELEASE_KEY_PASSWORD"))
+    hasReleaseSigning = true
+}
+
 android {
     namespace = "app.fashionflow.mobile"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +34,23 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(keystoreProperties["storeFile"])
+                storePassword keystoreProperties["storePassword"]
+                keyAlias keystoreProperties["keyAlias"]
+                keyPassword keystoreProperties["keyPassword"]
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

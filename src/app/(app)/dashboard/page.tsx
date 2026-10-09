@@ -48,8 +48,14 @@ export default function DashboardPage() {
 
   // Role-restricted builtins (e.g. Profit Overview — admin/manager only) are filtered out here
   // rather than baked into the saved layout itself, so a role change takes effect immediately
-  // without needing to touch anyone's stored widget list.
-  const roleVisibleWidgets = widgets.filter((w) => w.kind === "custom" || isWidgetVisibleForRole(w.builtinKey, user?.role));
+  // without needing to touch anyone's stored widget list. Profit Overview additionally needs
+  // viewFinancialReports specifically — it links straight to /reports/combined-pl, so a manager
+  // without that permission shouldn't see the same profit figures via a dashboard back door.
+  const roleVisibleWidgets = widgets.filter(
+    (w) =>
+      w.kind === "custom" ||
+      (isWidgetVisibleForRole(w.builtinKey, user?.role) && (w.builtinKey !== "profit-overview" || !!user?.perms.viewFinancialReports))
+  );
 
   return (
     <div className="space-y-5 p-4 sm:p-6">
@@ -80,6 +86,12 @@ export default function DashboardPage() {
       <PageHeader
         title="Dashboard"
         description="Today's snapshot of your company"
+        // Sticky on desktop only (sm+) — mirrors the Topbar's own sticky/backdrop-blur treatment
+        // and sits just below it (top-14 = Topbar's min-h-14) so the quick-action buttons stay
+        // reachable while scrolling the widget grid, instead of scrolling away with the title.
+        // Mobile keeps the normal in-flow header — its actions are hidden here anyway (shown via
+        // the bottom tab bar instead), so there's nothing worth pinning.
+        className="sm:sticky sm:top-14 sm:z-20 sm:-mx-6 sm:border-b sm:bg-background/95 sm:px-6 sm:py-3 sm:backdrop-blur"
         actions={
           <>
             {user?.perms.addOrder && (

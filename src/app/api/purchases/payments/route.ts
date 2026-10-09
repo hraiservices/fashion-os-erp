@@ -27,7 +27,7 @@ const bodySchema = z.object({
 export async function POST(request: Request) {
   const { supabase, user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  if (!user.perms.managePurchases) return NextResponse.json({ error: "No permission to record vendor payments" }, { status: 403 });
+  if (!user.perms.payVendors) return NextResponse.json({ error: "No permission to record vendor payments" }, { status: 403 });
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });

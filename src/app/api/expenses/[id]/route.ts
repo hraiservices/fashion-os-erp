@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { isRestrictedRole } from "@/lib/permissions";
 import { mapExpenseRow } from "@/lib/types";
 import { logAction } from "@/lib/logging";
 
@@ -14,12 +13,13 @@ const bodySchema = z.object({
   payMethod: z.string().min(1),
   customerMobile: z.string().optional().nullable(),
   customerName: z.string().optional().nullable(),
+  employeeId: z.string().optional().nullable(),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { supabase, user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (isRestrictedRole(user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!user.perms.manageExpenses) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const db = createServiceClient();
   if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
@@ -39,6 +39,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       pay_method: fd.payMethod,
       customer_mobile: fd.customerMobile || null,
       customer_name: fd.customerName || null,
+      employee_id: fd.employeeId || null,
     })
     .eq("id", id)
     .select()
@@ -52,15 +53,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { supabase, user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (isRestrictedRole(user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!user.perms.manageExpenses) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const db = createServiceClient();
   if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
 
   const { id } = await params;
+  // Fetched before deleting purely so the audit-trail entry below records what was actually
+  // lost — expenses aren't summed into any cached/derived balance, so there's nothing to
+  // reverse, but "Expense deleted" with no amount or category made the activity log useless
+  // for reconstructing what happened after the fact.
+  const { data: row } = await db.from("expenses").select("category, amount").eq("id", id).maybeSingle();
   const { error } = await db.from("expenses").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await logAction(supabase, user.email, `🗑️ Expense deleted`);
+  await logAction(supabase, user.email, `🗑️ Expense deleted: ${row?.category || id}${row ? ` — ₹${row.amount}` : ""}`);
   return NextResponse.json({ ok: true });
 }

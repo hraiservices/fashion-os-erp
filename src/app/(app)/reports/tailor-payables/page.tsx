@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Wallet, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useOrders } from "@/hooks/use-orders";
 import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useEmployees } from "@/hooks/use-employees";
@@ -16,6 +17,7 @@ import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from 
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { useTableSort } from "@/hooks/use-table-sort";
 
 interface TailorPayableRow {
   id: string;
@@ -26,6 +28,15 @@ interface TailorPayableRow {
   rangeTotalCount: number;
   allTimePayable: number;
 }
+
+const SORT_COMPARATORS: Record<string, (a: TailorPayableRow, b: TailorPayableRow) => number> = {
+  tailor: (a, b) => a.name.localeCompare(b.name),
+  completed: (a, b) => a.rangeCompletedCount - b.rangeCompletedCount,
+  payable: (a, b) => a.rangePayable - b.rangePayable,
+  pending: (a, b) => a.rangePending - b.rangePending,
+  allTime: (a, b) => a.allTimePayable - b.allTimePayable,
+};
+const SORT_DESC_KEYS = new Set(["completed", "payable", "pending", "allTime"]);
 
 /** A garment carrying a payable whose `tailor` resolves to no employee — money that is owed to
  *  a real person but attributed to nobody, so it silently vanishes from every per-tailor total.
@@ -52,8 +63,9 @@ export default function TailorPayablesPage() {
   const { data: workOrders, isLoading: woLoading } = useWorkOrders();
   const isLoading = employeesLoading || ordersLoading || woLoading;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [paymentStatus, setPaymentStatus] = useState<"all" | "pending" | "settled">("all");
 
-  const { rows, unattributed, zeroRatedCount } = useMemo(() => {
+  const { rows: allRows, unattributed, zeroRatedCount } = useMemo(() => {
     const tailors = (employees || []).filter((e) => e.pieceRateEligible);
 
     // Every garment payable whose tailor doesn't resolve to a real employee record.
@@ -128,10 +140,21 @@ export default function TailorPayablesPage() {
     return { rows, unattributed, zeroRatedCount };
   }, [employees, orders, workOrders, range]);
 
+  const rows = useMemo(
+    () =>
+      paymentStatus === "all"
+        ? allRows
+        : allRows.filter((r) => (paymentStatus === "pending" ? r.rangePending > 0 : r.rangePending === 0)),
+    [allRows, paymentStatus]
+  );
+
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<TailorPayableRow>("tailor-payables", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
+
   if (!user?.perms.managePayroll) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={Wallet} title="Not available" description="Only payroll managers can view tailor payables." />
+        <EmptyState icon={WalletDuotoneIcon} title="Not available" description="Only payroll managers can view tailor payables." />
       </div>
     );
   }
@@ -144,7 +167,7 @@ export default function TailorPayablesPage() {
   const allTimeTotal = rows.reduce((s, r) => s + r.allTimePayable, 0);
   const rangeCompletedCount = rows.reduce((s, r) => s + r.rangeCompletedCount, 0);
   const rangeTotalCount = rows.reduce((s, r) => s + r.rangeTotalCount, 0);
-  const exportRows = rows.map((r) => ({
+  const exportRows = sortedRows.map((r) => ({
     Tailor: r.name,
     [`Completed (${DATE_RANGE_PRESET_LABELS[preset]})`]: `${r.rangeCompletedCount}/${r.rangeTotalCount}`,
     [`Payable (${DATE_RANGE_PRESET_LABELS[preset]})`]: r.rangePayable,
@@ -171,7 +194,31 @@ export default function TailorPayablesPage() {
         />
       }
     >
-      <ReportFilterBar preset={preset} onPresetChange={setPreset} customFrom={customFrom} onCustomFromChange={setCustomFrom} customTo={customTo} onCustomToChange={setCustomTo} />
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+        category={
+          <div className="inline-flex flex-wrap gap-1" role="group" aria-label="Filter by payment status">
+            {(["all", "pending", "settled"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setPaymentStatus(v)}
+                aria-pressed={paymentStatus === v}
+                className={`rounded-lg border px-3 py-1 text-xs font-medium transition-colors ${
+                  paymentStatus === v ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                {v === "all" ? "All" : v === "pending" ? "Has Pending" : "Fully Settled"}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       {rows.length > 0 && (
         <p className="text-sm">
@@ -190,18 +237,18 @@ export default function TailorPayablesPage() {
       )}
 
       {rows.length === 0 ? (
-        <EmptyState icon={Wallet} title="No piece-rate tailors yet" description="Mark a tailor 'Piece-rate eligible' on their employee record to see them here." />
+        <EmptyState icon={WalletDuotoneIcon} title="No piece-rate tailors yet" description="Mark a tailor 'Piece-rate eligible' on their employee record to see them here." />
       ) : (
         <>
           <div className="hidden sm:block">
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Tailor</Th>
-                  <Th align="right">Completed</Th>
-                  <Th align="right">Payable ({DATE_RANGE_PRESET_LABELS[preset]})</Th>
-                  <Th align="right">Pending</Th>
-                  <Th align="right">All-time total</Th>
+                  <Th sortKey="tailor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Tailor</Th>
+                  <Th align="right" sortKey="completed" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Completed</Th>
+                  <Th align="right" sortKey="payable" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Payable ({DATE_RANGE_PRESET_LABELS[preset]})</Th>
+                  <Th align="right" sortKey="pending" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Pending</Th>
+                  <Th align="right" sortKey="allTime" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>All-time total</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -212,7 +259,7 @@ export default function TailorPayablesPage() {
                   <Td align="right">{inr(rangePendingTotal)}</Td>
                   <Td align="right">{inr(allTimeTotal)}</Td>
                 </ReportTotalsRow>
-                {rows.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.id} className="hover:bg-muted/30">
                     <Td className="font-medium">{r.name}</Td>
                     <Td align="right" className="text-muted-foreground">{r.rangeCompletedCount}/{r.rangeTotalCount}</Td>
@@ -226,14 +273,14 @@ export default function TailorPayablesPage() {
           </div>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(allTimeTotal)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(allTimeTotal)} showChevron={false} valueClassName="text-red-600 dark:text-red-400" />
               <MobileRecordRow label={`Payable (${DATE_RANGE_PRESET_LABELS[preset]})`} value={inr(rangeTotal)} />
               <MobileRecordRow label="Pending (in progress)" value={inr(rangePendingTotal)} />
               <MobileRecordRow label="Completed" value={`${rangeCompletedCount}/${rangeTotalCount}`} />
             </MobileRecordCard>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <MobileRecordCard key={r.id}>
-                <MobileRecordHeader title={r.name} value={inr(r.allTimePayable)} valueClassName="font-semibold" showChevron={false} />
+                <MobileRecordHeader boldTitle title={r.name} value={inr(r.allTimePayable)} valueClassName="font-semibold" showChevron={false} />
                 <MobileRecordRow label={`Payable (${DATE_RANGE_PRESET_LABELS[preset]})`} value={inr(r.rangePayable)} />
                 {r.rangePending > 0 && <MobileRecordRow label="Pending (in progress)" value={inr(r.rangePending)} />}
                 <MobileRecordRow label="Completed" value={`${r.rangeCompletedCount}/${r.rangeTotalCount}`} />
@@ -290,7 +337,7 @@ export default function TailorPayablesPage() {
           <MobileRecordList>
             {unattributed.map((u, i) => (
               <MobileRecordCard key={`${u.orderId}-${i}`} href={`/orders/${u.orderId}`}>
-                <MobileRecordHeader title={u.orderId} value={inr(u.amount)} />
+                <MobileRecordHeader boldTitle title={u.orderId} value={inr(u.amount)} valueClassName="text-red-600 dark:text-red-400" />
                 <MobileRecordRow label="Stored tailor" value={<span className="font-mono">{u.rawTailor}</span>} />
               </MobileRecordCard>
             ))}

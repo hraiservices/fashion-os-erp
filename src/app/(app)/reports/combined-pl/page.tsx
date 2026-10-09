@@ -13,9 +13,46 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
-import { TrendingUp, TrendingDown, Wallet, Receipt } from "lucide-react";
+import { TrendingDown } from "lucide-react";
+import { ReceiptDuotoneIcon, TrendUpDuotoneIcon, WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type CombinedPlRow = {
+  month: string;
+  label: string;
+  stitchingRevenue: number;
+  salesRevenue: number;
+  purchaseCost: number;
+  stitchingCost: number;
+  laborCost: number;
+  expenseCost: number;
+  payrollCost: number;
+  netProfit: number;
+};
+
+const SORT_COMPARATORS: Record<string, (a: CombinedPlRow, b: CombinedPlRow) => number> = {
+  month: (a, b) => a.month.localeCompare(b.month),
+  stitchingRevenue: (a, b) => a.stitchingRevenue - b.stitchingRevenue,
+  salesRevenue: (a, b) => a.salesRevenue - b.salesRevenue,
+  purchaseCost: (a, b) => a.purchaseCost - b.purchaseCost,
+  stitchingCost: (a, b) => a.stitchingCost - b.stitchingCost,
+  laborCost: (a, b) => a.laborCost - b.laborCost,
+  expenseCost: (a, b) => a.expenseCost - b.expenseCost,
+  payrollCost: (a, b) => a.payrollCost - b.payrollCost,
+  netProfit: (a, b) => a.netProfit - b.netProfit,
+};
+const SORT_DESC_KEYS = new Set([
+  "stitchingRevenue",
+  "salesRevenue",
+  "purchaseCost",
+  "stitchingCost",
+  "laborCost",
+  "expenseCost",
+  "payrollCost",
+  "netProfit",
+]);
 
 const COMBINED_PL_COLUMNS = [
   { key: "month", label: "Month", required: true },
@@ -44,6 +81,9 @@ export default function CombinedPlPage() {
   const columnTable = useColumnVisibility("combined-pl", COMBINED_PL_COLUMNS, COMBINED_PL_AUTO_HIDE);
   const isVisible = columnTable.isVisible;
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<CombinedPlRow>("combined-pl", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedMonthly = applySort(monthly);
+
   const totals = useMemo(
     () => monthly.reduce((acc, m) => ({ revenue: acc.revenue + m.revenue, cost: acc.cost + m.totalCost, net: acc.net + m.netProfit }), { revenue: 0, cost: 0, net: 0 }),
     [monthly]
@@ -51,10 +91,10 @@ export default function CombinedPlPage() {
 
   // Profit & Loss is entirely profit data — restricted to the admin role specifically,
   // everywhere in the app.
-  if (user && user.role !== "admin") {
+  if (user && !user.perms.viewFinancialReports) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={Wallet} title="No access" description="Combined P&L is restricted to admins." />
+        <EmptyState icon={WalletDuotoneIcon} title="No access" description="Combined P&L is restricted to admins." />
       </div>
     );
   }
@@ -81,7 +121,7 @@ export default function CombinedPlPage() {
       description="All revenue (stitching + product sales) against all costs — purchases, stitching material costs, manufacturing labour, company expenses (including tailor payments logged under Salaries) and payroll salaries — last 6 months"
       actions={
         <ReportActionsMenu
-          rows={monthly.map((m) => ({
+          rows={sortedMonthly.map((m) => ({
             Month: m.label,
             "Stitching Rev": m.stitchingRevenue,
             "Product Sales Rev": m.salesRevenue,
@@ -108,10 +148,10 @@ export default function CombinedPlPage() {
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Total Revenue" value={inr(totals.revenue)} icon={TrendingUp} tone="success" />
+        <StatCard label="Total Revenue" value={inr(totals.revenue)} icon={TrendUpDuotoneIcon} tone="success" />
         <StatCard label="Total Cost" value={inr(totals.cost)} icon={TrendingDown} tone="danger" />
-        <StatCard label="Net Profit" value={inr(totals.net)} icon={Wallet} tone={totals.net >= 0 ? "success" : "danger"} />
-        <StatCard label="Margin" value={totals.revenue > 0 ? `${Math.round((totals.net / totals.revenue) * 100)}%` : "—"} icon={Receipt} />
+        <StatCard label="Net Profit" value={inr(totals.net)} icon={WalletDuotoneIcon} tone={totals.net >= 0 ? "success" : "danger"} />
+        <StatCard label="Margin" value={totals.revenue > 0 ? `${Math.round((totals.net / totals.revenue) * 100)}%` : "—"} icon={ReceiptDuotoneIcon} />
       </div>
 
       <ReportCard className="p-4">
@@ -141,15 +181,15 @@ export default function CombinedPlPage() {
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
-              <Th>Month</Th>
-              <Th align="right">Stitching Rev</Th>
-              <Th align="right">Product Sales Rev</Th>
-              <Th align="right">Purchases</Th>
-              <Th align="right">Stitching Cost</Th>
-              {isVisible("laborCost") && <Th align="right">Mfg Labor</Th>}
-              <Th align="right">Expenses</Th>
-              {isVisible("payrollCost") && <Th align="right">Salaries</Th>}
-              <Th align="right">Net Profit</Th>
+              <Th sortKey="month" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Month</Th>
+              <Th align="right" sortKey="stitchingRevenue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Stitching Rev</Th>
+              <Th align="right" sortKey="salesRevenue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Product Sales Rev</Th>
+              <Th align="right" sortKey="purchaseCost" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Purchases</Th>
+              <Th align="right" sortKey="stitchingCost" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Stitching Cost</Th>
+              {isVisible("laborCost") && <Th align="right" sortKey="laborCost" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mfg Labor</Th>}
+              <Th align="right" sortKey="expenseCost" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Expenses</Th>
+              {isVisible("payrollCost") && <Th align="right" sortKey="payrollCost" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Salaries</Th>}
+              <Th align="right" sortKey="netProfit" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Net Profit</Th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -164,7 +204,7 @@ export default function CombinedPlPage() {
               {isVisible("payrollCost") && <Td align="right">{inr(columnTotals.payrollCost)}</Td>}
               <Td align="right">{inr(columnTotals.netProfit)}</Td>
             </ReportTotalsRow>
-            {monthly.map((m) => (
+            {sortedMonthly.map((m) => (
               <tr key={m.month} className="hover:bg-muted/30">
                 <Td className="font-medium">{m.label}</Td>
                 <Td align="right">{inr(m.stitchingRevenue)}</Td>
@@ -200,44 +240,42 @@ export default function CombinedPlPage() {
       <MobileRecordList>
         <MobileRecordCard className="bg-muted/40">
           <MobileRecordHeader
-            title="Total"
+            boldTitle title="Total"
             value={inr(columnTotals.netProfit)}
             valueClassName={columnTotals.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
             showChevron={false}
           />
           <MobileRecordGrid
-            columns={3}
             items={[
               { label: "Stitching Rev", value: inr(columnTotals.stitchingRevenue) },
               { label: "Product Sales Rev", value: inr(columnTotals.salesRevenue) },
-              { label: "Purchases", value: inr(columnTotals.purchaseCost) },
-              { label: "Stitching Cost", value: inr(columnTotals.stitchingCost) },
-              { label: "Mfg Labor", value: inr(columnTotals.laborCost) },
-              { label: "Expenses", value: inr(columnTotals.expenseCost) },
-              { label: "Salaries", value: inr(columnTotals.payrollCost) },
             ]}
           />
+          <p className="border-t pt-1.5 text-xs text-muted-foreground">
+            Purchases {inr(columnTotals.purchaseCost)} · Stitching {inr(columnTotals.stitchingCost)} · Mfg Labor {inr(columnTotals.laborCost)} · Expenses {inr(columnTotals.expenseCost)} · Salaries{" "}
+            {inr(columnTotals.payrollCost)}
+          </p>
         </MobileRecordCard>
-        {monthly.map((m) => (
+        {sortedMonthly.map((m) => (
           <MobileRecordCard key={m.month}>
             <MobileRecordHeader
-              title={m.label}
+              boldTitle title={m.label}
               value={inr(m.netProfit)}
               valueClassName={m.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
               showChevron={false}
             />
+            {/* Revenue kept as the grid (what a glance actually needs); the 5 cost categories —
+             *  all already muted-colored, i.e. secondary — fold into one line instead of filling
+             *  out a 7-cell 3-col grid. */}
             <MobileRecordGrid
-              columns={3}
               items={[
                 { label: "Stitching Rev", value: inr(m.stitchingRevenue) },
                 { label: "Product Sales Rev", value: inr(m.salesRevenue) },
-                { label: "Purchases", value: inr(m.purchaseCost), valueClassName: "text-muted-foreground" },
-                { label: "Stitching Cost", value: inr(m.stitchingCost), valueClassName: "text-muted-foreground" },
-                { label: "Mfg Labor", value: inr(m.laborCost), valueClassName: "text-muted-foreground" },
-                { label: "Expenses", value: inr(m.expenseCost), valueClassName: "text-muted-foreground" },
-                { label: "Salaries", value: inr(m.payrollCost), valueClassName: "text-muted-foreground" },
               ]}
             />
+            <p className="border-t pt-1.5 text-xs text-muted-foreground">
+              Purchases {inr(m.purchaseCost)} · Stitching {inr(m.stitchingCost)} · Mfg Labor {inr(m.laborCost)} · Expenses {inr(m.expenseCost)} · Salaries {inr(m.payrollCost)}
+            </p>
           </MobileRecordCard>
         ))}
       </MobileRecordList>

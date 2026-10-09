@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, Lock, Phone, Store, Scissors, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Phone, Store, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ensureUserRole } from "@/lib/supabase/role-bootstrap";
 import { isValidEmail, mapAuthError, normalizePhone } from "@/lib/auth-errors";
@@ -211,20 +211,29 @@ export default function LoginPage() {
       </div>
 
       <div className="animate-login-card-in relative z-10 w-full max-w-md">
-        {/* Logo — glowing halo behind, gentle float loop. */}
+        {/* Logo — glowing halo behind, gentle float loop. Shows the shop's own logo/name once
+            they've set one in Settings → Personalize; the Fashion Flow wordmark + tagline below
+            are the platform's own default branding, only shown until a shop customizes this. */}
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="relative mb-4 flex size-20 items-center justify-center">
-            <div className="animate-login-logo-glow absolute inset-0 rounded-full bg-primary/40 blur-xl" />
-            <div className="animate-login-logo-float relative flex size-16 items-center justify-center rounded-2xl border border-black/5 bg-white shadow-lg shadow-zinc-900/10 dark:border-white/10">
-              {shop?.logoDataUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={shop.logoDataUrl} alt={shop.name || "Company logo"} className="size-full rounded-2xl object-contain p-1.5" />
-              ) : (
-                <Scissors className="size-7 text-primary" />
-              )}
+          {shop?.logoDataUrl ? (
+            <>
+              <div className="relative mb-4 flex size-20 items-center justify-center">
+                <div className="animate-login-logo-glow absolute inset-0 rounded-full bg-primary/40 blur-xl" />
+                <div className="animate-login-logo-float relative flex size-16 items-center justify-center rounded-2xl border border-black/5 bg-white shadow-lg shadow-zinc-900/10 dark:border-white/10">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={shop.logoDataUrl} alt={shop.name || "Company logo"} className="size-full rounded-2xl object-contain p-1.5" />
+                </div>
+              </div>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">{shop.name || "Fashion Flow"}</h1>
+            </>
+          ) : (
+            <div className="relative mb-3 flex items-center justify-center">
+              <div className="animate-login-logo-glow absolute inset-0 -z-10 rounded-full bg-primary/30 blur-2xl" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/icon-512.png" alt="Fashion Flow" className="animate-login-logo-float h-24 w-auto rounded-2xl" />
             </div>
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{shop?.name || "Fashion Flow"}</h1>
+          )}
+          {!shop?.logoDataUrl && <p className="text-sm font-medium text-primary">Operating System for Boutiques &amp; Tailoring !</p>}
           <p className="mt-1 text-sm text-muted-foreground">
             {mode === "reset"
               ? "Set a new password"

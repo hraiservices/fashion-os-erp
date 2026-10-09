@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Factory, ArrowRight, CheckCircle2, Trash2, Pencil } from "lucide-react";
+import { Factory, ArrowRight, CheckCircle2, Trash2, Pencil } from "lucide-react";
 import { useWorkOrder } from "@/hooks/use-work-orders";
 import { useAdvanceWoStatus, useDeleteWorkOrder } from "@/hooks/use-work-order-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CompleteWorkOrderDialog } from "@/components/manufacturing/complete-work-order-dialog";
+import { MoveToStageLabel } from "@/components/orders/stage-badge";
+import { BackLink } from "@/components/ui/back-link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -92,9 +94,7 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
-      <Link href="/manufacturing" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Manufacturing
-      </Link>
+      <BackLink href="/manufacturing">Manufacturing</BackLink>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -113,7 +113,7 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
 
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         <div className="space-y-4 lg:col-span-2">
-          <div className="overflow-hidden rounded-xl border">
+          <div className="overflow-x-auto rounded-xl border">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/40">
                 <tr>
@@ -200,7 +200,7 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
                 <div className="space-y-1.5">
                   <Button className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" onClick={handleAdvance} disabled={advanceStatus.isPending}>
                     {next === "completed" ? <CheckCircle2 className="size-4" /> : <ArrowRight className="size-4" />}
-                    {next === "completed" ? "Complete work order" : `Move to ${next ? WO_STATUS_LABELS[next] : ""}`}
+                    {next === "completed" ? "Complete work order" : <MoveToStageLabel label={next ? WO_STATUS_LABELS[next] : ""} />}
                   </Button>
                   <Button variant="outline" className="w-full justify-start h-12 text-base sm:h-7 sm:text-[0.8rem]" nativeButton={false} render={<Link href={`/manufacturing/${wo.id}/edit`} />}>
                     <Pencil className="size-4" /> Edit

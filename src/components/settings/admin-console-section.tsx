@@ -14,12 +14,12 @@ import {
   XCircle,
   ArrowRight,
   UserRound,
-  Users,
   Scissors,
   PlayCircle,
   KeyRound,
   ExternalLink,
 } from "lucide-react";
+import { UsersDuotoneIcon, type IconComponent } from "@/components/icons/duotone-icons";
 import { useEmployees } from "@/hooks/use-employees";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useCustomers } from "@/hooks/use-customers";
@@ -63,7 +63,7 @@ function LinkRow({ label, sublabel, url }: { label: string; sublabel?: string; u
   );
 }
 
-function SectionCard({ icon: Icon, title, description, children }: { icon: typeof Rocket; title: string; description?: string; children: React.ReactNode }) {
+function SectionCard({ icon: Icon, title, description, children }: { icon: IconComponent; title: string; description?: string; children: React.ReactNode }) {
   return (
     <Card>
       <CardHeader>
@@ -218,7 +218,7 @@ export function AdminConsoleSection() {
         <LinkRow label="Marketing site" url={MARKETING_SITE_URL} />
       </SectionCard>
 
-      <SectionCard icon={Users} title="Employee dashboard access" description="Everyone with a mobile+PIN login into this deployment. There's no per-person URL — everyone signs in at the same /login above with their own mobile number and PIN.">
+      <SectionCard icon={UsersDuotoneIcon} title="Employee dashboard access" description="Everyone with a mobile+PIN login into this deployment. There's no per-person URL — everyone signs in at the same /login above with their own mobile number and PIN.">
         {dashboardAccessRows.length === 0 ? (
           <p className="text-xs text-muted-foreground">No employees have dashboard access set up yet.</p>
         ) : (

@@ -42,7 +42,7 @@ const bodySchema = z.object({
 export async function POST(request: Request) {
   const { supabase, user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  if (!user.perms.manageSales) return NextResponse.json({ error: "No permission to raise credit notes" }, { status: 403 });
+  if (!user.perms.manageCreditNotes) return NextResponse.json({ error: "No permission to raise credit notes" }, { status: 403 });
 
   const db = createServiceClient();
   if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });

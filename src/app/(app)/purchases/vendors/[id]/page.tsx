@@ -2,7 +2,8 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { Phone, Mail, MapPin, FileText, Receipt, ArrowLeft, ChevronRight } from "lucide-react";
+import { Phone, Mail, MapPin, FileText, ChevronRight } from "lucide-react";
+import { FileTextDuotoneIcon, ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useVendor } from "@/hooks/use-vendors";
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
@@ -12,6 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { BalanceDue } from "@/components/ui/money-text";
+import { BackLink } from "@/components/ui/back-link";
 
 export default function VendorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -35,16 +37,14 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
   if (!vendor) {
     return (
       <div className="p-6">
-        <EmptyState icon={Receipt} title="Vendor not found" />
+        <EmptyState icon={ReceiptDuotoneIcon} title="Vendor not found" />
       </div>
     );
   }
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
-      <Link href="/purchases/vendors" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Vendors
-      </Link>
+      <BackLink href="/purchases/vendors">Vendors</BackLink>
 
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
       <div className="space-y-4 lg:col-span-4">
@@ -96,7 +96,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
           <h2 className="text-sm font-semibold">Bills ({bills.length})</h2>
         </div>
         {bills.length === 0 ? (
-          <EmptyState icon={Receipt} title="No bills yet" className="border-0" />
+          <EmptyState icon={ReceiptDuotoneIcon} title="No bills yet" className="border-0" />
         ) : (
           <ul className="divide-y">
             {bills.map((b) => (
@@ -126,7 +126,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
           <h2 className="text-sm font-semibold">Purchase Orders ({orders.length})</h2>
         </div>
         {orders.length === 0 ? (
-          <EmptyState icon={FileText} title="No purchase orders yet" className="border-0" />
+          <EmptyState icon={FileTextDuotoneIcon} title="No purchase orders yet" className="border-0" />
         ) : (
           <ul className="divide-y">
             {orders.map((o) => (

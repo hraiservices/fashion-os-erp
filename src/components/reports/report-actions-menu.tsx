@@ -56,7 +56,7 @@ export function ReportActionsMenu({
         <DropdownMenuItem onClick={() => exportXLSX(rows, filename)}>
           <FileSpreadsheet className="size-4" /> Excel (.xlsx)
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => printReport(title, buildTableHtml(), shopName, logoDataUrl)}>
+        <DropdownMenuItem onClick={() => printReport(title, buildTableHtml(), shopName, logoDataUrl, summaryLines)}>
           <FileText className="size-4" /> PDF
         </DropdownMenuItem>
         <DropdownMenuSeparator />

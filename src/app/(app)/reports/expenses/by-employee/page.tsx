@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { Users } from "lucide-react";
+import { useMemo, useState } from "react";
+import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useExpenses } from "@/hooks/use-expenses";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
@@ -9,25 +9,45 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type ByEmployeeRow = { user: string; count: number; total: number };
+
+const SORT_COMPARATORS: Record<string, (a: ByEmployeeRow, b: ByEmployeeRow) => number> = {
+  user: (a, b) => a.user.localeCompare(b.user),
+  count: (a, b) => a.count - b.count,
+  total: (a, b) => a.total - b.total,
+};
+const SORT_DESC_KEYS = new Set(["count", "total"]);
 
 /** "Employee" here is whoever was logged in when the expense was recorded (`createdBy`) — this app doesn't have a separate staff/employee directory beyond user accounts. */
 export default function ExpensesByEmployeePage() {
   const { data: expenses, isLoading } = useExpenses();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [category, setCategory] = useState("all");
+
+  const categories = useMemo(() => Array.from(new Set((expenses || []).map((e) => e.category).filter(Boolean))).sort(), [expenses]);
 
   const rows = useMemo(() => {
     const map = new Map<string, { user: string; count: number; total: number }>();
-    (expenses || []).filter((e) => isWithinDateRange(e.date, range)).forEach((e) => {
-      const key = e.createdBy || "Unknown";
-      const row = map.get(key) || { user: key, count: 0, total: 0 };
-      row.count += 1;
-      row.total += e.amount;
-      map.set(key, row);
-    });
+    (expenses || [])
+      .filter((e) => isWithinDateRange(e.date, range))
+      .filter((e) => category === "all" || e.category === category)
+      .forEach((e) => {
+        const key = e.createdBy || "Unknown";
+        const row = map.get(key) || { user: key, count: 0, total: 0 };
+        row.count += 1;
+        row.total += e.amount;
+        map.set(key, row);
+      });
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [expenses, range]);
+  }, [expenses, range, category]);
+
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<ByEmployeeRow>("expenses-by-employee", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
@@ -37,7 +57,7 @@ export default function ExpensesByEmployeePage() {
       description="Expense totals grouped by the user who recorded each one."
       actions={
         <ReportActionsMenu
-          rows={rows.map((r) => ({ User: r.user, "Expense Count": r.count, Total: r.total }))}
+          rows={sortedRows.map((r) => ({ User: r.user, "Expense Count": r.count, Total: r.total }))}
           filename="expenses-by-employee"
           title="Expenses by Employee"
           summaryLines={[`Users: ${rows.length}`, `Total: ${inr(rows.reduce((s, r) => s + r.total, 0))}`]}
@@ -52,19 +72,34 @@ export default function ExpensesByEmployeePage() {
         customTo={customTo}
         onCustomToChange={setCustomTo}
         resultLabel={`${rows.length} user${rows.length === 1 ? "" : "s"}`}
+        category={
+          <Select value={category} onValueChange={(v) => v && setCategory(v)}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{category === "all" ? "All Categories" : category}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {rows.length === 0 ? (
-        <EmptyState icon={Users} title="No expenses yet" />
+        <EmptyState icon={UsersDuotoneIcon} title="No expenses yet" />
       ) : (
         <>
           <div className="hidden sm:block">
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>User</Th>
-                  <Th align="right">Expenses</Th>
-                  <Th align="right">Total</Th>
+                  <Th sortKey="user" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>User</Th>
+                  <Th align="right" sortKey="count" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Expenses</Th>
+                  <Th align="right" sortKey="total" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Total</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -73,7 +108,7 @@ export default function ExpensesByEmployeePage() {
                   <Td align="right">{rows.reduce((s, r) => s + r.count, 0)}</Td>
                   <Td align="right">{inr(rows.reduce((s, r) => s + r.total, 0))}</Td>
                 </ReportTotalsRow>
-                {rows.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.user} className="hover:bg-muted/30">
                     <Td className="font-medium">{r.user}</Td>
                     <Td align="right">{r.count}</Td>
@@ -86,12 +121,12 @@ export default function ExpensesByEmployeePage() {
 
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(rows.reduce((s, r) => s + r.total, 0))} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(rows.reduce((s, r) => s + r.total, 0))} showChevron={false} valueClassName="text-red-600 dark:text-red-400" />
               <MobileRecordRow label="Expenses" value={rows.reduce((s, r) => s + r.count, 0)} />
             </MobileRecordCard>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <MobileRecordCard key={r.user}>
-                <MobileRecordHeader title={r.user} value={inr(r.total)} showChevron={false} />
+                <MobileRecordHeader boldTitle title={r.user} value={inr(r.total)} showChevron={false} valueClassName="text-red-600 dark:text-red-400" />
                 <MobileRecordRow label="Expenses" value={r.count} />
               </MobileRecordCard>
             ))}

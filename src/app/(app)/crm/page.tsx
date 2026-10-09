@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, Users, UserPlus, LayoutGrid, LayoutList, ArrowUpDown, Upload, MessageSquare, ImagePlus, MoreVertical } from "lucide-react";
+import { Search, UserPlus, LayoutGrid, LayoutList, ArrowUpDown, Upload, MessageSquare, ImagePlus, MoreVertical } from "lucide-react";
+import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -187,7 +188,7 @@ function CrmContent() {
                 </Button>
               )}
               {user?.perms.managePayments && <NewPaymentButton variant="outline" label="" className="shrink-0 px-3" />}
-              {canAdd && (
+              {(canAdd || user?.perms.sendWhatsappBroadcast) && (
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
@@ -197,12 +198,16 @@ function CrmContent() {
                     }
                   />
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem render={<Link href="/crm/broadcast" />}>
-                      <MessageSquare className="size-4" /> Broadcast
-                    </DropdownMenuItem>
-                    <DropdownMenuItem render={<Link href="/crm/bulk-whatsapp" />}>
-                      <ImagePlus className="size-4" /> Bulk WhatsApp (Image)
-                    </DropdownMenuItem>
+                    {user?.perms.sendWhatsappBroadcast && (
+                      <DropdownMenuItem render={<Link href="/crm/broadcast" />}>
+                        <MessageSquare className="size-4" /> Broadcast
+                      </DropdownMenuItem>
+                    )}
+                    {user?.perms.sendWhatsappBroadcast && (
+                      <DropdownMenuItem render={<Link href="/crm/bulk-whatsapp" />}>
+                        <ImagePlus className="size-4" /> Bulk WhatsApp (Image)
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem render={<Link href="/crm/import" />}>
                       <Upload className="size-4" /> Import
                     </DropdownMenuItem>
@@ -212,12 +217,12 @@ function CrmContent() {
             </div>
 
             <div className="hidden items-center gap-2 sm:flex">
-              {canAdd && (
+              {user?.perms.sendWhatsappBroadcast && (
                 <Button variant="outline" nativeButton={false} render={<Link href="/crm/broadcast" />}>
                   <MessageSquare className="size-4" /> Broadcast
                 </Button>
               )}
-              {canAdd && (
+              {user?.perms.sendWhatsappBroadcast && (
                 <Button variant="outline" nativeButton={false} render={<Link href="/crm/bulk-whatsapp" />}>
                   <ImagePlus className="size-4" /> Bulk WhatsApp (Image)
                 </Button>
@@ -270,37 +275,49 @@ function CrmContent() {
             aria-label="Search customers"
           />
         </div>
-        {allTags.length > 0 && (
-          <Select value={tagFilter} onValueChange={(v) => v && setTagFilter(v)}>
-            <SelectTrigger className="h-10 w-40">
-              <SelectValue>{tagFilterLabel}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_TAGS}>All tags</SelectItem>
-              {allTags.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        {segmentOptions.length > 0 && (
-          <Select value={segmentFilter} onValueChange={(v) => v && setSegmentFilter(v)}>
-            <SelectTrigger className="h-10 w-44">
-              <SelectValue>{(v: unknown) => (v === ALL_SEGMENTS ? "All segments" : segmentOptions.find(([k]) => k === v)?.[1] ?? String(v))}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_SEGMENTS}>All segments</SelectItem>
-              {segmentOptions.map(([key, label]) => (
-                <SelectItem key={key} value={key}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
       </div>
+
+      {/* Own row, separate from the view toggle/search above — those two plus the Cards/List
+          toggle used to all share one flex-wrap row, which on a narrow phone left the two
+          fixed-width selects with nowhere to land beside each other: the search bar (flex-1)
+          claimed an entire wrapped line by itself, bumping tags and segments to wrap onto their
+          own separate lines below it one at a time instead of sitting side by side. flex-1 here
+          (replacing the old fixed w-40/w-44) means the two always evenly share one row's width,
+          at any screen size, instead of leaving it to flex-wrap's packing order to decide. */}
+      {(allTags.length > 0 || segmentOptions.length > 0) && (
+        <div className="flex gap-2">
+          {allTags.length > 0 && (
+            <Select value={tagFilter} onValueChange={(v) => v && setTagFilter(v)}>
+              <SelectTrigger className="h-10 flex-1 min-w-0">
+                <SelectValue>{tagFilterLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_TAGS}>All tags</SelectItem>
+                {allTags.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {segmentOptions.length > 0 && (
+            <Select value={segmentFilter} onValueChange={(v) => v && setSegmentFilter(v)}>
+              <SelectTrigger className="h-10 flex-1 min-w-0">
+                <SelectValue>{(v: unknown) => (v === ALL_SEGMENTS ? "All segments" : segmentOptions.find(([k]) => k === v)?.[1] ?? String(v))}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_SEGMENTS}>All segments</SelectItem>
+                {segmentOptions.map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
@@ -310,7 +327,7 @@ function CrmContent() {
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState
-          icon={Users}
+          icon={UsersDuotoneIcon}
           title={search ? "No customers match your search" : "No customers yet"}
           description={
             search

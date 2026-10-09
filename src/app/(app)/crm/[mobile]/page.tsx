@@ -4,8 +4,10 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ArrowLeft, ChevronRight, Mail, MapPin, Cake, Heart, ShoppingBag, FileText, Ticket, Shirt, Scissors, Wallet } from "lucide-react";
+import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ChevronRight, Mail, MapPin, Cake, Heart, FileText, Ticket, Shirt, Wallet } from "lucide-react";
+import { ReceiptDuotoneIcon, ShoppingBagDuotoneIcon, WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
+import { useCustomerCredit } from "@/hooks/use-customer-credit";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDeleteCustomerAndOrders, useGiveLoyaltyBonus } from "@/hooks/use-customer-mutations";
@@ -23,6 +25,7 @@ import { inr, fmtDate } from "@/lib/format";
 import { sumOrdersOutstanding } from "@/lib/balances";
 import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +38,7 @@ import { CustomerMeasurements } from "@/components/crm/customer-measurements";
 import { CustomerMeasurementProfiles } from "@/components/crm/customer-measurement-profiles";
 import { CustomerBuyingProfileCard } from "@/components/crm/customer-buying-profile-card";
 import { CustomerProductRecommendations } from "@/components/crm/customer-product-recommendations";
+import { BackLink } from "@/components/ui/back-link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,10 +69,12 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   const { data: allOrderPayments } = useAllOrderPayments();
   const { data: allSalesPayments } = useAllSalesPayments();
   const { data: shop } = useShopSettings();
+  const { data: creditBalance } = useCustomerCredit(mobile);
   const issueCoupon = useIssueReferralCoupon();
 
   const [editOpen, setEditOpen] = useState(false);
   const [bonusInput, setBonusInput] = useState("");
+  const [historyFilter, setHistoryFilter] = useState<"all" | "new" | "alteration">("all");
 
   if (isLoading) {
     return (
@@ -83,7 +89,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   if (!cust) {
     return (
       <div className="p-6">
-        <EmptyState icon={Receipt} title="Customer not found" action={<Button nativeButton={false} render={<Link href="/crm" />}>Back to customers</Button>} />
+        <EmptyState icon={ReceiptDuotoneIcon} title="Customer not found" action={<Button nativeButton={false} render={<Link href="/crm" />}>Back to customers</Button>} />
       </div>
     );
   }
@@ -92,6 +98,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   // Outstanding balance — same semantics as the Dashboard's Balance Due.
   const outstanding = sumOrdersOutstanding(custOrders);
   const activeCount = custOrders.filter((o) => o.status !== "delivered" && o.status !== "payment").length;
+  const filteredHistoryOrders = historyFilter === "all" ? custOrders : custOrders.filter((o) => o.orderType === historyFilter);
 
   // Sales invoices for this customer — same customers table as stitching, joined by mobile.
   // Stitch Due and Sales Due are always shown separately; only "Combined" totals merge them.
@@ -156,9 +163,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6">
-      <Link href="/crm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Customers
-      </Link>
+      <BackLink href="/crm">Customers</BackLink>
 
       <div className="rounded-xl border bg-card p-4 sm:p-5">
         <div className="flex items-start gap-4">
@@ -198,6 +203,14 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
               Lifetime value: {inr(combinedLifetime)}
               <span className="ml-1 text-xs font-normal"> (stitching {inr(cust.spent)} + product sales {inr(salesSpent)})</span>
             </p>
+            {/* Prepaid balance — e.g. a payment that outlived the order/invoice it was recorded
+                against (see order DELETE route) and got converted here instead of being lost.
+                Shown only when non-zero so most customers never see an empty "Credit: ₹0" line. */}
+            {!!creditBalance && (
+              <p className="mt-1 text-sm font-medium text-sky-600 dark:text-sky-400">
+                Credit balance: {inr(creditBalance)} <span className="font-normal text-muted-foreground">(apply it from the Record Payment page)</span>
+              </p>
+            )}
           </div>
         </div>
 
@@ -227,37 +240,31 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             with fewer buttons than that count left a gap instead of filling out. */}
         <div className="mt-4 flex flex-wrap gap-2">
           <Button nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
-            <Plus className="size-4 shrink-0" /> <span className="truncate">New order</span>
+            <Plus className="size-4 shrink-0" /> <span className="truncate">Order</span>
           </Button>
           <Button variant="outline" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}&type=alteration`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
-            <Scissors className="size-4 shrink-0" />
-            <span className="truncate">
-              <span className="sm:hidden">Alteration</span>
-              <span className="hidden sm:inline">New alteration</span>
-            </span>
+            <Plus className="size-4 shrink-0" />
+            <span className="truncate">Alteration</span>
           </Button>
           <Button variant="outline" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
+            <Plus className="size-3.5 shrink-0" />
             <Receipt className="size-4 shrink-0" />
-            <span className="truncate">
-              <span className="sm:hidden">Invoice</span>
-              <span className="hidden sm:inline">New invoice</span>
-            </span>
+            <span className="truncate">Invoice</span>
           </Button>
           <Button variant="outline" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
-            <FileText className="size-4 shrink-0" /> <span className="truncate">Statement</span>
+            <FileText className="size-4 shrink-0" />
+            <span className="truncate">
+              <span className="sm:hidden">S.Ment</span>
+              <span className="hidden sm:inline">Statement</span>
+            </span>
           </Button>
           {user?.perms.managePayments && combinedDue > 0 && (
-            <NewPaymentButton customerMobile={cust.mobile} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" />
+            <NewPaymentButton customerMobile={cust.mobile} label="Payment" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" />
           )}
           {combinedDue > 0 && (
             <WhatsAppButton
               href={reminderUrl}
-              label={
-                <>
-                  <span className="sm:hidden">Remind</span>
-                  <span className="hidden sm:inline">Payment Reminder</span>
-                </>
-              }
+              label="Remind"
               labelClassName="min-w-0 truncate"
               className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm"
               tone="reminder"
@@ -266,12 +273,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           {custOrders.length > 0 && (
             <WhatsAppButton
               href={wardrobeUrl}
-              label={
-                <>
-                  <span className="sm:hidden">Wardrobe</span>
-                  <span className="hidden sm:inline">Send wardrobe summary</span>
-                </>
-              }
+              label="Wardrobe"
               labelClassName="min-w-0 truncate"
               className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm"
             />
@@ -279,10 +281,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           {user?.perms.manageCustomers && (
             <Button variant="outline" onClick={handleGiveCoupon} disabled={issueCoupon.isPending} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
               <Ticket className="size-4 shrink-0" />
-              <span className="truncate">
-                <span className="sm:hidden">Coupon</span>
-                <span className="hidden sm:inline">Give referral coupon</span>
-              </span>
+              <span className="truncate">Coupon</span>
             </Button>
           )}
           {user?.perms.manageCustomers && (
@@ -355,7 +354,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
               </div>
             </div>
 
-            {user?.perms.manageCustomers && (
+            {user?.perms.awardLoyaltyPoints && (
               <div className="flex gap-2">
                 <Input
                   type="number"
@@ -400,42 +399,69 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           {totalPaid > 0 && <span className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{inr(totalPaid)}</span>}
         </div>
         {paymentRows.length === 0 ? (
-          <EmptyState icon={Wallet} title="No payments recorded yet" className="border-0" />
+          <EmptyState icon={WalletDuotoneIcon} title="No payments recorded yet" className="border-0" />
         ) : (
-          <ul className="divide-y">
-            {paymentRows.map((p) => (
-              <li key={p.id}>
-                <Link href={p.referenceHref} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Badge variant="outline" className={PAYMENT_SOURCE_BADGE[p.source].className}>
-                        {PAYMENT_SOURCE_BADGE[p.source].label}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">{p.method}</span>
-                    </div>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {p.reference} · {fmtDate(p.date)}
-                    </p>
-                  </div>
-                  <p className="shrink-0 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{inr(p.amount)}</p>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                </Link>
-              </li>
-            ))}
-          </ul>
+          // Grouped by date with a subtotal per day — "how much did I pay on the 7th" used to mean
+          // manually adding up however many rows shared that date by eye. paymentRows is already
+          // date-desc sorted (sortPaymentRows above), so a same-date run is always contiguous.
+          Object.entries(
+            paymentRows.reduce<Record<string, typeof paymentRows>>((acc, p) => {
+              (acc[p.date] ||= []).push(p);
+              return acc;
+            }, {})
+          ).map(([date, rows]) => (
+            <div key={date}>
+              <div className="flex items-center justify-between bg-muted/30 px-4 py-1.5 text-xs font-medium text-muted-foreground">
+                <span>{fmtDate(date)}</span>
+                <span className="tabular-nums">{inr(rows.reduce((s, r) => s + r.amount, 0))}</span>
+              </div>
+              <ul className="divide-y">
+                {rows.map((p) => (
+                  <li key={p.id}>
+                    <Link href={p.referenceHref} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge variant="outline" className={PAYMENT_SOURCE_BADGE[p.source].className}>
+                            {PAYMENT_SOURCE_BADGE[p.source].label}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">{p.method}</span>
+                        </div>
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">{p.reference}</p>
+                      </div>
+                      <p className="shrink-0 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{inr(p.amount)}</p>
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
         )}
       </section>
 
       <section className="rounded-xl border bg-card">
         <div className="border-b px-4 py-3">
-          <h2 className="text-sm font-semibold">Wardrobe & order history ({custOrders.length})</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">Wardrobe & order history ({filteredHistoryOrders.length})</h2>
+            {custOrders.length > 0 && (
+              <Tabs value={historyFilter} onValueChange={(v) => v && setHistoryFilter(v as typeof historyFilter)}>
+                <TabsList>
+                  <TabsTrigger value="all">All</TabsTrigger>
+                  <TabsTrigger value="new">Stitching</TabsTrigger>
+                  <TabsTrigger value="alteration">Alterations</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">Everything this customer has had stitched with us.</p>
         </div>
         {custOrders.length === 0 ? (
-          <EmptyState icon={Receipt} title="No orders yet" className="border-0" />
+          <EmptyState icon={ReceiptDuotoneIcon} title="No orders yet" className="border-0" />
+        ) : filteredHistoryOrders.length === 0 ? (
+          <EmptyState icon={ReceiptDuotoneIcon} title={historyFilter === "alteration" ? "No alterations yet" : "No stitching orders yet"} className="border-0" />
         ) : (
           <ul className="divide-y">
-            {custOrders.map((o) => (
+            {filteredHistoryOrders.map((o) => (
               <li key={o.id}>
                 <Link href={`/orders/${o.id}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
                   {/* No thumbnail here by design — cust.orders comes from the list-sourced
@@ -473,7 +499,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           {salesDue > 0 && <BalanceDue amount={salesDue} suffix=" due" paidLabel="" className="text-xs" />}
         </div>
         {custInvoices.length === 0 ? (
-          <EmptyState icon={ShoppingBag} title="No product sales invoices yet" description="Products bought by this customer will appear here." className="border-0" />
+          <EmptyState icon={ShoppingBagDuotoneIcon} title="No product sales invoices yet" description="Products bought by this customer will appear here." className="border-0" />
         ) : (
           <ul className="divide-y">
             {custInvoices.map((inv) => (

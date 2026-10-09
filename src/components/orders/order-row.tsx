@@ -10,11 +10,11 @@ import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { inr, fmtDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { deliveryTarget, formatCountdownDHM, useCountdownNow } from "@/lib/delivery-countdown";
-import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
+import { StageBadge, DueBadge, MoveToStageLabel } from "@/components/orders/stage-badge";
 import { AlterationBadge, ReworkBadge, DeleteOrderButton, GroupBadge } from "@/components/orders/order-card";
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
-import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import { WhatsAppButton, WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { Checkbox } from "@/components/ui/checkbox";
 import { hapticTap } from "@/lib/haptics";
@@ -56,7 +56,7 @@ function DeliveryCountdown({ order }: { order: Order }) {
   if (!order.deliveryDate || order.status === "delivered" || order.status === "payment") return null;
   const { text, overdue } = formatCountdownDHM(deliveryTarget(order.deliveryDate, order.deliveryTime) - now);
   return (
-    <p className="font-mono text-[11px] font-medium tabular-nums text-red-600 dark:text-red-400">
+    <p className="font-mono text-sm font-semibold tabular-nums text-red-600 dark:text-red-400">
       {overdue && "−"}
       {text}
     </p>
@@ -70,7 +70,7 @@ function AdvanceButton({ order, onAdvance, advancing, compact }: RowProps & { co
   return (
     <Button
       size="sm"
-      className={cn("h-9 px-2.5 text-xs sm:h-8", style.solid, compact && "min-w-0 flex-1")}
+      className={cn("h-11 px-2.5 text-sm sm:h-8 sm:text-xs", style.solid, compact && "min-w-0 flex-1")}
       disabled={advancing}
       onClick={(e) => {
         e.preventDefault();
@@ -83,20 +83,18 @@ function AdvanceButton({ order, onAdvance, advancing, compact }: RowProps & { co
           the compact card row, where this button shares a fixed-width row with two icon buttons
           — a long stage name (e.g. "Move to Delivered") could otherwise force the row wider than
           the card instead of just ellipsizing. The non-compact table-row usage has room to spare. */}
-      <span className={compact ? "truncate" : "whitespace-nowrap"}>{advancing ? "…" : `Move to ${STAGE_META[next].label}`}</span>
+      <span className={compact ? "truncate" : "whitespace-nowrap"}>{advancing ? "…" : <MoveToStageLabel label={STAGE_META[next].label} />}</span>
     </Button>
   );
 }
 
-function OrderWhatsAppButton({ order, shop, compact, trackUrl }: { order: Order; shop?: Shop; compact?: boolean; trackUrl?: string }) {
+function OrderWhatsAppButton({ order, shop, compact, trackUrl, showLabel }: { order: Order; shop?: Shop; compact?: boolean; trackUrl?: string; showLabel?: boolean }) {
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
-  return (
-    <WhatsAppIconButton
-      href={buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates)}
-      label={`WhatsApp ${order.name}`}
-      className={cn("size-9", !compact && "sm:size-8")}
-    />
-  );
+  const href = buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates);
+  if (showLabel) {
+    return <WhatsAppButton href={href} label="WhatsApp" size="sm" className="h-11 min-w-0 px-2 text-sm" />;
+  }
+  return <WhatsAppIconButton href={href} label={`WhatsApp ${order.name}`} className={cn("size-9", !compact && "sm:size-8")} />;
 }
 
 /** Balance-due orders get a one-tap payment-reminder WhatsApp link next to the plain WhatsApp
@@ -105,32 +103,33 @@ function OrderWhatsAppButton({ order, shop, compact, trackUrl }: { order: Order;
  *  single widest thing in an already-crowded actions row (Advance/Record/WhatsApp/Reminder/Delete
  *  all in one row), and on a real phone it's what forces the primary "Move to X" button down to
  *  a few clipped letters. */
-function PaymentReminderButton({ order, shop, compact, trackUrl }: { order: Order; shop?: Shop; compact?: boolean; trackUrl?: string }) {
+function PaymentReminderButton({ order, shop, compact, trackUrl, showLabel }: { order: Order; shop?: Shop; compact?: boolean; trackUrl?: string; showLabel?: boolean }) {
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   if (order.balance <= 0) return null;
   const href = buildWhatsAppUrl({ ...order, trackUrl }, "paymentDue", shop, waTemplates);
   return (
     <Button
       variant="outline"
-      size="icon-sm"
-      className={cn("size-9 shrink-0", !compact && "sm:size-8")}
+      size={showLabel ? "sm" : "icon-sm"}
+      className={cn(showLabel ? "h-11 min-w-0 gap-1.5 px-2 text-sm" : cn("size-9 shrink-0", !compact && "sm:size-8"))}
       aria-label={`Payment reminder to ${order.name}`}
       title="Payment reminder"
       nativeButton={false}
       render={<a href={href} target="_blank" rel="noopener noreferrer" />}
     >
-      <WhatsAppIcon className="size-3.5 text-orange-400" />
+      <WhatsAppIcon className="size-4 shrink-0 text-orange-400" />
+      {showLabel && <span className="truncate">Remind</span>}
     </Button>
   );
 }
 
-function RecordPaymentButton({ order, onRecordPayment, compact }: { order: Order; onRecordPayment?: (order: Order) => void; compact?: boolean }) {
+function RecordPaymentButton({ order, onRecordPayment, compact, showLabel }: { order: Order; onRecordPayment?: (order: Order) => void; compact?: boolean; showLabel?: boolean }) {
   if (!onRecordPayment || order.balance <= 0) return null;
   return (
     <Button
       variant="outline"
-      size="icon-sm"
-      className={cn("size-9 shrink-0", !compact && "sm:size-8")}
+      size={showLabel ? "sm" : "icon-sm"}
+      className={cn(showLabel ? "h-11 min-w-0 gap-1.5 px-2 text-sm" : cn("size-9 shrink-0", !compact && "sm:size-8"))}
       aria-label={`Record payment for ${order.name}`}
       title="Record payment"
       onClick={(e) => {
@@ -139,7 +138,8 @@ function RecordPaymentButton({ order, onRecordPayment, compact }: { order: Order
         onRecordPayment(order);
       }}
     >
-      <Wallet className="size-4" />
+      <Wallet className="size-4 shrink-0" />
+      {showLabel && <span className="truncate">Payment</span>}
     </Button>
   );
 }
@@ -158,8 +158,8 @@ export function OrderCardRow(props: RowProps) {
         <div className="flex items-start gap-3">
           <span className={cn("mt-1 h-9 w-1 shrink-0 rounded-full", style.accent)} aria-hidden />
           <div className="min-w-0 flex-1">
-            <p className="truncate font-medium leading-tight">{order.name}</p>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            <p className="truncate text-lg font-semibold leading-tight">{order.name}</p>
+            <p className="mt-0.5 truncate text-sm text-muted-foreground">
               {order.id} · {order.mobile}
             </p>
           </div>
@@ -167,36 +167,51 @@ export function OrderCardRow(props: RowProps) {
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <StageBadge stage={order.status} size="sm" />
+          <StageBadge stage={order.status} />
           {order.orderType === "alteration" && <AlterationBadge />}
           {order.reworkFlag && <ReworkBadge />}
           <GroupBadge size={groupSize} groupTotal={groupTotal} />
           <DueBadge order={order} />
-          <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums">{inr(order.total)}</span>
+          <span className="ml-auto shrink-0 text-base font-semibold tabular-nums">{inr(order.total)}</span>
         </div>
 
         <DeliveryCountdown order={order} />
 
         {order.tailor && (
-          <p className="mt-1.5 truncate text-xs text-muted-foreground">
+          <p className="mt-1.5 truncate text-sm text-muted-foreground">
             Tailor: <span className="font-medium text-foreground">{tailorName?.(order.tailor) || order.tailor}</span>
           </p>
         )}
 
-        <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-          <span className="truncate">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</span>
+        <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
+          <span className="truncate font-bold">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</span>
           <span className="shrink-0 pl-2">
-            <BalanceDue amount={order.balance} suffix=" due" />
+            <BalanceDue amount={order.balance} suffix=" due" className="font-semibold" />
           </span>
         </div>
       </Link>
 
-      <div className="flex items-center gap-2 border-t bg-muted/30 p-2">
-        {canChangeStage && <AdvanceButton {...props} compact />}
-        <RecordPaymentButton order={order} onRecordPayment={onRecordPayment} compact />
-        <OrderWhatsAppButton order={order} shop={shop} compact trackUrl={trackUrl} />
-        <PaymentReminderButton order={order} shop={shop} compact trackUrl={trackUrl} />
-        <DeleteOrderButton order={order} compact />
+      <div className="border-t bg-muted/30 p-2">
+        {canChangeStage && (
+          <div className="flex items-center gap-2">
+            <AdvanceButton {...props} compact />
+          </div>
+        )}
+        {/* Mobile-only: Payment/WhatsApp/Reminder/Delete get their own labeled row instead of
+            squeezing in as bare icons next to the advance button — see order-card.tsx for the
+            same treatment on the kanban board card. Up to 4 of these can be hidden per order/role
+            (Payment+Reminder need a balance due, Delete needs deleteOrder permission), so a plain
+            2-column grid can leave an orphaned last button alone in its own row, undersized and
+            looking misaligned — [&>*:last-child:nth-child(odd)]: makes that lone trailing button
+            span the full row instead. Stays a 2-column grid (not a single flex row) rather than
+            letting all 4 share one row, which would be cramped on a narrow phone when every
+            button is present. */}
+        <div className={cn("grid grid-cols-2 gap-1.5 [&>*:last-child:nth-child(odd)]:col-span-2", canChangeStage && "mt-1.5")}>
+          <RecordPaymentButton order={order} onRecordPayment={onRecordPayment} showLabel />
+          <OrderWhatsAppButton order={order} shop={shop} trackUrl={trackUrl} showLabel />
+          <PaymentReminderButton order={order} shop={shop} trackUrl={trackUrl} showLabel />
+          <DeleteOrderButton order={order} showLabel />
+        </div>
       </div>
     </div>
   );
@@ -259,7 +274,7 @@ export function OrderTableRow(props: TableRowProps) {
       {isVisible("delivery") && (
         <td className="px-2.5 py-2.5">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-sm">{fmtDateShort(order.deliveryDate)}</span>
+            <span className="text-sm font-bold">{fmtDateShort(order.deliveryDate)}</span>
             <DueBadge order={order} />
           </div>
           <DeliveryCountdown order={order} />

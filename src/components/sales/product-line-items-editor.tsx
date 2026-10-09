@@ -244,7 +244,7 @@ export function ProductLineItemsEditor({
             </ul>
           )}
         </div>
-        <Button type="button" variant="outline" size="icon" onClick={() => setScannerOpen(true)} aria-label="Scan with camera">
+        <Button type="button" variant="outline" size="icon" className="size-11" onClick={() => setScannerOpen(true)} aria-label="Scan with camera">
           <Camera className="size-4" />
         </Button>
       </div>
@@ -269,7 +269,7 @@ export function ProductLineItemsEditor({
               {/* Product + mobile-only clone/remove */}
               <div className="flex items-start gap-2 sm:contents">
                 <SearchSelect
-                  className="flex-1"
+                  className="flex-1 sm:min-w-[240px]"
                   inputClassName="h-10 text-sm"
                   placeholder="Type to search item…"
                   value={line.productId}
@@ -297,7 +297,7 @@ export function ProductLineItemsEditor({
 
               {/* Qty / Price / Discount — labeled grid on mobile, inline row on desktop */}
               <div className={cn("grid gap-2 sm:contents", showDiscount ? "grid-cols-3" : "grid-cols-2")}>
-                <div className="sm:w-24">
+                <div className="sm:w-16">
                   <label className="mb-1 block text-[10px] font-medium text-muted-foreground sm:hidden">Qty</label>
                   <Input
                     type="number"
@@ -305,7 +305,7 @@ export function ProductLineItemsEditor({
                     min={0}
                     step="1"
                     placeholder="Qty"
-                    className={cn("h-10 w-full text-sm sm:w-24", oversell && "border-amber-500 focus-visible:ring-amber-500/50")}
+                    className={cn("h-10 w-full text-sm sm:w-16", oversell && "border-amber-500 focus-visible:ring-amber-500/50")}
                     value={line.qty}
                     onChange={(e) => updateLine(line.key, { qty: e.target.value })}
                   />
@@ -313,9 +313,9 @@ export function ProductLineItemsEditor({
                     <p className="mt-1 whitespace-nowrap text-[11px] text-amber-600 dark:text-amber-500">Only {selectedProduct!.stockQty} in stock</p>
                   )}
                 </div>
-                <div className="sm:w-32">
+                <div className="sm:w-24">
                   <label className="mb-1 block text-[10px] font-medium text-muted-foreground sm:hidden">Price</label>
-                  <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="Price" className="h-10 w-full text-sm sm:w-32" value={line.unitPrice} onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })} />
+                  <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="Price" className="h-10 w-full text-sm sm:w-24" value={line.unitPrice} onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })} />
                 </div>
                 {showDiscount && (
                   <div className="sm:w-auto sm:shrink-0">

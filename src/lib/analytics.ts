@@ -1,10 +1,11 @@
 // Ported from Stitching_Manager_Pro_v16.html ~lines 2373-2524 (Analytics helpers).
-import { daysLeft, loyaltyDiscountOf, couponDiscountOf, loyaltyTier, DEFAULT_LOYALTY_CONFIG, type LoyaltyConfig } from "@/lib/business-rules";
+import { daysLeft, loyaltyDiscountOf, couponDiscountOf, loyaltyTier, DEFAULT_LOYALTY_CONFIG, STAGES, type LoyaltyConfig, type Stage } from "@/lib/business-rules";
 import { isOrderOutstanding } from "@/lib/balances";
 import { istDateString } from "@/lib/ist-date";
 import { isWithinDateRange, type DateRange } from "@/lib/report-date-range";
 import { computeOrderProfit } from "@/lib/order-profit";
-import type { Order, Customer, ReferralCoupon, OrderExpense } from "@/lib/types";
+import { normalizePhone } from "@/lib/auth-errors";
+import type { Order, Customer, ReferralCoupon, OrderExpense, Expense, Employee, Payslip } from "@/lib/types";
 
 function fmtMon(yyyyMm: string): string {
   const [y, m] = yyyyMm.split("-").map(Number);
@@ -57,6 +58,55 @@ export function getMonthly(orders: Order[]): MonthlyStat[] {
       pending: mo.reduce((s, o) => s + Math.max(0, o.balance ?? Math.max(0, (o.total || 0) - (o.advance || 0))), 0),
       count: mo.length,
     };
+  });
+}
+
+export interface StitchingPnlStat extends MonthlyStat {
+  tailoringExpense: number;
+  tailorSalaryExpense: number;
+  tailorPayrollCost: number;
+  expenseCost: number;
+  netProfit: number;
+}
+
+/** Stitching Monthly P&L's cost side. Only two things count as a "stitching cost" here, per
+ *  explicit business rule:
+ *   1. Any expense filed under a category whose name contains "tailor" (e.g. "Tailoring") —
+ *      counted in full, no employee link needed.
+ *   2. Of expenses filed under a "Salaries and Wages"-type category (name contains "salar"),
+ *      only the ones paid to a tailor — identified by matching the expense's Customer Link
+ *      mobile number against an employee whose role contains "tailor" (case-insensitive,
+ *      matching the isTailor convention used elsewhere, e.g. attendance-widget.tsx).
+ *   3. Payroll payslips (the formal payroll module, separate from manual Expense entries)
+ *      paid to a tailor, by the same role match — full netPay, since this report doesn't
+ *      otherwise account for any per-order piece-rate/labor cost that could double-count it.
+ *  Revenue stays "Billed" (accrual), matching the report's existing headline number — profit
+ *  is Billed minus the cost above, not Collected minus cost. */
+export function getStitchingPnl(orders: Order[], expenses: Expense[], employees: Employee[], payslips: Payslip[]): StitchingPnlStat[] {
+  const tailorMobiles = new Set(
+    employees.filter((e) => e.role.toLowerCase().includes("tailor")).map((e) => normalizePhone(e.mobile))
+  );
+  const tailorEmployeeIds = new Set(employees.filter((e) => e.role.toLowerCase().includes("tailor")).map((e) => e.id));
+
+  return getMonthly(orders).map((m) => {
+    const monthExpenses = expenses.filter((e) => e.date?.startsWith(m.month));
+    const tailoringExpense = monthExpenses
+      .filter((e) => e.category.toLowerCase().includes("tailor"))
+      .reduce((s, e) => s + e.amount, 0);
+    const tailorSalaryExpense = monthExpenses
+      .filter((e) => {
+        if (!e.category.toLowerCase().includes("salar")) return false;
+        // Prefer the real employee link; fall back to matching the Customer Link mobile number
+        // against a tailor's stored mobile for expenses recorded before that link existed.
+        if (e.employeeId) return tailorEmployeeIds.has(e.employeeId);
+        return !!e.customerMobile && tailorMobiles.has(normalizePhone(e.customerMobile));
+      })
+      .reduce((s, e) => s + e.amount, 0);
+    const tailorPayrollCost = payslips
+      .filter((p) => p.status === "paid" && p.paidAt?.startsWith(m.month) && tailorEmployeeIds.has(p.employeeId))
+      .reduce((s, p) => s + (p.netPay || 0), 0);
+    const expenseCost = tailoringExpense + tailorSalaryExpense + tailorPayrollCost;
+    return { ...m, tailoringExpense, tailorSalaryExpense, tailorPayrollCost, expenseCost, netProfit: m.billed - expenseCost };
   });
 }
 
@@ -640,6 +690,66 @@ export function getDeliveredUnpaid(orders: Order[]): Order[] {
   return orders.filter((o) => o.status === "delivered" && o.balance > 0).sort((a, b) => b.balance - a.balance);
 }
 
+export interface OverdueInProductionRow extends Order {
+  daysLate: number;
+}
+
+// Still in production and already past the promised delivery date — distinct from
+// getReadyUncollected (garment is finished, waiting on the customer) and getAgingList (payment
+// promise, not the production one). "In production" = not yet Ready/Delivered/Payment, since
+// those stages are a pickup/payment problem, not a "the order itself is running late" one.
+const PRE_READY_STAGES = new Set(["received", "cutting", "stitching", "finishing"]);
+
+/** Orders whose delivery date has already passed while they're still stuck earlier in the
+ *  pipeline — sorted worst (most days late) first. A missing deliveryDate is excluded rather
+ *  than shown as falsely overdue, same reasoning as dueBadge(). */
+export function getOverdueInProduction(orders: Order[]): OverdueInProductionRow[] {
+  return orders
+    .filter((o) => PRE_READY_STAGES.has(o.status) && o.deliveryDate && daysLeft(o.deliveryDate) < 0)
+    .map((o) => ({ ...o, daysLate: Math.abs(daysLeft(o.deliveryDate)) }))
+    .sort((a, b) => b.daysLate - a.daysLate);
+}
+
+export interface OrderStatusCounts {
+  dueToday: number;
+  overdue: number;
+  received: number;
+  cutting: number;
+  stitching: number;
+  finishing: number;
+  ready: number;
+  delivered: number;
+}
+
+/** Powers the small clickable stage/due-date count cards (dashboard widget + top of Orders
+ *  list). "Due today" mirrors computeTodaySnapshot()'s definition (delivery date is today,
+ *  not yet delivered/paid off) and "overdue" mirrors getOverdueInProduction() above — reusing
+ *  both definitions rather than inventing a third notion of "today"/"late". Stage counts are a
+ *  live snapshot of the whole pipeline (no date restriction), one bucket per STAGES entry minus
+ *  "payment" (folded into "delivered" for this glance-level view). */
+export function getOrderStatusCounts(orders: Order[]): OrderStatusCounts {
+  let dueToday = 0;
+  let received = 0;
+  let cutting = 0;
+  let stitching = 0;
+  let finishing = 0;
+  let ready = 0;
+  let delivered = 0;
+
+  for (const o of orders) {
+    if (o.status === "delivered" || o.status === "payment") delivered++;
+    else if (o.status === "received") received++;
+    else if (o.status === "cutting") cutting++;
+    else if (o.status === "stitching") stitching++;
+    else if (o.status === "finishing") finishing++;
+    else if (o.status === "ready") ready++;
+
+    if (o.status !== "delivered" && o.status !== "payment" && o.deliveryDate && daysLeft(o.deliveryDate) === 0) dueToday++;
+  }
+
+  return { dueToday, overdue: getOverdueInProduction(orders).length, received, cutting, stitching, finishing, ready, delivered };
+}
+
 export interface ReworkRateRow {
   tailor: string;
   totalOrders: number;
@@ -861,7 +971,7 @@ export function getTopReferrers(coupons: ReferralCoupon[]): TopReferrerRow[] {
 
 export function getOrderProfitability(
   orders: Order[],
-  expensesByOrderId: Map<string, Pick<OrderExpense, "amount">[]>
+  expensesByOrderId: Map<string, Pick<OrderExpense, "amount" | "category">[]>
 ): OrderProfitabilityRow[] {
   return orders
     .map((o) => {
@@ -870,4 +980,24 @@ export function getOrderProfitability(
       return { ...o, cost, profit: breakdown.profit, marginPct: breakdown.marginPct ?? 0, tailorCostIsEstimate: breakdown.tailorCostIsEstimate };
     })
     .sort((a, b) => b.profit - a.profit);
+}
+
+export interface StageAmountRow {
+  stage: Stage;
+  count: number;
+  total: number;
+}
+
+/** Stages Wise Amount — a live snapshot, never historical: every order's CURRENT stage right
+ *  now, grouped and summed by billed total. The date range (applied by the caller, same
+ *  isWithinDateRange(o.inDate, range) convention as every other report) only narrows WHICH
+ *  orders count by when they were placed — it never asks "what stage was this order in as of
+ *  that date," which would need the order's full stage-history replayed and isn't something any
+ *  report in this app does. Includes every stage in STAGES (received through payment) even when
+ *  its count is 0, so the shape is stable for the UI to render a fixed set of cards/columns. */
+export function getStageAmounts(orders: Order[]): StageAmountRow[] {
+  return STAGES.map((stage) => {
+    const inStage = orders.filter((o) => o.status === stage);
+    return { stage, count: inStage.length, total: inStage.reduce((s, o) => s + (o.total || 0), 0) };
+  });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Shirt } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { getCustomGarmentRevenue } from "@/lib/analytics";
@@ -12,6 +12,46 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { cn } from "@/lib/utils";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type CustomGarmentRow = { label: string; isCustom: boolean; count: number; revenue: number };
+
+const SORT_COMPARATORS: Record<string, (a: CustomGarmentRow, b: CustomGarmentRow) => number> = {
+  garment: (a, b) => a.label.localeCompare(b.label),
+  type: (a, b) => Number(a.isCustom) - Number(b.isCustom),
+  count: (a, b) => a.count - b.count,
+  revenue: (a, b) => a.revenue - b.revenue,
+};
+const SORT_DESC_KEYS = new Set(["count", "revenue"]);
+
+type GarmentTypeFilter = "all" | "custom" | "standard";
+const GARMENT_TYPE_FILTERS: { value: GarmentTypeFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "custom", label: "Custom" },
+  { value: "standard", label: "Standard" },
+];
+
+function GarmentTypeToggle({ value, onChange }: { value: GarmentTypeFilter; onChange: (v: GarmentTypeFilter) => void }) {
+  return (
+    <div className="inline-flex flex-wrap gap-1" role="group" aria-label="Filter by garment type">
+      {GARMENT_TYPE_FILTERS.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          aria-pressed={value === o.value}
+          className={cn(
+            "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
+            value === o.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /**
  * ReportsView's `customGarRev`, Stitching_Manager_Pro_v16.html ~line 8111. Rows show as
@@ -20,8 +60,16 @@ import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 export default function CustomGarmentRevPage() {
   const { orders, isLoading } = useReportsData();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [typeFilter, setTypeFilter] = useState<GarmentTypeFilter>("all");
 
-  const customGarRev = useMemo(() => getCustomGarmentRevenue(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
+  const customGarRevAll = useMemo(() => getCustomGarmentRevenue(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
+  const customGarRev = useMemo(
+    () => customGarRevAll.filter((g) => (typeFilter === "custom" ? g.isCustom : typeFilter === "standard" ? !g.isCustom : true)),
+    [customGarRevAll, typeFilter]
+  );
+
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<CustomGarmentRow>("custom-garment-rev", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedGarRev = applySort(customGarRev);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -34,7 +82,7 @@ export default function CustomGarmentRevPage() {
       description="Revenue split between custom-named garments and standard rate-card types"
       actions={
         <ReportActionsMenu
-          rows={customGarRev.map((g) => ({ Garment: g.label, Type: g.isCustom ? "Custom" : "Standard", Count: g.count, Revenue: g.revenue }))}
+          rows={sortedGarRev.map((g) => ({ Garment: g.label, Type: g.isCustom ? "Custom" : "Standard", Count: g.count, Revenue: g.revenue }))}
           filename="custom-garment-revenue"
           title="Custom Garment Revenue"
           summaryLines={[`Total revenue: ${inr(totalRevenue)}`]}
@@ -48,6 +96,7 @@ export default function CustomGarmentRevPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={<GarmentTypeToggle value={typeFilter} onChange={setTypeFilter} />}
       />
 
       {customGarRev.length === 0 ? (
@@ -58,10 +107,10 @@ export default function CustomGarmentRevPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Garment</Th>
-                  <Th>Type</Th>
-                  <Th align="right">Count</Th>
-                  <Th align="right">Revenue</Th>
+                  <Th sortKey="garment" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Garment</Th>
+                  <Th sortKey="type" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Type</Th>
+                  <Th align="right" sortKey="count" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Count</Th>
+                  <Th align="right" sortKey="revenue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Revenue</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -70,7 +119,7 @@ export default function CustomGarmentRevPage() {
                   <Td align="right">{totalCount}</Td>
                   <Td align="right">{inr(totalRevenue)}</Td>
                 </ReportTotalsRow>
-                {customGarRev.map((g) => (
+                {sortedGarRev.map((g) => (
                   <tr key={g.label} className="hover:bg-muted/30">
                     <Td className="font-medium">{g.label}</Td>
                     <Td>
@@ -92,12 +141,12 @@ export default function CustomGarmentRevPage() {
 
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(totalRevenue)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(totalRevenue)} showChevron={false} valueClassName="text-emerald-600 dark:text-emerald-400" />
               <MobileRecordRow label="Count" value={totalCount} />
             </MobileRecordCard>
-            {customGarRev.map((g) => (
+            {sortedGarRev.map((g) => (
               <MobileRecordCard key={g.label}>
-                <MobileRecordHeader title={g.label} value={inr(g.revenue)} showChevron={false} />
+                <MobileRecordHeader boldTitle title={g.label} value={inr(g.revenue)} showChevron={false} valueClassName="text-emerald-600 dark:text-emerald-400" />
                 <MobileRecordRow
                   label="Type"
                   value={

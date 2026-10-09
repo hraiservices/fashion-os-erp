@@ -7,7 +7,7 @@ import { StitchingOrderTemplateSection, GarmentTagSection } from "@/components/s
 export default function Page() {
   return (
     <SettingsPage title="Stitching Order Template" description="Colors, fields, logo, QR code and signature on the customer receipt PDF and the tailor's garment tag">
-      <SettingsGuard allow={({ isAdmin }) => isAdmin}>
+      <SettingsGuard allow={({ perms }) => perms.manageDocumentTemplates}>
         <div className="space-y-4">
           <StitchingOrderTemplateSection />
           <GarmentTagSection />

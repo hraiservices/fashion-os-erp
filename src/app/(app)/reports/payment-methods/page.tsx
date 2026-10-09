@@ -1,12 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
-import { Wallet, ArrowDownCircle, ArrowUpCircle, Scale } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowDownCircle, ArrowUpCircle, Scale } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useAllSalesPayments } from "@/hooks/use-sales-payments";
 import { useAllVendorPayments } from "@/hooks/use-vendor-payments";
 import { useAllOrderPayments } from "@/hooks/use-order-payments";
 import { inr } from "@/lib/format";
+import { type SaleTypeFilter } from "@/lib/unified-sales";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
+import { SalesTypeFilter } from "@/components/reports/sales-type-filter";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,6 +17,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { useTableSort } from "@/hooks/use-table-sort";
 
 interface MethodRow {
   method: string;
@@ -32,19 +36,27 @@ function byMethod(payments: { method: string; amount: number }[]): MethodRow[] {
   return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
 }
 
-function MethodTable({ rows, total, emptyLabel }: { rows: MethodRow[]; total: number; emptyLabel: string }) {
-  if (rows.length === 0) return <EmptyState icon={Wallet} title={emptyLabel} className="border-0" />;
+const METHOD_SORT_COMPARATORS: Record<string, (a: MethodRow, b: MethodRow) => number> = {
+  method: (a, b) => a.method.localeCompare(b.method),
+  count: (a, b) => a.count - b.count,
+  amount: (a, b) => a.amount - b.amount,
+};
+
+function MethodTable({ rows, total, emptyLabel, storageKey }: { rows: MethodRow[]; total: number; emptyLabel: string; storageKey: string }) {
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<MethodRow>(storageKey, METHOD_SORT_COMPARATORS, new Set(["count", "amount"]));
+  const sortedRows = applySort(rows);
+  if (rows.length === 0) return <EmptyState icon={WalletDuotoneIcon} title={emptyLabel} className="border-0" />;
   return (
     <>
       <MobileRecordList>
         <MobileRecordCard className="bg-muted/40">
-          <MobileRecordHeader title="Total" value={inr(total)} showChevron={false} />
+          <MobileRecordHeader boldTitle title="Total" value={inr(total)} showChevron={false} />
           <MobileRecordRow label="Transactions" value={rows.reduce((s, r) => s + r.count, 0)} />
           <MobileRecordRow label="% of Total" value="100%" />
         </MobileRecordCard>
-        {rows.map((r) => (
+        {sortedRows.map((r) => (
           <MobileRecordCard key={r.method}>
-            <MobileRecordHeader title={r.method} value={inr(r.amount)} showChevron={false} />
+            <MobileRecordHeader boldTitle title={r.method} value={inr(r.amount)} showChevron={false} />
             <MobileRecordRow label="Transactions" value={r.count} />
             <MobileRecordRow label="% of Total" value={`${total > 0 ? ((r.amount / total) * 100).toFixed(1) : "0.0"}%`} />
           </MobileRecordCard>
@@ -55,9 +67,9 @@ function MethodTable({ rows, total, emptyLabel }: { rows: MethodRow[]; total: nu
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
-              <Th>Method</Th>
-              <Th align="right">Transactions</Th>
-              <Th align="right">Amount</Th>
+              <Th sortKey="method" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Method</Th>
+              <Th align="right" sortKey="count" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Transactions</Th>
+              <Th align="right" sortKey="amount" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Amount</Th>
               <Th align="right">% of Total</Th>
             </tr>
           </thead>
@@ -68,7 +80,7 @@ function MethodTable({ rows, total, emptyLabel }: { rows: MethodRow[]; total: nu
               <Td align="right">{inr(total)}</Td>
               <Td align="right">100%</Td>
             </ReportTotalsRow>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <tr key={r.method} className="hover:bg-muted/30">
                 <Td className="font-medium">{r.method}</Td>
                 <Td align="right">{r.count}</Td>
@@ -91,17 +103,18 @@ export default function PaymentMethodsReportPage() {
   const { data: orderPayments, isLoading: l3 } = useAllOrderPayments();
   const isLoading = l1 || l2 || l3;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  // This page IS the breakdown by method, so "category" here is the other axis already on the
+  // data: which revenue stream a received payment came from (product sale vs stitching order).
+  // Payments made to vendors have no sale-type notion, so this filter only narrows "received".
+  const [saleType, setSaleType] = useState<SaleTypeFilter>("all");
 
-  // Both revenue streams — sales_payments (product sales) and order_payments (stitching orders)
-  // both have a real `method` column now, so this report reflects every rupee to reconcile
-  // against a bank deposit, not just retail.
   const receivedByMethod = useMemo(
     () =>
       byMethod([
-        ...(salesPayments || []).filter((p) => isWithinDateRange(p.date, range)),
-        ...(orderPayments || []).filter((p) => isWithinDateRange(p.createdAt, range)),
+        ...(saleType === "stitching" ? [] : (salesPayments || []).filter((p) => isWithinDateRange(p.date, range))),
+        ...(saleType === "retail" ? [] : (orderPayments || []).filter((p) => isWithinDateRange(p.createdAt, range))),
       ]),
-    [salesPayments, orderPayments, range]
+    [salesPayments, orderPayments, range, saleType]
   );
   const madeByMethod = useMemo(() => byMethod((vendorPayments || []).filter((p) => isWithinDateRange(p.date, range))), [vendorPayments, range]);
   const totalReceived = useMemo(() => receivedByMethod.reduce((s, r) => s + r.amount, 0), [receivedByMethod]);
@@ -132,23 +145,24 @@ export default function PaymentMethodsReportPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={<SalesTypeFilter value={saleType} onChange={setSaleType} />}
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Payments Received" value={inr(totalReceived)} icon={ArrowDownCircle} />
         <StatCard label="Payments Made" value={inr(totalMade)} icon={ArrowUpCircle} />
         <StatCard label="Net Cash Flow" value={inr(totalReceived - totalMade)} icon={Scale} tone={totalReceived - totalMade >= 0 ? "success" : "danger"} />
-        <StatCard label="Transactions" value={receivedByMethod.reduce((s, r) => s + r.count, 0) + madeByMethod.reduce((s, r) => s + r.count, 0)} icon={Wallet} />
+        <StatCard label="Transactions" value={receivedByMethod.reduce((s, r) => s + r.count, 0) + madeByMethod.reduce((s, r) => s + r.count, 0)} icon={WalletDuotoneIcon} />
       </div>
 
       <div>
         <h2 className="mb-2 text-sm font-semibold">Payments received by method</h2>
-        <MethodTable rows={receivedByMethod} total={totalReceived} emptyLabel="No payments received yet" />
+        <MethodTable rows={receivedByMethod} total={totalReceived} emptyLabel="No payments received yet" storageKey="payment-methods-received" />
       </div>
 
       <div>
         <h2 className="mb-2 text-sm font-semibold">Payments made by method</h2>
-        <MethodTable rows={madeByMethod} total={totalMade} emptyLabel="No payments made yet" />
+        <MethodTable rows={madeByMethod} total={totalMade} emptyLabel="No payments made yet" storageKey="payment-methods-made" />
       </div>
     </ReportShell>
   );

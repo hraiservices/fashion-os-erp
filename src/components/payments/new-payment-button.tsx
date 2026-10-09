@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Wallet } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -25,7 +25,7 @@ export function NewPaymentButton({
   const href = customerMobile ? `/payments/new?customer=${encodeURIComponent(customerMobile)}` : "/payments/new";
   return (
     <Button variant={variant} nativeButton={false} render={<Link href={href} />} className={className}>
-      <Wallet className="size-4" /> {label}
+      <Plus className="size-4 shrink-0" /> <span className="min-w-0 truncate">{label}</span>
     </Button>
   );
 }

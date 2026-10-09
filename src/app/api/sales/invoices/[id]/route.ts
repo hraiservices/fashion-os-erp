@@ -15,7 +15,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const { id } = await params;
   const { supabase, user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  if (!user.perms.manageSales) return NextResponse.json({ error: "No permission to delete invoices" }, { status: 403 });
+  if (!user.perms.voidSales) return NextResponse.json({ error: "No permission to delete invoices" }, { status: 403 });
 
   const db = createServiceClient();
   if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });

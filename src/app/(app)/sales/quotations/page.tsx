@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, FileText, ChevronRight } from "lucide-react";
+import { Plus, ChevronRight } from "lucide-react";
+import { FileTextDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useSalesQuotations } from "@/hooks/use-sales-quotations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr, fmtDate } from "@/lib/format";
@@ -39,7 +40,7 @@ export default function QuotationsPage() {
         </div>
       ) : !quotes || quotes.length === 0 ? (
         <EmptyState
-          icon={FileText}
+          icon={FileTextDuotoneIcon}
           title="No quotations yet"
           description="Create a quotation to send a price estimate before converting it to an invoice."
           action={

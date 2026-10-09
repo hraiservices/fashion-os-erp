@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Hash, FileText, Shirt } from "lucide-react";
+import { Hash, Shirt } from "lucide-react";
+import { FileTextDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_DOCUMENT_NUMBERING, previewDocNumber, INVALID_SEPARATOR, type DocumentNumberingSettings, type DocNumberFormat } from "@/lib/document-numbering";
@@ -135,7 +136,7 @@ export function DocumentNumberingSection() {
         </p>
       </div>
 
-      <FormatEditor icon={FileText} title="Invoices" docTypeLabel="Invoice" fmt={draft.invoice} onChange={(fmt) => setDraft({ ...draft, invoice: fmt })} />
+      <FormatEditor icon={FileTextDuotoneIcon} title="Invoices" docTypeLabel="Invoice" fmt={draft.invoice} onChange={(fmt) => setDraft({ ...draft, invoice: fmt })} />
       <FormatEditor icon={Shirt} title="Stitching Orders" docTypeLabel="Order" fmt={draft.stitchingOrder} onChange={(fmt) => setDraft({ ...draft, stitchingOrder: fmt })} />
 
       <Button onClick={handleSave} disabled={save.isPending}>

@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Building2, Package2, Tag, FileText, ShoppingCart } from "lucide-react";
-import Link from "next/link";
+import { Building2, Package2, Tag, FileText, ShoppingCart, Plus } from "lucide-react";
 import { useVendors } from "@/hooks/use-vendors";
+import { AddVendorDialog } from "@/components/purchases/add-vendor-dialog";
 import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
 import { useSaveBill } from "@/hooks/use-purchase-mutations";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
@@ -25,9 +25,11 @@ import { LineItemsEditor, linesToItems, blankLine, lineFromItem, type EditableLi
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import type { PurchaseBill } from "@/lib/types";
 import { istDateString } from "@/lib/ist-date";
+import { BackLink } from "@/components/ui/back-link";
 
 const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
 const paymentTermLabel = (v: unknown) => PAYMENT_TERM_LABELS[v as PaymentTerm] ?? "";
+const ADD_VENDOR = "__add_vendor__";
 
 function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
@@ -59,12 +61,16 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
   const { data: prefillPo } = usePurchaseOrder(prefillPoId || "");
   const saveBill = useSaveBill();
   const isEdit = !!existing;
+  const [addVendorOpen, setAddVendorOpen] = useState(false);
 
   const [billNumber] = useState(existing?.billNumber || genBillNumber());
   const [vendorId, setVendorId] = useState(existing?.vendorId || "");
   const [billDate, setBillDate] = useState(existing?.billDate || istDateString());
-  const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>("due_on_receipt");
-  const [dueDate, setDueDate] = useState(existing?.dueDate || "");
+  // Net 35 default — matches "I took products from vendors on 35 days credit," the actual
+  // terms this shop buys on. Previously defaulted to "Due on Receipt" and left Due date
+  // optional, which is exactly how a bill's payment deadline kept going unrecorded.
+  const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>(existing ? "custom" : "net_35");
+  const [dueDate, setDueDate] = useState(existing?.dueDate || (!existing ? dueDateFromTerm(istDateString(), "net_35") : ""));
   const [lines, setLines] = useState<EditableLine[]>(
     existing ? existing.items.map((item, i) => lineFromItem(item, `existing-${i}`)) : [blankLine()]
   );
@@ -97,6 +103,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
   async function handleSave() {
     if (!vendorId) return toast.error("Select a vendor");
     if (items.length === 0) return toast.error("Add at least one item");
+    if (!dueDate) return toast.error("Set a due date — when you have to pay this vendor");
 
     try {
       const res = await saveBill.mutateAsync({
@@ -124,10 +131,9 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
       {/* Sticky header */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
         <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-4 py-3 sm:px-6">
-          <Link href="/purchases/bills" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="size-4" />
+          <BackLink href="/purchases/bills">
             <span className="hidden sm:inline">Bills</span>
-          </Link>
+          </BackLink>
           <div className="min-w-0 flex-1">
             <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Bill" : "New Bill"}</h1>
             <p className="text-[11px] text-muted-foreground font-mono truncate">{billNumber}</p>
@@ -154,7 +160,13 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
             <SectionHeading icon={Building2} label="Vendor & dates" />
             <div className="mb-4">
               <FieldGroup label="Vendor" required>
-                <Select value={vendorId} onValueChange={(v) => v && setVendorId(v)}>
+                <Select
+                  value={vendorId}
+                  onValueChange={(v) => {
+                    if (v === ADD_VENDOR) setAddVendorOpen(true);
+                    else if (v) setVendorId(v);
+                  }}
+                >
                   <SelectTrigger className="h-10 w-full">
                     <SelectValue placeholder="Select vendor…">{vendorLabel}</SelectValue>
                   </SelectTrigger>
@@ -162,8 +174,16 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
                     {(vendors || []).map((v) => (
                       <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
                     ))}
+                    <SelectItem value={ADD_VENDOR}>
+                      <Plus className="size-3.5" /> Add new vendor…
+                    </SelectItem>
                   </SelectContent>
                 </Select>
+                <AddVendorDialog
+                  open={addVendorOpen}
+                  onOpenChange={setAddVendorOpen}
+                  onCreated={(id) => setVendorId(id)}
+                />
               </FieldGroup>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -182,7 +202,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
                   </SelectContent>
                 </Select>
               </FieldGroup>
-              <FieldGroup label="Due date">
+              <FieldGroup label="Due date" required hint="When you must pay the vendor for this bill">
                 <DatePicker value={dueDate} onChange={setDueDate} />
               </FieldGroup>
             </div>

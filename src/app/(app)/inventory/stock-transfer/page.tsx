@@ -1,9 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRightLeft } from "lucide-react";
+import { ArrowRightLeft } from "lucide-react";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useProducts } from "@/hooks/use-products";
 import { useActiveWarehouses } from "@/hooks/use-warehouses";
@@ -18,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ItemType } from "@/lib/inventory";
+import { BackLink } from "@/components/ui/back-link";
 
 const MAIN_LABEL = "Main / Unassigned";
 const itemTypeLabel = (v: unknown) => (v === "product" ? "Product (finished goods)" : "Raw material");
@@ -68,9 +68,7 @@ export default function StockTransferPage() {
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
-      <Link href="/inventory/warehouses" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Warehouses
-      </Link>
+      <BackLink href="/inventory/warehouses">Warehouses</BackLink>
       <PageHeader title="Stock Transfer" description="Move stock between warehouses" />
 
       {!warehouses || warehouses.length === 0 ? (

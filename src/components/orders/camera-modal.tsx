@@ -27,6 +27,8 @@ export function CameraModal({
   onOpenChange,
   onCapture,
   defaultFacing = "environment",
+  onSkip,
+  skipLabel = "Continue without photo",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -34,6 +36,12 @@ export function CameraModal({
   /** "user" = front/selfie camera. Defaults to "environment" (back camera) — unchanged for
    *  existing callers (order reference photos). */
   defaultFacing?: "environment" | "user";
+  /** Shown as an extra button alongside Cancel, only once camera access has actually failed
+   *  (not a general "skip the camera" escape hatch) — e.g. the attendance Check In/Out flow lets
+   *  someone continue without a selfie on a desktop with no webcam, rather than getting stuck.
+   *  Omitted entirely for callers that require a real photo (e.g. order reference photos). */
+  onSkip?: () => void;
+  skipLabel?: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -48,8 +56,18 @@ export function CameraModal({
 
   const captureNative = useCallback(async () => {
     try {
-      const { Camera, CameraResultType, CameraSource } = await import("@capacitor/camera");
-      const photo = await Camera.getPhoto({ resultType: CameraResultType.DataUrl, source: CameraSource.Camera, quality: 90 });
+      const { Camera, CameraResultType, CameraSource, CameraDirection } = await import("@capacitor/camera");
+      const photo = await Camera.getPhoto({
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Camera,
+        quality: 90,
+        // Unlike the getUserMedia path below, the native Camera plugin ignores `facing` state
+        // entirely unless told otherwise — it was always opening the OS camera app's own default
+        // (rear) regardless of defaultFacing="user", so a selfie-required flow like Check In/Out
+        // opened the back camera on the installed app even though it correctly defaulted to
+        // front on the website/PWA.
+        direction: defaultFacing === "user" ? CameraDirection.Front : CameraDirection.Rear,
+      });
       if (!photo.dataUrl) return onOpenChange(false);
       // fetch() understands data: URLs fine in a Chromium WebView — reuses the same
       // resize/recompress path as every other capture route instead of storing the raw shot.
@@ -60,8 +78,7 @@ export function CameraModal({
     } finally {
       onOpenChange(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [defaultFacing, onCapture, onOpenChange]);
 
   useEffect(() => {
     if (!open) {
@@ -142,7 +159,22 @@ export function CameraModal({
         )}
 
         <div className="flex gap-2">
-          {preview ? (
+          {error && onSkip ? (
+            <>
+              <Button variant="outline" className="h-12 flex-1 text-base sm:h-8 sm:text-sm" onClick={() => onOpenChange(false)}>
+                <X className="size-4" /> Cancel
+              </Button>
+              <Button
+                className="h-12 flex-1 text-base sm:h-8 sm:text-sm"
+                onClick={() => {
+                  onSkip();
+                  onOpenChange(false);
+                }}
+              >
+                {skipLabel}
+              </Button>
+            </>
+          ) : preview ? (
             <>
               <Button variant="outline" className="h-12 flex-1 text-base sm:h-8 sm:text-sm" onClick={() => setPreview(null)}>
                 <RotateCcw className="size-4" /> Retake

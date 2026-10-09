@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Wallet, Search } from "lucide-react";
+import { Search } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useExpenses } from "@/hooks/use-expenses";
 import { inr, fmtDate } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
@@ -14,6 +15,18 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+import type { Expense } from "@/lib/types";
+
+const SORT_COMPARATORS: Record<string, (a: Expense, b: Expense) => number> = {
+  date: (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  category: (a, b) => a.category.localeCompare(b.category),
+  description: (a, b) => (a.description || "").localeCompare(b.description || ""),
+  method: (a, b) => a.payMethod.localeCompare(b.payMethod),
+  createdBy: (a, b) => (a.createdBy || "").localeCompare(b.createdBy || ""),
+  amount: (a, b) => a.amount - b.amount,
+};
+const SORT_DESC_KEYS = new Set(["date", "amount"]);
 
 export default function ExpenseDetailsPage() {
   const { data: expenses, isLoading } = useExpenses();
@@ -37,6 +50,9 @@ export default function ExpenseDetailsPage() {
 
   const total = useMemo(() => rows.reduce((s, e) => s + e.amount, 0), [rows]);
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<Expense>("expense-details", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
@@ -45,7 +61,7 @@ export default function ExpenseDetailsPage() {
       description="Every expense logged, with category, method, and who recorded it."
       actions={
         <ReportActionsMenu
-          rows={rows.map((e) => ({ Date: e.date, Category: e.category, Description: e.description, Amount: e.amount, Method: e.payMethod, "Recorded By": e.createdBy || "" }))}
+          rows={sortedRows.map((e) => ({ Date: e.date, Category: e.category, Description: e.description, Amount: e.amount, Method: e.payMethod, "Recorded By": e.createdBy || "" }))}
           filename="expense-details"
           title="Expense Details"
           summaryLines={[`Expenses: ${rows.length}`, `Total: ${inr(total)}`]}
@@ -53,7 +69,7 @@ export default function ExpenseDetailsPage() {
       }
     >
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Total Expenses" value={inr(total)} icon={Wallet} />
+        <StatCard label="Total Expenses" value={inr(total)} icon={WalletDuotoneIcon} />
       </div>
 
       <ReportFilterBar
@@ -87,19 +103,19 @@ export default function ExpenseDetailsPage() {
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState icon={Wallet} title="No expenses yet" />
+        <EmptyState icon={WalletDuotoneIcon} title="No expenses yet" />
       ) : (
         <>
           <div className="hidden sm:block">
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Date</Th>
-                  <Th>Category</Th>
-                  <Th>Description</Th>
-                  <Th>Method</Th>
-                  <Th>Recorded By</Th>
-                  <Th align="right">Amount</Th>
+                  <Th sortKey="date" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Date</Th>
+                  <Th sortKey="category" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Category</Th>
+                  <Th sortKey="description" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Description</Th>
+                  <Th sortKey="method" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Method</Th>
+                  <Th sortKey="createdBy" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Recorded By</Th>
+                  <Th align="right" sortKey="amount" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Amount</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -107,7 +123,7 @@ export default function ExpenseDetailsPage() {
                   <Td colSpan={5}>Total</Td>
                   <Td align="right">{inr(total)}</Td>
                 </ReportTotalsRow>
-                {rows.map((e) => (
+                {sortedRows.map((e) => (
                   <tr key={e.id} className="hover:bg-muted/30">
                     <Td className="text-muted-foreground">{fmtDate(e.date)}</Td>
                     <Td className="font-medium">{e.category}</Td>
@@ -123,11 +139,11 @@ export default function ExpenseDetailsPage() {
 
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(total)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(total)} showChevron={false} valueClassName="text-red-600 dark:text-red-400" />
             </MobileRecordCard>
-            {rows.map((e) => (
+            {sortedRows.map((e) => (
               <MobileRecordCard key={e.id}>
-                <MobileRecordHeader title={e.category} subtitle={fmtDate(e.date)} value={inr(e.amount)} showChevron={false} />
+                <MobileRecordHeader boldTitle title={e.category} subtitle={fmtDate(e.date)} value={inr(e.amount)} showChevron={false} valueClassName="text-red-600 dark:text-red-400" />
                 <MobileRecordRow label="Description" value={e.description || "—"} />
                 <MobileRecordRow label="Method" value={e.payMethod} />
                 <MobileRecordRow label="Recorded By" value={e.createdBy || "—"} />

@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { PackageCheck } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { buildWhatsAppUrl } from "@/lib/business-rules";
-import { getReadyUncollected } from "@/lib/analytics";
+import { getReadyUncollected, type ReadyUncollectedRow } from "@/lib/analytics";
 import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { fmtDate, inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
@@ -19,6 +19,17 @@ import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+const SORT_COMPARATORS: Record<string, (a: ReadyUncollectedRow, b: ReadyUncollectedRow) => number> = {
+  order: (a, b) => a.id.localeCompare(b.id),
+  customer: (a, b) => a.name.localeCompare(b.name),
+  mobile: (a, b) => a.mobile.localeCompare(b.mobile),
+  daysWaiting: (a, b) => a.daysWaiting - b.daysWaiting,
+  balance: (a, b) => a.balance - b.balance,
+};
+const SORT_DESC_KEYS = new Set(["daysWaiting", "balance"]);
 
 /** Orders sitting in "ready" the longest without being picked up — distinct from Balance Aging,
  *  which tracks the delivery-date promise, not physical pickup. Excludes orders that reached
@@ -28,8 +39,20 @@ export default function ReadyUncollectedPage() {
   const { data: shop } = useShopSettings();
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [garmentType, setGarmentType] = useState("all");
 
-  const readyUncollected = useMemo(() => getReadyUncollected(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
+  const allReadyUncollected = useMemo(() => getReadyUncollected(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
+  const garmentTypes = useMemo(() => {
+    const set = new Set(allReadyUncollected.flatMap((o) => o.garments.map((g) => g.type)).filter(Boolean));
+    return Array.from(set).sort();
+  }, [allReadyUncollected]);
+  const readyUncollected = useMemo(
+    () => allReadyUncollected.filter((o) => garmentType === "all" || o.garments.some((g) => g.type === garmentType)),
+    [allReadyUncollected, garmentType]
+  );
+
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<ReadyUncollectedRow>("ready-uncollected", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(readyUncollected);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -41,7 +64,7 @@ export default function ReadyUncollectedPage() {
       description={`${readyUncollected.length} order(s) ready for pickup, longest-waiting first`}
       actions={
         <ReportActionsMenu
-          rows={readyUncollected.map((o) => ({ Order: o.id, Customer: o.name, "Days Waiting": o.daysWaiting, Balance: o.balance }))}
+          rows={sortedRows.map((o) => ({ Order: o.id, Customer: o.name, Mobile: o.mobile, "Days Waiting": o.daysWaiting, Balance: o.balance }))}
           filename="ready-uncollected"
           title="Ready & Uncollected"
           summaryLines={[`Orders: ${readyUncollected.length}`, `Total balance: ${inr(totalBalance)}`]}
@@ -55,6 +78,21 @@ export default function ReadyUncollectedPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <Select value={garmentType} onValueChange={(v) => v && setGarmentType(v)}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{garmentType === "all" ? "All Garments" : garmentType}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Garments</SelectItem>
+              {garmentTypes.map((g) => (
+                <SelectItem key={g} value={g}>
+                  {g}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {readyUncollected.length === 0 ? (
@@ -63,20 +101,21 @@ export default function ReadyUncollectedPage() {
         <>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(totalBalance)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(totalBalance)} showChevron={false} />
             </MobileRecordCard>
-            {readyUncollected.map((o) => (
+            {sortedRows.map((o) => (
               <MobileRecordCard key={o.id}>
-                <MobileRecordHeader
+                <MobileRecordHeader boldTitle
                   title={
                     <Link href={`/orders/${o.id}`} className="hover:underline">
                       {o.id}
                     </Link>
                   }
-                  subtitle={`${o.name} · ${o.mobile}`}
+                  subtitle={o.name}
                   value={o.balance > 0 ? <BalanceDue amount={o.balance} /> : "—"}
                   showChevron={false}
                 />
+                <MobileRecordRow label="Mobile" value={o.mobile} />
                 <MobileRecordRow label="Ready since" value={fmtDate(o.readyAt!.slice(0, 10))} />
                 <MobileRecordRow label="Days waiting" value={`${o.daysWaiting}d`} valueClassName={o.daysWaiting >= 7 ? "font-medium text-destructive" : undefined} />
                 <div className="flex justify-end border-t pt-1.5">
@@ -90,20 +129,21 @@ export default function ReadyUncollectedPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Order</Th>
-                  <Th>Customer</Th>
-                  <Th align="right">Days waiting</Th>
-                  <Th align="right">Balance</Th>
+                  <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
+                  <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
+                  <Th align="right" sortKey="daysWaiting" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Days waiting</Th>
+                  <Th align="right" sortKey="balance" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Balance</Th>
                   <Th align="right">Actions</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td colSpan={3}>Total</Td>
+                  <Td colSpan={4}>Total</Td>
                   <Td align="right">{inr(totalBalance)}</Td>
                   <Td align="right">—</Td>
                 </ReportTotalsRow>
-                {readyUncollected.map((o) => (
+                {sortedRows.map((o) => (
                   <tr key={o.id} className="hover:bg-muted/30">
                     <Td>
                       <Link href={`/orders/${o.id}`} className="font-medium hover:underline">
@@ -113,8 +153,8 @@ export default function ReadyUncollectedPage() {
                     </Td>
                     <Td>
                       <p className="truncate">{o.name}</p>
-                      <p className="text-xs text-muted-foreground">{o.mobile}</p>
                     </Td>
+                    <Td className="text-muted-foreground">{o.mobile}</Td>
                     <Td align="right" className={o.daysWaiting >= 7 ? "font-medium text-destructive" : undefined}>
                       {o.daysWaiting}d
                     </Td>

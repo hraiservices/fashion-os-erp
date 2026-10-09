@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { DEFAULT_LOYALTY_CONFIG, type LoyaltyConfig, type Shop } from "@/lib/business-rules";
 import { DEFAULT_GLOSSARY, type GlossaryEntry } from "@/lib/chatbot/glossary";
+import { DEFAULT_BUSINESS_HOURS, type BusinessHours } from "@/lib/business-hours";
 
 export type { Shop };
 
@@ -27,6 +28,20 @@ export async function getShopSettings(supabase: SupabaseClient<Database>): Promi
     phone: typeof v.phone === "string" ? v.phone : undefined,
     websiteUrl: typeof v.websiteUrl === "string" ? v.websiteUrl : undefined,
     reviewUrl: typeof v.reviewUrl === "string" ? v.reviewUrl : undefined,
+  };
+}
+
+/** Reads the same "shop" app_settings key's businessOpenTime/businessCloseTime/
+ *  businessClosedWeekdays fields (see use-shop-settings.ts's ShopConfig) for server routes that
+ *  compute business-hours-aware durations — see src/lib/business-hours.ts. */
+export async function getBusinessHours(supabase: SupabaseClient<Database>): Promise<BusinessHours> {
+  const { data } = await supabase.from("app_settings").select("value").eq("key", "shop").maybeSingle();
+  if (!data?.value || typeof data.value !== "object") return DEFAULT_BUSINESS_HOURS;
+  const v = data.value as Record<string, unknown>;
+  return {
+    openTime: typeof v.businessOpenTime === "string" ? v.businessOpenTime : DEFAULT_BUSINESS_HOURS.openTime,
+    closeTime: typeof v.businessCloseTime === "string" ? v.businessCloseTime : DEFAULT_BUSINESS_HOURS.closeTime,
+    closedWeekdays: Array.isArray(v.businessClosedWeekdays) ? (v.businessClosedWeekdays as number[]) : DEFAULT_BUSINESS_HOURS.closedWeekdays,
   };
 }
 

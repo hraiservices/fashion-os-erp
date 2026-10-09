@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ShieldAlert } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { getDepositCompliance } from "@/lib/analytics";
@@ -14,6 +14,22 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTableSort } from "@/hooks/use-table-sort";
+import type { Order } from "@/lib/types";
+
+type DepositComplianceRow = Order;
+
+const SORT_COMPARATORS: Record<string, (a: DepositComplianceRow, b: DepositComplianceRow) => number> = {
+  order: (a, b) => a.id.localeCompare(b.id),
+  customer: (a, b) => a.name.localeCompare(b.name),
+  mobile: (a, b) => a.mobile.localeCompare(b.mobile),
+  stage: (a, b) => a.status.localeCompare(b.status),
+  total: (a, b) => a.total - b.total,
+  advance: (a, b) => a.advance - b.advance,
+  depositPct: (a, b) => (a.total ? a.advance / a.total : 0) - (b.total ? b.advance / b.total : 0),
+};
+const SORT_DESC_KEYS = new Set(["total", "advance", "depositPct"]);
 
 /** Open orders with no deposit, or a deposit under 20% of the total — a common source of
  *  no-shows and lost revenue. Threshold is fixed for v1, not yet a Settings-configurable
@@ -22,8 +38,16 @@ import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 export default function DepositCompliancePage() {
   const { orders, isLoading } = useReportsData();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [stage, setStage] = useState("all");
 
-  const depositCompliance = useMemo(() => getDepositCompliance(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
+  const depositComplianceAll = useMemo(() => getDepositCompliance(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
+  const depositCompliance = useMemo(
+    () => depositComplianceAll.filter((o) => stage === "all" || o.status === stage),
+    [depositComplianceAll, stage]
+  );
+
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<DepositComplianceRow>("deposit-compliance", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedCompliance = applySort(depositCompliance);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -36,9 +60,10 @@ export default function DepositCompliancePage() {
       description={`${depositCompliance.length} open order(s) with little or no deposit collected`}
       actions={
         <ReportActionsMenu
-          rows={depositCompliance.map((o) => ({
+          rows={sortedCompliance.map((o) => ({
             Order: o.id,
             Customer: o.name,
+            Mobile: o.mobile,
             Stage: o.status,
             Total: o.total,
             Advance: o.advance,
@@ -57,6 +82,21 @@ export default function DepositCompliancePage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <Select value={stage} onValueChange={(v) => v && setStage(v)}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{stage === "all" ? "All Stages" : stage}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Stages</SelectItem>
+              {Array.from(new Set(depositComplianceAll.map((o) => o.status))).map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {depositCompliance.length === 0 ? (
@@ -67,22 +107,23 @@ export default function DepositCompliancePage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Order</Th>
-                  <Th>Customer</Th>
-                  <Th>Stage</Th>
-                  <Th align="right">Total</Th>
-                  <Th align="right">Advance</Th>
-                  <Th align="right">Deposit %</Th>
+                  <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
+                  <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
+                  <Th sortKey="stage" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Stage</Th>
+                  <Th align="right" sortKey="total" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Total</Th>
+                  <Th align="right" sortKey="advance" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Advance</Th>
+                  <Th align="right" sortKey="depositPct" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Deposit %</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td colSpan={3}>Total</Td>
+                  <Td colSpan={4}>Total</Td>
                   <Td align="right">{inr(totalAmount)}</Td>
                   <Td align="right">{inr(totalAdvance)}</Td>
                   <Td align="right">{totalAmount ? `${Math.round((totalAdvance / totalAmount) * 100)}%` : "0%"}</Td>
                 </ReportTotalsRow>
-                {depositCompliance.map((o) => (
+                {sortedCompliance.map((o) => (
                   <tr key={o.id} className="hover:bg-muted/30">
                     <Td>
                       <Link href={`/orders/${o.id}`} className="font-medium hover:underline">
@@ -92,8 +133,8 @@ export default function DepositCompliancePage() {
                     </Td>
                     <Td>
                       <p className="truncate">{o.name}</p>
-                      <p className="text-xs text-muted-foreground">{o.mobile}</p>
                     </Td>
+                    <Td className="text-muted-foreground">{o.mobile}</Td>
                     <Td>
                       <StageBadge stage={o.status} size="sm" />
                     </Td>
@@ -110,13 +151,14 @@ export default function DepositCompliancePage() {
 
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(totalAmount)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(totalAmount)} showChevron={false} />
               <MobileRecordRow label="Advance" value={inr(totalAdvance)} />
               <MobileRecordRow label="Deposit %" value={totalAmount ? `${Math.round((totalAdvance / totalAmount) * 100)}%` : "0%"} />
             </MobileRecordCard>
-            {depositCompliance.map((o) => (
+            {sortedCompliance.map((o) => (
               <MobileRecordCard key={o.id} href={`/orders/${o.id}`}>
-                <MobileRecordHeader title={o.name} subtitle={o.mobile} value={inr(o.total)} />
+                <MobileRecordHeader boldTitle title={o.name} value={inr(o.total)} />
+                <MobileRecordRow label="Mobile" value={o.mobile} />
                 <MobileRecordRow label="Order" value={o.id} />
                 <MobileRecordRow label="Date" value={fmtDate(o.inDate)} />
                 <MobileRecordRow label="Stage" value={<StageBadge stage={o.status} size="sm" />} />

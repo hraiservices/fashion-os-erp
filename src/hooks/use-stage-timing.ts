@@ -8,6 +8,7 @@ export interface StageTimingRow {
   id: number;
   orderId: string;
   customerName: string;
+  customerMobile: string;
   fromStage: Stage | null;
   fromLabel: string;
   toStage: Stage | null;

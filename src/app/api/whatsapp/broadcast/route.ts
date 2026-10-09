@@ -20,7 +20,7 @@ const bodySchema = z.object({
 export async function POST(request: Request) {
   const { supabase, user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  if (!user.perms.manageCustomers) return NextResponse.json({ error: "No permission to message customers" }, { status: 403 });
+  if (!user.perms.sendWhatsappBroadcast) return NextResponse.json({ error: "No permission to send WhatsApp broadcasts" }, { status: 403 });
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

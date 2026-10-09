@@ -4,6 +4,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { istDayBoundsUtc } from "@/lib/ist-date";
 import { STAGE_META, type Stage } from "@/lib/business-rules";
 import { displayNameFromEmail } from "@/lib/day-book";
+import { getBusinessHours } from "@/lib/settings";
+import { businessMinutesBetween } from "@/lib/business-hours";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const STAGE_CHANGE_RE = /Stage changed: (.+?) → (.+?) for (.+)$/;
@@ -62,11 +64,12 @@ export async function GET(request: Request) {
   if (orderIds.length === 0) return NextResponse.json({ rows: [], byStage: [], byEmployee: [], summary: { count: 0, avgMinutes: 0 } });
 
   // Step 2: those orders' FULL stage-change history (unbounded by date) plus their creation time.
-  const [{ data: fullHistoryRows, error: historyError }, { data: orderRows, error: orderError }, { data: employeeRows }, { data: userRoleRows }] = await Promise.all([
+  const [{ data: fullHistoryRows, error: historyError }, { data: orderRows, error: orderError }, { data: employeeRows }, { data: userRoleRows }, businessHours] = await Promise.all([
     db.from("activity_log").select("id, user_email, user_name, action, order_id, created_at").ilike("action", "%Stage changed:%").in("order_id", orderIds),
-    db.from("orders").select("id, name, created_at").in("id", orderIds),
+    db.from("orders").select("id, name, mobile, created_at").in("id", orderIds),
     db.from("employees").select("id, name"),
     db.from("user_roles").select("email, linked_employee_id").not("linked_employee_id", "is", null),
+    getBusinessHours(db),
   ]);
   if (historyError) return NextResponse.json({ error: historyError.message }, { status: 500 });
   if (orderError) return NextResponse.json({ error: orderError.message }, { status: 500 });
@@ -100,6 +103,7 @@ export async function GET(request: Request) {
     id: number;
     orderId: string;
     customerName: string;
+    customerMobile: string;
     fromStage: Stage | null;
     fromLabel: string;
     toStage: Stage | null;
@@ -121,8 +125,12 @@ export async function GET(request: Request) {
       const fromLabel = m?.[1] || "";
       const toLabel = m?.[2] || "";
       const customerName = m?.[3] || order?.name || "";
+      const customerMobile = order?.mobile || "";
       const changedAt = r.created_at;
-      const durationMinutes = prevTime ? Math.round((new Date(changedAt).getTime() - new Date(prevTime).getTime()) / 60_000) : null;
+      // Business-hours-aware, not raw wall-clock: an order sitting idle overnight or on a closed
+      // weekday shouldn't count against "how long did this stage change really take" — see
+      // src/lib/business-hours.ts.
+      const durationMinutes = prevTime ? businessMinutesBetween(prevTime, changedAt, businessHours) : null;
       prevTime = changedAt;
 
       if (!inRangeIds.has(r.id)) continue;
@@ -130,6 +138,7 @@ export async function GET(request: Request) {
         id: r.id,
         orderId,
         customerName,
+        customerMobile,
         fromStage: STAGE_BY_LABEL[fromLabel] ?? null,
         fromLabel,
         toStage: STAGE_BY_LABEL[toLabel] ?? null,

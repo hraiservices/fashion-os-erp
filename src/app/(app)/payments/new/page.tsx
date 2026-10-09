@@ -1,11 +1,11 @@
 "use client";
 
 import { Suspense } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, Wallet } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RecordPaymentForm } from "@/components/payments/record-payment-form";
+import { BackLink } from "@/components/ui/back-link";
 
 function NewPaymentContent() {
   const searchParams = useSearchParams();
@@ -16,9 +16,7 @@ function NewPaymentContent() {
 export default function NewPaymentPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6">
-      <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Dashboard
-      </Link>
+      <BackLink href="/dashboard">Dashboard</BackLink>
       <h1 className="flex items-center gap-2 text-xl font-semibold">
         <Wallet className="size-5 text-muted-foreground" /> Record payment
       </h1>

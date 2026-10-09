@@ -65,11 +65,11 @@ export function ProfitOverviewWidget() {
     return getCombinedDaily(orders, invoices, bills, workOrders, expenses, oe, ps, days);
   }, [orders, invoices, bills, workOrders, expenses, orderExpenses, payslips, range]);
 
-  // Defense in depth — the dashboard page itself keeps this widget out of a non-admin/manager
-  // layout entirely (see isWidgetVisibleForRole), so this should never actually render, but
-  // profit numbers are sensitive enough that a silent no-op here beats a leak if that ever
-  // changes without this file being updated too.
-  if (user && user.role !== "admin" && user.role !== "manager") return null;
+  // Defense in depth — the dashboard page itself keeps this widget out of a layout without
+  // viewFinancialReports entirely (see isWidgetVisibleForRole / dashboard/page.tsx), so this
+  // should never actually render, but profit numbers are sensitive enough that a silent no-op
+  // here beats a leak if that ever changes without this file being updated too.
+  if (user && !user.perms.viewFinancialReports) return null;
 
   if (isLoading) return <Skeleton className="h-96 w-full" />;
 

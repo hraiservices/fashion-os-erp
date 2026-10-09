@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useTailorName } from "@/hooks/use-employees";
@@ -12,6 +12,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type ReworkRateRow = { tailor: string; totalOrders: number; reworkCount: number; reworkRate: number };
+
+const SORT_COMPARATORS: Record<string, (a: ReworkRateRow, b: ReworkRateRow) => number> = {
+  tailor: (a, b) => a.tailor.localeCompare(b.tailor),
+  totalOrders: (a, b) => a.totalOrders - b.totalOrders,
+  reworkCount: (a, b) => a.reworkCount - b.reworkCount,
+  reworkRate: (a, b) => a.reworkRate - b.reworkRate,
+};
+const SORT_DESC_KEYS = new Set(["totalOrders", "reworkCount", "reworkRate"]);
 
 /** Rework rate per tailor — driven entirely by the manually-set rework flag (order detail
  *  page's "Flag for rework" action), not an automatic quality signal. */
@@ -19,8 +31,20 @@ export default function ReworkRatePage() {
   const { orders, isLoading } = useReportsData();
   const tailorName = useTailorName();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [garmentType, setGarmentType] = useState("all");
 
-  const reworkRate = useMemo(() => getReworkRate(orders.filter((o) => isWithinDateRange(o.inDate, range))), [orders, range]);
+  const inRangeOrders = useMemo(() => orders.filter((o) => isWithinDateRange(o.inDate, range)), [orders, range]);
+  const garmentTypes = useMemo(() => {
+    const set = new Set(inRangeOrders.flatMap((o) => o.garments.map((g) => g.type)).filter(Boolean));
+    return Array.from(set).sort();
+  }, [inRangeOrders]);
+  const reworkRate = useMemo(
+    () => getReworkRate(inRangeOrders.filter((o) => garmentType === "all" || o.garments.some((g) => g.type === garmentType))),
+    [inRangeOrders, garmentType]
+  );
+
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<ReworkRateRow>("rework-rate", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(reworkRate);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -33,7 +57,7 @@ export default function ReworkRatePage() {
       description="Share of each tailor's orders flagged for rework"
       actions={
         <ReportActionsMenu
-          rows={reworkRate.map((r) => ({ Tailor: tailorName(r.tailor), "Total orders": r.totalOrders, "Rework count": r.reworkCount, "Rework rate": `${r.reworkRate}%` }))}
+          rows={sortedRows.map((r) => ({ Tailor: tailorName(r.tailor), "Total orders": r.totalOrders, "Rework count": r.reworkCount, "Rework rate": `${r.reworkRate}%` }))}
           filename="rework-rate"
           title="Rework Rate"
           summaryLines={[`Total orders: ${totalOrders}`, `Total rework: ${totalRework}`]}
@@ -47,6 +71,21 @@ export default function ReworkRatePage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <Select value={garmentType} onValueChange={(v) => v && setGarmentType(v)}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{garmentType === "all" ? "All Garments" : garmentType}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Garments</SelectItem>
+              {garmentTypes.map((g) => (
+                <SelectItem key={g} value={g}>
+                  {g}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {reworkRate.length === 0 ? (
@@ -55,14 +94,14 @@ export default function ReworkRatePage() {
         <>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={`${totalOrders ? Math.round((totalRework / totalOrders) * 100) : 0}%`} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={`${totalOrders ? Math.round((totalRework / totalOrders) * 100) : 0}%`} showChevron={false} />
               <MobileRecordRow label="Total orders" value={totalOrders} />
               <MobileRecordRow label="Rework count" value={totalRework} />
             </MobileRecordCard>
-            {reworkRate.map((r) => (
+            {sortedRows.map((r) => (
               <MobileRecordCard key={r.tailor}>
                 <MobileRecordHeader
-                  title={tailorName(r.tailor)}
+                  boldTitle title={tailorName(r.tailor)}
                   value={`${r.reworkRate}%`}
                   valueClassName={r.reworkRate >= 15 ? "font-medium text-destructive" : undefined}
                   showChevron={false}
@@ -77,10 +116,10 @@ export default function ReworkRatePage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Tailor</Th>
-                  <Th align="right">Total orders</Th>
-                  <Th align="right">Rework count</Th>
-                  <Th align="right">Rework rate</Th>
+                  <Th sortKey="tailor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Tailor</Th>
+                  <Th align="right" sortKey="totalOrders" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Total orders</Th>
+                  <Th align="right" sortKey="reworkCount" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Rework count</Th>
+                  <Th align="right" sortKey="reworkRate" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Rework rate</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -90,7 +129,7 @@ export default function ReworkRatePage() {
                   <Td align="right">{totalRework}</Td>
                   <Td align="right">{totalOrders ? Math.round((totalRework / totalOrders) * 100) : 0}%</Td>
                 </ReportTotalsRow>
-                {reworkRate.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.tailor} className="hover:bg-muted/30">
                     <Td className="font-medium">{tailorName(r.tailor)}</Td>
                     <Td align="right">{r.totalOrders}</Td>

@@ -6,8 +6,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, User, MapPin, Ruler, Save } from "lucide-react";
-import Link from "next/link";
+import { User, MapPin, Ruler, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormActionBar } from "@/components/ui/form-action-bar";
 import { Input } from "@/components/ui/input";
@@ -22,6 +21,7 @@ import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { blankMeasurements, toMKey } from "@/lib/measurements";
 import { PAYMENT_TERMS, PAYMENT_TERM_LABELS, type PaymentTerm } from "@/lib/payment-terms";
+import { BackLink } from "@/components/ui/back-link";
 
 const schema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -112,10 +112,9 @@ export function CustomerForm() {
       {/* Sticky header */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
         <div className="mx-auto flex max-w-4xl items-center gap-4 px-4 py-3 sm:px-6">
-          <Link href="/crm" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="size-4" />
+          <BackLink href="/crm">
             <span className="hidden sm:inline">Customers</span>
-          </Link>
+          </BackLink>
           <div className="min-w-0 flex-1">
             <h1 className="text-base font-semibold truncate">New Customer</h1>
           </div>

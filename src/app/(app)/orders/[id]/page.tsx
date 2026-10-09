@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, ChevronLeft, ChevronRight, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt, FileDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt, FileDown } from "lucide-react";
 import { useOrder } from "@/hooks/use-order";
 import { useOrders } from "@/hooks/use-orders";
 import { useOrderGroup } from "@/hooks/use-order-group";
@@ -19,7 +19,6 @@ import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
 import { computeOrderProfit } from "@/lib/order-profit";
 import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppUrl, isValidManualOrderNumber, type Lining } from "@/lib/business-rules";
 import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
-import { DEFAULT_ORDER_TAG_TEMPLATE, hydrateOrderTagTemplate, type OrderTagTemplateConfig } from "@/lib/order-tag-template";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
 import { inr, fmtDate } from "@/lib/format";
@@ -29,17 +28,18 @@ import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { MeasurementView } from "@/components/measurements/measurement-grid";
 import { OrderAttachments } from "@/components/orders/order-attachments";
 import { useResolvedMediaUrls } from "@/hooks/use-order-media";
-import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
+import { StageBadge, DueBadge, MoveToStageLabel } from "@/components/orders/stage-badge";
 import { PaymentModal } from "@/components/orders/payment-modal";
 import { GarmentChecklistRow } from "@/components/orders/garment-checklist";
 import { ReworkDialog } from "@/components/orders/rework-dialog";
-import { printOrderTag } from "@/lib/order-tag";
+import { printTailorSheetLabel, printTailorSheetA4 } from "@/lib/tailor-sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { PrintButton } from "@/components/ui/print-button";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Garment } from "@/lib/types";
 import {
@@ -54,6 +54,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { BackLink } from "@/components/ui/back-link";
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -79,8 +80,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
-  const { data: rawTagTemplate } = useAppSetting<OrderTagTemplateConfig>("orderTagTemplate", DEFAULT_ORDER_TAG_TEMPLATE);
-  const tagTemplate = hydrateOrderTagTemplate(rawTagTemplate);
   const advanceStage = useAdvanceStage();
   const deleteOrder = useDeleteOrder();
   const renameOrder = useRenameOrder();
@@ -186,8 +185,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   async function doDelete() {
     try {
-      await deleteOrder.mutateAsync({ id, name: orderName, userEmail: user?.email });
+      const { creditIssuedNote } = await deleteOrder.mutateAsync({ id, name: orderName, userEmail: user?.email });
       toast.success("Order deleted");
+      if (creditIssuedNote) toast.info(creditIssuedNote, { duration: 8000 });
       router.push("/orders");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to delete order");
@@ -214,9 +214,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
       <div className="flex items-center justify-between gap-3">
-        <Link href="/orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" /> Orders
-        </Link>
+        <BackLink href="/orders">Orders</BackLink>
         <div className="flex shrink-0 items-center gap-1.5">
           <Button
             variant="outline"
@@ -321,9 +319,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <p className="mt-0.5 text-xs text-red-700/80 dark:text-red-400/80">Sent back {order.reworkCount} times total</p>
               )}
               {user?.perms.changeStage && (
-                <Button variant="outline" size="sm" className="mt-2" disabled={setRework.isPending} onClick={clearRework}>
-                  Clear rework flag
-                </Button>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" disabled={setRework.isPending} onClick={clearRework}>
+                    Clear rework flag
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={setRework.isPending} onClick={() => setReworkDialogOpen(true)}>
+                    Flag again
+                  </Button>
+                </div>
               )}
             </div>
           )}
@@ -358,14 +361,17 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           empty instead of the row filling out. flex-1 lets each wrapped row's items share exactly
           that row's width, however many end up on it. */}
       <div className="space-y-2 print:hidden">
-        <div className="flex flex-wrap gap-2">
+        {/* Full-width stacked below `sm:` instead of flex-wrap's basis-36 — "Move to DELIVERED"
+         *  (and similarly long stage names) was truncating when squeezed two-to-a-row on a phone;
+         *  `sm:` restores the original side-by-side row once there's enough width for it. */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {user?.perms.changeStage && next && (
-            <Button className={cn("h-12 min-w-0 flex-1 basis-36 text-base sm:h-10 sm:text-sm", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
-              <ArrowRight className="size-4 shrink-0" /> <span className="truncate">Move to {STAGE_META[next].label}</span>
+            <Button className={cn("h-12 min-w-0 w-full text-base sm:h-10 sm:w-auto sm:flex-1 sm:basis-36 sm:text-sm", STAGE_STYLE[next].solid)} disabled={advanceStage.isPending} onClick={requestAdvance}>
+              <ArrowRight className="size-4 shrink-0" /> <span className="truncate"><MoveToStageLabel label={STAGE_META[next].label} /></span>
             </Button>
           )}
           {user?.perms.managePayments && order.balance > 0 && (
-            <Button variant="outline" className="h-12 min-w-0 flex-1 basis-36 text-base sm:h-10 sm:text-sm" onClick={() => setPaymentOpen(true)}>
+            <Button variant="outline" className="h-12 min-w-0 w-full text-base sm:h-10 sm:w-auto sm:flex-1 sm:basis-36 sm:text-sm" onClick={() => setPaymentOpen(true)}>
               <Wallet className="size-4 shrink-0" /> <span className="truncate">Collect payment</span>
             </Button>
           )}
@@ -375,12 +381,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           {order.balance > 0 ? (
             <WhatsAppButton
               href={paymentReminderUrl}
-              label={
-                <>
-                  <span className="sm:hidden">Remind</span>
-                  <span className="hidden sm:inline">Payment Reminder</span>
-                </>
-              }
+              label="Remind"
               labelClassName="min-w-0 truncate"
               className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm"
               tone="reminder"
@@ -400,9 +401,23 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <span className="min-w-0 truncate">Rework</span>
             </Button>
           )}
-          <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print order tag" onClick={() => printOrderTag(order, shop, tailorName(order.tailor), tagTemplate)}>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print tailor sheet (label)">
+                  <TagIcon className="size-4" />
+                  <span className="min-w-0 truncate">Label</span>
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => printTailorSheetLabel(order, shop, measureFields || [], 58)}>58mm roll</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => printTailorSheetLabel(order, shop, measureFields || [], 80)}>80mm roll</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print tailor sheet (A4)" onClick={() => printTailorSheetA4(order, shop, measureFields || [])}>
             <TagIcon className="size-4" />
-            <span className="min-w-0 truncate">Print tag</span>
+            <span className="min-w-0 truncate">A4</span>
           </Button>
           <PrintButton labelClassName="min-w-0 truncate" className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm" />
           <Button
@@ -613,7 +628,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* Profitability — admin-only, not just viewReports (which managers also hold). Profit
           figures are restricted to the admin role specifically, everywhere in the app. */}
-      {user?.role === "admin" && (
+      {user?.perms.viewFinancialReports && (
         <section className="rounded-xl border bg-card">
           <div className="border-b px-4 py-3">
             <h2 className="flex items-center gap-1.5 text-sm font-semibold">
@@ -691,7 +706,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       </div>
 
       <PaymentModal order={order} open={paymentOpen} onOpenChange={setPaymentOpen} />
-      <ReworkDialog orderId={id} open={reworkDialogOpen} onOpenChange={setReworkDialogOpen} />
+      <ReworkDialog orderId={id} open={reworkDialogOpen} onOpenChange={setReworkDialogOpen} alreadyFlagged={order.reworkFlag} />
 
       <AlertDialog open={!!deletePaymentId} onOpenChange={(v) => !v && setDeletePaymentId(null)}>
         <AlertDialogContent>

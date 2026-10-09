@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
-import { Wallet, FileDown } from "lucide-react";
+import { useMemo, useState } from "react";
+import { FileDown, Search } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useEmployees } from "@/hooks/use-employees";
 import { usePayrollRuns, useAllPayslips } from "@/hooks/use-payroll";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -10,12 +11,17 @@ import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type PayrollRow = { payslip: import("@/lib/types").Payslip; run: import("@/lib/types").PayrollRun | undefined };
 
 const PAYROLL_SUMMARY_COLUMNS = [
   { key: "period", label: "Period", required: true },
@@ -46,26 +52,53 @@ export default function PayrollSummaryReportPage() {
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
   const columnTable = useColumnVisibility("payroll-summary", PAYROLL_SUMMARY_COLUMNS, PAYROLL_SUMMARY_AUTO_HIDE);
   const isVisible = columnTable.isVisible;
+  const [role, setRole] = useState("all");
+  const [search, setSearch] = useState("");
 
   const employeeName = (id: string) => (employees || []).find((e) => e.id === id)?.name || "—";
+  const employeeById = useMemo(() => new Map((employees || []).map((e) => [e.id, e])), [employees]);
   const runById = useMemo(() => new Map((runs || []).map((r) => [r.id, r])), [runs]);
 
+  const roles = useMemo(() => {
+    const set = new Set((employees || []).map((e) => e.role).filter(Boolean));
+    return Array.from(set).sort();
+  }, [employees]);
+
   const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return (payslips || [])
       .map((p) => ({ payslip: p, run: runById.get(p.payrollRunId) }))
       .filter((r) => r.run && isWithinDateRange(r.run.periodStart, range))
+      .filter((r) => role === "all" || employeeById.get(r.payslip.employeeId)?.role === role)
+      .filter((r) => !q || (employeeById.get(r.payslip.employeeId)?.name || "").toLowerCase().includes(q))
       .sort((a, b) => (b.run!.periodStart || "").localeCompare(a.run!.periodStart || ""));
-  }, [payslips, runById, range]);
+  }, [payslips, runById, range, role, employeeById, search]);
 
   const totals = rows.reduce(
     (acc, r) => ({ gross: acc.gross + r.payslip.grossPay, deductions: acc.deductions + r.payslip.deductions, net: acc.net + r.payslip.netPay }),
     { gross: 0, deductions: 0, net: 0 }
   );
 
+  const sortComparators: Record<string, (a: PayrollRow, b: PayrollRow) => number> = {
+    period: (a, b) => (a.run?.periodStart || "").localeCompare(b.run?.periodStart || ""),
+    employee: (a, b) => employeeName(a.payslip.employeeId).localeCompare(employeeName(b.payslip.employeeId)),
+    gross: (a, b) => a.payslip.grossPay - b.payslip.grossPay,
+    overtime: (a, b) => a.payslip.overtimePay - b.payslip.overtimePay,
+    deductions: (a, b) => a.payslip.deductions - b.payslip.deductions,
+    netPay: (a, b) => a.payslip.netPay - b.payslip.netPay,
+    status: (a, b) => a.payslip.status.localeCompare(b.payslip.status),
+  };
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<PayrollRow>(
+    "payroll-summary",
+    sortComparators,
+    new Set(["gross", "overtime", "deductions", "netPay"])
+  );
+  const sortedRows = applySort(rows);
+
   if (!canManagePayroll) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={Wallet} title="No access" description="Payroll reports are restricted to admins." />
+        <EmptyState icon={WalletDuotoneIcon} title="No access" description="Payroll reports are restricted to admins." />
       </div>
     );
   }
@@ -78,7 +111,7 @@ export default function PayrollSummaryReportPage() {
       description={`${rows.length} payslips across ${runs?.length || 0} payroll runs · Total net paid ${inr(totals.net)}`}
       actions={
         <ReportActionsMenu
-          rows={rows.map((r) => ({
+          rows={sortedRows.map((r) => ({
             Period: `${fmtDate(r.run!.periodStart)} – ${fmtDate(r.run!.periodEnd)}`,
             Employee: employeeName(r.payslip.employeeId),
             Gross: r.payslip.grossPay,
@@ -99,15 +132,44 @@ export default function PayrollSummaryReportPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <Select value={role} onValueChange={(v) => v && setRole(v)}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{role === "all" ? "All Roles" : role}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Roles</SelectItem>
+              {roles.map((r) => (
+                <SelectItem key={r} value={r}>
+                  {r}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input type="search" enterKeyHint="search" placeholder="Search employee…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <div className="hidden sm:block">
+          <ColumnCustomizerMenu table={columnTable} />
+        </div>
+      </div>
+
       {rows.length === 0 ? (
-        <EmptyState icon={Wallet} title="No payslips yet" description="Run payroll from Employees → Payroll to see salary history here." />
+        <EmptyState
+          icon={WalletDuotoneIcon}
+          title={search ? "No matching payslips" : "No payslips yet"}
+          description={search ? `No payslips found for "${search}".` : "Run payroll from Employees → Payroll to see salary history here."}
+        />
       ) : (
         <>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(totals.net)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(totals.net)} showChevron={false} />
               <MobileRecordGrid
                 items={[
                   { label: "Gross", value: inr(totals.gross) },
@@ -115,45 +177,57 @@ export default function PayrollSummaryReportPage() {
                 ]}
               />
             </MobileRecordCard>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <MobileRecordCard key={r.payslip.id}>
                 <MobileRecordHeader
-                  title={employeeName(r.payslip.employeeId)}
+                  boldTitle title={employeeName(r.payslip.employeeId)}
                   subtitle={`${fmtDate(r.run!.periodStart)} – ${fmtDate(r.run!.periodEnd)}`}
                   value={inr(r.payslip.netPay)}
                   showChevron={false}
                 />
-                <MobileRecordGrid
-                  items={[
-                    { label: "Gross", value: inr(r.payslip.grossPay) },
-                    { label: "Overtime", value: r.payslip.overtimeHours > 0 ? `${r.payslip.overtimeHours}h · ${inr(r.payslip.overtimePay)}` : "—" },
-                    { label: "Deductions", value: r.payslip.deductions > 0 ? `− ${inr(r.payslip.deductions)}` : "—" },
-                    { label: "Status", value: <Badge variant={r.payslip.status === "paid" ? "secondary" : "outline"}>{r.payslip.status === "paid" ? "Paid" : "Draft"}</Badge> },
-                  ]}
-                />
-                <div className="flex justify-end border-t pt-1.5">
-                  <a href={`/api/employees/payslips/${r.payslip.id}/pdf`} target="_blank" rel="noopener noreferrer" aria-label="Download payslip" title="Download payslip" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-                    <FileDown className="size-3.5" /> Download
-                  </a>
+                {/* One line instead of a header + 4-cell grid + separate footer row — Overtime
+                 *  only shows up when it's actually nonzero (usually isn't), Status sits next to
+                 *  the figures instead of in its own grid cell, and Download is a plain icon
+                 *  instead of a labeled row of its own. */}
+                <div className="flex items-center justify-between gap-2 border-t pt-1.5 text-xs">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 text-muted-foreground">
+                    <span>Gross {inr(r.payslip.grossPay)}</span>
+                    {r.payslip.deductions > 0 && <span>− {inr(r.payslip.deductions)}</span>}
+                    {r.payslip.overtimeHours > 0 && (
+                      <span>
+                        OT {r.payslip.overtimeHours}h · {inr(r.payslip.overtimePay)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge variant={r.payslip.status === "paid" ? "secondary" : "outline"}>{r.payslip.status === "paid" ? "Paid" : "Draft"}</Badge>
+                    <a
+                      href={`/api/employees/payslips/${r.payslip.id}/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Download payslip"
+                      title="Download payslip"
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <FileDown className="size-3.5" />
+                    </a>
+                  </div>
                 </div>
               </MobileRecordCard>
             ))}
           </MobileRecordList>
 
-          <div className="hidden justify-end sm:flex">
-            <ColumnCustomizerMenu table={columnTable} />
-          </div>
           <div className="hidden sm:block">
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Period</Th>
-                  <Th>Employee</Th>
-                  <Th align="right">Gross</Th>
-                  {isVisible("overtime") && <Th align="right">Overtime</Th>}
-                  <Th align="right">Deductions</Th>
-                  <Th align="right">Net Pay</Th>
-                  <Th align="right">Status</Th>
+                  <Th sortKey="period" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Period</Th>
+                  <Th sortKey="employee" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Employee</Th>
+                  <Th align="right" sortKey="gross" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Gross</Th>
+                  {isVisible("overtime") && <Th align="right" sortKey="overtime" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Overtime</Th>}
+                  <Th align="right" sortKey="deductions" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Deductions</Th>
+                  <Th align="right" sortKey="netPay" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Net Pay</Th>
+                  <Th align="right" sortKey="status" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Status</Th>
                   <Th />
                 </tr>
               </thead>
@@ -167,7 +241,7 @@ export default function PayrollSummaryReportPage() {
                   <Td align="right">—</Td>
                   <Td />
                 </ReportTotalsRow>
-                {rows.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.payslip.id} className="border-b last:border-0">
                     <Td>
                       {fmtDate(r.run!.periodStart)} – {fmtDate(r.run!.periodEnd)}

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Search, Package, ShoppingBag, Plus } from "lucide-react";
+import { ShoppingBagDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useProducts } from "@/hooks/use-products";
 import { RawMaterialFormDialog } from "@/components/inventory/raw-material-form-dialog";
@@ -129,7 +130,7 @@ export function ItemPicker({ open, onOpenChange, onSelect }: { open: boolean; on
                 </ul>
               )
             ) : filteredProducts.length === 0 ? (
-              <EmptyRow icon={ShoppingBag} label="No products found" />
+              <EmptyRow icon={ShoppingBagDuotoneIcon} label="No products found" />
             ) : (
               <ul className="divide-y">
                 {filteredProducts.map((p) => (

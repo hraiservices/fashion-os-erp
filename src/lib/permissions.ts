@@ -24,6 +24,63 @@ export interface Permissions {
   usePOS: boolean;
   /** Salary/payroll is sensitive HR data — kept separate from manageEmployees (which managers get) and admin-only by default. */
   managePayroll: boolean;
+  /** Add/edit/delete expenses — previously gated only by role (!isRestrictedRole), with no way
+   *  to grant or deny it independently of every other manager-level permission. */
+  manageExpenses: boolean;
+  /** Void/cancel/delete a sales invoice — split out from manageSales (create/edit) since
+   *  destroying a financial record someone else may have relied on is a different risk level
+   *  than editing one you're still working on. */
+  voidSales: boolean;
+  /** Issue a credit note against a sales invoice. */
+  manageCreditNotes: boolean;
+  /** Cancel a purchase order — split out from managePurchases for the same reason as voidSales. */
+  cancelPurchases: boolean;
+  /** Record a payment made to a vendor — money actually leaving the business, kept separate from
+   *  managePurchases (creating/editing vendors, POs, bills). */
+  payVendors: boolean;
+  /** Record a stock adjustment (correcting a count) — split from manageInventory (viewing/editing
+   *  product and raw-material records) since it directly changes what the ledger says is on hand. */
+  adjustStock: boolean;
+  /** Move stock between warehouses. */
+  transferStock: boolean;
+  /** Permanently delete a product/raw-material record (bulk-delete). */
+  deleteInventory: boolean;
+  /** Approve or reject an employee's leave request — split from manageEmployees (profile data,
+   *  attendance marking) since approving time off is a distinct managerial decision. */
+  approveLeave: boolean;
+  /** Profit/margin reports (Combined P&L, Order Profitability, Product Sales P&L, Profit by
+   *  Item) — kept separate from viewReports (every other report) since margin data is
+   *  commercially sensitive in a way a stage-timing or attendance report isn't. */
+  viewFinancialReports: boolean;
+  /** Settings → WhatsApp (message templates, broadcast config). */
+  manageWhatsappSettings: boolean;
+  /** Settings → Loyalty program configuration. */
+  manageLoyaltySettings: boolean;
+  /** Settings → Invoice Terms / Invoice Template / Stitching Order Template — grouped together
+   *  since all three are the same kind of thing (a printed/shared document's wording and layout). */
+  manageDocumentTemplates: boolean;
+  /** Settings → Price Lists. */
+  managePriceLists: boolean;
+  /** Settings → Sidebar Navigation (the admin-editable nav layout). */
+  manageNavigationSettings: boolean;
+  /** View the Activity Log (every write action across the app, with who/when). */
+  viewActivityLog: boolean;
+  /** Use the Cost Estimator tool. */
+  useCostEstimator: boolean;
+  /** Change an order's order-date or delivery-date — split from editOrder since backdating or
+   *  rescheduling a production date has downstream effects (overdue/due-today reports, SLA
+   *  tracking) a plain field correction doesn't. */
+  backdateOrders: boolean;
+  /** Grant loyalty points to a customer — split from manageCustomers since it directly creates
+   *  redeemable value, unlike editing a customer's contact details. */
+  awardLoyaltyPoints: boolean;
+  /** Send a WhatsApp broadcast (text or image) to a customer segment — split from
+   *  manageCustomers since messaging many customers at once is a different risk than editing
+   *  one customer's own record. */
+  sendWhatsappBroadcast: boolean;
+  /** Close the POS cash register (the cash-reconciliation step) — split from usePOS so a
+   *  cashier can run the till all day without being the one trusted to reconcile and close it. */
+  closeRegister: boolean;
 }
 
 export const PERMISSION_LABELS: Record<keyof Permissions, string> = {
@@ -45,6 +102,27 @@ export const PERMISSION_LABELS: Record<keyof Permissions, string> = {
   manageEmployees: "Manage Employees",
   usePOS: "Use POS",
   managePayroll: "Manage Payroll & Salaries",
+  manageExpenses: "Manage Expenses",
+  voidSales: "Void/Delete Invoices",
+  manageCreditNotes: "Issue Credit Notes",
+  cancelPurchases: "Cancel Purchase Orders",
+  payVendors: "Pay Vendors",
+  adjustStock: "Adjust Stock",
+  transferStock: "Transfer Stock",
+  deleteInventory: "Delete Inventory Items",
+  approveLeave: "Approve Leave Requests",
+  viewFinancialReports: "View Financial/Profit Reports",
+  manageWhatsappSettings: "Settings: WhatsApp",
+  manageLoyaltySettings: "Settings: Loyalty Program",
+  manageDocumentTemplates: "Settings: Document Templates",
+  managePriceLists: "Settings: Price Lists",
+  manageNavigationSettings: "Settings: Sidebar Navigation",
+  viewActivityLog: "View Activity Log",
+  useCostEstimator: "Use Cost Estimator",
+  backdateOrders: "Change Order/Delivery Dates",
+  awardLoyaltyPoints: "Award Loyalty Points",
+  sendWhatsappBroadcast: "Send WhatsApp Broadcasts",
+  closeRegister: "Close POS Register",
 };
 
 export const ROLE_DEFAULTS: Record<Role, Permissions> = {
@@ -67,6 +145,27 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     manageEmployees: true,
     usePOS: true,
     managePayroll: true,
+    manageExpenses: true,
+    voidSales: true,
+    manageCreditNotes: true,
+    cancelPurchases: true,
+    payVendors: true,
+    adjustStock: true,
+    transferStock: true,
+    deleteInventory: true,
+    approveLeave: true,
+    viewFinancialReports: true,
+    manageWhatsappSettings: true,
+    manageLoyaltySettings: true,
+    manageDocumentTemplates: true,
+    managePriceLists: true,
+    manageNavigationSettings: true,
+    viewActivityLog: true,
+    useCostEstimator: true,
+    backdateOrders: true,
+    awardLoyaltyPoints: true,
+    sendWhatsappBroadcast: true,
+    closeRegister: true,
   },
   manager: {
     addOrder: true,
@@ -87,6 +186,27 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     manageEmployees: true,
     usePOS: true,
     managePayroll: false,
+    manageExpenses: true,
+    voidSales: false,
+    manageCreditNotes: true,
+    cancelPurchases: false,
+    payVendors: true,
+    adjustStock: true,
+    transferStock: true,
+    deleteInventory: false,
+    approveLeave: true,
+    viewFinancialReports: false,
+    manageWhatsappSettings: false,
+    manageLoyaltySettings: false,
+    manageDocumentTemplates: false,
+    managePriceLists: false,
+    manageNavigationSettings: false,
+    viewActivityLog: true,
+    useCostEstimator: true,
+    backdateOrders: true,
+    awardLoyaltyPoints: true,
+    sendWhatsappBroadcast: true,
+    closeRegister: true,
   },
   sales: {
     addOrder: true,
@@ -107,6 +227,27 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     manageEmployees: false,
     usePOS: true,
     managePayroll: false,
+    manageExpenses: false,
+    voidSales: false,
+    manageCreditNotes: false,
+    cancelPurchases: false,
+    payVendors: false,
+    adjustStock: false,
+    transferStock: false,
+    deleteInventory: false,
+    approveLeave: false,
+    viewFinancialReports: false,
+    manageWhatsappSettings: false,
+    manageLoyaltySettings: false,
+    manageDocumentTemplates: false,
+    managePriceLists: false,
+    manageNavigationSettings: false,
+    viewActivityLog: false,
+    useCostEstimator: false,
+    backdateOrders: false,
+    awardLoyaltyPoints: false,
+    sendWhatsappBroadcast: false,
+    closeRegister: false,
   },
   tailor: {
     addOrder: false,
@@ -127,16 +268,41 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     manageEmployees: false,
     usePOS: false,
     managePayroll: false,
+    manageExpenses: false,
+    voidSales: false,
+    manageCreditNotes: false,
+    cancelPurchases: false,
+    payVendors: false,
+    adjustStock: false,
+    transferStock: false,
+    deleteInventory: false,
+    approveLeave: false,
+    viewFinancialReports: false,
+    manageWhatsappSettings: false,
+    manageLoyaltySettings: false,
+    manageDocumentTemplates: false,
+    managePriceLists: false,
+    manageNavigationSettings: false,
+    viewActivityLog: false,
+    useCostEstimator: false,
+    backdateOrders: false,
+    awardLoyaltyPoints: false,
+    sendWhatsappBroadcast: false,
+    closeRegister: false,
   },
 };
 
 /** Groups PERMISSION_LABELS keys for a readable checklist, shown in both the role-reference
  *  table and any per-user permission override panel. */
 export const PERMISSION_GROUPS: { label: string; keys: (keyof Permissions)[] }[] = [
-  { label: "Orders", keys: ["addOrder", "editOrder", "deleteOrder", "changeStage", "managePayments", "editMeasurements"] },
-  { label: "Customers", keys: ["manageCustomers", "deleteCustomers"] },
-  { label: "Modules", keys: ["manageInventory", "managePurchases", "manageManufacturing", "manageSales"] },
-  { label: "Admin", keys: ["viewReports", "manageUsers", "useChatbot"] },
+  { label: "Orders", keys: ["addOrder", "editOrder", "deleteOrder", "changeStage", "managePayments", "editMeasurements", "backdateOrders"] },
+  { label: "Customers", keys: ["manageCustomers", "deleteCustomers", "awardLoyaltyPoints", "sendWhatsappBroadcast"] },
+  { label: "Modules", keys: ["manageInventory", "adjustStock", "transferStock", "deleteInventory", "managePurchases", "cancelPurchases", "payVendors", "manageManufacturing", "manageSales", "voidSales", "manageCreditNotes", "usePOS", "closeRegister"] },
+  { label: "Expenses", keys: ["manageExpenses"] },
+  { label: "Employees", keys: ["manageEmployees", "approveLeave", "managePayroll"] },
+  { label: "Reports", keys: ["viewReports", "viewFinancialReports", "viewActivityLog"] },
+  { label: "Settings", keys: ["manageUsers", "manageWhatsappSettings", "manageLoyaltySettings", "manageDocumentTemplates", "managePriceLists", "manageNavigationSettings"] },
+  { label: "Tools", keys: ["useChatbot", "useCostEstimator"] },
 ];
 
 export const ROLE_OPTIONS: [Role, string][] = [

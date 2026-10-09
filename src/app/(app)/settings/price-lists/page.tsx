@@ -7,7 +7,7 @@ import { PriceListsSection } from "@/components/settings/price-lists-section";
 export default function Page() {
   return (
     <SettingsPage title="Price Lists" description="Customer-tier product pricing — assign a list to a customer to override default selling prices on new invoices and quotations">
-      <SettingsGuard allow={({ isAdmin }) => isAdmin}>
+      <SettingsGuard allow={({ perms }) => perms.managePriceLists}>
         <PriceListsSection />
       </SettingsGuard>
     </SettingsPage>

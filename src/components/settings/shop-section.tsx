@@ -12,6 +12,17 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+
+const WEEKDAY_LABELS: { value: number; label: string }[] = [
+  { value: 0, label: "Sun" },
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+];
 
 /** SettingsView section === "shop", Stitching_Manager_Pro_v16.html ~line 12597. */
 export function ShopSection() {
@@ -31,15 +42,32 @@ export function ShopSection() {
     }
   }
 
+  /** Resizes the file client-side, then uploads it to the branding-media Storage bucket and
+   *  swaps in the real public URL — nothing but that short URL ever reaches app_settings, unlike
+   *  the raw base64 data URL this used to store directly (see /api/settings/branding-image and
+   *  src/lib/supabase/branding-storage.ts for why: that data URL rides along on every
+   *  useShopSettings() fetch, across nearly every page in the app). */
+  async function uploadBrandingImage(key: "logo" | "favicon", file: File, maxDimension: number): Promise<string> {
+    const dataUrl = await fileToDataUrl(file, maxDimension);
+    const res = await fetch("/api/settings/branding-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, dataUrl }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Upload failed");
+    return json.url as string;
+  }
+
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
     try {
-      const dataUrl = await fileToDataUrl(file, 300);
-      setShop((s) => ({ ...s, logoDataUrl: dataUrl }));
-    } catch {
-      toast.error("Could not read image");
+      const url = await uploadBrandingImage("logo", file, 300);
+      setShop((s) => ({ ...s, logoDataUrl: url }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not upload image");
     }
   }
 
@@ -49,10 +77,10 @@ export function ShopSection() {
     if (!file) return;
     try {
       // Small — a favicon is only ever shown a few pixels wide.
-      const dataUrl = await fileToDataUrl(file, 64);
-      setShop((s) => ({ ...s, faviconDataUrl: dataUrl }));
-    } catch {
-      toast.error("Could not read image");
+      const url = await uploadBrandingImage("favicon", file, 64);
+      setShop((s) => ({ ...s, faviconDataUrl: url }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not upload image");
     }
   }
 
@@ -150,6 +178,53 @@ export function ShopSection() {
           </Select>
           <p className="text-xs text-muted-foreground">
             Must match your thermal/receipt printer&apos;s actual paper roll — check the model or the roll itself. Used for invoice and POS receipt printing.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label>Business hours</Label>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              type="time"
+              className="h-10 w-32"
+              value={shop.businessOpenTime}
+              onChange={(e) => setShop({ ...shop, businessOpenTime: e.target.value })}
+            />
+            <span className="text-sm text-muted-foreground">to</span>
+            <Input
+              type="time"
+              className="h-10 w-32"
+              value={shop.businessCloseTime}
+              onChange={(e) => setShop({ ...shop, businessCloseTime: e.target.value })}
+            />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {WEEKDAY_LABELS.map(({ value, label }) => {
+              const closed = shop.businessClosedWeekdays.includes(value);
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() =>
+                    setShop({
+                      ...shop,
+                      businessClosedWeekdays: closed
+                        ? shop.businessClosedWeekdays.filter((d) => d !== value)
+                        : [...shop.businessClosedWeekdays, value].sort(),
+                    })
+                  }
+                  title={closed ? `Closed on ${label}` : `Open on ${label}`}
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                    closed ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-input bg-transparent text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Used to compute business-hours-aware durations in reports like Stage Change Speed — an order sitting idle overnight or on a closed day (shown in red above) doesn&apos;t count against how long a stage change &quot;really&quot; took.
           </p>
         </div>
         <Button className="h-12 px-6 text-base sm:h-8 sm:px-2.5 sm:text-sm" disabled={save.isPending} onClick={onSave}>

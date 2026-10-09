@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Users } from "lucide-react";
+import { Search } from "lucide-react";
+import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useOrders } from "@/hooks/use-orders";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useCustomers } from "@/hooks/use-customers";
@@ -24,6 +25,30 @@ import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { cn } from "@/lib/utils";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type CustomerBalanceRow = {
+  name: string;
+  mobile: string;
+  orderCount: number;
+  invoiceCount: number;
+  stitchDue: number;
+  salesDue: number;
+  totalDue: number;
+  lifetime: number;
+};
+
+const SORT_COMPARATORS: Record<string, (a: CustomerBalanceRow, b: CustomerBalanceRow) => number> = {
+  customer: (a, b) => (a.name || a.mobile).localeCompare(b.name || b.mobile),
+  mobile: (a, b) => a.mobile.localeCompare(b.mobile),
+  orders: (a, b) => a.orderCount - b.orderCount,
+  invoices: (a, b) => a.invoiceCount - b.invoiceCount,
+  stitchDue: (a, b) => a.stitchDue - b.stitchDue,
+  salesDue: (a, b) => a.salesDue - b.salesDue,
+  totalDue: (a, b) => a.totalDue - b.totalDue,
+  lifetime: (a, b) => a.lifetime - b.lifetime,
+};
+const SORT_DESC_KEYS = new Set(["orders", "invoices", "stitchDue", "salesDue", "totalDue", "lifetime"]);
 
 type Filter = "all" | "due" | "paid";
 const FILTERS: { value: Filter; label: string }[] = [
@@ -91,6 +116,9 @@ export default function CustomerBalancesPage() {
     [filtered]
   );
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<CustomerBalanceRow>("customer-balances", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedFiltered = applySort(filtered);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
@@ -99,8 +127,9 @@ export default function CustomerBalancesPage() {
       description="Stitching order dues and product sales dues, shown separately, per customer"
       actions={
         <ReportActionsMenu
-          rows={filtered.map((r) => ({
-            Customer: r.name || r.mobile,
+          rows={sortedFiltered.map((r) => ({
+            Customer: r.name || "—",
+            Mobile: r.mobile,
             Orders: r.orderCount,
             Invoices: r.invoiceCount,
             "Stitch Due": r.stitchDue,
@@ -121,6 +150,24 @@ export default function CustomerBalancesPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={
+          <div className="inline-flex flex-wrap gap-1" role="group" aria-label="Filter by balance status">
+            {FILTERS.map((f) => (
+              <button
+                key={f.value}
+                type="button"
+                onClick={() => setFilter(f.value)}
+                aria-pressed={filter === f.value}
+                className={cn(
+                  "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
+                  filter === f.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        }
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -128,57 +175,45 @@ export default function CustomerBalancesPage() {
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input type="search" enterKeyHint="search" placeholder="Search name or mobile…" className="h-9 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {FILTERS.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setFilter(f.value)}
-              className={cn(
-                "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
-                filter === f.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
         <ColumnCustomizerMenu table={columnTable} />
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState icon={Users} title="No customers found" />
+        <EmptyState icon={UsersDuotoneIcon} title="No customers found" />
       ) : (
         <>
           <div className="hidden sm:block">
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Customer</Th>
-                  <Th align="right">Orders</Th>
-                  {isVisible("invoices") && <Th align="right">Invoices</Th>}
-                  <Th align="right">Stitch Due</Th>
-                  <Th align="right">Product Sales Due</Th>
-                  <Th align="right">Total Due</Th>
-                  {isVisible("lifetime") && <Th align="right">Lifetime</Th>}
+                  <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
+                  <Th align="right" sortKey="orders" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Orders</Th>
+                  {isVisible("invoices") && <Th align="right" sortKey="invoices" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Invoices</Th>}
+                  <Th align="right" sortKey="stitchDue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Stitch Due</Th>
+                  <Th align="right" sortKey="salesDue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Product Sales Due</Th>
+                  <Th align="right" sortKey="totalDue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Total Due</Th>
+                  {isVisible("lifetime") && <Th align="right" sortKey="lifetime" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Lifetime</Th>}
                   <Th align="right">Actions</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td colSpan={isVisible("invoices") ? 3 : 2}>Total</Td>
+                  <Td colSpan={isVisible("invoices") ? 4 : 3}>Total</Td>
                   <Td align="right">{inr(totals.stitchDue)}</Td>
                   <Td align="right">{inr(totals.salesDue)}</Td>
                   <Td align="right">{inr(totals.totalDue)}</Td>
                   {isVisible("lifetime") && <Td align="right">—</Td>}
                   <Td />
                 </ReportTotalsRow>
-                {filtered.map((r) => (
+                {sortedFiltered.map((r) => (
                   <tr key={r.mobile} className="hover:bg-muted/30">
                     <Td className="font-medium">
                       <Link href={`/crm/${r.mobile}`} className="hover:underline">
-                        {r.name || r.mobile}
+                        {r.name || "—"}
                       </Link>
                     </Td>
+                    <Td className="text-muted-foreground">{r.mobile}</Td>
                     <Td align="right">{r.orderCount}</Td>
                     {isVisible("invoices") && <Td align="right">{r.invoiceCount}</Td>}
                     <Td align="right">{r.stitchDue > 0 ? <BalanceDue amount={r.stitchDue} /> : "—"}</Td>
@@ -202,7 +237,7 @@ export default function CustomerBalancesPage() {
 
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(totals.totalDue)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(totals.totalDue)} showChevron={false} />
               <MobileRecordGrid
                 items={[
                   { label: "Stitch Due", value: inr(totals.stitchDue) },
@@ -210,28 +245,30 @@ export default function CustomerBalancesPage() {
                 ]}
               />
             </MobileRecordCard>
-            {filtered.map((r) => (
+            {sortedFiltered.map((r) => (
               // onClick (not href) — the WhatsApp button below renders its own <a>, which can't
               // nest inside this card's anchor.
               <MobileRecordCard key={r.mobile} onClick={() => router.push(`/crm/${r.mobile}`)}>
-                <MobileRecordHeader
-                  title={r.name || r.mobile}
+                <MobileRecordHeader boldTitle
+                  title={r.name || "—"}
+                  subtitle={r.mobile}
                   value={r.totalDue > 0 ? <BalanceDue amount={r.totalDue} /> : "—"}
                   valueClassName="font-semibold"
                 />
+                {/* Mobile number folded into the header subtitle (was its own row), and
+                 *  Orders/Invoices combined into one grid cell — was a separate Mobile row plus a
+                 *  5-item 3-col grid plus this action row, same over-stacked-card problem the
+                 *  Payroll Summary payslip card had. */}
                 <MobileRecordGrid
-                  columns={3}
                   items={[
-                    { label: "Orders", value: r.orderCount },
-                    { label: "Invoices", value: r.invoiceCount },
+                    { label: "Orders · Invoices", value: `${r.orderCount} · ${r.invoiceCount}` },
+                    { label: "Lifetime", value: inr(r.lifetime), valueClassName: "text-muted-foreground" },
                     { label: "Stitch Due", value: r.stitchDue > 0 ? inr(r.stitchDue) : "—" },
                     { label: "Product Sales Due", value: r.salesDue > 0 ? inr(r.salesDue) : "—" },
-                    { label: "Lifetime", value: inr(r.lifetime), valueClassName: "text-muted-foreground" },
                   ]}
                 />
                 {r.totalDue > 0 && (
-                  <div className="flex items-center justify-between border-t pt-1.5 text-xs" onClick={(e) => e.stopPropagation()}>
-                    <span className="text-muted-foreground">Actions</span>
+                  <div className="flex justify-end border-t pt-1.5" onClick={(e) => e.stopPropagation()}>
                     <WhatsAppIconButton href={reminderUrl(r.name, r.mobile, r.totalDue)} label={`Payment reminder to ${r.name || r.mobile}`} tone="reminder" />
                   </div>
                 )}

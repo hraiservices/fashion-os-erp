@@ -11,6 +11,7 @@ import { useOpenPosSession, useOpenRegister, useCloseRegister, useSessionCashTot
 import { genInvoiceNumber, computeLineItemsTotal, type SalesLineItem } from "@/lib/sales";
 import { computeInvoiceTotals } from "@/lib/invoice-totals";
 import { printThermalReceipt } from "@/lib/thermal-receipt";
+import { hapticSuccess, hapticError } from "@/lib/haptics";
 import { inr } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -138,6 +139,11 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
   const [autoPrint, setAutoPrint] = useState(true);
   const [lastReceipt, setLastReceipt] = useState<Parameters<typeof printThermalReceipt>[0] | null>(null);
   const scanRef = useRef<HTMLInputElement>(null);
+  // Set once per checkout attempt and reused across retries of the SAME sale (a network
+  // timeout where the first request may have actually gone through) — only cleared after a
+  // successful sale or a fresh page load, never regenerated on retry. See the API route's
+  // idempotencyKey handling (add_invoice_idempotency_key.sql).
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   const total = useMemo(() => computeLineItemsTotal(cart.map((c) => ({ productId: c.productId, productName: c.productName, qty: c.qty, unitPrice: c.unitPrice, discountPercent: 0, amount: c.qty * c.unitPrice } as SalesLineItem))), [cart]);
   const tenderTotal = tenders.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
@@ -202,6 +208,7 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
       return toast.error("Select a customer to accept a partial payment — walk-in sales must be paid in full.");
     }
     setSubmitting(true);
+    if (!idempotencyKeyRef.current) idempotencyKeyRef.current = crypto.randomUUID();
     try {
       const items: SalesLineItem[] = cart.map((c) => ({ productId: c.productId, productName: c.productName, qty: c.qty, unitPrice: c.unitPrice, discountPercent: 0, amount: c.qty * c.unitPrice }));
       const totals = computeInvoiceTotals(items, 0, "flat", 0, 0, "none");
@@ -233,8 +240,10 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
         notes: "",
         userEmail: user?.email,
         payments,
+        idempotencyKey: idempotencyKeyRef.current,
       });
 
+      hapticSuccess();
       const balanceDue = Math.max(0, Math.round((totals.total - tenderTotal) * 100) / 100);
       toast.success(balanceDue > 0 ? `Sale complete · ${invoiceNumber} · ${inr(balanceDue)} balance due` : `Sale complete · ${invoiceNumber} · ${inr(totals.total)}`);
 
@@ -255,11 +264,13 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
       setLastReceipt(receipt);
       if (autoPrint) printThermalReceipt(receipt);
 
+      idempotencyKeyRef.current = null;
       setCart([]);
       setCustomer(null);
       setTenders([{ method: "Cash", amount: "" }]);
       scanRef.current?.focus();
     } catch (e) {
+      hapticError();
       toast.error(e instanceof Error ? e.message : "Failed to complete sale");
     } finally {
       setSubmitting(false);
@@ -290,9 +301,11 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
                 <Printer className="size-4" /> Reprint Last
               </Button>
             )}
-            <Button variant="outline" onClick={() => setCloseOpen(true)}>
-              <Lock className="size-4" /> Close Register
-            </Button>
+            {user?.perms.closeRegister && (
+              <Button variant="outline" onClick={() => setCloseOpen(true)}>
+                <Lock className="size-4" /> Close Register
+              </Button>
+            )}
           </>
         }
       />

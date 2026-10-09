@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ArrowUpDown } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { PrintButton } from "@/components/ui/print-button";
 import { ReportsNavRail } from "@/components/reports/reports-nav-rail";
+import { cn } from "@/lib/utils";
 
 /**
  * Consistent chrome for every /reports/* page. Crucially the table lives inside its own
@@ -31,8 +32,8 @@ export function ReportShell({
       </div>
       <div className="min-w-0 flex-1 space-y-4 p-4 sm:p-6 print:p-0">
         {/* Mobile only — desktop has the persistent Reports rail to its left instead. */}
-        <Link href="/reports" className="inline-flex items-center gap-0.5 text-sm text-primary lg:hidden print:hidden">
-          <ChevronLeft className="size-5" /> Reports
+        <Link href="/reports" className="inline-flex items-center gap-0.5 text-base font-medium text-primary lg:hidden print:hidden">
+          <ChevronLeft className="size-6" /> Reports
         </Link>
         <PageHeader
           title={title}
@@ -51,7 +52,7 @@ export function ReportShell({
 }
 
 export function ReportCard({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={`overflow-hidden rounded-xl border bg-card ${className ?? ""}`}>{children}</div>;
+  return <div className={`overflow-hidden rounded-xl border bg-card print:overflow-visible ${className ?? ""}`}>{children}</div>;
 }
 
 /**
@@ -64,24 +65,57 @@ export function ReportCard({ children, className }: { children: React.ReactNode;
 export function ReportTable({ children }: { children: React.ReactNode }) {
   return (
     <ReportCard>
-      <div className="scrollbar-hide overflow-x-auto">
+      <div className="scrollbar-hide overflow-x-auto print:overflow-visible">
         <table className="report-table-pinned w-full text-sm">{children}</table>
       </div>
     </ReportCard>
   );
 }
 
-export function Th({ children, align = "left" }: { children?: React.ReactNode; align?: "left" | "right" }) {
+/**
+ * Pass `sortKey` + `currentSort` + `onSort` together to make a header clickable, matching Orders
+ * List's SortableTh — omit all three (as most callers still do) for a plain, non-clickable header.
+ * Pair with the `useTableSort` hook, which supplies `currentSort`/`onSort` and a matching
+ * `applySort` for the rows themselves.
+ */
+export function Th({
+  children,
+  align = "left",
+  sortKey,
+  currentSort,
+  onSort,
+}: {
+  children?: React.ReactNode;
+  align?: "left" | "right";
+  sortKey?: string;
+  currentSort?: { key: string | null; asc: boolean };
+  onSort?: (key: string) => void;
+}) {
+  if (!sortKey || !onSort) {
+    return (
+      <th className={`whitespace-nowrap px-3 py-2.5 text-sm font-bold uppercase tracking-wide text-muted-foreground ${align === "right" ? "text-right" : "text-left"}`}>
+        {children}
+      </th>
+    );
+  }
+  const active = currentSort?.key === sortKey;
   return (
     <th className={`whitespace-nowrap px-3 py-2.5 text-sm font-bold uppercase tracking-wide text-muted-foreground ${align === "right" ? "text-right" : "text-left"}`}>
-      {children}
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={cn("inline-flex items-center gap-1 hover:text-foreground", align === "right" && "flex-row-reverse")}
+      >
+        {children}
+        <ArrowUpDown className={cn("size-3", active ? "text-foreground" : "text-muted-foreground/60", active && currentSort?.asc && "rotate-180")} />
+      </button>
     </th>
   );
 }
 
-export function Td({ children, align = "left", className, colSpan }: { children?: React.ReactNode; align?: "left" | "right"; className?: string; colSpan?: number }) {
+export function Td({ children, align = "left", className, colSpan, rowSpan }: { children?: React.ReactNode; align?: "left" | "right"; className?: string; colSpan?: number; rowSpan?: number }) {
   return (
-    <td colSpan={colSpan} className={`px-3 py-2.5 ${align === "right" ? "text-right tabular-nums" : ""} ${className ?? ""}`}>
+    <td colSpan={colSpan} rowSpan={rowSpan} className={`px-3 py-2.5 ${align === "right" ? "text-right tabular-nums" : ""} ${className ?? ""}`}>
       {children}
     </td>
   );

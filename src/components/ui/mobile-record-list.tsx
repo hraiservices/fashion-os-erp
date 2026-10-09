@@ -64,17 +64,22 @@ export function MobileRecordHeader({
   value,
   valueClassName,
   showChevron = true,
+  boldTitle = false,
 }: {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
   value?: React.ReactNode;
   valueClassName?: string;
   showChevron?: boolean;
+  /** Reports' cards use this to make the title (customer/employee/tailor/… name) stand out a
+   *  bit more than the plain font-medium every other MobileRecordCard still uses — opt-in so it
+   *  doesn't change Orders/Expenses/CRM's existing look. */
+  boldTitle?: boolean;
 }) {
   return (
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{title}</p>
+        <p className={cn("truncate text-sm", boldTitle ? "font-semibold" : "font-medium")}>{title}</p>
         {subtitle && <p className="truncate text-xs text-muted-foreground">{subtitle}</p>}
       </div>
       {(value !== undefined || showChevron) && (

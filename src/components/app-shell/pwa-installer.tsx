@@ -100,7 +100,7 @@ export function PwaInstaller() {
       <Button
         variant="outline"
         size="sm"
-        className="h-9 sm:h-8"
+        className="h-8 px-2 sm:h-8 sm:px-2.5"
         onClick={() =>
           toast("Install this app", {
             description: 'Tap the Share icon in Safari, then "Add to Home Screen".',
@@ -120,7 +120,7 @@ export function PwaInstaller() {
     <Button
       variant="outline"
       size="sm"
-      className="h-9 sm:h-8"
+      className="h-8 px-2 sm:h-8 sm:px-2.5"
       onClick={() => {
         prompt.prompt();
         prompt.userChoice.then(() => setPrompt(null));

@@ -170,6 +170,9 @@ function RailPopoverButton({ label, icon, tint, children }: { label: string; ico
 function NoteCard({ note, onUpdate, onDelete }: { note: Note; onUpdate: (patch: { content?: string; color?: NoteColor }) => void; onDelete: () => void }) {
   const [content, setContent] = useState(note.content);
   const [copied, setCopied] = useState(false);
+  // 4x the resting 3 rows while actively editing, so there's room to work with a longer note —
+  // shrinks back once you click away, keeping the popover's list compact the rest of the time.
+  const [focused, setFocused] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function onChange(value: string) {
@@ -193,9 +196,11 @@ function NoteCard({ note, onUpdate, onDelete }: { note: Note; onUpdate: (patch: 
       <textarea
         value={content}
         onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         placeholder="Type a note…"
-        rows={3}
-        className="w-full resize-none bg-transparent text-sm text-neutral-800 outline-none placeholder:text-neutral-500"
+        rows={focused ? 12 : 3}
+        className="w-full resize-none bg-transparent text-sm text-neutral-800 outline-none transition-[height] placeholder:text-neutral-500"
       />
       <DropdownMenu>
         <DropdownMenuTrigger

@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import Link from "next/link";
-import { Wallet } from "lucide-react";
+
 import { useOrders } from "@/hooks/use-orders";
 import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useActiveTailors, useTailorName } from "@/hooks/use-employees";
@@ -19,11 +20,13 @@ import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from 
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { useTableSort } from "@/hooks/use-table-sort";
 
 const PAYABLE_DETAILS_COLUMNS = [
   { key: "order", label: "Order", required: true },
   { key: "orderDate", label: "Order Date" },
   { key: "customer", label: "Customer", required: true },
+  { key: "mobile", label: "Mobile" },
   { key: "tailor", label: "Tailor", required: true },
   { key: "garment", label: "Garment" },
   { key: "lining", label: "Lining" },
@@ -34,7 +37,7 @@ const PAYABLE_DETAILS_COLUMNS = [
 // Below 1920px (a 14" laptop) the full 8-column table feels cramped — Order Date/Garment/
 // Lining/Qty are the least essential to have visible at a glance, so they default to hidden
 // there and reappear automatically on a wider monitor (still one click away via Columns).
-const PAYABLE_DETAILS_AUTO_HIDE = { belowWidth: 1920, keys: ["orderDate", "garment", "lining", "qty"] };
+const PAYABLE_DETAILS_AUTO_HIDE = { belowWidth: 1920, keys: ["orderDate", "mobile", "garment", "lining", "qty"] };
 
 interface PayableRow {
   key: string;
@@ -42,6 +45,7 @@ interface PayableRow {
   orderHref: string;
   inDate: string;
   customerName: string;
+  customerMobile: string;
   tailorId: string;
   tailorName: string;
   garmentType: string;
@@ -53,6 +57,19 @@ interface PayableRow {
    *  explicit ask: pay only for completed work, but still see the full pipeline. */
   isPending: boolean;
 }
+
+const SORT_COMPARATORS: Record<string, (a: PayableRow, b: PayableRow) => number> = {
+  order: (a, b) => a.orderId.localeCompare(b.orderId),
+  orderDate: (a, b) => (a.inDate < b.inDate ? -1 : a.inDate > b.inDate ? 1 : 0),
+  customer: (a, b) => a.customerName.localeCompare(b.customerName),
+  mobile: (a, b) => a.customerMobile.localeCompare(b.customerMobile),
+  tailor: (a, b) => a.tailorName.localeCompare(b.tailorName),
+  garment: (a, b) => a.garmentType.localeCompare(b.garmentType),
+  lining: (a, b) => a.lining.localeCompare(b.lining),
+  qty: (a, b) => a.qty - b.qty,
+  payable: (a, b) => a.amount - b.amount,
+};
+const SORT_DESC_KEYS = new Set(["orderDate", "qty", "payable"]);
 
 /** Per-garment breakdown of what each tailor is owed, one row per garment — the order/customer-
  *  level detail behind the Tailor Payables summary page's per-tailor totals. Same inclusion rule
@@ -94,6 +111,7 @@ export default function TailorPayableDetailsPage() {
           orderHref: `/orders/${o.id}`,
           inDate: o.inDate,
           customerName: o.name,
+          customerMobile: o.mobile,
           tailorId: tid,
           tailorName: tailorName(tid),
           garmentType: g.type,
@@ -112,6 +130,7 @@ export default function TailorPayableDetailsPage() {
         orderHref: `/manufacturing/${w.id}`,
         inDate: w.completedAt || "",
         customerName: "— (Manufacturing)",
+        customerMobile: "",
         tailorId: w.tailor,
         tailorName: tailorName(w.tailor),
         garmentType: w.productName,
@@ -128,6 +147,9 @@ export default function TailorPayableDetailsPage() {
       .filter((r) => tailorFilter === "all" || r.tailorId === tailorFilter)
       .sort((a, b) => (a.inDate < b.inDate ? 1 : a.inDate > b.inDate ? -1 : 0));
   }, [orders, workOrders, range, tailorFilter, tailorName]);
+
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<PayableRow>("tailor-payable-details", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedRows = applySort(rows);
 
   const byTailor = useMemo(() => {
     const map = new Map<string, { tailorName: string; total: number; completedCount: number; totalCount: number }>();
@@ -146,7 +168,7 @@ export default function TailorPayableDetailsPage() {
   if (!user?.perms.managePayroll) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={Wallet} title="Not available" description="Only payroll managers can view tailor payables." />
+        <EmptyState icon={WalletDuotoneIcon} title="Not available" description="Only payroll managers can view tailor payables." />
       </div>
     );
   }
@@ -158,16 +180,17 @@ export default function TailorPayableDetailsPage() {
   // Every garment in range as if all of it were finished — the "before" number the owner wants
   // shown alongside the actual (completed-only) payable, so the gap is visible at a glance.
   const totalPayableAllGarments = rows.reduce((s, r) => s + r.amount, 0);
-  const exportRows = rows.map((r) => ({
+  const exportRows = sortedRows.map((r) => ({
     Tailor: r.tailorName,
     Order: r.orderId,
     "Order Date": fmtDate(r.inDate),
     Customer: r.customerName,
+    Mobile: r.customerMobile,
     Garment: r.garmentType,
     Lining: r.lining,
     Qty: r.qty,
     Status: r.isPending ? "Pending" : "Completed",
-    Payable: r.isPending ? 0 : r.amount,
+    Payable: r.isPending ? "Pending" : inr(r.amount),
   }));
   const summaryLines = [
     `Range: ${DATE_RANGE_PRESET_LABELS[preset]}`,
@@ -242,7 +265,7 @@ export default function TailorPayableDetailsPage() {
       </p>
 
       {rows.length === 0 ? (
-        <EmptyState icon={Wallet} title="No payables in range" description="No garment with a tailor assigned falls in the selected date range/filter." />
+        <EmptyState icon={WalletDuotoneIcon} title="No payables in range" description="No garment with a tailor assigned falls in the selected date range/filter." />
       ) : (
         <>
           <div className="hidden justify-end sm:flex">
@@ -252,22 +275,23 @@ export default function TailorPayableDetailsPage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th>Order</Th>
-                  {isVisible("orderDate") && <Th>Order Date</Th>}
-                  <Th>Customer</Th>
-                  <Th>Tailor</Th>
-                  {isVisible("garment") && <Th>Garment</Th>}
-                  {isVisible("lining") && <Th>Lining</Th>}
-                  {isVisible("qty") && <Th align="right">Qty</Th>}
-                  <Th align="right">Payable</Th>
+                  <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
+                  {isVisible("orderDate") && <Th sortKey="orderDate" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order Date</Th>}
+                  <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+                  {isVisible("mobile") && <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>}
+                  <Th sortKey="tailor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Tailor</Th>
+                  {isVisible("garment") && <Th sortKey="garment" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Garment</Th>}
+                  {isVisible("lining") && <Th sortKey="lining" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Lining</Th>}
+                  {isVisible("qty") && <Th align="right" sortKey="qty" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Qty</Th>}
+                  <Th align="right" sortKey="payable" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Payable</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td colSpan={3 + ["orderDate", "garment", "lining", "qty"].filter(isVisible).length}>Total</Td>
+                  <Td colSpan={3 + ["orderDate", "mobile", "garment", "lining", "qty"].filter(isVisible).length}>Total</Td>
                   <Td align="right">{inr(grandTotal)}</Td>
                 </ReportTotalsRow>
-                {rows.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.key} className={`hover:bg-muted/30 ${r.isPending ? "opacity-60" : ""}`}>
                     <Td>
                       <Link href={r.orderHref} className="text-primary hover:underline">
@@ -276,6 +300,7 @@ export default function TailorPayableDetailsPage() {
                     </Td>
                     {isVisible("orderDate") && <Td className="text-muted-foreground">{fmtDate(r.inDate)}</Td>}
                     <Td>{r.customerName}</Td>
+                    {isVisible("mobile") && <Td className="text-muted-foreground">{r.customerMobile || "—"}</Td>}
                     <Td className="font-medium">{r.tailorName}</Td>
                     {isVisible("garment") && <Td>{r.garmentType}</Td>}
                     {isVisible("lining") && <Td className="text-muted-foreground">{r.lining}</Td>}
@@ -296,12 +321,12 @@ export default function TailorPayableDetailsPage() {
           </div>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total" value={inr(grandTotal)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total" value={inr(grandTotal)} showChevron={false} valueClassName="text-red-600 dark:text-red-400" />
             </MobileRecordCard>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <MobileRecordCard key={r.key} href={r.orderHref} className={r.isPending ? "opacity-60" : ""}>
                 <MobileRecordHeader
-                  title={r.tailorName}
+                  boldTitle title={r.tailorName}
                   subtitle={`${r.orderId} · ${r.customerName}`}
                   value={
                     r.isPending ? (
@@ -309,8 +334,9 @@ export default function TailorPayableDetailsPage() {
                     ) : (
                       inr(r.amount)
                     )
-                  }
+                  } valueClassName="text-red-600 dark:text-red-400"
                 />
+                <MobileRecordRow label="Mobile" value={r.customerMobile || "—"} />
                 <MobileRecordRow label="Order Date" value={fmtDate(r.inDate)} />
                 <MobileRecordRow label="Garment" value={`${r.garmentType}${r.lining !== "—" ? ` (${r.lining})` : ""}`} />
                 <MobileRecordRow label="Qty" value={r.qty} />

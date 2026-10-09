@@ -15,12 +15,14 @@ const bodySchema = z.object({
  * step Bulk WhatsApp with Image needs so a customer sees a real photo-preview thumbnail when the
  * link lands in their chat, without ever touching the WhatsApp API (see
  * add_whatsapp_gallery_links.sql's own comment for why a link does this and a raw image attach
- * can't be automated at all). manageCustomers-gated, same permission as the bulk-send page itself.
+ * can't be automated at all). sendWhatsappBroadcast-gated, same permission as the bulk-send page
+ * and its actual send endpoint (/api/whatsapp/broadcast) — this was still checking the old
+ * manageCustomers umbrella permission from before that was split out.
  */
 export async function POST(request: Request) {
   const { user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  if (!user.perms.manageCustomers) return NextResponse.json({ error: "No permission to message customers" }, { status: 403 });
+  if (!user.perms.sendWhatsappBroadcast) return NextResponse.json({ error: "No permission to message customers" }, { status: 403 });
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid request" }, { status: 400 });

@@ -1,6 +1,7 @@
 "use client";
 
-import { Scissors, ShoppingBag, Banknote, Boxes, AlertTriangle, Truck, Factory, Wallet } from "lucide-react";
+import { Scissors, Banknote, Boxes, Truck, Factory } from "lucide-react";
+import { ShoppingBagDuotoneIcon, WalletDuotoneIcon, WarningDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
@@ -41,7 +42,7 @@ export function SalesDuesWidget() {
     <StatCard
       label="Product Sales Dues"
       value={inr(salesDues)}
-      icon={ShoppingBag}
+      icon={ShoppingBagDuotoneIcon}
       tone={salesDues > 0 ? "warning" : "default"}
       href="/sales/invoices"
       progress={billed > 0 ? { percent: collectedPct, caption: `Collected of ${inr(billed)} billed` } : undefined}
@@ -83,7 +84,7 @@ export function LowStockItemsWidget() {
   const { data: products, isLoading: l2 } = useProducts();
   if (l1 || l2) return <Skeleton className="h-24 w-full" />;
   const count = (rawMaterials || []).filter((m) => isLowStock(m.stockQty, m.lowStockAlert)).length + (products || []).filter((p) => isLowStock(p.stockQty, p.lowStockAlert)).length;
-  return <StatCard label="Low Stock Items" value={count} icon={AlertTriangle} tone={count > 0 ? "warning" : "default"} href="/inventory" />;
+  return <StatCard label="Low Stock Items" value={count} icon={WarningDuotoneIcon} tone={count > 0 ? "warning" : "default"} href="/inventory" />;
 }
 
 export function PurchasesPayableWidget() {
@@ -115,5 +116,5 @@ export function ManufacturingCostWidget() {
   const { data: workOrders, isLoading } = useWorkOrders();
   if (isLoading) return <Skeleton className="h-24 w-full" />;
   const cost = (workOrders || []).filter((w) => w.status === "completed").reduce((s, w) => s + (w.totalCost || 0), 0);
-  return <StatCard label="Production Cost" value={inr(cost)} icon={Wallet} href="/reports/manufacturing" />;
+  return <StatCard label="Production Cost" value={inr(cost)} icon={WalletDuotoneIcon} href="/reports/manufacturing" />;
 }

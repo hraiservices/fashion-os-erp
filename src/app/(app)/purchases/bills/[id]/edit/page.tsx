@@ -1,7 +1,8 @@
 "use client";
 
 import { use } from "react";
-import { Receipt } from "lucide-react";
+import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
+
 import { usePurchaseBill } from "@/hooks/use-purchase-bills";
 import { BillForm } from "@/components/purchases/bill-form";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +13,6 @@ export default function EditBillPage({ params }: { params: Promise<{ id: string 
   const { data: bill, isLoading } = usePurchaseBill(id);
 
   if (isLoading) return <Skeleton className="h-screen w-full" />;
-  if (!bill) return <EmptyState icon={Receipt} title="Bill not found" />;
+  if (!bill) return <EmptyState icon={ReceiptDuotoneIcon} title="Bill not found" />;
   return <BillForm existing={bill} />;
 }

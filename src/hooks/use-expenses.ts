@@ -36,6 +36,7 @@ export interface CreateExpenseInput {
   payMethod: string;
   customerMobile?: string | null;
   customerName?: string | null;
+  employeeId?: string | null;
 }
 
 export function useCreateExpense() {

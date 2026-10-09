@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
-import { Receipt, FileWarning } from "lucide-react";
+import { useMemo, useState } from "react";
+import { FileWarning } from "lucide-react";
+import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { GST_TYPE_LABELS, type GstType } from "@/lib/gst";
 import { inr } from "@/lib/format";
@@ -12,7 +13,9 @@ import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from 
 import { StatCard } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordGrid } from "@/components/ui/mobile-record-list";
+import { useTableSort } from "@/hooks/use-table-sort";
 
 interface RateGroup {
   key: string;
@@ -25,16 +28,32 @@ interface RateGroup {
   igst: number;
 }
 
+const SORT_COMPARATORS: Record<string, (a: RateGroup, b: RateGroup) => number> = {
+  gstType: (a, b) => GST_TYPE_LABELS[a.gstType].localeCompare(GST_TYPE_LABELS[b.gstType]),
+  taxRate: (a, b) => a.taxRate - b.taxRate,
+  invoiceCount: (a, b) => a.invoiceCount - b.invoiceCount,
+  taxableValue: (a, b) => a.taxableValue - b.taxableValue,
+  cgst: (a, b) => a.cgst - b.cgst,
+  sgst: (a, b) => a.sgst - b.sgst,
+  igst: (a, b) => a.igst - b.igst,
+  totalTax: (a, b) => (a.cgst + a.sgst + a.igst) - (b.cgst + b.sgst + b.igst),
+};
+const SORT_DESC_KEYS = new Set(["taxRate", "invoiceCount", "taxableValue", "cgst", "sgst", "igst", "totalTax"]);
+
 export default function GstSummaryReportPage() {
   const { data: invoices, isLoading } = useSalesInvoices();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange("this-month");
+  const [gstType, setGstType] = useState<GstType | "all">("all");
 
   // Drafts are not issued documents and carry no tax liability; credit notes reverse tax on a
   // sale that was refunded. Including drafts and ignoring credits overstated output tax on the
   // report used to file GSTR-1. Matches getCombinedMonthly's treatment (src/lib/combined-reports.ts).
   const monthInvoices = useMemo(
-    () => (invoices || []).filter((i) => isWithinDateRange(i.invoiceDate, range) && i.docStatus !== "draft"),
-    [invoices, range]
+    () =>
+      (invoices || [])
+        .filter((i) => isWithinDateRange(i.invoiceDate, range) && i.docStatus !== "draft")
+        .filter((i) => gstType === "all" || i.gstType === gstType),
+    [invoices, range, gstType]
   );
 
   const groups = useMemo(() => {
@@ -68,6 +87,9 @@ export default function GstSummaryReportPage() {
   );
   const totalTax = totals.cgst + totals.sgst + totals.igst;
 
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<RateGroup>("gst-summary", SORT_COMPARATORS, SORT_DESC_KEYS);
+  const sortedGroups = applySort(groups);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
@@ -76,7 +98,7 @@ export default function GstSummaryReportPage() {
       description="Outward-supply totals by tax rate, for your accountant — not a GSTR-1 filing artifact"
       actions={
         <ReportActionsMenu
-          rows={groups.map((g) => ({
+          rows={sortedGroups.map((g) => ({
             "GST Type": GST_TYPE_LABELS[g.gstType],
             "Tax Rate %": g.taxRate,
             Invoices: g.invoiceCount,
@@ -91,7 +113,29 @@ export default function GstSummaryReportPage() {
         />
       }
     >
-      <ReportFilterBar preset={preset} onPresetChange={setPreset} customFrom={customFrom} onCustomFromChange={setCustomFrom} customTo={customTo} onCustomToChange={setCustomTo} />
+      <ReportFilterBar
+        preset={preset}
+        onPresetChange={setPreset}
+        customFrom={customFrom}
+        onCustomFromChange={setCustomFrom}
+        customTo={customTo}
+        onCustomToChange={setCustomTo}
+        category={
+          <Select value={gstType} onValueChange={(v) => v && setGstType(v as GstType | "all")}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue>{gstType === "all" ? "All GST Types" : GST_TYPE_LABELS[gstType]}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All GST Types</SelectItem>
+              {(Object.keys(GST_TYPE_LABELS) as GstType[]).map((t) => (
+                <SelectItem key={t} value={t}>
+                  {GST_TYPE_LABELS[t]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+      />
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
         <div className="flex gap-2">
@@ -104,19 +148,19 @@ export default function GstSummaryReportPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Invoices" value={totals.invoiceCount} icon={Receipt} />
-        <StatCard label="Taxable Value" value={inr(totals.taxableValue)} icon={Receipt} />
-        <StatCard label="Total GST" value={inr(totalTax)} icon={Receipt} />
-        <StatCard label="Total Billed" value={inr(totals.taxableValue + totalTax)} icon={Receipt} />
+        <StatCard label="Invoices" value={totals.invoiceCount} icon={ReceiptDuotoneIcon} />
+        <StatCard label="Taxable Value" value={inr(totals.taxableValue)} icon={ReceiptDuotoneIcon} />
+        <StatCard label="Total GST" value={inr(totalTax)} icon={ReceiptDuotoneIcon} />
+        <StatCard label="Total Billed" value={inr(totals.taxableValue + totalTax)} icon={ReceiptDuotoneIcon} />
       </div>
 
       {groups.length === 0 ? (
-        <EmptyState icon={Receipt} title="No invoices in this period" description="Pick a different month above." />
+        <EmptyState icon={ReceiptDuotoneIcon} title="No invoices in this period" description="Pick a different month above." />
       ) : (
         <>
         <MobileRecordList>
           <MobileRecordCard className="bg-muted/40">
-            <MobileRecordHeader title="Total" value={inr(totalTax)} showChevron={false} />
+            <MobileRecordHeader boldTitle title="Total" value={inr(totalTax)} showChevron={false} />
             <MobileRecordGrid
               items={[
                 { label: "Invoices", value: totals.invoiceCount },
@@ -128,10 +172,10 @@ export default function GstSummaryReportPage() {
               ]}
             />
           </MobileRecordCard>
-          {groups.map((g) => (
+          {sortedGroups.map((g) => (
             <MobileRecordCard key={g.key}>
               <MobileRecordHeader
-                title={GST_TYPE_LABELS[g.gstType]}
+                boldTitle title={GST_TYPE_LABELS[g.gstType]}
                 subtitle={`${g.taxRate}%`}
                 value={inr(g.cgst + g.sgst + g.igst)}
                 showChevron={false}
@@ -153,14 +197,14 @@ export default function GstSummaryReportPage() {
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
-              <Th>GST Type</Th>
-              <Th align="right">Rate</Th>
-              <Th align="right">Invoices</Th>
-              <Th align="right">Taxable Value</Th>
-              <Th align="right">CGST</Th>
-              <Th align="right">SGST</Th>
-              <Th align="right">IGST</Th>
-              <Th align="right">Total Tax</Th>
+              <Th sortKey="gstType" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>GST Type</Th>
+              <Th align="right" sortKey="taxRate" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Rate</Th>
+              <Th align="right" sortKey="invoiceCount" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Invoices</Th>
+              <Th align="right" sortKey="taxableValue" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Taxable Value</Th>
+              <Th align="right" sortKey="cgst" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>CGST</Th>
+              <Th align="right" sortKey="sgst" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>SGST</Th>
+              <Th align="right" sortKey="igst" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>IGST</Th>
+              <Th align="right" sortKey="totalTax" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Total Tax</Th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -173,7 +217,7 @@ export default function GstSummaryReportPage() {
               <Td align="right">{inr(totals.igst)}</Td>
               <Td align="right">{inr(totalTax)}</Td>
             </ReportTotalsRow>
-            {groups.map((g) => (
+            {sortedGroups.map((g) => (
               <tr key={g.key} className="hover:bg-muted/30">
                 <Td className="font-medium">{GST_TYPE_LABELS[g.gstType]}</Td>
                 <Td align="right">{g.taxRate}%</Td>

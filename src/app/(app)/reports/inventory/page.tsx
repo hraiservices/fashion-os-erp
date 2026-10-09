@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
-import { Package, Boxes, ShoppingBag, AlertTriangle } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { Package, Boxes } from "lucide-react";
+import { ShoppingBagDuotoneIcon, WarningDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useProducts } from "@/hooks/use-products";
 import { isLowStock } from "@/lib/inventory";
@@ -14,15 +15,82 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange } from "@/lib/report-date-range";
+import { cn } from "@/lib/utils";
+import { useTableSort } from "@/hooks/use-table-sort";
+import type { RawMaterial, Product } from "@/lib/types";
+
+const RAW_MATERIAL_SORT_COMPARATORS: Record<string, (a: RawMaterial, b: RawMaterial) => number> = {
+  name: (a, b) => a.name.localeCompare(b.name),
+  category: (a, b) => (a.category || "").localeCompare(b.category || ""),
+  stock: (a, b) => a.stockQty - b.stockQty,
+  cost: (a, b) => a.costPerUnit - b.costPerUnit,
+  value: (a, b) => a.stockQty * a.costPerUnit - b.stockQty * b.costPerUnit,
+};
+const RAW_MATERIAL_SORT_DESC_KEYS = new Set(["stock", "cost", "value"]);
+
+const PRODUCT_SORT_COMPARATORS: Record<string, (a: Product, b: Product) => number> = {
+  name: (a, b) => a.name.localeCompare(b.name),
+  sku: (a, b) => a.sku.localeCompare(b.sku),
+  stock: (a, b) => a.stockQty - b.stockQty,
+  costPrice: (a, b) => a.costPrice - b.costPrice,
+  costValue: (a, b) => a.stockQty * a.costPrice - b.stockQty * b.costPrice,
+  sellingPrice: (a, b) => a.sellingPrice - b.sellingPrice,
+  retailValue: (a, b) => a.stockQty * a.sellingPrice - b.stockQty * b.sellingPrice,
+};
+const PRODUCT_SORT_DESC_KEYS = new Set(["stock", "costPrice", "costValue", "sellingPrice", "retailValue"]);
+
+type StockStatusFilter = "all" | "low" | "ok";
+
+const STOCK_STATUS_OPTIONS: { value: StockStatusFilter; label: string }[] = [
+  { value: "all", label: "All Stock" },
+  { value: "low", label: "Low Stock" },
+  { value: "ok", label: "OK" },
+];
+
+/** Shared All/Low Stock/OK segmented control for the stock-status filter below. */
+function StockStatusFilterControl({ value, onChange }: { value: StockStatusFilter; onChange: (v: StockStatusFilter) => void }) {
+  return (
+    <div className="inline-flex flex-wrap gap-1" role="group" aria-label="Filter by stock status">
+      {STOCK_STATUS_OPTIONS.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          aria-pressed={value === o.value}
+          className={cn(
+            "rounded-lg border px-3 py-1 text-xs font-medium transition-colors",
+            value === o.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /** Pure point-in-time stock/valuation snapshot — raw materials and products carry no date field
  *  at all (current stockQty/cost only), so there is no underlying transaction for a date range to
  *  filter. The bar is shown anyway for consistency with every other report; it has no effect here. */
 export default function InventoryReportPage() {
-  const { data: rawMaterials, isLoading: loadingMaterials } = useRawMaterials();
-  const { data: products, isLoading: loadingProducts } = useProducts();
+  const { data: allRawMaterials, isLoading: loadingMaterials } = useRawMaterials();
+  const { data: allProducts, isLoading: loadingProducts } = useProducts();
   const isLoading = loadingMaterials || loadingProducts;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo } = useReportDateRange();
+  const [stockStatus, setStockStatus] = useState<StockStatusFilter>("all");
+
+  const matchesStatus = useCallback(
+    (low: boolean) => stockStatus === "all" || (stockStatus === "low" && low) || (stockStatus === "ok" && !low),
+    [stockStatus]
+  );
+  const rawMaterials = useMemo(
+    () => (allRawMaterials || []).filter((m) => matchesStatus(isLowStock(m.stockQty, m.lowStockAlert))),
+    [allRawMaterials, matchesStatus]
+  );
+  const products = useMemo(
+    () => (allProducts || []).filter((p) => matchesStatus(isLowStock(p.stockQty, p.lowStockAlert))),
+    [allProducts, matchesStatus]
+  );
 
   const rawValue = useMemo(() => (rawMaterials || []).reduce((s, m) => s + m.stockQty * m.costPerUnit, 0), [rawMaterials]);
   // "Inventory Value" is cost-basis (what you paid) — the accounting-correct figure for a
@@ -36,6 +104,11 @@ export default function InventoryReportPage() {
     [rawMaterials, products]
   );
 
+  const rawMaterialSort = useTableSort<RawMaterial>("inventory-raw-materials", RAW_MATERIAL_SORT_COMPARATORS, RAW_MATERIAL_SORT_DESC_KEYS);
+  const sortedRawMaterials = rawMaterialSort.applySort(rawMaterials || []);
+  const productSort = useTableSort<Product>("inventory-products", PRODUCT_SORT_COMPARATORS, PRODUCT_SORT_DESC_KEYS);
+  const sortedProducts = productSort.applySort(products || []);
+
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-96 w-full" /></div>;
 
   return (
@@ -45,8 +118,8 @@ export default function InventoryReportPage() {
       actions={
         <ReportActionsMenu
           rows={[
-            ...(rawMaterials || []).map((m) => ({ Type: "Raw Material", Name: m.name, Category: m.category || "—", Stock: `${m.stockQty} ${m.unitName}`, "Cost/unit": m.costPerUnit, Value: m.stockQty * m.costPerUnit })),
-            ...(products || []).map((p) => ({ Type: "Product", Name: p.name, Category: p.sku, Stock: `${p.stockQty} pcs`, "Cost/unit": p.costPrice, Value: p.stockQty * p.costPrice })),
+            ...sortedRawMaterials.map((m) => ({ Type: "Raw Material", Name: m.name, Category: m.category || "—", Stock: `${m.stockQty} ${m.unitName}`, "Cost/unit": m.costPerUnit, Value: m.stockQty * m.costPerUnit })),
+            ...sortedProducts.map((p) => ({ Type: "Product", Name: p.name, Category: p.sku, Stock: `${p.stockQty} pcs`, "Cost/unit": p.costPrice, Value: p.stockQty * p.costPrice })),
           ]}
           filename="inventory-valuation"
           title="Inventory Valuation"
@@ -61,14 +134,15 @@ export default function InventoryReportPage() {
         onCustomFromChange={setCustomFrom}
         customTo={customTo}
         onCustomToChange={setCustomTo}
+        category={<StockStatusFilterControl value={stockStatus} onChange={setStockStatus} />}
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <StatCard label="Raw Materials" value={rawMaterials?.length ?? 0} icon={Package} />
-        <StatCard label="Products" value={products?.length ?? 0} icon={ShoppingBag} />
+        <StatCard label="Products" value={products?.length ?? 0} icon={ShoppingBagDuotoneIcon} />
         <StatCard label="Inventory Value (cost)" value={inr(rawValue + finishedCostValue)} icon={Boxes} />
         <StatCard label="Retail Value (finished goods)" value={inr(finishedRetailValue)} icon={Boxes} />
-        <StatCard label="Low Stock Items" value={lowStockCount} icon={AlertTriangle} tone={lowStockCount > 0 ? "warning" : "default"} />
+        <StatCard label="Low Stock Items" value={lowStockCount} icon={WarningDuotoneIcon} tone={lowStockCount > 0 ? "warning" : "default"} />
       </div>
 
       <div>
@@ -79,12 +153,12 @@ export default function InventoryReportPage() {
           <>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total raw material value" value={inr(rawValue)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total raw material value" value={inr(rawValue)} showChevron={false} />
             </MobileRecordCard>
-            {rawMaterials.map((m) => (
+            {sortedRawMaterials.map((m) => (
               <MobileRecordCard key={m.id}>
                 <MobileRecordHeader
-                  title={m.name}
+                  boldTitle title={m.name}
                   subtitle={m.category || "—"}
                   value={inr(m.stockQty * m.costPerUnit)}
                   showChevron={false}
@@ -102,11 +176,11 @@ export default function InventoryReportPage() {
           <ReportTable>
             <thead className="border-b bg-muted/40">
               <tr>
-                <Th>Name</Th>
-                <Th>Category</Th>
-                <Th align="right">Stock</Th>
-                <Th align="right">Cost/unit</Th>
-                <Th align="right">Value</Th>
+                <Th sortKey="name" currentSort={{ key: rawMaterialSort.sortKey, asc: rawMaterialSort.sortAsc }} onSort={rawMaterialSort.toggleSort}>Name</Th>
+                <Th sortKey="category" currentSort={{ key: rawMaterialSort.sortKey, asc: rawMaterialSort.sortAsc }} onSort={rawMaterialSort.toggleSort}>Category</Th>
+                <Th align="right" sortKey="stock" currentSort={{ key: rawMaterialSort.sortKey, asc: rawMaterialSort.sortAsc }} onSort={rawMaterialSort.toggleSort}>Stock</Th>
+                <Th align="right" sortKey="cost" currentSort={{ key: rawMaterialSort.sortKey, asc: rawMaterialSort.sortAsc }} onSort={rawMaterialSort.toggleSort}>Cost/unit</Th>
+                <Th align="right" sortKey="value" currentSort={{ key: rawMaterialSort.sortKey, asc: rawMaterialSort.sortAsc }} onSort={rawMaterialSort.toggleSort}>Value</Th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -114,7 +188,7 @@ export default function InventoryReportPage() {
                 <Td colSpan={4}>Total raw material value</Td>
                 <Td align="right">{inr(rawValue)}</Td>
               </ReportTotalsRow>
-              {rawMaterials.map((m) => (
+              {sortedRawMaterials.map((m) => (
                 <tr key={m.id} className="hover:bg-muted/30">
                   <Td className="font-medium">{m.name}</Td>
                   <Td>{m.category || "—"}</Td>
@@ -135,18 +209,18 @@ export default function InventoryReportPage() {
       <div>
         <h2 className="mb-2 text-sm font-semibold">Finished goods</h2>
         {!products || products.length === 0 ? (
-          <EmptyState icon={ShoppingBag} title="No products yet" />
+          <EmptyState icon={ShoppingBagDuotoneIcon} title="No products yet" />
         ) : (
           <>
           <MobileRecordList>
             <MobileRecordCard className="bg-muted/40">
-              <MobileRecordHeader title="Total finished-goods value" value={inr(finishedCostValue)} showChevron={false} />
+              <MobileRecordHeader boldTitle title="Total finished-goods value" value={inr(finishedCostValue)} showChevron={false} />
               <MobileRecordRow label="Retail value" value={inr(finishedRetailValue)} />
             </MobileRecordCard>
-            {products.map((p) => (
+            {sortedProducts.map((p) => (
               <MobileRecordCard key={p.id}>
                 <MobileRecordHeader
-                  title={p.name}
+                  boldTitle title={p.name}
                   subtitle={p.sku}
                   value={inr(p.stockQty * p.costPrice)}
                   showChevron={false}
@@ -166,13 +240,13 @@ export default function InventoryReportPage() {
           <ReportTable>
             <thead className="border-b bg-muted/40">
               <tr>
-                <Th>Name</Th>
-                <Th>SKU</Th>
-                <Th align="right">Stock</Th>
-                <Th align="right">Cost price</Th>
-                <Th align="right">Cost value</Th>
-                <Th align="right">Selling price</Th>
-                <Th align="right">Retail value</Th>
+                <Th sortKey="name" currentSort={{ key: productSort.sortKey, asc: productSort.sortAsc }} onSort={productSort.toggleSort}>Name</Th>
+                <Th sortKey="sku" currentSort={{ key: productSort.sortKey, asc: productSort.sortAsc }} onSort={productSort.toggleSort}>SKU</Th>
+                <Th align="right" sortKey="stock" currentSort={{ key: productSort.sortKey, asc: productSort.sortAsc }} onSort={productSort.toggleSort}>Stock</Th>
+                <Th align="right" sortKey="costPrice" currentSort={{ key: productSort.sortKey, asc: productSort.sortAsc }} onSort={productSort.toggleSort}>Cost price</Th>
+                <Th align="right" sortKey="costValue" currentSort={{ key: productSort.sortKey, asc: productSort.sortAsc }} onSort={productSort.toggleSort}>Cost value</Th>
+                <Th align="right" sortKey="sellingPrice" currentSort={{ key: productSort.sortKey, asc: productSort.sortAsc }} onSort={productSort.toggleSort}>Selling price</Th>
+                <Th align="right" sortKey="retailValue" currentSort={{ key: productSort.sortKey, asc: productSort.sortAsc }} onSort={productSort.toggleSort}>Retail value</Th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -182,7 +256,7 @@ export default function InventoryReportPage() {
                 <Td />
                 <Td align="right">{inr(finishedRetailValue)}</Td>
               </ReportTotalsRow>
-              {products.map((p) => (
+              {sortedProducts.map((p) => (
                 <tr key={p.id} className="hover:bg-muted/30">
                   <Td className="font-medium">{p.name}</Td>
                   <Td>{p.sku}</Td>

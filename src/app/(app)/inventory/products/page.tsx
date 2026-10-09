@@ -4,10 +4,11 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, ShoppingBag, Pencil, Trash2, AlertTriangle, Printer, Upload, Archive, ArchiveRestore } from "lucide-react";
+import { Plus, Search, ShoppingBag, Pencil, Trash2, AlertTriangle, Printer, Upload, Archive, ArchiveRestore, Copy } from "lucide-react";
+import { ShoppingBagDuotoneIcon } from "@/components/icons/duotone-icons";
 import { printBarcodeLabel } from "@/lib/barcode";
 import { useProducts } from "@/hooks/use-products";
-import { useDeleteProduct, useBulkDeleteProducts, useQuickUpdateProduct, useArchiveProduct } from "@/hooks/use-inventory-mutations";
+import { useDeleteProduct, useBulkDeleteProducts, useQuickUpdateProduct, useArchiveProduct, useSaveProduct } from "@/hooks/use-inventory-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRowSelection } from "@/hooks/use-row-selection";
 import { isLowStock } from "@/lib/inventory";
@@ -115,6 +116,7 @@ function ProductsPageContent() {
   const deleteProduct = useDeleteProduct();
   const bulkDeleteProducts = useBulkDeleteProducts();
   const archiveProduct = useArchiveProduct();
+  const saveProduct = useSaveProduct();
 
   const [search, setSearch] = useState("");
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
@@ -158,6 +160,37 @@ function ProductsPageContent() {
     }
   }
 
+  // Clones straight away (own id, fresh barcode, zeroed stock — cloning doesn't fabricate stock
+  // that was never counted) with a de-duplicated SKU/name, then drops the user on the edit page
+  // so they can fix those up before the product is used anywhere.
+  async function handleClone(p: Product) {
+    try {
+      const cloned = await saveProduct.mutateAsync({
+        name: `${p.name} (Copy)`,
+        sku: `${p.sku}-COPY-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+        category: p.category,
+        sellingPrice: p.sellingPrice,
+        costPrice: p.costPrice,
+        taxRate: p.taxRate,
+        lowStockAlert: p.lowStockAlert,
+        notes: p.notes,
+        bom: p.bom.map((b) => ({ rawMaterialId: b.rawMaterialId, qtyRequired: b.qtyRequired })),
+        size: p.size,
+        color: p.color,
+        fabric: p.fabric,
+        pattern: p.pattern,
+        occasion: p.occasion,
+        brand: p.brand,
+        imageDataUrl: p.imageDataUrl,
+        userEmail: user?.email,
+      });
+      toast.success(`${p.name} cloned`);
+      router.push(`/inventory/products/${cloned.id}/edit`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to clone product");
+    }
+  }
+
   async function handleToggleArchive(p: Product) {
     try {
       await archiveProduct.mutateAsync({ id: p.id, active: !p.active, name: p.name, userEmail: user?.email });
@@ -174,11 +207,11 @@ function ProductsPageContent() {
         description={`${filtered.length} of ${products?.length ?? 0} products`}
         actions={
           canManage && (
-            <div className="flex items-center gap-2">
-              <Button variant="outline" nativeButton={false} render={<Link href="/inventory/products/import" />}>
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+              <Button variant="outline" className="w-full sm:w-auto" nativeButton={false} render={<Link href="/inventory/products/import" />}>
                 <Upload className="size-4" /> Import
               </Button>
-              <Button nativeButton={false} render={<Link href="/inventory/products/new" />}>
+              <Button className="w-full sm:w-auto" nativeButton={false} render={<Link href="/inventory/products/new" />}>
                 <Plus className="size-4" /> Add product
               </Button>
             </div>
@@ -216,7 +249,7 @@ function ProductsPageContent() {
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState
-          icon={ShoppingBag}
+          icon={ShoppingBagDuotoneIcon}
           title="No products yet"
           description="Add the finished goods you sell — sizes, styles, SKUs — and link their bill of materials."
           action={
@@ -323,6 +356,17 @@ function ProductsPageContent() {
                           )}
                           <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => openEdit(p)} aria-label={`Edit ${p.name}`}>
                             <Pencil className="size-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="size-11 sm:size-7"
+                            onClick={() => handleClone(p)}
+                            disabled={saveProduct.isPending}
+                            aria-label={`Clone ${p.name}`}
+                            title="Clone this product"
+                          >
+                            <Copy className="size-3.5" />
                           </Button>
                           <Button
                             variant="ghost"

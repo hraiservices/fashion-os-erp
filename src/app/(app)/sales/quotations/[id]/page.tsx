@@ -3,7 +3,8 @@
 import { use } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, FileText, Receipt, Ban, Pencil } from "lucide-react";
+import { Receipt, Ban, Pencil } from "lucide-react";
+import { FileTextDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useSalesQuotation } from "@/hooks/use-sales-quotations";
 import { useSetQuotationStatus } from "@/hooks/use-sales-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -13,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MobileRecordList, MobileRecordCard, MobileRecordHeader } from "@/components/ui/mobile-record-list";
+import { BackLink } from "@/components/ui/back-link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,16 +61,14 @@ export default function QuotationDetailPage({ params }: { params: Promise<{ id: 
   if (!quote) {
     return (
       <div className="p-6">
-        <EmptyState icon={FileText} title="Quotation not found" />
+        <EmptyState icon={FileTextDuotoneIcon} title="Quotation not found" />
       </div>
     );
   }
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
-      <Link href="/sales/quotations" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Quotations
-      </Link>
+      <BackLink href="/sales/quotations">Quotations</BackLink>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -82,7 +83,7 @@ export default function QuotationDetailPage({ params }: { params: Promise<{ id: 
 
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         <div className="space-y-4 lg:col-span-2">
-          <div className="overflow-hidden rounded-xl border">
+          <div className="hidden overflow-x-auto rounded-xl border sm:block">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/40">
                 <tr>
@@ -112,6 +113,20 @@ export default function QuotationDetailPage({ params }: { params: Promise<{ id: 
               </tfoot>
             </table>
           </div>
+
+          <MobileRecordList>
+            {quote.items.map((item, i) => (
+              <MobileRecordCard key={i}>
+                <MobileRecordHeader title={item.productName} value={inr(item.amount)} showChevron={false} />
+                <p className="text-xs text-muted-foreground">
+                  Qty {item.qty} × {inr(item.unitPrice)}
+                </p>
+              </MobileRecordCard>
+            ))}
+            <MobileRecordCard className="bg-muted/40">
+              <MobileRecordHeader title="Total" value={inr(quote.total)} showChevron={false} />
+            </MobileRecordCard>
+          </MobileRecordList>
 
           {quote.notes && (
             <div className="rounded-xl border bg-muted/30 p-4 text-sm">

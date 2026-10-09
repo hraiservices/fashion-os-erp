@@ -476,6 +476,15 @@
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
   }
+  /* App-wide baseline bump for legibility (elderly/low-vision users), every screen size — every
+     rem-based Tailwind text/spacing utility scales off this root size, so this alone raises body
+     text, paragraph spacing, and most padding/gaps everywhere without having to touch each screen
+     individually. Components with a real accessibility priority (Orders board/list cards) get
+     additional hand-tuned size bumps on top of this, since their text mixes in fixed-px classes
+     that don't scale with root rem. */
+  html {
+    font-size: 112.5%;
+  }
   /* Long-pressing a button/link/icon shouldn't pop the browser's text-selection callout —
      native apps never let you "select" a control's label. Real text content isn't touched
      since inputs/textareas and anything explicitly opted in keep the default. */
@@ -522,6 +531,21 @@
   html,
   body {
     background: #fff !important;
+  }
+  /* The app pins <body> to the viewport (fixed + overflow-hidden) and scrolls everything one
+     level down on #scroll-root instead, to contain mobile Safari's rubber-band bounce (see
+     layout.tsx) — but a fixed, overflow-hidden body clips print output to a single viewport-
+     height "page" no matter what any individual report does with its own overflow. Printing
+     needs the whole document to flow normally instead. */
+  body {
+    position: static !important;
+    inset: auto !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+  #scroll-root {
+    height: auto !important;
+    overflow: visible !important;
   }
   /* Anything explicitly opted out (sidebar, topbar, mobile tab bar, action buttons,
      search bars, pagination, etc.) via Tailwind's print:hidden is already handled by

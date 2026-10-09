@@ -71,11 +71,11 @@ function VendorsPageContent() {
         description={`${filtered.length} of ${vendors?.length ?? 0} vendors`}
         actions={
           canManage && (
-            <div className="flex items-center gap-2">
-              <Button variant="outline" nativeButton={false} render={<Link href="/purchases/vendors/import" />}>
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+              <Button variant="outline" className="w-full sm:w-auto" nativeButton={false} render={<Link href="/purchases/vendors/import" />}>
                 <Upload className="size-4" /> Import
               </Button>
-              <Button nativeButton={false} render={<Link href="/purchases/vendors/new" />}>
+              <Button className="w-full sm:w-auto" nativeButton={false} render={<Link href="/purchases/vendors/new" />}>
                 <Plus className="size-4" /> Add vendor
               </Button>
             </div>

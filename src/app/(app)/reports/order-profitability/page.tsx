@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { TrendUpDuotoneIcon } from "@/components/icons/duotone-icons";
 import Link from "next/link";
-import { TrendingUp } from "lucide-react";
+
 import { useReportsData } from "@/hooks/use-reports-data";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr, fmtDate } from "@/lib/format";
@@ -10,8 +12,35 @@ import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
+import { useTableSort } from "@/hooks/use-table-sort";
+
+type ProfitRow = ReturnType<typeof useReportsData>["orderProfitability"][number];
+
+const SORT_COMPARATORS: Record<string, (a: ProfitRow, b: ProfitRow) => number> = {
+  order: (a, b) => a.id.localeCompare(b.id),
+  customer: (a, b) => a.name.localeCompare(b.name),
+  mobile: (a, b) => a.mobile.localeCompare(b.mobile),
+  price: (a, b) => a.total - b.total,
+  cost: (a, b) => a.cost - b.cost,
+  profit: (a, b) => a.profit - b.profit,
+  margin: (a, b) => a.marginPct - b.marginPct,
+};
+const SORT_DESC_KEYS = new Set(["price", "cost", "profit", "margin"]);
+
+/** An order's garment "type" (e.g. Blouse, Saree Fall) is the best-fit dimension here — it's
+ *  the one grouping already present on every order, and the natural way to ask "which garment
+ *  types are most/least profitable". Orders with more than one distinct garment type are
+ *  grouped under "Mixed" rather than picked apart per-garment, since profit is only known
+ *  per-order, not per-garment. */
+function garmentTypeOf(garments: { type: string }[] | undefined): string {
+  const types = Array.from(new Set((garments || []).map((g) => g.type).filter(Boolean)));
+  if (types.length === 0) return "Unspecified";
+  if (types.length > 1) return "Mixed";
+  return types[0];
+}
 
 /** Profit = customer price − tailor cost − stitching expenses − fabric/other cost (order
  *  form's "Costs" section, gated to the same viewReports permission). Tailor cost is the real,
@@ -22,21 +51,32 @@ export default function OrderProfitabilityPage() {
   const { orderProfitability, isLoading } = useReportsData();
   // Profit figures are restricted to the admin role specifically, not just viewReports (which
   // managers also hold) — a shop-wide requirement, not just this one report.
-  const canView = user?.role === "admin";
+  const canView = !!user?.perms.viewFinancialReports;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const [garmentType, setGarmentType] = useState("all");
+
+  const garmentTypes = useMemo(() => {
+    const set = new Set(orderProfitability.map((o) => garmentTypeOf(o.garments)));
+    return Array.from(set).sort();
+  }, [orderProfitability]);
+
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<ProfitRow>("order-profitability", SORT_COMPARATORS, SORT_DESC_KEYS);
 
   if (!canView) {
     return (
       <div className="p-4 sm:p-6">
-        <EmptyState icon={TrendingUp} title="No access" description="Order profitability is restricted to admins." />
+        <EmptyState icon={TrendUpDuotoneIcon} title="No access" description="Order profitability is restricted to admins." />
       </div>
     );
   }
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
-  const withCosts = orderProfitability.filter((o) => o.cost > 0 && isWithinDateRange(o.inDate, range));
+  const withCosts = orderProfitability.filter(
+    (o) => o.cost > 0 && isWithinDateRange(o.inDate, range) && (garmentType === "all" || garmentTypeOf(o.garments) === garmentType)
+  );
   const totalProfit = withCosts.reduce((s, o) => s + o.profit, 0);
+  const sortedRows = applySort(withCosts);
 
   return (
     <ReportShell
@@ -48,7 +88,7 @@ export default function OrderProfitabilityPage() {
       }
       actions={
         <ReportActionsMenu
-          rows={withCosts.map((o) => ({ Order: o.id, Customer: o.name, Price: o.total, Cost: o.cost, Profit: o.profit, "Margin %": `${o.marginPct}%` }))}
+          rows={sortedRows.map((o) => ({ Order: o.id, Customer: o.name, Mobile: o.mobile, Price: o.total, Cost: o.cost, Profit: o.profit, "Margin %": `${o.marginPct}%` }))}
           filename="order-profitability"
           title="Order Profitability"
           summaryLines={[`Orders: ${withCosts.length}`, `Total profit: ${inr(totalProfit)}`]}
@@ -63,21 +103,37 @@ export default function OrderProfitabilityPage() {
         customTo={customTo}
         onCustomToChange={setCustomTo}
         resultLabel={`${withCosts.length} order${withCosts.length === 1 ? "" : "s"}`}
+        category={
+          <Select value={garmentType} onValueChange={(v) => v && setGarmentType(v)}>
+            <SelectTrigger className="h-9 w-44">
+              <SelectValue>{garmentType === "all" ? "All Garment Types" : garmentType}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Garment Types</SelectItem>
+              {garmentTypes.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {t}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {withCosts.length === 0 ? (
-        <EmptyState icon={TrendingUp} title="No cost data yet" description="Add fabric/other cost on an order to see its profitability here." />
+        <EmptyState icon={TrendUpDuotoneIcon} title="No cost data yet" description="Add fabric/other cost on an order to see its profitability here." />
       ) : (
         <>
         <MobileRecordList>
           <MobileRecordCard className="bg-muted/40">
-            <MobileRecordHeader title="Total" value={inr(totalProfit)} showChevron={false} />
+            <MobileRecordHeader boldTitle title="Total" value={inr(totalProfit)} showChevron={false} />
             <MobileRecordRow label="Price" value={inr(withCosts.reduce((s, o) => s + o.total, 0))} />
             <MobileRecordRow label="Cost" value={inr(withCosts.reduce((s, o) => s + o.cost, 0))} />
           </MobileRecordCard>
-          {withCosts.map((o) => (
+          {sortedRows.map((o) => (
             <MobileRecordCard key={o.id} href={`/orders/${o.id}`}>
               <MobileRecordHeader
+                boldTitle
                 title={o.id}
                 subtitle={fmtDate(o.inDate)}
                 value={
@@ -89,6 +145,7 @@ export default function OrderProfitabilityPage() {
                 valueClassName={o.profit < 0 ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}
               />
               <MobileRecordRow label="Customer" value={o.name} />
+              <MobileRecordRow label="Mobile" value={o.mobile} />
               <MobileRecordRow label="Price" value={inr(o.total)} />
               <MobileRecordRow label="Cost" value={inr(o.cost)} />
               <MobileRecordRow label="Margin" value={`${o.marginPct}%`} />
@@ -99,23 +156,24 @@ export default function OrderProfitabilityPage() {
         <ReportTable>
           <thead className="border-b bg-muted/40">
             <tr>
-              <Th>Order</Th>
-              <Th>Customer</Th>
-              <Th align="right">Price</Th>
-              <Th align="right">Cost</Th>
-              <Th align="right">Profit</Th>
-              <Th align="right">Margin</Th>
+              <Th sortKey="order" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Order</Th>
+              <Th sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</Th>
+              <Th sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</Th>
+              <Th align="right" sortKey="price" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Price</Th>
+              <Th align="right" sortKey="cost" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Cost</Th>
+              <Th align="right" sortKey="profit" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Profit</Th>
+              <Th align="right" sortKey="margin" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Margin</Th>
             </tr>
           </thead>
           <tbody className="divide-y">
             <ReportTotalsRow>
-              <Td colSpan={2}>Total</Td>
+              <Td colSpan={3}>Total</Td>
               <Td align="right">{inr(withCosts.reduce((s, o) => s + o.total, 0))}</Td>
               <Td align="right">{inr(withCosts.reduce((s, o) => s + o.cost, 0))}</Td>
               <Td align="right">{inr(totalProfit)}</Td>
               <Td align="right">—</Td>
             </ReportTotalsRow>
-            {withCosts.map((o) => (
+            {sortedRows.map((o) => (
               <tr key={o.id} className="hover:bg-muted/30">
                 <Td>
                   <Link href={`/orders/${o.id}`} className="font-medium hover:underline">
@@ -124,6 +182,7 @@ export default function OrderProfitabilityPage() {
                   <p className="text-xs text-muted-foreground">{fmtDate(o.inDate)}</p>
                 </Td>
                 <Td className="truncate">{o.name}</Td>
+                <Td className="text-muted-foreground">{o.mobile}</Td>
                 <Td align="right">{inr(o.total)}</Td>
                 <Td align="right">{inr(o.cost)}</Td>
                 <Td align="right" className={o.profit < 0 ? "font-medium text-destructive" : "font-medium text-emerald-600 dark:text-emerald-400"}>

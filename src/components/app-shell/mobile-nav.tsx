@@ -3,9 +3,17 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Menu, Plus, ClipboardList, Receipt, Wallet, UserPlus, Sparkles, X } from "lucide-react";
+import { Menu, ClipboardList, Receipt, Wallet, UserPlus, Sparkles, X, CreditCard } from "lucide-react";
+import { PlusGlyphIcon } from "@/components/icons/duotone-icons";
 import { cn } from "@/lib/utils";
-import { MOBILE_TABS_ADMIN_LEFT, MOBILE_TABS_ADMIN_RIGHT, MOBILE_TABS_RESTRICTED_LEFT, type NavFlatItem } from "@/components/app-shell/nav-config";
+import {
+  MOBILE_TABS_ADMIN_LEFT,
+  MOBILE_TABS_ADMIN_RIGHT,
+  MOBILE_TABS_ADMIN_RIGHT_BACKFILL,
+  MOBILE_TABS_RESTRICTED_LEFT,
+  MOBILE_TABS_RESTRICTED_FALLBACK,
+  type NavFlatItem,
+} from "@/components/app-shell/nav-config";
 import { NavContent, NavBrand } from "@/components/app-shell/nav-content";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
@@ -15,7 +23,6 @@ import { isModuleEnabled, DEFAULT_ENTITLEMENTS } from "@/lib/entitlements";
 import { buildSupportWhatsAppHref } from "@/components/app-shell/copilot-bubble";
 import { useCopilotOpen } from "@/components/app-shell/copilot-context";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
-import { hapticTap } from "@/lib/haptics";
 import { Sheet, SheetContent, SheetTitle, SheetHeader } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
@@ -116,15 +123,37 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
   // Copilot — day-to-day is just the board, so Support/Copilot fill the space admin/manager
   // spends on Clients/Invoices/Reports.
   const left = restricted ? MOBILE_TABS_RESTRICTED_LEFT : MOBILE_TABS_ADMIN_LEFT;
-  const right = restricted ? [] : MOBILE_TABS_ADMIN_RIGHT;
-  const canAdd = user?.perms.addOrder;
+  // Hidden on a create/edit form itself — it's already the "+" sheet's destination, so floating
+  // it there (right above that form's own Cancel/Save bar, per feedback on the Invoice form) is
+  // confusing rather than useful.
+  const hideCreateFab = pathname.endsWith("/new") || pathname.endsWith("/edit");
+  const canAdd = user?.perms.addOrder && !hideCreateFab;
   const canUseCopilot = !!user?.perms.useChatbot && isModuleEnabled(entitlements ?? DEFAULT_ENTITLEMENTS, "copilot");
   const supportHref = buildSupportWhatsAppHref(shop?.name);
+  // MOBILE_TABS_ADMIN_RIGHT's Invoices/Reports respect the same manageSales/viewReports
+  // permissions the sidebar and the desktop route guard already use (Clients has no dedicated
+  // permission anywhere else in the app, so it stays ungated here too) — but whichever of those
+  // gets filtered out is backfilled from MOBILE_TABS_ADMIN_RIGHT_BACKFILL (also permission-aware,
+  // with Account/Settings as an always-eligible floor) so the right side always ends up with the
+  // same item count as the fixed-size left side. A plain sequential flex row otherwise puts the
+  // centre "+" wherever the uneven left/right widths happen to leave it, instead of centred.
+  const adminRightBase = MOBILE_TABS_ADMIN_RIGHT.filter((t) => {
+    if (t.href === "/sales/invoices") return !!user?.perms.manageSales;
+    if (t.href === "/reports") return !!user?.perms.viewReports;
+    return true;
+  });
+  const adminRightBackfill = MOBILE_TABS_ADMIN_RIGHT_BACKFILL.filter((t) => {
+    if (t.href === "/expenses") return !!user?.perms.manageExpenses;
+    if (t.href === "/employees") return !!(user?.perms.manageEmployees || user?.perms.managePayroll || user?.perms.manageUsers);
+    return true; // Account and Settings — always eligible, guarantees enough to pad back up to 3
+  });
+  const right = restricted ? [] : [...adminRightBase, ...adminRightBackfill].slice(0, MOBILE_TABS_ADMIN_LEFT.length);
 
   const createOptions = [
     { href: "/orders/new", label: "New Order", icon: ClipboardList, show: user?.perms.addOrder },
     { href: "/sales/invoices/new", label: "New Invoice", icon: Receipt, show: user?.perms.manageSales },
-    { href: "/expenses/new", label: "New Expense", icon: Wallet, show: true },
+    { href: "/expenses/new", label: "New Expense", icon: Wallet, show: user?.perms.manageExpenses },
+    { href: "/payments/new", label: "New Payment", icon: CreditCard, show: user?.perms.managePayments },
     { href: "/crm/new", label: "New Customer", icon: UserPlus, show: user?.perms.manageCustomers || user?.role === "admin" || user?.role === "manager" },
   ].filter((o) => o.show);
 
@@ -162,13 +191,10 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
         <button
           type="button"
           aria-label="Create new…"
-          onClick={() => {
-            hapticTap();
-            setCreateOpen(true);
-          }}
+          onClick={() => setCreateOpen(true)}
           className="relative -top-3 mx-1 flex size-12 shrink-0 items-center justify-center self-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-transform active:scale-95"
         >
-          <Plus className="size-6" />
+          <PlusGlyphIcon className="size-6" />
         </button>
       )}
       {restricted ? (
@@ -180,7 +206,6 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
             href={supportHref}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => hapticTap()}
             className="flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-muted-foreground transition-colors"
           >
             <span className="flex items-center justify-center rounded-full px-3 py-0.5">
@@ -188,13 +213,10 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
             </span>
             Support
           </a>
-          {canUseCopilot && (
+          {canUseCopilot ? (
             <button
               type="button"
-              onClick={() => {
-                hapticTap();
-                setCopilotOpen((o) => !o);
-              }}
+              onClick={() => setCopilotOpen((o) => !o)}
               aria-pressed={copilotOpen}
               className={cn("flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors", copilotOpen ? "text-primary" : "text-muted-foreground")}
             >
@@ -203,6 +225,11 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
               </span>
               Copilot
             </button>
+          ) : (
+            // Keeps the right side at 2 items (matching Orders/Board on the left) even when
+            // Copilot isn't available, instead of leaving Support alone and pushing the centre
+            // "+" off to one side.
+            TabLink(MOBILE_TABS_RESTRICTED_FALLBACK)
           )}
         </>
       ) : (
@@ -214,7 +241,12 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
           <SheetHeader>
             <SheetTitle>Create new</SheetTitle>
           </SheetHeader>
-          <div className="grid grid-cols-2 gap-3 px-4 pb-4">
+          {/* Up to 4 tiles, each independently permission-gated (addOrder/manageSales/
+              manageExpenses/manageCustomers) — a plain grid-cols-2 leaves an odd one out alone
+              in its own row with a conspicuous empty cell beside it for any role missing one of
+              those permissions (Admin always has all 4, so this only ever showed up for other
+              roles). Same orphan-span fix as order-row.tsx's button row. */}
+          <div className="grid grid-cols-2 gap-3 px-4 pb-4 [&>*:last-child:nth-child(odd)]:col-span-2">
             {createOptions.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}

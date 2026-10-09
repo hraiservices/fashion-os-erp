@@ -30,6 +30,28 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     );
   }
 
+  // payslips and employee_advances both have ON DELETE CASCADE on employee_id (see
+  // fix_employee_delete_fk_constraints.sql — every employees(id) reference does except
+  // manager_id, by design) — so unlike every other guard in this route, Postgres's own foreign
+  // key would NOT raise a 23503 here and silently let the delete through, wiping the employee's
+  // entire payroll/payslip history and any cash advances (including ones already deducted from a
+  // finalized payslip) with no trace. Those are real financial records, not disposable cache like
+  // tailor_worksheet_snapshots, so this is checked explicitly rather than left to the cascade.
+  const { count: payslipCount } = await serviceClient.from("payslips").select("id", { count: "exact", head: true }).eq("employee_id", id);
+  if (payslipCount) {
+    return NextResponse.json(
+      { error: `${employee.name} has ${payslipCount} payroll payslip(s) on record and can't be deleted — that would permanently erase their payroll history. Mark them inactive instead if they've left.` },
+      { status: 409 }
+    );
+  }
+  const { count: advanceCount } = await serviceClient.from("employee_advances").select("id", { count: "exact", head: true }).eq("employee_id", id);
+  if (advanceCount) {
+    return NextResponse.json(
+      { error: `${employee.name} has ${advanceCount} recorded cash advance(s) and can't be deleted — that would permanently erase that record. Mark them inactive instead if they've left.` },
+      { status: 409 }
+    );
+  }
+
   const { error } = await serviceClient.from("employees").delete().eq("id", id);
   if (error) {
     // 23503 = foreign_key_violation. Surfaced here (rather than only fixed at the schema level

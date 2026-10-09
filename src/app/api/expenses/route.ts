@@ -2,7 +2,6 @@
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { isRestrictedRole } from "@/lib/permissions";
 import { mapExpenseRow } from "@/lib/types";
 import { logAction } from "@/lib/logging";
 
@@ -14,12 +13,13 @@ const bodySchema = z.object({
   payMethod: z.string().min(1),
   customerMobile: z.string().optional().nullable(),
   customerName: z.string().optional().nullable(),
+  employeeId: z.string().optional().nullable(),
 });
 
 export async function GET() {
   const { user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (isRestrictedRole(user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!user.perms.manageExpenses) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const db = createServiceClient();
   if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
@@ -37,7 +37,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const { supabase, user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (isRestrictedRole(user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!user.perms.manageExpenses) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const db = createServiceClient();
   if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
@@ -56,6 +56,7 @@ export async function POST(req: Request) {
       pay_method: fd.payMethod,
       customer_mobile: fd.customerMobile || null,
       customer_name: fd.customerName || null,
+      employee_id: fd.employeeId || null,
       created_by: user.email,
     })
     .select()

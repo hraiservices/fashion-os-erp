@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Camera, LogOut, MapPin, CheckCircle2, Clock, History, Umbrella, Send, X } from "lucide-react";
 import { CameraModal } from "@/components/orders/camera-modal";
+import { getAttendanceLocation } from "@/lib/attendance-location";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -290,45 +291,52 @@ export default function CheckInPage() {
     setCameraOpen(true);
   }
 
-  async function handlePhotoCapture(photo: string) {
+  // photo is omitted entirely on desktops with no camera/permission — see CameraModal's onSkip.
+  // The API routes accept a missing photo (GPS geofencing still gates the check-in/out either
+  // way); this just means the attendance record has no selfie attached for that one entry.
+  async function handlePhotoCapture(photo?: string) {
     if (!pendingAction) return;
     setSubmitting(true);
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const res = await fetch(`/api/attendance/${pendingAction}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-              accuracy: position.coords.accuracy,
-              photo,
-              ...(pendingAction === "checkout" ? { workNotes: workNote } : {}),
-            }),
-          });
-          const data = await res.json();
-          if (!res.ok) {
-            toast.error(data.error || "Failed");
-            return;
-          }
-          toast.success(pendingAction === "checkin" ? "Checked in!" : "Checked out!");
-          setWorkNote("");
-          await loadMe();
-        } catch {
-          toast.error("Network error — try again.");
-        } finally {
-          setSubmitting(false);
-          setPendingAction(null);
-        }
-      },
-      () => {
-        toast.error("Location permission is required to check in/out.");
-        setSubmitting(false);
-        setPendingAction(null);
-      },
-      { enableHighAccuracy: true, timeout: 15_000 }
-    );
+    // A loading toast (rather than nothing visible) during the location fix — getAttendanceLocation
+    // can still take a couple of seconds on poor GPS signal, and this was the single biggest
+    // source of "did my tap even register?" during that wait. Reused by id so it becomes the
+    // success/error toast in place rather than stacking a second one.
+    const toastId = toast.loading("Getting your location…");
+    let position: Awaited<ReturnType<typeof getAttendanceLocation>>;
+    try {
+      position = await getAttendanceLocation();
+    } catch {
+      toast.error("Couldn't get your location — check location permission and try again.", { id: toastId });
+      setSubmitting(false);
+      setPendingAction(null);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/attendance/${pendingAction}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          ...(photo ? { photo } : {}),
+          ...(pendingAction === "checkout" ? { workNotes: workNote } : {}),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Failed", { id: toastId });
+        return;
+      }
+      toast.success(pendingAction === "checkin" ? "Checked in!" : "Checked out!", { id: toastId });
+      setWorkNote("");
+      await loadMe();
+    } catch {
+      toast.error("Network error — try again.", { id: toastId });
+    } finally {
+      setSubmitting(false);
+      setPendingAction(null);
+    }
   }
 
   async function handleApplyLeave() {
@@ -767,6 +775,7 @@ export default function CheckInPage() {
         }}
         defaultFacing="user"
         onCapture={handlePhotoCapture}
+        onSkip={() => handlePhotoCapture()}
       />
 
       <Dialog open={workNoteOpen} onOpenChange={setWorkNoteOpen}>

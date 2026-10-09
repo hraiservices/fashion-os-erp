@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Receipt, ChevronRight, Trash2 } from "lucide-react";
+import { Plus, ChevronRight, Trash2, Search } from "lucide-react";
+import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -15,6 +16,7 @@ import { BILL_STATUS_LABELS } from "@/lib/purchases";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BalanceDue } from "@/components/ui/money-text";
@@ -30,12 +32,19 @@ export default function PurchaseBillsPage() {
 
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [search, setSearch] = useState("");
 
   const vendorNameById = useMemo(() => new Map((vendors || []).map((v) => [v.id, v.name])), [vendors]);
   const totalPayable = useMemo(() => (bills || []).reduce((s, b) => s + b.balance, 0), [bills]);
 
-  const selection = useRowSelection((bills || []).map((b) => b.id));
-  const selectedBills = (bills || []).filter((b) => selection.selected.has(b.id));
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return bills || [];
+    return (bills || []).filter((b) => b.billNumber.toLowerCase().includes(q) || (vendorNameById.get(b.vendorId) || "").toLowerCase().includes(q));
+  }, [bills, vendorNameById, search]);
+
+  const selection = useRowSelection(filtered.map((b) => b.id));
+  const selectedBills = filtered.filter((b) => selection.selected.has(b.id));
 
   async function bulkDelete() {
     setBulkBusy(true);
@@ -67,7 +76,7 @@ export default function PurchaseBillsPage() {
     <div className="space-y-4 p-4 sm:p-6">
       <PageHeader
         title="Bills"
-        description={`${bills?.length ?? 0} bills · ${inr(totalPayable)} total payable`}
+        description={`${filtered.length} of ${bills?.length ?? 0} bills · ${inr(totalPayable)} total payable`}
         actions={
           canManage && (
             <Button nativeButton={false} render={<Link href="/purchases/bills/new" />}>
@@ -76,6 +85,13 @@ export default function PurchaseBillsPage() {
           )
         }
       />
+
+      {!isLoading && bills && bills.length > 0 && (
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input type="search" enterKeyHint="search" placeholder="Search bill number or vendor…" className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search bills" />
+        </div>
+      )}
 
       {canManage && !isLoading && selection.count > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
@@ -100,7 +116,7 @@ export default function PurchaseBillsPage() {
         </div>
       ) : !bills || bills.length === 0 ? (
         <EmptyState
-          icon={Receipt}
+          icon={ReceiptDuotoneIcon}
           title="No bills yet"
           description="Recording a bill is what actually receives stock into your raw materials inventory."
           action={
@@ -111,15 +127,17 @@ export default function PurchaseBillsPage() {
             )
           }
         />
+      ) : filtered.length === 0 ? (
+        <EmptyState icon={ReceiptDuotoneIcon} title="No matching bills" description={`No bills found for "${search}".`} />
       ) : (
         <div className="space-y-2">
-          {canManage && bills.length > 0 && (
+          {canManage && filtered.length > 0 && (
             <label className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
               <Checkbox checked={selection.allSelected} onChange={selection.toggleAll} aria-label="Select all bills" />
               Select all
             </label>
           )}
-          {bills.map((b) => (
+          {filtered.map((b) => (
             <div key={b.id} className="flex items-center gap-2 rounded-xl border bg-card p-3 hover:bg-muted/40">
               {canManage && (
                 <Checkbox

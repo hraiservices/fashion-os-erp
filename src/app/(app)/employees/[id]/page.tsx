@@ -3,7 +3,8 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Phone, Briefcase, ArrowLeft, Pencil, CalendarCheck, Wallet, Plus, Trash2 } from "lucide-react";
+import { Phone, Briefcase, Pencil, CalendarCheck, Wallet, Plus, Trash2 } from "lucide-react";
+import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useEmployee } from "@/hooks/use-employees";
 import { useAttendanceForEmployee } from "@/hooks/use-attendance";
 import { useAdvancesForEmployee } from "@/hooks/use-payroll";
@@ -22,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmployeeLeaveSection } from "@/components/employees/employee-leave-section";
+import { BackLink } from "@/components/ui/back-link";
 
 const ATTENDANCE_LABEL: Record<string, string> = {
   present: "Present",
@@ -103,9 +105,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
-      <Link href="/employees" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Employees
-      </Link>
+      <BackLink href="/employees">Employees</BackLink>
 
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
       <div className="space-y-4 lg:col-span-4">
@@ -140,20 +140,20 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         {canManagePayroll && (
           <div className={`mt-4 grid gap-px overflow-hidden rounded-lg bg-border ${employee.pieceRateEligible ? "grid-cols-2 md:grid-cols-4" : "grid-cols-3"}`}>
             <div className="min-w-0 bg-card p-2 text-center sm:p-3">
-              <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{inr(employee.salaryRate)}</p>
+              <p className="break-words text-sm font-semibold tabular-nums sm:text-lg">{inr(employee.salaryRate)}</p>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{SALARY_TYPE_LABELS[employee.salaryType]} rate</p>
             </div>
             <div className="min-w-0 bg-card p-2 text-center sm:p-3">
-              <p className="truncate text-base font-semibold tabular-nums text-amber-700 dark:text-amber-400 sm:text-lg">{inr(outstandingAdvances)}</p>
+              <p className="break-words text-sm font-semibold tabular-nums text-amber-700 dark:text-amber-400 sm:text-lg">{inr(outstandingAdvances)}</p>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Advances pending</p>
             </div>
             <div className="min-w-0 bg-card p-2 text-center sm:p-3">
-              <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{commission ? inr(commission.commission) : "—"}</p>
+              <p className="break-words text-sm font-semibold tabular-nums sm:text-lg">{commission ? inr(commission.commission) : "—"}</p>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Commission (all-time)</p>
             </div>
             {employee.pieceRateEligible && (
               <div className="min-w-0 bg-card p-2 text-center sm:p-3">
-                <p className="truncate text-base font-semibold tabular-nums text-emerald-700 dark:text-emerald-400 sm:text-lg">{inr(pieceRateEarnings)}</p>
+                <p className="break-words text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400 sm:text-lg">{inr(pieceRateEarnings)}</p>
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Piece-rate (all-time)</p>
               </div>
             )}
@@ -175,7 +175,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
             </Button>
           </div>
           {!advances || advances.length === 0 ? (
-            <EmptyState icon={Wallet} title="No advances recorded" className="border-0" />
+            <EmptyState icon={WalletDuotoneIcon} title="No advances recorded" className="border-0" />
           ) : (
             <ul className="divide-y">
               {advances.map((a) => (

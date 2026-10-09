@@ -1,16 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, User, Wallet, CalendarCheck } from "lucide-react";
+import { LogOut, User, Wallet, CalendarCheck, Store } from "lucide-react";
+import { Preferences } from "@capacitor/preferences";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { isNativePlatform } from "@/lib/capacitor";
+import { APP_GATEWAY_URL, SHOP_URL_PREFERENCE_KEY } from "@/lib/app-launch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NotificationBell } from "@/components/app-shell/notification-bell";
-import { AttendanceWidget } from "@/components/app-shell/attendance-widget";
+import { useAttendanceWidget, AttendanceMenuItems, AttendanceActionModals } from "@/components/app-shell/attendance-widget";
 import { ThemeToggle } from "@/components/app-shell/theme-toggle";
 import { PwaInstaller } from "@/components/app-shell/pwa-installer";
 import { CommandTrigger } from "@/components/app-shell/command-palette";
 import { MobileNavTrigger } from "@/components/app-shell/mobile-nav";
+import { QuickCreateMenu } from "@/components/app-shell/quick-create-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +29,12 @@ import {
 export function Topbar() {
   const router = useRouter();
   const { data: user } = useCurrentUser();
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  // Topbar is always mounted, so calling this hook here (rather than only once the account
+  // dropdown opens) kicks its attendance-status fetch off at page load — by the time someone
+  // opens the menu the Check In/Out item is already resolved from cache rather than popping in
+  // ~2s later.
+  const attendance = useAttendanceWidget({ onDone: () => setAccountMenuOpen(false) });
 
   async function signOut() {
     const supabase = createClient();
@@ -32,25 +43,39 @@ export function Topbar() {
     router.refresh();
   }
 
+  // Native-only (see src/lib/app-launch.ts): the installed app remembers which shop's
+  // deployment it's pointed at via @capacitor/preferences so it can skip straight past the
+  // gateway on every later open — this is the only way back to it, for someone switching
+  // devices between two shops or who picked the wrong one.
+  async function switchShop() {
+    await Preferences.remove({ key: SHOP_URL_PREFERENCE_KEY });
+    window.location.href = APP_GATEWAY_URL;
+  }
+
   const initial = (user?.employeeName || user?.email)?.[0]?.toUpperCase() || "?";
 
   return (
-    <header className="sticky top-0 z-30 flex min-h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur sm:px-4 lg:px-6">
+    <header className="sticky top-0 z-30 flex min-h-14 shrink-0 items-center gap-1.5 border-b bg-background/95 px-2 pt-[env(safe-area-inset-top)] backdrop-blur sm:gap-2 sm:px-4 lg:px-6">
       <MobileNavTrigger />
       <div className="min-w-0 flex-1">
         <CommandTrigger />
       </div>
 
-      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+      {/* Every icon here is a little smaller below `sm` than it's always been (36px -> 32px,
+       *  avatar 44px -> 36px) and the gaps between them are tighter — freeing real width for the
+       *  search bar beside them, which was cramped into whatever was left over. Still well within
+       *  a comfortable tap target. */}
+      <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
+        <QuickCreateMenu />
         <PwaInstaller />
         <ThemeToggle />
         <NotificationBell />
 
-        <DropdownMenu>
+        <DropdownMenu open={accountMenuOpen} onOpenChange={setAccountMenuOpen}>
           <DropdownMenuTrigger
             render={
               <button type="button" aria-label="Account menu" className="rounded-full p-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
-                <Avatar className="size-11 sm:size-8">
+                <Avatar className="size-9 sm:size-8">
                   {user?.employeePhotoUrl && <AvatarImage src={user.employeePhotoUrl} alt="" />}
                   <AvatarFallback className="text-xs">{initial}</AvatarFallback>
                 </Avatar>
@@ -75,7 +100,7 @@ export function Topbar() {
             <DropdownMenuSeparator />
             {!!user?.employeeId && (
               <>
-                <AttendanceWidget />
+                <AttendanceMenuItems controller={attendance} />
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push("/employees/my-attendance")}>
                   <CalendarCheck className="size-4" /> My Attendance
@@ -88,12 +113,21 @@ export function Topbar() {
             <DropdownMenuItem onClick={() => router.push("/settings/personalize")}>
               <User className="size-4" /> Account
             </DropdownMenuItem>
+            {isNativePlatform() && (
+              <DropdownMenuItem onClick={switchShop}>
+                <Store className="size-4" /> Switch shop
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={signOut}>
               <LogOut className="size-4" /> Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* Rendered as a sibling of the account dropdown, not inside its DropdownMenuContent — see
+          attendance-widget.tsx's file-level comment. */}
+      <AttendanceActionModals controller={attendance} />
     </header>
   );
 }

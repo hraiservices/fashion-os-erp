@@ -26,6 +26,7 @@ export function printCoupon(coupon: ReferralCoupon, shop?: Shop) {
   win.document.write(`<!doctype html>
 <html>
 <head>
+<meta charset="UTF-8" />
 <title>${escapeHtml(coupon.code)} — Referral Coupon</title>
 <style>
   @page { size: 80mm 110mm; margin: 4mm; }

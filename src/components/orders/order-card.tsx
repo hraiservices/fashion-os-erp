@@ -12,10 +12,10 @@ import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { inr, fmtDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { orderChecklistProgress } from "@/lib/garment-checklist";
-import { DueBadge } from "@/components/orders/stage-badge";
+import { DueBadge, MoveToStageLabel } from "@/components/orders/stage-badge";
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
-import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import { WhatsAppButton, WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,7 +38,7 @@ import type { Shop } from "@/lib/settings";
  * order or select it first. Self-contained (own confirm dialog + mutation) so it drops into any
  * card/row type with no wiring through the parent list/board.
  */
-export function DeleteOrderButton({ order, compact }: { order: Order; compact?: boolean }) {
+export function DeleteOrderButton({ order, compact, showLabel }: { order: Order; compact?: boolean; showLabel?: boolean }) {
   const { data: user } = useCurrentUser();
   const deleteOrder = useDeleteOrder();
   const [open, setOpen] = useState(false);
@@ -46,8 +46,9 @@ export function DeleteOrderButton({ order, compact }: { order: Order; compact?: 
 
   async function doDelete() {
     try {
-      await deleteOrder.mutateAsync({ id: order.id, name: order.name, userEmail: user?.email });
+      const { creditIssuedNote } = await deleteOrder.mutateAsync({ id: order.id, name: order.name, userEmail: user?.email });
       toast.success("Order deleted");
+      if (creditIssuedNote) toast.info(creditIssuedNote, { duration: 8000 });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to delete order");
     } finally {
@@ -61,8 +62,12 @@ export function DeleteOrderButton({ order, compact }: { order: Order; compact?: 
         render={
           <Button
             variant="outline"
-            size="icon-sm"
-            className={cn("size-9 shrink-0 text-destructive hover:bg-destructive/10", !compact && "sm:size-8")}
+            size={showLabel ? "sm" : "icon-sm"}
+            className={cn(
+              showLabel ? "h-11 min-w-0 flex-1 gap-1.5 px-2 text-sm" : "size-9 shrink-0",
+              "text-destructive hover:bg-destructive/10",
+              !compact && !showLabel && "sm:size-8"
+            )}
             aria-label={`Delete order ${order.id}`}
             title="Delete order"
             onClick={(e) => {
@@ -70,7 +75,8 @@ export function DeleteOrderButton({ order, compact }: { order: Order; compact?: 
               e.stopPropagation();
             }}
           >
-            <Trash2 className="size-4" />
+            <Trash2 className="size-4 shrink-0" />
+            {showLabel && <span className="truncate">Delete</span>}
           </Button>
         }
       />
@@ -202,64 +208,104 @@ export function OrderCard({
       <ChecklistProgressBar order={order} />
       <Link href={`/orders/${order.id}`} className="block p-3">
         <div className="flex items-start justify-between gap-2">
-          <p className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">{order.name}</p>
-          <span className="shrink-0 text-sm font-semibold tabular-nums">{inr(order.total)}</span>
+          <p className="min-w-0 flex-1 truncate text-base font-semibold leading-tight">{order.name}</p>
+          <span className="shrink-0 text-base font-semibold tabular-nums">{inr(order.total)}</span>
         </div>
-        <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+        <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
           <span className="min-w-0 shrink truncate">{order.id}</span>
           {order.orderType === "alteration" && <AlterationBadge />}
           {order.reworkFlag && <ReworkBadge />}
           <GroupBadge size={groupSize} groupTotal={groupTotal} />
         </p>
 
-        <p className="mt-2 truncate text-xs text-muted-foreground">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>
+        <p className="mt-2 truncate text-sm font-bold text-muted-foreground">{(order.garments || []).map((g) => g.type).join(", ") || "—"}</p>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] text-muted-foreground">{fmtDateShort(order.deliveryDate)}</span>
+          <span className="text-sm font-bold text-muted-foreground">{fmtDateShort(order.deliveryDate)}</span>
           <DueBadge order={order} />
           <ChecklistProgressChip order={order} />
-          <BalanceDue amount={order.balance} suffix=" due" className="ml-auto text-[11px]" />
+          <BalanceDue amount={order.balance} suffix=" due" className="ml-auto text-sm font-semibold" />
         </div>
       </Link>
 
-      <div className="flex items-center gap-1.5 border-t bg-muted/30 p-1.5">
-        {canChangeStage && next && (
-          <Button
+      <div className="border-t bg-muted/30 p-1.5">
+        <div className="flex items-center gap-1.5">
+          {canChangeStage && next && (
+            <Button
+              size="sm"
+              className={cn("h-11 min-w-0 flex-1 px-2 text-sm sm:h-8 sm:text-[11px]", STAGE_STYLE[next].solid)}
+              disabled={advancing}
+              onClick={(e) => {
+                e.preventDefault();
+                onAdvance?.(order.id);
+              }}
+            >
+              {/* min-w-0 + truncate: on sm+ this button shares a row with icon buttons (record
+                  payment, WhatsApp, delete) — the fixed ~288px kanban column has no room for
+                  those as labeled buttons the way the full-width mobile card does, so they stay
+                  icon-only there (see the hidden sm:contents row below) and this one can take the
+                  rest of the row's width. */}
+              <span className="truncate">{advancing ? "…" : <MoveToStageLabel label={STAGE_META[next].label} />}</span>
+            </Button>
+          )}
+          {/* display:contents on sm+ so these render as ordinary flex siblings of the advance
+              button above; "hidden" below sm removes them from flow entirely (not just visually)
+              since the mobile-only labeled row below duplicates each action. */}
+          <span className="hidden sm:contents">
+            {onRecordPayment && order.balance > 0 && (
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="size-8 shrink-0"
+                aria-label={`Record payment for ${order.name}`}
+                title="Record payment"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onRecordPayment(order);
+                }}
+              >
+                <Wallet className="size-3.5" />
+              </Button>
+            )}
+            <WhatsAppIconButton
+              href={buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates)}
+              label={`WhatsApp ${order.name}`}
+              className="size-8"
+            />
+            <DeleteOrderButton order={order} compact />
+          </span>
+        </div>
+
+        {/* Mobile-only: Payment/WhatsApp/Delete share a row with text labels — the full-width
+            card has room for this; the narrow kanban column on sm+ doesn't (labels truncated to
+            "Pay…"/"Dele…" there, which is what this reverts). A flex row (each button flex-1)
+            rather than a fixed-column grid: Payment and Delete are permission/condition-gated and
+            can be entirely absent for some roles — flex-1 lets the remaining buttons stretch to
+            fill the row evenly instead of a fixed grid leaving a dead empty column where a
+            missing button would have been. */}
+        <div className="mt-1.5 flex gap-1.5 sm:hidden">
+          {onRecordPayment && order.balance > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-11 min-w-0 flex-1 gap-1.5 px-2 text-sm"
+              aria-label={`Record payment for ${order.name}`}
+              onClick={(e) => {
+                e.preventDefault();
+                onRecordPayment(order);
+              }}
+            >
+              <Wallet className="size-4 shrink-0" /> <span className="truncate">Payment</span>
+            </Button>
+          )}
+          <WhatsAppButton
+            href={buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates)}
+            label="WhatsApp"
             size="sm"
-            className={cn("h-8 min-w-0 flex-1 px-2 text-[11px]", STAGE_STYLE[next].solid)}
-            disabled={advancing}
-            onClick={(e) => {
-              e.preventDefault();
-              onAdvance?.(order.id);
-            }}
-          >
-            {/* min-w-0 + truncate: this button shares a fixed-width row with two icon buttons
-                (record payment, WhatsApp) on a kanban card — a long stage name (e.g. "Move to
-                Delivered") could otherwise force the row wider than the card. */}
-            <span className="truncate">{advancing ? "…" : `Move to ${STAGE_META[next].label}`}</span>
-          </Button>
-        )}
-        {onRecordPayment && order.balance > 0 && (
-          <Button
-            variant="outline"
-            size="icon-sm"
-            className="size-8 shrink-0"
-            aria-label={`Record payment for ${order.name}`}
-            title="Record payment"
-            onClick={(e) => {
-              e.preventDefault();
-              onRecordPayment(order);
-            }}
-          >
-            <Wallet className="size-3.5" />
-          </Button>
-        )}
-        <WhatsAppIconButton
-          href={buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates)}
-          label={`WhatsApp ${order.name}`}
-          className="size-8"
-        />
-        <DeleteOrderButton order={order} compact />
+            className="h-11 min-w-0 flex-1 px-2 text-sm"
+          />
+          <DeleteOrderButton order={order} showLabel />
+        </div>
       </div>
     </div>
   );

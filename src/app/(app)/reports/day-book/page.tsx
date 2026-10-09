@@ -17,11 +17,16 @@ import {
   Search,
   Scissors,
   CheckCircle2,
+  PackageCheck,
+  LayoutGrid,
+  List as ListIcon,
+  X,
+  AlertCircle,
 } from "lucide-react";
 import { FileTextDuotoneIcon, ReceiptDuotoneIcon, UsersDuotoneIcon, WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDayBook } from "@/hooks/use-day-book";
-import { DAY_BOOK_MODULE_ICONS, DAY_BOOK_MODULE_LABELS, fmtTime, type DayBookEntry, type DayBookModule, type TailorStageOrder } from "@/lib/day-book";
+import { DAY_BOOK_MODULE_ICONS, DAY_BOOK_MODULE_LABELS, fmtTime, type DayBookEntry, type DayBookModule, type TailorStageActivity, type TailorStageOrder } from "@/lib/day-book";
 import { StageBadge } from "@/components/orders/stage-badge";
 import { inr, fmtDate } from "@/lib/format";
 import { toISODate } from "@/components/ui/date-picker";
@@ -33,6 +38,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts";
@@ -90,6 +96,93 @@ function TailorOrderList({ label, icon: Icon, orders }: { label: string; icon: t
   );
 }
 
+const STAGE_STEPS: { key: "cuttingToStitching" | "stitchingToFinishing" | "finishingToReady"; label: string; icon: typeof Scissors }[] = [
+  { key: "cuttingToStitching", label: "Cutting → Stitching", icon: Scissors },
+  { key: "stitchingToFinishing", label: "Stitching → Finishing", icon: CheckCircle2 },
+  { key: "finishingToReady", label: "Finishing → Ready", icon: PackageCheck },
+];
+
+/** A stage count as a small clickable chip — clicking it selects this tailor (filtering the
+ *  timeline below to their touched orders, same as clicking the card itself) and expands the
+ *  card to show every group's order list, this one included — "click a number to see those
+ *  orders" without a separate isolated-scroll mechanism for each of the three counts. */
+function StageCountChip({ label, icon: Icon, count, onClick }: { label: string; icon: typeof Scissors; count: number; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium transition-colors",
+        count > 0 ? "bg-primary/10 text-primary hover:bg-primary/20" : "bg-muted text-muted-foreground"
+      )}
+      title={`${label}: ${count} today`}
+    >
+      <Icon className="size-3" />
+      {count}
+    </button>
+  );
+}
+
+function TailorActivityCard({
+  tailor,
+  selected,
+  expanded,
+  onToggleSelect,
+  onExpandWith,
+}: {
+  tailor: TailorStageActivity;
+  selected: boolean;
+  expanded: boolean;
+  onToggleSelect: () => void;
+  onExpandWith: () => void;
+}) {
+  const idle = tailor.totalActions === 0;
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onToggleSelect}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onToggleSelect()}
+      className={cn(
+        "cursor-pointer space-y-3 rounded-lg border p-3 text-left transition-colors",
+        selected ? "border-primary bg-primary/5" : "hover:bg-muted/40",
+        idle && !selected && "border-destructive/30 bg-destructive/5"
+      )}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-semibold">{tailor.tailorName}</p>
+        <div className="flex items-center gap-2">
+          {tailor.payableToday > 0 && (
+            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{inr(tailor.payableToday)} payable</span>
+          )}
+          {idle ? (
+            <Badge variant="destructive" className="gap-1">
+              <AlertCircle className="size-3" /> No activity today
+            </Badge>
+          ) : (
+            <Badge variant="secondary">{tailor.totalActions} {tailor.totalActions === 1 ? "action" : "actions"}</Badge>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {STAGE_STEPS.map((s) => (
+          <StageCountChip key={s.key} label={s.label} icon={s.icon} count={tailor[s.key]} onClick={onExpandWith} />
+        ))}
+      </div>
+      {expanded && (
+        <div className="space-y-3 border-t pt-3" onClick={(e) => e.stopPropagation()}>
+          {STAGE_STEPS.map((s) => (
+            <TailorOrderList key={s.key} label={s.label} icon={s.icon} orders={tailor[`${s.key}Orders`]} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DayBookPage() {
   const { data: user } = useCurrentUser();
   const [date, setDate] = useState(todayISO());
@@ -99,6 +192,9 @@ export default function DayBookPage() {
   const [search, setSearch] = useState("");
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
+  const [tailorView, setTailorView] = useState<"cards" | "list">("cards");
+  const [selectedTailorId, setSelectedTailorId] = useState<string | null>(null);
+  const [expandedTailorId, setExpandedTailorId] = useState<string | null>(null);
 
   const canView = !!user?.perms.viewReports;
   // Profit is restricted to the admin role specifically — the rest of the Day Book (sales,
@@ -113,11 +209,31 @@ export default function DayBookPage() {
     return Array.from(set).sort();
   }, [entries]);
 
+  const selectedTailor = useMemo(
+    () => data?.tailorActivity.find((t) => t.tailorId === selectedTailorId) || null,
+    [data, selectedTailorId]
+  );
+
+  // Every order this tailor's garments moved through a tracked transition on today — clicking a
+  // tailor card filters the timeline below to just these (Order Edited/Stage Changed/Payment
+  // Collected rows all key off this same order id via DayBookEntry.reference), so "what did this
+  // tailor's work touch today" reads directly off the normal activity feed instead of a second,
+  // separate list.
+  const selectedTailorOrderIds = useMemo(() => {
+    if (!selectedTailor) return null;
+    const ids = new Set<string>();
+    for (const o of [...selectedTailor.cuttingToStitchingOrders, ...selectedTailor.stitchingToFinishingOrders, ...selectedTailor.finishingToReadyOrders]) {
+      ids.add(o.orderId);
+    }
+    return ids;
+  }, [selectedTailor]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const min = minAmount ? parseFloat(minAmount) : null;
     const max = maxAmount ? parseFloat(maxAmount) : null;
     let rows = entries;
+    if (selectedTailorOrderIds) rows = rows.filter((e) => e.reference && selectedTailorOrderIds.has(e.reference));
     if (moduleFilter !== "all") rows = rows.filter((e) => e.module === moduleFilter);
     if (userFilter !== "all") rows = rows.filter((e) => e.user === userFilter);
     if (min != null) rows = rows.filter((e) => (e.amount ?? 0) >= min);
@@ -129,7 +245,17 @@ export default function DayBookPage() {
     }
     const sorted = [...rows].sort((a, b) => a.time.localeCompare(b.time));
     return sortOrder === "desc" ? sorted.reverse() : sorted;
-  }, [entries, moduleFilter, userFilter, sortOrder, search, minAmount, maxAmount]);
+  }, [entries, selectedTailorOrderIds, moduleFilter, userFilter, sortOrder, search, minAmount, maxAmount]);
+
+  function toggleTailorSelect(tailorId: string) {
+    setSelectedTailorId((cur) => (cur === tailorId ? null : tailorId));
+    setExpandedTailorId((cur) => (cur === tailorId ? null : tailorId));
+  }
+
+  function expandTailorWith(tailorId: string) {
+    setSelectedTailorId(tailorId);
+    setExpandedTailorId(tailorId);
+  }
 
   const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<DayBookRow>("day-book", SORT_COMPARATORS, SORT_DESC_KEYS);
   const sortedFiltered = applySort(filtered);
@@ -247,23 +373,113 @@ export default function DayBookPage() {
             <StatCard label="Total Activities" value={data.totals.totalActivities} icon={ActivityIcon} />
           </div>
 
-          {/* Tailor activity — what each tailor moved forward today, so it can be read out to
-              them directly ("you moved N to Finishing and M to Ready today, ₹X payable"). */}
+          {/* Tailor activity — exactly what each tailor moved forward today (and, just as
+              important, who moved nothing), so it can be read out to them directly ("you moved
+              N to Finishing and M to Ready today, ₹X payable") or used to follow up on someone
+              who didn't. Click a tailor (or any of their stage-count chips) to filter the
+              timeline below to only the orders their work touched today; click again to clear. */}
           {data.tailorActivity.length > 0 && (
             <ReportCard className="space-y-4 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tailor Activity Today</p>
-              {data.tailorActivity.map((t) => (
-                <div key={t.tailorId} className="space-y-3 rounded-lg border p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-semibold">{t.tailorName}</p>
-                    {t.payableToday > 0 && (
-                      <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{inr(t.payableToday)} payable today</span>
-                    )}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tailor Activity Today</p>
+                <div className="flex items-center gap-2">
+                  {selectedTailor && (
+                    <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => toggleTailorSelect(selectedTailor.tailorId)}>
+                      <X className="size-3" /> Clear filter: {selectedTailor.tailorName}
+                    </Button>
+                  )}
+                  <div className="flex items-center rounded-md border p-0.5">
+                    <Button
+                      variant={tailorView === "cards" ? "secondary" : "ghost"}
+                      size="sm"
+                      className="h-7 gap-1 px-2 text-xs"
+                      onClick={() => setTailorView("cards")}
+                    >
+                      <LayoutGrid className="size-3.5" /> Cards
+                    </Button>
+                    <Button
+                      variant={tailorView === "list" ? "secondary" : "ghost"}
+                      size="sm"
+                      className="h-7 gap-1 px-2 text-xs"
+                      onClick={() => setTailorView("list")}
+                    >
+                      <ListIcon className="size-3.5" /> List
+                    </Button>
                   </div>
-                  <TailorOrderList label="Stitching → Finishing" icon={Scissors} orders={t.stitchingToFinishingOrders} />
-                  <TailorOrderList label="Finishing → Ready (ready to deliver)" icon={CheckCircle2} orders={t.finishingToReadyOrders} />
                 </div>
-              ))}
+              </div>
+
+              {/* The two numbers directly asked for — orders that finished stitching today and
+                  orders marked Ready today — plus the third tracked step, all summed across every
+                  tailor so they read as one shop-wide total regardless of who did them. */}
+              <div className="grid grid-cols-3 gap-3">
+                <StatCard
+                  label="Moved to Stitching"
+                  value={data.tailorActivity.reduce((s, t) => s + t.cuttingToStitching, 0)}
+                  icon={Scissors}
+                />
+                <StatCard
+                  label="Stitching Completed"
+                  value={data.tailorActivity.reduce((s, t) => s + t.stitchingToFinishing, 0)}
+                  icon={CheckCircle2}
+                  tone="success"
+                />
+                <StatCard
+                  label="Marked Ready"
+                  value={data.tailorActivity.reduce((s, t) => s + t.finishingToReady, 0)}
+                  icon={PackageCheck}
+                  tone="success"
+                />
+              </div>
+
+              {tailorView === "cards" ? (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {data.tailorActivity.map((t) => (
+                    <TailorActivityCard
+                      key={t.tailorId}
+                      tailor={t}
+                      selected={selectedTailorId === t.tailorId}
+                      expanded={expandedTailorId === t.tailorId}
+                      onToggleSelect={() => toggleTailorSelect(t.tailorId)}
+                      onExpandWith={() => expandTailorWith(t.tailorId)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {data.tailorActivity.map((t) => (
+                    <div
+                      key={t.tailorId}
+                      onClick={() => toggleTailorSelect(t.tailorId)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && toggleTailorSelect(t.tailorId)}
+                      className={cn(
+                        "cursor-pointer space-y-3 rounded-lg border p-3 transition-colors",
+                        selectedTailorId === t.tailorId ? "border-primary bg-primary/5" : "hover:bg-muted/40",
+                        t.totalActions === 0 && selectedTailorId !== t.tailorId && "border-destructive/30 bg-destructive/5"
+                      )}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-semibold">{t.tailorName}</p>
+                        <div className="flex items-center gap-2">
+                          {t.payableToday > 0 && (
+                            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{inr(t.payableToday)} payable today</span>
+                          )}
+                          {t.totalActions === 0 && (
+                            <Badge variant="destructive" className="gap-1">
+                              <AlertCircle className="size-3" /> No activity today
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      {STAGE_STEPS.map((s) => (
+                        <TailorOrderList key={s.key} label={s.label} icon={s.icon} orders={t[`${s.key}Orders`]} />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
             </ReportCard>
           )}
 
@@ -306,6 +522,14 @@ export default function DayBookPage() {
 
           {/* Filters */}
           <ReportCard className="flex flex-wrap items-center gap-2 p-3 print:hidden">
+            {selectedTailor && (
+              <Badge variant="secondary" className="h-7 gap-1.5 pl-2.5">
+                Tailor: {selectedTailor.tailorName}
+                <button type="button" onClick={() => toggleTailorSelect(selectedTailor.tailorId)} aria-label="Clear tailor filter" className="rounded-full p-0.5 hover:bg-muted-foreground/20">
+                  <X className="size-3" />
+                </button>
+              </Badge>
+            )}
             <div className="relative min-w-[180px] flex-1">
               <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input type="search" enterKeyHint="search" placeholder="Search reference, name, description…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 pl-8" />

@@ -25,22 +25,44 @@ function checkSuperAdmin(email: string): boolean {
   return !!ownerEmail && email.toLowerCase() === ownerEmail.toLowerCase();
 }
 
-async function fetchCurrentUser(): Promise<CurrentUser | null> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user?.email) return null;
+interface RoleContext {
+  role: string;
+  customPermissions: Partial<Permissions> | null;
+  roleDefaultOverrides: RoleDefaultOverrides | null;
+  employeeId: string | null;
+  employeeName: string | null;
+  employeePhotoUrl: string | null;
+}
+
+/**
+ * One Postgres round trip via get_current_user_context() (supabase/migrations/
+ * add_current_user_context_rpc.sql) instead of up to three sequential ones — this runs on every
+ * protected page's first paint, every cold app open, so each extra serial round trip was real
+ * latency on the critical path (same audit that found /launch doing a redundant full page load).
+ * Falls back to the original three-query path on any RPC error, including "function does not
+ * exist" for a customer deployment whose Supabase project hasn't picked up that migration yet —
+ * migrations in this repo are applied by hand / via scripts/onboard-customer.mjs, not tracked
+ * automatically, so this has to work whether or not a given project has it yet.
+ */
+async function fetchRoleContext(supabase: ReturnType<typeof createClient>, email: string): Promise<RoleContext> {
+  const { data, error } = await supabase.rpc("get_current_user_context").maybeSingle();
+  if (!error && data) {
+    return {
+      role: data.role || "tailor",
+      customPermissions: data.custom_permissions as Partial<Permissions> | null,
+      roleDefaultOverrides: data.role_default_overrides as RoleDefaultOverrides | null,
+      employeeId: data.linked_employee_id,
+      employeeName: data.employee_name,
+      employeePhotoUrl: data.employee_photo_url,
+    };
+  }
 
   const [{ data: roleRow }, { data: overridesRow }] = await Promise.all([
-    supabase.from("user_roles").select("role, custom_permissions, linked_employee_id").eq("email", user.email).maybeSingle(),
+    supabase.from("user_roles").select("role, custom_permissions, linked_employee_id").eq("email", email).maybeSingle(),
     supabase.from("app_settings").select("value").eq("key", "roleDefaultOverrides").maybeSingle(),
   ]);
 
-  const role = roleRow?.role || "tailor";
-  const perms = resolvePerms(role, roleRow?.custom_permissions as Partial<Permissions> | null, overridesRow?.value as RoleDefaultOverrides | null);
   const employeeId: string | null = roleRow?.linked_employee_id ?? null;
-
   let employeeName: string | null = null;
   let employeePhotoUrl: string | null = null;
   if (employeeId) {
@@ -50,14 +72,34 @@ async function fetchCurrentUser(): Promise<CurrentUser | null> {
   }
 
   return {
-    email: user.email,
-    role,
-    perms,
-    restricted: isRestrictedRole(role),
-    isSuperAdmin: checkSuperAdmin(user.email),
+    role: roleRow?.role || "tailor",
+    customPermissions: roleRow?.custom_permissions as Partial<Permissions> | null,
+    roleDefaultOverrides: overridesRow?.value as RoleDefaultOverrides | null,
     employeeId,
     employeeName,
     employeePhotoUrl,
+  };
+}
+
+async function fetchCurrentUser(): Promise<CurrentUser | null> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) return null;
+
+  const ctx = await fetchRoleContext(supabase, user.email);
+  const perms = resolvePerms(ctx.role, ctx.customPermissions, ctx.roleDefaultOverrides);
+
+  return {
+    email: user.email,
+    role: ctx.role,
+    perms,
+    restricted: isRestrictedRole(ctx.role),
+    isSuperAdmin: checkSuperAdmin(user.email),
+    employeeId: ctx.employeeId,
+    employeeName: ctx.employeeName,
+    employeePhotoUrl: ctx.employeePhotoUrl,
   };
 }
 

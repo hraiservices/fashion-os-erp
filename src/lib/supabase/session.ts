@@ -19,13 +19,34 @@ import { getCachedAppSetting } from "@/lib/supabase/app-settings-cache";
 // to /login before the page's own code ever ran, silently skipping the shop picker entirely.
 const PUBLIC_PATHS = ["/login", "/signup", "/launch", "/checkin", "/invoice/view", "/track", "/api/public", "/api/recurring-invoices/generate"];
 
+// Of the public paths, only /login and /signup actually do anything with the auth result (bounce
+// an already-logged-in visitor to /dashboard instead of showing them the form again) — every
+// other public path (/launch, /checkin's own PIN auth, /invoice/view, /track, /api/public, the
+// recurring-invoices cron) never looks at `user` at all. supabase.auth.getUser() is a real network
+// round-trip to Supabase's Auth API, not a local cookie decode, so paying it on every one of those
+// is pure dead latency — concretely, on every single cold app open: the native shell's entry point
+// IS /launch (capacitor.config.ts's server.url), so this round-trip ran on every app start whether
+// or not anything downstream cared about the answer.
+const AUTH_AWARE_PUBLIC_PATHS = ["/login", "/signup"];
+
 function isSuperAdminEmail(email: string | undefined): boolean {
   const ownerEmail = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL;
   return !!ownerEmail && !!email && email.toLowerCase() === ownerEmail.toLowerCase();
 }
 
 export async function updateSession(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  const isPublicPath = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const needsAuthCheck = !isPublicPath || AUTH_AWARE_PUBLIC_PATHS.some((p) => pathname === p);
+
   let supabaseResponse = NextResponse.next({ request });
+
+  // Nothing past this point reads `user` for a path in this bucket (see AUTH_AWARE_PUBLIC_PATHS'
+  // comment) — skip creating a Supabase client and the auth round-trip entirely instead of paying
+  // for an answer nothing downstream uses.
+  if (!needsAuthCheck) {
+    return supabaseResponse;
+  }
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -49,8 +70,6 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const isPublicPath = PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();

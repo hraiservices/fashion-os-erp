@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, User2, FileText, Package2, Tag, Receipt } from "lucide-react";
+import { User2, FileText, Package2, Tag, Receipt } from "lucide-react";
 import { useProducts } from "@/hooks/use-products";
 import { useSalesQuotation } from "@/hooks/use-sales-quotations";
 import { useSalesInvoice } from "@/hooks/use-sales-invoices";
@@ -35,8 +35,8 @@ import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { DEFAULT_DOCUMENT_NUMBERING, type DocumentNumberingSettings } from "@/lib/document-numbering";
 import type { Customer, SalesInvoice, InvoiceDocStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
 import { istDateString } from "@/lib/ist-date";
+import { BackLink } from "@/components/ui/back-link";
 
 const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
 const paymentTermLabel = (v: unknown) => PAYMENT_TERM_LABELS[v as PaymentTerm] ?? "";
@@ -266,10 +266,9 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
       {/* ── Page header bar ───────────────────────────────────────────────── */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
         <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-4 py-3 sm:px-6">
-          <Link href="/sales/invoices" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="size-4" />
+          <BackLink href="/sales/invoices">
             <span className="hidden sm:inline">Invoices</span>
-          </Link>
+          </BackLink>
           <div className="min-w-0 flex-1">
             <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Invoice" : "New Invoice"}</h1>
             <p className="text-[11px] text-muted-foreground font-mono truncate">{customNumberingOn ? "Assigned automatically on save" : invoiceNumber}</p>

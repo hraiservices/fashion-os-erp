@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Building2, Package2, FileText, ClipboardList } from "lucide-react";
-import Link from "next/link";
+import { Building2, Package2, FileText, ClipboardList } from "lucide-react";
 import { useVendors } from "@/hooks/use-vendors";
 import { useSavePurchaseOrder } from "@/hooks/use-purchase-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -20,6 +19,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { inr } from "@/lib/format";
 import type { PurchaseOrder } from "@/lib/types";
 import { istDateString } from "@/lib/ist-date";
+import { BackLink } from "@/components/ui/back-link";
 
 function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
@@ -82,10 +82,9 @@ export function PurchaseOrderForm({ existing }: { existing?: PurchaseOrder }) {
       {/* Sticky header */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
         <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-4 py-3 sm:px-6">
-          <Link href="/purchases/orders" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="size-4" />
+          <BackLink href="/purchases/orders">
             <span className="hidden sm:inline">Purchase orders</span>
-          </Link>
+          </BackLink>
           <div className="min-w-0 flex-1">
             <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Purchase Order" : "New Purchase Order"}</h1>
             <p className="text-[11px] text-muted-foreground font-mono truncate">{poNumber}</p>

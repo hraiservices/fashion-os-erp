@@ -6,8 +6,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, Package2, Tag, ListTree, Plus, X, Save, Shirt, ImagePlus, PackagePlus } from "lucide-react";
-import Link from "next/link";
+import { Package2, Tag, ListTree, Plus, X, Save, Shirt, ImagePlus, PackagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormActionBar } from "@/components/ui/form-action-bar";
 import { Input } from "@/components/ui/input";
@@ -25,6 +24,7 @@ import { PRODUCT_SIZES, PRODUCT_COLORS, PRODUCT_FABRICS, PRODUCT_PATTERNS, PRODU
 import { ProductCustomerMatches } from "@/components/inventory/product-customer-matches";
 import { ProductStockAdjustmentDialog } from "@/components/inventory/product-stock-adjustment-dialog";
 import type { Product } from "@/lib/types";
+import { BackLink } from "@/components/ui/back-link";
 
 const UNTAGGED = "__untagged__";
 const untaggedLabel = (v: unknown) => (v === UNTAGGED ? "Not set" : (v as string));
@@ -176,10 +176,9 @@ export function ProductForm({ existing }: { existing?: Product }) {
       {/* Sticky header */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
         <div className="mx-auto flex max-w-4xl items-center gap-4 px-4 py-3 sm:px-6">
-          <Link href="/inventory/products" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="size-4" />
+          <BackLink href="/inventory/products">
             <span className="hidden sm:inline">Products</span>
-          </Link>
+          </BackLink>
           <div className="min-w-0 flex-1">
             <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Product" : "New Product"}</h1>
             {isEdit && <p className="text-[11px] font-mono text-muted-foreground">{existing!.sku}</p>}

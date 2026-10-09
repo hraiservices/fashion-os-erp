@@ -32,8 +32,8 @@ export function ReportShell({
       </div>
       <div className="min-w-0 flex-1 space-y-4 p-4 sm:p-6 print:p-0">
         {/* Mobile only — desktop has the persistent Reports rail to its left instead. */}
-        <Link href="/reports" className="inline-flex items-center gap-0.5 text-sm text-primary lg:hidden print:hidden">
-          <ChevronLeft className="size-5" /> Reports
+        <Link href="/reports" className="inline-flex items-center gap-0.5 text-base font-medium text-primary lg:hidden print:hidden">
+          <ChevronLeft className="size-6" /> Reports
         </Link>
         <PageHeader
           title={title}

@@ -6,7 +6,7 @@ import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, User, TrendingUp, Banknote, Save, MapPin, Camera, Loader2, X, ShieldCheck } from "lucide-react";
+import { User, TrendingUp, Banknote, Save, MapPin, Camera, Loader2, X, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useSaveEmployee } from "@/hooks/use-employee-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -28,6 +28,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { Employee, CommissionType, SalaryType } from "@/lib/types";
 import { SALARY_TYPE_LABELS } from "@/lib/payroll";
 import { compressImage, approxBytesOfDataUrl, formatBytes, MAX_IMAGE_BYTES } from "@/lib/media";
+import { BackLink } from "@/components/ui/back-link";
 
 const NO_LOCATION = "__no_location__";
 
@@ -213,10 +214,9 @@ export function EmployeeForm({ existing }: { existing?: Employee }) {
       {/* Sticky header */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
         <div className="mx-auto flex max-w-4xl items-center gap-4 px-4 py-3 sm:px-6">
-          <Link href="/employees" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="size-4" />
+          <BackLink href="/employees">
             <span className="hidden sm:inline">Employees</span>
-          </Link>
+          </BackLink>
           <div className="min-w-0 flex-1">
             <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Employee" : "New Employee"}</h1>
             {isEdit && <p className="text-[11px] font-mono text-muted-foreground">{existing!.name}</p>}

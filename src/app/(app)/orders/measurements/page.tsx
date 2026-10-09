@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, Search, Ruler, Download, User } from "lucide-react";
+import { Search, Ruler, Download, User } from "lucide-react";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useEmployees } from "@/hooks/use-employees";
 import { normalizeIndianMobile } from "@/lib/business-rules";
@@ -22,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { CustomerProfile } from "@/lib/crm";
+import { BackLink } from "@/components/ui/back-link";
 
 /** WhatsApp text summary of a customer's saved measurements (no PDF attachment — WhatsApp's
  *  click-to-chat scheme only supports pre-filled text, not files). */
@@ -89,9 +89,7 @@ export default function MeasurementsSearchPage() {
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
-      <Link href="/orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground print:hidden">
-        <ArrowLeft className="size-4" /> Orders
-      </Link>
+      <BackLink href="/orders">Orders</BackLink>
       <div className="print:hidden">
         <PageHeader title="Measurements" description="Search a customer by name or mobile to view, print, export, or WhatsApp their measurement card" />
       </div>

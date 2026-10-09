@@ -2,7 +2,7 @@
 
 import { use, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, FileDown, Printer, Scissors } from "lucide-react";
+import { FileDown, Printer, Scissors } from "lucide-react";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useShopSettings } from "@/hooks/use-shop-settings";
@@ -22,6 +22,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { BackLink } from "@/components/ui/back-link";
 
 const TYPE_STYLE: Record<"stitching" | "retail", string> = {
   stitching: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
@@ -119,9 +120,7 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6 print:p-0">
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
-        <Link href={`/crm/${mobile}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" /> {cust.name || mobile}
-        </Link>
+        <BackLink href={`/crm/${mobile}`}>{cust.name || mobile}</BackLink>
         <div className="flex gap-2">
           {whatsappUrl && <WhatsAppButton href={whatsappUrl} size="sm" label="Send on WhatsApp" />}
           <Button

@@ -3,8 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, User2, Package2, Tag, FileText, FileCheck } from "lucide-react";
-import Link from "next/link";
+import { User2, Package2, Tag, FileText, FileCheck } from "lucide-react";
 import { useProducts } from "@/hooks/use-products";
 import { useSaveQuotation } from "@/hooks/use-sales-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -24,6 +23,7 @@ import { usePriceListItemsMap } from "@/hooks/use-price-lists";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import type { Customer, SalesQuotation } from "@/lib/types";
 import { istDateString } from "@/lib/ist-date";
+import { BackLink } from "@/components/ui/back-link";
 
 const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
 
@@ -122,10 +122,9 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
       {/* Sticky header */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
         <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-4 py-3 sm:px-6">
-          <Link href="/sales/quotations" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="size-4" />
+          <BackLink href="/sales/quotations">
             <span className="hidden sm:inline">Quotations</span>
-          </Link>
+          </BackLink>
           <div className="min-w-0 flex-1">
             <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Quotation" : "New Quotation"}</h1>
             <p className="text-[11px] text-muted-foreground font-mono truncate">{quoteNumber}</p>

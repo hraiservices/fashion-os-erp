@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { toast } from "sonner";
 import {
   genSheetNo,
@@ -19,7 +18,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import type { CostSheetWithItems } from "@/hooks/use-cost-sheet";
 import { Button } from "@/components/ui/button";
 import { FormActionBar } from "@/components/ui/form-action-bar";
-import { ArrowLeft, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -28,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { printReport } from "@/lib/export";
+import { BackLink } from "@/components/ui/back-link";
 
 function inr(n: number): string {
   return "₹" + Math.round(n).toLocaleString("en-IN");
@@ -156,10 +156,9 @@ export function CostSheetForm({ existing }: { existing?: CostSheetWithItems }) {
       {/* Sticky header */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
         <div className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-3 sm:px-6">
-          <Link href="/cost-estimator" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="size-4" />
+          <BackLink href="/cost-estimator">
             <span className="hidden sm:inline">Cost sheets</span>
-          </Link>
+          </BackLink>
           <div className="min-w-0 flex-1">
             <h1 className="text-base font-semibold truncate">{existing ? "Edit Cost Sheet" : "New Cost Sheet"}</h1>
             <p className="text-[11px] font-mono text-muted-foreground truncate">{sheetNo}</p>

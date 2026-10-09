@@ -6,9 +6,8 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, User2, Briefcase, FileText, Save } from "lucide-react";
+import { User2, Briefcase, FileText, Save } from "lucide-react";
 import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
-import Link from "next/link";
 import { useCreateExpense, useUpdateExpense } from "@/hooks/use-expenses";
 import { useEmployees } from "@/hooks/use-employees";
 import { Button } from "@/components/ui/button";
@@ -23,6 +22,7 @@ import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/custom
 import { SearchSelect } from "@/components/ui/search-select";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import type { Customer, Expense } from "@/lib/types";
+import { BackLink } from "@/components/ui/back-link";
 
 const schema = z.object({
   date: z.string().min(1, "Date required"),
@@ -115,10 +115,9 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
       {/* Sticky header */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
         <div className="mx-auto flex max-w-4xl items-center gap-4 px-4 py-3 sm:px-6">
-          <Link href="/expenses" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="size-4" />
+          <BackLink href="/expenses">
             <span className="hidden sm:inline">Expenses</span>
-          </Link>
+          </BackLink>
           <div className="min-w-0 flex-1">
             <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Expense" : "New Expense"}</h1>
           </div>

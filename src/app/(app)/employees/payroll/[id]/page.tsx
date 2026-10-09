@@ -1,9 +1,8 @@
 "use client";
 
 import { use, useState } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, Trash2, FileDown, PencilLine, MessageCircle } from "lucide-react";
+import { CheckCircle2, Trash2, FileDown, PencilLine, MessageCircle } from "lucide-react";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePayrollRun, usePayslipsForRun } from "@/hooks/use-payroll";
 import { useFinalizePayrollRun, useMarkPayslipPaid, useDeletePayrollRun, useAdjustPayslip } from "@/hooks/use-payroll-mutations";
@@ -26,6 +25,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { BackLink } from "@/components/ui/back-link";
 
 const PAYROLL_RUN_COLUMNS = [
   { key: "employee", label: "Employee", required: true },
@@ -156,9 +156,7 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
-      <Link href="/employees/payroll" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Payroll
-      </Link>
+      <BackLink href="/employees/payroll">Payroll</BackLink>
       <PageHeader
         title={`${fmtDate(run.periodStart)} – ${fmtDate(run.periodEnd)}`}
         description={`${(payslips || []).length} payslips · Total net pay ${inr(totalNet)}`}

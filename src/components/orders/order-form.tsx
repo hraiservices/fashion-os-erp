@@ -2,12 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, Copy, User2, Shirt, Ruler, Gift, Check, ClipboardList, AlertTriangle, Receipt, TrendingUp, TrendingDown, Sparkles, ScanLine } from "lucide-react";
+import { Plus, Trash2, Copy, User2, Shirt, Ruler, Gift, Check, ClipboardList, AlertTriangle, Receipt, TrendingUp, TrendingDown, Sparkles, ScanLine } from "lucide-react";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { isNativePlatform } from "@/lib/capacitor";
 import { useCreateOrder, useUpdateOrder } from "@/hooks/use-order-mutations";
@@ -67,6 +66,7 @@ import { TimePicker } from "@/components/ui/time-picker";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { istDateString } from "@/lib/ist-date";
 import { getProfiles, activeProfiles, defaultProfile, findProfile } from "@/lib/measurement-profiles";
+import { BackLink } from "@/components/ui/back-link";
 
 const garmentSchema = z.object({
   type: z.string().min(1, "Select a garment"),
@@ -797,10 +797,9 @@ function OrderFormFields({
       {/* ── Page header bar ───────────────────────────────────────────────── */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
         <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-4 py-3 sm:px-6">
-          <Link href="/orders" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="size-4" />
+          <BackLink href="/orders">
             <span className="hidden sm:inline">Orders</span>
-          </Link>
+          </BackLink>
           <div className="min-w-0 flex-1">
             <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Order" : isAlteration ? "New Alteration" : "New Order"}</h1>
             {isEdit && <p className="text-[11px] text-muted-foreground font-mono">{existingOrder.id}</p>}

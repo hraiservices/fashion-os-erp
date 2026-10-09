@@ -3,7 +3,7 @@
 import { use } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, Receipt, Ban, Pencil } from "lucide-react";
+import { Receipt, Ban, Pencil } from "lucide-react";
 import { FileTextDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useSalesQuotation } from "@/hooks/use-sales-quotations";
 import { useSetQuotationStatus } from "@/hooks/use-sales-mutations";
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader } from "@/components/ui/mobile-record-list";
+import { BackLink } from "@/components/ui/back-link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,9 +68,7 @@ export default function QuotationDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
-      <Link href="/sales/quotations" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Quotations
-      </Link>
+      <BackLink href="/sales/quotations">Quotations</BackLink>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

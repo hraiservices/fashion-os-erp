@@ -3,8 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Settings2, CalendarDays, Layers, FileText, Factory } from "lucide-react";
-import Link from "next/link";
+import { Settings2, CalendarDays, Layers, FileText, Factory } from "lucide-react";
 import { useProducts } from "@/hooks/use-products";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useActiveTailors } from "@/hooks/use-employees";
@@ -23,6 +22,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { inr } from "@/lib/format";
 import type { WorkOrder } from "@/lib/types";
 import { istDateString } from "@/lib/ist-date";
+import { BackLink } from "@/components/ui/back-link";
 
 function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
@@ -147,10 +147,9 @@ export function WorkOrderForm({ existing }: { existing?: WorkOrder }) {
       {/* Sticky header */}
       <div className="sticky top-0 z-20 border-b bg-white dark:bg-card shadow-sm">
         <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-4 py-3 sm:px-6">
-          <Link href="/manufacturing" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="size-4" />
+          <BackLink href="/manufacturing">
             <span className="hidden sm:inline">Work orders</span>
-          </Link>
+          </BackLink>
           <div className="min-w-0 flex-1">
             <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Work Order" : "New Work Order"}</h1>
             <p className="text-[11px] text-muted-foreground font-mono truncate">{woNumber}</p>

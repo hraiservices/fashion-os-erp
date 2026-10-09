@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Factory, ArrowRight, CheckCircle2, Trash2, Pencil } from "lucide-react";
+import { Factory, ArrowRight, CheckCircle2, Trash2, Pencil } from "lucide-react";
 import { useWorkOrder } from "@/hooks/use-work-orders";
 import { useAdvanceWoStatus, useDeleteWorkOrder } from "@/hooks/use-work-order-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CompleteWorkOrderDialog } from "@/components/manufacturing/complete-work-order-dialog";
 import { MoveToStageLabel } from "@/components/orders/stage-badge";
+import { BackLink } from "@/components/ui/back-link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -93,9 +94,7 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
-      <Link href="/manufacturing" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Manufacturing
-      </Link>
+      <BackLink href="/manufacturing">Manufacturing</BackLink>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

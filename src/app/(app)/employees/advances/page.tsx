@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, Banknote } from "lucide-react";
+import { Banknote } from "lucide-react";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useBulkAdvanceCandidates } from "@/hooks/use-payroll";
 import { useAddBulkAdvances } from "@/hooks/use-payroll-mutations";
@@ -16,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { inr } from "@/lib/format";
 import { DatePicker, toISODate } from "@/components/ui/date-picker";
+import { BackLink } from "@/components/ui/back-link";
 
 function todayISO() {
   return toISODate(new Date());
@@ -83,9 +83,7 @@ export default function WeeklyAdvancesPage() {
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
-      <Link href="/employees" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Employees
-      </Link>
+      <BackLink href="/employees">Employees</BackLink>
       <PageHeader
         title="Weekly Advances"
         description="Pay out several employees' advances at once"

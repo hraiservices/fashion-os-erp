@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, ChevronLeft, ChevronRight, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt, FileDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt, FileDown } from "lucide-react";
 import { useOrder } from "@/hooks/use-order";
 import { useOrders } from "@/hooks/use-orders";
 import { useOrderGroup } from "@/hooks/use-order-group";
@@ -54,6 +54,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { BackLink } from "@/components/ui/back-link";
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -213,9 +214,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
       <div className="flex items-center justify-between gap-3">
-        <Link href="/orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" /> Orders
-        </Link>
+        <BackLink href="/orders">Orders</BackLink>
         <div className="flex shrink-0 items-center gap-1.5">
           <Button
             variant="outline"

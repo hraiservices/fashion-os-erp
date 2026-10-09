@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, ChevronRight } from "lucide-react";
+import { Plus, ChevronRight } from "lucide-react";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePayrollRuns } from "@/hooks/use-payroll";
 import { useRunPayroll } from "@/hooks/use-payroll-mutations";
@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { fmtDate } from "@/lib/format";
 import { DatePicker, toISODate } from "@/components/ui/date-picker";
+import { BackLink } from "@/components/ui/back-link";
 
 function todayISO() {
   return toISODate(new Date());
@@ -59,9 +60,7 @@ export default function PayrollRunsPage() {
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
-      <Link href="/employees" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Employees
-      </Link>
+      <BackLink href="/employees">Employees</BackLink>
       <PageHeader
         title="Payroll"
         description="Generate and track pay runs"

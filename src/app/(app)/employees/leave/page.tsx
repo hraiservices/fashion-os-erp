@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, CalendarClock, Check, X } from "lucide-react";
+import { CalendarClock, Check, X } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
 import { useActiveLeaveTypes } from "@/hooks/use-leave-types";
 import { useLeaveRequests, useApproveLeaveRequest } from "@/hooks/use-leave-requests";
@@ -17,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RejectLeaveDialog } from "@/components/employees/reject-leave-dialog";
 import { fmtDate } from "@/lib/format";
 import type { LeaveRequest, LeaveRequestStatus } from "@/lib/types";
+import { BackLink } from "@/components/ui/back-link";
 
 const STATUS_TONE: Record<LeaveRequestStatus, string> = {
   pending: "border-amber-500/30 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
@@ -178,9 +178,7 @@ export default function EmployeeLeavePage() {
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
-      <Link href="/employees" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Employees
-      </Link>
+      <BackLink href="/employees">Employees</BackLink>
       <PageHeader title="Leave" description="Review and approve employee leave requests" />
 
       <Tabs value={tab} onValueChange={(v) => v && setTab(v as "pending" | "all")}>

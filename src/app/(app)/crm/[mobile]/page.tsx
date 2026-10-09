@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ArrowLeft, ChevronRight, Mail, MapPin, Cake, Heart, FileText, Ticket, Shirt, Wallet } from "lucide-react";
+import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ChevronRight, Mail, MapPin, Cake, Heart, FileText, Ticket, Shirt, Wallet } from "lucide-react";
 import { ReceiptDuotoneIcon, ShoppingBagDuotoneIcon, WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useCustomerCredit } from "@/hooks/use-customer-credit";
@@ -38,6 +38,7 @@ import { CustomerMeasurements } from "@/components/crm/customer-measurements";
 import { CustomerMeasurementProfiles } from "@/components/crm/customer-measurement-profiles";
 import { CustomerBuyingProfileCard } from "@/components/crm/customer-buying-profile-card";
 import { CustomerProductRecommendations } from "@/components/crm/customer-product-recommendations";
+import { BackLink } from "@/components/ui/back-link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -162,9 +163,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6">
-      <Link href="/crm" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Customers
-      </Link>
+      <BackLink href="/crm">Customers</BackLink>
 
       <div className="rounded-xl border bg-card p-4 sm:p-5">
         <div className="flex items-start gap-4">

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, FileDown, Printer, Scissors } from "lucide-react";
+import { FileDown, Printer, Scissors } from "lucide-react";
 import { useOrders } from "@/hooks/use-orders";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { inr, fmtDate } from "@/lib/format";
@@ -12,6 +12,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { BackLink } from "@/components/ui/back-link";
 
 /**
  * Shop-wide printable list of stitching orders for a chosen date range — every customer's
@@ -58,9 +59,7 @@ export default function OrdersPrintPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6 print:p-0">
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
-        <Link href="/orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" /> Orders
-        </Link>
+        <BackLink href="/orders">Orders</BackLink>
         <div className="flex gap-2">
           <Button
             variant="outline"

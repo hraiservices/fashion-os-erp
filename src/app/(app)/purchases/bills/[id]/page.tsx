@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, Wallet, Undo2, Trash2, Pencil } from "lucide-react";
+import { Wallet, Undo2, Trash2, Pencil } from "lucide-react";
 import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePurchaseBill } from "@/hooks/use-purchase-bills";
 import { useVendor } from "@/hooks/use-vendors";
@@ -34,6 +34,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
+import { BackLink } from "@/components/ui/back-link";
 
 export default function BillDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -83,9 +84,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
-      <Link href="/purchases/bills" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Bills
-      </Link>
+      <BackLink href="/purchases/bills">Bills</BackLink>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

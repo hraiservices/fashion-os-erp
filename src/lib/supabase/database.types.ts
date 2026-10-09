@@ -1526,6 +1526,20 @@ export interface Database {
         Args: Record<string, never>;
         Returns: Json;
       };
+      // supabase/migrations/add_current_user_context_rpc.sql — not yet regenerated from a live
+      // schema (migrations here are applied by hand, see that file's own comment), hand-added to
+      // match the function's RETURNS TABLE shape exactly.
+      get_current_user_context: {
+        Args: Record<string, never>;
+        Returns: {
+          role: string | null;
+          custom_permissions: Json | null;
+          linked_employee_id: string | null;
+          employee_name: string | null;
+          employee_photo_url: string | null;
+          role_default_overrides: Json | null;
+        }[];
+      };
       rename_garment_type: {
         Args: { p_old: string; p_new: string };
         Returns: number;

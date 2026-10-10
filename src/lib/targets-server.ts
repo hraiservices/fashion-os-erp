@@ -11,7 +11,7 @@ import { istDateString } from "@/lib/ist-date";
 import { OPEN_STAGES } from "@/lib/lead-stages";
 import { computeProgress, monthRange, type LeadFact, type SaleFact, type SaleLine, type TargetDef } from "@/lib/targets";
 import { mapActivityRow, mapLeadRow, mapTargetRow, mapTaskRow, type LeadDto, type StaffOption, type TargetDto, type TargetWithProgress, type TaskDto } from "@/lib/targets-types";
-import { bucketTasks, isOverdue, taskVisibleTo } from "@/lib/work-tasks";
+import { addDaysIso, bucketTasks, isOverdue, taskVisibleTo } from "@/lib/work-tasks";
 
 /**
  * Server-side helpers for the Targets module. Every function takes the SERVICE-ROLE client as
@@ -28,6 +28,8 @@ export interface TargetsCtx {
   employeeId: string | null;
   /** Sees everyone's leads, tasks and targets (viewAllTargets). Everyone else sees only their own. */
   seesAll: boolean;
+  /** The shop's licensed modules, already read by the gate (so a route can tell e.g. whether Product Sales is on without another query). */
+  modules: ModuleEntitlements;
   db: SupabaseClient<Database>;
 }
 
@@ -49,11 +51,15 @@ export async function targetsContext(need?: keyof Permissions): Promise<{ ctx: T
   const db = createServiceClient();
   if (!db) return { error: NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 }) };
 
-  return { ctx: { email: user.email, role: user.role, perms: user.perms, employeeId: user.employeeId, seesAll: !!user.perms.viewAllTargets, db } };
+  return { ctx: { email: user.email, role: user.role, perms: user.perms, employeeId: user.employeeId, seesAll: !!user.perms.viewAllTargets, modules: entitlements, db } };
 }
 
-/** Fetches every row of a query, paging past PostgREST's 1000-row cap. */
-async function fetchAll<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
+/**
+ * Fetches every row of a query, paging past PostgREST's 1000-row cap. A plain `.limit(5000)` does NOT
+ * get past it: the server still stops at its max-rows setting (1000 by default), silently. Callers
+ * must give the query a stable order so pages don't overlap or skip rows.
+ */
+export async function fetchAll<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
   const out: T[] = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await page(from, from + 999);
@@ -84,18 +90,33 @@ export async function isActiveEmployee(db: SupabaseClient<Database>, id: string)
  * Orders (credited via the lead they came from) and non-draft invoices (credited via
  * sales_person_id) dated inside [from, to], as plain facts for the engine in targets.ts.
  */
-export async function fetchSaleFacts(db: SupabaseClient<Database>, from: string, to: string): Promise<SaleFact[]> {
+export async function fetchSaleFacts(db: SupabaseClient<Database>, from: string, to: string, opts?: { lines?: boolean }): Promise<SaleFact[]> {
+  // The garment / product lines are the heavy part of an order or invoice. They are only needed when a target counts
+  // pieces or only certain products, so every other caller asks for the totals alone.
+  const withLines = opts?.lines !== false;
+  type Page<R> = PromiseLike<{ data: R[] | null; error: { message: string } | null }>;
+  type OrderRow = { id: string; in_date: string; total: number; garments?: unknown; lead_id: string | null };
+  type InvoiceRow = { id: string; invoice_date: string; total: number; items?: unknown; doc_status: string; sales_person_id: string | null };
   const [orders, invoices] = await Promise.all([
-    fetchAll((a, b) => db.from("orders").select("id, in_date, total, garments, lead_id").gte("in_date", from).lte("in_date", to).range(a, b)),
-    fetchAll((a, b) => db.from("sales_invoices").select("id, invoice_date, total, items, doc_status, sales_person_id").gte("invoice_date", from).lte("invoice_date", to).range(a, b)),
+    fetchAll<OrderRow>(
+      (a, b) =>
+        (withLines
+          ? db.from("orders").select("id, in_date, total, garments, lead_id").gte("in_date", from).lte("in_date", to).order("id").range(a, b)
+          : db.from("orders").select("id, in_date, total, lead_id").gte("in_date", from).lte("in_date", to).order("id").range(a, b)) as unknown as Page<OrderRow>
+    ),
+    fetchAll<InvoiceRow>(
+      (a, b) =>
+        (withLines
+          ? db.from("sales_invoices").select("id, invoice_date, total, items, doc_status, sales_person_id").gte("invoice_date", from).lte("invoice_date", to).order("id").range(a, b)
+          : db.from("sales_invoices").select("id, invoice_date, total, doc_status, sales_person_id").gte("invoice_date", from).lte("invoice_date", to).order("id").range(a, b)) as unknown as Page<InvoiceRow>
+    ),
   ]);
 
   const leadIds = Array.from(new Set(orders.map((o) => o.lead_id).filter((x): x is string => !!x)));
   const ownerByLead = new Map<string, string | null>();
-  if (leadIds.length) {
-    const { data } = await db.from("leads").select("id, assigned_employee_id").in("id", leadIds);
-    for (const l of data || []) ownerByLead.set(l.id, l.assigned_employee_id);
-  }
+  // In batches: one long `in (…)` list fails at the gateway, and every order from a lead would silently stop
+  // counting towards its owner's target.
+  for (const l of await inBatches(leadIds, (ids) => db.from("leads").select("id, assigned_employee_id").in("id", ids))) ownerByLead.set(l.id, l.assigned_employee_id);
 
   const facts: SaleFact[] = [];
   for (const o of orders) {
@@ -136,19 +157,78 @@ export function leadFactOf(r: LeadFactRow): LeadFact {
 }
 
 export async function fetchLeadFactRows(db: SupabaseClient<Database>): Promise<LeadFactRow[]> {
-  return (await fetchAll((a, b) => db.from("leads").select(LEAD_FACT_COLUMNS).order("created_at", { ascending: false }).range(a, b))) as unknown as LeadFactRow[];
+  return (await fetchAll((a, b) => db.from("leads").select(LEAD_FACT_COLUMNS).order("created_at", { ascending: false }).order("id").range(a, b))) as unknown as LeadFactRow[];
+}
+
+/**
+ * The leads the progress maths and the Today summary can need: every open one (for "likely to close") plus those
+ * won on or after `sinceDate` (for "leads won"). Lost leads never count towards a target, and old won ones are
+ * out of every window, so neither is read — a shop's closed leads pile up and used to be loaded in full on every
+ * dashboard visit.
+ */
+export async function fetchLeadFactsSince(db: SupabaseClient<Database>, sinceDate: string): Promise<LeadFactRow[]> {
+  // A day of margin: won_at is a timestamp, the target windows are shop-local (IST) days, and computeProgress does the exact check.
+  const sinceIso = `${addDaysIso(sinceDate, -1)}T00:00:00Z`;
+  const [open, won] = await Promise.all([
+    fetchAll((a, b) => db.from("leads").select(LEAD_FACT_COLUMNS).in("stage", [...OPEN_STAGES]).order("created_at", { ascending: false }).order("id").range(a, b)),
+    fetchAll((a, b) => db.from("leads").select(LEAD_FACT_COLUMNS).eq("stage", "won").gte("won_at", sinceIso).order("created_at", { ascending: false }).order("id").range(a, b)),
+  ]);
+  return [...(open as unknown as LeadFactRow[]), ...(won as unknown as LeadFactRow[])];
 }
 
 export async function fetchLeadRows(db: SupabaseClient<Database>): Promise<Database["public"]["Tables"]["leads"]["Row"][]> {
-  return fetchAll((a, b) => db.from("leads").select("*").order("created_at", { ascending: false }).range(a, b));
+  return fetchAll((a, b) => db.from("leads").select("*").order("created_at", { ascending: false }).order("id").range(a, b));
 }
 
 // ── Visibility ────────────────────────────────────────────────────────────
 
-export function leadVisible(r: Pick<Database["public"]["Tables"]["leads"]["Row"], "assigned_employee_id" | "created_by">, ctx: TargetsCtx): boolean {
+/**
+ * PostgREST `or=` filter that keeps only the rows this person may see — the ones assigned to them or
+ * created by them — or null when they see everything. The same rule as leadVisible / taskVisible, but
+ * applied in the database so a staff member's list doesn't first load everyone's rows.
+ */
+export function ownershipFilter(ctx: TargetsCtx, assigneeColumn: "assigned_employee_id" | "assignee_id"): string | null {
+  if (ctx.seesAll) return null;
+  const email = ctx.email.replace(/[,()%*"\\]/g, "");
+  const parts = [`created_by.eq.${email}`];
+  if (email.toLowerCase() !== email) parts.push(`created_by.eq.${email.toLowerCase()}`);
+  if (ctx.employeeId) parts.push(`${assigneeColumn}.eq.${ctx.employeeId}`);
+  return parts.join(",");
+}
+
+/** Runs `fn` over `ids` in batches — a long `in (…)` list becomes a URL too long for the gateway. */
+export async function inBatches<T>(ids: string[], fn: (batch: string[]) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>, size = 100): Promise<T[]> {
+  const batches: string[][] = [];
+  for (let i = 0; i < ids.length; i += size) batches.push(ids.slice(i, i + size));
+  const results = await Promise.all(batches.map((b) => fn(b)));
+  const out: T[] = [];
+  for (const r of results) {
+    if (r.error) throw new Error(r.error.message);
+    out.push(...(r.data || []));
+  }
+  return out;
+}
+
+type LeadOwnership = Pick<Database["public"]["Tables"]["leads"]["Row"], "assigned_employee_id" | "created_by">;
+
+export function leadVisible(r: LeadOwnership, ctx: TargetsCtx): boolean {
   if (ctx.seesAll) return true;
   if (ctx.employeeId && r.assigned_employee_id === ctx.employeeId) return true;
   return !!r.created_by && r.created_by.toLowerCase() === ctx.email.toLowerCase();
+}
+
+/**
+ * May this signed-in user act on this lead from OUTSIDE the Targets screens — i.e. the order and
+ * invoice routes, which stamp a lead onto a new sale and mark it Won? Same rule as editing it in
+ * Targets: they must be allowed to manage leads and be able to see this one. Without this check any
+ * user who can create an order could pass any lead id and win it (and credit the sale) from under
+ * its owner.
+ */
+export function canActOnLead(user: { email: string; employeeId: string | null; perms: Permissions }, lead: LeadOwnership): boolean {
+  if (!user.perms.accessTargets || !user.perms.manageLeads) return false;
+  if (user.perms.viewAllTargets) return true;
+  if (user.employeeId && lead.assigned_employee_id === user.employeeId) return true;
+  return !!lead.created_by && lead.created_by.toLowerCase() === user.email.toLowerCase();
 }
 
 export function targetVisible(t: Pick<TargetDto, "scope" | "assigneeIds">, ctx: TargetsCtx): boolean {
@@ -177,6 +257,16 @@ const toDef = (t: TargetDto): TargetDef => ({
   statusOverride: t.statusOverride,
 });
 
+/** The targets this person may see (optionally just `ids`, optionally only those that haven't ended before `endsOnOrAfter`). */
+export async function loadVisibleTargets(ctx: TargetsCtx, ids?: string[], endsOnOrAfter?: string): Promise<TargetDto[]> {
+  let q = ctx.db.from("sales_targets").select("*").order("end_date", { ascending: false });
+  if (ids) q = q.in("id", ids);
+  if (endsOnOrAfter) q = q.gte("end_date", endsOnOrAfter);
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapTargetRow).filter((t) => targetVisible(t, ctx));
+}
+
 export async function loadTargetsWithProgress(
   ctx: TargetsCtx,
   today: string,
@@ -184,24 +274,24 @@ export async function loadTargetsWithProgress(
   opts?: {
     /** Skip targets that ended before this date — keeps old targets from widening the sales read. */
     endsOnOrAfter?: string;
-    /** Lead rows the caller already loaded, so they aren't fetched a second time. */
-    leadRows?: LeadFactRow[];
+    /** Targets the caller already loaded (from loadVisibleTargets), so they aren't read twice. */
+    targets?: TargetDto[];
+    /** Lead rows the caller already has (or is already loading) — fetchLeadFactsSince, covering every target's start date. */
+    leadRows?: LeadFactRow[] | Promise<LeadFactRow[]>;
   }
 ): Promise<TargetWithProgress[]> {
   const { db } = ctx;
-  let q = db.from("sales_targets").select("*").order("end_date", { ascending: false });
-  if (ids) q = q.in("id", ids);
-  if (opts?.endsOnOrAfter) q = q.gte("end_date", opts.endsOnOrAfter);
-  const { data, error } = await q;
-  if (error) throw new Error(error.message);
-
-  const targets = (data || []).map(mapTargetRow).filter((t) => targetVisible(t, ctx));
+  const targets = opts?.targets ?? (await loadVisibleTargets(ctx, ids, opts?.endsOnOrAfter));
   if (!targets.length) return [];
 
   const from = targets.reduce((m, t) => (t.startDate < m ? t.startDate : m), targets[0].startDate);
   const to = targets.reduce((m, t) => (t.endDate > m ? t.endDate : m), targets[0].endDate);
   const needsSales = targets.some((t) => t.metric !== "leads_won");
-  const [sales, leadRows] = await Promise.all([needsSales ? fetchSaleFacts(db, from, to) : Promise.resolve([] as SaleFact[]), opts?.leadRows ? Promise.resolve(opts.leadRows) : fetchLeadFactRows(db)]);
+  const needsLines = targets.some((t) => t.metric === "units" || t.productIds.length > 0 || t.garmentTypes.length > 0);
+  const [sales, leadRows] = await Promise.all([
+    needsSales ? fetchSaleFacts(db, from, to, { lines: needsLines }) : Promise.resolve([] as SaleFact[]),
+    opts?.leadRows ? Promise.resolve(opts.leadRows) : fetchLeadFactsSince(db, from),
+  ]);
   const leads = leadRows.map(leadFactOf);
 
   return targets.map((t) => ({ ...t, progress: computeProgress(toDef(t), sales, leads, today) }));
@@ -221,7 +311,8 @@ export async function ensureCustomerForLead(db: SupabaseClient<Database>, lead: 
   const { data: existing } = await db.from("customers").select("id").eq("id", id).maybeSingle();
   if (existing) return existing.id;
   const { error } = await db.from("customers").insert({ id, name: lead.name, mobile, measurements: {}, loyalty_points: 0, total_points_earned: 0, loyalty_history: [] });
-  if (error) throw new Error(error.message);
+  // 23505 = someone created the same customer a moment ago (two taps, or two people) — that is fine, it exists now.
+  if (error && error.code !== "23505") throw new Error(error.message);
   return id;
 }
 
@@ -242,14 +333,12 @@ export async function addLeadActivity(db: SupabaseClient<Database>, leadId: stri
 export async function nextFollowUps(db: SupabaseClient<Database>, leadIds: string[]): Promise<Map<string, { id: string; title: string; dueDate: string | null }>> {
   const out = new Map<string, { id: string; title: string; dueDate: string | null }>();
   if (!leadIds.length) return out;
-  const { data } = await db
-    .from("work_tasks")
-    .select("id, title, due_date, link_id, status")
-    .eq("link_type", "lead")
-    .in("link_id", leadIds)
-    .not("status", "in", "(done,cancelled)")
-    .order("due_date", { ascending: true, nullsFirst: false });
-  for (const t of data || []) {
+  // In batches (one long `in (…)` list fails at the gateway and every follow-up would silently vanish); each lead
+  // sits in exactly one batch, and each batch is ordered soonest-first, so the first row seen per lead is its next one.
+  const rows = await inBatches(leadIds, (ids) =>
+    db.from("work_tasks").select("id, title, due_date, link_id, status").eq("link_type", "lead").in("link_id", ids).not("status", "in", "(done,cancelled)").order("due_date", { ascending: true, nullsFirst: false })
+  );
+  for (const t of rows) {
     if (t.link_id && !out.has(t.link_id)) out.set(t.link_id, { id: t.id, title: t.title, dueDate: t.due_date });
   }
   return out;
@@ -277,13 +366,25 @@ export async function buildSummary(ctx: TargetsCtx, today: string): Promise<Targ
   const { db } = ctx;
   const month = monthRange(today);
 
-  // Leads are read once and shared with the target progress maths. Targets that ended more than
-  // two months ago are left out: the Today screen, dashboard cards and Day Book only need current ones.
+  // Targets that ended more than two months ago are left out: the Today screen, dashboard cards and Day Book only need
+  // current ones. They are read first (one cheap query) because their start dates say how far back won leads matter;
+  // then the tasks, the leads and the sales behind the targets are all read at the same time.
   const lookback = istDateString(new Date(Date.now() - 62 * 86_400_000));
-  const [taskRes, leadRows] = await Promise.all([db.from("work_tasks").select("*").not("status", "in", "(done,cancelled)").limit(2000), fetchLeadFactRows(db)]);
-  const allTargets = await loadTargetsWithProgress(ctx, today, undefined, { endsOnOrAfter: lookback, leadRows });
+  const targetRows = await loadVisibleTargets(ctx, undefined, lookback);
+  const since = targetRows.reduce((m, t) => (t.startDate < m ? t.startDate : m), month.start);
+  const leadsP = fetchLeadFactsSince(db, since);
+  const myTasks = ownershipFilter(ctx, "assignee_id"); // a staff member's own tasks are picked in the database, not after loading everyone's
+  const [taskRows, leadRows, allTargets] = await Promise.all([
+    fetchAll((a, b) => {
+      let q = db.from("work_tasks").select("*").not("status", "in", "(done,cancelled)");
+      if (myTasks) q = q.or(myTasks);
+      return q.order("created_at", { ascending: false }).order("id").range(a, b);
+    }),
+    leadsP,
+    loadTargetsWithProgress(ctx, today, undefined, { targets: targetRows, leadRows: leadsP }),
+  ]);
 
-  const tasks = (taskRes.data || []).map(mapTaskRow).filter((t) => taskVisible(t, ctx));
+  const tasks = taskRows.map(mapTaskRow).filter((t) => taskVisible(t, ctx));
   const buckets = bucketTasks(tasks, today);
   const leads = leadRows.filter((l) => leadVisible(l, ctx));
 

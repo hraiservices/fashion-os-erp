@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 export function MyTargetsWidget() {
   const { data, isLoading, isError } = useTargetsSummary({ quiet: true });
-  const meta = useTargetsMeta().data;
+  const meta = useTargetsMeta({ quiet: true }).data;
   const { nameOf } = useStaffLookup(meta);
   if (isError) return null;
   if (isLoading) return <Skeleton className="h-48 w-full" />;

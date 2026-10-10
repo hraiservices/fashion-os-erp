@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTargetsMeta } from "@/hooks/use-targets";
 import { TaskForm } from "@/components/targets/task-form";
+import { TargetsNoAccess } from "@/components/targets/no-access";
 
 /** Only ever send people back to a Targets screen — the `from` link comes from the address bar. */
 function safeBack(from: string | null): string {
@@ -13,7 +14,9 @@ function safeBack(from: string | null): string {
 
 function NewTask() {
   const params = useSearchParams();
-  const meta = useTargetsMeta().data;
+  const metaQuery = useTargetsMeta();
+  const meta = metaQuery.data;
+  if (metaQuery.isError) return <TargetsNoAccess message={metaQuery.error.message} />;
   if (!meta) return <Skeleton className="m-4 h-64 sm:m-6" />;
   return (
     <TaskForm

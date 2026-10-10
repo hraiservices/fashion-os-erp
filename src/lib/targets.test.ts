@@ -5,6 +5,7 @@ import {
   dailyTargetFor,
   describeTarget,
   formatMetricValue,
+  formatWinRate,
   incentiveFor,
   lostReasonStats,
   monthRange,
@@ -268,5 +269,17 @@ describe("dailyTargetFor", () => {
     expect(dailyTargetFor([shop({ statusOverride: "cancelled" })], "2026-09-10")).toBeNull();
     expect(dailyTargetFor([shop()], "2026-10-01")).toBeNull();
     expect(dailyTargetFor([shop({ metric: "order_count" })], "2026-09-10")).toBeNull();
+  });
+});
+
+describe("formatWinRate", () => {
+  it("shows the whole-percent rate as it is — 50 means 50%, not 5000%", () => {
+    expect(formatWinRate(winRate([{ stage: "won" }, { stage: "lost" }]))).toBe("50%");
+    expect(formatWinRate(winRate([{ stage: "won" }, { stage: "won" }, { stage: "lost" }]))).toBe("67%");
+    expect(formatWinRate(100)).toBe("100%");
+  });
+  it("shows a dash when nothing has been decided yet", () => {
+    expect(formatWinRate(winRate([{ stage: "new" }]))).toBe("–");
+    expect(formatWinRate(null)).toBe("–");
   });
 });

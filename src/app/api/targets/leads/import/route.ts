@@ -6,8 +6,11 @@ import { normalizeIndianMobile } from "@/lib/business-rules";
 import { OPEN_STAGES } from "@/lib/lead-stages";
 import { LEAD_IMPORT_MAX_ROWS } from "@/lib/lead-import";
 import { parseBody, serverError } from "@/lib/targets-api";
-import { leadVisible, loadStaff, targetsContext } from "@/lib/targets-server";
+import { inBatches, loadStaff, targetsContext } from "@/lib/targets-server";
+import { planLeadImport, type ImportOp } from "@/lib/lead-import-plan";
 import { logAction } from "@/lib/logging";
+
+type LeadRow = Database["public"]["Tables"]["leads"]["Row"];
 
 const rowSchema = z.object({
   name: z.string().trim().max(120),
@@ -27,6 +30,9 @@ const bodySchema = z.object({ rows: z.array(rowSchema).min(1, "The file has no r
  * lead UPDATES that lead (only the columns that were filled in); every other row adds a new lead.
  * Staff without the assign permission always own what they import. Rows that can't be used are
  * reported with their sheet row number instead of failing the whole file.
+ *
+ * The file is worked out first and then written in batches (new leads in groups, updates a few at a
+ * time) — one database round trip per row made a 1,000-row file slow enough to time out.
  */
 export async function POST(request: Request) {
   const gate = await targetsContext("manageLeads");
@@ -39,92 +45,46 @@ export async function POST(request: Request) {
 
   try {
     const staff = (await loadStaff(db)).filter((s) => s.active);
-    const byName = new Map<string, string[]>();
-    for (const s of staff) {
-      const k = s.name.trim().toLowerCase();
-      byName.set(k, [...(byName.get(k) || []), s.id]);
-    }
-    const canAssignOthers = ctx.seesAll || ctx.perms.assignTasks;
 
-    const { data: openLeads } = await db.from("leads").select("*").in("stage", [...OPEN_STAGES]).neq("mobile", "");
-    const openByMobile = new Map((openLeads || []).map((l) => [l.mobile, l]));
+    // Only the open leads whose numbers appear in this file — not every open lead in the shop (a single query
+    // would stop at 1000 rows and miss duplicates beyond that).
+    const fileMobiles = Array.from(new Set(body.data.rows.map((r) => (r.mobile ? normalizeIndianMobile(r.mobile) : "")).filter((m) => m.length >= 10)));
+    const openLeads: LeadRow[] = fileMobiles.length ? await inBatches<LeadRow>(fileMobiles, (ms) => db.from("leads").select("*").in("stage", [...OPEN_STAGES]).in("mobile", ms)) : [];
+
+    const { ops, problems } = planLeadImport(body.data.rows, staff, openLeads, { employeeId: ctx.employeeId, email: ctx.email, seesAll: ctx.seesAll, canAssignOthers: ctx.seesAll || ctx.perms.assignTasks }, new Date().toISOString());
 
     let added = 0;
     let updated = 0;
-    const problems: { row: number; message: string }[] = [];
 
-    for (let i = 0; i < body.data.rows.length; i++) {
-      const r = body.data.rows[i];
-      const rowNo = i + 2; // sheet row: header is row 1
-      if (!r.name) {
-        problems.push({ row: rowNo, message: "No name — skipped" });
+    // New leads: one request per 100. If a batch is refused, fall back to one at a time so the bad row is named.
+    const inserts = ops.filter((o): o is Extract<ImportOp, { kind: "insert" }> => o.kind === "insert");
+    for (let i = 0; i < inserts.length; i += 100) {
+      const batch = inserts.slice(i, i + 100);
+      const { error } = await db.from("leads").insert(batch.map((o) => o.row));
+      if (!error) {
+        added += batch.length;
         continue;
       }
-      const mobile = r.mobile ? normalizeIndianMobile(r.mobile) : "";
-      if (r.mobile && mobile.length < 10) {
-        problems.push({ row: rowNo, message: `${r.name}: mobile number doesn't look right — skipped` });
-        continue;
+      for (const o of batch) {
+        const { error: one } = await db.from("leads").insert(o.row);
+        if (one) problems.push({ row: o.rowNo, message: `${o.name}: ${one.message}` });
+        else added += 1;
       }
-
-      let owner: string | null | undefined; // undefined = column blank, keep as is
-      if (r.owner) {
-        const ids = byName.get(r.owner.toLowerCase());
-        if (!ids) {
-          problems.push({ row: rowNo, message: `${r.name}: no staff member called "${r.owner}" — skipped` });
-          continue;
-        }
-        if (ids.length > 1) {
-          problems.push({ row: rowNo, message: `${r.name}: more than one staff member is called "${r.owner}" — skipped` });
-          continue;
-        }
-        owner = ids[0];
-        if (owner !== ctx.employeeId && !canAssignOthers) owner = ctx.employeeId;
-      }
-
-      const existing = mobile ? openByMobile.get(mobile) : undefined;
-      if (existing) {
-        if (!leadVisible(existing, ctx)) {
-          problems.push({ row: rowNo, message: `${r.name}: this number belongs to someone else's lead — skipped` });
-          continue;
-        }
-        const patch: Database["public"]["Tables"]["leads"]["Update"] = { name: r.name, updated_at: new Date().toISOString() };
-        if (r.productInterest) patch.product_interest = r.productInterest;
-        if (r.expectedValue > 0) patch.expected_value = r.expectedValue;
-        if (r.source) patch.source = r.source;
-        if (r.notes) patch.notes = r.notes;
-        if (r.stage) patch.stage = r.stage;
-        if (r.likelyToClose !== null) patch.likely_to_close = r.likelyToClose;
-        if (owner !== undefined) patch.assigned_employee_id = owner;
-        const { error } = await db.from("leads").update(patch).eq("id", existing.id);
-        if (error) problems.push({ row: rowNo, message: `${r.name}: ${error.message}` });
-        else updated += 1;
-        continue;
-      }
-
-      const { data: created, error } = await db
-        .from("leads")
-        .insert({
-          name: r.name,
-          mobile,
-          source: r.source,
-          product_interest: r.productInterest,
-          expected_value: r.expectedValue,
-          stage: r.stage || "new",
-          likely_to_close: r.likelyToClose ?? false,
-          assigned_employee_id: owner === undefined ? ctx.employeeId : owner,
-          notes: r.notes,
-          created_by: ctx.email,
-        })
-        .select("*")
-        .single();
-      if (error || !created) {
-        problems.push({ row: rowNo, message: `${r.name}: ${error?.message || "couldn't be added"}` });
-        continue;
-      }
-      if (mobile) openByMobile.set(mobile, created); // a repeat of this number later in the same file updates it
-      added += 1;
     }
 
+    // Updates: a handful at a time.
+    const updates = ops.filter((o): o is Extract<ImportOp, { kind: "update" }> => o.kind === "update");
+    for (let i = 0; i < updates.length; i += 10) {
+      await Promise.all(
+        updates.slice(i, i + 10).map(async (o) => {
+          const { error } = await db.from("leads").update(o.patch).eq("id", o.id);
+          if (error) problems.push({ row: o.rowNo, message: `${o.name}: ${error.message}` });
+          else updated += 1;
+        })
+      );
+    }
+
+    problems.sort((a, b) => a.row - b.row);
     after(() => logAction(db, ctx.email, `🤝 Leads imported: ${added} added, ${updated} updated`, null, problems.length ? `${problems.length} skipped` : null));
     return NextResponse.json({ ok: true, added, updated, skipped: problems.length, problems: problems.slice(0, 50) });
   } catch (e) {

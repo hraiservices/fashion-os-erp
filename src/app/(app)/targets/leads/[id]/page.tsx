@@ -199,7 +199,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           <Button
             variant="outline"
             className={confirm ? "h-12 border-red-500 text-red-600" : "h-12"}
-            disabled={del.isPending || closed || activities.length > 1}
+            disabled={del.isPending || closed || activities.length > 0}
             onClick={() => {
               if (!confirm) return setConfirm(true);
               del.mutate(lead.id, { onSuccess: () => { toast.success("Lead deleted"); router.push("/targets?tab=leads"); }, onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't delete") });
@@ -207,7 +207,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           >
             {confirm ? "Tap again" : "Delete"}
           </Button>
-          {(closed || activities.length > 1) && <p className="col-span-2 text-xs text-muted-foreground">A lead with history can&apos;t be deleted — mark it Lost with a reason instead.</p>}
+          {(closed || activities.length > 0) && <p className="col-span-2 text-xs text-muted-foreground">A lead with history can&apos;t be deleted — mark it Lost with a reason instead.</p>}
         </div>
       )}
 

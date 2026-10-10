@@ -347,6 +347,11 @@ export function winRate(leads: Pick<LeadFact, "stage">[]): number | null {
   return won + lost === 0 ? null : Math.round((won / (won + lost)) * 100);
 }
 
+/** A win rate as shown on screen. `winRate()` already returns a whole percent (50 = half), so it must not be multiplied by 100 again. */
+export function formatWinRate(rate: number | null): string {
+  return rate == null ? "–" : `${Math.round(rate)}%`;
+}
+
 export interface SourceRow {
   source: string;
   total: number;

@@ -12,17 +12,11 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FieldGroup, FormCard, FormShell, SectionHeading, pillClass } from "@/components/targets/form-ui";
 import { REMINDER_LABELS } from "@/components/targets/work-ui";
-import { TASK_PRIORITIES, TASK_PRIORITY_LABELS, type ChecklistItem } from "@/lib/work-tasks";
+import { addDaysIso, TASK_PRIORITIES, TASK_PRIORITY_LABELS, type ChecklistItem } from "@/lib/work-tasks";
 import { useCreateTask, useProject, useProjects, type TargetsMeta } from "@/hooks/use-targets";
 import { cn } from "@/lib/utils";
 
 const NONE = "none";
-
-function addDays(iso: string, n: number): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
 
 function Pick({ value, onChange, options, none }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; none?: string }) {
   return (
@@ -165,10 +159,10 @@ export function TaskForm({ meta, defaults, backHref }: { meta: TargetsMeta | und
                 <button type="button" className={pillClass(due === today)} onClick={() => setDue(today)}>
                   Today
                 </button>
-                <button type="button" className={pillClass(due === addDays(today, 1))} onClick={() => setDue(addDays(today, 1))}>
+                <button type="button" className={pillClass(due === addDaysIso(today, 1))} onClick={() => setDue(addDaysIso(today, 1))}>
                   Tomorrow
                 </button>
-                <button type="button" className={pillClass(due === addDays(today, 7))} onClick={() => setDue(addDays(today, 7))}>
+                <button type="button" className={pillClass(due === addDaysIso(today, 7))} onClick={() => setDue(addDaysIso(today, 7))}>
                   Next week
                 </button>
                 <button type="button" className={pillClass(!due)} onClick={() => setDue("")}>
@@ -181,7 +175,7 @@ export function TaskForm({ meta, defaults, backHref }: { meta: TargetsMeta | und
           <FieldGroup label="Duration (hours)">
             <Input type="number" inputMode="decimal" min={0} step="0.5" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="e.g. 4" className="h-10" />
           </FieldGroup>
-          <FieldGroup label="Reminder">
+          <FieldGroup label="Reminder" hint={reminder !== "none" && !due ? "Pick a due date too — the reminder is sent relative to it." : "Sent as a notification at about 9 am (notifications must be switched on for your login)."}>
             <Pick value={reminder} onChange={setReminder} options={Object.entries(REMINDER_LABELS).map(([value, label]) => ({ value, label }))} />
           </FieldGroup>
           {projects.length > 0 && (

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseImportRow, resolveImportStage } from "@/lib/lead-import";
+import { exportRowForLead, parseImportRow, resolveImportStage } from "@/lib/lead-import";
 
 describe("parseImportRow", () => {
   it("reads the template columns", () => {
@@ -22,5 +22,13 @@ describe("resolveImportStage", () => {
     expect(resolveImportStage("Sent quote", { quoted: "Sent quote" })).toBe("quoted");
     expect(resolveImportStage("Won")).toBe("");
     expect(resolveImportStage("lost")).toBe("");
+  });
+});
+
+describe("exportRowForLead", () => {
+  const lead = { name: "Asha", mobile: "9876543210", productInterest: "Lehenga", expectedValue: 5000, source: "Instagram", stage: "new", likelyToClose: false, notes: "", wonValue: 0, lostReason: "", createdAt: "2026-09-30T20:00:00.000Z" };
+  it("dates a lead by the shop's (IST) calendar day — 1:30 am IST on the 1st is not still September", () => {
+    expect(exportRowForLead(lead, "Ravi")["Added on"]).toBe("2026-10-01");
+    expect(exportRowForLead({ ...lead, createdAt: "2026-09-30T10:00:00.000Z" }, "Ravi")["Added on"]).toBe("2026-09-30");
   });
 });

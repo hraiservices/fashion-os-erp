@@ -13,6 +13,7 @@ import type { Database, Json } from "@/lib/supabase/database.types";
 import { DEFAULT_DOCUMENT_NUMBERING, formatDocNumber, periodKeyFor, type DocumentNumberingSettings } from "@/lib/document-numbering";
 import { getProfiles, upsertProfile, toJson } from "@/lib/measurement-profiles";
 import { migrateOrderImages } from "@/lib/supabase/media-storage";
+import { canActOnLead } from "@/lib/targets-server";
 
 const garmentSchema = z.object({
   type: z.string().min(1),
@@ -283,8 +284,10 @@ export async function POST(request: Request) {
   // haven't switched the module on (or run its migration) are completely unaffected.
   let leadId: string | null = null;
   if (fd.leadId) {
-    const { data: leadRow } = await db.from("leads").select("id").eq("id", fd.leadId).maybeSingle();
-    leadId = leadRow?.id ?? null;
+    // The lead must be one this user is allowed to work on in Targets — otherwise anyone who can add an order could
+    // win somebody else's lead (and credit the sale to its owner) just by sending its id.
+    const { data: leadRow } = await db.from("leads").select("id, assigned_employee_id, created_by").eq("id", fd.leadId).maybeSingle();
+    leadId = leadRow && canActOnLead(user, leadRow) ? leadRow.id : null;
   }
 
   const { data: insertedRow, error: insertError } = await db

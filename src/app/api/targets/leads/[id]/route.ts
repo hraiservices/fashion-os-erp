@@ -84,6 +84,9 @@ export async function PATCH(request: Request, { params }: Ctx) {
   const nextStage = d.stage ?? row.stage;
   if (d.stage && d.stage !== row.stage) {
     if (!isLeadStage(d.stage)) return badRequest("Unknown stage");
+    // A lead that was won through a real order or invoice stays won: moving it away would leave a sale on the books
+    // that no lead — and no salesperson's target — gets credit for.
+    if (row.stage === "won" && (row.order_id || row.invoice_id)) return NextResponse.json({ error: "This lead has an order or sale linked to it, so it can't be moved out of Won." }, { status: 409 });
     const err = validateStageChange({ from: row.stage, to: d.stage, lostReason: d.lostReason ?? row.lost_reason });
     if (err) return badRequest(err);
     update.stage = d.stage;

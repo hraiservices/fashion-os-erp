@@ -2,8 +2,9 @@ import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
-import { badRequest, dateStr, forbidden, parseBody, serverError, text, uuid } from "@/lib/targets-api";
-import { isActiveEmployee, leadVisible, logTaskEvent, mapTaskRow, targetsContext, taskVisible } from "@/lib/targets-server";
+import { badRequest, dateStr, forbidden, isUuid, parseBody, serverError, text, uuid } from "@/lib/targets-api";
+import { fetchAll, inBatches, isActiveEmployee, leadVisible, logTaskEvent, mapTaskRow, ownershipFilter, targetsContext, taskVisible } from "@/lib/targets-server";
+import { checkDependencies, checkTaskWorkspaceRefs, loadProjectFor } from "@/lib/targets-workspace";
 import { canAssignTo, TASK_PRIORITIES, TASK_STATUSES } from "@/lib/work-tasks";
 import { logAction } from "@/lib/logging";
 
@@ -41,18 +42,40 @@ export async function GET(request: Request) {
   const sp = new URL(request.url).searchParams;
   const status = sp.get("status") || "open";
   const assignee = sp.get("assignee");
-  let q = db.from("work_tasks").select("*").order("due_date", { ascending: true, nullsFirst: false }).limit(1500);
-  if (status === "open") q = q.not("status", "in", "(done,cancelled)");
-  else if (status === "done") q = q.in("status", ["done", "cancelled"]).order("completed_at", { ascending: false }).limit(300);
-  if (sp.get("project")) q = q.eq("project_id", sp.get("project")!);
-  if (sp.get("group")) q = q.eq("group_name", sp.get("group")!);
+  const project = sp.get("project");
+  const group = sp.get("group");
   const link = sp.get("link");
-  if (link?.includes(":")) {
-    const [type, id] = link.split(":");
-    q = q.eq("link_type", type).eq("link_id", id);
+  if (project && !isUuid(project)) return badRequest("That project id isn't valid");
+  if (assignee && assignee !== "me" && assignee !== "all" && !isUuid(assignee)) return badRequest("That person id isn't valid");
+
+  // Everything the caller asked for, newest due date first. Open and "all" lists are read in pages (a single
+  // query stops at 1000 rows); finished tasks are capped at the latest 300 on purpose.
+  const mine = ownershipFilter(ctx, "assignee_id");
+  const build = () => {
+    let q = db.from("work_tasks").select("*");
+    if (mine) q = q.or(mine);
+    if (status === "open") q = q.not("status", "in", "(done,cancelled)");
+    else if (status === "done") q = q.in("status", ["done", "cancelled"]);
+    if (project) q = q.eq("project_id", project);
+    if (group) q = q.eq("group_name", group);
+    if (link?.includes(":")) {
+      const [type, id] = link.split(":");
+      q = q.eq("link_type", type).eq("link_id", id);
+    }
+    return q;
+  };
+  let data: Database["public"]["Tables"]["work_tasks"]["Row"][];
+  try {
+    if (status === "done") {
+      const { data: rows, error } = await build().order("completed_at", { ascending: false, nullsFirst: false }).limit(300);
+      if (error) return serverError(error.message);
+      data = rows || [];
+    } else {
+      data = await fetchAll((a, b) => build().order("due_date", { ascending: true, nullsFirst: false }).order("id").range(a, b));
+    }
+  } catch (e) {
+    return serverError(e instanceof Error ? e.message : "Failed to load tasks");
   }
-  const { data, error } = await q;
-  if (error) return serverError(error.message);
 
   let tasks = (data || []).map(mapTaskRow).filter((t) => taskVisible(t, ctx));
   if (assignee === "me") tasks = tasks.filter((t) => t.assigneeId === ctx.employeeId);
@@ -61,8 +84,7 @@ export async function GET(request: Request) {
   // Label the lead each follow-up belongs to, so a task row can say "Call Sneha — Lehenga enquiry".
   const leadIds = Array.from(new Set(tasks.filter((t) => t.linkType === "lead" && t.linkId).map((t) => t.linkId as string)));
   if (leadIds.length) {
-    const { data: leads } = await db.from("leads").select("id, name").in("id", leadIds);
-    const names = new Map((leads || []).map((l) => [l.id, l.name]));
+    const names = new Map((await inBatches(leadIds, (ids) => db.from("leads").select("id, name").in("id", ids))).map((l) => [l.id, l.name]));
     for (const t of tasks) if (t.linkType === "lead" && t.linkId) t.linkLabel = names.get(t.linkId) ?? null;
   }
   return NextResponse.json({ tasks });
@@ -86,7 +108,7 @@ export async function POST(request: Request) {
   const [assigneeOk, parentRes, projectRes, leadRes] = await Promise.all([
     assigneeId ? isActiveEmployee(db, assigneeId) : Promise.resolve(true),
     d.parentTaskId ? db.from("work_tasks").select("*").eq("id", d.parentTaskId).maybeSingle().then((r) => r.data) : Promise.resolve(null),
-    d.projectId ? db.from("work_projects").select("id").eq("id", d.projectId).maybeSingle().then((r) => r.data) : Promise.resolve(null),
+    d.projectId ? loadProjectFor(db, ctx, d.projectId) : Promise.resolve(null),
     d.linkType === "lead" && d.linkId ? db.from("leads").select("assigned_employee_id, created_by").eq("id", d.linkId).maybeSingle().then((r) => r.data) : Promise.resolve(null),
   ]);
   if (!assigneeOk) return badRequest("That person isn't an active staff member");
@@ -98,12 +120,17 @@ export async function POST(request: Request) {
   if (d.linkType === "lead" && d.linkId && (!leadRes || !leadVisible(leadRes, ctx))) return badRequest("The lead wasn't found");
   if (d.dueDate && d.startDate && d.dueDate < d.startDate) return badRequest("The due date can't be before the start date");
 
+  // A subtask always belongs to its parent's project; everything else it points at must belong to that project too.
+  const projectId = parentRes ? parentRes.project_id : d.projectId;
+  const refProblem = (await checkTaskWorkspaceRefs(db, projectId, d.taskListId, d.phaseId)) ?? (d.dependsOn?.length ? await checkDependencies(db, null, d.dependsOn, (row) => taskVisible(mapTaskRow(row), ctx)) : null);
+  if (refProblem) return badRequest(refProblem);
+
   const { data, error } = await db
     .from("work_tasks")
     .insert({
       title: d.title,
       description: d.description,
-      project_id: d.projectId,
+      project_id: projectId,
       parent_task_id: d.parentTaskId,
       group_name: d.groupName,
       assignee_id: assigneeId ?? null,
@@ -128,7 +155,7 @@ export async function POST(request: Request) {
     .select("id")
     .single();
   if (error || !data) return serverError(error?.message || "Couldn't create the task");
-  after(() => logTaskEvent(db, { taskId: data.id, projectId: d.projectId, kind: "created", body: `Task created: ${d.title}`, email: ctx.email }));
+  after(() => logTaskEvent(db, { taskId: data.id, projectId, kind: "created", body: `Task created: ${d.title}`, email: ctx.email }));
 
   if (assigneeId && assigneeId !== ctx.employeeId) after(() => logAction(db, ctx.email, `📌 Task assigned: ${d.title}`, null, d.dueDate ? `due ${d.dueDate}` : null));
   return NextResponse.json({ ok: true, id: data.id });

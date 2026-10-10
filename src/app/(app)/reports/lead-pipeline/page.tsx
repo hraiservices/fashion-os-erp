@@ -4,7 +4,7 @@ import { inr } from "@/lib/format";
 import { stageLabel } from "@/lib/lead-stages";
 import { useTargetsReport, useTargetsMeta } from "@/hooks/use-targets";
 import { useReportDateRange } from "@/lib/report-date-range";
-import { targetsRange, TargetsReportView, type ReportColumn } from "@/components/targets/report-page";
+import { TargetsReportView, type ReportColumn } from "@/components/targets/report-page";
 import { StatCard } from "@/components/ui/stat-card";
 import { ChartBarDuotoneIcon, UsersDuotoneIcon, WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 
@@ -13,7 +13,7 @@ type Row = { stage: string; count: number; value: number; likelyValue: number };
 export default function LeadPipelinePage() {
   const dr = useReportDateRange("this-month");
   const meta = useTargetsMeta().data;
-  const q = useTargetsReport("pipeline", targetsRange(dr.range));
+  const q = useTargetsReport("pipeline"); // a snapshot of the open leads right now — the date range doesn't apply
   const d = q.data;
   const rows: Row[] = d?.rows ?? [];
   const columns: ReportColumn<Row>[] = [
@@ -25,7 +25,8 @@ export default function LeadPipelinePage() {
   return (
     <TargetsReportView
       title="Lead Pipeline"
-      description="How many leads sit in each stage and what they are worth. Shows leads created in the period."
+      description="How many open leads sit in each stage right now and what they are worth."
+      showDates={false}
       filename="lead-pipeline"
       dateRange={dr}
       loading={q.isLoading}

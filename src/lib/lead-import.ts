@@ -1,3 +1,4 @@
+import { istDateString } from "@/lib/ist-date";
 import { OPEN_STAGES, stageLabel, type StageLabelOverrides } from "@/lib/lead-stages";
 
 /** Excel/CSV import + export shape for leads. Pure functions so they can be unit-tested. */
@@ -102,6 +103,6 @@ export function exportRowForLead(
     Notes: lead.notes,
     "Won value": lead.stage === "won" ? lead.wonValue : "",
     "Why lost": lead.stage === "lost" ? lead.lostReason : "",
-    "Added on": lead.createdAt.slice(0, 10),
+    "Added on": istDateString(new Date(lead.createdAt)),
   };
 }

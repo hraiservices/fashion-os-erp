@@ -21,14 +21,19 @@ function ensureWebPushConfigured(): boolean {
   return true;
 }
 
-/** Sends to every Web Push subscription (the plain website and the installed PWA). */
-async function sendWebPushToAll(payload: PushPayload): Promise<void> {
-  if (!ensureWebPushConfigured()) return;
-  const supabase = createServiceClient();
-  if (!supabase) return;
+/** Lower-cased set of emails to send to, or null for "everyone". */
+type Audience = Set<string> | null;
 
-  const { data: subs } = await supabase.from("push_subscriptions").select("id, endpoint, p256dh, auth");
-  if (!subs || subs.length === 0) return;
+/** Sends to every Web Push subscription (the plain website and the installed PWA), or just those of `audience`'s people. Returns how many devices it reached. */
+async function sendWebPush(payload: PushPayload, audience: Audience): Promise<number> {
+  if (!ensureWebPushConfigured()) return 0;
+  const supabase = createServiceClient();
+  if (!supabase) return 0;
+
+  const { data: all } = await supabase.from("push_subscriptions").select("id, email, endpoint, p256dh, auth");
+  // Filtered here rather than in the query: emails are matched without regard to capitals, and the table is only one row per device.
+  const subs = (all || []).filter((s) => !audience || audience.has((s.email || "").toLowerCase()));
+  if (subs.length === 0) return 0;
 
   const body = JSON.stringify(payload);
   const deadIds: string[] = [];
@@ -50,6 +55,7 @@ async function sendWebPushToAll(payload: PushPayload): Promise<void> {
   if (deadIds.length > 0) {
     await supabase.from("push_subscriptions").delete().in("id", deadIds);
   }
+  return subs.length - deadIds.length;
 }
 
 /**
@@ -100,17 +106,18 @@ function isDeadFcmToken(status: number, errorStatus: string | undefined): boolea
 /** Sends to every registered device inside the Capacitor (Android/iOS) shell. Silently no-ops
  *  unless a Firebase project's service-account credentials are configured — see the FCM_* env
  *  vars this reads — so a deployment with no Capacitor app built yet needs nothing extra set up. */
-async function sendFcmToAll(payload: PushPayload): Promise<void> {
+async function sendFcm(payload: PushPayload, audience: Audience): Promise<number> {
   const projectId = process.env.FCM_PROJECT_ID;
-  if (!projectId) return;
+  if (!projectId) return 0;
   const accessToken = await getFcmAccessToken();
-  if (!accessToken) return;
+  if (!accessToken) return 0;
 
   const supabase = createServiceClient();
-  if (!supabase) return;
+  if (!supabase) return 0;
 
-  const { data: tokens } = await supabase.from("native_push_tokens").select("id, token");
-  if (!tokens || tokens.length === 0) return;
+  const { data: allTokens } = await supabase.from("native_push_tokens").select("id, email, token");
+  const tokens = (allTokens || []).filter((t) => !audience || audience.has((t.email || "").toLowerCase()));
+  if (tokens.length === 0) return 0;
 
   const deadIds: string[] = [];
 
@@ -136,6 +143,7 @@ async function sendFcmToAll(payload: PushPayload): Promise<void> {
   if (deadIds.length > 0) {
     await supabase.from("native_push_tokens").delete().in("id", deadIds);
   }
+  return tokens.length - deadIds.length;
 }
 
 /**
@@ -146,5 +154,17 @@ async function sendFcmToAll(payload: PushPayload): Promise<void> {
  * call from anywhere regardless of which of the two a given deployment has set up.
  */
 export async function sendPushToAll(payload: PushPayload): Promise<void> {
-  await Promise.all([sendWebPushToAll(payload), sendFcmToAll(payload)]);
+  await Promise.all([sendWebPush(payload, null), sendFcm(payload, null)]);
+}
+
+/**
+ * Sends a notification only to the devices of the given login emails (a person can have several —
+ * phone and laptop). Returns how many devices it reached, so a caller can tell "sent" from "that person
+ * has notifications switched off everywhere".
+ */
+export async function sendPushToEmails(emails: string[], payload: PushPayload): Promise<number> {
+  const audience = new Set(emails.map((e) => e.trim().toLowerCase()).filter(Boolean));
+  if (audience.size === 0) return 0;
+  const [web, native] = await Promise.all([sendWebPush(payload, audience), sendFcm(payload, audience)]);
+  return web + native;
 }

@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { istDateString } from "@/lib/ist-date";
-import { badRequest, dateStr, notFound, parseBody, serverError, text, uuid } from "@/lib/targets-api";
+import { badRequest, dateStr, forbidden, isUuid, notFound, parseBody, serverError, text, uuid } from "@/lib/targets-api";
 import { isActiveEmployee, mapTaskRow, targetsContext, taskVisible } from "@/lib/targets-server";
 import { mapProjectRow } from "@/lib/targets-types";
 import { canManageProject, loadProjectFor } from "@/lib/targets-workspace";
@@ -25,6 +25,7 @@ const patchSchema = z.object({
 /** GET — one project, its progress, and the tasks this person may see. */
 export async function GET(_request: Request, { params }: Ctx) {
   const { id } = await params;
+  if (!isUuid(id)) return notFound("Project not found");
   const gate = await targetsContext();
   if ("error" in gate) return gate.error;
   const { ctx } = gate;
@@ -53,9 +54,10 @@ export async function GET(_request: Request, { params }: Ctx) {
   });
 }
 
+/** PATCH — edit a project: a manager, or the project's own owner. Only a manager can hand it to someone else. */
 export async function PATCH(request: Request, { params }: Ctx) {
   const { id } = await params;
-  const gate = await targetsContext("manageTargets");
+  const gate = await targetsContext();
   if ("error" in gate) return gate.error;
   const { ctx } = gate;
   const db: SupabaseClient<Database> = ctx.db;
@@ -66,11 +68,17 @@ export async function PATCH(request: Request, { params }: Ctx) {
 
   const { data: existing } = await db.from("work_projects").select("*").eq("id", id).maybeSingle();
   if (!existing) return notFound("Project not found");
+  if (!canManageProject(ctx, existing)) return forbidden("Only the project owner or a manager can edit this project");
+  if (d.ownerId !== undefined && d.ownerId !== existing.owner_id && !ctx.perms.manageTargets) return forbidden("Only a manager can give a project to someone else");
 
   const start = d.startDate !== undefined ? d.startDate : existing.start_date;
   const end = d.endDate !== undefined ? d.endDate : existing.end_date;
   if (start && end && end < start) return badRequest("The end date can't be before the start date");
   if (d.ownerId && !(await isActiveEmployee(db, d.ownerId))) return badRequest("That person isn't an active staff member");
+  if (d.targetId) {
+    const { data: linked } = await db.from("sales_targets").select("id").eq("id", d.targetId).maybeSingle();
+    if (!linked) return badRequest("The linked target wasn't found");
+  }
 
   const { error } = await db
     .from("work_projects")

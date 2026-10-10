@@ -73,3 +73,8 @@ export function TagChips({ tags }: { tags: string[] }) {
 }
 
 export const REMINDER_LABELS: Record<string, string> = { none: "None", on_due: "On the due date", "1_day": "1 day before", "2_days": "2 days before", "1_week": "1 week before" };
+
+/** Hours as a short number: 0.1 + 0.2 shows as "0.3", not "0.30000000000000004". */
+export function fmtHours(hours: number): string {
+  return String(Math.round(hours * 100) / 100);
+}

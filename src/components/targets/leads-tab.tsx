@@ -17,8 +17,10 @@ import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LEAD_STAGES, stageLabel, type LeadStage } from "@/lib/lead-stages";
 import { inr } from "@/lib/format";
+import { istDateString } from "@/lib/ist-date";
 import type { LeadDto } from "@/lib/targets-types";
 import { fetchAllLeads, useLeads, usePatchLead, type TargetsMeta } from "@/hooks/use-targets";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { STAGE_STYLE, useStaffLookup } from "@/components/targets/shared";
 import { LeadCard } from "@/components/targets/lead-card";
 import { StageSheet } from "@/components/targets/stage-sheet";
@@ -47,14 +49,16 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
 
   const patch = usePatchLead();
   const { nameOf, active } = useStaffLookup(meta);
-  const query = useLeads({ stage: "all", owner: owner === ALL ? undefined : owner, q: q.trim() || undefined, likely: likely === "likely" || undefined });
+  // The search runs in the database, so wait for a pause in typing instead of asking on every keystroke.
+  const search = useDebouncedValue(q.trim(), 300);
+  const query = useLeads({ stage: "all", owner: owner === ALL ? undefined : owner, q: search || undefined, likely: likely === "likely" || undefined, limit: 1000 });
   const today = meta?.today ?? "";
   const labels = meta?.stageLabels;
   const showOwner = !!meta?.can.viewAll;
   const canMove = !!meta?.can.manageLeads;
 
   const monthStart = today.slice(0, 8) + "01";
-  const leads = (query.data?.leads ?? []).filter((l) => added === "all" || l.createdAt.slice(0, 10) >= monthStart);
+  const leads = (query.data?.leads ?? []).filter((l) => added === "all" || istDateString(new Date(l.createdAt)) >= monthStart); // shop-local (IST) day, not the UTC one
   const byStage = (s: string) => leads.filter((l) => l.stage === s);
   const listLeads = stage === ALL ? leads : byStage(stage);
   const wonPct = leads.length ? Math.round((byStage("won").length / leads.length) * 100) : 0;
@@ -255,7 +259,10 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
           </div>
         </div>
         <div className="col-span-2 flex items-center justify-between gap-3 sm:ml-auto sm:justify-end">
-          <span className="text-xs text-muted-foreground">{leads.length} leads</span>
+          <span className="text-xs text-muted-foreground">
+            {leads.length} leads
+            {added === "all" && query.data && query.data.total > query.data.leads.length && <> of {query.data.total} · newest shown, search to narrow</>}
+          </span>
           <div className="w-44">
             <SegmentedToggle<View>
               ariaLabel="Lead view"

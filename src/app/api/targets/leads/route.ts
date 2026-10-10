@@ -4,8 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { normalizeIndianMobile } from "@/lib/business-rules";
 import { LEAD_STAGES, OPEN_STAGES } from "@/lib/lead-stages";
-import { badRequest, forbidden, parseBody, serverError, text, uuid } from "@/lib/targets-api";
-import { isActiveEmployee, mapLeadRow, nextFollowUps, targetsContext } from "@/lib/targets-server";
+import { badRequest, forbidden, isUuid, parseBody, serverError, text, uuid } from "@/lib/targets-api";
+import { isActiveEmployee, mapLeadRow, nextFollowUps, ownershipFilter, targetsContext } from "@/lib/targets-server";
 import { logAction } from "@/lib/logging";
 
 const createSchema = z.object({
@@ -32,42 +32,54 @@ export async function GET(request: Request) {
     const sp = new URL(request.url).searchParams;
     const stage = sp.get("stage") || "open";
     const owner = sp.get("owner");
+    if (owner && owner !== "me" && !isUuid(owner)) return badRequest("That owner id isn't valid");
     // Characters that mean something inside a PostgREST filter string — dropped from the search text.
-    const q = (sp.get("q") || "").trim().replace(/[,()%*\\]/g, " ").trim();
+    const q = (sp.get("q") || "").trim().replace(/[,()%*"\\]/g, " ").trim();
     const limit = Math.min(5000, Math.max(1, parseInt(sp.get("limit") || "500", 10) || 500));
 
-    // Who may see which leads: everyone's, or only the ones they own or created (email matched in both cases, as before).
-    const email = ctx.email.replace(/[,()%*\\]/g, "");
-    const mine = [`created_by.eq.${email}`, `created_by.eq.${email.toLowerCase()}`];
-    if (ctx.employeeId) mine.push(`assigned_employee_id.eq.${ctx.employeeId}`);
-    const visibleFilter = ctx.seesAll ? null : mine.join(",");
+    // Who may see which leads is decided in the database, so a staff member's list never loads everyone's.
+    const mine = ownershipFilter(ctx, "assigned_employee_id");
 
-    let list = db.from("leads").select("*");
-    if (visibleFilter) list = list.or(visibleFilter);
-    if (owner === "me") list = ctx.employeeId ? list.eq("assigned_employee_id", ctx.employeeId) : list.eq("id", "00000000-0000-0000-0000-000000000000");
-    else if (owner && ctx.seesAll) list = list.eq("assigned_employee_id", owner);
-    if (stage === "open") list = list.in("stage", OPEN_STAGES as unknown as string[]);
-    else if (stage !== "all") list = list.eq("stage", stage);
-    if (sp.get("likely") === "1") list = list.eq("likely_to_close", true);
-    if (q) {
-      const like = `%${q}%`;
-      list = list.or(`name.ilike.${like},mobile.ilike.${like},product_interest.ilike.${like},source.ilike.${like}`);
-    }
+    // A fresh query per page (a single request stops at 1000 rows, so a long list is read in pages).
+    const filtered = () => {
+      let l = db.from("leads").select("*", { count: "exact" });
+      if (mine) l = l.or(mine);
+      if (owner === "me") l = ctx.employeeId ? l.eq("assigned_employee_id", ctx.employeeId) : l.eq("id", "00000000-0000-0000-0000-000000000000");
+      else if (owner && ctx.seesAll) l = l.eq("assigned_employee_id", owner);
+      if (stage === "open") l = l.in("stage", OPEN_STAGES as unknown as string[]);
+      else if (stage !== "all") l = l.eq("stage", stage);
+      if (sp.get("likely") === "1") l = l.eq("likely_to_close", true);
+      if (q) {
+        const like = `%${q}%`;
+        l = l.or(`name.ilike.${like},mobile.ilike.${like},product_interest.ilike.${like},source.ilike.${like}`);
+      }
+      return l.order("created_at", { ascending: false }).order("id");
+    };
 
     // Stage counts ignore the owner/stage/search filters (they label the stage pills), so they are counted
     // separately in the database — one cheap indexed count per stage, run alongside the list.
     const counts = LEAD_STAGES.map((s) => {
       const c = db.from("leads").select("id", { count: "exact", head: true }).eq("stage", s);
-      return visibleFilter ? c.or(visibleFilter) : c;
+      return mine ? c.or(mine) : c;
     });
-    const [listRes, ...countRes] = await Promise.all([list.order("created_at", { ascending: false }).limit(limit), ...counts]);
-    if (listRes.error) return serverError(listRes.error.message);
-    const rows = listRes.data || [];
+    const rows: Database["public"]["Tables"]["leads"]["Row"][] = [];
+    let total = 0;
+    const firstPage = filtered().range(0, Math.min(limit, 1000) - 1);
+    const [first, ...countRes] = await Promise.all([firstPage, ...counts]);
+    if (first.error) return serverError(first.error.message);
+    rows.push(...(first.data || []));
+    total = first.count ?? rows.length;
+    for (let from = rows.length; rows.length < limit && rows.length < total; from = rows.length) {
+      const page = await filtered().range(from, Math.min(from + 999, limit - 1));
+      if (page.error) return serverError(page.error.message);
+      if (!page.data?.length) break;
+      rows.push(...page.data);
+    }
     const stageCounts: Record<string, number> = {};
     LEAD_STAGES.forEach((s, i) => (stageCounts[s] = countRes[i].count ?? 0));
 
     const follow = await nextFollowUps(db, rows.map((r) => r.id));
-    return NextResponse.json({ leads: rows.map((r) => ({ ...mapLeadRow(r), nextFollowUp: follow.get(r.id) ?? null })), stageCounts });
+    return NextResponse.json({ leads: rows.map((r) => ({ ...mapLeadRow(r), nextFollowUp: follow.get(r.id) ?? null })), stageCounts, total });
   } catch (e) {
     return serverError(e instanceof Error ? e.message : "Failed to load leads");
   }

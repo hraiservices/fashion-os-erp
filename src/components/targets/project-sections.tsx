@@ -14,6 +14,7 @@ import { isFinished, isOverdue, TASK_STATUS_LABELS, TASK_STATUSES } from "@/lib/
 import type { PhaseDto, ProjectWithProgress, TaskDto } from "@/lib/targets-types";
 import { useAddDocument, useAddTimeLog, useCreatePhase, useDeleteDocument, useDeletePhase, useDeleteTimeLog, useDocuments, usePatchPhase, useProjectFeed, useSetProjectMembers, useTimeLogs, type TargetsMeta } from "@/hooks/use-targets";
 
+import { fmtHours } from "@/components/targets/work-ui";
 import { cn } from "@/lib/utils";
 
 type Nameof = (id: string | null | undefined) => string;
@@ -158,8 +159,11 @@ export function ProjectDashboard({ project, tasks, phases, memberIds, today, nam
 export function ProjectUsers({ project, memberIds, canManage, meta, nameOf }: { project: ProjectWithProgress; memberIds: string[]; canManage: boolean; meta: TargetsMeta | undefined; nameOf: Nameof }) {
   const save = useSetProjectMembers();
   const [picked, setPicked] = useState<string[]>(memberIds);
+  // Follow the saved list when it really changes — not on every refetch, which hands back a new array of the same people
+  // and would throw away a selection that hasn't been saved yet.
+  const savedKey = memberIds.slice().sort().join();
   // eslint-disable-next-line react-hooks/set-state-in-effect -- keep the picker in step with the saved member list
-  useEffect(() => setPicked(memberIds), [memberIds]);
+  useEffect(() => setPicked(memberIds), [savedKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const staff = (meta?.staff ?? []).filter((s) => s.active);
   const dirty = picked.slice().sort().join() !== memberIds.slice().sort().join();
 
@@ -302,12 +306,13 @@ export function ProjectTimeLogs({ project, tasks, meta, nameOf }: { project: Pro
   const logs = useTimeLogs({ project: project.id }).data ?? [];
   const add = useAddTimeLog();
   const del = useDeleteTimeLog();
-  const [date, setDate] = useState(meta?.today ?? "");
+  const [pickedDate, setDate] = useState("");
+  const date = pickedDate || (meta?.today ?? ""); // today until another day is picked — the shop date may arrive after this opens
   const [hours, setHours] = useState("");
   const [note, setNote] = useState("");
   const [taskId, setTaskId] = useState("none");
   const top = tasks.filter((t) => !t.parentTaskId);
-  const total = logs.reduce((s, l) => s + l.hours, 0);
+  const total = fmtHours(logs.reduce((s, l) => s + l.hours, 0));
   const taskName = (id: string | null) => tasks.find((t) => t.id === id)?.title ?? "—";
 
   return (
@@ -330,7 +335,7 @@ export function ProjectTimeLogs({ project, tasks, meta, nameOf }: { project: Pro
             </SelectContent>
           </Select>
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="h-11" maxLength={300} />
-          <Button className="h-11" disabled={!(parseFloat(hours) > 0) || add.isPending} onClick={() => add.mutate({ projectId: project.id, taskId: taskId === "none" ? null : taskId, logDate: date, hours: parseFloat(hours), note: note.trim() }, { onSuccess: () => { setHours(""); setNote(""); }, onError: err })}>
+          <Button className="h-11" disabled={!(parseFloat(hours) > 0) || !date || add.isPending} onClick={() => add.mutate({ projectId: project.id, taskId: taskId === "none" ? null : taskId, logDate: date, hours: parseFloat(hours), note: note.trim() }, { onSuccess: () => { setHours(""); setNote(""); }, onError: err })}>
             Log
           </Button>
         </div>
@@ -342,7 +347,7 @@ export function ProjectTimeLogs({ project, tasks, meta, nameOf }: { project: Pro
       <ul className="space-y-1.5">
         {logs.map((l) => (
           <li key={l.id} className="flex min-h-12 items-center gap-3 rounded-xl border bg-card px-4 py-2 text-sm">
-            <span className="w-14 shrink-0 font-semibold tabular-nums">{l.hours} h</span>
+            <span className="w-14 shrink-0 font-semibold tabular-nums">{fmtHours(l.hours)} h</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate">{l.taskId ? taskName(l.taskId) : "Whole project"}{l.note && <span className="text-muted-foreground"> — {l.note}</span>}</span>
               <span className="block text-xs text-muted-foreground">

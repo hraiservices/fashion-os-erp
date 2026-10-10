@@ -7,6 +7,7 @@ import { computeInvoiceTotals, type DiscountType } from "@/lib/invoice-totals";
 import { type GstType } from "@/lib/gst";
 import type { SalesLineItem } from "@/lib/sales";
 import { DEFAULT_DOCUMENT_NUMBERING, formatDocNumber, periodKeyFor, type DocumentNumberingSettings } from "@/lib/document-numbering";
+import { canActOnLead } from "@/lib/targets-server";
 
 const lineItemSchema = z.object({
   productId: z.string().nullable().optional(),
@@ -288,6 +289,9 @@ export async function POST(request: Request) {
   }
   if (savedId && fd.leadId && !isEdit) {
     try {
+      // Only a lead this user is allowed to work on in Targets can be won by their invoice (see the same check on orders).
+      const { data: leadRow } = await db.from("leads").select("id, assigned_employee_id, created_by").eq("id", fd.leadId).maybeSingle();
+      if (!leadRow || !canActOnLead(user, leadRow)) throw new Error("not your lead");
       const { data: linked } = await db
         .from("leads")
         .update({ stage: "won", won_at: new Date().toISOString(), won_value: totals.total, likely_to_close: false, invoice_id: savedId, lost_at: null, lost_reason: "", updated_at: new Date().toISOString() })

@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { istDateString } from "@/lib/ist-date";
 import { badRequest, dateStr, parseBody, serverError, text, uuid } from "@/lib/targets-api";
-import { isActiveEmployee, targetsContext } from "@/lib/targets-server";
+import { fetchAll, isActiveEmployee, targetsContext } from "@/lib/targets-server";
 import { mapProjectRow, type ProjectWithProgress } from "@/lib/targets-types";
 import { isOverdue, PROJECT_STATUSES, projectProgress } from "@/lib/work-tasks";
 import { logAction } from "@/lib/logging";
@@ -28,19 +28,24 @@ export async function GET() {
   const { ctx } = gate;
   const db: SupabaseClient<Database> = ctx.db;
 
-  const [{ data: projects, error }, { data: tasks }] = await Promise.all([
+  // Tasks are read in pages (one query stops at 1000 rows, which would quietly understate progress). A person
+  // who is only a member of a project — no task of their own yet — must still see it in their list.
+  const [{ data: projects, error }, tasks, memberships] = await Promise.all([
     db.from("work_projects").select("*").order("created_at", { ascending: false }),
-    db.from("work_tasks").select("project_id, status, due_date, assignee_id").not("project_id", "is", null).limit(5000),
+    fetchAll((a, b) => db.from("work_tasks").select("id, project_id, status, due_date, assignee_id").not("project_id", "is", null).order("id").range(a, b)),
+    !ctx.seesAll && ctx.employeeId ? db.from("work_project_members").select("project_id").eq("employee_id", ctx.employeeId) : Promise.resolve({ data: [] as { project_id: string }[] }),
   ]);
   if (error) return serverError(error.message);
 
   const today = istDateString();
-  const myProjects = new Set((tasks || []).filter((t) => ctx.employeeId && t.assignee_id === ctx.employeeId).map((t) => t.project_id));
+  const myProjects = new Set<string | null>([...tasks.filter((t) => ctx.employeeId && t.assignee_id === ctx.employeeId).map((t) => t.project_id), ...(memberships.data || []).map((m) => m.project_id)]);
+  const tasksByProject = new Map<string, typeof tasks>();
+  for (const t of tasks) if (t.project_id) tasksByProject.set(t.project_id, [...(tasksByProject.get(t.project_id) || []), t]);
   const out: ProjectWithProgress[] = [];
   for (const p of projects || []) {
     const mine = ctx.seesAll || (!!ctx.employeeId && p.owner_id === ctx.employeeId) || (!!p.created_by && p.created_by.toLowerCase() === ctx.email.toLowerCase()) || myProjects.has(p.id);
     if (!mine) continue;
-    const pt = (tasks || []).filter((t) => t.project_id === p.id);
+    const pt = tasksByProject.get(p.id) || [];
     out.push({
       ...mapProjectRow(p),
       progress: projectProgress(pt),

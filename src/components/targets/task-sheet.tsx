@@ -11,20 +11,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TASK_PRIORITIES, TASK_PRIORITY_LABELS, TASK_STATUS_LABELS, TASK_STATUSES, type ChecklistItem } from "@/lib/work-tasks";
+import { addDaysIso, TASK_PRIORITIES, TASK_PRIORITY_LABELS, TASK_STATUS_LABELS, TASK_STATUSES, type ChecklistItem } from "@/lib/work-tasks";
 import type { ProjectWithProgress, TaskDto } from "@/lib/targets-types";
 import { useAddComment, useAddDocument, useAddTimeLog, useCreateTask, useDeleteDocument, useDeleteTask, useDeleteTimeLog, useDocuments, usePatchTask, useProject, useTask, useTaskEvents, useTasks, useTimeLogs, type TargetsMeta, type TaskInput } from "@/hooks/use-targets";
 import { cn } from "@/lib/utils";
 import { fmtDateShort } from "@/lib/format";
-import { REMINDER_LABELS, STATUS_CELL, taskCode } from "@/components/targets/work-ui";
+import { fmtHours, REMINDER_LABELS, STATUS_CELL, taskCode } from "@/components/targets/work-ui";
 
 const NONE = "none";
-
-function addDays(iso: string, n: number): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -243,10 +237,10 @@ export function TaskSheet({
                   <button type="button" className={chip(due === today)} onClick={() => setDue(today)}>
                     Today
                   </button>
-                  <button type="button" className={chip(due === addDays(today, 1))} onClick={() => setDue(addDays(today, 1))}>
+                  <button type="button" className={chip(due === addDaysIso(today, 1))} onClick={() => setDue(addDaysIso(today, 1))}>
                     Tomorrow
                   </button>
-                  <button type="button" className={chip(due === addDays(today, 7))} onClick={() => setDue(addDays(today, 7))}>
+                  <button type="button" className={chip(due === addDaysIso(today, 7))} onClick={() => setDue(addDaysIso(today, 7))}>
                     Next week
                   </button>
                   <button type="button" className={chip(!due)} onClick={() => setDue("")}>
@@ -430,15 +424,18 @@ function TaskTabs({
   meta: TargetsMeta | undefined;
   onToggleSub: (t: TaskDto) => void;
 }) {
-  const events = useTaskEvents(task.id).data ?? [];
+  // Each tab loads its data when it is opened, not all at once when the panel opens (that was six requests per task,
+  // one of them every task in the shop for a task with no project).
+  const [tab, setTab] = useState("comments");
+  const events = useTaskEvents(task.id, tab === "comments" || tab === "activity").data ?? [];
   const addComment = useAddComment();
-  const docs = useDocuments({ taskId: task.id }).data ?? [];
+  const docs = useDocuments({ taskId: task.id }, tab === "docs").data ?? [];
   const addDoc = useAddDocument();
   const delDoc = useDeleteDocument();
-  const logs = useTimeLogs({ task: task.id }).data ?? [];
+  const logs = useTimeLogs({ task: task.id }, tab === "time").data ?? [];
   const addLog = useAddTimeLog();
   const delLog = useDeleteTimeLog();
-  const siblings = useTasks({ status: "all", project: task.projectId ?? undefined }).data ?? [];
+  const siblings = useTasks({ status: "all", project: task.projectId ?? undefined }, tab === "deps" && !!task.projectId).data ?? [];
   const [comment, setComment] = useState("");
   const [docName, setDocName] = useState("");
   const [docUrl, setDocUrl] = useState("");
@@ -451,11 +448,11 @@ function TaskTabs({
   const err = (e: unknown) => toast.error(e instanceof Error ? e.message : "Something went wrong");
 
   return (
-    <Tabs defaultValue="comments" className="pt-2">
+    <Tabs value={tab} onValueChange={(v) => setTab(String(v))} className="pt-2">
       <TabsList variant="line" className="w-full justify-start overflow-x-auto">
         <TabsTrigger value="comments">Comments</TabsTrigger>
         <TabsTrigger value="subtasks">Subtasks{subtasks.length ? ` (${subtasks.length})` : ""}</TabsTrigger>
-        <TabsTrigger value="docs">Documents{docs.length ? ` (${docs.length})` : ""}</TabsTrigger>
+        <TabsTrigger value="docs">Documents</TabsTrigger>
         <TabsTrigger value="deps">Dependency</TabsTrigger>
         <TabsTrigger value="time">Time</TabsTrigger>
         <TabsTrigger value="activity">Activity</TabsTrigger>
@@ -559,7 +556,7 @@ function TaskTabs({
             Log time
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">Total: {logs.reduce((s, l) => s + l.hours, 0)} h{task.durationHours ? ` of ${task.durationHours} h planned` : ""}</p>
+        <p className="text-xs text-muted-foreground">Total: {fmtHours(logs.reduce((s, l) => s + l.hours, 0))} h{task.durationHours ? ` of ${task.durationHours} h planned` : ""}</p>
         <ul className="space-y-1.5">
           {logs.map((l) => (
             <li key={l.id} className="flex min-h-11 items-center gap-2 rounded-lg border bg-card px-3 text-sm">

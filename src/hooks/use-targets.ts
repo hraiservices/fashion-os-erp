@@ -67,8 +67,10 @@ export function useTargetsMeta() {
   return useQuery({ queryKey: [KEY, "meta"], queryFn: () => api<TargetsMeta>("/api/targets/meta"), staleTime: 5 * 60_000 });
 }
 
-export function useTargetsSummary() {
-  return useQuery({ queryKey: [KEY, "summary"], queryFn: () => api<TargetsSummary>("/api/targets/summary"), staleTime: 30_000 });
+/** `quiet` is for screens outside Targets (e.g. the Day Book) that use this only as a bonus: a user
+ *  without Targets access just gets no data, with no retries. */
+export function useTargetsSummary(opts?: { quiet?: boolean }) {
+  return useQuery({ queryKey: [KEY, "summary"], queryFn: () => api<TargetsSummary>("/api/targets/summary"), staleTime: 30_000, ...(opts?.quiet ? { retry: false } : {}) });
 }
 
 // ── Targets ───────────────────────────────────────────────────────────────

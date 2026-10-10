@@ -32,6 +32,8 @@ import { FileTextDuotoneIcon, ReceiptDuotoneIcon, UsersDuotoneIcon, WalletDuoton
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDayBook, useDayBookRange, useCloseDay, useClosingHistory, useAddCashAdjustment, useRemoveCashAdjustment } from "@/hooks/use-day-book";
 import { useAppSetting } from "@/hooks/use-app-setting";
+import { useTargetsSummary } from "@/hooks/use-targets";
+import { dailyTargetFor } from "@/lib/targets";
 import { exportXLSXMultiSheet } from "@/lib/export";
 import { buildAccountantSheets } from "@/lib/day-book-insights";
 import { useShopSettings } from "@/hooks/use-shop-settings";
@@ -263,6 +265,9 @@ export default function DayBookPage() {
   const addAdjustment = useAddCashAdjustment();
   const history = useClosingHistory();
   const { data: targets, save: saveTargets } = useAppSetting<DayBookTargets>("dayBookTargets", { billed: 0, collected: 0 });
+  // A shop-wide sales target in Targets (when this user can read it) sets the day's billed target.
+  const targetsSummary = useTargetsSummary({ quiet: true }).data;
+  const fromTargets = targetsSummary ? dailyTargetFor(targetsSummary.targets, date) : null;
   const timelineRef = useRef<HTMLDivElement>(null);
   const [tailorView, setTailorView] = useState<"cards" | "list">("cards");
   const [selectedTailorId, setSelectedTailorId] = useState<string | null>(null);
@@ -599,9 +604,10 @@ export default function DayBookPage() {
           <TargetCard
             billed={data.totals.totalBilled}
             collected={data.totals.payments}
-            targets={targets || { billed: 0, collected: 0 }}
+            targets={{ billed: fromTargets?.value ?? targets?.billed ?? 0, collected: targets?.collected ?? 0 }}
+            billedFrom={fromTargets?.title}
             canEdit={isAdmin}
-            onSave={(t) => saveTargets.mutate(t, { onSuccess: () => toast.success("Targets saved"), onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't save targets") })}
+            onSave={(t) => saveTargets.mutate(fromTargets ? { ...t, billed: targets?.billed ?? 0 } : t, { onSuccess: () => toast.success("Targets saved"), onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't save targets") })}
           />
 
           <ReviewStrip flags={data.reviewFlags} />

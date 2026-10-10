@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildLeaderboard,
   computeProgress,
+  dailyTargetFor,
   describeTarget,
   formatMetricValue,
   incentiveFor,
@@ -251,5 +252,21 @@ describe("incentiveFor", () => {
   });
   it("is zero when no commission is set", () => {
     expect(incentiveFor("none", 10, { value: 80_000, sales: 4 })).toBe(0);
+  });
+});
+
+describe("dailyTargetFor", () => {
+  const shop = (over: Partial<TargetDef> = {}) => target({ scope: "shop", assigneeIds: [], targetValue: 300_000, ...over });
+
+  it("spreads a shop-wide sales target evenly over its days", () => {
+    expect(dailyTargetFor([shop()], "2026-09-10")).toEqual({ value: 10_000, title: "September sales" });
+  });
+
+  it("ignores person, filtered, draft/cancelled and out-of-range targets", () => {
+    expect(dailyTargetFor([target()], "2026-09-10")).toBeNull();
+    expect(dailyTargetFor([shop({ productIds: ["p1"] })], "2026-09-10")).toBeNull();
+    expect(dailyTargetFor([shop({ statusOverride: "cancelled" })], "2026-09-10")).toBeNull();
+    expect(dailyTargetFor([shop()], "2026-10-01")).toBeNull();
+    expect(dailyTargetFor([shop({ metric: "order_count" })], "2026-09-10")).toBeNull();
   });
 });

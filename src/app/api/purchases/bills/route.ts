@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 import { computeLineItemsTotal, purchaseItemType, purchaseItemId, type PurchaseLineItem } from "@/lib/purchases";
 import { computeGst } from "@/lib/gst";
+import { notifyStockMatches } from "@/lib/stock-match-notify";
 
 const lineItemSchema = z.object({
   itemType: z.enum(["raw_material", "product"]).optional(),
@@ -114,6 +115,11 @@ export async function POST(request: Request) {
     p_rows: ledgerRows,
   });
   if (ledgerError) return NextResponse.json({ error: ledgerError.message }, { status: 500 });
+
+  // Stock just arrived: tell staff which customers may want the finished products on this bill. Only for a new
+  // bill — saving an edit re-posts every line, which would re-announce stock that arrived earlier.
+  const arrivedProductIds = fd.items.filter((i) => i.qty > 0 && purchaseItemType(i as PurchaseLineItem) === "product").map((i) => purchaseItemId(i as PurchaseLineItem)).filter((x): x is string => !!x);
+  if (isNew && arrivedProductIds.length) after(() => notifyStockMatches(db, arrivedProductIds).catch(() => undefined));
 
   await logAction(supabase, user.email, isNew ? `Bill received: ${fd.billNumber}` : `Bill updated: ${fd.billNumber}`, null, `₹${gst.total}`);
   return NextResponse.json({ bill: data });

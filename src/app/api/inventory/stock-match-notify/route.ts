@@ -2,9 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { sendPushToAll } from "@/lib/push";
-import { mapProductRow, mapCustomerRow, mapSalesInvoiceRow } from "@/lib/types";
-import { matchCustomersForProduct, groupInvoicesByMobile } from "@/lib/customer-product-matching";
+import { notifyStockMatches } from "@/lib/stock-match-notify";
 
 const bodySchema = z.object({
   productId: z.string().min(1),
@@ -34,35 +32,6 @@ export async function POST(request: Request) {
   const supabase = createServiceClient();
   if (!supabase) return NextResponse.json({ ok: true, skipped: "not configured" });
 
-  // This is a best-effort recommendation feature (a push notification, not a financial or
-  // legal record) — capping the candidate pool is safe here in a way it wouldn't be for a
-  // ledger total: at worst a very large shop misses a few marginal matches on this one
-  // notification, it never produces a WRONG number the way a capped revenue total would.
-  const CANDIDATE_LIMIT = 5_000;
-  const [{ data: productRow }, { data: productRows }, { data: customerRows }, { data: invoiceRows }] = await Promise.all([
-    supabase.from("products").select("*").eq("id", productId).maybeSingle(),
-    supabase.from("products").select("*").limit(CANDIDATE_LIMIT),
-    supabase.from("customers").select("*").limit(CANDIDATE_LIMIT),
-    supabase.from("sales_invoices").select("*").order("invoice_date", { ascending: false }).limit(CANDIDATE_LIMIT),
-  ]);
-  if (!productRow) return NextResponse.json({ ok: true, skipped: "product not found" });
-
-  const product = mapProductRow(productRow, 0, []);
-  const productsById = new Map((productRows || []).map((r) => [r.id, mapProductRow(r, 0, [])]));
-  const customers = (customerRows || []).map(mapCustomerRow);
-  const invoices = (invoiceRows || []).map(mapSalesInvoiceRow);
-  const invoicesByMobile = groupInvoicesByMobile(invoices);
-
-  // Threshold higher than the in-app list (30) — a push notification interrupts the merchant,
-  // so it should only fire for genuinely strong matches, not every marginal one.
-  const matches = matchCustomersForProduct(product, customers, invoicesByMobile, productsById, 50);
-  if (matches.length === 0) return NextResponse.json({ ok: true, matches: 0 });
-
-  await sendPushToAll({
-    title: `New stock match: ${product.name}`,
-    body: `${matches.length} customer${matches.length === 1 ? "" : "s"} may be interested — top match: ${matches[0].customer.name} (${matches[0].score}%)`,
-    url: `/inventory/products/${product.id}/edit`,
-  });
-
-  return NextResponse.json({ ok: true, matches: matches.length });
+  const result = await notifyStockMatches(supabase, [productId]);
+  return NextResponse.json({ ok: true, matches: result.matches });
 }

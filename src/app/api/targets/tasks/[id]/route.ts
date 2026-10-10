@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
@@ -103,8 +103,8 @@ export async function PATCH(request: Request, { params }: Ctx) {
 
   const { error } = await db.from("work_tasks").update(update).eq("id", id);
   if (error) return serverError(error.message);
-  if (update.status) await logTaskEvent(db, { taskId: id, projectId: row.project_id, kind: "status", body: `Status changed to ${update.status}`, email: ctx.email });
-  if (update.assignee_id !== undefined) await logTaskEvent(db, { taskId: id, projectId: row.project_id, kind: "assigned", body: "Owner changed", email: ctx.email });
+  if (update.status) after(() => logTaskEvent(db, { taskId: id, projectId: row.project_id, kind: "status", body: `Status changed to ${update.status}`, email: ctx.email }));
+  if (update.assignee_id !== undefined) after(() => logTaskEvent(db, { taskId: id, projectId: row.project_id, kind: "assigned", body: "Owner changed", email: ctx.email }));
   return NextResponse.json({ ok: true });
 }
 

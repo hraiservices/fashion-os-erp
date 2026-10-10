@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
@@ -86,7 +86,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
     })
     .eq("id", id);
   if (error) return serverError(error.message);
-  await logAction(db, ctx.email, `📁 Project updated: ${d.name ?? existing.name}`, null, d.status ? `status → ${d.status}` : null);
+  after(() => logAction(db, ctx.email, `📁 Project updated: ${d.name ?? existing.name}`, null, d.status ? `status → ${d.status}` : null));
   return NextResponse.json({ ok: true });
 }
 
@@ -102,6 +102,6 @@ export async function DELETE(_request: Request, { params }: Ctx) {
   if (!existing) return notFound("Project not found");
   const { error } = await db.from("work_projects").delete().eq("id", id);
   if (error) return serverError(error.message);
-  await logAction(db, ctx.email, `🗑️ Project deleted: ${existing.name}`, null, null);
+  after(() => logAction(db, ctx.email, `🗑️ Project deleted: ${existing.name}`, null, null));
   return NextResponse.json({ ok: true });
 }

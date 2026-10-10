@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
@@ -82,7 +82,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
     .eq("id", id);
   if (error) return serverError(error.message);
 
-  await logAction(db, ctx.email, `🎯 Target updated: ${d.title ?? existing.title}`, null, d.statusOverride !== undefined ? `status → ${d.statusOverride ?? "active"}` : null);
+  after(() => logAction(db, ctx.email, `🎯 Target updated: ${d.title ?? existing.title}`, null, d.statusOverride !== undefined ? `status → ${d.statusOverride ?? "active"}` : null));
   return NextResponse.json({ ok: true });
 }
 
@@ -97,6 +97,6 @@ export async function DELETE(_request: Request, { params }: Ctx) {
   if (!existing) return notFound("Target not found");
   const { error } = await db.from("sales_targets").delete().eq("id", id);
   if (error) return serverError(error.message);
-  await logAction(db, ctx.email, `🗑️ Target deleted: ${existing.title}`, null, null);
+  after(() => logAction(db, ctx.email, `🗑️ Target deleted: ${existing.title}`, null, null));
   return NextResponse.json({ ok: true });
 }

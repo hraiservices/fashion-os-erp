@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
@@ -124,7 +124,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
 
   if (stageNote) {
     await addLeadActivity(db, id, "stage_change", stageNote, ctx.email);
-    await logAction(db, ctx.email, `🤝 Lead ${d.stage === "won" ? "won" : d.stage === "lost" ? "lost" : "moved"}: ${row.name}`, null, stageNote);
+    after(() => logAction(db, ctx.email, `🤝 Lead ${d.stage === "won" ? "won" : d.stage === "lost" ? "lost" : "moved"}: ${row.name}`, null, stageNote));
   }
   return NextResponse.json({ ok: true });
 }
@@ -150,6 +150,6 @@ export async function DELETE(_request: Request, { params }: Ctx) {
   const { error } = await db.from("leads").delete().eq("id", id);
   if (error) return serverError(error.message);
   await db.from("work_tasks").delete().eq("link_type", "lead").eq("link_id", id);
-  await logAction(db, ctx.email, `🗑️ Lead deleted: ${row.name}`, null, null);
+  after(() => logAction(db, ctx.email, `🗑️ Lead deleted: ${row.name}`, null, null));
   return NextResponse.json({ ok: true });
 }

@@ -86,10 +86,11 @@ export function LeadsTab({ meta, addOpen, onAddOpenChange }: { meta: TargetsMeta
     patch.mutate({ id: lead.id, stage: target }, { onSuccess: () => toast.success(`Moved to ${stageLabel(target, labels)}`), onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't move the lead") });
   }
 
-  const card = (l: LeadDto) => (
+  const card = (l: LeadDto, compact?: boolean) => (
     <LeadCard
       key={l.id}
       lead={l}
+      compact={compact}
       today={today}
       labels={labels}
       ownerName={showOwner ? nameOf(l.assignedEmployeeId) : undefined}
@@ -104,7 +105,7 @@ export function LeadsTab({ meta, addOpen, onAddOpenChange }: { meta: TargetsMeta
     />
   );
 
-  function column(s: LeadStage, className?: string) {
+  function column(s: LeadStage, className?: string, compact?: boolean) {
     const items = byStage(s);
     const sum = items.reduce((a, l) => a + l.expectedValue, 0);
     return (
@@ -147,7 +148,7 @@ export function LeadsTab({ meta, addOpen, onAddOpenChange }: { meta: TargetsMeta
               }}
               className={cn(canMove && "cursor-grab", draggingId === l.id && "opacity-50")}
             >
-              {card(l)}
+              {card(l, compact)}
             </div>
           ))}
           {items.length === 0 && <p className="py-6 text-center text-xs text-muted-foreground">{dropTarget === s && draggingId ? "Drop here" : "Nothing here"}</p>}
@@ -290,7 +291,7 @@ export function LeadsTab({ meta, addOpen, onAddOpenChange }: { meta: TargetsMeta
         />
       )}
 
-      {!query.isLoading && view === "list" && listLeads.length > 0 && <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{listLeads.map(card)}</div>}
+      {!query.isLoading && view === "list" && listLeads.length > 0 && <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{listLeads.map((l) => card(l))}</div>}
       {!query.isLoading && view === "list" && leads.length > 0 && listLeads.length === 0 && <EmptyState title="No leads in this stage" />}
 
       {!query.isLoading && view === "board" && leads.length > 0 && (
@@ -323,8 +324,8 @@ export function LeadsTab({ meta, addOpen, onAddOpenChange }: { meta: TargetsMeta
             {column(mobileStage)}
           </div>
 
-          {/* Desktop: all columns, drag a lead to move it */}
-          <div className="hidden gap-3 overflow-x-auto pb-4 sm:flex">{LEAD_STAGES.map((s) => column(s, "w-72 shrink-0"))}</div>
+          {/* Tablet/desktop: all stages share the full width (3 per row, 6 on wide screens); drag a lead to move it */}
+          <div className="hidden gap-2 sm:grid sm:grid-cols-3 xl:grid-cols-6">{LEAD_STAGES.map((s) => column(s, "min-w-0", true))}</div>
         </div>
       )}
 

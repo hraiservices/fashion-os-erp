@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, CalendarPlus, FileText, MessageCircle, Pencil, Phone, ShoppingBag } from "lucide-react";
+import { CalendarPlus, FileText, MessageCircle, Pencil, Phone, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,8 +12,8 @@ import { inr } from "@/lib/format";
 import type { TaskDto } from "@/lib/targets-types";
 import { useAddLeadActivity, useConvertLead, useDeleteLead, useLead, usePatchTask, useProjects, useTargetsMeta } from "@/hooks/use-targets";
 import { LikelyStar, StageChip, telHref, useStaffLookup, whatsappHref } from "@/components/targets/shared";
+import { BackLink } from "@/components/ui/back-link";
 import { StageSheet } from "@/components/targets/stage-sheet";
-import { LeadFormSheet } from "@/components/targets/lead-form-sheet";
 import { TaskSheet } from "@/components/targets/task-sheet";
 import { TaskRow } from "@/components/targets/task-row";
 import { cn } from "@/lib/utils";
@@ -34,8 +34,6 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const toggleTask = (t: TaskDto) => patchTask.mutate({ id: t.id, status: t.status === "done" ? "todo" : "done" });
   const del = useDeleteLead();
   const [stageOpen, setStageOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
-  const [taskOpen, setTaskOpen] = useState(false);
   const [editTask, setEditTask] = useState<TaskDto | null>(null);
   const [kind, setKind] = useState<Kind>("note");
   const [text, setText] = useState("");
@@ -63,9 +61,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="mx-auto w-full max-w-2xl p-4 sm:p-6 space-y-5 pb-8">
-      <Link href="/targets?tab=leads" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary">
-        <ArrowLeft className="size-4" /> Leads
-      </Link>
+      <BackLink href="/targets?tab=leads">Leads</BackLink>
 
       <div className="space-y-3 rounded-xl border bg-card p-4">
         <div className="flex items-start justify-between gap-3">
@@ -148,7 +144,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         <div className="flex items-center justify-between px-1">
           <h2 className="text-sm font-semibold text-muted-foreground">Follow-ups</h2>
           {canEdit && (
-            <button type="button" onClick={() => setTaskOpen(true)} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary">
+            <button type="button" onClick={() => router.push(`/targets/tasks/new?title=${encodeURIComponent(`Follow up with ${lead.name}`)}&linkType=lead&linkId=${lead.id}&linkLabel=${encodeURIComponent(lead.name)}&from=${encodeURIComponent(`/targets/leads/${lead.id}`)}`)} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary">
               <CalendarPlus className="size-4" /> Add follow-up
             </button>
           )}
@@ -197,7 +193,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
 
       {canEdit && (
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" className="h-12" onClick={() => setEditOpen(true)}>
+          <Button variant="outline" className="h-12" onClick={() => router.push(`/targets/leads/${lead.id}/edit`)}>
             <Pencil className="size-4" /> Edit
           </Button>
           <Button
@@ -216,8 +212,6 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       )}
 
       <StageSheet lead={lead} open={stageOpen} onOpenChange={setStageOpen} labels={meta?.stageLabels} />
-      <LeadFormSheet open={editOpen} onOpenChange={setEditOpen} meta={meta} lead={lead} />
-      <TaskSheet open={taskOpen} onOpenChange={setTaskOpen} meta={meta} projects={projects} defaults={{ title: `Follow up with ${lead.name}`, linkType: "lead", linkId: lead.id, linkLabel: lead.name }} />
       <TaskSheet open={!!editTask} onOpenChange={(o) => !o && setEditTask(null)} meta={meta} projects={projects} task={editTask} />
     </div>
   );

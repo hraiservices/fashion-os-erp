@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Download, FileSpreadsheet, LayoutGrid, List, Plus, Search, Upload } from "lucide-react";
@@ -21,14 +22,14 @@ import { fetchAllLeads, useLeads, usePatchLead, type TargetsMeta } from "@/hooks
 import { STAGE_STYLE, useStaffLookup } from "@/components/targets/shared";
 import { LeadCard } from "@/components/targets/lead-card";
 import { StageSheet } from "@/components/targets/stage-sheet";
-import { LeadFormSheet } from "@/components/targets/lead-form-sheet";
 import { cn } from "@/lib/utils";
 
 const ALL = "all";
 type View = "list" | "board";
 
 /** Same layout rules as the Orders screen: a labelled filter row, List | Board, and on the board a 3×2 grid of stage pills on phones (one stage at a time, no sideways scroll) or coloured drag-and-drop columns on desktop. */
-export function LeadsTab({ meta, addOpen, onAddOpenChange }: { meta: TargetsMeta | undefined; addOpen: boolean; onAddOpenChange: (o: boolean) => void }) {
+export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
+  const router = useRouter();
   const [view, setView] = useState<View>("list");
   const [stage, setStage] = useState<string>(ALL);
   const [mobileStage, setMobileStage] = useState<LeadStage>("new");
@@ -167,7 +168,7 @@ export function LeadsTab({ meta, addOpen, onAddOpenChange }: { meta: TargetsMeta
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or mobile" className="h-12 pl-9 text-base" />
         </div>
         {meta?.can.manageLeads && (
-          <Button className="hidden h-12 shrink-0 sm:inline-flex" onClick={() => onAddOpenChange(true)}>
+          <Button className="hidden h-12 shrink-0 sm:inline-flex" onClick={() => router.push("/targets/leads/new")}>
             <Plus className="size-4" /> New Lead
           </Button>
         )}
@@ -283,7 +284,7 @@ export function LeadsTab({ meta, addOpen, onAddOpenChange }: { meta: TargetsMeta
           description="Add someone who's interested."
           action={
             meta?.can.manageLeads ? (
-              <Button className="h-11" onClick={() => onAddOpenChange(true)}>
+              <Button className="h-11" onClick={() => router.push("/targets/leads/new")}>
                 <Plus className="size-4" /> New Lead
               </Button>
             ) : undefined
@@ -331,7 +332,6 @@ export function LeadsTab({ meta, addOpen, onAddOpenChange }: { meta: TargetsMeta
 
       <StageSheet lead={moving} open={!!moving} onOpenChange={(o) => !o && setMoving(null)} labels={labels} initialStage={moveTo} />
       <LeadImportSheet open={importOpen} onOpenChange={setImportOpen} labels={labels} />
-      <LeadFormSheet open={addOpen} onOpenChange={onAddOpenChange} meta={meta} />
     </div>
   );
 }

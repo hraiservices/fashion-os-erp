@@ -70,8 +70,8 @@ export function QuickCreateMenu() {
         { href: "/employees/new", label: "Employee", icon: Users, show: !!user?.perms.manageEmployees },
         { href: "/manufacturing/new", label: "Manufacturing Job", icon: Hammer, show: !!user?.perms.manageManufacturing },
         { href: "/cost-estimator/new", label: "Cost Estimate", icon: Calculator, show: true },
-        { href: "/targets?tab=leads&new=lead", label: "Lead", icon: Target, show: targetsOn && !!user?.perms.manageLeads },
-        { href: "/targets?new=task", label: "Task", icon: ListTodo, show: targetsOn && !!user?.perms.accessTargets },
+        { href: "/targets/leads/new", label: "Lead", icon: Target, show: targetsOn && !!user?.perms.manageLeads },
+        { href: "/targets/tasks/new", label: "Task", icon: ListTodo, show: targetsOn && !!user?.perms.accessTargets },
       ],
     },
   ]

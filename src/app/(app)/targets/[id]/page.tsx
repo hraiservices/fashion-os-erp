@@ -4,7 +4,8 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
+import { BackLink } from "@/components/ui/back-link";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { describeTarget, formatMetricValue, METRIC_LABELS } from "@/lib/targets";
@@ -38,9 +39,7 @@ export default function TargetDetailPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="mx-auto w-full max-w-2xl p-4 sm:p-6 space-y-5 pb-8">
-      <Link href="/targets?tab=targets" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary">
-        <ArrowLeft className="size-4" /> Targets
-      </Link>
+      <BackLink href="/targets?tab=targets">Targets</BackLink>
 
       <div className="space-y-3 rounded-xl border bg-card p-4">
         <div className="flex items-start justify-between gap-3">

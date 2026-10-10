@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
@@ -12,7 +11,6 @@ import { isProjectOverdue, PROJECT_STATUS_LABELS, type ProjectStatus } from "@/l
 import type { ProjectWithProgress } from "@/lib/targets-types";
 import { useProjects, type TargetsMeta } from "@/hooks/use-targets";
 import { useStaffLookup } from "@/components/targets/shared";
-import { ProjectFormSheet } from "@/components/targets/project-form-sheet";
 import { projectCode } from "@/components/targets/work-ui";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +28,6 @@ export function ProjectsTab({ meta }: { meta: TargetsMeta | undefined }) {
   const router = useRouter();
   const q = useProjects();
   const { nameOf } = useStaffLookup(meta);
-  const [formOpen, setFormOpen] = useState(false);
   const projects = q.data ?? [];
   const today = meta?.today ?? "";
   const th = "whitespace-nowrap px-3 py-2.5 text-left text-xs font-medium text-muted-foreground";
@@ -39,7 +36,7 @@ export function ProjectsTab({ meta }: { meta: TargetsMeta | undefined }) {
   return (
     <div className="space-y-3">
       {meta?.can.manageTargets && (
-        <Button className="h-11 w-full sm:w-auto" onClick={() => setFormOpen(true)}>
+        <Button className="h-11 w-full sm:w-auto" onClick={() => router.push("/targets/projects/new")}>
           <Plus className="size-4" /> New project
         </Button>
       )}
@@ -120,7 +117,6 @@ export function ProjectsTab({ meta }: { meta: TargetsMeta | undefined }) {
         ))}
       </div>
 
-      <ProjectFormSheet open={formOpen} onOpenChange={setFormOpen} meta={meta} onSaved={() => undefined} />
     </div>
   );
 }

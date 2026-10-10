@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LEAD_STAGES, LOST_REASONS, stageLabel, type StageLabelOverrides } from "@/lib/lead-stages";
@@ -60,12 +60,12 @@ export function StageSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[88dvh] overflow-y-auto rounded-t-2xl">
-        <SheetHeader>
-          <SheetTitle>Move {lead.name}</SheetTitle>
-          <SheetDescription>Now: {stageLabel(lead.stage, labels)}</SheetDescription>
-        </SheetHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Move {lead.name}</DialogTitle>
+          <DialogDescription>Now: {stageLabel(lead.stage, labels)}</DialogDescription>
+        </DialogHeader>
 
         {!pending && (
           <div className="grid grid-cols-2 gap-2.5 px-4 pb-6">
@@ -122,7 +122,7 @@ export function StageSheet({
             </div>
           </div>
         )}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

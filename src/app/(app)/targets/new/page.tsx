@@ -1,15 +1,12 @@
 "use client";
 
-import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useTargetsMeta } from "@/hooks/use-targets";
 import { TargetForm } from "@/components/targets/target-form";
 
 export default function NewTargetPage() {
   const meta = useTargetsMeta().data;
-  return (
-    <div className="mx-auto w-full max-w-2xl p-4 sm:p-6 space-y-5">
-      <PageHeader title="New target" description="Progress counts itself from real orders and invoices." />
-      {meta && !meta.can.manageTargets ? <p className="text-sm text-muted-foreground">You do not have permission to create targets.</p> : <TargetForm meta={meta} />}
-    </div>
-  );
+  if (!meta) return <Skeleton className="m-4 h-64 sm:m-6" />;
+  if (!meta.can.manageTargets) return <p className="p-4 text-sm text-muted-foreground sm:p-6">You do not have permission to create targets.</p>;
+  return <TargetForm meta={meta} />;
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Star } from "lucide-react";
+import { Plus, Search, Star } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -49,6 +50,11 @@ export function LeadsTab({ meta, addOpen, onAddOpenChange }: { meta: TargetsMeta
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or mobile" className="h-12 pl-9 text-base" />
         </div>
+        {meta?.can.manageLeads && (
+          <Button className="hidden h-12 shrink-0 sm:inline-flex" onClick={() => onAddOpenChange(true)}>
+            <Plus className="size-4" /> New Lead
+          </Button>
+        )}
         <button type="button" onClick={() => setLikely((v) => !v)} aria-pressed={likely} aria-label="Only likely to close" className={cn("flex size-12 shrink-0 items-center justify-center rounded-lg border", likely ? "border-amber-400 bg-amber-50 dark:bg-amber-950/30" : "bg-card")}>
           <Star className={cn("size-5", likely ? "fill-amber-400 text-amber-500" : "text-muted-foreground")} />
         </button>
@@ -93,7 +99,17 @@ export function LeadsTab({ meta, addOpen, onAddOpenChange }: { meta: TargetsMeta
         </div>
       )}
 
-      {!q1.isLoading && leads.length === 0 && <EmptyState title="No leads here" description="Tap + to add someone who's interested." />}
+      {!q1.isLoading && leads.length === 0 && <EmptyState
+          title="No leads here"
+          description="Add someone who's interested."
+          action={
+            meta?.can.manageLeads ? (
+              <Button className="h-11" onClick={() => onAddOpenChange(true)}>
+                <Plus className="size-4" /> New Lead
+              </Button>
+            ) : undefined
+          }
+        />}
 
       {layout === "cards" && <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{leads.map(card)}</div>}
 

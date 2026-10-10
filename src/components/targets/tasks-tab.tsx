@@ -78,7 +78,7 @@ export function TasksTab({ meta, taskSheetOpen, onTaskSheetOpenChange }: { meta:
   };
 
   const chip = (v: View) => (
-    <button key={v} type="button" onClick={() => setView(v)} className={cn("min-h-11 shrink-0 rounded-full border px-4 text-sm font-medium", view === v ? "border-primary bg-primary text-primary-foreground" : "bg-card")}>
+    <button key={v} type="button" onClick={() => setView(v)} className={cn("min-h-11 w-full rounded-full border px-4 text-sm font-medium lg:w-auto lg:shrink-0", view === v ? "border-primary bg-primary text-primary-foreground" : "bg-card")}>
       {VIEW_LABEL[v]}
     </button>
   );
@@ -87,7 +87,7 @@ export function TasksTab({ meta, taskSheetOpen, onTaskSheetOpenChange }: { meta:
   return (
     <div className="space-y-3">
       {/* Filters */}
-      <div className="flex items-end gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:overflow-visible">
+      <div className="grid grid-cols-2 items-end gap-2 lg:flex lg:flex-wrap">
         {(["open", "today", "overdue", "done"] as const).map(chip)}
         {projects.length > 0 && (
           <div className="hidden space-y-1 lg:block lg:w-48">
@@ -108,10 +108,10 @@ export function TasksTab({ meta, taskSheetOpen, onTaskSheetOpenChange }: { meta:
           </div>
         )}
         {showAssignee && (
-          <div className="space-y-1 lg:w-44">
+          <div className="col-span-2 space-y-1 lg:w-44">
             <Label className={cn(filterLabel, "hidden lg:block")}>Owner</Label>
             <Select value={person} onValueChange={(v) => v && setPerson(v)}>
-              <SelectTrigger className="h-11 w-36 lg:w-full">
+              <SelectTrigger className="h-11 w-full lg:w-full">
                 <SelectValue>{(v: unknown) => (v === ALL ? "Everyone" : nameOf(v as string))}</SelectValue>
               </SelectTrigger>
               <SelectContent>

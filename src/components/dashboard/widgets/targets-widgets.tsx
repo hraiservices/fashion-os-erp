@@ -12,12 +12,15 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-/** Dashboard cards for the Targets module. Each reads the shared /api/targets/summary query, so they cost one request together. */
+/** Dashboard cards for the Targets module. Each reads the shared /api/targets/summary query, so they cost one request together.
+ *  A user without Targets access (or a shop without the module) gets a refusal from that query; the cards then render
+ *  nothing instead of waiting on a skeleton that never fills. */
 
 export function MyTargetsWidget() {
-  const { data, isLoading } = useTargetsSummary();
+  const { data, isLoading, isError } = useTargetsSummary({ quiet: true });
   const meta = useTargetsMeta().data;
   const { nameOf } = useStaffLookup(meta);
+  if (isError) return null;
   if (isLoading) return <Skeleton className="h-48 w-full" />;
   const targets = (data?.targets ?? []).filter((t) => t.progress.status !== "draft" && t.progress.status !== "cancelled").slice(0, 3);
   return (
@@ -42,7 +45,8 @@ export function MyTargetsWidget() {
 }
 
 export function TodaysWorkWidget() {
-  const { data, isLoading } = useTargetsSummary();
+  const { data, isLoading, isError } = useTargetsSummary({ quiet: true });
+  if (isError) return null;
   if (isLoading || !data) return <Skeleton className="h-48 w-full" />;
   const items = [...data.tasksOverdue, ...data.tasksDueToday].slice(0, 5);
   const total = data.tasksOverdue.length + data.tasksDueToday.length;
@@ -80,25 +84,29 @@ export function TodaysWorkWidget() {
 }
 
 export function PipelineValueWidget() {
-  const { data, isLoading } = useTargetsSummary();
+  const { data, isLoading, isError } = useTargetsSummary({ quiet: true });
+  if (isError) return null;
   if (isLoading || !data) return <Skeleton className="h-24 w-full" />;
   return <StatCard label="Open leads value" value={inr(data.openLeadValue)} icon={UsersDuotoneIcon} href="/targets?tab=leads" hint={`${data.openLeads} open leads · likely ${inr(data.likelyValue)}`} />;
 }
 
 export function WonThisMonthWidget() {
-  const { data, isLoading } = useTargetsSummary();
+  const { data, isLoading, isError } = useTargetsSummary({ quiet: true });
+  if (isError) return null;
   if (isLoading || !data) return <Skeleton className="h-24 w-full" />;
   return <StatCard label="Leads won this month" value={String(data.wonThisMonth.count)} icon={WalletDuotoneIcon} tone={data.wonThisMonth.count > 0 ? "success" : "default"} href="/targets?tab=leads" hint={`Worth ${inr(data.wonThisMonth.value)}`} />;
 }
 
 export function TargetsAtRiskWidget() {
-  const { data, isLoading } = useTargetsSummary();
+  const { data, isLoading, isError } = useTargetsSummary({ quiet: true });
+  if (isError) return null;
   if (isLoading || !data) return <Skeleton className="h-24 w-full" />;
   return <StatCard label="Targets behind pace" value={String(data.targetsAtRisk)} icon={ChartBarDuotoneIcon} tone={data.targetsAtRisk > 0 ? "warning" : "default"} href="/targets?tab=targets" />;
 }
 
 export function OverdueTasksWidget() {
-  const { data, isLoading } = useTargetsSummary();
+  const { data, isLoading, isError } = useTargetsSummary({ quiet: true });
+  if (isError) return null;
   if (isLoading || !data) return <Skeleton className="h-24 w-full" />;
   return <StatCard label="Overdue tasks" value={String(data.overdueTaskCount)} icon={WarningDuotoneIcon} tone={data.overdueTaskCount > 0 ? "danger" : "default"} href="/targets" hint={`${data.openTaskCount} open in total`} />;
 }

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
@@ -82,21 +82,20 @@ export async function POST(request: Request) {
   // Default: the task is for whoever created it.
   const assigneeId = d.assigneeId === undefined ? ctx.employeeId : d.assigneeId;
   if (!canAssignTo(assigneeId, { employeeId: ctx.employeeId, canAssignOthers: ctx.perms.assignTasks })) return forbidden("You can only create tasks for yourself");
-  if (assigneeId && !(await isActiveEmployee(db, assigneeId))) return badRequest("That person isn't an active staff member");
-
+  // Independent look-ups (assignee, parent task, project, linked lead) run together instead of one after another.
+  const [assigneeOk, parentRes, projectRes, leadRes] = await Promise.all([
+    assigneeId ? isActiveEmployee(db, assigneeId) : Promise.resolve(true),
+    d.parentTaskId ? db.from("work_tasks").select("*").eq("id", d.parentTaskId).maybeSingle().then((r) => r.data) : Promise.resolve(null),
+    d.projectId ? db.from("work_projects").select("id").eq("id", d.projectId).maybeSingle().then((r) => r.data) : Promise.resolve(null),
+    d.linkType === "lead" && d.linkId ? db.from("leads").select("assigned_employee_id, created_by").eq("id", d.linkId).maybeSingle().then((r) => r.data) : Promise.resolve(null),
+  ]);
+  if (!assigneeOk) return badRequest("That person isn't an active staff member");
   if (d.parentTaskId) {
-    const { data: parent } = await db.from("work_tasks").select("*").eq("id", d.parentTaskId).maybeSingle();
-    if (!parent || !taskVisible(mapTaskRow(parent), ctx)) return badRequest("The parent task wasn't found");
-    if (parent.parent_task_id) return badRequest("A subtask can't have its own subtasks");
+    if (!parentRes || !taskVisible(mapTaskRow(parentRes), ctx)) return badRequest("The parent task wasn't found");
+    if (parentRes.parent_task_id) return badRequest("A subtask can't have its own subtasks");
   }
-  if (d.projectId) {
-    const { data: project } = await db.from("work_projects").select("id").eq("id", d.projectId).maybeSingle();
-    if (!project) return badRequest("The project wasn't found");
-  }
-  if (d.linkType === "lead" && d.linkId) {
-    const { data: lead } = await db.from("leads").select("assigned_employee_id, created_by").eq("id", d.linkId).maybeSingle();
-    if (!lead || !leadVisible(lead, ctx)) return badRequest("The lead wasn't found");
-  }
+  if (d.projectId && !projectRes) return badRequest("The project wasn't found");
+  if (d.linkType === "lead" && d.linkId && (!leadRes || !leadVisible(leadRes, ctx))) return badRequest("The lead wasn't found");
   if (d.dueDate && d.startDate && d.dueDate < d.startDate) return badRequest("The due date can't be before the start date");
 
   const { data, error } = await db
@@ -129,8 +128,8 @@ export async function POST(request: Request) {
     .select("id")
     .single();
   if (error || !data) return serverError(error?.message || "Couldn't create the task");
-  await logTaskEvent(db, { taskId: data.id, projectId: d.projectId, kind: "created", body: `Task created: ${d.title}`, email: ctx.email });
+  after(() => logTaskEvent(db, { taskId: data.id, projectId: d.projectId, kind: "created", body: `Task created: ${d.title}`, email: ctx.email }));
 
-  if (assigneeId && assigneeId !== ctx.employeeId) await logAction(db, ctx.email, `📌 Task assigned: ${d.title}`, null, d.dueDate ? `due ${d.dueDate}` : null);
+  if (assigneeId && assigneeId !== ctx.employeeId) after(() => logAction(db, ctx.email, `📌 Task assigned: ${d.title}`, null, d.dueDate ? `due ${d.dueDate}` : null));
   return NextResponse.json({ ok: true, id: data.id });
 }

@@ -46,10 +46,35 @@ const send = (method: "POST" | "PATCH" | "DELETE", url: string, payload?: unknow
 
 const KEY = "targets";
 
-function useInvalidate() {
+/**
+ * Refreshes only the Targets queries a change can affect (`parts` are the second part of the query
+ * keys below) instead of every mounted one. Re-running the heavy summary / target-progress queries
+ * after, say, ticking a task off was what made every save feel slow.
+ */
+function useInvalidate(...parts: string[]) {
   const qc = useQueryClient();
-  return () => qc.invalidateQueries({ queryKey: [KEY] });
+  return () => qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === KEY && parts.includes(q.queryKey[1] as string) });
 }
+
+type Snapshot<T> = [readonly unknown[], T | undefined][];
+
+/** Applies `change` to the cached lists under [KEY, part, …] right away and returns the old data so a failed save can put it back. */
+function optimisticUpdate<T>(qc: ReturnType<typeof useQueryClient>, part: string, change: (old: T) => T): Snapshot<T> {
+  const snapshot = qc.getQueriesData<T>({ queryKey: [KEY, part] });
+  qc.setQueriesData<T>({ queryKey: [KEY, part] }, (old) => (old === undefined ? old : change(old)));
+  return snapshot;
+}
+
+function restore<T>(qc: ReturnType<typeof useQueryClient>, snapshot: Snapshot<T> | undefined) {
+  for (const [key, data] of snapshot ?? []) qc.setQueryData(key, data);
+}
+
+const TARGET_VIEWS = ["targets", "target", "summary", "report"];
+const LEAD_VIEWS = ["leads", "lead", "summary", "report"];
+// A lead moving to Won changes target progress; a follow-up task may be linked to it.
+const LEAD_CHANGE_VIEWS = [...LEAD_VIEWS, "targets", "target", "tasks"];
+const TASK_VIEWS = ["tasks", "task", "summary", "projects", "project", "lead", "report", "feed", "task-events"];
+const PROJECT_VIEWS = ["projects", "project", "summary", "tasks", "report"];
 
 // ── Meta + summary ────────────────────────────────────────────────────────
 
@@ -102,17 +127,17 @@ export interface TargetInput {
 }
 
 export function useCreateTarget() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate(...TARGET_VIEWS);
   return useMutation({ mutationFn: (input: TargetInput) => send("POST", "/api/targets", input), onSuccess: invalidate });
 }
 
 export function usePatchTarget() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate(...TARGET_VIEWS);
   return useMutation({ mutationFn: ({ id, ...patch }: { id: string } & Partial<TargetInput> & { statusOverride?: "draft" | "cancelled" | null }) => send("PATCH", `/api/targets/${id}`, patch), onSuccess: invalidate });
 }
 
 export function useDeleteTarget() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate(...TARGET_VIEWS);
   return useMutation({ mutationFn: (id: string) => send("DELETE", `/api/targets/${id}`), onSuccess: invalidate });
 }
 
@@ -159,12 +184,12 @@ export interface LeadInput {
 }
 
 export function useCreateLead() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate(...LEAD_VIEWS);
   return useMutation({ mutationFn: (input: LeadInput) => send("POST", "/api/targets/leads", input), onSuccess: invalidate });
 }
 
 export function useImportLeads() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate(...LEAD_CHANGE_VIEWS);
   return useMutation({
     mutationFn: (rows: ImportLeadRow[]) =>
       api<{ ok: true; added: number; updated: number; skipped: number; problems: { row: number; message: string }[] }>("/api/targets/leads/import", { method: "POST", body: JSON.stringify({ rows }) }),
@@ -178,25 +203,36 @@ export function fetchAllLeads() {
 }
 
 export function usePatchLead() {
-  const invalidate = useInvalidate();
+  const qc = useQueryClient();
+  const invalidate = useInvalidate(...LEAD_CHANGE_VIEWS);
   return useMutation({
     mutationFn: ({ id, ...patch }: { id: string } & Partial<LeadInput> & { stage?: string; lostReason?: string; wonValue?: number }) => send("PATCH", `/api/targets/leads/${id}`, patch),
-    onSuccess: invalidate,
+    // Dragging a lead to another stage moves the card at once; a refused move (e.g. Lost without a reason) snaps back.
+    onMutate: async ({ id, ...patch }) => {
+      await qc.cancelQueries({ queryKey: [KEY, "leads"] });
+      const shown = {
+        ...(patch.stage !== undefined ? { stage: patch.stage } : {}),
+        ...(patch.likelyToClose !== undefined ? { likelyToClose: patch.likelyToClose } : {}),
+      };
+      return { snapshot: optimisticUpdate<{ leads: LeadDto[]; stageCounts: Record<string, number> }>(qc, "leads", (data) => ({ ...data, leads: data.leads.map((l) => (l.id === id ? { ...l, ...shown } : l)) })) };
+    },
+    onError: (_e, _vars, ctx) => restore(qc, ctx?.snapshot),
+    onSettled: invalidate,
   });
 }
 
 export function useDeleteLead() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate(...LEAD_CHANGE_VIEWS);
   return useMutation({ mutationFn: (id: string) => send("DELETE", `/api/targets/leads/${id}`), onSuccess: invalidate });
 }
 
 export function useAddLeadActivity() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate("lead");
   return useMutation({ mutationFn: ({ id, kind, body }: { id: string; kind: "note" | "call" | "meeting"; body: string }) => send("POST", `/api/targets/leads/${id}/activities`, { kind, body }), onSuccess: invalidate });
 }
 
 export function useConvertLead() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate(...LEAD_CHANGE_VIEWS);
   return useMutation({
     mutationFn: (id: string) => send("POST", `/api/targets/leads/${id}/convert`) as unknown as Promise<{ ok: true; customerId: string | null; orderUrl: string; invoiceUrl: string }>,
     onSuccess: invalidate,
@@ -253,17 +289,34 @@ export interface TaskInput {
 }
 
 export function useCreateTask() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate(...TASK_VIEWS);
   return useMutation({ mutationFn: (input: TaskInput) => send("POST", "/api/targets/tasks", input), onSuccess: invalidate });
 }
 
 export function usePatchTask() {
-  const invalidate = useInvalidate();
-  return useMutation({ mutationFn: ({ id, ...patch }: { id: string } & Partial<TaskInput>) => send("PATCH", `/api/targets/tasks/${id}`, patch), onSuccess: invalidate });
+  const qc = useQueryClient();
+  const invalidate = useInvalidate(...TASK_VIEWS);
+  return useMutation({
+    mutationFn: ({ id, ...patch }: { id: string } & Partial<TaskInput>) => send("PATCH", `/api/targets/tasks/${id}`, patch),
+    // Ticking a task off, changing its status or owner shows up at once; a failed save puts it back.
+    onMutate: async ({ id, ...patch }) => {
+      await qc.cancelQueries({ queryKey: [KEY, "tasks"] });
+      const shown = {
+        ...(patch.status !== undefined ? { status: patch.status } : {}),
+        ...(patch.title !== undefined ? { title: patch.title } : {}),
+        ...(patch.priority !== undefined ? { priority: patch.priority } : {}),
+        ...(patch.dueDate !== undefined ? { dueDate: patch.dueDate } : {}),
+        ...(patch.assigneeId !== undefined ? { assigneeId: patch.assigneeId } : {}),
+      };
+      return { snapshot: optimisticUpdate<TaskDto[]>(qc, "tasks", (list) => list.map((t) => (t.id === id ? { ...t, ...shown } : t))) };
+    },
+    onError: (_e, _vars, ctx) => restore(qc, ctx?.snapshot),
+    onSettled: invalidate,
+  });
 }
 
 export function useDeleteTask() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate(...TASK_VIEWS);
   return useMutation({ mutationFn: (id: string) => send("DELETE", `/api/targets/tasks/${id}`), onSuccess: invalidate });
 }
 
@@ -291,17 +344,17 @@ export interface ProjectInput {
 }
 
 export function useCreateProject() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate(...PROJECT_VIEWS);
   return useMutation({ mutationFn: (input: ProjectInput) => send("POST", "/api/targets/projects", input), onSuccess: invalidate });
 }
 
 export function usePatchProject() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate(...PROJECT_VIEWS);
   return useMutation({ mutationFn: ({ id, ...patch }: { id: string } & Partial<ProjectInput>) => send("PATCH", `/api/targets/projects/${id}`, patch), onSuccess: invalidate });
 }
 
 export function useDeleteProject() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate(...PROJECT_VIEWS);
   return useMutation({ mutationFn: (id: string) => send("DELETE", `/api/targets/projects/${id}`), onSuccess: invalidate });
 }
 
@@ -338,15 +391,15 @@ export function useTargetsReport<K extends keyof ReportData>(kind: K, range?: Pa
 // ── Workspace: task lists, phases, members, comments, documents, time ─────
 
 export function useCreateTaskList() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate("project", "tasks");
   return useMutation({ mutationFn: (input: { projectId: string; name: string }) => send("POST", "/api/targets/task-lists", input), onSuccess: invalidate });
 }
 export function usePatchTaskList() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate("project", "tasks");
   return useMutation({ mutationFn: ({ id, ...patch }: { id: string; name?: string; sortOrder?: number }) => send("PATCH", `/api/targets/task-lists/${id}`, patch), onSuccess: invalidate });
 }
 export function useDeleteTaskList() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate("project", "tasks");
   return useMutation({ mutationFn: (id: string) => send("DELETE", `/api/targets/task-lists/${id}`), onSuccess: invalidate });
 }
 
@@ -357,20 +410,20 @@ export interface PhaseInput {
   status?: string;
 }
 export function useCreatePhase() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate("project");
   return useMutation({ mutationFn: (input: PhaseInput & { projectId: string }) => send("POST", "/api/targets/phases", input), onSuccess: invalidate });
 }
 export function usePatchPhase() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate("project");
   return useMutation({ mutationFn: ({ id, ...patch }: { id: string } & Partial<PhaseInput>) => send("PATCH", `/api/targets/phases/${id}`, patch), onSuccess: invalidate });
 }
 export function useDeletePhase() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate("project", "tasks");
   return useMutation({ mutationFn: (id: string) => send("DELETE", `/api/targets/phases/${id}`), onSuccess: invalidate });
 }
 
 export function useSetProjectMembers() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate("project", "projects", "tasks");
   return useMutation({
     mutationFn: ({ projectId, employeeIds }: { projectId: string; employeeIds: string[] }) =>
       api<{ ok: true }>(`/api/targets/projects/${projectId}/members`, { method: "PUT", body: JSON.stringify({ employeeIds }) }),
@@ -382,7 +435,7 @@ export function useTaskEvents(taskId: string | null) {
   return useQuery({ queryKey: [KEY, "task-events", taskId], enabled: !!taskId, queryFn: () => api<{ events: TaskEventDto[] }>(`/api/targets/tasks/${taskId}/events`).then((r) => r.events), staleTime: 5_000 });
 }
 export function useAddComment() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate("task-events", "feed");
   return useMutation({ mutationFn: ({ taskId, body }: { taskId: string; body: string }) => send("POST", `/api/targets/tasks/${taskId}/events`, { body }), onSuccess: invalidate });
 }
 export function useProjectFeed(projectId: string) {
@@ -394,11 +447,11 @@ export function useDocuments(scope: { projectId?: string; taskId?: string }) {
   return useQuery({ queryKey: [KEY, "documents", qs], enabled: !!(scope.taskId || scope.projectId), queryFn: () => api<{ documents: DocumentDto[] }>(`/api/targets/documents?${qs}`).then((r) => r.documents), staleTime: 15_000 });
 }
 export function useAddDocument() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate("documents");
   return useMutation({ mutationFn: (input: { projectId?: string | null; taskId?: string | null; name: string; url: string }) => send("POST", "/api/targets/documents", input), onSuccess: invalidate });
 }
 export function useDeleteDocument() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate("documents");
   return useMutation({ mutationFn: (id: string) => send("DELETE", `/api/targets/documents/${id}`), onSuccess: invalidate });
 }
 
@@ -415,13 +468,13 @@ export function useTimeLogs(filters: TimeLogFilters = {}, enabled = true) {
   return useQuery({ queryKey: [KEY, "time-logs", qs.toString()], enabled, queryFn: () => api<{ logs: TimeLogDto[] }>(`/api/targets/time-logs?${qs.toString()}`).then((r) => r.logs), staleTime: 15_000 });
 }
 export function useAddTimeLog() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate("time-logs", "task", "project", "report");
   return useMutation({
     mutationFn: (input: { taskId?: string | null; projectId?: string | null; logDate: string; hours: number; note?: string; employeeId?: string | null }) => send("POST", "/api/targets/time-logs", input),
     onSuccess: invalidate,
   });
 }
 export function useDeleteTimeLog() {
-  const invalidate = useInvalidate();
+  const invalidate = useInvalidate("time-logs", "task", "project", "report");
   return useMutation({ mutationFn: (id: string) => send("DELETE", `/api/targets/time-logs/${id}`), onSuccess: invalidate });
 }

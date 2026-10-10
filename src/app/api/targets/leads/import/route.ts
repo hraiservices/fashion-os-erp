@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
@@ -125,7 +125,7 @@ export async function POST(request: Request) {
       added += 1;
     }
 
-    await logAction(db, ctx.email, `🤝 Leads imported: ${added} added, ${updated} updated`, null, problems.length ? `${problems.length} skipped` : null);
+    after(() => logAction(db, ctx.email, `🤝 Leads imported: ${added} added, ${updated} updated`, null, problems.length ? `${problems.length} skipped` : null));
     return NextResponse.json({ ok: true, added, updated, skipped: problems.length, problems: problems.slice(0, 50) });
   } catch (e) {
     return serverError(e instanceof Error ? e.message : "Import failed");

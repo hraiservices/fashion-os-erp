@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
@@ -66,6 +66,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await db.from("work_time_logs").insert({ task_id: d.taskId, project_id: projectId, employee_id: who, log_date: d.logDate, hours: d.hours, note: d.note, created_by: ctx.email }).select("id").single();
   if (error || !data) return serverError(error?.message || "Couldn't save the time log");
-  if (d.taskId) await logTaskEvent(db, { taskId: d.taskId, projectId, kind: "time", body: `Logged ${d.hours} h${d.note ? ` — ${d.note}` : ""}`, email: ctx.email });
+  const loggedTaskId = d.taskId;
+  if (loggedTaskId) after(() => logTaskEvent(db, { taskId: loggedTaskId, projectId, kind: "time", body: `Logged ${d.hours} h${d.note ? ` — ${d.note}` : ""}`, email: ctx.email }));
   return NextResponse.json({ ok: true, id: data.id });
 }

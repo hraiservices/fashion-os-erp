@@ -112,7 +112,14 @@ export async function fetchSaleFacts(db: SupabaseClient<Database>, from: string,
   return facts;
 }
 
-export function leadFactOf(r: Database["public"]["Tables"]["leads"]["Row"]): LeadFact {
+/** The lead columns the progress maths, summary and visibility rules actually read — a lot lighter than `select *` (notes, product interest, names). */
+const LEAD_FACT_COLUMNS = "id, stage, assigned_employee_id, created_by, expected_value, likely_to_close, won_value, won_at, source, created_at, lost_reason, lost_at";
+export type LeadFactRow = Pick<
+  Database["public"]["Tables"]["leads"]["Row"],
+  "id" | "stage" | "assigned_employee_id" | "created_by" | "expected_value" | "likely_to_close" | "won_value" | "won_at" | "source" | "created_at" | "lost_reason" | "lost_at"
+>;
+
+export function leadFactOf(r: LeadFactRow): LeadFact {
   return {
     id: r.id,
     stage: r.stage,
@@ -126,6 +133,10 @@ export function leadFactOf(r: Database["public"]["Tables"]["leads"]["Row"]): Lea
     lostReason: r.lost_reason || "",
     lostDate: dateOf(r.lost_at),
   };
+}
+
+export async function fetchLeadFactRows(db: SupabaseClient<Database>): Promise<LeadFactRow[]> {
+  return (await fetchAll((a, b) => db.from("leads").select(LEAD_FACT_COLUMNS).order("created_at", { ascending: false }).range(a, b))) as unknown as LeadFactRow[];
 }
 
 export async function fetchLeadRows(db: SupabaseClient<Database>): Promise<Database["public"]["Tables"]["leads"]["Row"][]> {
@@ -166,10 +177,21 @@ const toDef = (t: TargetDto): TargetDef => ({
   statusOverride: t.statusOverride,
 });
 
-export async function loadTargetsWithProgress(ctx: TargetsCtx, today: string, ids?: string[]): Promise<TargetWithProgress[]> {
+export async function loadTargetsWithProgress(
+  ctx: TargetsCtx,
+  today: string,
+  ids?: string[],
+  opts?: {
+    /** Skip targets that ended before this date — keeps old targets from widening the sales read. */
+    endsOnOrAfter?: string;
+    /** Lead rows the caller already loaded, so they aren't fetched a second time. */
+    leadRows?: LeadFactRow[];
+  }
+): Promise<TargetWithProgress[]> {
   const { db } = ctx;
   let q = db.from("sales_targets").select("*").order("end_date", { ascending: false });
   if (ids) q = q.in("id", ids);
+  if (opts?.endsOnOrAfter) q = q.gte("end_date", opts.endsOnOrAfter);
   const { data, error } = await q;
   if (error) throw new Error(error.message);
 
@@ -179,7 +201,7 @@ export async function loadTargetsWithProgress(ctx: TargetsCtx, today: string, id
   const from = targets.reduce((m, t) => (t.startDate < m ? t.startDate : m), targets[0].startDate);
   const to = targets.reduce((m, t) => (t.endDate > m ? t.endDate : m), targets[0].endDate);
   const needsSales = targets.some((t) => t.metric !== "leads_won");
-  const [sales, leadRows] = await Promise.all([needsSales ? fetchSaleFacts(db, from, to) : Promise.resolve([] as SaleFact[]), fetchLeadRows(db)]);
+  const [sales, leadRows] = await Promise.all([needsSales ? fetchSaleFacts(db, from, to) : Promise.resolve([] as SaleFact[]), opts?.leadRows ? Promise.resolve(opts.leadRows) : fetchLeadFactRows(db)]);
   const leads = leadRows.map(leadFactOf);
 
   return targets.map((t) => ({ ...t, progress: computeProgress(toDef(t), sales, leads, today) }));
@@ -255,11 +277,11 @@ export async function buildSummary(ctx: TargetsCtx, today: string): Promise<Targ
   const { db } = ctx;
   const month = monthRange(today);
 
-  const [taskRes, leadRows, allTargets] = await Promise.all([
-    db.from("work_tasks").select("*").not("status", "in", "(done,cancelled)").limit(2000),
-    fetchLeadRows(db),
-    loadTargetsWithProgress(ctx, today),
-  ]);
+  // Leads are read once and shared with the target progress maths. Targets that ended more than
+  // two months ago are left out: the Today screen, dashboard cards and Day Book only need current ones.
+  const lookback = istDateString(new Date(Date.now() - 62 * 86_400_000));
+  const [taskRes, leadRows] = await Promise.all([db.from("work_tasks").select("*").not("status", "in", "(done,cancelled)").limit(2000), fetchLeadFactRows(db)]);
+  const allTargets = await loadTargetsWithProgress(ctx, today, undefined, { endsOnOrAfter: lookback, leadRows });
 
   const tasks = (taskRes.data || []).map(mapTaskRow).filter((t) => taskVisible(t, ctx));
   const buckets = bucketTasks(tasks, today);

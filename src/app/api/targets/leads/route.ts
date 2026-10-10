@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { normalizeIndianMobile } from "@/lib/business-rules";
-import { isOpenStage, LEAD_STAGES } from "@/lib/lead-stages";
+import { LEAD_STAGES, OPEN_STAGES } from "@/lib/lead-stages";
 import { badRequest, forbidden, parseBody, serverError, text, uuid } from "@/lib/targets-api";
-import { fetchLeadRows, isActiveEmployee, leadVisible, mapLeadRow, nextFollowUps, targetsContext } from "@/lib/targets-server";
+import { isActiveEmployee, mapLeadRow, nextFollowUps, targetsContext } from "@/lib/targets-server";
 import { logAction } from "@/lib/logging";
 
 const createSchema = z.object({
@@ -32,20 +32,39 @@ export async function GET(request: Request) {
     const sp = new URL(request.url).searchParams;
     const stage = sp.get("stage") || "open";
     const owner = sp.get("owner");
-    const q = (sp.get("q") || "").trim().toLowerCase();
-
-    let rows = (await fetchLeadRows(db)).filter((r) => leadVisible(r, ctx));
-    const stageCounts: Record<string, number> = {};
-    for (const s of LEAD_STAGES) stageCounts[s] = rows.filter((r) => r.stage === s).length;
-
-    if (owner === "me") rows = rows.filter((r) => r.assigned_employee_id === ctx.employeeId);
-    else if (owner && ctx.seesAll) rows = rows.filter((r) => r.assigned_employee_id === owner);
-    if (stage === "open") rows = rows.filter((r) => isOpenStage(r.stage));
-    else if (stage !== "all") rows = rows.filter((r) => r.stage === stage);
-    if (sp.get("likely") === "1") rows = rows.filter((r) => r.likely_to_close);
-    if (q) rows = rows.filter((r) => [r.name, r.mobile, r.product_interest, r.source].some((f) => (f || "").toLowerCase().includes(q)));
+    // Characters that mean something inside a PostgREST filter string — dropped from the search text.
+    const q = (sp.get("q") || "").trim().replace(/[,()%*\\]/g, " ").trim();
     const limit = Math.min(5000, Math.max(1, parseInt(sp.get("limit") || "500", 10) || 500));
-    rows = rows.slice(0, limit);
+
+    // Who may see which leads: everyone's, or only the ones they own or created (email matched in both cases, as before).
+    const email = ctx.email.replace(/[,()%*\\]/g, "");
+    const mine = [`created_by.eq.${email}`, `created_by.eq.${email.toLowerCase()}`];
+    if (ctx.employeeId) mine.push(`assigned_employee_id.eq.${ctx.employeeId}`);
+    const visibleFilter = ctx.seesAll ? null : mine.join(",");
+
+    let list = db.from("leads").select("*");
+    if (visibleFilter) list = list.or(visibleFilter);
+    if (owner === "me") list = ctx.employeeId ? list.eq("assigned_employee_id", ctx.employeeId) : list.eq("id", "00000000-0000-0000-0000-000000000000");
+    else if (owner && ctx.seesAll) list = list.eq("assigned_employee_id", owner);
+    if (stage === "open") list = list.in("stage", OPEN_STAGES as unknown as string[]);
+    else if (stage !== "all") list = list.eq("stage", stage);
+    if (sp.get("likely") === "1") list = list.eq("likely_to_close", true);
+    if (q) {
+      const like = `%${q}%`;
+      list = list.or(`name.ilike.${like},mobile.ilike.${like},product_interest.ilike.${like},source.ilike.${like}`);
+    }
+
+    // Stage counts ignore the owner/stage/search filters (they label the stage pills), so they are counted
+    // separately in the database — one cheap indexed count per stage, run alongside the list.
+    const counts = LEAD_STAGES.map((s) => {
+      const c = db.from("leads").select("id", { count: "exact", head: true }).eq("stage", s);
+      return visibleFilter ? c.or(visibleFilter) : c;
+    });
+    const [listRes, ...countRes] = await Promise.all([list.order("created_at", { ascending: false }).limit(limit), ...counts]);
+    if (listRes.error) return serverError(listRes.error.message);
+    const rows = listRes.data || [];
+    const stageCounts: Record<string, number> = {};
+    LEAD_STAGES.forEach((s, i) => (stageCounts[s] = countRes[i].count ?? 0));
 
     const follow = await nextFollowUps(db, rows.map((r) => r.id));
     return NextResponse.json({ leads: rows.map((r) => ({ ...mapLeadRow(r), nextFollowUp: follow.get(r.id) ?? null })), stageCounts });
@@ -72,12 +91,15 @@ export async function POST(request: Request) {
   const canAssignOthers = ctx.seesAll || ctx.perms.assignTasks;
   const owner = d.assignedEmployeeId === undefined ? ctx.employeeId : d.assignedEmployeeId;
   if (owner && owner !== ctx.employeeId && !canAssignOthers) return forbidden("You can only add leads for yourself");
-  if (owner && !(await isActiveEmployee(db, owner))) return badRequest("That person isn't an active staff member");
-
-  if (mobile && !d.allowDuplicate) {
-    const { data: dupes } = await db.from("leads").select("id, name, stage").eq("mobile", mobile).in("stage", ["new", "talking", "visit", "quoted"]).limit(1);
-    if (dupes?.length) return NextResponse.json({ error: `There is already an open lead for this number (${dupes[0].name})`, duplicateOf: dupes[0].id }, { status: 409 });
-  }
+  // The owner check and the duplicate-number check don't depend on each other — run them together.
+  const [ownerOk, dupes] = await Promise.all([
+    owner ? isActiveEmployee(db, owner) : Promise.resolve(true),
+    mobile && !d.allowDuplicate
+      ? db.from("leads").select("id, name, stage").eq("mobile", mobile).in("stage", ["new", "talking", "visit", "quoted"]).limit(1).then((r) => r.data)
+      : Promise.resolve(null),
+  ]);
+  if (!ownerOk) return badRequest("That person isn't an active staff member");
+  if (dupes?.length) return NextResponse.json({ error: `There is already an open lead for this number (${dupes[0].name})`, duplicateOf: dupes[0].id }, { status: 409 });
 
   const { data, error } = await db
     .from("leads")
@@ -96,6 +118,6 @@ export async function POST(request: Request) {
     .single();
   if (error || !data) return serverError(error?.message || "Couldn't add the lead");
 
-  await logAction(db, ctx.email, `🤝 Lead added: ${d.name}`, null, d.productInterest || null);
+  after(() => logAction(db, ctx.email, `🤝 Lead added: ${d.name}`, null, d.productInterest || null));
   return NextResponse.json({ ok: true, id: data.id });
 }

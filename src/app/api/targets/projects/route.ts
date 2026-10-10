@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
@@ -75,6 +75,6 @@ export async function POST(request: Request) {
     .single();
   if (error || !data) return serverError(error?.message || "Couldn't create the project");
 
-  await logAction(db, ctx.email, `📁 Project created: ${d.name}`, null, null);
+  after(() => logAction(db, ctx.email, `📁 Project created: ${d.name}`, null, null));
   return NextResponse.json({ ok: true, id: data.id });
 }

@@ -80,6 +80,15 @@ export interface TaskDto {
   linkId: string | null;
   /** Human label for the linked thing (lead name, etc.), resolved by the list route. */
   linkLabel?: string | null;
+  /** Readable id (T-34); null until the workspace migration has run. */
+  taskNo: number | null;
+  taskListId: string | null;
+  phaseId: string | null;
+  tags: string[];
+  durationHours: number | null;
+  completionPct: number;
+  reminder: string;
+  dependsOn: string[];
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -94,6 +103,8 @@ export interface ProjectDto {
   endDate: string | null;
   status: string;
   targetId: string | null;
+  /** Readable id (P-12); null until the workspace migration has run. */
+  projectNo: number | null;
   createdBy: string | null;
   createdAt: string;
 }
@@ -175,6 +186,14 @@ export function mapTaskRow(r: Tables["work_tasks"]["Row"]): TaskDto {
     checklist: parseChecklist(r.checklist),
     linkType: (r.link_type as TaskLinkType | null) ?? null,
     linkId: r.link_id,
+    taskNo: r.task_no ?? null,
+    taskListId: r.task_list_id ?? null,
+    phaseId: r.phase_id ?? null,
+    tags: r.tags ?? [],
+    durationHours: r.duration_hours != null ? Number(r.duration_hours) : null,
+    completionPct: r.status === "done" ? 100 : r.completion_pct ?? 0,
+    reminder: r.reminder ?? "none",
+    dependsOn: r.depends_on ?? [],
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -191,6 +210,7 @@ export function mapProjectRow(r: Tables["work_projects"]["Row"]): ProjectDto {
     endDate: r.end_date,
     status: r.status,
     targetId: r.target_id,
+    projectNo: r.project_no ?? null,
     createdBy: r.created_by,
     createdAt: r.created_at,
   };
@@ -245,4 +265,52 @@ export interface TasksReport {
 
 export interface ProjectsReport {
   projects: (ProjectWithProgress & { ownerName: string })[];
+}
+
+// ── Workspace extras ──────────────────────────────────────────────────────
+
+export interface TaskListDto {
+  id: string;
+  projectId: string;
+  name: string;
+  sortOrder: number;
+}
+export interface PhaseDto {
+  id: string;
+  projectId: string;
+  name: string;
+  startDate: string | null;
+  endDate: string | null;
+  status: string;
+  sortOrder: number;
+}
+export interface TaskEventDto {
+  id: string;
+  projectId: string | null;
+  taskId: string | null;
+  kind: string;
+  body: string;
+  createdBy: string | null;
+  createdAt: string;
+  /** Task title, filled in for the project Feed. */
+  taskTitle?: string | null;
+}
+export interface DocumentDto {
+  id: string;
+  projectId: string | null;
+  taskId: string | null;
+  name: string;
+  url: string;
+  createdBy: string | null;
+  createdAt: string;
+}
+export interface TimeLogDto {
+  id: string;
+  taskId: string | null;
+  projectId: string | null;
+  employeeId: string | null;
+  logDate: string;
+  hours: number;
+  note: string;
+  createdAt: string;
 }

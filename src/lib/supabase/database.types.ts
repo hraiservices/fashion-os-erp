@@ -109,6 +109,7 @@ export interface Database {
           end_date: string | null;
           status: string;
           target_id: string | null;
+          project_no: number;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -136,6 +137,14 @@ export interface Database {
           checklist: Json;
           link_type: string | null;
           link_id: string | null;
+          task_no: number;
+          task_list_id: string | null;
+          phase_id: string | null;
+          tags: string[];
+          duration_hours: number | null;
+          completion_pct: number;
+          reminder: string;
+          depends_on: string[];
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -144,6 +153,42 @@ export interface Database {
           title: string;
         };
         Update: Partial<Database["public"]["Tables"]["work_tasks"]["Row"]>;
+        Relationships: [];
+      };
+      work_task_lists: {
+        Row: { id: string; project_id: string; name: string; sort_order: number; created_at: string };
+        Insert: Partial<Database["public"]["Tables"]["work_task_lists"]["Row"]> & { project_id: string; name: string };
+        Update: Partial<Database["public"]["Tables"]["work_task_lists"]["Row"]>;
+        Relationships: [];
+      };
+      work_phases: {
+        Row: { id: string; project_id: string; name: string; start_date: string | null; end_date: string | null; status: string; sort_order: number; created_at: string };
+        Insert: Partial<Database["public"]["Tables"]["work_phases"]["Row"]> & { project_id: string; name: string };
+        Update: Partial<Database["public"]["Tables"]["work_phases"]["Row"]>;
+        Relationships: [];
+      };
+      work_project_members: {
+        Row: { project_id: string; employee_id: string; added_at: string };
+        Insert: Partial<Database["public"]["Tables"]["work_project_members"]["Row"]> & { project_id: string; employee_id: string };
+        Update: Partial<Database["public"]["Tables"]["work_project_members"]["Row"]>;
+        Relationships: [];
+      };
+      work_task_events: {
+        Row: { id: string; project_id: string | null; task_id: string | null; kind: string; body: string; created_by: string | null; created_at: string };
+        Insert: Partial<Database["public"]["Tables"]["work_task_events"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["work_task_events"]["Row"]>;
+        Relationships: [];
+      };
+      work_documents: {
+        Row: { id: string; project_id: string | null; task_id: string | null; name: string; url: string; created_by: string | null; created_at: string };
+        Insert: Partial<Database["public"]["Tables"]["work_documents"]["Row"]> & { name: string; url: string };
+        Update: Partial<Database["public"]["Tables"]["work_documents"]["Row"]>;
+        Relationships: [];
+      };
+      work_time_logs: {
+        Row: { id: string; task_id: string | null; project_id: string | null; employee_id: string | null; log_date: string; hours: number; note: string; created_by: string | null; created_at: string };
+        Insert: Partial<Database["public"]["Tables"]["work_time_logs"]["Row"]> & { log_date: string; hours: number };
+        Update: Partial<Database["public"]["Tables"]["work_time_logs"]["Row"]>;
         Relationships: [];
       };
       day_book_cash_adjustments: {

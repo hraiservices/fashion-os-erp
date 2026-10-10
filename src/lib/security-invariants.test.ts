@@ -27,6 +27,7 @@ const SRC = join(process.cwd(), "src");
 const WRITE_LOCKED_TABLES = [
   // Targets module (service-role API only)
   "sales_targets", "leads", "lead_activities", "work_projects", "work_tasks",
+  "work_task_lists", "work_phases", "work_project_members", "work_task_events", "work_documents", "work_time_logs",
   // HR / compensation
   "employees", "employee_attendance", "employee_advances", "payroll_runs", "payslips",
   // orders + customers
@@ -85,6 +86,7 @@ const REVOKED_VIEWS = [
 const READ_LOCKED_TABLES = [
   // Targets module (service-role API only)
   "sales_targets", "leads", "lead_activities", "work_projects", "work_tasks",
+  "work_task_lists", "work_phases", "work_project_members", "work_task_events", "work_documents", "work_time_logs",
   // whole-table permission gates
   "payroll_runs", "expenses", "order_expenses", "billing_events",
   "purchase_bills", "purchase_orders", "vendors", "vendor_payments", "vendor_credits",

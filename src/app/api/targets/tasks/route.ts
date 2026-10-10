@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { badRequest, dateStr, forbidden, parseBody, serverError, text, uuid } from "@/lib/targets-api";
-import { isActiveEmployee, leadVisible, mapTaskRow, targetsContext, taskVisible } from "@/lib/targets-server";
+import { isActiveEmployee, leadVisible, logTaskEvent, mapTaskRow, targetsContext, taskVisible } from "@/lib/targets-server";
 import { canAssignTo, TASK_PRIORITIES, TASK_STATUSES } from "@/lib/work-tasks";
 import { logAction } from "@/lib/logging";
 
@@ -21,6 +21,13 @@ const taskFields = {
   checklist: z.array(z.object({ text: text(200), done: z.boolean() })).max(50).default([]),
   linkType: z.enum(["lead", "target", "customer", "order", "invoice"]).nullable().default(null),
   linkId: text(80).nullable().default(null),
+  taskListId: uuid.nullable().optional(),
+  phaseId: uuid.nullable().optional(),
+  tags: z.array(text(30)).max(10).optional(),
+  durationHours: z.number().min(0).max(10_000).nullable().optional(),
+  completionPct: z.number().int().min(0).max(100).optional(),
+  reminder: z.enum(["none", "on_due", "1_day", "2_days", "1_week"]).optional(),
+  dependsOn: z.array(uuid).max(20).optional(),
 };
 const createSchema = z.object(taskFields);
 
@@ -110,10 +117,19 @@ export async function POST(request: Request) {
       link_type: d.linkId ? d.linkType : null,
       link_id: d.linkType ? d.linkId : null,
       created_by: ctx.email,
+      // Workspace columns — only sent when used, so plain tasks still save before the workspace migration is run.
+      ...(d.taskListId ? { task_list_id: d.taskListId } : {}),
+      ...(d.phaseId ? { phase_id: d.phaseId } : {}),
+      ...(d.tags?.length ? { tags: d.tags } : {}),
+      ...(d.durationHours != null ? { duration_hours: d.durationHours } : {}),
+      ...(d.completionPct ? { completion_pct: d.completionPct } : {}),
+      ...(d.reminder && d.reminder !== "none" ? { reminder: d.reminder } : {}),
+      ...(d.dependsOn?.length ? { depends_on: d.dependsOn } : {}),
     })
     .select("id")
     .single();
   if (error || !data) return serverError(error?.message || "Couldn't create the task");
+  await logTaskEvent(db, { taskId: data.id, projectId: d.projectId, kind: "created", body: `Task created: ${d.title}`, email: ctx.email });
 
   if (assigneeId && assigneeId !== ctx.employeeId) await logAction(db, ctx.email, `📌 Task assigned: ${d.title}`, null, d.dueDate ? `due ${d.dueDate}` : null);
   return NextResponse.json({ ok: true, id: data.id });

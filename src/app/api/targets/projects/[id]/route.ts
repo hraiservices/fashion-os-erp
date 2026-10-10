@@ -6,6 +6,7 @@ import { istDateString } from "@/lib/ist-date";
 import { badRequest, dateStr, notFound, parseBody, serverError, text, uuid } from "@/lib/targets-api";
 import { isActiveEmployee, mapTaskRow, targetsContext, taskVisible } from "@/lib/targets-server";
 import { mapProjectRow } from "@/lib/targets-types";
+import { canManageProject, loadProjectFor } from "@/lib/targets-workspace";
 import { isOverdue, PROJECT_STATUSES, projectProgress } from "@/lib/work-tasks";
 import { logAction } from "@/lib/logging";
 
@@ -29,20 +30,26 @@ export async function GET(_request: Request, { params }: Ctx) {
   const { ctx } = gate;
   const db: SupabaseClient<Database> = ctx.db;
 
-  const [{ data: project }, { data: tasks }] = await Promise.all([
-    db.from("work_projects").select("*").eq("id", id).maybeSingle(),
-    db.from("work_tasks").select("*").eq("project_id", id).order("due_date", { ascending: true, nullsFirst: false }),
-  ]);
+  const project = await loadProjectFor(db, ctx, id);
   if (!project) return notFound("Project not found");
+  // Lists, phases and members come from the workspace migration; before it is run they are simply empty.
+  const [{ data: tasks }, { data: lists }, { data: phases }, { data: members }] = await Promise.all([
+    db.from("work_tasks").select("*").eq("project_id", id).order("due_date", { ascending: true, nullsFirst: false }),
+    db.from("work_task_lists").select("*").eq("project_id", id).order("sort_order"),
+    db.from("work_phases").select("*").eq("project_id", id).order("sort_order"),
+    db.from("work_project_members").select("employee_id").eq("project_id", id),
+  ]);
 
   const all = (tasks || []).map(mapTaskRow);
-  const iAmIn = ctx.seesAll || project.owner_id === ctx.employeeId || project.created_by?.toLowerCase() === ctx.email.toLowerCase() || all.some((t) => t.assigneeId === ctx.employeeId);
-  if (!iAmIn) return notFound("Project not found");
 
   const today = istDateString();
   return NextResponse.json({
     project: { ...mapProjectRow(project), progress: projectProgress(all), overdueTasks: all.filter((t) => isOverdue(t, today)).length },
     tasks: all.filter((t) => taskVisible(t, ctx)),
+    lists: (lists || []).map((l) => ({ id: l.id, projectId: l.project_id, name: l.name, sortOrder: l.sort_order })),
+    phases: (phases || []).map((p) => ({ id: p.id, projectId: p.project_id, name: p.name, startDate: p.start_date, endDate: p.end_date, status: p.status, sortOrder: p.sort_order })),
+    memberIds: (members || []).map((m) => m.employee_id),
+    canManage: canManageProject(ctx, project),
   });
 }
 

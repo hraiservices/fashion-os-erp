@@ -11,7 +11,12 @@ import type {
   ProjectDto,
   ProjectsReport,
   ProjectWithProgress,
+  DocumentDto,
+  PhaseDto,
   SourcesReport,
+  TaskEventDto,
+  TaskListDto,
+  TimeLogDto,
   StaffOption,
   TargetReportRow,
   TargetWithProgress,
@@ -236,6 +241,13 @@ export interface TaskInput {
   checklist?: { text: string; done: boolean }[];
   linkType?: string | null;
   linkId?: string | null;
+  taskListId?: string | null;
+  phaseId?: string | null;
+  tags?: string[];
+  durationHours?: number | null;
+  completionPct?: number;
+  reminder?: string;
+  dependsOn?: string[];
 }
 
 export function useCreateTask() {
@@ -260,7 +272,8 @@ export function useProjects() {
 export function useProject(id: string) {
   return useQuery({
     queryKey: [KEY, "project", id],
-    queryFn: () => api<{ project: ProjectWithProgress; tasks: TaskDto[] }>(`/api/targets/projects/${id}`),
+    enabled: !!id,
+    queryFn: () => api<{ project: ProjectWithProgress; tasks: TaskDto[]; lists: TaskListDto[]; phases: PhaseDto[]; memberIds: string[]; canManage: boolean }>(`/api/targets/projects/${id}`),
     staleTime: 15_000,
   });
 }
@@ -318,4 +331,95 @@ export function useTargetsReport<K extends keyof ReportData>(kind: K, range?: Pa
     queryFn: () => api<ReportData[K] & Range>(`/api/targets/reports/${kind}?${qs.toString()}`),
     staleTime: 30_000,
   });
+}
+
+// ── Workspace: task lists, phases, members, comments, documents, time ─────
+
+export function useCreateTaskList() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: (input: { projectId: string; name: string }) => send("POST", "/api/targets/task-lists", input), onSuccess: invalidate });
+}
+export function usePatchTaskList() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: ({ id, ...patch }: { id: string; name?: string; sortOrder?: number }) => send("PATCH", `/api/targets/task-lists/${id}`, patch), onSuccess: invalidate });
+}
+export function useDeleteTaskList() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: (id: string) => send("DELETE", `/api/targets/task-lists/${id}`), onSuccess: invalidate });
+}
+
+export interface PhaseInput {
+  name: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  status?: string;
+}
+export function useCreatePhase() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: (input: PhaseInput & { projectId: string }) => send("POST", "/api/targets/phases", input), onSuccess: invalidate });
+}
+export function usePatchPhase() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: ({ id, ...patch }: { id: string } & Partial<PhaseInput>) => send("PATCH", `/api/targets/phases/${id}`, patch), onSuccess: invalidate });
+}
+export function useDeletePhase() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: (id: string) => send("DELETE", `/api/targets/phases/${id}`), onSuccess: invalidate });
+}
+
+export function useSetProjectMembers() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ projectId, employeeIds }: { projectId: string; employeeIds: string[] }) =>
+      api<{ ok: true }>(`/api/targets/projects/${projectId}/members`, { method: "PUT", body: JSON.stringify({ employeeIds }) }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useTaskEvents(taskId: string | null) {
+  return useQuery({ queryKey: [KEY, "task-events", taskId], enabled: !!taskId, queryFn: () => api<{ events: TaskEventDto[] }>(`/api/targets/tasks/${taskId}/events`).then((r) => r.events), staleTime: 5_000 });
+}
+export function useAddComment() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: ({ taskId, body }: { taskId: string; body: string }) => send("POST", `/api/targets/tasks/${taskId}/events`, { body }), onSuccess: invalidate });
+}
+export function useProjectFeed(projectId: string) {
+  return useQuery({ queryKey: [KEY, "feed", projectId], queryFn: () => api<{ events: TaskEventDto[] }>(`/api/targets/projects/${projectId}/feed`).then((r) => r.events), staleTime: 15_000 });
+}
+
+export function useDocuments(scope: { projectId?: string; taskId?: string }) {
+  const qs = scope.taskId ? `taskId=${scope.taskId}` : `projectId=${scope.projectId}`;
+  return useQuery({ queryKey: [KEY, "documents", qs], enabled: !!(scope.taskId || scope.projectId), queryFn: () => api<{ documents: DocumentDto[] }>(`/api/targets/documents?${qs}`).then((r) => r.documents), staleTime: 15_000 });
+}
+export function useAddDocument() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: (input: { projectId?: string | null; taskId?: string | null; name: string; url: string }) => send("POST", "/api/targets/documents", input), onSuccess: invalidate });
+}
+export function useDeleteDocument() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: (id: string) => send("DELETE", `/api/targets/documents/${id}`), onSuccess: invalidate });
+}
+
+export interface TimeLogFilters {
+  from?: string;
+  to?: string;
+  employee?: string;
+  project?: string;
+  task?: string;
+}
+export function useTimeLogs(filters: TimeLogFilters = {}, enabled = true) {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(filters)) if (v) qs.set(k, v);
+  return useQuery({ queryKey: [KEY, "time-logs", qs.toString()], enabled, queryFn: () => api<{ logs: TimeLogDto[] }>(`/api/targets/time-logs?${qs.toString()}`).then((r) => r.logs), staleTime: 15_000 });
+}
+export function useAddTimeLog() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (input: { taskId?: string | null; projectId?: string | null; logDate: string; hours: number; note?: string; employeeId?: string | null }) => send("POST", "/api/targets/time-logs", input),
+    onSuccess: invalidate,
+  });
+}
+export function useDeleteTimeLog() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: (id: string) => send("DELETE", `/api/targets/time-logs/${id}`), onSuccess: invalidate });
 }

@@ -203,6 +203,15 @@ export async function ensureCustomerForLead(db: SupabaseClient<Database>, lead: 
   return id;
 }
 
+/** Comment / activity stream entry for a task. Never fails the caller — the stream is a convenience, and the table only exists once the workspace migration has run. */
+export async function logTaskEvent(db: SupabaseClient<Database>, e: { taskId: string | null; projectId: string | null; kind: "comment" | "created" | "status" | "assigned" | "edited" | "time"; body: string; email: string }) {
+  try {
+    await db.from("work_task_events").insert({ task_id: e.taskId, project_id: e.projectId, kind: e.kind, body: e.body, created_by: e.email });
+  } catch {
+    /* table not there yet — ignore */
+  }
+}
+
 export async function addLeadActivity(db: SupabaseClient<Database>, leadId: string, kind: "note" | "call" | "meeting" | "stage_change", body: string, email: string) {
   await db.from("lead_activities").insert({ lead_id: leadId, kind, body, created_by: email });
 }

@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { badRequest, dateStr, forbidden, notFound, parseBody, serverError, text, uuid } from "@/lib/targets-api";
-import { isActiveEmployee, mapTaskRow, targetsContext, taskVisible } from "@/lib/targets-server";
+import { isActiveEmployee, logTaskEvent, mapTaskRow, targetsContext, taskVisible } from "@/lib/targets-server";
 import { canAssignTo, TASK_PRIORITIES, TASK_STATUSES } from "@/lib/work-tasks";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -19,6 +19,13 @@ const patchSchema = z.object({
   startDate: dateStr.nullable().optional(),
   dueDate: dateStr.nullable().optional(),
   checklist: z.array(z.object({ text: text(200), done: z.boolean() })).max(50).optional(),
+  taskListId: uuid.nullable().optional(),
+  phaseId: uuid.nullable().optional(),
+  tags: z.array(text(30)).max(10).optional(),
+  durationHours: z.number().min(0).max(10_000).nullable().optional(),
+  completionPct: z.number().int().min(0).max(100).optional(),
+  reminder: z.enum(["none", "on_due", "1_day", "2_days", "1_week"]).optional(),
+  dependsOn: z.array(uuid).max(20).optional(),
 });
 
 async function loadVisible(db: SupabaseClient<Database>, id: string, ctx: Parameters<typeof taskVisible>[1]) {
@@ -63,6 +70,16 @@ export async function PATCH(request: Request, { params }: Ctx) {
   if (d.checklist !== undefined) update.checklist = d.checklist;
   if (d.startDate !== undefined) update.start_date = d.startDate;
   if (d.dueDate !== undefined) update.due_date = d.dueDate;
+  if (d.taskListId !== undefined) update.task_list_id = d.taskListId;
+  if (d.phaseId !== undefined) update.phase_id = d.phaseId;
+  if (d.tags !== undefined) update.tags = d.tags;
+  if (d.durationHours !== undefined) update.duration_hours = d.durationHours;
+  if (d.completionPct !== undefined) update.completion_pct = d.completionPct;
+  if (d.reminder !== undefined) update.reminder = d.reminder;
+  if (d.dependsOn !== undefined) {
+    if (d.dependsOn.includes(id)) return badRequest("A task can't depend on itself");
+    update.depends_on = d.dependsOn;
+  }
   const start = d.startDate !== undefined ? d.startDate : row.start_date;
   const due = d.dueDate !== undefined ? d.dueDate : row.due_date;
   if (start && due && due < start) return badRequest("The due date can't be before the start date");
@@ -86,6 +103,8 @@ export async function PATCH(request: Request, { params }: Ctx) {
 
   const { error } = await db.from("work_tasks").update(update).eq("id", id);
   if (error) return serverError(error.message);
+  if (update.status) await logTaskEvent(db, { taskId: id, projectId: row.project_id, kind: "status", body: `Status changed to ${update.status}`, email: ctx.email });
+  if (update.assignee_id !== undefined) await logTaskEvent(db, { taskId: id, projectId: row.project_id, kind: "assigned", body: "Owner changed", email: ctx.email });
   return NextResponse.json({ ok: true });
 }
 

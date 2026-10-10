@@ -2,22 +2,23 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ListTodo, Plus, Target, Users } from "lucide-react";
+import { FolderKanban, ListTodo, Plus, Target, Users } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useTargetsMeta } from "@/hooks/use-targets";
-import { TodayTab } from "@/components/targets/today-tab";
+import { TasksTab } from "@/components/targets/tasks-tab";
+import { ProjectsTab } from "@/components/targets/projects-tab";
 import { LeadsTab } from "@/components/targets/leads-tab";
 import { TargetsTab } from "@/components/targets/targets-tab";
 
-type Tab = "today" | "leads" | "targets";
+type Tab = "tasks" | "projects" | "leads" | "targets";
 
 function TargetsHome() {
   const router = useRouter();
   const params = useSearchParams();
   const raw = params.get("tab");
-  const tab: Tab = raw === "leads" || raw === "targets" ? raw : "today";
+  const tab: Tab = raw === "leads" || raw === "targets" || raw === "projects" ? raw : "tasks";
   const meta = useTargetsMeta().data;
   const [taskOpen, setTaskOpen] = useState(false);
   const [leadOpen, setLeadOpen] = useState(false);
@@ -29,41 +30,39 @@ function TargetsHome() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- open the requested sheet once, then clear the query
     if (wantNew === "task") setTaskOpen(true);
     if (wantNew === "lead") setLeadOpen(true);
-    if (wantNew) router.replace(tab === "today" ? "/targets" : `/targets?tab=${tab}`, { scroll: false });
+    if (wantNew) router.replace(tab === "tasks" ? "/targets" : `/targets?tab=${tab}`, { scroll: false });
   }, [wantNew, tab, router]);
 
-  const setTab = (t: Tab) => router.replace(t === "today" ? "/targets" : `/targets?tab=${t}`, { scroll: false });
+  const setTab = (t: Tab) => router.replace(t === "tasks" ? "/targets" : `/targets?tab=${t}`, { scroll: false });
   const canAddLead = !!meta?.can.manageLeads;
 
   function plus() {
     if (tab === "leads" && canAddLead) return setLeadOpen(true);
-    if (tab === "today" && !canAddLead) return setTaskOpen(true);
-    if (tab === "targets") return setTaskOpen(true);
+    if (tab === "tasks" && !canAddLead) return setTaskOpen(true);
     setPlusOpen(true);
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-4 pb-24">
-      <PageHeader title="Sales Targets" description="Today's work, your leads and your goals" />
+    <div className="mx-auto w-full max-w-7xl space-y-4 pb-24">
+      <PageHeader title="Sales Targets" description="Tasks, projects, leads and your goals" />
       <SegmentedToggle<Tab>
         ariaLabel="Targets section"
         value={tab}
         onChange={setTab}
         options={[
-          { value: "today", label: "Today", icon: ListTodo },
+          { value: "tasks", label: "Tasks", icon: ListTodo },
+          { value: "projects", label: "Projects", icon: FolderKanban },
           { value: "leads", label: "Leads", icon: Users },
           { value: "targets", label: "Targets", icon: Target },
         ]}
       />
 
-      {tab === "today" && <TodayTab meta={meta} taskSheetOpen={taskOpen} onTaskSheetOpenChange={setTaskOpen} />}
+      {tab === "tasks" && <TasksTab meta={meta} taskSheetOpen={taskOpen} onTaskSheetOpenChange={setTaskOpen} />}
+      {tab === "projects" && <ProjectsTab meta={meta} />}
       {tab === "leads" && <LeadsTab meta={meta} addOpen={leadOpen} onAddOpenChange={setLeadOpen} />}
       {tab === "targets" && <TargetsTab meta={meta} />}
 
-      {/* Today: tasks live there, so only show the lead form when leads tab is open; sheets for the other tabs are mounted by the tab. */}
-      {tab !== "leads" && leadOpen && <LeadsTab meta={meta} addOpen={leadOpen} onAddOpenChange={setLeadOpen} />}
-
-      {tab !== "targets" && (
+      {(tab === "tasks" || tab === "leads") && (
         <button
           type="button"
           onClick={plus}
@@ -80,10 +79,10 @@ function TargetsHome() {
             <SheetTitle>Add</SheetTitle>
           </SheetHeader>
           <div className="grid gap-2.5 px-4 pb-6">
-            <button type="button" className="min-h-14 rounded-xl border text-base font-semibold" onClick={() => { setPlusOpen(false); setTaskOpen(true); }}>
+            <button type="button" className="min-h-14 rounded-xl border text-base font-semibold" onClick={() => { setPlusOpen(false); setTab("tasks"); setTaskOpen(true); }}>
               Add a task
             </button>
-            <button type="button" className="min-h-14 rounded-xl border text-base font-semibold" onClick={() => { setPlusOpen(false); setLeadOpen(true); }}>
+            <button type="button" className="min-h-14 rounded-xl border text-base font-semibold" onClick={() => { setPlusOpen(false); setTab("leads"); setLeadOpen(true); }}>
               Add a lead
             </button>
           </div>

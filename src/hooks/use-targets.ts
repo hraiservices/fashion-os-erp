@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { StageLabelOverrides } from "@/lib/lead-stages";
+import type { ImportLeadRow } from "@/lib/lead-import";
 import type { TargetsSummary } from "@/lib/targets-server";
 import type {
   LeadActivityDto,
@@ -153,6 +154,20 @@ export interface LeadInput {
 export function useCreateLead() {
   const invalidate = useInvalidate();
   return useMutation({ mutationFn: (input: LeadInput) => send("POST", "/api/targets/leads", input), onSuccess: invalidate });
+}
+
+export function useImportLeads() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (rows: ImportLeadRow[]) =>
+      api<{ ok: true; added: number; updated: number; skipped: number; problems: { row: number; message: string }[] }>("/api/targets/leads/import", { method: "POST", body: JSON.stringify({ rows }) }),
+    onSuccess: invalidate,
+  });
+}
+
+/** Every lead this person may see (up to 5000), for the Excel export — ignores the on-screen filters. */
+export function fetchAllLeads() {
+  return api<{ leads: LeadDto[] }>("/api/targets/leads?stage=all&limit=5000").then((r) => r.leads);
 }
 
 export function usePatchLead() {

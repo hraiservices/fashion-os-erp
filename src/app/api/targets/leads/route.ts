@@ -44,7 +44,8 @@ export async function GET(request: Request) {
     else if (stage !== "all") rows = rows.filter((r) => r.stage === stage);
     if (sp.get("likely") === "1") rows = rows.filter((r) => r.likely_to_close);
     if (q) rows = rows.filter((r) => [r.name, r.mobile, r.product_interest, r.source].some((f) => (f || "").toLowerCase().includes(q)));
-    rows = rows.slice(0, 500);
+    const limit = Math.min(5000, Math.max(1, parseInt(sp.get("limit") || "500", 10) || 500));
+    rows = rows.slice(0, limit);
 
     const follow = await nextFollowUps(db, rows.map((r) => r.id));
     return NextResponse.json({ leads: rows.map((r) => ({ ...mapLeadRow(r), nextFollowUp: follow.get(r.id) ?? null })), stageCounts });

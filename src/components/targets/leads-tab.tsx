@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, Star } from "lucide-react";
+import { toast } from "sonner";
+import { Download, FileSpreadsheet, Plus, Search, Star, Upload } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { exportXLSX } from "@/lib/export";
+import { exportRowForLead } from "@/lib/lead-import";
+import { LeadImportSheet } from "@/components/targets/lead-import-sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { LEAD_STAGES, stageLabel } from "@/lib/lead-stages";
 import { inr } from "@/lib/format";
 import type { LeadDto } from "@/lib/targets-types";
-import { useLeads, type TargetsMeta } from "@/hooks/use-targets";
+import { fetchAllLeads, useLeads, type TargetsMeta } from "@/hooks/use-targets";
 import { useStaffLookup } from "@/components/targets/shared";
 import { LeadCard } from "@/components/targets/lead-card";
 import { StageSheet } from "@/components/targets/stage-sheet";
@@ -31,6 +36,8 @@ export function LeadsTab({ meta, addOpen, onAddOpenChange }: { meta: TargetsMeta
   const [owner, setOwner] = useState(ALL);
   const [layout, setLayout] = useState<Layout>("cards");
   const [moving, setMoving] = useState<LeadDto | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const { nameOf, active } = useStaffLookup(meta);
   const q1 = useLeads({ stage: layout === "board" || stage === ALL ? undefined : stage, owner: owner === ALL ? undefined : owner, q: q.trim() || undefined, likely: likely || undefined });
@@ -40,6 +47,19 @@ export function LeadsTab({ meta, addOpen, onAddOpenChange }: { meta: TargetsMeta
   const today = meta?.today ?? "";
   const labels = meta?.stageLabels;
   const showOwner = !!meta?.can.viewAll;
+
+  async function exportAll() {
+    setExporting(true);
+    try {
+      const all = await fetchAllLeads();
+      if (all.length === 0) return toast.info("No leads to export yet");
+      await exportXLSX(all.map((l) => exportRowForLead(l, nameOf(l.assignedEmployeeId) === "Not assigned" ? "" : nameOf(l.assignedEmployeeId), labels)), "leads", "Leads");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't export the leads");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const card = (l: LeadDto) => <LeadCard key={l.id} lead={l} today={today} labels={labels} ownerName={showOwner ? nameOf(l.assignedEmployeeId) : undefined} onStageTap={meta?.can.manageLeads ? setMoving : undefined} />;
 
@@ -55,6 +75,26 @@ export function LeadsTab({ meta, addOpen, onAddOpenChange }: { meta: TargetsMeta
             <Plus className="size-4" /> New Lead
           </Button>
         )}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button variant="outline" className="h-12 shrink-0 px-3" aria-label="Import or export leads" disabled={exporting}>
+                <FileSpreadsheet className="size-5" />
+                <span className="hidden sm:inline">Excel</span>
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end">
+            {meta?.can.manageLeads && (
+              <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                <Upload className="size-4" /> Import from Excel
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={exportAll}>
+              <Download className="size-4" /> Export all leads
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <button type="button" onClick={() => setLikely((v) => !v)} aria-pressed={likely} aria-label="Only likely to close" className={cn("flex size-12 shrink-0 items-center justify-center rounded-lg border", likely ? "border-amber-400 bg-amber-50 dark:bg-amber-950/30" : "bg-card")}>
           <Star className={cn("size-5", likely ? "fill-amber-400 text-amber-500" : "text-muted-foreground")} />
         </button>
@@ -82,9 +122,9 @@ export function LeadsTab({ meta, addOpen, onAddOpenChange }: { meta: TargetsMeta
             </SelectContent>
           </Select>
         )}
-        <div className="ml-auto hidden shrink-0 rounded-lg border p-0.5 lg:flex">
+        <div className="ml-auto flex shrink-0 rounded-lg border p-0.5">
           {(["cards", "board"] as const).map((l) => (
-            <button key={l} type="button" onClick={() => setLayout(l)} className={cn("rounded-md px-3 py-1.5 text-xs font-medium", layout === l ? "bg-muted" : "text-muted-foreground")}>
+            <button key={l} type="button" onClick={() => setLayout(l)} className={cn("min-h-10 rounded-md px-3.5 text-sm font-medium", layout === l ? "bg-muted" : "text-muted-foreground")}>
               {l === "cards" ? "Cards" : "Board"}
             </button>
           ))}
@@ -114,12 +154,12 @@ export function LeadsTab({ meta, addOpen, onAddOpenChange }: { meta: TargetsMeta
       {layout === "cards" && <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{leads.map(card)}</div>}
 
       {layout === "board" && (
-        <div className="hidden gap-3 lg:grid lg:grid-cols-6">
+        <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-3 sm:mx-0 sm:px-0">
           {LEAD_STAGES.map((s) => {
             const col = leads.filter((l) => l.stage === s);
             const sum = col.reduce((a, l) => a + l.expectedValue, 0);
             return (
-              <div key={s} className="min-w-0 space-y-2 rounded-xl bg-muted/30 p-2">
+              <div key={s} className="w-[85vw] max-w-80 shrink-0 snap-start space-y-2 rounded-xl bg-muted/30 p-2.5">
                 <p className="px-1 text-sm font-semibold">
                   {stageLabel(s, labels)} <span className="font-normal text-muted-foreground">{col.length}</span>
                 </p>
@@ -132,6 +172,7 @@ export function LeadsTab({ meta, addOpen, onAddOpenChange }: { meta: TargetsMeta
       )}
 
       <StageSheet lead={moving} open={!!moving} onOpenChange={(o) => !o && setMoving(null)} labels={labels} />
+      <LeadImportSheet open={importOpen} onOpenChange={setImportOpen} labels={labels} />
       <LeadFormSheet open={addOpen} onOpenChange={onAddOpenChange} meta={meta} />
     </div>
   );

@@ -6,7 +6,7 @@ import { OPEN_STAGES } from "@/lib/lead-stages";
 import { buildLeaderboard, incentiveFor, lostReasonStats, monthRange, pipelineSummary, sourceStats, winRate } from "@/lib/targets";
 import { buildTaskLoad, overdueAgeBuckets, rangesOverlap } from "@/lib/targets-reports";
 import { dateStr, forbidden, notFound, serverError } from "@/lib/targets-api";
-import { fetchLeadRows, fetchSaleFacts, leadFactOf, loadStaff, loadTargetsWithProgress, mapTaskRow, targetsContext } from "@/lib/targets-server";
+import { fetchAll, fetchLeadFactRows, fetchLeadRows, fetchSaleFacts, leadFactOf, loadStaff, loadTargetsWithProgress, targetsContext } from "@/lib/targets-server";
 import { mapProjectRow, type LeaderboardReportRow, type LostReport, type PipelineReport, type ProjectsReport, type SourcesReport, type TargetReportRow, type TasksReport } from "@/lib/targets-types";
 import { isOverdue, projectProgress } from "@/lib/work-tasks";
 
@@ -52,8 +52,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
 
       case "leaderboard": {
         const [sales, leadRows, targets, empRes] = await Promise.all([
-          fetchSaleFacts(db, from, to),
-          fetchLeadRows(db),
+          fetchSaleFacts(db, from, to, { lines: false }), // the scoreboard only needs each sale's total and who it is credited to
+          fetchLeadFactRows(db),
           loadTargetsWithProgress(ctx, today),
           db.from("employees").select("id, commission_type, commission_rate"),
         ]);
@@ -96,7 +96,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
       }
 
       case "sources": {
-        const leads = (await fetchLeadRows(db)).map(leadFactOf).filter((l) => (l.createdDate || "") >= from && (l.createdDate || "") <= to);
+        const leads = (await fetchLeadFactRows(db)).map(leadFactOf).filter((l) => (l.createdDate || "") >= from && (l.createdDate || "") <= to);
         const payload: SourcesReport = { rows: sourceStats(leads), winRate: winRate(leads), totalLeads: leads.length };
         return NextResponse.json({ from, to, ...payload });
       }
@@ -111,9 +111,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
       }
 
       case "tasks": {
-        const { data } = await db.from("work_tasks").select("*").limit(5000);
-        const tasks = (data || []).map(mapTaskRow);
-        const forReport = tasks.map((t) => ({ assigneeId: t.assigneeId, status: t.status, dueDate: t.dueDate, completedDate: dayOf(t.completedAt) }));
+        // Every task, in pages (a single query stops at 1000 rows and would drop the rest from the counts).
+        const tasks = await fetchAll((a, b) => db.from("work_tasks").select("assignee_id, status, due_date, completed_at").order("id").range(a, b));
+        const forReport = tasks.map((t) => ({ assigneeId: t.assignee_id, status: t.status, dueDate: t.due_date, completedDate: dayOf(t.completed_at) }));
         const payload: TasksReport = {
           rows: buildTaskLoad(forReport, today, { from, to }).map((r) => ({ ...r, name: nameOf(r.assigneeId) })),
           ageBuckets: overdueAgeBuckets(forReport, today),
@@ -122,13 +122,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
       }
 
       case "projects": {
-        const [{ data: projects }, { data: tasks }] = await Promise.all([
+        const [{ data: projects }, tasks] = await Promise.all([
           db.from("work_projects").select("*").order("created_at", { ascending: false }),
-          db.from("work_tasks").select("project_id, status, due_date").not("project_id", "is", null).limit(5000),
+          fetchAll((a, b) => db.from("work_tasks").select("id, project_id, status, due_date").not("project_id", "is", null).order("id").range(a, b)),
         ]);
+        // Projects running in the period; one with no dates at all is always listed (there is nothing to compare).
+        const running = (projects || []).filter((p) => rangesOverlap({ start: p.start_date ?? "0000-01-01", end: p.end_date ?? "9999-12-31" }, { start: from, end: to }));
         const payload: ProjectsReport = {
-          projects: (projects || []).map((p) => {
-            const pt = (tasks || []).filter((t) => t.project_id === p.id);
+          projects: running.map((p) => {
+            const pt = tasks.filter((t) => t.project_id === p.id);
             return {
               ...mapProjectRow(p),
               ownerName: nameOf(p.owner_id),

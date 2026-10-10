@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { istDateString } from "@/lib/ist-date";
 import { TARGET_METRICS } from "@/lib/targets";
-import { badRequest, dateStr, notFound, parseBody, serverError, text, uuid } from "@/lib/targets-api";
+import { badRequest, dateStr, isUuid, notFound, parseBody, serverError, text, uuid } from "@/lib/targets-api";
 import { loadTargetsWithProgress, targetsContext } from "@/lib/targets-server";
 import { logAction } from "@/lib/logging";
 
@@ -28,6 +28,7 @@ const patchSchema = z.object({
 /** GET — one target with live progress (only if this person may see it). */
 export async function GET(_request: Request, { params }: Ctx) {
   const { id } = await params;
+  if (!isUuid(id)) return notFound("Target not found");
   const gate = await targetsContext();
   if ("error" in gate) return gate.error;
   try {

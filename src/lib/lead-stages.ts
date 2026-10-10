@@ -24,7 +24,9 @@ export type StageLabelOverrides = Partial<Record<LeadStage, string>>;
 
 export function stageLabel(stage: string, overrides?: StageLabelOverrides | null): string {
   const key = stage as LeadStage;
-  const custom = overrides?.[key]?.trim();
+  // The overrides come from a shop setting anyone signed in could have written to: ignore anything that isn't text.
+  const raw = overrides?.[key] as unknown;
+  const custom = typeof raw === "string" ? raw.trim() : "";
   return custom || DEFAULT_STAGE_LABELS[key] || stage;
 }
 

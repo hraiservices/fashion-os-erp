@@ -88,8 +88,20 @@ export interface TargetsMeta {
   stageLabels: StageLabelOverrides;
 }
 
-export function useTargetsMeta() {
-  return useQuery({ queryKey: [KEY, "meta"], queryFn: () => api<TargetsMeta>("/api/targets/meta"), staleTime: 5 * 60_000 });
+/**
+ * Staff, products, garment types, stage names and what this user may do. It rarely changes, so unlike most
+ * queries here it is NOT re-read every time a screen mounts (the app-wide default) — only once it is five minutes
+ * old. `lite` skips the product and rate-card reads (the invoice form only needs the staff list); `quiet` makes a
+ * single attempt, for screens outside Targets where a refusal just means "this user has no Targets access".
+ */
+export function useTargetsMeta(opts?: { lite?: boolean; quiet?: boolean }) {
+  return useQuery({
+    queryKey: [KEY, "meta", opts?.lite ? "lite" : "full"],
+    queryFn: () => api<TargetsMeta>(`/api/targets/meta${opts?.lite ? "?lite=1" : ""}`),
+    staleTime: 5 * 60_000,
+    refetchOnMount: true,
+    ...(opts?.quiet ? { retry: false } : {}),
+  });
 }
 
 /** `quiet` is for screens outside Targets (e.g. the Day Book) that use this only as a bonus: a user
@@ -148,17 +160,19 @@ export interface LeadFilters {
   owner?: string;
   q?: string;
   likely?: boolean;
+  limit?: number;
 }
 
 export function useLeads(filters: LeadFilters) {
   const qs = new URLSearchParams();
+  if (filters.limit) qs.set("limit", String(filters.limit));
   if (filters.stage) qs.set("stage", filters.stage);
   if (filters.owner) qs.set("owner", filters.owner);
   if (filters.q) qs.set("q", filters.q);
   if (filters.likely) qs.set("likely", "1");
   return useQuery({
     queryKey: [KEY, "leads", qs.toString()],
-    queryFn: () => api<{ leads: LeadDto[]; stageCounts: Record<string, number> }>(`/api/targets/leads?${qs.toString()}`),
+    queryFn: () => api<{ leads: LeadDto[]; stageCounts: Record<string, number>; total: number }>(`/api/targets/leads?${qs.toString()}`),
     staleTime: 20_000,
   });
 }
@@ -214,7 +228,7 @@ export function usePatchLead() {
         ...(patch.stage !== undefined ? { stage: patch.stage } : {}),
         ...(patch.likelyToClose !== undefined ? { likelyToClose: patch.likelyToClose } : {}),
       };
-      return { snapshot: optimisticUpdate<{ leads: LeadDto[]; stageCounts: Record<string, number> }>(qc, "leads", (data) => ({ ...data, leads: data.leads.map((l) => (l.id === id ? { ...l, ...shown } : l)) })) };
+      return { snapshot: optimisticUpdate<{ leads: LeadDto[]; stageCounts: Record<string, number>; total: number }>(qc, "leads", (data) => ({ ...data, leads: data.leads.map((l) => (l.id === id ? { ...l, ...shown } : l)) })) };
     },
     onError: (_e, _vars, ctx) => restore(qc, ctx?.snapshot),
     onSettled: invalidate,
@@ -249,10 +263,10 @@ export interface TaskFilters {
   link?: string;
 }
 
-export function useTasks(filters: TaskFilters = {}) {
+export function useTasks(filters: TaskFilters = {}, enabled = true) {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(filters)) if (v) qs.set(k, v);
-  return useQuery({ queryKey: [KEY, "tasks", qs.toString()], queryFn: () => api<{ tasks: TaskDto[] }>(`/api/targets/tasks?${qs.toString()}`).then((r) => r.tasks), staleTime: 15_000 });
+  return useQuery({ queryKey: [KEY, "tasks", qs.toString()], enabled, queryFn: () => api<{ tasks: TaskDto[] }>(`/api/targets/tasks?${qs.toString()}`).then((r) => r.tasks), staleTime: 15_000 });
 }
 
 /** One task with its subtasks (including finished ones — the list views only load open tasks). */
@@ -377,12 +391,13 @@ type ReportData = {
   projects: ProjectsReport;
 };
 
-export function useTargetsReport<K extends keyof ReportData>(kind: K, range?: Partial<Range>) {
+export function useTargetsReport<K extends keyof ReportData>(kind: K, range?: Partial<Range>, enabled = true) {
   const qs = new URLSearchParams();
   if (range?.from) qs.set("from", range.from);
   if (range?.to) qs.set("to", range.to);
   return useQuery({
     queryKey: [KEY, "report", kind, qs.toString()],
+    enabled,
     queryFn: () => api<ReportData[K] & Range>(`/api/targets/reports/${kind}?${qs.toString()}`),
     staleTime: 30_000,
   });
@@ -431,8 +446,8 @@ export function useSetProjectMembers() {
   });
 }
 
-export function useTaskEvents(taskId: string | null) {
-  return useQuery({ queryKey: [KEY, "task-events", taskId], enabled: !!taskId, queryFn: () => api<{ events: TaskEventDto[] }>(`/api/targets/tasks/${taskId}/events`).then((r) => r.events), staleTime: 5_000 });
+export function useTaskEvents(taskId: string | null, enabled = true) {
+  return useQuery({ queryKey: [KEY, "task-events", taskId], enabled: enabled && !!taskId, queryFn: () => api<{ events: TaskEventDto[] }>(`/api/targets/tasks/${taskId}/events`).then((r) => r.events), staleTime: 5_000 });
 }
 export function useAddComment() {
   const invalidate = useInvalidate("task-events", "feed");
@@ -442,9 +457,9 @@ export function useProjectFeed(projectId: string) {
   return useQuery({ queryKey: [KEY, "feed", projectId], queryFn: () => api<{ events: TaskEventDto[] }>(`/api/targets/projects/${projectId}/feed`).then((r) => r.events), staleTime: 15_000 });
 }
 
-export function useDocuments(scope: { projectId?: string; taskId?: string }) {
+export function useDocuments(scope: { projectId?: string; taskId?: string }, enabled = true) {
   const qs = scope.taskId ? `taskId=${scope.taskId}` : `projectId=${scope.projectId}`;
-  return useQuery({ queryKey: [KEY, "documents", qs], enabled: !!(scope.taskId || scope.projectId), queryFn: () => api<{ documents: DocumentDto[] }>(`/api/targets/documents?${qs}`).then((r) => r.documents), staleTime: 15_000 });
+  return useQuery({ queryKey: [KEY, "documents", qs], enabled: enabled && !!(scope.taskId || scope.projectId), queryFn: () => api<{ documents: DocumentDto[] }>(`/api/targets/documents?${qs}`).then((r) => r.documents), staleTime: 15_000 });
 }
 export function useAddDocument() {
   const invalidate = useInvalidate("documents");

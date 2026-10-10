@@ -1,14 +1,18 @@
 import { describe, it, expect } from "vitest";
 import {
+  addDaysIso,
   bucketTasks,
   canAssignTo,
   checklistProgress,
   compareTasks,
+  dueInWords,
   isDueToday,
+  isReminderDue,
   isOverdue,
   isProjectOverdue,
   parseChecklist,
   projectProgress,
+  reminderDate,
   subtaskProgress,
   taskVisibleTo,
   type TaskLike,
@@ -104,5 +108,45 @@ describe("checklists, subtasks, projects", () => {
     expect(isProjectOverdue({ endDate: "2026-09-01", status: "active" }, today)).toBe(true);
     expect(isProjectOverdue({ endDate: "2026-09-01", status: "done" }, today)).toBe(false);
     expect(isProjectOverdue({ endDate: null, status: "active" }, today)).toBe(false);
+  });
+});
+
+describe("task reminders", () => {
+  const due = (over: Partial<Parameters<typeof isReminderDue>[0]> = {}) => ({ dueDate: "2026-09-12", reminder: "1_day", status: "todo", reminderSentFor: null, ...over });
+
+  it("adds days across month and year ends", () => {
+    expect(addDaysIso("2026-09-30", 1)).toBe("2026-10-01");
+    expect(addDaysIso("2026-01-01", -1)).toBe("2025-12-31");
+    expect(addDaysIso("2028-02-28", 1)).toBe("2028-02-29");
+  });
+
+  it("works out the reminder day from the lead time", () => {
+    expect(reminderDate({ dueDate: "2026-09-12", reminder: "on_due" })).toBe("2026-09-12");
+    expect(reminderDate({ dueDate: "2026-09-12", reminder: "1_day" })).toBe("2026-09-11");
+    expect(reminderDate({ dueDate: "2026-09-12", reminder: "2_days" })).toBe("2026-09-10");
+    expect(reminderDate({ dueDate: "2026-09-12", reminder: "1_week" })).toBe("2026-09-05");
+    expect(reminderDate({ dueDate: "2026-09-12", reminder: "none" })).toBeNull();
+    expect(reminderDate({ dueDate: null, reminder: "1_day" })).toBeNull();
+  });
+
+  it("sends once the reminder day has come, not before, and not after the due date", () => {
+    expect(isReminderDue(due(), "2026-09-10")).toBe(false);
+    expect(isReminderDue(due(), "2026-09-11")).toBe(true);
+    expect(isReminderDue(due(), "2026-09-12")).toBe(true); // a missed day still gets its reminder while the task isn't overdue
+    expect(isReminderDue(due(), "2026-09-13")).toBe(false);
+  });
+
+  it("does not repeat, skips finished tasks, and re-arms when the due date moves", () => {
+    expect(isReminderDue(due({ reminderSentFor: "2026-09-12" }), "2026-09-11")).toBe(false);
+    expect(isReminderDue(due({ reminderSentFor: "2026-09-12", dueDate: "2026-09-15" }), "2026-09-14")).toBe(true);
+    expect(isReminderDue(due({ status: "done" }), "2026-09-11")).toBe(false);
+    expect(isReminderDue(due({ status: "cancelled" }), "2026-09-11")).toBe(false);
+    expect(isReminderDue(due({ reminder: "none" }), "2026-09-11")).toBe(false);
+  });
+
+  it("words the due date", () => {
+    expect(dueInWords("2026-09-10", "2026-09-10")).toBe("due today");
+    expect(dueInWords("2026-09-11", "2026-09-10")).toBe("due tomorrow");
+    expect(dueInWords("2026-09-17", "2026-09-10")).toBe("due in 7 days");
   });
 });

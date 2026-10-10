@@ -24,6 +24,7 @@ export function ProjectTasks({ project, tasks, lists, canManage, meta, nameOf }:
   const router = useRouter();
   const newTask = (taskListId: string | null) => router.push(`/targets/tasks/new?projectId=${project.id}${taskListId ? `&taskListId=${taskListId}` : ""}&from=${encodeURIComponent(`/targets/projects/${project.id}?t=tasks`)}`);
   const [listName, setListName] = useState("");
+  const [confirmList, setConfirmList] = useState<string | null>(null);
   const today = meta?.today ?? "";
   const groups = useMemo(() => groupTasks(tasks, { by: "list", lists, projectId: project.id }), [tasks, lists, project.id]);
   const err = (e: unknown) => toast.error(e instanceof Error ? e.message : "Something went wrong");
@@ -76,8 +77,19 @@ export function ProjectTasks({ project, tasks, lists, canManage, meta, nameOf }:
                     <Plus className="size-4" /> Task
                   </button>
                   {canManage && g.key !== "general" && (
-                    <button type="button" aria-label={`Delete list ${g.title}`} className="flex size-11 items-center justify-center text-muted-foreground" onClick={() => delList.mutate(g.key, { onError: err })}>
+                    <button
+                      type="button"
+                      aria-label={confirmList === g.key ? `Tap again to delete list ${g.title}` : `Delete list ${g.title}`}
+                      className={confirmList === g.key ? "flex min-h-11 items-center gap-1 px-2 text-sm font-medium text-red-600" : "flex size-11 items-center justify-center text-muted-foreground"}
+                      onClick={() => {
+                        // The list goes, its tasks stay — but it can't be brought back, so ask once.
+                        if (confirmList !== g.key) return setConfirmList(g.key);
+                        setConfirmList(null);
+                        delList.mutate(g.key, { onError: err });
+                      }}
+                    >
                       <Trash2 className="size-4" />
+                      {confirmList === g.key && "Tap again"}
                     </button>
                   )}
                 </div>

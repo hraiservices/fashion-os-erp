@@ -21,7 +21,8 @@ export function TargetsTab({ meta }: { meta: TargetsMeta | undefined }) {
   const targets = q.data ?? [];
   const showBoard = !!meta?.can.viewAll && meta.can.viewReports;
   const range = meta ? monthRange(meta.today) : undefined;
-  const board = useTargetsReport("leaderboard", range ? { from: range.start, to: range.end } : undefined);
+  // Only asked for when this person may see it — otherwise it is a refused request (retried) on every visit.
+  const board = useTargetsReport("leaderboard", range ? { from: range.start, to: range.end } : undefined, showBoard);
   const rows = (showBoard ? board.data?.rows : []) ?? [];
 
   return (

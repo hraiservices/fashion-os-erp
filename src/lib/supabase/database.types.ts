@@ -144,6 +144,8 @@ export interface Database {
           duration_hours: number | null;
           completion_pct: number;
           reminder: string;
+          /** The due date a reminder was last sent for (see the task-reminders cron); null = not sent. */
+          reminder_sent_for: string | null;
           depends_on: string[];
           created_by: string | null;
           created_at: string;

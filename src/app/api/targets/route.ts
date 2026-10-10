@@ -32,7 +32,8 @@ export async function GET(request: Request) {
   try {
     const status = new URL(request.url).searchParams.get("status");
     let targets = await loadTargetsWithProgress(gate.ctx, istDateString());
-    if (status === "active") targets = targets.filter((t) => ["on_track", "at_risk", "upcoming"].includes(t.progress.status));
+    // A target kept as a draft sits with the active ones, so it can still be found and opened.
+    if (status === "active") targets = targets.filter((t) => ["on_track", "at_risk", "upcoming", "draft"].includes(t.progress.status));
     else if (status === "past") targets = targets.filter((t) => ["achieved", "missed", "cancelled"].includes(t.progress.status));
     return NextResponse.json({ targets });
   } catch (e) {

@@ -87,7 +87,8 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
   const saveInvoice = useSaveInvoice();
   const isEdit = !!existing;
   // "Sales person" only shows when the Targets module is licensed and usable (its meta call is refused otherwise).
-  const targetsMeta = useTargetsMeta().data;
+  // Lite = just the staff list (not products and rates), and one attempt: a refusal only means "no Targets access".
+  const targetsMeta = useTargetsMeta({ lite: true, quiet: true }).data;
   const [salesPersonPick, setSalesPersonPick] = useState<string | null | undefined>(undefined);
   const salesPerson = salesPersonPick !== undefined ? salesPersonPick : existing ? existing.salesPersonId : user?.employeeId ?? null;
 

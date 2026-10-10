@@ -39,3 +39,46 @@ export function isHttpUrl(value: string): boolean {
     return false;
   }
 }
+
+/**
+ * A task's task list and phase must belong to the task's own project — otherwise a task could sit in
+ * one project but be grouped under another project's list. Returns a message for the user, or null
+ * when the references are fine (or there are none).
+ */
+export async function checkTaskWorkspaceRefs(
+  db: SupabaseClient<Database>,
+  projectId: string | null,
+  taskListId: string | null | undefined,
+  phaseId: string | null | undefined
+): Promise<string | null> {
+  if (!taskListId && !phaseId) return null;
+  if (!projectId) return "Choose a project before choosing a task list or phase";
+  const [list, phase] = await Promise.all([
+    taskListId ? db.from("work_task_lists").select("id").eq("id", taskListId).eq("project_id", projectId).maybeSingle() : Promise.resolve(null),
+    phaseId ? db.from("work_phases").select("id").eq("id", phaseId).eq("project_id", projectId).maybeSingle() : Promise.resolve(null),
+  ]);
+  if (taskListId && !list?.data) return "That task list isn't in this project";
+  if (phaseId && !phase?.data) return "That phase isn't in this project";
+  return null;
+}
+
+type TaskRow = Database["public"]["Tables"]["work_tasks"]["Row"];
+
+/**
+ * The tasks a task says it "depends on" must exist, be ones this person can see, and not point back
+ * at it (a direct loop would leave both waiting for each other forever). Returns a message or null.
+ */
+export async function checkDependencies(
+  db: SupabaseClient<Database>,
+  taskId: string | null,
+  dependsOn: string[],
+  visible: (row: TaskRow) => boolean
+): Promise<string | null> {
+  if (!dependsOn.length) return null;
+  const ids = Array.from(new Set(dependsOn));
+  const { data } = await db.from("work_tasks").select("*").in("id", ids);
+  const rows = data || [];
+  if (rows.length !== ids.length || rows.some((r) => !visible(r))) return "One of the tasks it depends on wasn't found";
+  if (taskId && rows.some((r) => (r.depends_on || []).includes(taskId))) return "Those tasks already wait for this one, so this would be a loop";
+  return null;
+}

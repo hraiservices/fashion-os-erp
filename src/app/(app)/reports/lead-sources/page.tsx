@@ -1,11 +1,11 @@
 "use client";
 
-import type { SourceRow } from "@/lib/targets";
+import { formatWinRate, type SourceRow } from "@/lib/targets";
 import { useTargetsReport } from "@/hooks/use-targets";
 import { useReportDateRange } from "@/lib/report-date-range";
 import { targetsRange, TargetsReportView, type ReportColumn } from "@/components/targets/report-page";
 
-const pct = (n: number | null) => (n == null ? "–" : `${Math.round(n * 100)}%`);
+const pct = formatWinRate; // the server sends a whole percent already
 
 const COLUMNS: ReportColumn<SourceRow>[] = [
   { label: "Source", cell: (r) => r.source || "Not noted", exportValue: (r) => r.source || "Not noted" },

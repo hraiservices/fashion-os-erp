@@ -2,8 +2,9 @@ import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
-import { badRequest, dateStr, forbidden, notFound, parseBody, serverError, text, uuid } from "@/lib/targets-api";
+import { badRequest, dateStr, forbidden, isUuid, notFound, parseBody, serverError, text, uuid } from "@/lib/targets-api";
 import { isActiveEmployee, logTaskEvent, mapTaskRow, targetsContext, taskVisible } from "@/lib/targets-server";
+import { loadProjectFor } from "@/lib/targets-workspace";
 import type { TimeLogDto } from "@/lib/targets-types";
 
 const schema = z.object({
@@ -24,6 +25,10 @@ export async function GET(request: Request) {
   const db: SupabaseClient<Database> = ctx.db;
   const sp = new URL(request.url).searchParams;
 
+  for (const key of ["project", "task", "employee"]) {
+    const v = sp.get(key);
+    if (v && v !== "all" && !isUuid(v)) return badRequest(`That ${key} id isn't valid`);
+  }
   let q = db.from("work_time_logs").select("*").order("log_date", { ascending: false }).order("created_at", { ascending: false }).limit(3000);
   if (sp.get("from") && dateStr.safeParse(sp.get("from")).success) q = q.gte("log_date", sp.get("from")!);
   if (sp.get("to") && dateStr.safeParse(sp.get("to")).success) q = q.lte("log_date", sp.get("to")!);
@@ -57,12 +62,17 @@ export async function POST(request: Request) {
   if (!(await isActiveEmployee(db, who))) return badRequest("That person isn't an active staff member");
 
   let projectId = d.projectId;
+  let taskProjectId: string | null = null;
   if (d.taskId) {
     const { data: t } = await db.from("work_tasks").select("*").eq("id", d.taskId).maybeSingle();
     if (!t || !taskVisible(mapTaskRow(t), ctx)) return notFound("Task not found");
+    taskProjectId = t.project_id;
     projectId = t.project_id ?? projectId;
   }
   if (!d.taskId && !projectId) return badRequest("Pick a task or a project");
+  // A project the time is logged against must be one this person can open. A task's own project is already covered
+  // by their access to the task.
+  if (projectId && projectId !== taskProjectId && !(await loadProjectFor(db, ctx, projectId))) return notFound("Project not found");
 
   const { data, error } = await db.from("work_time_logs").insert({ task_id: d.taskId, project_id: projectId, employee_id: who, log_date: d.logDate, hours: d.hours, note: d.note, created_by: ctx.email }).select("id").single();
   if (error || !data) return serverError(error?.message || "Couldn't save the time log");

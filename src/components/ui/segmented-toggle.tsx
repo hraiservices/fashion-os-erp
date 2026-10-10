@@ -19,6 +19,10 @@ export function SegmentedToggle<T extends string>({
   options: { value: T; label: string; icon?: LucideIcon }[];
   ariaLabel: string;
 }) {
+  // 4+ options with icons (the Targets sections) don't fit a phone's width otherwise — the last
+  // button used to poke out past the border. Buttons may shrink (min-w-0) and, on narrow phones,
+  // such a toggle drops its icons so the labels keep their room.
+  const dense = options.length > 3;
   return (
     <div className="flex w-full rounded-lg border p-0.5" role="group" aria-label={ariaLabel}>
       {options.map((o) => {
@@ -30,12 +34,12 @@ export function SegmentedToggle<T extends string>({
             onClick={() => onChange(o.value)}
             aria-pressed={value === o.value}
             className={cn(
-              "flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors sm:min-h-8",
+              "flex min-h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-1.5 text-xs font-medium transition-colors sm:min-h-8 sm:px-2",
               value === o.value ? "bg-muted" : "text-muted-foreground"
             )}
           >
-            {Icon && <Icon className="size-4" />}
-            {o.label}
+            {Icon && <Icon className={cn("size-4 shrink-0", dense && "max-[430px]:hidden")} />}
+            <span className="truncate">{o.label}</span>
           </button>
         );
       })}

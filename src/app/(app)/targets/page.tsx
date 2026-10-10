@@ -10,6 +10,7 @@ import { TasksTab } from "@/components/targets/tasks-tab";
 import { ProjectsTab } from "@/components/targets/projects-tab";
 import { LeadsTab } from "@/components/targets/leads-tab";
 import { TargetsTab } from "@/components/targets/targets-tab";
+import { TargetsNoAccess } from "@/components/targets/no-access";
 
 type Tab = "tasks" | "projects" | "leads" | "targets";
 
@@ -18,7 +19,8 @@ function TargetsHome() {
   const params = useSearchParams();
   const raw = params.get("tab");
   const tab: Tab = raw === "leads" || raw === "targets" || raw === "projects" ? raw : "tasks";
-  const meta = useTargetsMeta().data;
+  const metaQuery = useTargetsMeta();
+  const meta = metaQuery.data;
 
   // Older links and the "+" menus used ?new=task / ?new=lead; those screens are pages now.
   const wantNew = params.get("new");
@@ -26,6 +28,8 @@ function TargetsHome() {
     if (wantNew === "task") router.replace("/targets/tasks/new");
     else if (wantNew === "lead") router.replace("/targets/leads/new");
   }, [wantNew, router]);
+
+  if (metaQuery.isError) return <TargetsNoAccess message={metaQuery.error.message} />;
 
   const setTab = (t: Tab) => router.replace(t === "tasks" ? "/targets" : `/targets?tab=${t}`, { scroll: false });
 

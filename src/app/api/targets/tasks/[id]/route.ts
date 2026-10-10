@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { badRequest, dateStr, forbidden, notFound, parseBody, serverError, text, uuid } from "@/lib/targets-api";
 import { isActiveEmployee, logTaskEvent, mapTaskRow, targetsContext, taskVisible } from "@/lib/targets-server";
+import { checkDependencies, checkTaskWorkspaceRefs, loadProjectFor } from "@/lib/targets-workspace";
 import { canAssignTo, TASK_PRIORITIES, TASK_STATUSES } from "@/lib/work-tasks";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -78,19 +79,27 @@ export async function PATCH(request: Request, { params }: Ctx) {
   if (d.reminder !== undefined) update.reminder = d.reminder;
   if (d.dependsOn !== undefined) {
     if (d.dependsOn.includes(id)) return badRequest("A task can't depend on itself");
+    const problem = await checkDependencies(db, id, d.dependsOn, (r) => taskVisible(mapTaskRow(r), ctx));
+    if (problem) return badRequest(problem);
     update.depends_on = d.dependsOn;
   }
   const start = d.startDate !== undefined ? d.startDate : row.start_date;
   const due = d.dueDate !== undefined ? d.dueDate : row.due_date;
   if (start && due && due < start) return badRequest("The due date can't be before the start date");
 
+  // Moving a task to another project drops its old task list and phase (they belong to the old project) unless new ones are given.
+  const projectChanged = d.projectId !== undefined && d.projectId !== row.project_id;
   if (d.projectId !== undefined) {
-    if (d.projectId) {
-      const { data: project } = await db.from("work_projects").select("id").eq("id", d.projectId).maybeSingle();
-      if (!project) return badRequest("The project wasn't found");
-    }
+    if (d.projectId && projectChanged && !(await loadProjectFor(db, ctx, d.projectId))) return badRequest("The project wasn't found");
     update.project_id = d.projectId;
+    if (projectChanged) {
+      if (d.taskListId === undefined) update.task_list_id = null;
+      if (d.phaseId === undefined) update.phase_id = null;
+    }
   }
+  const finalProject = d.projectId !== undefined ? d.projectId : row.project_id;
+  const refProblem = await checkTaskWorkspaceRefs(db, finalProject, d.taskListId !== undefined ? d.taskListId : projectChanged ? null : undefined, d.phaseId !== undefined ? d.phaseId : projectChanged ? null : undefined);
+  if (refProblem) return badRequest(refProblem);
   if (d.assigneeId !== undefined && d.assigneeId !== row.assignee_id) {
     if (!canAssignTo(d.assigneeId, { employeeId: ctx.employeeId, canAssignOthers: ctx.perms.assignTasks })) return forbidden("You can't give tasks to other people");
     if (d.assigneeId && !(await isActiveEmployee(db, d.assigneeId))) return badRequest("That person isn't an active staff member");

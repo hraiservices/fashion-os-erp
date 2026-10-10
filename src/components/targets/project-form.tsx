@@ -50,7 +50,8 @@ export function ProjectForm({ meta, project }: { meta: TargetsMeta | undefined; 
     else create.mutate(payload, { onSuccess: done, onError: fail });
   }
 
-  const deleteButton = project ? (
+  // Deleting a project is for managers; the project's own owner can edit it but not remove it.
+  const deleteButton = project && meta?.can.manageTargets ? (
     <Button
       type="button"
       variant="outline"

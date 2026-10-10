@@ -20,6 +20,11 @@ describe("lead stages", () => {
     expect(stageLabel("talking", { talking: "In conversation" })).toBe("In conversation");
     expect(stageLabel("talking", { talking: "   " })).toBe("Talking");
   });
+  it("ignores a stored name that isn't text instead of crashing", () => {
+    expect(stageLabel("talking", { talking: 5 } as never)).toBe("Talking");
+    expect(stageLabel("talking", { talking: { x: 1 } } as never)).toBe("Talking");
+    expect(stageLabel("talking", [] as never)).toBe("Talking");
+  });
 });
 
 describe("validateStageChange", () => {

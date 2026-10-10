@@ -24,7 +24,6 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     const customerId = await ensureCustomerForLead(db, { name: row.name, mobile: row.mobile });
     if (customerId && customerId !== row.customer_id) await db.from("leads").update({ customer_id: customerId }).eq("id", id);
     const qs = new URLSearchParams({ leadId: id, mobile: row.mobile, name: row.name });
-    if (row.product_interest) qs.set("garment", row.product_interest);
     return NextResponse.json({
       ok: true,
       customerId,

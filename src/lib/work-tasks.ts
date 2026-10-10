@@ -134,3 +134,42 @@ export function projectProgress(tasks: Pick<TaskLike, "status">[]): { done: numb
 export function isProjectOverdue(project: { endDate: string | null; status: string }, today: string): boolean {
   return !!project.endDate && project.endDate < today && !["done", "cancelled"].includes(project.status);
 }
+
+// ── Reminders ─────────────────────────────────────────────────────────────
+
+/** How many days before the due date each "Reminder" choice fires. */
+export const REMINDER_LEAD_DAYS: Record<string, number> = { on_due: 0, "1_day": 1, "2_days": 2, "1_week": 7 };
+
+const DAY_MS = 86_400_000;
+const dayNumber = (iso: string) => Math.floor(Date.parse(`${iso}T00:00:00Z`) / DAY_MS);
+
+/** YYYY-MM-DD plus `n` days (negative to go back). */
+export function addDaysIso(iso: string, n: number): string {
+  return new Date((dayNumber(iso) + n) * DAY_MS).toISOString().slice(0, 10);
+}
+
+/** The day a task's reminder should go out — its due date minus the chosen lead time — or null when it has no reminder or no due date. */
+export function reminderDate(task: { dueDate: string | null; reminder: string }): string | null {
+  const lead = REMINDER_LEAD_DAYS[task.reminder];
+  if (lead === undefined || !task.dueDate) return null;
+  return addDaysIso(task.dueDate, -lead);
+}
+
+/**
+ * Should this task's reminder be sent now? Once its reminder day has arrived (not before) and the task isn't
+ * overdue or finished, and it hasn't already been sent for this due date. Changing the due date re-arms it.
+ */
+export function isReminderDue(task: { dueDate: string | null; reminder: string; status: string; reminderSentFor?: string | null }, today: string): boolean {
+  if (isFinished(task.status) || !task.dueDate) return false;
+  const on = reminderDate(task);
+  if (!on || task.reminderSentFor === task.dueDate) return false;
+  return on <= today && task.dueDate >= today;
+}
+
+/** "due today", "due tomorrow", "due in 3 days" — the tail of a reminder message. */
+export function dueInWords(dueDate: string, today: string): string {
+  const days = dayNumber(dueDate) - dayNumber(today);
+  if (days <= 0) return "due today";
+  if (days === 1) return "due tomorrow";
+  return `due in ${days} days`;
+}

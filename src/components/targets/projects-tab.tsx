@@ -64,7 +64,7 @@ export function ProjectsTab({ meta }: { meta: TargetsMeta | undefined }) {
                 <tr key={p.id} className="cursor-pointer border-t hover:bg-muted/30" onClick={() => router.push(`/targets/projects/${p.id}`)}>
                   <td className="px-3 py-3 text-xs text-muted-foreground">{projectCode(p.projectNo)}</td>
                   <td className="px-3 font-medium">
-                    <Link href={`/targets/projects/${p.id}`} className="hover:text-primary">
+                    <Link href={`/targets/projects/${p.id}`} className="hover:text-primary" onClick={(e) => e.stopPropagation()}>
                       {p.name}
                     </Link>
                   </td>

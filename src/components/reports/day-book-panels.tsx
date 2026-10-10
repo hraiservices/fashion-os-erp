@@ -720,7 +720,7 @@ function TargetBar({ label, value, target }: { label: string; value: number; tar
 }
 
 /** Daily billed / collected targets with progress. Targets are shop-wide; admins set them. */
-export function TargetCard({ billed, collected, targets, canEdit, onSave }: { billed: number; collected: number; targets: DayBookTargets; canEdit: boolean; onSave: (t: DayBookTargets) => void }) {
+export function TargetCard({ billed, collected, targets, billedFrom, canEdit, onSave }: { billed: number; collected: number; targets: DayBookTargets; /** Name of the Targets entry the billed figure comes from; its amount then can't be edited here. */ billedFrom?: string | null; canEdit: boolean; onSave: (t: DayBookTargets) => void }) {
   const [editing, setEditing] = useState(false);
   const [b, setB] = useState(String(targets.billed || ""));
   const [c, setC] = useState(String(targets.collected || ""));
@@ -744,17 +744,22 @@ export function TargetCard({ billed, collected, targets, canEdit, onSave }: { bi
           className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
           onSubmit={(e) => {
             e.preventDefault();
-            onSave({ billed: Math.max(0, parseFloat(b) || 0), collected: Math.max(0, parseFloat(c) || 0) });
+            onSave({ billed: billedFrom ? 0 : Math.max(0, parseFloat(b) || 0), collected: Math.max(0, parseFloat(c) || 0) });
             setEditing(false);
           }}
         >
-          <Input type="number" inputMode="decimal" min={0} placeholder="Billed target ₹" value={b} onChange={(e) => setB(e.target.value)} className="h-10" />
+          {billedFrom ? (
+            <p className="flex items-center text-xs text-muted-foreground">Billed target comes from “{billedFrom}” in Targets.</p>
+          ) : (
+            <Input type="number" inputMode="decimal" min={0} placeholder="Billed target ₹" value={b} onChange={(e) => setB(e.target.value)} className="h-10" />
+          )}
           <Input type="number" inputMode="decimal" min={0} placeholder="Collection target ₹" value={c} onChange={(e) => setC(e.target.value)} className="h-10" />
           <Button type="submit">Save</Button>
         </form>
       ) : hasTargets ? (
         <div className="space-y-3">
           {targets.billed > 0 && <TargetBar label="Billed" value={billed} target={targets.billed} />}
+          {billedFrom && targets.billed > 0 && <p className="-mt-2 text-xs text-muted-foreground">Billed target = “{billedFrom}” spread over its days.</p>}
           {targets.collected > 0 && <TargetBar label="Collected" value={collected} target={targets.collected} />}
         </div>
       ) : (

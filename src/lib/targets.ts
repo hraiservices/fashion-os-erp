@@ -261,6 +261,25 @@ export function monthRange(today: string): { start: string; end: string } {
   return { start: `${y}-${mm}-01`, end: `${y}-${mm}-${String(last).padStart(2, "0")}` };
 }
 
+/**
+ * The Day Book's daily billed target, taken from Targets: the shop-wide "Sales ₹" target that
+ * covers `date` (no product or garment filter, not a draft or cancelled), spread evenly over its
+ * days. When several qualify, the one that started most recently wins. Null when none applies,
+ * so the Day Book falls back to its own manual target.
+ */
+export function dailyTargetFor(
+  targets: Pick<TargetDef, "title" | "metric" | "targetValue" | "startDate" | "endDate" | "scope" | "productIds" | "garmentTypes" | "statusOverride">[],
+  date: string
+): { value: number; title: string } | null {
+  const match = targets
+    .filter((t) => t.scope === "shop" && t.metric === "sales_value" && !t.statusOverride && t.productIds.length === 0 && t.garmentTypes.length === 0)
+    .filter((t) => t.targetValue > 0 && t.startDate <= date && date <= t.endDate)
+    .sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
+  if (!match) return null;
+  const days = dayNum(match.endDate) - dayNum(match.startDate) + 1;
+  return { value: Math.round(match.targetValue / days), title: match.title };
+}
+
 // ── Leaderboard, pipeline, sources ────────────────────────────────────────
 
 export interface LeaderRow {

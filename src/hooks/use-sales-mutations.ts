@@ -87,6 +87,10 @@ interface SaveInvoiceInput {
   terms: string;
   notes: string;
   userEmail?: string;
+  /** Targets module: who gets credit for this sale (an employee id). Omit to leave unchanged. */
+  salesPersonId?: string | null;
+  /** Targets module: the lead this invoice was created from; marks it Won. New invoices only. */
+  leadId?: string | null;
   /** Backdated/historical invoices only — skip decrementing current stock. See the route. */
   skipInventoryEffect?: boolean;
   /** POS checkout only — commits the invoice, stock ledger, and these initial payment(s) as

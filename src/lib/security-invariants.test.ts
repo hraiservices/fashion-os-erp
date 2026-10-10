@@ -25,6 +25,8 @@ const SRC = join(process.cwd(), "src");
 /** Tables whose INSERT/UPDATE/DELETE is revoked from `authenticated`. Mirrors the table lists in
  *  lockdown_hr_payroll_writes.sql and lockdown_operational_writes.sql. */
 const WRITE_LOCKED_TABLES = [
+  // Targets module (service-role API only)
+  "sales_targets", "leads", "lead_activities", "work_projects", "work_tasks",
   // HR / compensation
   "employees", "employee_attendance", "employee_advances", "payroll_runs", "payslips",
   // orders + customers
@@ -81,6 +83,8 @@ const REVOKED_VIEWS = [
 /** Tables whose SELECT is no longer `USING (true)` for `authenticated`. Mirrors the rule lists in
  *  lockdown_reads_whole_table.sql and lockdown_reads_per_row.sql. */
 const READ_LOCKED_TABLES = [
+  // Targets module (service-role API only)
+  "sales_targets", "leads", "lead_activities", "work_projects", "work_tasks",
   // whole-table permission gates
   "payroll_runs", "expenses", "order_expenses", "billing_events",
   "purchase_bills", "purchase_orders", "vendors", "vendor_payments", "vendor_credits",

@@ -12,6 +12,7 @@ import {
   ScanBarcode,
   User,
   CalendarCheck,
+  Target,
 } from "lucide-react";
 import {
   HouseDuotoneIcon,
@@ -172,6 +173,14 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/expenses/by-employee", label: "Expenses by Employee" },
 
     { href: "/reports/manufacturing", label: "Manufacturing", section: "Manufacturing" },
+
+    { href: "/reports/targets-vs-achievement", label: "Target vs Achievement", section: "Targets" },
+    { href: "/reports/sales-leaderboard", label: "Sales Leaderboard" },
+    { href: "/reports/lead-pipeline", label: "Lead Pipeline" },
+    { href: "/reports/lead-sources", label: "Lead Sources & Win Rate" },
+    { href: "/reports/lost-leads", label: "Lost Leads & Reasons" },
+    { href: "/reports/tasks-followups", label: "Tasks & Follow-ups" },
+    { href: "/reports/project-progress", label: "Project Progress" },
   ],
 };
 
@@ -235,6 +244,9 @@ export const COPILOT_NAV_ITEM: NavFlatItem = { href: "/copilot", label: "AI Copi
 
 /** Gated on user.perms.usePOS in nav-content.tsx. */
 export const POS_NAV_ITEM: NavFlatItem = { href: "/pos", label: "POS", icon: ScanBarcode };
+
+/** Sales Targets: one sidebar entry, tabs inside (Today | Leads | Targets). Gated on perms.accessTargets + the "targets" module in nav-content.tsx. */
+export const TARGETS_NAV_ITEM: NavFlatItem = { href: "/targets", label: "Targets", icon: Target };
 
 /** Also lives under Reports (nested), but surfaced here too as a top-level shortcut since it's
  *  cross-module and used often. Gated on user.perms.viewReports in nav-content.tsx. */

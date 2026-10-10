@@ -192,7 +192,7 @@ function FieldGroup({ label, required, error, children, hint, className }: { lab
  * react-hook-form captures defaultValues once at first render, so mounting early would lock
  * in a stale/hardcoded rate card for a new order.
  */
-export function OrderForm({ existingOrder, prefillMobile, initialOrderType }: { existingOrder?: Order; prefillMobile?: string; initialOrderType?: OrderType }) {
+export function OrderForm({ existingOrder, prefillMobile, prefillName, leadId, initialOrderType }: { existingOrder?: Order; prefillMobile?: string; prefillName?: string; leadId?: string; initialOrderType?: OrderType }) {
   const { data: rates, isLoading: ratesLoading } = useAppSetting<RateCard>("rates", DEFAULT_RATES);
   const { data: tailorRates, isLoading: tailorRatesLoading } = useCurrentTailorRates(DEFAULT_TAILOR_RATES);
   const { data: expenseCategories, isLoading: categoriesLoading } = useAppSetting<string[]>("stitchingExpenseCategories", DEFAULT_EXPENSE_CATEGORIES);
@@ -206,6 +206,8 @@ export function OrderForm({ existingOrder, prefillMobile, initialOrderType }: { 
     <OrderFormFields
       existingOrder={existingOrder}
       prefillMobile={prefillMobile}
+      prefillName={prefillName}
+      leadId={leadId}
       initialOrderType={initialOrderType}
       rates={rates || DEFAULT_RATES}
       tailorRates={tailorRates || DEFAULT_TAILOR_RATES}
@@ -220,6 +222,8 @@ export function OrderForm({ existingOrder, prefillMobile, initialOrderType }: { 
 function OrderFormFields({
   existingOrder,
   prefillMobile,
+  prefillName,
+  leadId,
   initialOrderType,
   rates,
   tailorRates,
@@ -230,6 +234,8 @@ function OrderFormFields({
 }: {
   existingOrder?: Order;
   prefillMobile?: string;
+  prefillName?: string;
+  leadId?: string;
   initialOrderType?: OrderType;
   rates: RateCard;
   tailorRates: TailorRateCard;
@@ -404,7 +410,7 @@ function OrderFormFields({
           expenses: buildExpensesDefault(existingExpenses),
         }
       : {
-          name: "",
+          name: prefillName ?? "",
           mobile: prefillMobile ?? "",
           inDate: todayISO(),
           inTime: nowHHMM(),
@@ -685,6 +691,7 @@ function OrderFormFields({
           couponCode: i === 0 ? couponCode.trim() || undefined : undefined,
           expenses: i === 0 ? values.expenses : undefined,
           groupId,
+          leadId: leadId ?? null,
         });
         created.push(res.order);
       } catch (e) {
@@ -752,6 +759,7 @@ function OrderFormFields({
           orderType,
           paymentMethod: values.advance > 0 ? paymentMethod : undefined,
           couponCode: couponCode.trim() || undefined,
+          leadId: leadId ?? null,
         });
         hapticSuccess();
         toast.success(res.ptDiscount > 0 ? `Order ${res.order.id} created · ${inr(res.ptDiscount)} points discount applied` : `Order ${res.order.id} created`);

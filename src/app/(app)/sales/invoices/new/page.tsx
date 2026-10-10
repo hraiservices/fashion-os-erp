@@ -11,7 +11,8 @@ function NewInvoiceContent() {
   const quoteId = searchParams.get("quoteId") || undefined;
   const cloneId = searchParams.get("cloneId") || undefined;
   const mobile = searchParams.get("mobile") || undefined;
-  return <InvoiceForm prefillQuoteId={quoteId} prefillCloneId={cloneId} prefillMobile={mobile} />;
+  const leadId = searchParams.get("leadId") || undefined;
+  return <InvoiceForm prefillQuoteId={quoteId} prefillCloneId={cloneId} prefillMobile={mobile} prefillLeadId={leadId} />;
 }
 
 export default function NewInvoicePage() {

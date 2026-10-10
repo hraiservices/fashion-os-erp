@@ -120,6 +120,14 @@ Annual price is 2 months free (~17% off) vs. paying monthly — offer it, don't 
 - **Pro** — a shop that also stocks/sells fabric or retail goods alongside tailoring. Every
   module checked on.
 
+**Add-on: Sales Targets** (`targets`) — sold independently of the tiers above (price set by the
+owner; not part of Starter/Growth/Pro). It needs only core data, so it can be switched on for any
+tier: sales targets, leads and follow-ups, team tasks and light projects, plus its own "Targets"
+report section and six dashboard cards. If Product Sales is off, the invoice "Sales person" field
+and the lead's "Create invoice" button simply don't appear. Its five permissions (Use Targets,
+Add & Edit Leads, Create Targets & Projects, See Everyone's Work, Assign Tasks) are set per role or
+per person in Settings → Users.
+
 Billing method (manual "Paid until" vs. Razorpay auto-billing, see below) is an independent
 per-customer choice, not tied to which tier they're on — default every new customer to manual at
 signup, and offer Razorpay auto-billing later once they're comfortable paying online.

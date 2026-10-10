@@ -43,6 +43,12 @@ export const BUILTIN_WIDGETS: BuiltinWidgetMeta[] = [
   { key: "live-report",                 title: "LIVE Report",          size: "full", href: "/reports/live",          description: "Orders ready but not picked up, and orders picked up but not paid, with a one-tap WhatsApp reminder" },
   { key: "stage-timing",                title: "Stage Change Speed",   size: "full", href: "/reports/stage-timing",  description: "Live average minutes per stage change today, and today's fastest/slowest employee. Admin & manager only." },
   { key: "overdue-orders",              title: "Overdue Orders",       size: "lg",   href: "/reports/overdue",       description: "Orders still in production past their promised delivery date, worst delays first" },
+  { key: "my-targets",                  title: "My Targets",           size: "lg",   href: "/targets?tab=targets",   description: "Your sales targets with progress and pace. Managers see everyone's." },
+  { key: "todays-work",                 title: "Today's Work",         size: "lg",   href: "/targets",               description: "Tasks and follow-ups that are overdue or due today" },
+  { key: "pipeline-value",              title: "Open Leads Value",     size: "sm",   href: "/targets?tab=leads",     description: "Total expected value of open leads, and how much is marked likely to close" },
+  { key: "won-this-month",              title: "Leads Won This Month", size: "sm",   href: "/targets?tab=leads",     description: "Leads won this month and their value" },
+  { key: "targets-at-risk",             title: "Targets Behind Pace",  size: "sm",   href: "/targets?tab=targets",   description: "Active targets that are behind where they should be" },
+  { key: "overdue-tasks",               title: "Overdue Tasks",        size: "sm",   href: "/targets",               description: "Open tasks past their due date" },
   { key: "order-status-cards",          title: "Order Pipeline",       size: "full", href: "/orders",                description: "Due Today / Overdue / and a live count per stage — click a card to jump straight to that filtered list" },
 ];
 

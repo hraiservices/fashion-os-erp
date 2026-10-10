@@ -81,6 +81,16 @@ export interface Permissions {
   /** Close the POS cash register (the cash-reconciliation step) — split from usePOS so a
    *  cashier can run the till all day without being the one trusted to reconcile and close it. */
   closeRegister: boolean;
+  /** Targets module: open it and work with your OWN tasks, leads and targets. */
+  accessTargets: boolean;
+  /** Targets module: add and edit leads, move them through stages, mark Won/Lost. */
+  manageLeads: boolean;
+  /** Targets module: create and edit sales targets and projects. */
+  manageTargets: boolean;
+  /** Targets module: see EVERYONE's leads, tasks and targets, and the Scoreboard. */
+  viewAllTargets: boolean;
+  /** Targets module: assign tasks to other people (without it, tasks can only be for yourself). */
+  assignTasks: boolean;
 }
 
 export const PERMISSION_LABELS: Record<keyof Permissions, string> = {
@@ -123,6 +133,11 @@ export const PERMISSION_LABELS: Record<keyof Permissions, string> = {
   awardLoyaltyPoints: "Award Loyalty Points",
   sendWhatsappBroadcast: "Send WhatsApp Broadcasts",
   closeRegister: "Close POS Register",
+  accessTargets: "Use Targets (own tasks, leads, targets)",
+  manageLeads: "Targets: Add & Edit Leads",
+  manageTargets: "Targets: Create Targets & Projects",
+  viewAllTargets: "Targets: See Everyone's Work & Scoreboard",
+  assignTasks: "Targets: Assign Tasks to Others",
 };
 
 export const ROLE_DEFAULTS: Record<Role, Permissions> = {
@@ -166,6 +181,11 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     awardLoyaltyPoints: true,
     sendWhatsappBroadcast: true,
     closeRegister: true,
+    accessTargets: true,
+    manageLeads: true,
+    manageTargets: true,
+    viewAllTargets: true,
+    assignTasks: true,
   },
   manager: {
     addOrder: true,
@@ -207,6 +227,11 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     awardLoyaltyPoints: true,
     sendWhatsappBroadcast: true,
     closeRegister: true,
+    accessTargets: true,
+    manageLeads: true,
+    manageTargets: true,
+    viewAllTargets: true,
+    assignTasks: true,
   },
   sales: {
     addOrder: true,
@@ -248,6 +273,11 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     awardLoyaltyPoints: false,
     sendWhatsappBroadcast: false,
     closeRegister: false,
+    accessTargets: true,
+    manageLeads: true,
+    manageTargets: false,
+    viewAllTargets: false,
+    assignTasks: false,
   },
   tailor: {
     addOrder: false,
@@ -289,6 +319,11 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     awardLoyaltyPoints: false,
     sendWhatsappBroadcast: false,
     closeRegister: false,
+    accessTargets: true,
+    manageLeads: false,
+    manageTargets: false,
+    viewAllTargets: false,
+    assignTasks: false,
   },
 };
 
@@ -297,6 +332,7 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
 export const PERMISSION_GROUPS: { label: string; keys: (keyof Permissions)[] }[] = [
   { label: "Orders", keys: ["addOrder", "editOrder", "deleteOrder", "changeStage", "managePayments", "editMeasurements", "backdateOrders"] },
   { label: "Customers", keys: ["manageCustomers", "deleteCustomers", "awardLoyaltyPoints", "sendWhatsappBroadcast"] },
+  { label: "Targets", keys: ["accessTargets", "manageLeads", "manageTargets", "viewAllTargets", "assignTasks"] },
   { label: "Modules", keys: ["manageInventory", "adjustStock", "transferStock", "deleteInventory", "managePurchases", "cancelPurchases", "payVendors", "manageManufacturing", "manageSales", "voidSales", "manageCreditNotes", "usePOS", "closeRegister"] },
   { label: "Expenses", keys: ["manageExpenses"] },
   { label: "Employees", keys: ["manageEmployees", "approveLeave", "managePayroll"] },

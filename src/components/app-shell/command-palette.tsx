@@ -4,13 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Command as CommandPrimitive } from "cmdk";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
-import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, resolveReportSection, SETTINGS_GROUP, settingsLeafVisible, EMPLOYEES_GROUP, employeesLeafVisible, ORDERS_GROUP, ordersLeafVisible } from "@/components/app-shell/nav-config";
+import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, TARGETS_NAV_ITEM, resolveReportSection, SETTINGS_GROUP, settingsLeafVisible, EMPLOYEES_GROUP, employeesLeafVisible, ORDERS_GROUP, ordersLeafVisible } from "@/components/app-shell/nav-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useOrders } from "@/hooks/use-orders";
 import { useCustomers } from "@/hooks/use-customers";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useProducts } from "@/hooks/use-products";
 import { useEmployees } from "@/hooks/use-employees";
+import { isModuleEnabled } from "@/lib/entitlements";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { isReportEnabled, isSettingEnabled } from "@/lib/entitlements";
 import { STAGE_META } from "@/lib/business-rules";
@@ -46,6 +47,7 @@ export function CommandTrigger() {
 
   const pages = useMemo(() => {
     const flat = [...PRIMARY_NAV, ...SECONDARY_NAV].filter((i) => !(restricted && i.restricted)).map((i) => ({ href: i.href, label: i.label }));
+    if (user?.perms.accessTargets && entitlements && isModuleEnabled(entitlements, "targets")) flat.push({ href: TARGETS_NAV_ITEM.href, label: TARGETS_NAV_ITEM.label });
     const reports =
       restricted || !entitlements
         ? []

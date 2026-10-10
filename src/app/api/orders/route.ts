@@ -72,6 +72,8 @@ const bodySchema = z.object({
    *  submission (see the New Order form's split checkbox) — client-generated, shared across
    *  every order in that one submission. Absent for a normal, non-split order. */
   groupId: z.string().optional(),
+  /** Targets module: the lead this order was created from — credits the sale to the lead's owner. */
+  leadId: z.string().uuid().nullish(),
   /** Which of the customer's saved measurement profiles (if any) `measurements` above was
    *  loaded from — see src/lib/measurement-profiles.ts. Both absent for a customer with no
    *  profiles, or when staff didn't pick one. */
@@ -276,9 +278,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Could not save attached photos" }, { status: 500 });
   }
 
+  // Targets module: an order made from a lead is credited to that lead's owner. Only attached
+  // when the lead really exists, and lead_id is only written when there is one, so shops that
+  // haven't switched the module on (or run its migration) are completely unaffected.
+  let leadId: string | null = null;
+  if (fd.leadId) {
+    const { data: leadRow } = await db.from("leads").select("id").eq("id", fd.leadId).maybeSingle();
+    leadId = leadRow?.id ?? null;
+  }
+
   const { data: insertedRow, error: insertError } = await db
     .from("orders")
     .insert({
+      ...(leadId ? { lead_id: leadId } : {}),
       id,
       name: fd.name,
       mobile: fd.mobile,
@@ -456,6 +468,22 @@ export async function POST(request: Request) {
     const { count } = await db.from("orders").select("id", { count: "exact", head: true }).gte("created_at", startOfMonth.toISOString());
     if (count != null && count >= maxOrders) {
       limitWarning = `You've reached your plan's order limit (${count}/${maxOrders} this month). Contact us to upgrade.`;
+    }
+  }
+
+  // Mark the lead Won now that its order exists. Conditional on "no order yet" so a second order
+  // from the same lead never overwrites the first link; failure here never fails the order.
+  if (leadId) {
+    try {
+      const { data: linked } = await db
+        .from("leads")
+        .update({ stage: "won", won_at: new Date().toISOString(), won_value: fd.total, likely_to_close: false, order_id: id, lost_at: null, lost_reason: "", updated_at: new Date().toISOString() })
+        .eq("id", leadId)
+        .is("order_id", null)
+        .select("id");
+      if (linked?.length) await db.from("lead_activities").insert({ lead_id: leadId, kind: "stage_change", body: `Won — order ${id} created`, created_by: user.email });
+    } catch {
+      /* the order is already saved; the lead link is best-effort */
     }
   }
 

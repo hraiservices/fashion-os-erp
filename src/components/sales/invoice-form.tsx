@@ -11,6 +11,7 @@ import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useCustomers } from "@/hooks/use-customers";
 import { useSaveInvoice } from "@/hooks/use-sales-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useTargetsMeta } from "@/hooks/use-targets";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { genInvoiceNumber, computeInvoiceMargin } from "@/lib/sales";
 import { GST_TYPE_LABELS, type GstType } from "@/lib/gst";
@@ -73,7 +74,7 @@ function FieldGroup({ label, required, children, hint }: { label: string; requir
   );
 }
 
-export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, existing }: { prefillQuoteId?: string; prefillCloneId?: string; prefillMobile?: string; existing?: SalesInvoice }) {
+export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, prefillLeadId, existing }: { prefillQuoteId?: string; prefillCloneId?: string; prefillMobile?: string; prefillLeadId?: string; existing?: SalesInvoice }) {
   const router = useRouter();
   const { data: user } = useCurrentUser();
   const { data: products } = useProducts();
@@ -85,6 +86,10 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
   const { data: numbering } = useAppSetting<DocumentNumberingSettings>("documentNumbering", DEFAULT_DOCUMENT_NUMBERING);
   const saveInvoice = useSaveInvoice();
   const isEdit = !!existing;
+  // "Sales person" only shows when the Targets module is licensed and usable (its meta call is refused otherwise).
+  const targetsMeta = useTargetsMeta().data;
+  const [salesPersonPick, setSalesPersonPick] = useState<string | null | undefined>(undefined);
+  const salesPerson = salesPersonPick !== undefined ? salesPersonPick : existing ? existing.salesPersonId : user?.employeeId ?? null;
 
   // Sequential numbering (Settings > Document Numbering) is assigned server-side, atomically, at
   // save time -- this client-generated value is only ever a placeholder for the (required,
@@ -250,6 +255,8 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
         terms,
         notes,
         userEmail: user?.email,
+        ...(targetsMeta ? { salesPersonId: salesPerson } : {}),
+        ...(prefillLeadId && !isEdit ? { leadId: prefillLeadId } : {}),
       });
       const finalNumber = res.invoice_number || invoiceNumber;
       toast.success(
@@ -353,6 +360,21 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, exi
               <FieldGroup label="Due date">
                 <DatePicker value={dueDate} onChange={setDueDate} />
               </FieldGroup>
+              {targetsMeta && (
+                <FieldGroup label="Sales person">
+                  <Select value={salesPerson ?? "none"} onValueChange={(v) => v && setSalesPersonPick(v === "none" ? null : v)}>
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue>{(v: unknown) => (v === "none" ? "Nobody" : targetsMeta.staff.find((s) => s.id === v)?.name ?? "Choose")}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nobody</SelectItem>
+                      {targetsMeta.staff.filter((s) => s.active || s.id === salesPerson).map((s) => (
+                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FieldGroup>
+              )}
             </div>
           </div>
 

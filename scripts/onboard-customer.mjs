@@ -30,7 +30,7 @@
 //                                                           piping stdin oddly with readline.
 //                                                           --modules is a comma list from:
 //                                                           inventory,purchases,sales,employees,
-//                                                           expenses,pos,copilot,reports.
+//                                                           expenses,pos,copilot,reports,targets.
 //                                                           --yes skips the billing confirmation.)
 //
 // WHAT THIS DOES NOT AUTOMATE (still manual, per the runbook):
@@ -262,7 +262,7 @@ async function main() {
   const cfg = loadConfig();
 
   console.log("=== Fashion Flow — New Customer Onboarding ===");
-  const moduleIds = ["inventory", "purchases", "sales", "employees", "expenses", "pos", "copilot", "reports"];
+  const moduleIds = ["inventory", "purchases", "sales", "employees", "expenses", "pos", "copilot", "reports", "targets"];
   let customerName, slug, appName, modules;
 
   if (NONINTERACTIVE) {

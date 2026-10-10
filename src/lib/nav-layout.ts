@@ -31,6 +31,7 @@ import {
   MANUFACTURING_NAV_ITEM,
   COPILOT_NAV_ITEM,
   POS_NAV_ITEM,
+  TARGETS_NAV_ITEM,
   PAYMENTS_RECEIVED_NAV_ITEM,
   type NavGroup,
   type NavLeaf,
@@ -63,6 +64,7 @@ const ROOT_DEFAULTS: { id: string; kind: "flat" | "group" }[] = [
   { id: `group:${PURCHASES_GROUP.id}`, kind: "group" as const },
   { id: MANUFACTURING_NAV_ITEM.href, kind: "flat" as const },
   { id: POS_NAV_ITEM.href, kind: "flat" as const },
+  { id: TARGETS_NAV_ITEM.href, kind: "flat" as const },
   { id: `group:${EMPLOYEES_GROUP.id}`, kind: "group" as const },
   { id: COPILOT_NAV_ITEM.href, kind: "flat" as const },
   { id: `group:${SETTINGS_GROUP.id}`, kind: "group" as const },
@@ -70,7 +72,7 @@ const ROOT_DEFAULTS: { id: string; kind: "flat" | "group" }[] = [
 const ROOT_DEFAULT_IDS = ROOT_DEFAULTS.map((n) => n.id);
 
 const FLAT_ITEM_BY_HREF = new Map<string, NavFlatItem>(
-  [...PRIMARY_NAV, ...SECONDARY_NAV, MANUFACTURING_NAV_ITEM, COPILOT_NAV_ITEM, POS_NAV_ITEM, PAYMENTS_RECEIVED_NAV_ITEM].map((i) => [i.href, i])
+  [...PRIMARY_NAV, ...SECONDARY_NAV, MANUFACTURING_NAV_ITEM, COPILOT_NAV_ITEM, POS_NAV_ITEM, TARGETS_NAV_ITEM, PAYMENTS_RECEIVED_NAV_ITEM].map((i) => [i.href, i])
 );
 
 export function findLeafAnywhere(href: string): NavLeaf | undefined {

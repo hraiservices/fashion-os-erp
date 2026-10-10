@@ -147,6 +147,8 @@ export interface Order {
    *  normal way. Purely a grouping label for staff to see related orders together; it carries
    *  no other meaning (no shared money, no shared stage). */
   groupId: string | null;
+  /** The lead this order came from (Targets module) — how a per-person target credits a stitching order. */
+  leadId: string | null;
   /** Which of the customer's saved measurement profiles (if any) this order's measurements were
    *  taken from — a snapshot label, not a live foreign key, so it stays meaningful even if the
    *  profile is later renamed or archived. Null for orders that didn't reference a named profile. */
@@ -160,8 +162,8 @@ export type OrderType = "new" | "alteration";
  *  excludes them on purpose (inline base64, see ORDER_LIST_COLUMNS) and mapOrderRow defaults
  *  them to []. Every other column is required, so omitting one is a compile error rather than
  *  a silent null. */
-type OrderRowForMapping = Omit<OrderRow, "images" | "audios" | "videos"> &
-  Partial<Pick<OrderRow, "images" | "audios" | "videos">>;
+type OrderRowForMapping = Omit<OrderRow, "images" | "audios" | "videos" | "lead_id"> &
+  Partial<Pick<OrderRow, "images" | "audios" | "videos" | "lead_id">>;
 
 /** mapRow(), Stitching_Manager_Pro_v16.html ~line 2265. Balance is always derived. */
 export function mapOrderRow(r: OrderRowForMapping): Order {
@@ -210,6 +212,7 @@ export function mapOrderRow(r: OrderRowForMapping): Order {
     rawStatus: r.status || "received",
     createdAt: r.created_at || "",
     groupId: r.group_id ?? null,
+    leadId: r.lead_id ?? null,
     measurementProfileId: r.measurement_profile_id ?? null,
     measurementProfileName: r.measurement_profile_name ?? null,
   };
@@ -726,6 +729,8 @@ export interface SalesInvoice {
   customerMobile: string;
   customerName: string;
   quoteId: string | null;
+  /** Employee credited with this sale (Targets module). Null when not set. */
+  salesPersonId: string | null;
   invoiceDate: string;
   dueDate: string | null;
   items: SalesLineItem[];
@@ -756,6 +761,7 @@ export function mapSalesInvoiceRow(r: SalesInvoiceRow): SalesInvoice {
     customerMobile: r.customer_mobile,
     customerName: r.customer_name || "",
     quoteId: r.quote_id,
+    salesPersonId: r.sales_person_id ?? null,
     invoiceDate: r.invoice_date,
     dueDate: r.due_date,
     items: (Array.isArray(r.items) ? r.items : []) as unknown as SalesLineItem[],

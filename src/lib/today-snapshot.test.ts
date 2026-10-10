@@ -46,6 +46,7 @@ function makeOrder(overrides: Partial<Order>): Order {
     rawStatus: "stitching",
     createdAt: new Date().toISOString(),
     groupId: null,
+    leadId: null,
     measurementProfileId: null,
     measurementProfileName: null,
     ...overrides,

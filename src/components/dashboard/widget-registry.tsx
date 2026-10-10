@@ -17,6 +17,7 @@ import { LiveReportWidget } from "@/components/dashboard/widgets/live-report-wid
 import { StageTimingWidget } from "@/components/dashboard/widgets/stage-timing-widget";
 import { OverdueOrdersWidget } from "@/components/dashboard/widgets/overdue-orders-widget";
 import { OrderStatusCardsWidget } from "@/components/dashboard/widgets/order-status-cards-widget";
+import { MyTargetsWidget, TodaysWorkWidget, PipelineValueWidget, WonThisMonthWidget, TargetsAtRiskWidget, OverdueTasksWidget } from "@/components/dashboard/widgets/targets-widgets";
 import {
   StitchingDuesWidget,
   SalesDuesWidget,
@@ -58,4 +59,10 @@ export const WIDGET_COMPONENTS: Record<string, React.ComponentType> = {
   "stage-timing": StageTimingWidget,
   "overdue-orders": OverdueOrdersWidget,
   "order-status-cards": OrderStatusCardsWidget,
+  "my-targets": MyTargetsWidget,
+  "todays-work": TodaysWorkWidget,
+  "pipeline-value": PipelineValueWidget,
+  "won-this-month": WonThisMonthWidget,
+  "targets-at-risk": TargetsAtRiskWidget,
+  "overdue-tasks": OverdueTasksWidget,
 };

@@ -37,6 +37,9 @@ const bodySchema = z.object({
   customerMobile: z.string().min(1),
   customerName: z.string(),
   quoteId: z.string().uuid().nullable().optional(),
+  /** Targets module: who made this sale, and the lead it came from (both optional). */
+  salesPersonId: z.string().uuid().nullable().optional(),
+  leadId: z.string().uuid().nullable().optional(),
   invoiceDate: z.string().min(1),
   dueDate: z.string().nullable().optional(),
   items: z.array(lineItemSchema),
@@ -87,6 +90,10 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
+  if (fd.salesPersonId) {
+    const { data: person } = await db.from("employees").select("id, active").eq("id", fd.salesPersonId).maybeSingle();
+    if (!person?.active) return NextResponse.json({ error: "The chosen sales person isn't an active staff member" }, { status: 400 });
+  }
 
   const isEdit = !!fd.id;
 
@@ -269,6 +276,28 @@ export async function POST(request: Request) {
         await logAction(supabase, user.email, `Invoice created: ${invoiceNumber} (duplicate submission, returning existing)`, null, `₹${totals.total}`);
         return NextResponse.json({ ok: true, data: winner });
       }
+    }
+  }
+
+  // Targets module: record who made the sale and link the lead it came from. Plain updates AFTER
+  // the RPC (never a change to the RPC's signature — see the idempotency note above) and
+  // non-fatal: the invoice is already saved, so a failure here only costs the attribution.
+  const savedId = newInvoiceId || fd.id;
+  if (savedId && fd.salesPersonId !== undefined) {
+    await db.from("sales_invoices").update({ sales_person_id: fd.salesPersonId }).eq("id", savedId);
+  }
+  if (savedId && fd.leadId && !isEdit) {
+    try {
+      const { data: linked } = await db
+        .from("leads")
+        .update({ stage: "won", won_at: new Date().toISOString(), won_value: totals.total, likely_to_close: false, invoice_id: savedId, lost_at: null, lost_reason: "", updated_at: new Date().toISOString() })
+        .eq("id", fd.leadId)
+        .is("order_id", null)
+        .is("invoice_id", null)
+        .select("id");
+      if (linked?.length) await db.from("lead_activities").insert({ lead_id: fd.leadId, kind: "stage_change", body: `Won — invoice ${invoiceNumber} created`, created_by: user.email });
+    } catch {
+      /* attribution only — the invoice is already saved */
     }
   }
 

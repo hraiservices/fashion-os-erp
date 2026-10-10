@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Menu, ClipboardList, Receipt, Wallet, UserPlus, Sparkles, X, CreditCard } from "lucide-react";
+import { Menu, ClipboardList, Receipt, Wallet, UserPlus, Sparkles, X, CreditCard, Target, ListTodo } from "lucide-react";
 import { PlusGlyphIcon } from "@/components/icons/duotone-icons";
 import { cn } from "@/lib/utils";
 import {
@@ -155,6 +155,8 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
     { href: "/expenses/new", label: "New Expense", icon: Wallet, show: user?.perms.manageExpenses },
     { href: "/payments/new", label: "New Payment", icon: CreditCard, show: user?.perms.managePayments },
     { href: "/crm/new", label: "New Customer", icon: UserPlus, show: user?.perms.manageCustomers || user?.role === "admin" || user?.role === "manager" },
+    { href: "/targets?tab=leads&new=lead", label: "New Lead", icon: Target, show: user?.perms.manageLeads && isModuleEnabled(entitlements ?? DEFAULT_ENTITLEMENTS, "targets") },
+    { href: "/targets?new=task", label: "New Task", icon: ListTodo, show: user?.perms.accessTargets && isModuleEnabled(entitlements ?? DEFAULT_ENTITLEMENTS, "targets") },
   ].filter((o) => o.show);
 
   function TabLink({ href, label, icon: Icon }: NavFlatItem) {

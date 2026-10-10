@@ -26,6 +26,126 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["signup_requests"]["Row"]>;
         Relationships: [];
       };
+      sales_targets: {
+        Row: {
+          id: string;
+          title: string;
+          metric: string;
+          target_value: number;
+          start_date: string;
+          end_date: string;
+          scope: string;
+          assignee_ids: string[];
+          product_ids: string[];
+          garment_types: string[];
+          status_override: string | null;
+          notes: string;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["sales_targets"]["Row"]> & {
+          title: string;
+          metric: string;
+          target_value: number;
+          start_date: string;
+          end_date: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["sales_targets"]["Row"]>;
+        Relationships: [];
+      };
+      leads: {
+        Row: {
+          id: string;
+          name: string;
+          mobile: string;
+          customer_id: string | null;
+          source: string;
+          product_interest: string;
+          expected_value: number;
+          stage: string;
+          likely_to_close: boolean;
+          assigned_employee_id: string | null;
+          lost_reason: string;
+          won_value: number;
+          notes: string;
+          won_at: string | null;
+          lost_at: string | null;
+          order_id: string | null;
+          invoice_id: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["leads"]["Row"]> & {
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["leads"]["Row"]>;
+        Relationships: [];
+      };
+      lead_activities: {
+        Row: {
+          id: string;
+          lead_id: string;
+          kind: string;
+          body: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["lead_activities"]["Row"]> & {
+          lead_id: string;
+          kind: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["lead_activities"]["Row"]>;
+        Relationships: [];
+      };
+      work_projects: {
+        Row: {
+          id: string;
+          name: string;
+          description: string;
+          owner_id: string | null;
+          start_date: string | null;
+          end_date: string | null;
+          status: string;
+          target_id: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["work_projects"]["Row"]> & {
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["work_projects"]["Row"]>;
+        Relationships: [];
+      };
+      work_tasks: {
+        Row: {
+          id: string;
+          title: string;
+          description: string;
+          project_id: string | null;
+          parent_task_id: string | null;
+          group_name: string;
+          assignee_id: string | null;
+          priority: string;
+          status: string;
+          start_date: string | null;
+          due_date: string | null;
+          completed_at: string | null;
+          checklist: Json;
+          link_type: string | null;
+          link_id: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["work_tasks"]["Row"]> & {
+          title: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["work_tasks"]["Row"]>;
+        Relationships: [];
+      };
       day_book_cash_adjustments: {
         Row: {
           id: string;
@@ -115,6 +235,7 @@ export interface Database {
           piece_rate_paid_at: string | null;
           paid_by_payroll_run_id: string | null;
           group_id: string | null;
+          lead_id: string | null;
           measurement_profile_id: string | null;
           measurement_profile_name: string | null;
           created_at: string;
@@ -807,6 +928,7 @@ export interface Database {
           notes: string;
           share_token: string;
           viewed_at: string | null;
+          sales_person_id: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;

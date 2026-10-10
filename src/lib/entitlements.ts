@@ -9,7 +9,7 @@
 // value missing a newly-added module/report/widget key, behaves exactly as before this feature
 // shipped (opt-out, not opt-in), mirroring the shallow-merge default pattern of useAppSetting.
 
-export type ModuleId = "inventory" | "purchases" | "sales" | "employees" | "expenses" | "pos" | "copilot" | "reports";
+export type ModuleId = "inventory" | "purchases" | "sales" | "employees" | "expenses" | "pos" | "copilot" | "reports" | "targets";
 
 export interface ModuleMeta {
   id: ModuleId;
@@ -26,6 +26,7 @@ export const MODULE_CATALOG: ModuleMeta[] = [
   { id: "pos", label: "POS", description: "Point-of-sale checkout screen" },
   { id: "copilot", label: "AI Copilot", description: "AI chat assistant over the company's data" },
   { id: "reports", label: "Reports", description: "The Reports center — individual reports are toggled separately below" },
+  { id: "targets", label: "Sales Targets", description: "Sales targets, leads & follow-ups, team tasks and projects, with their own reports and dashboard cards" },
 ];
 
 export const MODULE_LABEL_BY_ID = new Map(MODULE_CATALOG.map((m) => [m.id, m.label]));
@@ -70,6 +71,7 @@ export const DEFAULT_ENTITLEMENTS: ModuleEntitlements = {
     pos: true,
     copilot: true,
     reports: true,
+    targets: true,
   },
   reports: {},
   widgets: {},
@@ -94,6 +96,7 @@ const REPORT_SECTION_MODULE: Record<string, ModuleId | null> = {
   Purchases: "purchases",
   Expenses: "expenses",
   Manufacturing: null,
+  Targets: "targets",
 };
 
 /** Maps a BUILTIN_WIDGETS key to the ModuleId that gates it, or null for widgets that are always core. */
@@ -118,6 +121,12 @@ const WIDGET_MODULE: Record<string, ModuleId | null> = {
   "needs-attention": null,
   "recent-orders": null,
   "tailor-load": null,
+  "my-targets": "targets",
+  "todays-work": "targets",
+  "pipeline-value": "targets",
+  "won-this-month": "targets",
+  "targets-at-risk": "targets",
+  "overdue-tasks": "targets",
 };
 
 /** Route prefixes gated by a whole module — checked server-side in src/lib/supabase/session.ts. Reports are handled separately (per-leaf, not by prefix) since they cascade off a `section`, not a single module. */
@@ -129,6 +138,7 @@ export const ROUTE_MODULE_PREFIXES: Record<string, ModuleId> = {
   "/expenses": "expenses",
   "/pos": "pos",
   "/copilot": "copilot",
+  "/targets": "targets",
 };
 
 export function isModuleEnabled(ent: ModuleEntitlements, id: ModuleId): boolean {

@@ -46,6 +46,11 @@ describe("ROLE_DEFAULTS matrix", () => {
       awardLoyaltyPoints: true,
       sendWhatsappBroadcast: true,
       closeRegister: true,
+      accessTargets: true,
+      manageLeads: true,
+      manageTargets: true,
+      viewAllTargets: true,
+      assignTasks: true,
     });
   });
 
@@ -110,6 +115,11 @@ describe("ROLE_DEFAULTS matrix", () => {
       awardLoyaltyPoints: false,
       sendWhatsappBroadcast: false,
       closeRegister: false,
+      accessTargets: true,
+      manageLeads: false,
+      manageTargets: false,
+      viewAllTargets: false,
+      assignTasks: false,
     });
   });
 });
@@ -150,5 +160,24 @@ describe("isRestrictedRole", () => {
   it("is case- and whitespace-insensitive, mirroring the old app's normalization", () => {
     expect(isRestrictedRole(" Admin ")).toBe(false);
     expect(isRestrictedRole("MANAGER")).toBe(false);
+  });
+});
+
+// Targets module flags: every role may open the module (tailors use it for their own tasks), but
+// only sales-and-up manage leads, and only admin/manager set targets, see others' work or assign.
+describe("Targets permission defaults", () => {
+  it("lets every role open Targets", () => {
+    for (const role of ["admin", "manager", "sales", "tailor"] as const) {
+      expect(ROLE_DEFAULTS[role].accessTargets).toBe(true);
+    }
+  });
+  it("gives sales leads but not targets, team-wide visibility or assigning", () => {
+    expect(ROLE_DEFAULTS.sales).toMatchObject({ manageLeads: true, manageTargets: false, viewAllTargets: false, assignTasks: false });
+  });
+  it("keeps tailors to their own tasks", () => {
+    expect(ROLE_DEFAULTS.tailor).toMatchObject({ manageLeads: false, manageTargets: false, viewAllTargets: false, assignTasks: false });
+  });
+  it("lets a per-user override switch a flag on", () => {
+    expect(resolvePerms("tailor", { manageLeads: true }).manageLeads).toBe(true);
   });
 });

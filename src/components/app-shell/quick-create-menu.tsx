@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, ClipboardList, Receipt, FileText, Repeat, CreditCard, UserPlus, Truck, ShoppingCart, FileSpreadsheet, Package, Boxes, Users, Wallet, Hammer, Calculator } from "lucide-react";
+import { Plus, ClipboardList, Receipt, FileText, Repeat, CreditCard, UserPlus, Truck, ShoppingCart, FileSpreadsheet, Package, Boxes, Users, Wallet, Hammer, Calculator, Target, ListTodo } from "lucide-react";
+import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
+import { isModuleEnabled, DEFAULT_ENTITLEMENTS } from "@/lib/entitlements";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,8 @@ interface QuickCreateGroup {
  */
 export function QuickCreateMenu() {
   const { data: user } = useCurrentUser();
+  const { data: entitlements } = useModuleEntitlements();
+  const targetsOn = isModuleEnabled(entitlements ?? DEFAULT_ENTITLEMENTS, "targets");
   const isAdminOrManager = user?.role === "admin" || user?.role === "manager";
 
   const groups: QuickCreateGroup[] = [
@@ -66,6 +70,8 @@ export function QuickCreateMenu() {
         { href: "/employees/new", label: "Employee", icon: Users, show: !!user?.perms.manageEmployees },
         { href: "/manufacturing/new", label: "Manufacturing Job", icon: Hammer, show: !!user?.perms.manageManufacturing },
         { href: "/cost-estimator/new", label: "Cost Estimate", icon: Calculator, show: true },
+        { href: "/targets?tab=leads&new=lead", label: "Lead", icon: Target, show: targetsOn && !!user?.perms.manageLeads },
+        { href: "/targets?new=task", label: "Task", icon: ListTodo, show: targetsOn && !!user?.perms.accessTargets },
       ],
     },
   ]

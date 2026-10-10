@@ -8,9 +8,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 function NewOrderContent() {
   const searchParams = useSearchParams();
   const mobile = searchParams.get("mobile") ?? undefined;
+  const prefillName = searchParams.get("name") ?? undefined;
+  const leadId = searchParams.get("leadId") ?? undefined;
   const isAlteration = searchParams.get("type") === "alteration";
 
-  return <OrderForm prefillMobile={mobile} initialOrderType={isAlteration ? "alteration" : "new"} />;
+  return <OrderForm prefillMobile={mobile} prefillName={prefillName} leadId={leadId} initialOrderType={isAlteration ? "alteration" : "new"} />;
 }
 
 export default function NewOrderPage() {

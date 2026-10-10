@@ -38,6 +38,8 @@ interface CreateOrderInput {
   otherCost?: number;
   couponCode?: string;
   expenses?: NewOrderExpenseInput[];
+  /** Targets module: the lead this order was created from (marks it Won, credits the lead owner). */
+  leadId?: string | null;
   /** Manual override for the order's id/number — leave unset for the usual auto-generated or
    *  sequential (Document Numbering) behavior. */
   orderNumber?: string;

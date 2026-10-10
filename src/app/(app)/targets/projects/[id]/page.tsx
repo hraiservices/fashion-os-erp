@@ -46,7 +46,7 @@ function ProjectPageInner({ id }: { id: string }) {
   const go = (t: TabKey) => router.replace(`/targets/projects/${id}?t=${t}`, { scroll: false });
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4 pb-10">
+    <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 space-y-4 pb-10">
       <Link href="/targets?tab=projects" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary">
         <ArrowLeft className="size-4" /> Projects
       </Link>

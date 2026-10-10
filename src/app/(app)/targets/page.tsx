@@ -43,7 +43,7 @@ function TargetsHome() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4 pb-24">
+    <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 space-y-4 pb-24">
       <PageHeader title="Sales Targets" description="Tasks, projects, leads and your goals" />
       <SegmentedToggle<Tab>
         ariaLabel="Targets section"

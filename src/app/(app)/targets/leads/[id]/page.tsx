@@ -62,7 +62,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-5 pb-8">
+    <div className="mx-auto w-full max-w-2xl p-4 sm:p-6 space-y-5 pb-8">
       <Link href="/targets?tab=leads" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary">
         <ArrowLeft className="size-4" /> Leads
       </Link>

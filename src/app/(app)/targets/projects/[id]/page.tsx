@@ -1,16 +1,15 @@
 "use client";
 
-import { use, useState } from "react";
-import Link from "next/link";
+import { use } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fmtDateShort } from "@/lib/format";
 import { PROJECT_STATUS_LABELS } from "@/lib/work-tasks";
 import { useProject, useTargetsMeta } from "@/hooks/use-targets";
 import { useStaffLookup } from "@/components/targets/shared";
-import { ProjectFormSheet } from "@/components/targets/project-form-sheet";
+import { BackLink } from "@/components/ui/back-link";
 import { ProjectTasks } from "@/components/targets/project-tasks";
 import { ProjectDashboard, ProjectDocuments, ProjectFeed, ProjectPhases, ProjectTimeLogs, ProjectTimesheet, ProjectUsers } from "@/components/targets/project-sections";
 import { projectCode } from "@/components/targets/work-ui";
@@ -37,7 +36,6 @@ function ProjectPageInner({ id }: { id: string }) {
   const meta = useTargetsMeta().data;
   const { nameOf } = useStaffLookup(meta);
   const { data, isLoading } = useProject(id);
-  const [editOpen, setEditOpen] = useState(false);
 
   if (isLoading) return <Skeleton className="mx-auto h-64 w-full max-w-5xl" />;
   if (!data) return <p className="text-sm text-muted-foreground">Project not found.</p>;
@@ -47,9 +45,7 @@ function ProjectPageInner({ id }: { id: string }) {
 
   return (
     <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 space-y-4 pb-10">
-      <Link href="/targets?tab=projects" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary">
-        <ArrowLeft className="size-4" /> Projects
-      </Link>
+      <BackLink href="/targets?tab=projects">Projects</BackLink>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
@@ -73,7 +69,7 @@ function ProjectPageInner({ id }: { id: string }) {
           </div>
         </div>
         {meta?.can.manageTargets && (
-          <Button variant="outline" className="h-11" onClick={() => setEditOpen(true)}>
+          <Button variant="outline" className="h-11" onClick={() => router.push(`/targets/projects/${id}/edit`)}>
             <Pencil className="size-4" /> Edit project
           </Button>
         )}
@@ -96,7 +92,6 @@ function ProjectPageInner({ id }: { id: string }) {
       {tab === "timesheet" && <ProjectTimesheet projectId={id} meta={meta} nameOf={nameOf} />}
       {tab === "feed" && <ProjectFeed projectId={id} />}
 
-      <ProjectFormSheet open={editOpen} onOpenChange={setEditOpen} meta={meta} project={p} onDeleted={() => router.push("/targets?tab=projects")} />
     </div>
   );
 }

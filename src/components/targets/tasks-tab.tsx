@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
@@ -35,7 +36,8 @@ function Group({ title, tone, children }: { title: string; tone?: "late"; childr
  * Tasks: the Zoho-style table on desktop (grouped by project, click a row for the side panel) and
  * tick-circle cards on a phone (overdue → due today → coming up). Same data and filters on both.
  */
-export function TasksTab({ meta, taskSheetOpen, onTaskSheetOpenChange }: { meta: TargetsMeta | undefined; taskSheetOpen: boolean; onTaskSheetOpenChange: (o: boolean) => void }) {
+export function TasksTab({ meta }: { meta: TargetsMeta | undefined }) {
+  const router = useRouter();
   const [view, setView] = useState<View>("open");
   const [person, setPerson] = useState(ALL);
   const [projectFilter, setProjectFilter] = useState(ALL);
@@ -125,7 +127,7 @@ export function TasksTab({ meta, taskSheetOpen, onTaskSheetOpenChange }: { meta:
             </Select>
           </div>
         )}
-        <Button className="ml-auto hidden h-11 lg:inline-flex" onClick={() => onTaskSheetOpenChange(true)}>
+        <Button className="ml-auto hidden h-11 lg:inline-flex" onClick={() => router.push("/targets/tasks/new")}>
           <Plus className="size-4" /> Add Task
         </Button>
       </div>
@@ -190,7 +192,7 @@ export function TasksTab({ meta, taskSheetOpen, onTaskSheetOpenChange }: { meta:
         </div>
       )}
 
-      <TaskSheet open={taskSheetOpen || !!editing} onOpenChange={(o) => { if (!o) { setEditing(null); onTaskSheetOpenChange(false); } }} meta={meta} projects={projects} task={editing} />
+      <TaskSheet open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }} meta={meta} projects={projects} task={editing} />
     </div>
   );
 }

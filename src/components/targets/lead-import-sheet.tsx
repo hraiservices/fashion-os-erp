@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Download, FileSpreadsheet, Upload } from "lucide-react";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { LEAD_IMPORT_COLUMNS, LEAD_IMPORT_MAX_ROWS, parseImportRow, type ImportLeadRow } from "@/lib/lead-import";
 import type { StageLabelOverrides } from "@/lib/lead-stages";
@@ -72,18 +72,18 @@ export function LeadImportSheet({ open, onOpenChange, labels }: { open: boolean;
   }
 
   return (
-    <Sheet
+    <Dialog
       open={open}
       onOpenChange={(o) => {
         if (!o) reset();
         onOpenChange(o);
       }}
     >
-      <SheetContent side="bottom" className="max-h-[92dvh] overflow-y-auto rounded-t-2xl">
-        <SheetHeader>
-          <SheetTitle>Import leads</SheetTitle>
-          <SheetDescription>Excel (.xlsx) or CSV. A lead with the same mobile as an open lead is updated, not repeated.</SheetDescription>
-        </SheetHeader>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Import leads</DialogTitle>
+          <DialogDescription>Excel (.xlsx) or CSV. A lead with the same mobile as an open lead is updated, not repeated.</DialogDescription>
+        </DialogHeader>
         <div className="space-y-4 px-4 pb-6">
           <Button variant="outline" className="h-12 w-full" onClick={downloadTemplate}>
             <Download className="size-4" /> Download template
@@ -129,7 +129,7 @@ export function LeadImportSheet({ open, onOpenChange, labels }: { open: boolean;
             </div>
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

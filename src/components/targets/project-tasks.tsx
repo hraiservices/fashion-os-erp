@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
@@ -20,7 +21,8 @@ export function ProjectTasks({ project, tasks, lists, canManage, meta, nameOf }:
   const addList = useCreateTaskList();
   const delList = useDeleteTaskList();
   const [editing, setEditing] = useState<TaskDto | null>(null);
-  const [newOpen, setNewOpen] = useState<{ taskListId: string | null } | null>(null);
+  const router = useRouter();
+  const newTask = (taskListId: string | null) => router.push(`/targets/tasks/new?projectId=${project.id}${taskListId ? `&taskListId=${taskListId}` : ""}&from=${encodeURIComponent(`/targets/projects/${project.id}?t=tasks`)}`);
   const [listName, setListName] = useState("");
   const today = meta?.today ?? "";
   const groups = useMemo(() => groupTasks(tasks, { by: "list", lists, projectId: project.id }), [tasks, lists, project.id]);
@@ -36,7 +38,7 @@ export function ProjectTasks({ project, tasks, lists, canManage, meta, nameOf }:
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Button className="h-11" onClick={() => setNewOpen({ taskListId: null })}>
+        <Button className="h-11" onClick={() => newTask(null)}>
           <Plus className="size-4" /> Add Task
         </Button>
         {canManage && (
@@ -70,7 +72,7 @@ export function ProjectTasks({ project, tasks, lists, canManage, meta, nameOf }:
                   {g.title} · {g.tasks.length}
                 </h2>
                 <div className="flex items-center">
-                  <button type="button" className="flex min-h-11 items-center gap-1 px-2 text-sm font-medium text-primary" onClick={() => setNewOpen({ taskListId: g.defaults.taskListId ?? null })}>
+                  <button type="button" className="flex min-h-11 items-center gap-1 px-2 text-sm font-medium text-primary" onClick={() => newTask(g.defaults.taskListId ?? null)}>
                     <Plus className="size-4" /> Task
                   </button>
                   {canManage && g.key !== "general" && (
@@ -92,7 +94,6 @@ export function ProjectTasks({ project, tasks, lists, canManage, meta, nameOf }:
           ))}
       </div>
 
-      <TaskSheet open={!!newOpen} onOpenChange={(o) => !o && setNewOpen(null)} meta={meta} projects={[project]} defaults={{ projectId: project.id, taskListId: newOpen?.taskListId ?? null }} />
       <TaskSheet open={!!editing} onOpenChange={(o) => !o && setEditing(null)} meta={meta} projects={[project]} task={editing} />
     </div>
   );

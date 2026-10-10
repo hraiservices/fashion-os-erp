@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Check, ExternalLink, Plus, Trash2, X } from "lucide-react";
@@ -84,6 +84,8 @@ export function TaskSheet({
 
   const today = meta?.today ?? new Date().toISOString().slice(0, 10);
   const [title, setTitle] = useState("");
+  const [titleMissing, setTitleMissing] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
   const [due, setDue] = useState("");
   const [start, setStart] = useState("");
   const [assignee, setAssignee] = useState(NONE);
@@ -141,7 +143,15 @@ export function TaskSheet({
   const linkLabel = task?.linkLabel ?? defaults?.linkLabel ?? null;
 
   function save() {
-    if (!title.trim()) return;
+    if (!title.trim()) {
+      // Say what is missing instead of leaving the button dead.
+      setTitleMissing(true);
+      toast.error("Give the task a name first");
+      titleRef.current?.focus();
+      return;
+    }
+    // A step typed into the checklist box but not yet added with "+" is kept, not lost.
+    const pendingStep = newItem.trim();
     const payload: TaskInput = {
       title: title.trim(),
       description: description.trim(),
@@ -157,7 +167,7 @@ export function TaskSheet({
       tags,
       reminder,
       dependsOn,
-      checklist: checklist.filter((c) => c.text.trim()),
+      checklist: [...checklist, ...(pendingStep ? [{ text: pendingStep, done: false }] : [])].filter((c) => c.text.trim()),
     };
     const ok = (msg: string) => {
       toast.success(msg);
@@ -189,7 +199,7 @@ export function TaskSheet({
       <SheetContent side="right" className="data-[side=right]:w-full data-[side=right]:sm:max-w-2xl gap-0 overflow-y-auto p-0">
         <div className="sticky top-0 z-10 space-y-1 border-b bg-popover px-4 py-3 pr-12">
           <SheetTitle className="sr-only">{task ? "Task" : "New task"}</SheetTitle>
-          <Input autoFocus={!task} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What needs doing?" className="h-12 border-0 px-0 text-lg font-semibold shadow-none focus-visible:ring-0" maxLength={200} />
+          <Input ref={titleRef} autoFocus={!task} value={title} onChange={(e) => { setTitle(e.target.value); setTitleMissing(false); }} aria-invalid={titleMissing} placeholder="What needs doing?" className={cn("h-12 border-0 px-0 text-lg font-semibold shadow-none focus-visible:ring-0", titleMissing && "placeholder:text-destructive")} maxLength={200} />
           <p className="text-xs text-muted-foreground">
             {task ? `${taskCode(task.taskNo)}${task.taskNo != null ? " · " : ""}By ${task.createdBy ?? "—"}` : "New task"}
             {linkType === "lead" && linkId && (
@@ -385,7 +395,7 @@ export function TaskSheet({
                 {confirmDelete ? "Tap again to delete" : ""}
               </Button>
             )}
-            <Button type="submit" className="h-12 flex-1 text-base" disabled={busy || !title.trim()}>
+            <Button type="submit" className="h-12 flex-1 text-base" disabled={busy}>
               {busy ? "Saving…" : task ? "Save" : "Add task"}
             </Button>
           </div>

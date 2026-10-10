@@ -308,6 +308,7 @@ export const SETTINGS_GROUP: NavGroup = {
     { href: "/settings/invoice-template", label: "Invoice Template" },
     { href: "/settings/stitching-order-template", label: "Stitching Order Template" },
     { href: "/settings/price-lists", label: "Price Lists" },
+    { href: "/settings/lead-stages", label: "Lead Stage Names" },
     { href: "/settings/copilot", label: "AI Copilot" },
     { href: "/settings/navigation", label: "Sidebar Navigation" },
     { href: "/settings/module-licensing", label: "Module Licensing" },
@@ -342,7 +343,7 @@ export function settingsLeafVisible(
   isAdmin: boolean,
   canManageShop: boolean,
   isSuperAdmin: boolean,
-  perms: { manageWhatsappSettings: boolean; manageLoyaltySettings: boolean; manageDocumentTemplates: boolean; managePriceLists: boolean; manageNavigationSettings: boolean }
+  perms: { manageWhatsappSettings: boolean; manageLoyaltySettings: boolean; manageDocumentTemplates: boolean; managePriceLists: boolean; manageNavigationSettings: boolean; manageTargets: boolean }
 ): boolean {
   if (href === "/settings/module-licensing" || href === "/settings/signup-requests" || href === "/settings/admin-console") return isSuperAdmin;
   if (href === "/settings/copilot") return isAdmin;
@@ -351,6 +352,7 @@ export function settingsLeafVisible(
   if (href === "/settings/invoice-terms" || href === "/settings/invoice-template" || href === "/settings/stitching-order-template") return perms.manageDocumentTemplates;
   if (href === "/settings/price-lists") return perms.managePriceLists;
   if (href === "/settings/navigation") return perms.manageNavigationSettings;
+  if (href === "/settings/lead-stages") return perms.manageTargets;
   return true; // /settings/personalize and /settings/account — everyone (canManageShop kept as a param for callers/backward compat)
 }
 

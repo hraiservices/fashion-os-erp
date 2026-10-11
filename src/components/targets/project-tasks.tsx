@@ -7,11 +7,13 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
-import { subtaskProgress } from "@/lib/work-tasks";
+import { isFinished, subtaskProgress } from "@/lib/work-tasks";
 import type { ProjectWithProgress, TaskDto, TaskListDto } from "@/lib/targets-types";
 import { useCreateTask, useCreateTaskList, useDeleteTaskList, usePatchTask, type TargetsMeta } from "@/hooks/use-targets";
 import { TaskRow } from "@/components/targets/task-row";
 import { TaskSheet } from "@/components/targets/task-sheet";
+import { ShareButton } from "@/components/targets/share-dialog";
+import { taskListShareMessage } from "@/lib/targets-share";
 import { groupTasks, WorkTable } from "@/components/targets/work-table";
 
 /** A project's tasks grouped by task list: the Zoho-style table on desktop, list cards on a phone. */
@@ -26,6 +28,7 @@ export function ProjectTasks({ project, tasks, lists, canManage, meta, nameOf }:
   const [listName, setListName] = useState("");
   const [confirmList, setConfirmList] = useState<string | null>(null);
   const today = meta?.today ?? "";
+  const openTasks = useMemo(() => tasks.filter((t) => !t.parentTaskId && !isFinished(t.status)), [tasks]);
   const groups = useMemo(() => groupTasks(tasks, { by: "list", lists, projectId: project.id }), [tasks, lists, project.id]);
   const err = (e: unknown) => toast.error(e instanceof Error ? e.message : "Something went wrong");
 
@@ -42,9 +45,15 @@ export function ProjectTasks({ project, tasks, lists, canManage, meta, nameOf }:
         <Button className="h-11" onClick={() => newTask(null)}>
           <Plus className="size-4" /> Add Task
         </Button>
+        <ShareButton
+          title="Share task list"
+          label="Share list"
+          disabled={openTasks.length === 0}
+          build={(origin) => taskListShareMessage(`${project.name} — open tasks`, openTasks, { origin, today, nameOf }, { path: `/targets/projects/${project.id}?t=tasks` })}
+        />
         {canManage && (
           <form
-            className="flex flex-1 gap-2 sm:max-w-sm"
+            className="flex w-full gap-2 sm:w-auto sm:flex-1 sm:max-w-sm"
             onSubmit={(e) => {
               e.preventDefault();
               if (listName.trim()) addList.mutate({ projectId: project.id, name: listName.trim() }, { onSuccess: () => setListName(""), onError: err });

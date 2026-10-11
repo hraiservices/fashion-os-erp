@@ -24,6 +24,8 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { STAGE_STYLE, useStaffLookup } from "@/components/targets/shared";
 import { LeadCard } from "@/components/targets/lead-card";
 import { StageSheet } from "@/components/targets/stage-sheet";
+import { ShareButton } from "@/components/targets/share-dialog";
+import { leadListShareMessage } from "@/lib/targets-share";
 import { cn } from "@/lib/utils";
 
 const ALL = "all";
@@ -162,6 +164,17 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
     );
   }
 
+  /** The leads on screen as one message — the List view's stage filter, or the whole board — named after the filters in force. */
+  function shareLeads(origin: string) {
+    const parts = [view === "board" ? "Board" : stage === ALL ? "All stages" : stageLabel(stage, labels)];
+    if (likely === "likely") parts.push("Likely to close");
+    if (added === "month") parts.push("This month");
+    if (owner !== ALL) parts.push(nameOf(owner));
+    if (search) parts.push(`“${search}”`);
+    const rows = view === "board" ? [...leads].sort((a, b) => LEAD_STAGES.indexOf(a.stage as LeadStage) - LEAD_STAGES.indexOf(b.stage as LeadStage)) : listLeads;
+    return leadListShareMessage(`Leads — ${parts.join(" · ")}`, rows, { origin, today, nameOf }, { labels, showOwner: showOwner && owner === ALL });
+  }
+
   const filterLabel = "text-xs font-medium text-muted-foreground";
 
   return (
@@ -263,16 +276,19 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
             {leads.length} leads
             {added === "all" && query.data && query.data.total > query.data.leads.length && <> of {query.data.total} · newest shown, search to narrow</>}
           </span>
-          <div className="w-44">
-            <SegmentedToggle<View>
-              ariaLabel="Lead view"
-              value={view}
-              onChange={setView}
-              options={[
-                { value: "list", label: "List", icon: List },
-                { value: "board", label: "Board", icon: LayoutGrid },
-              ]}
-            />
+          <div className="flex items-center gap-2">
+            <ShareButton title="Share lead list" iconOnly disabled={leads.length === 0} build={shareLeads} />
+            <div className="w-44">
+              <SegmentedToggle<View>
+                ariaLabel="Lead view"
+                value={view}
+                onChange={setView}
+                options={[
+                  { value: "list", label: "List", icon: List },
+                  { value: "board", label: "Board", icon: LayoutGrid },
+                ]}
+              />
+            </div>
           </div>
         </div>
       </div>

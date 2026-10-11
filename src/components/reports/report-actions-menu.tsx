@@ -25,6 +25,7 @@ export function ReportActionsMenu({
   summaryLines,
   shopName,
   logoDataUrl,
+  hideWhatsApp = false,
 }: {
   rows: Record<string, unknown>[];
   filename: string;
@@ -33,6 +34,8 @@ export function ReportActionsMenu({
   summaryLines?: string[];
   shopName?: string;
   logoDataUrl?: string | null;
+  /** The page offers its own Share button (WhatsApp, Email, Copy, a team member) — leave the plain WhatsApp item out. */
+  hideWhatsApp?: boolean;
 }) {
   const disabled = rows.length === 0;
 
@@ -59,10 +62,14 @@ export function ReportActionsMenu({
         <DropdownMenuItem onClick={() => printReport(title, buildTableHtml(), shopName, logoDataUrl, summaryLines)}>
           <FileText className="size-4" /> PDF
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => window.open(buildReportWhatsAppUrl(title, summaryLines || []), "_blank", "noopener,noreferrer")}>
-          <Share2 className="size-4" /> Share on WhatsApp
-        </DropdownMenuItem>
+        {!hideWhatsApp && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => window.open(buildReportWhatsAppUrl(title, summaryLines || []), "_blank", "noopener,noreferrer")}>
+              <Share2 className="size-4" /> Share on WhatsApp
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

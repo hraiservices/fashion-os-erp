@@ -2,7 +2,7 @@ import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { logAction } from "@/lib/logging";
+import { logAction, notifyPaymentReceived } from "@/lib/logging";
 
 const bodySchema = z.object({
   invoiceId: z.string().uuid(),
@@ -69,6 +69,7 @@ export async function POST(request: Request) {
   // record-payment-form.tsx), so this round-trip used to multiply by the row count. Same fix as
   // src/app/api/orders/[id]/payment/route.ts.
   after(async () => {
+    await notifyPaymentReceived(db, { userEmail: user.email, amount: fd.amount, invoiceNumber: fd.invoiceNumber }).catch(() => {});
     await logAction(supabase, user.email, `Payment received: ₹${fd.amount} for invoice ${fd.invoiceNumber}`);
   });
   return NextResponse.json({ ok: true });

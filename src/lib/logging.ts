@@ -102,3 +102,22 @@ export async function notifyAttendance(
     read: false,
   });
 }
+
+/** A payment was recorded — a critical alert for admins/managers (not for whoever recorded it, who knows). `orderId` is
+ *  absent for an invoice payment. */
+export async function notifyPaymentReceived(
+  supabase: SupabaseClient<Database>,
+  params: { userEmail: string; userName?: string; amount: number; customerName?: string; orderId?: string; invoiceNumber?: string }
+): Promise<void> {
+  const what = params.orderId ? `order ${params.orderId}` : params.invoiceNumber ? `invoice ${params.invoiceNumber}` : "a sale";
+  const message = `₹${Math.round(params.amount).toLocaleString("en-IN")} received${params.customerName ? ` from ${params.customerName}` : ""} for ${what}`;
+  await supabase.from("admin_notifications").insert({
+    type: "payment_received",
+    order_id: params.orderId ?? null,
+    customer_name: params.customerName ?? null,
+    user_email: params.userEmail,
+    user_name: params.userName ?? params.userEmail.split("@")[0],
+    message,
+    read: false,
+  });
+}

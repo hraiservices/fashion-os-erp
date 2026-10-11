@@ -1,15 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, Trash2, X, CheckCircle2, AlertTriangle, RefreshCw, Sparkles, CalendarClock, Clock } from "lucide-react";
+import { Bell, Trash2, X, CheckCircle2, AlertTriangle, RefreshCw, Sparkles, CalendarClock, Clock, IndianRupee } from "lucide-react";
 import { useUrgentOrdersSummary } from "@/hooks/use-urgent-orders-summary";
 import { useNotifications, useDismissNotification, markNotificationsSeen, getLastSeenAt, getTimeAgo } from "@/hooks/use-notifications";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { dueBadge, STAGE_META, type Stage } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { createClient } from "@/lib/supabase/client";
+import { announceCritical } from "@/lib/notification-announce";
+import { categoryOf, isCritical } from "@/lib/notification-alerts";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -49,19 +51,47 @@ export function NotificationBell() {
     [notifs, isAdminOrManager]
   );
 
+  // Payments received and the evening Day Book summary — money, admin/manager only like the rest.
+  const moneyNotifs = useMemo(() => (isAdminOrManager ? (notifs || []).filter((n) => categoryOf(n.type) === "money") : []), [notifs, isAdminOrManager]);
+
   const urgentOrders = useMemo(() => {
     if (!orders) return [];
     return orders.filter((o) => dueBadge(o)?.urgent || o.status === "ready").slice(0, 10);
   }, [orders]);
 
   const unreadCount = useMemo(() => {
-    const visible = [...stageNotifs, ...briefingNotifs, ...employeeNotifs];
+    const visible = [...stageNotifs, ...briefingNotifs, ...employeeNotifs, ...moneyNotifs];
     const newNotifs = visible.filter((n) => new Date(n.created_at).getTime() > lastSeen).length;
     // Only count urgent orders created after the bell was last opened — orders that have been
     // sitting in the list (and been seen) shouldn't re-trigger the badge on every render.
     const newUrgent = urgentOrders.filter((o) => new Date(o.createdAt).getTime() > lastSeen).length;
     return newNotifs + newUrgent;
-  }, [stageNotifs, briefingNotifs, employeeNotifs, urgentOrders, lastSeen]);
+  }, [stageNotifs, briefingNotifs, employeeNotifs, moneyNotifs, urgentOrders, lastSeen]);
+
+  // An order that turns urgent/overdue (or ready for pickup) raises the critical alert once per device. The first run on a
+  // device only records what is already there, so opening the app never fires a burst of old alerts.
+  useEffect(() => {
+    if (!orders) return;
+    const KEY = "ff_alerted_orders_v1";
+    let seen: string[] | null = null;
+    try {
+      const raw = localStorage.getItem(KEY);
+      seen = raw ? (JSON.parse(raw) as string[]) : null;
+    } catch {
+      seen = null;
+    }
+    const current = urgentOrders.map((o) => o.id);
+    const fresh = seen ? urgentOrders.filter((o) => !seen.includes(o.id)) : [];
+    for (const o of fresh.slice(0, 3)) {
+      const badge = dueBadge(o);
+      announceCritical({ id: `urgent-${o.id}`, title: o.status === "ready" ? "Order ready for pickup" : "Order needs attention", body: `${o.name} · ${o.status === "ready" ? "Ready for pickup" : badge?.text || "Overdue"} · ${o.id}`, url: `/orders/${o.id}` }, (url) => router.push(url));
+    }
+    try {
+      localStorage.setItem(KEY, JSON.stringify(current.slice(0, 200)));
+    } catch {
+      // storage blocked — alerts may repeat next load, nothing else
+    }
+  }, [orders, urgentOrders, router]);
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
@@ -91,7 +121,7 @@ export function NotificationBell() {
     qc.invalidateQueries({ queryKey: ["notifications"] });
   }
 
-  const hasItems = urgentOrders.length > 0 || stageNotifs.length > 0 || briefingNotifs.length > 0 || employeeNotifs.length > 0;
+  const hasItems = urgentOrders.length > 0 || stageNotifs.length > 0 || briefingNotifs.length > 0 || employeeNotifs.length > 0 || moneyNotifs.length > 0;
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -192,6 +222,21 @@ export function NotificationBell() {
                   </button>
                 );
               })}
+            </div>
+          )}
+
+          {moneyNotifs.length > 0 && (
+            <div>
+              <div className="bg-muted/50 px-4 py-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Money</div>
+              {moneyNotifs.map((n) => (
+                <button key={n.id} onClick={() => (n.order_id ? goToOrder(n.order_id) : (handleOpenChange(false), router.push(n.type === "day_book_summary" ? "/reports/day-book" : "/sales/invoices")))} className="flex w-full items-start gap-2.5 border-b px-4 py-2.5 text-left last:border-0 hover:bg-muted/40">
+                  <IndianRupee className={`mt-0.5 size-4 shrink-0 ${isCritical(n) ? "text-red-600" : "text-emerald-600"}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-3 whitespace-pre-line text-sm">{n.message}</p>
+                    <p className="text-[11px] text-muted-foreground">{getTimeAgo(n.created_at)}</p>
+                  </div>
+                </button>
+              ))}
             </div>
           )}
 

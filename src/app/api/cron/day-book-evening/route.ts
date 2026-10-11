@@ -37,7 +37,7 @@ export async function GET(req: Request) {
   const { error } = await supabase.from("admin_notifications").insert({ type: "day_book_summary", message, read: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await sendPushToAll({ title: input.closing ? "Day Book summary" : "Day not closed yet", body: message, url: "/reports/day-book" }).catch(() => {});
+  await sendPushToAll({ title: input.closing ? "Day Book summary" : "Day not closed yet", body: message, url: "/reports/day-book", critical: !input.closing }).catch(() => {});
 
   const [{ data: cloudApiSetting }, { data: recipientsSetting }] = await Promise.all([
     supabase.from("app_settings").select("value").eq("key", "whatsappCloudApiConfig").maybeSingle(),

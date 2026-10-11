@@ -5,6 +5,7 @@ import { SettingsPage } from "@/components/settings/settings-page";
 import { ShopSection } from "@/components/settings/shop-section";
 import { SecuritySection } from "@/components/settings/security-section";
 import { PushNotificationsSection } from "@/components/settings/push-notifications-section";
+import { AlertPrefsSection } from "@/components/settings/alert-prefs-section";
 import { DataExportSection } from "@/components/settings/data-export-section";
 import { ColorThemeSection } from "@/components/settings/color-theme-section";
 import { ThemeModeSection } from "@/components/settings/theme-mode-section";
@@ -48,6 +49,7 @@ export default function Page() {
         <SectionLabel>Account</SectionLabel>
         <SecuritySection />
         <PushNotificationsSection />
+        <AlertPrefsSection />
         <DataExportSection />
 
         {isAdmin && (

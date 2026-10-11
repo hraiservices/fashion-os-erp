@@ -75,7 +75,7 @@ self.addEventListener("fetch", function (e) {
    to a generic notification if the payload is missing/unparseable so a malformed push never
    silently does nothing. */
 self.addEventListener("push", function (e) {
-  var data = { title: "Fashion Flow", body: "You have a new notification.", url: "/dashboard" };
+  var data = { title: "Fashion Flow", body: "You have a new notification.", url: "/dashboard", critical: false };
   try {
     if (e.data) data = Object.assign(data, e.data.json());
   } catch {
@@ -87,6 +87,11 @@ self.addEventListener("push", function (e) {
       icon: "/icon-192.png",
       badge: "/icon-192.png",
       data: { url: data.url || "/dashboard" },
+      /* Critical: buzz, and stay on screen until dealt with. A tag keeps repeats of the same alert from stacking. */
+      vibrate: data.critical ? [300, 120, 300, 120, 500] : [120],
+      requireInteraction: !!data.critical,
+      tag: data.critical ? "ff-critical-" + (data.url || "") : undefined,
+      renotify: !!data.critical,
     })
   );
 });

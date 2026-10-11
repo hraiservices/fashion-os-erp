@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { playNotificationSound } from "@/lib/notification-sound";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { alertTitle, isCritical, notificationUrl, visibleToRole } from "@/lib/notification-alerts";
+import { announceCritical } from "@/lib/notification-announce";
+import { installAudioUnlock } from "@/lib/notification-sound";
 
 export interface AdminNotification {
   id: number;
@@ -15,6 +19,8 @@ export interface AdminNotification {
   to_stage: string | null;
   user_name: string | null;
   message: string | null;
+  /** Who caused it (realtime rows only) — they don't get an alert for their own action. */
+  user_email?: string | null;
   created_at: string;
 }
 
@@ -47,8 +53,16 @@ export function useDismissNotification() {
  */
 export function useNotifications() {
   const qc = useQueryClient();
+  const router = useRouter();
+  const { data: user } = useCurrentUser();
+  // The channel is opened once; the handler reads the latest role/router through a ref.
+  const latest = useRef({ email: user?.email, role: user?.role, open: (url: string) => router.push(url) });
+  useEffect(() => {
+    latest.current = { email: user?.email, role: user?.role, open: (url: string) => router.push(url) };
+  });
 
   useEffect(() => {
+    installAudioUnlock();
     const supabase = createClient();
     // Listening to INSERT only meant a dismiss/"Clear all" done from another tab or device
     // (an UPDATE, not an INSERT) never refreshed this client's list — it kept showing
@@ -57,9 +71,14 @@ export function useNotifications() {
       .channel("admin_notifications_changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "admin_notifications" }, (payload) => {
         qc.invalidateQueries({ queryKey: ["notifications"] });
-        // Only chime for a genuinely new notification — not for a dismiss/"Clear all" (UPDATE),
-        // which also flows through this same handler now that it listens to every event.
-        if (payload.eventType === "INSERT") playNotificationSound();
+        // Only a genuinely new notification can alert (not a dismiss/"Clear all", which is an UPDATE), and only
+        // a critical one that this role may see: pop-up + sound + vibration. Everything else is a silent badge.
+        if (payload.eventType !== "INSERT") return;
+        const n = payload.new as AdminNotification;
+        const { role, email, open } = latest.current;
+        if (!isCritical(n) || !visibleToRole(n.type, role)) return;
+        if (n.user_email && email && n.user_email.toLowerCase() === email.toLowerCase()) return;
+        announceCritical({ id: `notif-${n.id}`, title: alertTitle(n), body: n.message || "", url: notificationUrl(n) }, open);
       })
       .subscribe();
     return () => {

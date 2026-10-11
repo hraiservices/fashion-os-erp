@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { ReportShell, ReportTable, Th, Td } from "@/components/reports/report-shell";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
@@ -8,6 +9,8 @@ import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useReportDateRange } from "@/lib/report-date-range";
+import { ShareButton } from "@/components/targets/share-dialog";
+import { reportShareMessage, shareDate } from "@/lib/targets-share";
 
 /** Report date range as the Targets API wants it: "All time" becomes a very wide range instead of an empty one (the API would default an empty range to this month). */
 export function targetsRange(range: { from: string; to: string }) {
@@ -58,20 +61,42 @@ export function TargetsReportView<R>({
   emptyTitle: string;
   above?: ReactNode;
 }) {
-  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo } = dateRange;
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = dateRange;
   const [first, second, ...rest] = columns;
+  const pathname = usePathname();
 
   return (
     <ReportShell
       title={title}
       description={description}
       actions={
-        <ReportActionsMenu
-          rows={rows.map((r) => Object.fromEntries(columns.map((c) => [c.label, c.exportValue(r)])))}
-          filename={filename}
-          title={title}
-          summaryLines={summaryLines}
-        />
+        <>
+          <ShareButton
+            title="Share report"
+            size="sm"
+            disabled={loading || rows.length === 0}
+            build={(origin) =>
+              reportShareMessage(
+                {
+                  title,
+                  period: showDates && range.from && range.to ? `${shareDate(range.from)} – ${shareDate(range.to)}` : undefined,
+                  summaryLines,
+                  headers: columns.map((c) => c.label),
+                  rows: rows.map((r) => columns.map((c) => String(c.exportValue(r)))),
+                  path: pathname,
+                },
+                { origin }
+              )
+            }
+          />
+          <ReportActionsMenu
+            rows={rows.map((r) => Object.fromEntries(columns.map((c) => [c.label, c.exportValue(r)])))}
+            filename={filename}
+            title={title}
+            summaryLines={summaryLines}
+            hideWhatsApp
+          />
+        </>
       }
     >
       {showDates && (

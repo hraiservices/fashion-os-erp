@@ -11,6 +11,8 @@ import { monthRange } from "@/lib/targets";
 import { useTargets, useTargetsReport, type TargetsMeta } from "@/hooks/use-targets";
 import { useStaffLookup } from "@/components/targets/shared";
 import { TargetCard } from "@/components/targets/target-card";
+import { ShareButton } from "@/components/targets/share-dialog";
+import { leaderboardShareMessage } from "@/lib/targets-share";
 import { cn } from "@/lib/utils";
 
 /** Targets: your goals as sentences with progress bars. Managers also get the month's scoreboard below. */
@@ -63,7 +65,10 @@ export function TargetsTab({ meta }: { meta: TargetsMeta | undefined }) {
 
       {showBoard && rows.length > 0 && (
         <section className="space-y-2 pt-2">
-          <h2 className="px-1 text-sm font-semibold text-muted-foreground">Scoreboard · this month</h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="px-1 text-sm font-semibold text-muted-foreground">Scoreboard · this month</h2>
+            {range && <ShareButton title="Share scoreboard" build={(origin) => leaderboardShareMessage(rows, { from: range.start, to: range.end }, { origin, today: meta?.today ?? "" })} />}
+          </div>
           <div className="overflow-hidden rounded-xl border bg-card">
             {rows.map((r, i) => (
               <div key={r.personId ?? `n${i}`} className="flex min-h-14 items-center gap-3 border-b px-4 py-2 last:border-b-0">

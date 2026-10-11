@@ -17,6 +17,9 @@ import { useAddComment, useAddDocument, useAddTimeLog, useCreateTask, useDeleteD
 import { cn } from "@/lib/utils";
 import { fmtDateShort } from "@/lib/format";
 import { fmtHours, REMINDER_LABELS, STATUS_CELL, taskCode } from "@/components/targets/work-ui";
+import { useStaffLookup } from "@/components/targets/shared";
+import { ShareButton } from "@/components/targets/share-dialog";
+import { taskShareMessage } from "@/lib/targets-share";
 
 const NONE = "none";
 
@@ -75,6 +78,9 @@ export function TaskSheet({
   const del = useDeleteTask();
   const detail = useTask(open && task ? task.id : null);
   const subtasks = detail.data?.subtasks ?? [];
+  const { nameOf: staffName } = useStaffLookup(meta);
+  // Share what is saved (the freshest copy we have), not half-typed edits in the form.
+  const shareTask = detail.data?.task ?? task;
 
   const today = meta?.today ?? new Date().toISOString().slice(0, 10);
   const [title, setTitle] = useState("");
@@ -388,6 +394,13 @@ export function TaskSheet({
                 <Trash2 className="size-4" />
                 {confirmDelete ? "Tap again to delete" : ""}
               </Button>
+            )}
+            {shareTask && (
+              <ShareButton
+                title="Share task"
+                className="h-12 shrink-0 px-4 sm:h-12"
+                build={(origin) => taskShareMessage(shareTask, { origin, today, nameOf: staffName }, { projectName: projects.find((p) => p.id === shareTask.projectId)?.name })}
+              />
             )}
             <Button type="submit" className="h-12 flex-1 text-base" disabled={busy}>
               {busy ? "Saving…" : task ? "Save" : "Add task"}

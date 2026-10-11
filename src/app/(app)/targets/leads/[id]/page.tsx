@@ -16,7 +16,16 @@ import { BackLink } from "@/components/ui/back-link";
 import { StageSheet } from "@/components/targets/stage-sheet";
 import { TaskSheet } from "@/components/targets/task-sheet";
 import { TaskRow } from "@/components/targets/task-row";
+import { ShareButton } from "@/components/targets/share-dialog";
+import { leadShareMessage } from "@/lib/targets-share";
+import { isFinished } from "@/lib/work-tasks";
 import { cn } from "@/lib/utils";
+
+/** The soonest open follow-up task, dated ones first — the "Next follow-up" line of a shared lead. */
+function nextFollowUp(tasks: TaskDto[]): { title: string; dueDate: string | null } | null {
+  const open = tasks.filter((t) => !isFinished(t.status)).sort((a, b) => (a.dueDate ?? "9999-12-31").localeCompare(b.dueDate ?? "9999-12-31"));
+  return open[0] ? { title: open[0].title, dueDate: open[0].dueDate } : null;
+}
 
 type Kind = "note" | "call" | "meeting";
 const KIND_LABEL: Record<string, string> = { note: "Note", call: "Call", meeting: "Meeting", stage_change: "Stage", created: "Created" };
@@ -61,7 +70,10 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="mx-auto w-full max-w-2xl p-4 sm:p-6 space-y-5 pb-8">
-      <BackLink href="/targets?tab=leads">Leads</BackLink>
+      <div className="flex items-center justify-between gap-2">
+        <BackLink href="/targets?tab=leads">Leads</BackLink>
+        <ShareButton title="Share lead" build={(origin) => leadShareMessage(lead, { origin, today: meta?.today ?? "", nameOf }, { labels: meta?.stageLabels, nextFollowUp: nextFollowUp(tasks) })} />
+      </div>
 
       <div className="space-y-3 rounded-xl border bg-card p-4">
         <div className="flex items-start justify-between gap-3">

@@ -11,6 +11,8 @@ import { useProject, useTargetsMeta } from "@/hooks/use-targets";
 import { useStaffLookup } from "@/components/targets/shared";
 import { BackLink } from "@/components/ui/back-link";
 import { ProjectTasks } from "@/components/targets/project-tasks";
+import { ShareButton } from "@/components/targets/share-dialog";
+import { projectShareMessage } from "@/lib/targets-share";
 import { ProjectDashboard, ProjectDocuments, ProjectFeed, ProjectPhases, ProjectTimeLogs, ProjectTimesheet, ProjectUsers } from "@/components/targets/project-sections";
 import { projectCode } from "@/components/targets/work-ui";
 import { cn } from "@/lib/utils";
@@ -47,7 +49,8 @@ function ProjectPageInner({ id }: { id: string }) {
     <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 space-y-4 pb-10">
       <BackLink href="/targets?tab=projects">Projects</BackLink>
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      {/* Stacked on a phone (like PageHeader): a wrapping row with justify-between can overflow on iOS Safari. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
           <h1 className="text-xl font-semibold leading-tight">
             {p.projectNo != null && <span className="mr-2 text-sm font-normal text-muted-foreground">{projectCode(p.projectNo)}</span>}
@@ -68,11 +71,14 @@ function ProjectPageInner({ id }: { id: string }) {
             </span>
           </div>
         </div>
-        {meta?.can.manageTargets && (
-          <Button variant="outline" className="h-11" onClick={() => router.push(`/targets/projects/${id}/edit`)}>
-            <Pencil className="size-4" /> Edit project
-          </Button>
-        )}
+        <div className="flex gap-2">
+          <ShareButton title="Share project" className="sm:h-11" build={(origin) => projectShareMessage(p, tasks, { origin, today, nameOf })} />
+          {meta?.can.manageTargets && (
+            <Button variant="outline" className="h-11" onClick={() => router.push(`/targets/projects/${id}/edit`)}>
+              <Pencil className="size-4" /> Edit project
+            </Button>
+          )}
+        </div>
       </div>
 
       <nav className="-mx-4 flex gap-1 overflow-x-auto border-b px-4 sm:mx-0 sm:px-0" aria-label="Project sections">

@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -12,15 +12,18 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { bucketTasks, isOverdue, subtaskProgress } from "@/lib/work-tasks";
 import type { TaskDto } from "@/lib/targets-types";
-import { useCreateTask, usePatchTask, useProjects, useTasks, type TargetsMeta } from "@/hooks/use-targets";
+import { useCreateTask, usePatchTask, useProjects, useTask, useTasks, type TargetsMeta } from "@/hooks/use-targets";
 import { useStaffLookup } from "@/components/targets/shared";
 import { TaskRow } from "@/components/targets/task-row";
 import { TaskSheet } from "@/components/targets/task-sheet";
+import { ShareButton } from "@/components/targets/share-dialog";
+import { taskListShareMessage } from "@/lib/targets-share";
 import { groupTasks, WorkTable } from "@/components/targets/work-table";
 import { cn } from "@/lib/utils";
 
 type View = "open" | "today" | "overdue" | "done";
 const ALL = "all";
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VIEW_LABEL: Record<View, string> = { open: "All open", today: "Due today", overdue: "Overdue", done: "Done" };
 
 function Group({ title, tone, children }: { title: string; tone?: "late"; children: React.ReactNode }) {
@@ -43,6 +46,22 @@ export function TasksTab({ meta }: { meta: TargetsMeta | undefined }) {
   const [projectFilter, setProjectFilter] = useState(ALL);
   const [quick, setQuick] = useState("");
   const [editing, setEditing] = useState<TaskDto | null>(null);
+
+  // A shared link (/targets?task=<id>) opens that task's panel; the id is dropped from the address once it has.
+  const linkedId = useSearchParams().get("task");
+  const linkedOk = !!linkedId && UUID.test(linkedId);
+  const linked = useTask(linkedOk ? linkedId : null, { quiet: true });
+  useEffect(() => {
+    if (!linkedId) return;
+    if (linked.data?.task) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- open the task a shared link points at
+      setEditing(linked.data.task);
+      router.replace("/targets", { scroll: false });
+    } else if (!linkedOk || linked.isError) {
+      toast.error("That task isn't available — it may have been deleted, or it isn't yours to see");
+      router.replace("/targets", { scroll: false });
+    }
+  }, [linkedId, linkedOk, linked.data, linked.isError, router]);
 
   const today = meta?.today ?? "";
   const { nameOf, active } = useStaffLookup(meta);
@@ -131,6 +150,25 @@ export function TasksTab({ meta }: { meta: TargetsMeta | undefined }) {
           <Plus className="size-4" /> Add Task
         </Button>
       </div>
+
+      {!tasksQ.isLoading && (
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground">
+            {topLevel.length} {topLevel.length === 1 ? "task" : "tasks"}
+          </span>
+          <ShareButton
+            title="Share task list"
+            label="Share list"
+            disabled={topLevel.length === 0}
+            build={(origin) => {
+              const parts = [VIEW_LABEL[view]];
+              if (projectFilter !== ALL) parts.push(projectName(projectFilter));
+              if (showAssignee && person !== ALL) parts.push(nameOf(person));
+              return taskListShareMessage(`Tasks — ${parts.join(" · ")}`, topLevel, { origin, today, nameOf }, { showOwner: showAssignee && person === ALL });
+            }}
+          />
+        </div>
+      )}
 
       {tasksQ.isLoading && (
         <div className="space-y-2">

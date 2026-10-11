@@ -12,6 +12,8 @@ import { describeTarget, formatMetricValue, METRIC_LABELS } from "@/lib/targets"
 import { fmtDateShort } from "@/lib/format";
 import { useDeleteTarget, usePatchTarget, useTarget, useTargetsMeta } from "@/hooks/use-targets";
 import { ProgressBar, TargetStatusChip, useStaffLookup } from "@/components/targets/shared";
+import { ShareButton } from "@/components/targets/share-dialog";
+import { targetShareMessage } from "@/lib/targets-share";
 
 export default function TargetDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -39,7 +41,15 @@ export default function TargetDetailPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="mx-auto w-full max-w-2xl p-4 sm:p-6 space-y-5 pb-8">
-      <BackLink href="/targets?tab=targets">Targets</BackLink>
+      <div className="flex items-center justify-between gap-2">
+        <BackLink href="/targets?tab=targets">Targets</BackLink>
+        <ShareButton
+          title="Share target"
+          build={(origin) =>
+            targetShareMessage(t, { origin, today: meta?.today ?? "", nameOf }, { productNames: t.productIds.map((pid) => meta?.products.find((x) => x.id === pid)?.name ?? "").filter(Boolean) })
+          }
+        />
+      </div>
 
       <div className="space-y-3 rounded-xl border bg-card p-4">
         <div className="flex items-start justify-between gap-3">

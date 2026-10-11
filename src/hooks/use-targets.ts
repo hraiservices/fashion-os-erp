@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { StageLabelOverrides } from "@/lib/lead-stages";
 import type { ImportLeadRow } from "@/lib/lead-import";
+import type { ShareContact } from "@/lib/targets-share";
 import type { TargetsSummary } from "@/lib/targets-server";
 import type {
   LeadActivityDto,
@@ -101,6 +102,22 @@ export function useTargetsMeta(opts?: { lite?: boolean; quiet?: boolean }) {
     staleTime: 5 * 60_000,
     refetchOnMount: true,
     ...(opts?.quiet ? { retry: false } : {}),
+  });
+}
+
+/**
+ * The team members the Share panel offers: name, role, mobile, and the login email for those allowed to see it. Read
+ * when the panel opens (not with the pickers above, so contact details don't travel to every screen) and kept for five
+ * minutes, so a second Share is instant.
+ */
+export function useShareContacts(enabled = true) {
+  return useQuery({
+    queryKey: [KEY, "share-contacts"],
+    queryFn: () => api<{ contacts: ShareContact[]; emailsIncluded: boolean }>("/api/targets/share-contacts"),
+    enabled,
+    staleTime: 5 * 60_000,
+    refetchOnMount: true,
+    retry: 1,
   });
 }
 
@@ -270,12 +287,14 @@ export function useTasks(filters: TaskFilters = {}, enabled = true) {
 }
 
 /** One task with its subtasks (including finished ones — the list views only load open tasks). */
-export function useTask(id: string | null) {
+/** `quiet` makes a single attempt — for a link to a task that may not exist or be visible to this person, where a refusal should show at once. */
+export function useTask(id: string | null, opts?: { quiet?: boolean }) {
   return useQuery({
     queryKey: [KEY, "task", id],
     enabled: !!id,
     queryFn: () => api<{ task: TaskDto; subtasks: TaskDto[] }>(`/api/targets/tasks/${id}`),
     staleTime: 10_000,
+    ...(opts?.quiet ? { retry: false } : {}),
   });
 }
 

@@ -75,3 +75,16 @@ export function hapticError() {
   }
   vibrate([20, 60, 20, 60, 20]);
 }
+
+/** A critical alert arrived (an unanswered request, money in, a day left open). The strongest pattern here: the OS's
+ *  warning feedback inside the Capacitor app, a long triple buzz on browsers that can vibrate (Android Chrome / the
+ *  installed PWA). iPhone Safari has no vibration API, so there it is a silent no-op. */
+export function hapticAlert() {
+  if (isNativePlatform()) {
+    import("@capacitor/haptics")
+      .then(({ Haptics, NotificationType }) => Haptics.notification({ type: NotificationType.Warning }))
+      .catch(() => {});
+    return;
+  }
+  vibrate([300, 120, 300, 120, 500]);
+}

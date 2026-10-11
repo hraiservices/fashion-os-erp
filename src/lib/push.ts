@@ -7,6 +7,8 @@ export interface PushPayload {
   body: string;
   /** Path opened when the notification is tapped, e.g. "/dashboard". */
   url?: string;
+  /** Needs action now: the device vibrates, the notification stays until dismissed, and Android plays its alert sound. */
+  critical?: boolean;
 }
 
 let webPushConfigured = false;
@@ -131,6 +133,8 @@ async function sendFcm(payload: PushPayload, audience: Audience): Promise<number
             token: t.token,
             notification: { title: payload.title, body: payload.body },
             ...(payload.url ? { data: { url: payload.url } } : {}),
+            android: { priority: "HIGH", notification: { sound: "default", ...(payload.critical ? { default_vibrate_timings: true } : {}) } },
+            apns: { payload: { aps: { sound: "default" } } },
           },
         }),
       });

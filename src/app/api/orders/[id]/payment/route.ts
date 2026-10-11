@@ -5,7 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { mapOrderRow } from "@/lib/types";
 import { computeRedemption, computeEarnPoints, loyaltyDiscountOf, couponDiscountOf, fmtNow, customerIdFromMobile, ORDER_PAYMENT_METHODS as PAYMENT_METHODS } from "@/lib/business-rules";
 // customerIdFromMobile retained for loyalty lookup below
-import { logAction, resolveActingUserName } from "@/lib/logging";
+import { logAction, notifyPaymentReceived, resolveActingUserName } from "@/lib/logging";
 import { awardLoyaltyPoints } from "@/lib/loyalty";
 import { getLoyaltyConfig } from "@/lib/settings";
 
@@ -152,6 +152,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // it was slowest: a payment split across several orders, where record-payment-form.tsx awaits
   // each order's request in sequence, so these used to multiply by the row count.
   after(async () => {
+    if (cashPaid > 0) await notifyPaymentReceived(db, { userEmail: user.email, userName, amount: cashPaid, customerName: order.name, orderId: id }).catch(() => {});
     await logAction(
       supabase,
       user.email,

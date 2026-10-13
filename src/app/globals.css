@@ -482,8 +482,12 @@
      individually. Components with a real accessibility priority (Orders board/list cards) get
      additional hand-tuned size bumps on top of this, since their text mixes in fixed-px classes
      that don't scale with root rem. */
-  html {
-    font-size: 112.5%;
+  /* Phones keep the standard 16px: on a ~390px-wide screen (and with the phone's own font/display
+     size on top) the 12.5% bump made cards and grids wrap and overflow. Bigger screens keep it. */
+  @media (min-width: 640px) {
+    html {
+      font-size: 112.5%;
+    }
   }
   /* Long-pressing a button/link/icon shouldn't pop the browser's text-selection callout —
      native apps never let you "select" a control's label. Real text content isn't touched

@@ -118,10 +118,10 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6 print:p-0">
+    <div className="mx-auto w-full min-w-0 max-w-4xl space-y-4 p-3 sm:p-6 print:p-0">
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
         <BackLink href={`/crm/${mobile}`}>{cust.name || mobile}</BackLink>
-        <div className="flex gap-2">
+        <div className="flex min-w-0 flex-wrap gap-2">
           {whatsappUrl && <WhatsAppButton href={whatsappUrl} size="sm" label="Send on WhatsApp" />}
           <Button
             variant="outline"
@@ -143,7 +143,7 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
         </div>
       </div>
 
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/20 p-3 print:hidden">
+      <div className="flex flex-wrap items-end gap-2 sm:gap-3 rounded-lg border bg-muted/20 p-3 print:hidden">
         <div className="flex gap-1">
           {(["all", "stitching", "retail"] as const).map((v) => (
             <button
@@ -189,9 +189,9 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
         )}
       </div>
 
-      <div className="rounded-xl border bg-card p-5 print:border-0 print:p-0">
+      <div className="min-w-0 rounded-xl border bg-card p-3 sm:p-5 print:border-0 print:p-0">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b pb-4">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             {shop?.logoDataUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={shop.logoDataUrl} alt={shop.name || "Company logo"} className="size-12 rounded-lg border bg-white object-contain" />
@@ -221,25 +221,25 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-border sm:grid-cols-5">
+        <div className="grid grid-cols-2 gap-px min-w-0 overflow-hidden rounded-lg bg-border sm:grid-cols-5">
           <div className="bg-card p-3 text-center">
-            <p className="text-base font-semibold tabular-nums">{inr(summary.totalBilled)}</p>
+            <p className="text-sm font-semibold tabular-nums sm:text-base">{inr(summary.totalBilled)}</p>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total Billed</p>
           </div>
           <div className="bg-card p-3 text-center">
-            <p className="text-base font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{inr(summary.totalPaid)}</p>
+            <p className="text-sm font-semibold tabular-nums sm:text-base text-emerald-600 dark:text-emerald-400">{inr(summary.totalPaid)}</p>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total Paid</p>
           </div>
           <div className="bg-card p-3 text-center">
-            <p className="text-base font-semibold tabular-nums">{inr(summary.stitchBalance)}</p>
+            <p className="text-sm font-semibold tabular-nums sm:text-base">{inr(summary.stitchBalance)}</p>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Stitch Due</p>
           </div>
           <div className="bg-card p-3 text-center">
-            <p className="text-base font-semibold tabular-nums">{inr(summary.retailBalance)}</p>
+            <p className="text-sm font-semibold tabular-nums sm:text-base">{inr(summary.retailBalance)}</p>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Product Sales Due</p>
           </div>
           <div className="col-span-2 bg-card p-3 text-center sm:col-span-1">
-            <p className={cn("text-base font-semibold tabular-nums", summary.totalBalance > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400")}>
+            <p className={cn("text-sm font-semibold tabular-nums sm:text-base", summary.totalBalance > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400")}>
               {inr(summary.totalBalance)}
             </p>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Balance Due</p>

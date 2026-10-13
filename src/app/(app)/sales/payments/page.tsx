@@ -12,6 +12,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRowSelection } from "@/hooks/use-row-selection";
 import { inr, fmtDate } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
+import { ListDateBar, useListDateFilter } from "@/components/ui/list-date-filter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,6 +33,7 @@ import {
 
 export default function SalesPaymentsPage() {
   const { data: payments, isLoading: loadingPayments } = useAllSalesPayments();
+  const dated = useListDateFilter(payments, (x) => x.date, "this-month");
   const { data: invoices, isLoading: loadingInvoices } = useSalesInvoices();
   const { data: user } = useCurrentUser();
   const deletePayment = useDeleteSalesPayment();
@@ -47,12 +49,12 @@ export default function SalesPaymentsPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return (payments || []).filter((p) => {
+    return dated.rows.filter((p) => {
       if (!q) return true;
       const inv = invoiceById.get(p.invoiceId);
       return (inv?.invoiceNumber || "").toLowerCase().includes(q) || (inv?.customerName || "").toLowerCase().includes(q) || p.customerMobile.includes(q);
     });
-  }, [payments, search, invoiceById]);
+  }, [dated.rows, search, invoiceById]);
 
   const total = useMemo(() => filtered.reduce((s, p) => s + p.amount, 0), [filtered]);
   const selection = useRowSelection(filtered.map((p) => p.id));
@@ -91,6 +93,8 @@ export default function SalesPaymentsPage() {
   return (
     <div className="space-y-4 p-4 sm:p-6">
       <PageHeader title="Payments Received" description={`${filtered.length} payments · ${inr(total)} total`} />
+
+      <ListDateBar dr={dated.dr} shown={dated.rows.length} total={payments?.length ?? 0} noun="payments" />
 
       <div className="relative sm:max-w-xs">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

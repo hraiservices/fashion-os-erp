@@ -8,6 +8,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr, fmtDate } from "@/lib/format";
 import { QUOTE_STATUS_LABELS } from "@/lib/sales";
 import { PageHeader } from "@/components/ui/page-header";
+import { ListDateBar, useListDateFilter } from "@/components/ui/list-date-filter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +16,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 export default function QuotationsPage() {
   const { data: quotes, isLoading } = useSalesQuotations();
+  const dated = useListDateFilter(quotes, (x) => x.date, "all");
   const { data: user } = useCurrentUser();
   const canManage = !!user?.perms.manageSales;
 
@@ -31,6 +33,8 @@ export default function QuotationsPage() {
           )
         }
       />
+
+      <ListDateBar dr={dated.dr} shown={dated.rows.length} total={quotes?.length ?? 0} noun="quotations" />
 
       {isLoading ? (
         <div className="space-y-2">
@@ -53,7 +57,7 @@ export default function QuotationsPage() {
         />
       ) : (
         <div className="space-y-2">
-          {quotes.map((q) => (
+          {dated.rows.map((q) => (
             <Link key={q.id} href={`/sales/quotations/${q.id}`} className="flex items-center gap-3 rounded-xl border bg-card p-3 hover:bg-muted/40">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">

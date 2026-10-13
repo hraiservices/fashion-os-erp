@@ -13,6 +13,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRowSelection } from "@/hooks/use-row-selection";
 import { inr, fmtDate } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
+import { ListDateBar, useListDateFilter } from "@/components/ui/list-date-filter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -49,6 +50,7 @@ import {
 
 export default function VendorPaymentsPage() {
   const { data: payments, isLoading: loadingPayments } = useAllVendorPayments();
+  const dated = useListDateFilter(payments, (x) => x.date, "this-month");
   const { data: bills, isLoading: loadingBills } = usePurchaseBills();
   const { data: vendors, isLoading: loadingVendors } = useVendors();
   const { data: user } = useCurrentUser();
@@ -68,13 +70,13 @@ export default function VendorPaymentsPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return (payments || []).filter((p) => {
+    return dated.rows.filter((p) => {
       if (!q) return true;
       const bill = billById.get(p.billId);
       const vendorName = vendorNameById.get(p.vendorId) || "";
       return (bill?.billNumber || "").toLowerCase().includes(q) || vendorName.toLowerCase().includes(q);
     });
-  }, [payments, search, billById, vendorNameById]);
+  }, [dated.rows, search, billById, vendorNameById]);
 
   const total = useMemo(() => filtered.reduce((s, p) => s + p.amount, 0), [filtered]);
   const selection = useRowSelection(filtered.map((p) => p.id));
@@ -113,6 +115,8 @@ export default function VendorPaymentsPage() {
   return (
     <div className="space-y-4 p-4 sm:p-6">
       <PageHeader title="Payments Made" description={`${filtered.length} payments · ${inr(total)} total`} />
+
+      <ListDateBar dr={dated.dr} shown={dated.rows.length} total={payments?.length ?? 0} noun="payments" />
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 sm:max-w-xs">

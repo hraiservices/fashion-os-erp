@@ -9,6 +9,7 @@ import { useTailorName } from "@/hooks/use-employees";
 import { fmtDate } from "@/lib/format";
 import { WO_STATUS_LABELS, type WoStatus } from "@/lib/manufacturing";
 import { PageHeader } from "@/components/ui/page-header";
+import { ListDateBar, useListDateFilter } from "@/components/ui/list-date-filter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,13 +33,14 @@ const STATUS_BADGE_VARIANT: Record<WoStatus, "outline" | "secondary"> = {
 
 export default function ManufacturingPage() {
   const { data: orders, isLoading } = useWorkOrders();
+  const dated = useListDateFilter(orders, (x) => x.startDate, "all");
   const { data: user } = useCurrentUser();
   const tailorName = useTailorName();
   const canManage = !!user?.perms.manageManufacturing;
 
   const [filter, setFilter] = useState<WoStatus | "all">("all");
 
-  const filtered = useMemo(() => (orders || []).filter((o) => filter === "all" || o.status === filter), [orders, filter]);
+  const filtered = useMemo(() => dated.rows.filter((o) => filter === "all" || o.status === filter), [dated.rows, filter]);
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
@@ -53,6 +55,8 @@ export default function ManufacturingPage() {
           )
         }
       />
+
+      <ListDateBar dr={dated.dr} shown={dated.rows.length} total={orders?.length ?? 0} noun="work orders" />
 
       <div className="flex flex-wrap gap-1.5">
         {FILTERS.map((f) => (

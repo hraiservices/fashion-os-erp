@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, Trash2, Pencil, Upload, ArrowUpDown } from "lucide-react";
+import { Plus, Trash2, Pencil, Upload, ArrowUpDown, Search } from "lucide-react";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { toast } from "sonner";
 import { useExpenses, useDeleteExpense, useBulkDeleteExpenses } from "@/hooks/use-expenses";
@@ -19,6 +19,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
+import { isWithinDateRange, useReportDateRange } from "@/lib/report-date-range";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,7 +61,7 @@ function SortTh({
 }
 
 function ExpensesPageContent() {
-  const { data: expenses, isLoading } = useExpenses();
+  const { data: allExpenses, isLoading } = useExpenses();
   const { data: employees } = useEmployees();
   const { data: user } = useCurrentUser();
   const deleteExpense = useDeleteExpense();
@@ -65,12 +69,30 @@ function ExpensesPageContent() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const canAdd = user?.role === "admin" || user?.role === "manager";
-  const selection = useRowSelection((expenses || []).map((e) => e.id));
   const employeeNameById = new Map((employees || []).map((emp) => [emp.id, emp.name]));
   function linkedNameFor(e: { employeeId: string | null; customerName: string | null }) {
     if (e.employeeId) return employeeNameById.get(e.employeeId) || "—";
     return e.customerName || "—";
   }
+
+  // Filters: month by default (what is reviewed monthly), plus category and a free-text search. The totals, category
+  // cards, list, row count and select-all all work on the filtered rows.
+  const dr = useReportDateRange("this-month");
+  const [category, setCategory] = useState("all");
+  const [search, setSearch] = useState("");
+  const categories = useMemo(() => Array.from(new Set((allExpenses || []).map((e) => e.category).filter(Boolean))).sort(), [allExpenses]);
+  const expenses = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (allExpenses || []).filter((e) => {
+      if (!isWithinDateRange(e.date, dr.range)) return false;
+      if (category !== "all" && e.category !== category) return false;
+      if (!q) return true;
+      const linked = e.employeeId ? employeeNameById.get(e.employeeId) || "" : e.customerName || "";
+      return [e.description, e.category, linked, e.payMethod].some((v) => (v || "").toLowerCase().includes(q));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- employeeNameById is rebuilt every render from `employees`
+  }, [allExpenses, dr.range, category, search, employees]);
+  const selection = useRowSelection(expenses.map((e) => e.id));
 
   // Same shape as the Expense Details report's SORT_COMPARATORS (reports/expenses/details) plus
   // the "customer" column this list has and that report doesn't — rebuilt each render since it
@@ -85,7 +107,7 @@ function ExpensesPageContent() {
   };
   const sortDescKeys = new Set(["date", "amount"]);
   const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<Expense>("expenses-list", sortComparators, sortDescKeys);
-  const sortedExpenses = applySort(expenses || []);
+  const sortedExpenses = applySort(expenses);
 
   async function handleDelete(id: string) {
     try {
@@ -107,10 +129,10 @@ function ExpensesPageContent() {
     }
   }
 
-  const total = (expenses || []).reduce((s, e) => s + e.amount, 0);
+  const total = expenses.reduce((s, e) => s + e.amount, 0);
 
   const byCategory: Record<string, number> = {};
-  (expenses || []).forEach((e) => {
+  expenses.forEach((e) => {
     byCategory[e.category] = (byCategory[e.category] || 0) + e.amount;
   });
   const topCategories = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -134,12 +156,45 @@ function ExpensesPageContent() {
         }
       />
 
-      {!isLoading && (expenses?.length ?? 0) > 0 && (
+      {!isLoading && (allExpenses?.length ?? 0) > 0 && (
+        <ReportFilterBar
+          preset={dr.preset}
+          onPresetChange={dr.setPreset}
+          customFrom={dr.customFrom}
+          onCustomFromChange={dr.setCustomFrom}
+          customTo={dr.customTo}
+          onCustomToChange={dr.setCustomTo}
+          resultLabel={`${expenses.length} of ${allExpenses!.length} expenses`}
+          category={
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <Select value={category} onValueChange={(v) => v && setCategory(v)}>
+                <SelectTrigger className="h-11 w-full sm:h-9 sm:w-44">
+                  <SelectValue>{category === "all" ? "All categories" : category}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All categories</SelectItem>
+                  {categories.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="relative w-full sm:w-56">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search expenses" aria-label="Search expenses" className="h-11 pl-8 text-base sm:h-9 sm:text-sm" />
+              </div>
+            </div>
+          }
+        />
+      )}
+
+      {!isLoading && expenses.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border bg-card p-4">
             <p className="text-xs text-muted-foreground">Total Expenses</p>
             <p className="mt-1 text-2xl font-bold tabular-nums">{inr(total)}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{expenses!.length} entries</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{expenses.length} entries</p>
           </div>
           {topCategories.slice(0, 3).map(([cat, amt]) => (
             <div key={cat} className="rounded-xl border bg-card p-4">
@@ -177,7 +232,9 @@ function ExpensesPageContent() {
               <Skeleton key={i} className="h-12 w-full" />
             ))}
           </div>
-        ) : !expenses?.length ? (
+        ) : (allExpenses?.length ?? 0) > 0 && expenses.length === 0 ? (
+          <EmptyState icon={WalletDuotoneIcon} title="No expenses match" description="Try a wider date range or clear the category / search." className="border-0" />
+        ) : !allExpenses?.length ? (
           <EmptyState
             icon={WalletDuotoneIcon}
             title="No expenses yet"

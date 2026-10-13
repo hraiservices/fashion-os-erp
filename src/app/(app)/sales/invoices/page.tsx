@@ -21,6 +21,7 @@ import { computeInvoiceTotals } from "@/lib/invoice-totals";
 import { DEFAULT_SALES_WHATSAPP_TEMPLATES, buildSalesWhatsAppUrl, type SalesWhatsAppTemplates } from "@/lib/sales-whatsapp";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { PageHeader } from "@/components/ui/page-header";
+import { ListDateBar, useListDateFilter } from "@/components/ui/list-date-filter";
 import { Button } from "@/components/ui/button";
 import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { Input } from "@/components/ui/input";
@@ -82,6 +83,7 @@ function marginText(m: number | null): string {
 
 export default function SalesInvoicesPage() {
   const { data: invoices, isLoading: invoicesLoading, isError: invoicesError, refetch: refetchInvoices } = useSalesInvoices();
+  const dated = useListDateFilter(invoices, (x) => x.invoiceDate, "all");
   const isLoading = useDelayedLoading(invoicesLoading);
   const { data: quotes } = useSalesQuotations();
   const { data: user } = useCurrentUser();
@@ -164,7 +166,7 @@ export default function SalesInvoicesPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    let list = (invoices || []).filter(
+    let list = dated.rows.filter(
       (inv) => !q || inv.invoiceNumber.toLowerCase().includes(q) || inv.customerName.toLowerCase().includes(q) || inv.customerMobile.includes(q)
     );
     list = [...list].sort((a, b) => {
@@ -258,6 +260,8 @@ export default function SalesInvoicesPage() {
           )
         }
       />
+
+      <ListDateBar dr={dated.dr} shown={dated.rows.length} total={invoices?.length ?? 0} noun="invoices" />
 
       {isLoading ? (
         <Skeleton className="h-24 w-full" />

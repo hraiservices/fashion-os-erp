@@ -14,6 +14,7 @@ import { inr, fmtDate } from "@/lib/format";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { BILL_STATUS_LABELS } from "@/lib/purchases";
 import { PageHeader } from "@/components/ui/page-header";
+import { ListDateBar, useListDateFilter } from "@/components/ui/list-date-filter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 export default function PurchaseBillsPage() {
   const { data: bills, isLoading } = usePurchaseBills();
+  const dated = useListDateFilter(bills, (x) => x.billDate, "all");
   const { data: vendors } = useVendors();
   const { data: user } = useCurrentUser();
   const deleteBill = useDeleteBill();
@@ -40,7 +42,7 @@ export default function PurchaseBillsPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return bills || [];
-    return (bills || []).filter((b) => b.billNumber.toLowerCase().includes(q) || (vendorNameById.get(b.vendorId) || "").toLowerCase().includes(q));
+    return dated.rows.filter((b) => b.billNumber.toLowerCase().includes(q) || (vendorNameById.get(b.vendorId) || "").toLowerCase().includes(q));
   }, [bills, vendorNameById, search]);
 
   const selection = useRowSelection(filtered.map((b) => b.id));
@@ -85,6 +87,8 @@ export default function PurchaseBillsPage() {
           )
         }
       />
+
+      <ListDateBar dr={dated.dr} shown={dated.rows.length} total={bills?.length ?? 0} noun="bills" />
 
       {!isLoading && bills && bills.length > 0 && (
         <div className="relative">

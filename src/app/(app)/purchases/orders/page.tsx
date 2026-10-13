@@ -10,6 +10,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr, fmtDate } from "@/lib/format";
 import { PO_STATUS_LABELS } from "@/lib/purchases";
 import { PageHeader } from "@/components/ui/page-header";
+import { ListDateBar, useListDateFilter } from "@/components/ui/list-date-filter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 export default function PurchaseOrdersPage() {
   const { data: orders, isLoading } = usePurchaseOrders();
+  const dated = useListDateFilter(orders, (x) => x.date, "all");
   const { data: vendors } = useVendors();
   const { data: user } = useCurrentUser();
   const canManage = !!user?.perms.managePurchases;
@@ -28,7 +30,7 @@ export default function PurchaseOrdersPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return orders || [];
-    return (orders || []).filter((o) => o.poNumber.toLowerCase().includes(q) || (vendorNameById.get(o.vendorId) || "").toLowerCase().includes(q));
+    return dated.rows.filter((o) => o.poNumber.toLowerCase().includes(q) || (vendorNameById.get(o.vendorId) || "").toLowerCase().includes(q));
   }, [orders, vendorNameById, search]);
 
   return (
@@ -44,6 +46,8 @@ export default function PurchaseOrdersPage() {
           )
         }
       />
+
+      <ListDateBar dr={dated.dr} shown={dated.rows.length} total={orders?.length ?? 0} noun="purchase orders" />
 
       {!isLoading && orders && orders.length > 0 && (
         <div className="relative">

@@ -8,12 +8,14 @@ import { useVendors } from "@/hooks/use-vendors";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { inr, fmtDate } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
+import { ListDateBar, useListDateFilter } from "@/components/ui/list-date-filter";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export default function VendorCreditsPage() {
   const { data: credits, isLoading } = useVendorCredits();
+  const dated = useListDateFilter(credits, (x) => x.date, "all");
   const { data: vendors } = useVendors();
   const { data: bills } = usePurchaseBills();
   const [search, setSearch] = useState("");
@@ -25,12 +27,14 @@ export default function VendorCreditsPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return credits || [];
-    return (credits || []).filter((c) => c.creditNumber.toLowerCase().includes(q) || (vendorNameById.get(c.vendorId) || "").toLowerCase().includes(q));
+    return dated.rows.filter((c) => c.creditNumber.toLowerCase().includes(q) || (vendorNameById.get(c.vendorId) || "").toLowerCase().includes(q));
   }, [credits, vendorNameById, search]);
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
       <PageHeader title="Vendor Credits" description={`${filtered.length} of ${credits?.length ?? 0} credits · ${inr(totalCredited)} total returned`} />
+
+      <ListDateBar dr={dated.dr} shown={dated.rows.length} total={credits?.length ?? 0} noun="credits" />
 
       {!isLoading && credits && credits.length > 0 && (
         <div className="relative">

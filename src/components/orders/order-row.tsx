@@ -1,5 +1,6 @@
 "use client";
 
+import { orderTailorIds, orderTailorLabel } from "@/lib/order-tailor";
 import Link from "next/link";
 import { ChevronRight, Wallet } from "lucide-react";
 import { getNextStage, buildWhatsAppUrl, STAGE_META } from "@/lib/business-rules";
@@ -177,9 +178,9 @@ export function OrderCardRow(props: RowProps) {
 
         <DeliveryCountdown order={order} />
 
-        {order.tailor && (
+        {orderTailorIds(order).length > 0 && (
           <p className="mt-1.5 truncate text-sm text-muted-foreground">
-            Tailor: <span className="font-medium text-foreground">{tailorName?.(order.tailor) || order.tailor}</span>
+            Tailor: <span className="font-medium text-foreground">{orderTailorLabel(order, (id) => tailorName?.(id) || id)}</span>
           </p>
         )}
 
@@ -268,7 +269,7 @@ export function OrderTableRow(props: TableRowProps) {
       )}
       {isVisible("tailor") && (
         <td className="px-2.5 py-2.5">
-          <span className="text-sm">{order.tailor ? tailorName?.(order.tailor) || order.tailor : "—"}</span>
+          <span className="text-sm">{orderTailorLabel(order, (id) => tailorName?.(id) || id) || "—"}</span>
         </td>
       )}
       {isVisible("delivery") && (

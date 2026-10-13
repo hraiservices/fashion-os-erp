@@ -12,6 +12,7 @@ import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useDeleteOrderPayment, useBackfillOrderPayment, useRenameOrder } from "@/hooks/use-order-mutations";
 import { useOrderPayments } from "@/hooks/use-order-payments";
+import { orderTailorLabel } from "@/lib/order-tailor";
 import { useActiveTailors, useTailorName } from "@/hooks/use-employees";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useShopSettings } from "@/hooks/use-shop-settings";
@@ -220,7 +221,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   async function changeGarmentTailor(index: number, next: string) {
     if (!order) return;
     try {
-      await updateOrder.mutateAsync({ id, patch: { garments: order.garments.map((g, i) => (i === index ? { ...g, tailor: next } : g)) }, userEmail: user?.email });
+      const garments = order.garments.map((g, i) => (i === index ? { ...g, tailor: next } : g));
+      // When every garment ends up with the same tailor, the order's own tailor follows so lists and reports agree.
+      const same = garments.every((g) => g.tailor === next);
+      await updateOrder.mutateAsync({ id, patch: { garments, ...(same && next ? { tailor: next } : {}) }, userEmail: user?.email });
       toast.success("Tailor changed");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to change the tailor");
@@ -548,7 +552,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               </dd>
             </div>
           ) : (
-            <Detail icon={User} label="Tailor" value={order.tailor ? tailorName(order.tailor) : "—"} />
+            <Detail icon={User} label="Tailor" value={orderTailorLabel(order, tailorName) || "—"} />
           )}
           {order.bookingSource && <Detail icon={User} label="Booking source" value={order.bookingSource} />}
         </dl>

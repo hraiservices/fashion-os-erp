@@ -70,7 +70,7 @@ function AdvanceButton({ order, onAdvance, advancing, compact }: RowProps & { co
   return (
     <Button
       size="sm"
-      className={cn("h-11 px-2.5 text-sm sm:h-8 sm:text-xs", style.solid, compact && "min-w-0 flex-1")}
+      className={cn("h-11 px-2.5 text-sm sm:h-8 sm:text-xs", style.solid, compact && "min-w-0 flex-1", !compact && "sm:w-36 sm:justify-center")}
       disabled={advancing}
       onClick={(e) => {
         e.preventDefault();

@@ -12,7 +12,8 @@ import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useDeleteOrderPayment, useBackfillOrderPayment, useRenameOrder } from "@/hooks/use-order-mutations";
 import { useOrderPayments } from "@/hooks/use-order-payments";
-import { useTailorName } from "@/hooks/use-employees";
+import { useActiveTailors, useTailorName } from "@/hooks/use-employees";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
@@ -89,6 +90,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const updateOrder = useUpdateOrder();
   const setRework = useSetOrderRework();
   const tailorName = useTailorName();
+  const { data: tailors } = useActiveTailors();
+  const canEditTailor = !!user?.perms.editOrder;
   const { data: measureFields } = useMeasureFields();
   const { data: orderExpenses } = useOrderExpensesFor(id);
   const { data: orderPayments, isError: paymentsError } = useOrderPayments(id);
@@ -199,6 +202,28 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       await updateOrder.mutateAsync({ id, patch: { garments: next }, userEmail: user?.email });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to update checklist");
+    }
+  }
+
+  /** Moves the order to another tailor. Garments that were on the old order-level tailor (or on nobody) follow; a garment given to someone else on purpose stays put. */
+  async function changeOrderTailor(next: string) {
+    if (!order || next === (order.tailor || "")) return;
+    const garments = order.garments.map((g) => (!g.tailor || g.tailor === order.tailor ? { ...g, tailor: next } : g));
+    try {
+      await updateOrder.mutateAsync({ id, patch: { tailor: next, garments }, userEmail: user?.email });
+      toast.success("Tailor changed");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to change the tailor");
+    }
+  }
+
+  async function changeGarmentTailor(index: number, next: string) {
+    if (!order) return;
+    try {
+      await updateOrder.mutateAsync({ id, patch: { garments: order.garments.map((g, i) => (i === index ? { ...g, tailor: next } : g)) }, userEmail: user?.email });
+      toast.success("Tailor changed");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to change the tailor");
     }
   }
 
@@ -493,9 +518,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   <p className="truncate font-medium">{g.type}</p>
                   <p className="text-xs text-muted-foreground">
                     {LINING_LABELS[g.lining as Lining] ?? g.lining} · qty {g.no || 1}
-                    {g.tailor && ` · ${tailorName(g.tailor)}`}
+                    {g.tailor && !canEditTailor && ` · ${tailorName(g.tailor)}`}
                     {g.payableAmount != null && ` · payable ${inr(g.payableAmount)}`}
                   </p>
+                  {canEditTailor && <TailorPicker value={g.tailor || ""} tailors={tailors || []} nameOf={tailorName} disabled={updateOrder.isPending} onChange={(v) => changeGarmentTailor(i, v)} className="mt-1.5 h-9 max-w-52 text-xs" />}
                 </div>
                 <span className="shrink-0 tabular-nums">{inr((g.amount || 0) * (g.no || 1))}</span>
               </div>
@@ -512,7 +538,18 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 border-t px-4 py-3 text-sm sm:grid-cols-3">
           <Detail icon={Clock} label="Order date" value={order.inTime ? `${fmtDate(order.inDate)} ${order.inTime}` : fmtDate(order.inDate)} />
           <Detail icon={Clock} label="Delivery" value={order.deliveryTime ? `${fmtDate(order.deliveryDate)} ${order.deliveryTime}` : fmtDate(order.deliveryDate)} />
-          <Detail icon={User} label="Tailor" value={order.tailor ? tailorName(order.tailor) : "—"} />
+          {canEditTailor ? (
+            <div>
+              <dt className="flex items-center gap-1 text-xs text-muted-foreground">
+                <User className="size-3" /> Tailor
+              </dt>
+              <dd className="mt-0.5">
+                <TailorPicker value={order.tailor || ""} tailors={tailors || []} nameOf={tailorName} disabled={updateOrder.isPending} onChange={changeOrderTailor} className="h-10 text-sm" />
+              </dd>
+            </div>
+          ) : (
+            <Detail icon={User} label="Tailor" value={order.tailor ? tailorName(order.tailor) : "—"} />
+          )}
           {order.bookingSource && <Detail icon={User} label="Booking source" value={order.bookingSource} />}
         </dl>
         {order.special && (
@@ -723,6 +760,25 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+/** Picks a tailor right on the order page. The current one is always listed, even if they have since been deactivated. */
+function TailorPicker({ value, tailors, nameOf, disabled, onChange, className }: { value: string; tailors: { id: string; name: string }[]; nameOf: (id: string) => string; disabled?: boolean; onChange: (id: string) => void; className?: string }) {
+  const options = value && !tailors.some((t) => t.id === value) ? [{ id: value, name: nameOf(value) }, ...tailors] : tailors;
+  return (
+    <Select value={value} onValueChange={(v) => v !== null && onChange(v)} disabled={disabled}>
+      <SelectTrigger className={`w-full ${className ?? ""}`} aria-label="Tailor">
+        <SelectValue>{(v: string) => (v ? nameOf(v) : "Unassigned")}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((t) => (
+          <SelectItem key={t.id} value={t.id}>
+            {t.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 

@@ -239,7 +239,7 @@ export function OrderTableRow(props: TableRowProps) {
         </td>
       )}
       {isVisible("order") && (
-        <td className="px-2.5 py-2.5">
+        <td className="whitespace-nowrap px-2.5 py-2.5">
           <Link href={`/orders/${order.id}`} className="font-medium hover:underline">
             {order.id}
           </Link>
@@ -273,7 +273,7 @@ export function OrderTableRow(props: TableRowProps) {
         </td>
       )}
       {isVisible("delivery") && (
-        <td className="px-2.5 py-2.5">
+        <td className="whitespace-nowrap px-2.5 py-2.5">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-sm font-bold">{fmtDateShort(order.deliveryDate)}</span>
             <DueBadge order={order} />

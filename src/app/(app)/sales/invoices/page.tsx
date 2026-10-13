@@ -174,7 +174,7 @@ export default function SalesInvoicesPage() {
       return sortAsc ? diff : -diff;
     });
     return list;
-  }, [invoices, search, sortKey, sortAsc]);
+  }, [dated.rows, search, sortKey, sortAsc]);
 
   const selection = useRowSelection(filtered.map((i) => i.id));
   const selectedInvoices = filtered.filter((i) => selection.selected.has(i.id));

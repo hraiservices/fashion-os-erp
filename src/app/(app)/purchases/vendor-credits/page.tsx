@@ -28,7 +28,7 @@ export default function VendorCreditsPage() {
     const q = search.trim().toLowerCase();
     if (!q) return credits || [];
     return dated.rows.filter((c) => c.creditNumber.toLowerCase().includes(q) || (vendorNameById.get(c.vendorId) || "").toLowerCase().includes(q));
-  }, [credits, vendorNameById, search]);
+  }, [dated.rows, vendorNameById, search]);
 
   return (
     <div className="space-y-4 p-4 sm:p-6">

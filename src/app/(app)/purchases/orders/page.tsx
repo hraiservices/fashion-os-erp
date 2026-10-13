@@ -31,7 +31,7 @@ export default function PurchaseOrdersPage() {
     const q = search.trim().toLowerCase();
     if (!q) return orders || [];
     return dated.rows.filter((o) => o.poNumber.toLowerCase().includes(q) || (vendorNameById.get(o.vendorId) || "").toLowerCase().includes(q));
-  }, [orders, vendorNameById, search]);
+  }, [dated.rows, vendorNameById, search]);
 
   return (
     <div className="space-y-4 p-4 sm:p-6">

@@ -54,7 +54,7 @@ export default function SalesPaymentsPage() {
       const inv = invoiceById.get(p.invoiceId);
       return (inv?.invoiceNumber || "").toLowerCase().includes(q) || (inv?.customerName || "").toLowerCase().includes(q) || p.customerMobile.includes(q);
     });
-  }, [payments, search, invoiceById]);
+  }, [dated.rows, search, invoiceById]);
 
   const total = useMemo(() => filtered.reduce((s, p) => s + p.amount, 0), [filtered]);
   const selection = useRowSelection(filtered.map((p) => p.id));

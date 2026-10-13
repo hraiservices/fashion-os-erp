@@ -43,7 +43,7 @@ export default function PurchaseBillsPage() {
     const q = search.trim().toLowerCase();
     if (!q) return bills || [];
     return dated.rows.filter((b) => b.billNumber.toLowerCase().includes(q) || (vendorNameById.get(b.vendorId) || "").toLowerCase().includes(q));
-  }, [bills, vendorNameById, search]);
+  }, [dated.rows, vendorNameById, search]);
 
   const selection = useRowSelection(filtered.map((b) => b.id));
   const selectedBills = filtered.filter((b) => selection.selected.has(b.id));

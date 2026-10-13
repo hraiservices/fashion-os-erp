@@ -76,7 +76,7 @@ export default function VendorPaymentsPage() {
       const vendorName = vendorNameById.get(p.vendorId) || "";
       return (bill?.billNumber || "").toLowerCase().includes(q) || vendorName.toLowerCase().includes(q);
     });
-  }, [payments, search, billById, vendorNameById]);
+  }, [dated.rows, search, billById, vendorNameById]);
 
   const total = useMemo(() => filtered.reduce((s, p) => s + p.amount, 0), [filtered]);
   const selection = useRowSelection(filtered.map((p) => p.id));

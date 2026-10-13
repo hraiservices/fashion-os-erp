@@ -29,7 +29,7 @@ export default function PurchaseOrdersPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return orders || [];
+    if (!q) return dated.rows;
     return dated.rows.filter((o) => o.poNumber.toLowerCase().includes(q) || (vendorNameById.get(o.vendorId) || "").toLowerCase().includes(q));
   }, [dated.rows, vendorNameById, search]);
 

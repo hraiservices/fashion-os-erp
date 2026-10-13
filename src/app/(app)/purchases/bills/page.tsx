@@ -41,7 +41,7 @@ export default function PurchaseBillsPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return bills || [];
+    if (!q) return dated.rows;
     return dated.rows.filter((b) => b.billNumber.toLowerCase().includes(q) || (vendorNameById.get(b.vendorId) || "").toLowerCase().includes(q));
   }, [dated.rows, vendorNameById, search]);
 

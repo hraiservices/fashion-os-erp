@@ -26,7 +26,7 @@ export default function VendorCreditsPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return credits || [];
+    if (!q) return dated.rows;
     return dated.rows.filter((c) => c.creditNumber.toLowerCase().includes(q) || (vendorNameById.get(c.vendorId) || "").toLowerCase().includes(q));
   }, [dated.rows, vendorNameById, search]);
 

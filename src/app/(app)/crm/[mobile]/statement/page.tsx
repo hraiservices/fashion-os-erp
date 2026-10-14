@@ -121,7 +121,7 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
     <div className="mx-auto w-full min-w-0 max-w-4xl space-y-4 p-3 sm:p-6 print:p-0">
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
         <BackLink href={`/crm/${mobile}`}>{cust.name || mobile}</BackLink>
-        <div className="flex min-w-0 flex-wrap gap-2">
+        <div className="grid min-w-0 grid-cols-2 gap-2 [&>*:last-child:nth-child(odd)]:col-span-2 sm:flex sm:flex-wrap">
           {whatsappUrl && <WhatsAppButton href={whatsappUrl} size="sm" label="Send on WhatsApp" />}
           <Button
             variant="outline"

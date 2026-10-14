@@ -7,6 +7,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { isFullyDone } from "@/lib/garment-checklist";
 import { istDateString } from "@/lib/ist-date";
 import type { Garment } from "@/lib/types";
+import { materialStatus, missingMaterials, parseMaterials, type MaterialItem, type MaterialStatus } from "@/lib/order-materials";
 
 export interface WorksheetGarment {
   key: string;
@@ -17,6 +18,9 @@ export interface WorksheetGarment {
   lining: string;
   qty: number;
   deliveryDate: string;
+  /** Raw-material state of the garment's order, and which items are still awaited. */
+  materialStatus: MaterialStatus;
+  materialMissing: string;
 }
 
 export interface TailorWorksheetSection {
@@ -36,6 +40,7 @@ interface OrderForWorksheet {
   mobile: string;
   deliveryDate: string;
   garments: Garment[];
+  materials?: MaterialItem[];
 }
 
 const LINING_LABELS: Record<string, string> = { s: "No Lining", h: "Half Lining", f: "Full Lining" };
@@ -64,6 +69,8 @@ export function pendingGarmentsByTailor(orders: OrderForWorksheet[]): Map<string
         lining: LINING_LABELS[garment.lining as string] ?? (garment.lining ? String(garment.lining) : ""),
         qty: garment.no || 1,
         deliveryDate: order.deliveryDate,
+        materialStatus: materialStatus(order.materials ?? []),
+        materialMissing: missingMaterials(order.materials ?? []),
       };
       const list = byTailor.get(tailorId);
       if (list) list.push(entry);
@@ -83,7 +90,7 @@ export async function buildTailorWorksheet(supabase: SupabaseClient<Database>): 
   const today = istDateString();
 
   const [{ data: orderRows }, { data: employeeRows }] = await Promise.all([
-    supabase.from("orders").select("id, name, mobile, delivery_date, garments"),
+    supabase.from("orders").select("id, name, mobile, delivery_date, garments, materials"),
     supabase.from("employees").select("id, name").eq("active", true),
   ]);
 
@@ -93,6 +100,7 @@ export async function buildTailorWorksheet(supabase: SupabaseClient<Database>): 
     mobile: r.mobile || "",
     deliveryDate: r.delivery_date || "",
     garments: (Array.isArray(r.garments) ? r.garments : []) as unknown as Garment[],
+    materials: parseMaterials(r.materials),
   }));
   const employeeNameById = new Map((employeeRows || []).map((e) => [e.id, e.name]));
 

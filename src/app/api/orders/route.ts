@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { normalizeMaterials } from "@/lib/order-materials";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { mapOrderRow } from "@/lib/types";
@@ -53,6 +54,9 @@ const bodySchema = z.object({
   advance: z.number().min(0).default(0),
   tailor: z.string().optional().default(""),
   special: z.string().optional().default(""),
+  /** Raw materials this order needs and which have already arrived — see src/lib/order-materials.ts. */
+  materials: z.array(z.object({ key: z.string(), label: z.string().max(40).optional(), received: z.boolean() })).max(12).optional().default([]),
+  materialsNote: z.string().max(300).optional().default(""),
   measurements: z.record(z.string(), z.unknown()).optional().default({}),
   images: z.array(z.string()).optional().default([]),
   audios: z.array(z.string()).optional().default([]),
@@ -308,6 +312,8 @@ export async function POST(request: Request) {
       tailor: fd.tailor,
       status: "received",
       special: fd.special,
+      materials: normalizeMaterials(fd.materials) as unknown as Json,
+      materials_note: fd.materialsNote.trim(),
       history: [historyLine],
       measurements: fd.measurements as Json,
       images: migratedImages,

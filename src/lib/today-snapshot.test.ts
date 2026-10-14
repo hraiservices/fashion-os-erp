@@ -49,6 +49,8 @@ function makeOrder(overrides: Partial<Order>): Order {
     leadId: null,
     measurementProfileId: null,
     measurementProfileName: null,
+    materials: [],
+    materialsNote: "",
     ...overrides,
   };
 }

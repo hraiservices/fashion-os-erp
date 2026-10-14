@@ -30,6 +30,11 @@ function GarmentLine({ g }: { g: WorksheetGarment }) {
         <p className="truncate text-xs text-muted-foreground">
           {g.customerName} — {g.orderId}
         </p>
+        {g.materialStatus !== "untracked" && (
+          <p className={cn("text-xs font-medium", g.materialStatus === "complete" ? "text-emerald-600" : "text-amber-600")}>
+            {g.materialStatus === "complete" ? "Material in" : `Material awaited: ${g.materialMissing}`}
+          </p>
+        )}
       </div>
       <div className="shrink-0 text-right">
         <p className="font-medium">Qty {g.qty}</p>
@@ -53,6 +58,7 @@ export default function TailorWorksheetPage() {
       Order: g.orderId,
       Qty: g.qty,
       "Due Date": g.deliveryDate ? fmtDate(g.deliveryDate) : "",
+      Material: g.materialStatus === "untracked" ? "" : g.materialStatus === "complete" ? "In" : `Awaited: ${g.materialMissing}`,
     }))
   );
   const summaryLines = (sections || []).map((s) => `${s.tailorName}: ${s.overdue.length + s.pendingFromBefore.length + s.newToday.length} garment(s)`);

@@ -1,6 +1,7 @@
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { deriveBalance, STAGES, type Stage } from "@/lib/business-rules";
 import type { MeasurementProfile } from "@/lib/measurement-profiles";
+import { parseMaterials, type MaterialItem } from "@/lib/order-materials";
 
 export type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
 export type OrderExpenseRow = Database["public"]["Tables"]["order_expenses"]["Row"];
@@ -154,6 +155,9 @@ export interface Order {
    *  profile is later renamed or archived. Null for orders that didn't reference a named profile. */
   measurementProfileId: string | null;
   measurementProfileName: string | null;
+  /** Raw materials (lining, buttons, reels…) this order needs and whether each has arrived — see src/lib/order-materials.ts. Empty = not tracked. */
+  materials: MaterialItem[];
+  materialsNote: string;
 }
 
 export type OrderType = "new" | "alteration";
@@ -215,6 +219,8 @@ export function mapOrderRow(r: OrderRowForMapping): Order {
     leadId: r.lead_id ?? null,
     measurementProfileId: r.measurement_profile_id ?? null,
     measurementProfileName: r.measurement_profile_name ?? null,
+    materials: parseMaterials(r.materials),
+    materialsNote: r.materials_note || "",
   };
 }
 

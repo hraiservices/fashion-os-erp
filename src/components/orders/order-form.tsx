@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, Copy, User2, Shirt, Ruler, Gift, Check, ClipboardList, AlertTriangle, Receipt, TrendingUp, TrendingDown, Sparkles, ScanLine } from "lucide-react";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { isNativePlatform } from "@/lib/capacitor";
-import { useCreateOrder, useUpdateOrder } from "@/hooks/use-order-mutations";
+import { useCreateOrder, useSetOrderMaterials, useUpdateOrder } from "@/hooks/use-order-mutations";
 import { useOrders } from "@/hooks/use-orders";
 import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
 import { CustomerPicker } from "@/components/sales/customer-picker";
@@ -53,6 +53,8 @@ import { useExtractMeasurements } from "@/hooks/use-measurement-extraction";
 import { useTranscribeVoiceNote } from "@/hooks/use-transcribe-voice-note";
 import { fileToDataUrl } from "@/lib/image-utils";
 import { MediaCapture } from "@/components/orders/media-capture";
+import { MaterialsEditor } from "@/components/orders/materials-editor";
+import type { MaterialItem } from "@/lib/order-materials";
 import { useResolvedMediaUrls, adaptMediaChange } from "@/hooks/use-order-media";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -332,6 +334,9 @@ function OrderFormFields({
       setTranscribingIndex(null);
     }
   }
+  const [materials, setMaterials] = useState<MaterialItem[]>(existingOrder?.materials ?? []);
+  const [materialsNote, setMaterialsNote] = useState(existingOrder?.materialsNote ?? "");
+  const setOrderMaterials = useSetOrderMaterials();
   const [usePoints, setUsePoints] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   // New orders only (splitting an already-created order isn't supported) — on by default per
@@ -676,6 +681,8 @@ function OrderFormFields({
           deliveryTime: values.deliveryTime,
           tailor: piece.tailor || values.tailor,
           special: values.special,
+          materials,
+          materialsNote,
           advance: cappedAdvance,
           garments: [{ type: piece.type, lining: piece.lining, no: 1, amount: piece.amount, tailor: piece.tailor, payableAmount: piece.payableAmount }],
           total: piece.amount,
@@ -738,6 +745,10 @@ function OrderFormFields({
           },
           userEmail: user?.email,
         });
+        // Materials go through their own route so ticking "received" never rides on the money/garments edit.
+        if (JSON.stringify(materials) !== JSON.stringify(existingOrder.materials) || materialsNote !== existingOrder.materialsNote) {
+          await setOrderMaterials.mutateAsync({ id: existingOrder.id, materials, materialsNote });
+        }
         hapticSuccess();
         toast.success("Order updated");
         router.push(`/orders/${existingOrder.id}`);
@@ -749,6 +760,8 @@ function OrderFormFields({
       } else {
         const res = await createOrder.mutateAsync({
           ...values,
+          materials,
+          materialsNote,
           total,
           measurements: measurementPayload,
           ...measurementProfileFields,
@@ -1301,6 +1314,9 @@ function OrderFormFields({
               {errors.garments && <p className="text-xs text-destructive">{errors.garments.message as string}</p>}
               <FieldGroup label="Special instructions" className="pt-1">
                 <Textarea {...register("special")} rows={2} placeholder="Anything the tailor should know…" />
+              </FieldGroup>
+              <FieldGroup label="Raw material (lining, buttons, reels…)" className="pt-1">
+                <MaterialsEditor items={materials} note={materialsNote} onChange={setMaterials} onNoteChange={setMaterialsNote} />
               </FieldGroup>
             </div>
           </div>

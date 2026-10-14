@@ -29,9 +29,9 @@ export const metadata: Metadata = {
     // is set, falling back to the default scissors icon otherwise. See that route's comment.
     // `apple` used to point at the static default /icon-192.png regardless of what a shop
     // uploaded, so an uploaded logo never actually showed up as the Home Screen/bookmark icon
-    // on iOS — pointing both at the same dynamic route fixes that.
+    // on iOS — pointing at a dynamic route fixes that. The touch icon is the padded app-icon variant so launcher masks don't clip a wide logo.
     icon: "/api/branding/icon",
-    apple: "/api/branding/icon",
+    apple: "/api/branding/app-icon?size=180",
   },
   appleWebApp: {
     capable: true,

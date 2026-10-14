@@ -171,14 +171,14 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
         href={href}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
+          "flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
           active ? "text-primary" : "text-muted-foreground"
         )}
       >
-        <span className={cn("flex items-center justify-center rounded-full px-3 py-0.5 transition-colors", active && "bg-primary/10")}>
+        <span className={cn("flex items-center justify-center rounded-full px-2 py-0.5 transition-colors", active && "bg-primary/10")}>
           <Icon className={cn("size-5 transition-transform", active && "scale-110")} fill={active ? "currentColor" : "none"} fillOpacity={active ? 0.15 : 0} />
         </span>
-        {label}
+        <span className="max-w-full truncate px-0.5">{label}</span>
       </Link>
     );
   }
@@ -210,7 +210,7 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
             rel="noopener noreferrer"
             className="flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-muted-foreground transition-colors"
           >
-            <span className="flex items-center justify-center rounded-full px-3 py-0.5">
+            <span className="flex items-center justify-center rounded-full px-2 py-0.5">
               <WhatsAppIcon className="size-5 text-[#25D366]" />
             </span>
             Support
@@ -220,9 +220,9 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
               type="button"
               onClick={() => setCopilotOpen((o) => !o)}
               aria-pressed={copilotOpen}
-              className={cn("flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors", copilotOpen ? "text-primary" : "text-muted-foreground")}
+              className={cn("flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors", copilotOpen ? "text-primary" : "text-muted-foreground")}
             >
-              <span className={cn("flex items-center justify-center rounded-full px-3 py-0.5 transition-colors", copilotOpen && "bg-primary/10")}>
+              <span className={cn("flex items-center justify-center rounded-full px-2 py-0.5 transition-colors", copilotOpen && "bg-primary/10")}>
                 {copilotOpen ? <X className="size-5" /> : <Sparkles className={cn("size-5 transition-transform", copilotOpen && "scale-110")} />}
               </span>
               Copilot

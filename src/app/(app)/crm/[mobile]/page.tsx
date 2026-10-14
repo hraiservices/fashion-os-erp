@@ -238,35 +238,32 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
         {/* flex-1 (not a fixed-column grid) so leftover buttons on a wrapped row still stretch to
             fill it — a grid's column count comes from container width alone, so a trailing row
             with fewer buttons than that count left a gap instead of filling out. */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
+        <div className="mt-4 grid grid-cols-2 gap-2 [&>*:last-child:nth-child(odd)]:col-span-2 sm:flex sm:flex-wrap">
+          <Button nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}`} />} className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28">
             <Plus className="size-4 shrink-0" /> <span className="truncate">Order</span>
           </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}&type=alteration`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
+          <Button variant="outline" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}&type=alteration`} />} className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28">
             <Plus className="size-4 shrink-0" />
             <span className="truncate">Alteration</span>
           </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
+          <Button variant="outline" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28">
             <Plus className="size-3.5 shrink-0" />
             <Receipt className="size-4 shrink-0" />
             <span className="truncate">Invoice</span>
           </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
+          <Button variant="outline" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />} className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28">
             <FileText className="size-4 shrink-0" />
-            <span className="truncate">
-              <span className="sm:hidden">S.Ment</span>
-              <span className="hidden sm:inline">Statement</span>
-            </span>
+            <span className="truncate">Statement</span>
           </Button>
           {user?.perms.managePayments && combinedDue > 0 && (
-            <NewPaymentButton customerMobile={cust.mobile} label="Payment" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" />
+            <NewPaymentButton customerMobile={cust.mobile} label="Payment" className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28" />
           )}
           {combinedDue > 0 && (
             <WhatsAppButton
               href={reminderUrl}
               label="Remind"
               labelClassName="min-w-0 truncate"
-              className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm"
+              className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28"
               tone="reminder"
             />
           )}
@@ -275,17 +272,17 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
               href={wardrobeUrl}
               label="Wardrobe"
               labelClassName="min-w-0 truncate"
-              className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm"
+              className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28"
             />
           )}
           {user?.perms.manageCustomers && (
-            <Button variant="outline" onClick={handleGiveCoupon} disabled={issueCoupon.isPending} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
+            <Button variant="outline" onClick={handleGiveCoupon} disabled={issueCoupon.isPending} className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28">
               <Ticket className="size-4 shrink-0" />
               <span className="truncate">Coupon</span>
             </Button>
           )}
           {user?.perms.manageCustomers && (
-            <Button variant="outline" onClick={() => setEditOpen(true)} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm">
+            <Button variant="outline" onClick={() => setEditOpen(true)} className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28">
               <Pencil className="size-4 shrink-0" /> <span className="truncate">Edit</span>
             </Button>
           )}
@@ -293,7 +290,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             <AlertDialog>
               <AlertDialogTrigger
                 render={
-                  <Button variant="destructive" aria-label="Delete customer" className="h-12 shrink-0 sm:h-10">
+                  <Button variant="destructive" aria-label="Delete customer" className="h-11 w-full sm:h-10 sm:w-auto sm:shrink-0">
                     <Trash2 className="size-4" />
                   </Button>
                 }
@@ -473,7 +470,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-sm font-medium">{o.id}</span>
+                      <span className="whitespace-nowrap text-sm font-medium">{o.id}</span>
                       <StageBadge stage={o.status} size="sm" />
                       <DueBadge order={o} />
                     </div>
@@ -507,7 +504,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
                 <Link href={`/sales/invoices/${inv.id}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-sm font-medium">{inv.invoiceNumber}</span>
+                      <span className="whitespace-nowrap text-sm font-medium">{inv.invoiceNumber}</span>
                       <Badge variant={inv.paymentStatus === "paid" ? "secondary" : "outline"}>{INVOICE_STATUS_LABELS[inv.paymentStatus]}</Badge>
                     </div>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">

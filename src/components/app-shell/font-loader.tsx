@@ -6,14 +6,6 @@ import { DEFAULT_FONT_CONFIG, googleFontUrl, type FontConfig } from "@/lib/fonts
 
 const LINK_ID = "sw-google-font-link";
 
-// Text and buttons across the app read as too small on phones — almost all Tailwind sizing
-// (text-*, p-*, h-*, gap-*, ...) is rem-based, tied to this root font-size, so bumping it is
-// the one lever that scales virtually everything at once instead of hand-tuning every
-// component. Applied only below `sm` (640px) so the shop's chosen desktop size is untouched;
-// mirrored in the blocking <head> script in layout.tsx so a repeat visit doesn't flash the
-// smaller size before this effect runs.
-const MOBILE_BOOST_PX = 3;
-
 /**
  * Applies the shop-wide font (family/weight/size) chosen in Settings → Font to the
  * whole app. Renders nothing — injects a Google Fonts <link> and sets inline styles
@@ -38,10 +30,9 @@ export function FontLoader() {
     root.style.setProperty("font-family", `"${cfg.family}", sans-serif`);
     root.style.setProperty("font-weight", String(cfg.weight));
 
-    const mql = window.matchMedia("(max-width: 640px)");
-    const applySize = () => root.style.setProperty("font-size", `${cfg.size + (mql.matches ? MOBILE_BOOST_PX : 0)}px`);
-    applySize();
-    mql.addEventListener("change", applySize);
+    // Exactly the size chosen in Settings → Font, on phones too. (A +3px phone-only boost used to be added here, which
+    // made every rem-sized button, card and text look oversized on a real phone.)
+    root.style.setProperty("font-size", `${cfg.size}px`);
 
     // Cached so the blocking <script> in layout.tsx's <head> can re-apply this choice on the
     // very next page load before React (and this effect) even runs — see that script's comment.
@@ -50,8 +41,6 @@ export function FontLoader() {
     } catch {
       // Private browsing / storage disabled — fine, this is just a perf nicety.
     }
-
-    return () => mql.removeEventListener("change", applySize);
   }, [data]);
 
   return null;

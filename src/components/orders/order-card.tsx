@@ -1,5 +1,6 @@
 "use client";
 
+import { MaterialBadge, showMaterialBadge } from "@/components/orders/material-badge";
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -223,6 +224,7 @@ export function OrderCard({
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="text-sm font-bold text-muted-foreground">{fmtDateShort(order.deliveryDate)}</span>
           <DueBadge order={order} />
+          {showMaterialBadge(order) && <MaterialBadge materials={order.materials} />}
           <ChecklistProgressChip order={order} />
           <BalanceDue amount={order.balance} suffix=" due" className="ml-auto text-sm font-semibold" />
         </div>

@@ -44,6 +44,7 @@ function buildTailorSheetBody(order: Order, shop: Shop | undefined, measureField
     <tbody>${garmentRows}</tbody>
   </table>
   ${order.special ? `<div class="special"><div class="label">Special Instructions</div><div class="value">${escapeHtml(order.special)}</div></div>` : ""}
+  ${order.materials.length ? `<div class="special"><div class="label">Raw Material</div><div class="value">${escapeHtml(order.materials.map((m) => `${m.label}: ${m.received ? "received" : "awaited"}`).join(" · "))}${order.materialsNote ? ` — ${escapeHtml(order.materialsNote)}` : ""}</div></div>` : ""}
   ${measurementRows ? `<div class="mtitle">Measurements</div><div class="mgrid">${measurementRows}</div>` : ""}
 `;
 }

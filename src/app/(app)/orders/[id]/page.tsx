@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt, FileDown } from "lucide-react";
 import { useOrder } from "@/hooks/use-order";
+import { MaterialsPanel } from "@/components/orders/materials-panel";
 import { useOrders } from "@/hooks/use-orders";
 import { useOrderGroup } from "@/hooks/use-order-group";
 import { useCustomerByMobile } from "@/hooks/use-customer";
@@ -556,6 +557,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           )}
           {order.bookingSource && <Detail icon={User} label="Booking source" value={order.bookingSource} />}
         </dl>
+        <MaterialsPanel key={`${order.id}-${JSON.stringify(order.materials)}-${order.materialsNote}`} order={order} canEdit={!!user?.perms.editOrder} />
         {order.special && (
           <div className="border-t px-4 py-3">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Special instructions</p>

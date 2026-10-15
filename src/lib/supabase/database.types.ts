@@ -285,6 +285,8 @@ export interface Database {
           lead_id: string | null;
           measurement_profile_id: string | null;
           measurement_profile_name: string | null;
+          materials: Json;
+          materials_note: string;
           created_at: string;
           updated_at: string;
         };

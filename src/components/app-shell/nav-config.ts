@@ -115,6 +115,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/stage-timing", label: "Stage Change Speed" },
     { href: "/reports/tailor-workload", label: "Tailor Workload" },
     { href: "/reports/tailor-worksheet", label: "Daily Tailor Worksheet" },
+    { href: "/reports/material-availability", label: "Raw Material & Work Available" },
     { href: "/reports/tailor-payable-details", label: "Tailor Payable Report" },
     { href: "/reports/aging", label: "Balance Aging" },
     { href: "/reports/pending-orders", label: "Pending Orders" },

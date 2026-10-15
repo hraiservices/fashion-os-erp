@@ -34,6 +34,9 @@ function GarmentRow({ g, first }: { g: WorksheetGarment; first: boolean }) {
           {g.lining ? ` (${g.lining})` : ""}
         </Text>
         <Text style={styles.customerLine}>{g.customerName} — {g.orderId}</Text>
+        {g.materialStatus !== "untracked" && (
+          <Text style={styles.customerLine}>{g.materialStatus === "complete" ? "Material in" : `Material awaited: ${g.materialMissing}`}</Text>
+        )}
       </View>
       <View>
         <Text style={styles.qtyBadge}>Qty {g.qty}</Text>

@@ -9,6 +9,7 @@ import { resolveWaType } from "@/lib/wa-type";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { inr, fmtDateShort } from "@/lib/format";
+import { MaterialBadge, showMaterialBadge } from "@/components/orders/material-badge";
 import { cn } from "@/lib/utils";
 import { deliveryTarget, formatCountdownDHM, useCountdownNow } from "@/lib/delivery-countdown";
 import { StageBadge, DueBadge, MoveToStageLabel } from "@/components/orders/stage-badge";
@@ -173,6 +174,7 @@ export function OrderCardRow(props: RowProps) {
           {order.reworkFlag && <ReworkBadge />}
           <GroupBadge size={groupSize} groupTotal={groupTotal} />
           <DueBadge order={order} />
+          {showMaterialBadge(order) && <MaterialBadge materials={order.materials} />}
           <span className="ml-auto shrink-0 text-base font-semibold tabular-nums">{inr(order.total)}</span>
         </div>
 
@@ -264,6 +266,7 @@ export function OrderTableRow(props: TableRowProps) {
             {order.orderType === "alteration" && <AlterationBadge />}
             {order.reworkFlag && <ReworkBadge />}
             <GroupBadge size={groupSize} groupTotal={groupTotal} />
+            {showMaterialBadge(order) && <MaterialBadge materials={order.materials} />}
           </div>
         </td>
       )}

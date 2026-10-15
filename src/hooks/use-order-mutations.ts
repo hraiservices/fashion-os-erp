@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { hapticSuccess, hapticError } from "@/lib/haptics";
 import type { Order } from "@/lib/types";
+import type { MaterialItem } from "@/lib/order-materials";
 
 /** A stitching-expense line item as submitted from the order form — server assigns id/created_by/
  *  created_at. See order_expenses table. */
@@ -26,6 +27,9 @@ interface CreateOrderInput {
   advance: number;
   tailor: string;
   special: string;
+  /** Raw materials the order needs and which have arrived — see src/lib/order-materials.ts. */
+  materials?: MaterialItem[];
+  materialsNote?: string;
   measurements: Record<string, unknown>;
   images?: string[];
   audios?: string[];
@@ -248,6 +252,19 @@ export function useDeleteOrder() {
       // for the identical reason; this one never did.
       qc.invalidateQueries({ queryKey: ["customers"] });
       qc.invalidateQueries({ queryKey: ["customer-by-mobile"] });
+    },
+  });
+}
+
+/** Sets which raw materials an order needs / has received (lining, buttons, reels…). */
+export function useSetOrderMaterials() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, materials, materialsNote }: { id: string; materials: MaterialItem[]; materialsNote: string }) =>
+      patchJson<{ materials: MaterialItem[]; materialsNote: string }>(`/api/orders/${id}/materials`, { materials, materialsNote }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["order", vars.id] });
     },
   });
 }

@@ -306,11 +306,13 @@ export function OrderTableRow(props: TableRowProps) {
         <td className="px-2.5 py-2.5 text-right tabular-nums">{inr(profit.fabricCost + profit.otherCost + profit.stitchingExpenses)}</td>
       )}
       <td className="px-2.5 py-2.5">
-        <div className="flex flex-wrap items-center justify-end gap-1.5">
+        <div className="flex flex-nowrap items-center justify-end gap-1.5">
           {canChangeStage && <AdvanceButton {...props} />}
-          <RecordPaymentButton order={order} onRecordPayment={onRecordPayment} />
+          {/* The wallet and reminder buttons only exist while money is owed. Where they are absent an empty slot of the
+              same size stays, so the stage button, WhatsApp and delete line up identically on every row. */}
+          {onRecordPayment && order.balance > 0 ? <RecordPaymentButton order={order} onRecordPayment={onRecordPayment} /> : <span className="size-8 shrink-0" aria-hidden />}
           <OrderWhatsAppButton order={order} shop={shop} trackUrl={trackUrl} />
-          <PaymentReminderButton order={order} shop={shop} trackUrl={trackUrl} />
+          {order.balance > 0 ? <PaymentReminderButton order={order} shop={shop} trackUrl={trackUrl} /> : <span className="size-8 shrink-0" aria-hidden />}
           <DeleteOrderButton order={order} />
         </div>
       </td>

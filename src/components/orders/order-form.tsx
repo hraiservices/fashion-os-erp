@@ -1235,27 +1235,23 @@ function OrderFormFields({
                   {/* Qty/Rate/Payable grouped compact — always side-by-side, even on mobile,
                      same fix as the invoice item editor's Qty/Price row: these are short numbers,
                      not fields that need a full-width row each. */}
-                  {/* flex-nowrap + overflow-x-auto, not flex-wrap — a wrapped second row here
-                     defeats the point of grouping these compact; a short horizontal scroll on
-                     the very narrowest phones is the acceptable fallback instead. */}
-                  <div className="mt-3 flex flex-nowrap items-start gap-1.5 overflow-x-auto">
+                  {/* One row that always fits: Qty is a fixed narrow box, Rate and Tailor Payable share what is left
+                     (min-w-0 + flex-1), so there is never a sideways scroll. */}
+                  <div className="mt-3 flex flex-nowrap items-start gap-1.5">
                     <FieldGroup label="Qty" className="w-14 shrink-0">
                       <Input type="number" min={1} inputMode="numeric" className="h-10" {...register(`garments.${index}.no`, { valueAsNumber: true })} />
                     </FieldGroup>
-                    <FieldGroup label="Rate" className="w-20 shrink-0">
+                    <FieldGroup label="Rate" className="min-w-0 flex-1">
                       <Input type="number" min={0} inputMode="numeric" className="h-10" {...register(`garments.${index}.amount`, { valueAsNumber: true })} />
                     </FieldGroup>
                     {canEditPayable && (
-                      <FieldGroup label="Payable" className="w-20 shrink-0" hint="Tailor pay">
+                      <FieldGroup label="Tailor Payable" className="min-w-0 flex-1">
                         <Input type="number" min={0} inputMode="numeric" className="h-10" {...register(`garments.${index}.payableAmount`, { valueAsNumber: true })} />
                       </FieldGroup>
                     )}
-                    {/* items-start on the row keeps every label top-aligned regardless of which
-                       field has a hint below it (Payable's "Tailor pay" made the row taller,
-                       which items-end was bottom-aligning everything against — pushing the
-                       shorter Qty/Rate columns' labels down instead of lining up with Payable's).
-                       The button pair alone still wants to sit near the inputs, not the labels. */}
-                    <div className="mt-[22px] flex shrink-0 gap-0.5">
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <div className="flex shrink-0 gap-0.5">
                       <Button
                         type="button"
                         variant="ghost"
@@ -1278,11 +1274,11 @@ function OrderFormFields({
                       >
                         <Trash2 className="size-4" />
                       </Button>
-                    </div>
                   </div>
-                  <p className="mt-2 text-right text-xs text-muted-foreground">
-                    Line total <span className="font-medium tabular-nums text-foreground">{inr((garments[index]?.amount || 0) * (garments[index]?.no || 1))}</span>
-                  </p>
+                    <p className="text-xs text-muted-foreground">
+                      Line total <span className="font-medium tabular-nums text-foreground">{inr((garments[index]?.amount || 0) * (garments[index]?.no || 1))}</span>
+                    </p>
+                  </div>
                 </div>
               ))}
 

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { fmtNow } from "@/lib/business-rules";
-import { logAction } from "@/lib/logging";
+import { logAction, resolveActingUserName } from "@/lib/logging";
 import { materialBadgeLabel, missingMaterials, normalizeMaterials, parseMaterials } from "@/lib/order-materials";
 import type { Json } from "@/lib/supabase/database.types";
 
@@ -36,9 +36,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const next = normalizeMaterials(parsed.data.materials, before);
   const note = (parsed.data.materialsNote ?? cur.materials_note ?? "").trim();
 
+  const actor = await resolveActingUserName(supabase, user);
   const summary = materialBadgeLabel(next) || "no material tracked";
   const missing = missingMaterials(next);
-  const line = `${fmtNow()} — ${user.email.split("@")[0]}: raw material ${summary}${missing ? ` (awaiting ${missing})` : ""}`;
+  const line = `${fmtNow()} — ${actor}: raw material ${summary}${missing ? ` (awaiting ${missing})` : ""}`;
   const history = [...((Array.isArray(cur.history) ? cur.history : []) as string[]), line];
 
   const { error } = await db.from("orders").update({ materials: next as unknown as Json, materials_note: note, history }).eq("id", id);

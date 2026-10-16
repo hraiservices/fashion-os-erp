@@ -166,7 +166,7 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
           </div>
 
           {/* Items */}
-          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+          <div className="sm:rounded-xl sm:border sm:bg-white sm:p-5 sm:shadow-sm sm:dark:bg-card">
             <SectionHeading icon={Package2} label="Items" />
             <ProductLineItemsEditor lines={lines} onChange={setLines} priceOverrides={priceOverrides} />
           </div>

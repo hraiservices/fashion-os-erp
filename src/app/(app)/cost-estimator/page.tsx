@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Trash2, Calculator } from "lucide-react";
+import { Trash2, Calculator } from "lucide-react";
 import { useCostSheets } from "@/hooks/use-cost-sheets";
 import { useDeleteCostSheet } from "@/hooks/use-cost-sheet-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr, fmtDate } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
+import { NewButton } from "@/components/ui/new-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -86,9 +87,7 @@ export default function CostEstimatorPage() {
         title="Cost Estimator"
         description="Price a product from materials, labour and overheads"
         actions={
-          <Button nativeButton={false} render={<Link href="/cost-estimator/new" />}>
-            <Plus className="size-4" /> New sheet
-          </Button>
+          <NewButton href="/cost-estimator/new" ariaLabel="New sheet" />
         }
       />
 
@@ -104,9 +103,7 @@ export default function CostEstimatorPage() {
           title="No cost sheets yet"
           description="Build a costing to work out what a product should sell for."
           action={
-            <Button nativeButton={false} render={<Link href="/cost-estimator/new" />}>
-              <Plus className="size-4" /> New sheet
-            </Button>
+            <NewButton href="/cost-estimator/new" ariaLabel="New sheet" />
           }
         />
       ) : (

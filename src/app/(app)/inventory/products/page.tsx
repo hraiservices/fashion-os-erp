@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, ShoppingBag, Pencil, Trash2, AlertTriangle, Printer, Upload, Archive, ArchiveRestore, Copy } from "lucide-react";
+import { Search, ShoppingBag, Pencil, Trash2, AlertTriangle, Printer, Upload, Archive, ArchiveRestore, Copy } from "lucide-react";
 import { ShoppingBagDuotoneIcon } from "@/components/icons/duotone-icons";
 import { printBarcodeLabel } from "@/lib/barcode";
 import { useProducts } from "@/hooks/use-products";
@@ -15,6 +15,7 @@ import { isLowStock } from "@/lib/inventory";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
+import { NewButton } from "@/components/ui/new-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
@@ -211,9 +212,7 @@ function ProductsPageContent() {
               <Button variant="outline" className="w-full sm:w-auto" nativeButton={false} render={<Link href="/inventory/products/import" />}>
                 <Upload className="size-4" /> Import
               </Button>
-              <Button className="w-full sm:w-auto" nativeButton={false} render={<Link href="/inventory/products/new" />}>
-                <Plus className="size-4" /> Add product
-              </Button>
+              <NewButton href="/inventory/products/new" ariaLabel="Add product" className="w-full sm:w-auto" />
             </div>
           )
         }
@@ -254,9 +253,7 @@ function ProductsPageContent() {
           description="Add the finished goods you sell — sizes, styles, SKUs — and link their bill of materials."
           action={
             canManage && (
-              <Button nativeButton={false} render={<Link href="/inventory/products/new" />}>
-                <Plus className="size-4" /> Add product
-              </Button>
+              <NewButton href="/inventory/products/new" ariaLabel="Add product" />
             )
           }
         />

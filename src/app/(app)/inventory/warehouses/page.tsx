@@ -3,12 +3,13 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Warehouse as WarehouseIcon, Plus, Pencil, Trash2, ArrowRightLeft } from "lucide-react";
+import { Warehouse as WarehouseIcon, Pencil, Trash2, ArrowRightLeft } from "lucide-react";
 import { useWarehouses } from "@/hooks/use-warehouses";
 import { useSaveWarehouse, useDeleteWarehouse } from "@/hooks/use-warehouse-mutations";
 import { useWarehouseStock } from "@/hooks/use-warehouse-stock";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { PageHeader } from "@/components/ui/page-header";
+import { NewButton } from "@/components/ui/new-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,9 +94,7 @@ export default function WarehousesPage() {
               <ArrowRightLeft className="size-4" /> Stock Transfer
             </Button>
             {canManage && (
-              <Button onClick={openNew}>
-                <Plus className="size-4" /> Add warehouse
-              </Button>
+              <NewButton onClick={openNew} ariaLabel="Add warehouse" />
             )}
           </>
         }
@@ -114,9 +113,7 @@ export default function WarehousesPage() {
           description="Add your godowns or store locations to track stock by warehouse."
           action={
             canManage && (
-              <Button onClick={openNew}>
-                <Plus className="size-4" /> Add warehouse
-              </Button>
+              <NewButton onClick={openNew} ariaLabel="Add warehouse" />
             )
           }
         />

@@ -4,12 +4,13 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, UserCog, Pencil, Trash2, ChevronRight, CalendarCheck, Link2, Wallet } from "lucide-react";
+import { Search, UserCog, Pencil, Trash2, ChevronRight, CalendarCheck, Link2, Wallet } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useDeleteEmployee } from "@/hooks/use-employee-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { PageHeader } from "@/components/ui/page-header";
+import { NewButton } from "@/components/ui/new-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -76,9 +77,7 @@ function EmployeesPageContent() {
               </Button>
             )}
             {canManage && (
-              <Button nativeButton={false} render={<Link href="/employees/new" />}>
-                <Plus className="size-4" /> Add employee
-              </Button>
+              <NewButton href="/employees/new" ariaLabel="Add employee" />
             )}
           </>
         }
@@ -102,9 +101,7 @@ function EmployeesPageContent() {
           description="Add your tailors, salespeople and other staff — used for the Tailor dropdown, attendance and commission."
           action={
             canManage && (
-              <Button nativeButton={false} render={<Link href="/employees/new" />}>
-                <Plus className="size-4" /> Add employee
-              </Button>
+              <NewButton href="/employees/new" ariaLabel="Add employee" />
             )
           }
         />

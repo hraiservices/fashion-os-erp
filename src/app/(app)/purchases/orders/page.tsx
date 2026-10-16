@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, ChevronRight, Search } from "lucide-react";
+import { ChevronRight, Search } from "lucide-react";
 import { FileTextDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders";
 import { useVendors } from "@/hooks/use-vendors";
@@ -10,8 +10,8 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr, fmtDate } from "@/lib/format";
 import { PO_STATUS_LABELS } from "@/lib/purchases";
 import { PageHeader } from "@/components/ui/page-header";
+import { NewButton } from "@/components/ui/new-button";
 import { ListDateBar, useListDateFilter } from "@/components/ui/list-date-filter";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,9 +40,7 @@ export default function PurchaseOrdersPage() {
         description={`${filtered.length} of ${orders?.length ?? 0} purchase orders`}
         actions={
           canManage && (
-            <Button nativeButton={false} render={<Link href="/purchases/orders/new" />}>
-              <Plus className="size-4" /> New PO
-            </Button>
+            <NewButton href="/purchases/orders/new" ariaLabel="New PO" />
           )
         }
       />
@@ -69,9 +67,7 @@ export default function PurchaseOrdersPage() {
           description="Create a PO to plan what you're ordering from a vendor before the bill arrives."
           action={
             canManage && (
-              <Button nativeButton={false} render={<Link href="/purchases/orders/new" />}>
-                <Plus className="size-4" /> New PO
-              </Button>
+              <NewButton href="/purchases/orders/new" ariaLabel="New PO" />
             )
           }
         />

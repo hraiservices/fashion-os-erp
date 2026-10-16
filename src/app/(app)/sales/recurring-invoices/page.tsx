@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Repeat, Play, Pause, Pencil, Trash2 } from "lucide-react";
+import { Repeat, Play, Pause, Pencil, Trash2 } from "lucide-react";
 import {
   useRecurringInvoiceProfiles,
   useGenerateRecurringInvoiceNow,
@@ -13,6 +13,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { recurringProfileIsDue, recurringProfileHasEnded, RECURRING_FREQUENCY_LABELS } from "@/lib/recurring-invoices";
 import { fmtDate, inr } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
+import { NewButton } from "@/components/ui/new-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -62,9 +63,7 @@ export default function RecurringInvoicesPage() {
         description={`${profiles?.length ?? 0} profiles — each generates a Draft invoice on schedule for you to review and send`}
         actions={
           canManage && (
-            <Button nativeButton={false} render={<Link href="/sales/recurring-invoices/new" />}>
-              <Plus className="size-4" /> New profile
-            </Button>
+            <NewButton href="/sales/recurring-invoices/new" ariaLabel="New profile" />
           )
         }
       />
@@ -82,9 +81,7 @@ export default function RecurringInvoicesPage() {
           description="Set up a profile for a customer with a fixed monthly/weekly charge — it'll create a draft invoice automatically on schedule."
           action={
             canManage && (
-              <Button nativeButton={false} render={<Link href="/sales/recurring-invoices/new" />}>
-                <Plus className="size-4" /> New profile
-              </Button>
+              <NewButton href="/sales/recurring-invoices/new" ariaLabel="New profile" />
             )
           }
         />

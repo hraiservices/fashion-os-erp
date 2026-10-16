@@ -1,10 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, Package, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { Search, Package, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useDeleteRawMaterial } from "@/hooks/use-inventory-mutations";
 import { useRawMaterialConsumption } from "@/hooks/use-inventory-ledger";
@@ -13,6 +12,7 @@ import { isLowStock, estimateReorder, REORDER_LOOKBACK_DAYS } from "@/lib/invent
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
+import { NewButton } from "@/components/ui/new-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -72,9 +72,7 @@ function RawMaterialsPageContent() {
         description={`${filtered.length} of ${materials?.length ?? 0} materials`}
         actions={
           canManage && (
-            <Button nativeButton={false} render={<Link href="/inventory/raw-materials/new" />}>
-              <Plus className="size-4" /> Add material
-            </Button>
+            <NewButton href="/inventory/raw-materials/new" ariaLabel="Add material" />
           )
         }
       />
@@ -97,9 +95,7 @@ function RawMaterialsPageContent() {
           description="Add fabric, thread, buttons and other materials you purchase and consume in manufacturing."
           action={
             canManage && (
-              <Button nativeButton={false} render={<Link href="/inventory/raw-materials/new" />}>
-                <Plus className="size-4" /> Add material
-              </Button>
+              <NewButton href="/inventory/raw-materials/new" ariaLabel="Add material" />
             )
           }
         />

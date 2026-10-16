@@ -12,6 +12,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRowSelection } from "@/hooks/use-row-selection";
 import { inr, fmtDate } from "@/lib/format";
 import { PageHeader } from "@/components/ui/page-header";
+import { NewButton } from "@/components/ui/new-button";
 import { ListDateBar, useListDateFilter } from "@/components/ui/list-date-filter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -92,7 +93,7 @@ export default function SalesPaymentsPage() {
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
-      <PageHeader title="Payments Received" description={`${filtered.length} payments · ${inr(total)} total`} />
+      <PageHeader title="Payments Received" description={`${filtered.length} payments · ${inr(total)} total`} actions={canManage && <NewButton href="/payments/new" ariaLabel="Record payment" />} />
 
       <ListDateBar dr={dated.dr} shown={dated.rows.length} total={payments?.length ?? 0} noun="payments" />
 

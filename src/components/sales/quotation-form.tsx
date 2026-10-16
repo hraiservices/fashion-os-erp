@@ -72,6 +72,7 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
       ? existing.items.map((item, i) => ({
           key: `existing-${i}`,
           productId: item.productId,
+          description: item.description || "",
           qty: String(item.qty),
           unitPrice: String(item.unitPrice),
           discountType: item.discountType || "percent",

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, ChevronRight, Trash2, Search } from "lucide-react";
+import { ChevronRight, Trash2, Search } from "lucide-react";
 import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
@@ -14,6 +14,7 @@ import { inr, fmtDate } from "@/lib/format";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { BILL_STATUS_LABELS } from "@/lib/purchases";
 import { PageHeader } from "@/components/ui/page-header";
+import { NewButton } from "@/components/ui/new-button";
 import { ListDateBar, useListDateFilter } from "@/components/ui/list-date-filter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -81,9 +82,7 @@ export default function PurchaseBillsPage() {
         description={`${filtered.length} of ${bills?.length ?? 0} bills · ${inr(totalPayable)} total payable`}
         actions={
           canManage && (
-            <Button nativeButton={false} render={<Link href="/purchases/bills/new" />}>
-              <Plus className="size-4" /> New bill
-            </Button>
+            <NewButton href="/purchases/bills/new" ariaLabel="New bill" />
           )
         }
       />
@@ -125,9 +124,7 @@ export default function PurchaseBillsPage() {
           description="Recording a bill is what actually receives stock into your raw materials inventory."
           action={
             canManage && (
-              <Button nativeButton={false} render={<Link href="/purchases/bills/new" />}>
-                <Plus className="size-4" /> New bill
-              </Button>
+              <NewButton href="/purchases/bills/new" ariaLabel="New bill" />
             )
           }
         />

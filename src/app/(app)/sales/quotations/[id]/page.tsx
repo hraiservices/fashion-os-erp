@@ -96,7 +96,10 @@ export default function QuotationDetailPage({ params }: { params: Promise<{ id: 
               <tbody className="divide-y">
                 {quote.items.map((item, i) => (
                   <tr key={i}>
-                    <td className="p-2">{item.productName}</td>
+                    <td className="p-2">
+                      {item.productName}
+                      {item.description && <p className="whitespace-pre-line text-xs text-muted-foreground">{item.description}</p>}
+                    </td>
                     <td className="p-2 text-right tabular-nums">{item.qty}</td>
                     <td className="p-2 text-right tabular-nums">{inr(item.unitPrice)}</td>
                     <td className="p-2 text-right tabular-nums">{inr(item.amount)}</td>

@@ -4,12 +4,13 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, Truck, Pencil, Trash2, ChevronRight, Upload } from "lucide-react";
+import { Search, Truck, Pencil, Trash2, ChevronRight, Upload } from "lucide-react";
 import { useVendors } from "@/hooks/use-vendors";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useDeleteVendor } from "@/hooks/use-purchase-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { PageHeader } from "@/components/ui/page-header";
+import { NewButton } from "@/components/ui/new-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -75,9 +76,7 @@ function VendorsPageContent() {
               <Button variant="outline" className="w-full sm:w-auto" nativeButton={false} render={<Link href="/purchases/vendors/import" />}>
                 <Upload className="size-4" /> Import
               </Button>
-              <Button className="w-full sm:w-auto" nativeButton={false} render={<Link href="/purchases/vendors/new" />}>
-                <Plus className="size-4" /> Add vendor
-              </Button>
+              <NewButton href="/purchases/vendors/new" ariaLabel="Add vendor" className="w-full sm:w-auto" />
             </div>
           )
         }
@@ -101,9 +100,7 @@ function VendorsPageContent() {
           description="Add the suppliers you purchase fabric and materials from."
           action={
             canManage && (
-              <Button nativeButton={false} render={<Link href="/purchases/vendors/new" />}>
-                <Plus className="size-4" /> Add vendor
-              </Button>
+              <NewButton href="/purchases/vendors/new" ariaLabel="Add vendor" />
             )
           }
         />

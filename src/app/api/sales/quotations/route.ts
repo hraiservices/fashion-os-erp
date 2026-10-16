@@ -9,6 +9,7 @@ import { computeGst } from "@/lib/gst";
 const lineItemSchema = z.object({
   productId: z.string().nullable().optional(),
   productName: z.string(),
+  description: z.string().max(1000).optional(),
   qty: z.number().nonnegative(),
   unitPrice: z.number().nonnegative(),
   discountType: z.enum(["flat", "percent"]).optional(),

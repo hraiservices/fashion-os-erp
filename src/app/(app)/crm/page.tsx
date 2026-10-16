@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, UserPlus, LayoutGrid, LayoutList, ArrowUpDown, Upload, MessageSquare, ImagePlus, MoreVertical } from "lucide-react";
+import { Search, LayoutGrid, LayoutList, ArrowUpDown, Upload, MessageSquare, ImagePlus, MoreVertical } from "lucide-react";
 import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
@@ -13,6 +13,7 @@ import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useProducts } from "@/hooks/use-products";
 import { computeSegments, type CustomerSegment } from "@/lib/customer-segments";
 import { PageHeader } from "@/components/ui/page-header";
+import { NewButton } from "@/components/ui/new-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -183,9 +184,7 @@ function CrmContent() {
                 across three lines. Full set reappears inline once there's room (sm+). */}
             <div className="flex w-full items-center gap-2 sm:hidden">
               {canAdd && (
-                <Button className="flex-1" nativeButton={false} render={<Link href="/crm/new" />}>
-                  <UserPlus className="size-4" /> Add customer
-                </Button>
+                <NewButton href="/crm/new" ariaLabel="Add customer" className="flex-1" />
               )}
               {user?.perms.managePayments && <NewPaymentButton variant="outline" label="" className="shrink-0 px-3" />}
               {(canAdd || user?.perms.sendWhatsappBroadcast) && (
@@ -233,9 +232,7 @@ function CrmContent() {
                 </Button>
               )}
               {canAdd && (
-                <Button nativeButton={false} render={<Link href="/crm/new" />}>
-                  <UserPlus className="size-4" /> Add customer
-                </Button>
+                <NewButton href="/crm/new" ariaLabel="Add customer" />
               )}
               {user?.perms.managePayments && <NewPaymentButton />}
             </div>

@@ -2,13 +2,14 @@
 
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Plus, X, ScanBarcode, Camera, Copy, ListChecks } from "lucide-react";
+import { Plus, X, ScanBarcode, Camera, Copy, ListChecks, MoreVertical } from "lucide-react";
 import { useProducts } from "@/hooks/use-products";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BarcodeScannerModal } from "@/components/pos/barcode-scanner-modal";
 import { ProductFormDialog } from "@/components/inventory/product-form-dialog";
@@ -213,6 +214,8 @@ export function ProductLineItemsEditor({
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [bulkDiscount, setBulkDiscount] = useState("");
   const [bulkAddOpen, setBulkAddOpen] = useState(false);
+  // Lines whose description box was opened by hand (a line that already has text always shows it).
+  const [descOpen, setDescOpen] = useState<Set<string>>(new Set());
 
   // Column template at 2xl+: fixed-width number columns, item column takes the rest.
   const gridCols = showDiscount
@@ -443,9 +446,34 @@ export function ProductLineItemsEditor({
             const oversell = !!selectedProduct && qtyNum > selectedProduct.stockQty;
             return (
               <div key={line.key} className={cn("space-y-3 rounded-lg border bg-card p-3 2xl:grid 2xl:space-y-0 2xl:rounded-none 2xl:border-0 2xl:border-b 2xl:bg-transparent 2xl:p-0 2xl:last:border-b-0", gridCols)}>
-                {/* Item + description (+ mobile-only clone/remove) */}
+                {/* Card header (below 2xl): line number, with clone/remove tucked into a menu so the item box can use the full width */}
+                <div className="flex items-center justify-between 2xl:hidden">
+                  <div className="flex items-center gap-1">
+                    {bulkMode && <Checkbox checked={picked.has(line.key)} onChange={() => togglePicked(line.key)} aria-label="Select line" className="-my-1.5" />}
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Item {lines.indexOf(line) + 1}</span>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button type="button" variant="ghost" size="icon-sm" aria-label="Item actions">
+                          <MoreVertical className="size-4" />
+                        </Button>
+                      }
+                    />
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => cloneLine(line.key)} disabled={!line.productId}>
+                        <Copy className="size-4" /> Clone item
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => removeLine(line.key)}>
+                        <X className="size-4" /> Remove item
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* Item + description */}
                 <div className="flex items-start gap-1 2xl:p-2">
-                  {bulkMode && <Checkbox checked={picked.has(line.key)} onChange={() => togglePicked(line.key)} aria-label="Select line" className="-my-1.5" />}
+                  {bulkMode && <Checkbox checked={picked.has(line.key)} onChange={() => togglePicked(line.key)} aria-label="Select line" className="-my-1.5 hidden 2xl:inline-flex" />}
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <SearchSelect
                       className="w-full"
@@ -464,27 +492,25 @@ export function ProductLineItemsEditor({
                       }}
                       createLabel="Add new product"
                     />
-                    <Textarea
-                      rows={1}
-                      placeholder="Add a description to your item"
-                      aria-label="Item description"
-                      className="min-h-9 resize-none bg-muted/30 py-1.5 text-sm"
-                      value={line.description || ""}
-                      onChange={(e) => updateLine(line.key, { description: e.target.value })}
-                    />
-                  </div>
-                  <div className="flex shrink-0 gap-1 2xl:hidden">
-                    <Button type="button" variant="ghost" size="icon-sm" onClick={() => cloneLine(line.key)} aria-label="Clone item" title="Clone this line" disabled={!line.productId}>
-                      <Copy className="size-3.5" />
-                    </Button>
-                    <Button type="button" variant="ghost" size="icon-sm" onClick={() => removeLine(line.key)} aria-label="Remove item">
-                      <X className="size-3.5" />
-                    </Button>
+                    {line.description || descOpen.has(line.key) ? (
+                      <Textarea
+                        rows={1}
+                        placeholder="Add a description to your item"
+                        aria-label="Item description"
+                        className="min-h-9 resize-none bg-muted/30 py-1.5 text-sm"
+                        value={line.description || ""}
+                        onChange={(e) => updateLine(line.key, { description: e.target.value })}
+                      />
+                    ) : (
+                      <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => setDescOpen((s) => new Set(s).add(line.key))}>
+                        + Add description
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 {/* Qty / Rate / Discount — labeled grid in a card, table cells at 2xl+ */}
-                <div className={cn("grid gap-2 2xl:contents", showDiscount ? "grid-cols-3" : "grid-cols-2")}>
+                <div className="grid grid-cols-2 gap-2 2xl:contents">
                   <div className={cell}>
                     <label className={mobileLabel}>Qty</label>
                     <Input
@@ -508,7 +534,7 @@ export function ProductLineItemsEditor({
                     <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="Rate" className="h-10 w-full text-sm 2xl:text-right" value={line.unitPrice} onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })} />
                   </div>
                   {showDiscount && (
-                    <div className={cell}>
+                    <div className={cn(cell, "col-span-2")}>
                       <label className={mobileLabel}>Discount</label>
                       <div className="flex h-10 items-stretch overflow-hidden rounded-md border">
                         <button
@@ -540,7 +566,7 @@ export function ProductLineItemsEditor({
                 <div className={cn("flex items-center justify-between border-t pt-2 2xl:block 2xl:border-t-0 2xl:text-right", cell, "2xl:pt-2")}>
                   <span className="text-[10px] font-medium text-muted-foreground 2xl:hidden">Amount</span>
                   <div className="text-right">
-                    <p className="text-sm font-semibold tabular-nums">{inr(amount)}</p>
+                    <p className="text-base font-semibold tabular-nums 2xl:text-sm">{inr(amount)}</p>
                     {showMargin && line.productId && (
                       <p className={cn("text-[11px] tabular-nums", margin === null ? "text-muted-foreground" : "text-emerald-600 dark:text-emerald-400")}>
                         {margin === null ? "cost unknown" : `+${inr(margin)}`}
@@ -565,7 +591,7 @@ export function ProductLineItemsEditor({
       )}
 
       <div className="flex flex-wrap items-start justify-between gap-3 pt-1">
-        <div className="flex flex-wrap gap-2">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
           <Button type="button" variant="outline" size="sm" onClick={addLine}>
             <Plus className="size-3.5" /> Add New Row
           </Button>

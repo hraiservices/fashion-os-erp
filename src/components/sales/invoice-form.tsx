@@ -399,7 +399,8 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
           </div>
 
           {/* Line Items */}
-          <div className="rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
+          {/* No outer frame on phones — each item is already a card, and a card inside a card cost ~40px of width. */}
+          <div className="sm:rounded-xl sm:border sm:bg-white sm:p-5 sm:shadow-sm sm:dark:bg-card">
             <SectionHeading icon={Package2} label="Items" />
             <ProductLineItemsEditor lines={lines} onChange={setLines} showDiscount showMargin={!!user?.perms.viewFinancialReports} priceOverrides={priceOverrides} />
           </div>

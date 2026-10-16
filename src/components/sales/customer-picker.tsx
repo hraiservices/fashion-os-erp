@@ -14,6 +14,7 @@ export function CustomerPicker({
   onOpenChange,
   onSelect,
   startInAddMode,
+  defaultName,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -22,12 +23,14 @@ export function CustomerPicker({
    *  own trigger already means "add a new customer" (e.g. a dedicated New button), so a second
    *  "New customer" click inside the dialog would just be a redundant extra step. */
   startInAddMode?: boolean;
+  /** Name typed into the caller's search box — pre-fills the new-customer form. */
+  defaultName?: string;
 }) {
   const { data: customers } = useCustomers();
   const saveCustomer = useSaveCustomer();
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(!!startInAddMode);
-  const [newName, setNewName] = useState("");
+  const [newName, setNewName] = useState(defaultName || "");
   const [newMobile, setNewMobile] = useState("");
   const [addError, setAddError] = useState("");
 
@@ -41,7 +44,7 @@ export function CustomerPicker({
     setPrevOpen(open);
     if (open) {
       setAdding(!!startInAddMode);
-      setNewName("");
+      setNewName(defaultName || "");
       setAddError("");
     }
   }

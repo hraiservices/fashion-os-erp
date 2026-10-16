@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Building2, Package2, Tag, FileText, ShoppingCart, Plus, Truck } from "lucide-react";
+import { Building2, Package2, Tag, FileText, ShoppingCart, Truck } from "lucide-react";
 import { useVendors } from "@/hooks/use-vendors";
+import { SearchSelect } from "@/components/ui/search-select";
 import { AddVendorDialog } from "@/components/purchases/add-vendor-dialog";
 import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
 import { useSaveBill } from "@/hooks/use-purchase-mutations";
@@ -29,7 +30,6 @@ import { BackLink } from "@/components/ui/back-link";
 
 const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
 const paymentTermLabel = (v: unknown) => PAYMENT_TERM_LABELS[v as PaymentTerm] ?? "";
-const ADD_VENDOR = "__add_vendor__";
 
 function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
@@ -62,6 +62,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
   const saveBill = useSaveBill();
   const isEdit = !!existing;
   const [addVendorOpen, setAddVendorOpen] = useState(false);
+  const [newVendorName, setNewVendorName] = useState("");
 
   const [billNumber] = useState(existing?.billNumber || genBillNumber());
   const [vendorId, setVendorId] = useState(existing?.vendorId || "");
@@ -170,28 +171,19 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
             <SectionHeading icon={Building2} label="Vendor & dates" />
             <div className="mb-4">
               <FieldGroup label="Vendor" required>
-                <Select
+                <SearchSelect
+                  inputClassName="h-10"
+                  placeholder="Type to search vendor…"
                   value={vendorId}
-                  onValueChange={(v) => {
-                    if (v === ADD_VENDOR) setAddVendorOpen(true);
-                    else if (v) setVendorId(v);
-                  }}
-                >
-                  <SelectTrigger className="h-10 w-full">
-                    <SelectValue placeholder="Select vendor…">{vendorLabel}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(vendors || []).map((v) => (
-                      <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
-                    ))}
-                    <SelectItem value={ADD_VENDOR}>
-                      <Plus className="size-3.5" /> Add new vendor…
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                  fallbackLabel={vendorLabel(vendorId)}
+                  options={(vendors || []).map((v) => ({ value: v.id, label: v.name, sublabel: v.mobile || undefined }))}
+                  onSelect={setVendorId}
+                  createActions={[{ label: "Add new vendor", onCreate: (name) => { setNewVendorName(name); setAddVendorOpen(true); } }]}
+                />
                 <AddVendorDialog
                   open={addVendorOpen}
                   onOpenChange={setAddVendorOpen}
+                  defaultName={newVendorName}
                   onCreated={(id) => setVendorId(id)}
                 />
               </FieldGroup>

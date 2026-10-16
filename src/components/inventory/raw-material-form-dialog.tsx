@@ -44,6 +44,7 @@ export function RawMaterialFormDialog({
   onOpenChange,
   material,
   onSaved,
+  defaultName,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -51,6 +52,8 @@ export function RawMaterialFormDialog({
   material?: RawMaterial;
   /** Fires after a successful save with the saved row's id/name/unit/cost — lets a picker (e.g. in a Purchase Bill) auto-select what was just created. */
   onSaved?: (material: { id: string; name: string; unitName?: string; costPerUnit?: number }) => void;
+  /** Prefills the Name field when creating — e.g. whatever the user had already typed into a search box. */
+  defaultName?: string;
 }) {
   const { data: user } = useCurrentUser();
   const { data: units } = useUnits();
@@ -73,10 +76,10 @@ export function RawMaterialFormDialog({
       reset(
         material
           ? { name: material.name, unitId: material.unitId, costPerUnit: material.costPerUnit, category: material.category, lowStockAlert: material.lowStockAlert, notes: material.notes, openingStock: 0 }
-          : { name: "", unitId: "", costPerUnit: 0, category: "", lowStockAlert: 0, notes: "", openingStock: 0 }
+          : { name: defaultName || "", unitId: "", costPerUnit: 0, category: "", lowStockAlert: 0, notes: "", openingStock: 0 }
       );
     }
-  }, [open, material, reset]);
+  }, [open, material, defaultName, reset]);
 
   function handleClose() {
     onOpenChange(false);

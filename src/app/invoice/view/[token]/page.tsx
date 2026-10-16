@@ -1,3 +1,4 @@
+import { totalPieces } from "@/lib/sales";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchPublicInvoice } from "@/lib/public-invoice";
@@ -98,6 +99,10 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
       </div>
 
       <div className="ml-auto w-full max-w-xs space-y-1.5 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Total pieces</span>
+          <span className="tabular-nums">{totalPieces(invoice.items)}</span>
+        </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Line subtotal</span>
           <span className="tabular-nums">{inr(lineSubtotal)}</span>

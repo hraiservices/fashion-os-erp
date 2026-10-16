@@ -16,7 +16,7 @@ import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { inr, fmtDate } from "@/lib/format";
-import { INVOICE_STATUS_LABELS, DOC_STATUS_LABELS } from "@/lib/sales";
+import { INVOICE_STATUS_LABELS, DOC_STATUS_LABELS, totalPieces } from "@/lib/sales";
 import { GST_TYPE_LABELS } from "@/lib/gst";
 import { DEFAULT_SALES_WHATSAPP_TEMPLATES, buildSalesWhatsAppUrl, type SalesWhatsAppTemplates } from "@/lib/sales-whatsapp";
 import { DEFAULT_INVOICE_TEMPLATES_SETTING, getDefaultTemplate, type InvoiceTemplatesSetting } from "@/lib/invoice-template";
@@ -269,6 +269,12 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
                     </td>
                   </tr>
                 )}
+                <tr className="border-t bg-muted/30">
+                  <td className="p-2 text-muted-foreground" colSpan={4}>
+                    Total pieces
+                  </td>
+                  <td className="p-2 text-right tabular-nums text-muted-foreground">{totalPieces(invoice.items)}</td>
+                </tr>
                 <tr className="border-t font-medium">
                   <td className="p-2" colSpan={4}>
                     Total ({GST_TYPE_LABELS[invoice.gstType]})

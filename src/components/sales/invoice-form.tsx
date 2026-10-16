@@ -13,7 +13,7 @@ import { useSaveInvoice } from "@/hooks/use-sales-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useTargetsMeta } from "@/hooks/use-targets";
 import { useAppSetting } from "@/hooks/use-app-setting";
-import { genInvoiceNumber, computeInvoiceMargin } from "@/lib/sales";
+import { genInvoiceNumber, computeInvoiceMargin, totalPieces } from "@/lib/sales";
 import { GST_TYPE_LABELS, type GstType } from "@/lib/gst";
 import { computeInvoiceTotals, type DiscountType } from "@/lib/invoice-totals";
 import { PAYMENT_TERMS, PAYMENT_TERM_LABELS, dueDateFromTerm, type PaymentTerm } from "@/lib/payment-terms";
@@ -497,6 +497,10 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
             )}
 
             <div className="px-5 py-4 space-y-2 text-sm">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Total pieces</span>
+                <span className="tabular-nums">{totalPieces(items)}</span>
+              </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Line subtotal</span>
                 <span className="tabular-nums">{inr(totals.lineSubtotal)}</span>

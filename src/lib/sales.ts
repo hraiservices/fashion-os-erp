@@ -62,6 +62,12 @@ export const genQuoteNumber = () => genNumber("QUO");
 export const genInvoiceNumber = () => genNumber("INV");
 export const genSalesCreditNumber = () => genNumber("SCN");
 
+/** Total number of pieces on an invoice or quote: the sum of every line's quantity (a line of 2 counts as 2). */
+export function totalPieces(items: { qty: number | string }[]): number {
+  const sum = items.reduce((s, i) => s + Math.max(0, Number(i.qty) || 0), 0);
+  return Math.round(sum * 100) / 100;
+}
+
 export function computeLineItemsTotal(items: SalesLineItem[]): number {
   return items.reduce((s, i) => s + (i.amount || 0), 0);
 }

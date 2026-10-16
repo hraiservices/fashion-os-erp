@@ -1,7 +1,7 @@
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
 import { fmtDate } from "@/lib/format";
 import { GST_TYPE_LABELS } from "@/lib/gst";
-import { DOC_STATUS_LABELS } from "@/lib/sales";
+import { DOC_STATUS_LABELS, totalPieces } from "@/lib/sales";
 import { amountInWords } from "@/lib/number-to-words";
 import { blankInvoiceTemplate, type InvoiceTemplateConfig, type InvoiceTemplateFont } from "@/lib/invoice-template";
 import type { SalesInvoice } from "@/lib/types";
@@ -154,6 +154,10 @@ export function InvoiceDocument({
         </View>
 
         <View style={styles.totalsBlock}>
+          <View style={styles.totalsRow}>
+            <Text style={styles.totalsLabel}>Total pieces</Text>
+            <Text style={styles.totalsValue}>{totalPieces(invoice.items)}</Text>
+          </View>
           {t.showSubtotal && (
             <View style={styles.totalsRow}>
               <Text style={styles.totalsLabel}>Line subtotal</Text>

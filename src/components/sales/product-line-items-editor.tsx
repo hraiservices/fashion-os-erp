@@ -11,7 +11,7 @@ import { BarcodeScannerModal } from "@/components/pos/barcode-scanner-modal";
 import { ProductFormDialog } from "@/components/inventory/product-form-dialog";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { SalesLineItem } from "@/lib/sales";
+import { totalPieces, type SalesLineItem } from "@/lib/sales";
 import type { Product } from "@/lib/types";
 
 export interface EditableSalesLine {
@@ -376,6 +376,9 @@ export function ProductLineItemsEditor({
           <Plus className="size-3.5" /> Add item
         </Button>
         <div className="text-right">
+          <p className="text-xs text-muted-foreground">
+            Total pieces: <span className="font-medium tabular-nums text-foreground">{totalPieces(lines)}</span>
+          </p>
           <span className="text-sm font-medium">Total: {inr(total)}</span>
           {showMargin && (
             <p className={cn("text-xs font-medium", marginTotal === null ? "text-muted-foreground" : "text-emerald-600 dark:text-emerald-400")}>

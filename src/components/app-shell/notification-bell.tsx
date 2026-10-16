@@ -7,6 +7,7 @@ import { Bell, Trash2, X, CheckCircle2, AlertTriangle, RefreshCw, Sparkles, Cale
 import { useUrgentOrdersSummary } from "@/hooks/use-urgent-orders-summary";
 import { useNotifications, useDismissNotification, markNotificationsSeen, getLastSeenAt, getTimeAgo } from "@/hooks/use-notifications";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useEmployeeIdScrubber } from "@/hooks/use-employees";
 import { dueBadge, STAGE_META, type Stage } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { createClient } from "@/lib/supabase/client";
@@ -36,6 +37,7 @@ export function NotificationBell() {
   const { data: orders } = useUrgentOrdersSummary();
   const { data: notifs } = useNotifications();
   const { data: user } = useCurrentUser();
+  const scrubIds = useEmployeeIdScrubber();
   const dismissNotification = useDismissNotification();
   const isAdminOrManager = user?.role === "admin" || user?.role === "manager";
   const canClearAll = isAdminOrManager;
@@ -183,7 +185,7 @@ export function NotificationBell() {
                 <div key={n.id} className="flex items-start gap-2.5 border-b px-4 py-2.5 last:border-0 hover:bg-muted/40">
                   <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
                   <div className="min-w-0 flex-1">
-                    <p className="whitespace-pre-line text-sm">{n.message}</p>
+                    <p className="whitespace-pre-line text-sm">{scrubIds(n.message)}</p>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">{getTimeAgo(n.created_at)}</p>
                   </div>
                   <button
@@ -216,7 +218,7 @@ export function NotificationBell() {
                         {n.from_stage || "?"} → {n.to_stage || "?"}
                       </p>
                       <p className="text-[11px] text-muted-foreground">
-                        {n.user_name || "user"} · {getTimeAgo(n.created_at)}
+                        {scrubIds(n.user_name) || "user"} · {getTimeAgo(n.created_at)}
                       </p>
                     </div>
                   </button>
@@ -232,7 +234,7 @@ export function NotificationBell() {
                 <button key={n.id} onClick={() => (n.order_id ? goToOrder(n.order_id) : (handleOpenChange(false), router.push(n.type === "day_book_summary" ? "/reports/day-book" : "/sales/invoices")))} className="flex w-full items-start gap-2.5 border-b px-4 py-2.5 text-left last:border-0 hover:bg-muted/40">
                   <IndianRupee className={`mt-0.5 size-4 shrink-0 ${isCritical(n) ? "text-red-600" : "text-emerald-600"}`} />
                   <div className="min-w-0 flex-1">
-                    <p className="line-clamp-3 whitespace-pre-line text-sm">{n.message}</p>
+                    <p className="line-clamp-3 whitespace-pre-line text-sm">{scrubIds(n.message)}</p>
                     <p className="text-[11px] text-muted-foreground">{getTimeAgo(n.created_at)}</p>
                   </div>
                 </button>
@@ -253,7 +255,7 @@ export function NotificationBell() {
                   >
                     <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm">{n.message}</p>
+                      <p className="truncate text-sm">{scrubIds(n.message)}</p>
                       <p className="text-[11px] text-muted-foreground">{getTimeAgo(n.created_at)}</p>
                     </div>
                   </button>

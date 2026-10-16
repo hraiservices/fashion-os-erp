@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Search, History, Wallet, Trash2, FilePlus2, ArrowRight, Pencil, Activity } from "lucide-react";
 import { useActivityLog } from "@/hooks/use-activity-log";
+import { useEmployeeIdScrubber } from "@/hooks/use-employees";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,7 @@ export default function ActivityLogPage() {
   // missing. "All time" (clear both dates) is one click away for a full audit.
   const [from, setFrom] = useState(daysAgoISO(30));
   const [to, setTo] = useState(toISODate(new Date()));
+  const scrubIds = useEmployeeIdScrubber();
   const { data: logs, isLoading } = useActivityLog({ from: from || undefined, to: to || undefined });
   const [filter, setFilter] = useState("");
   const isAllTime = !from && !to;
@@ -132,10 +134,10 @@ export default function ActivityLogPage() {
                   <Icon className="size-4" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm">{cleanAction(l.action)}</p>
-                  {l.details && <p className="mt-0.5 text-xs text-muted-foreground">{l.details}</p>}
+                  <p className="text-sm">{scrubIds(cleanAction(l.action))}</p>
+                  {l.details && <p className="mt-0.5 text-xs text-muted-foreground">{scrubIds(l.details)}</p>}
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {l.user_name || l.user_email} · {new Date(l.created_at).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    {scrubIds(l.user_name || l.user_email)} · {new Date(l.created_at).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                   </p>
                 </div>
               </li>

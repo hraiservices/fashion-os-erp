@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 
+/** Same pattern as DASHBOARD_ACCESS_EMAIL_RE in day-book.ts, kept local so server logging does not pull in that UI module. */
+const DASHBOARD_ACCESS_EMAIL_RE = /^emp-(.+)@dashboard\.local$/i;
+
 /** Any login linked to an employee record (user_roles.linked_employee_id) — whether provisioned
  *  with a synthetic `emp-<id>@dashboard.local` dashboard-access email, or logged in with the
  *  employee's own real email — should show that employee's real name, not
@@ -18,7 +21,17 @@ export async function resolveActingUserName(
     const { data } = await supabase.from("employees").select("name").eq("id", user.employeeId).maybeSingle();
     if (data?.name) return data.name;
   }
-  return user.email.split("@")[0] || "user";
+  return nameFromEmail(supabase, user.email);
+}
+
+/** The display name for a stored login email: a dashboard-access `emp-<id>@dashboard.local` address is looked up in the
+ *  employees table, anything else uses the local part. Never returns the raw employee id. */
+export async function nameFromEmail(supabase: SupabaseClient<Database>, email: string | null | undefined): Promise<string> {
+  const local = (email || "").split("@")[0] || "user";
+  const m = (email || "").match(DASHBOARD_ACCESS_EMAIL_RE);
+  if (!m) return local;
+  const { data } = await supabase.from("employees").select("name").eq("id", m[1]).maybeSingle();
+  return data?.name || "Staff";
 }
 
 /** logAction()/client.db.addLog, used throughout the old app to write activity_log rows. */
@@ -29,7 +42,7 @@ export async function logAction(
   orderId?: string | null,
   details?: string | null
 ): Promise<void> {
-  const userName = (userEmail || "").split("@")[0] || "user";
+  const userName = await nameFromEmail(supabase, userEmail);
   await supabase.from("activity_log").insert({
     user_email: userEmail || null,
     user_name: userName,
@@ -52,7 +65,7 @@ export async function sendAdminNotification(
   resolvedUserName?: string
 ): Promise<void> {
   const uEmail = userEmail || "unknown";
-  const uName = resolvedUserName || uEmail.split("@")[0] || "user";
+  const uName = resolvedUserName || (await nameFromEmail(supabase, uEmail));
   const message = `${uName} changed ${params.customerName} (${params.orderId}) from ${params.fromStage} → ${params.toStage}${params.note ? ` — ${params.note}` : ""}`;
   await supabase.from("admin_notifications").insert({
     type: "stage_change",

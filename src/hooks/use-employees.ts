@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { scrubEmployeeIds } from "@/lib/employee-ids";
 import { createClient } from "@/lib/supabase/client";
 import { mapEmployeeRow, type Employee, type EmployeeRow } from "@/lib/types";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -80,6 +82,13 @@ export function useActiveTailors() {
   const { data: employees, ...rest } = useEmployees();
   const tailors = (employees || []).filter((e) => e.active && e.role.toLowerCase() === "tailor");
   return { data: tailors, ...rest };
+}
+
+/** Returns a function that swaps any raw `emp-<uuid>` in displayed text for that employee's name (see lib/employee-ids.ts). */
+export function useEmployeeIdScrubber(): (text: string | null | undefined) => string {
+  const { data: employees } = useEmployees();
+  const byId = useMemo(() => new Map((employees || []).map((e) => [e.id, e.name])), [employees]);
+  return (text) => scrubEmployeeIds(text, byId);
 }
 
 /** Resolves an employee id stored in a tailor field back to a display name. Falls back to the

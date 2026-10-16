@@ -14,7 +14,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useDeleteOrderPayment, useBackfillOrderPayment, useRenameOrder } from "@/hooks/use-order-mutations";
 import { useOrderPayments } from "@/hooks/use-order-payments";
 import { orderTailorLabel } from "@/lib/order-tailor";
-import { useActiveTailors, useTailorName } from "@/hooks/use-employees";
+import { useActiveTailors, useEmployeeIdScrubber, useTailorName } from "@/hooks/use-employees";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useAppSetting } from "@/hooks/use-app-setting";
@@ -92,6 +92,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const updateOrder = useUpdateOrder();
   const setRework = useSetOrderRework();
   const tailorName = useTailorName();
+  const scrubIds = useEmployeeIdScrubber();
   const { data: tailors } = useActiveTailors();
   const canEditTailor = !!user?.perms.editOrder;
   const { data: measureFields } = useMeasureFields();
@@ -738,7 +739,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           <ol className="max-h-72 divide-y overflow-y-auto">
             {order.history.map((h, i) => (
               <li key={i} className="px-4 py-2.5 text-sm text-muted-foreground">
-                {h}
+                {scrubIds(h)}
               </li>
             ))}
           </ol>

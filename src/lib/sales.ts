@@ -8,6 +8,8 @@ import { daysLeft } from "@/lib/business-rules";
 export interface SalesLineItem {
   productId: string;
   productName: string;
+  /** Optional note printed under the item name. */
+  description?: string;
   qty: number;
   unitPrice: number;
   /** "percent" (default — unset means percent, so existing saved invoices/quotations from

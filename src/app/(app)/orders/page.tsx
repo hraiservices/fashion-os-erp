@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Search, LayoutList, KanbanSquare, CalendarDays, ArrowRight, Trash2, Upload, MessageCircle, Printer } from "lucide-react";
+import { Search, LayoutList, KanbanSquare, CalendarDays, ArrowRight, Trash2, Upload, MessageCircle, Printer } from "lucide-react";
 import { BulkWhatsAppDialog } from "@/components/orders/bulk-whatsapp-dialog";
 import { CalendarView } from "@/components/orders/calendar-view";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
@@ -28,6 +28,7 @@ import { OrderStatusCards } from "@/components/orders/order-status-cards";
 import { PaymentModal } from "@/components/orders/payment-modal";
 import type { Order } from "@/lib/types";
 import { PageHeader } from "@/components/ui/page-header";
+import { NewButton } from "@/components/ui/new-button";
 import { Button } from "@/components/ui/button";
 import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { Input } from "@/components/ui/input";
@@ -423,9 +424,7 @@ function OrdersContent() {
               </Button>
             )}
             {user?.perms.addOrder && (
-              <Button nativeButton={false} render={<Link href="/orders/new" />} className="hidden sm:inline-flex">
-                <Plus className="size-4" /> New order
-              </Button>
+              <NewButton href="/orders/new" ariaLabel="New order" />
             )}
             {user?.perms.managePayments && <NewPaymentButton className="hidden sm:inline-flex" />}
             <Button variant="outline" nativeButton={false} render={<Link href="/orders/print" />} className="hidden sm:inline-flex">

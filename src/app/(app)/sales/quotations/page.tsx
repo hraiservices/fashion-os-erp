@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { FileTextDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useSalesQuotations } from "@/hooks/use-sales-quotations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr, fmtDate } from "@/lib/format";
 import { QUOTE_STATUS_LABELS } from "@/lib/sales";
 import { PageHeader } from "@/components/ui/page-header";
+import { NewButton } from "@/components/ui/new-button";
 import { ListDateBar, useListDateFilter } from "@/components/ui/list-date-filter";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -27,9 +27,7 @@ export default function QuotationsPage() {
         description={`${quotes?.length ?? 0} quotations`}
         actions={
           canManage && (
-            <Button nativeButton={false} render={<Link href="/sales/quotations/new" />}>
-              <Plus className="size-4" /> New quotation
-            </Button>
+            <NewButton href="/sales/quotations/new" ariaLabel="New quotation" />
           )
         }
       />
@@ -49,9 +47,7 @@ export default function QuotationsPage() {
           description="Create a quotation to send a price estimate before converting it to an invoice."
           action={
             canManage && (
-              <Button nativeButton={false} render={<Link href="/sales/quotations/new" />}>
-                <Plus className="size-4" /> New quotation
-              </Button>
+              <NewButton href="/sales/quotations/new" ariaLabel="New quotation" />
             )
           }
         />

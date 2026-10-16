@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Search, ArrowUpDown, Copy, Upload, Wallet, Send, Trash2 } from "lucide-react";
+import { Search, ArrowUpDown, Copy, Upload, Wallet, Send, Trash2 } from "lucide-react";
 import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useSalesInvoices, type SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
@@ -21,6 +21,7 @@ import { computeInvoiceTotals } from "@/lib/invoice-totals";
 import { DEFAULT_SALES_WHATSAPP_TEMPLATES, buildSalesWhatsAppUrl, type SalesWhatsAppTemplates } from "@/lib/sales-whatsapp";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { PageHeader } from "@/components/ui/page-header";
+import { NewButton } from "@/components/ui/new-button";
 import { ListDateBar, useListDateFilter } from "@/components/ui/list-date-filter";
 import { Button } from "@/components/ui/button";
 import { NewPaymentButton } from "@/components/payments/new-payment-button";
@@ -252,9 +253,7 @@ export default function SalesInvoicesPage() {
                   <Button variant="outline" className="w-full sm:w-auto" nativeButton={false} render={<Link href="/sales/invoices/import" />}>
                     <Upload className="size-4" /> Import
                   </Button>
-                  <Button className="w-full sm:w-auto" nativeButton={false} render={<Link href="/sales/invoices/new" />}>
-                    <Plus className="size-4" /> New invoice
-                  </Button>
+                  <NewButton href="/sales/invoices/new" ariaLabel="New invoice" className="w-full sm:w-auto" />
                 </>
               )}
               {user?.perms.managePayments && <NewPaymentButton className="col-span-2 w-full sm:w-auto" />}
@@ -336,9 +335,7 @@ export default function SalesInvoicesPage() {
           description="Creating an invoice is what deducts sold products from your finished-goods inventory."
           action={
             canManage && (
-              <Button nativeButton={false} render={<Link href="/sales/invoices/new" />}>
-                <Plus className="size-4" /> New invoice
-              </Button>
+              <NewButton href="/sales/invoices/new" ariaLabel="New invoice" />
             )
           }
         />

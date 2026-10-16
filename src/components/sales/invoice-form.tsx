@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { User2, FileText, Package2, Tag, Receipt } from "lucide-react";
+import { FileText, Package2, Tag, Receipt } from "lucide-react";
 import { useProducts } from "@/hooks/use-products";
 import { useSalesQuotation } from "@/hooks/use-sales-quotations";
 import { useSalesInvoice } from "@/hooks/use-sales-invoices";
@@ -61,6 +61,19 @@ function SectionHeading({ icon: Icon, label }: { icon: React.ElementType; label:
   );
 }
 
+/** One labelled header row: label on the left and field on the right from `sm`, stacked on phones. */
+function HeaderRow({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="grid gap-1.5 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center sm:gap-4">
+      <Label className={cn("text-sm font-medium", required ? "text-red-600 dark:text-red-400" : "text-foreground/80")}>
+        {label}
+        {required && <span className="ml-0.5">*</span>}
+      </Label>
+      <div className="min-w-0 sm:max-w-lg">{children}</div>
+    </div>
+  );
+}
+
 function FieldGroup({ label, required, children, hint }: { label: string; required?: boolean; children: React.ReactNode; hint?: string }) {
   return (
     <div className="space-y-1.5">
@@ -110,6 +123,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
       ? existing.items.map((item, i) => ({
           key: `existing-${i}`,
           productId: item.productId,
+          description: item.description || "",
           qty: String(item.qty),
           unitPrice: String(item.unitPrice),
           discountType: item.discountType || "percent",
@@ -167,6 +181,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
       quote.items.map((item) => ({
         key: `quo-${item.productId}-${Math.random().toString(36).slice(2, 7)}`,
         productId: item.productId,
+        description: item.description || "",
         qty: String(item.qty),
         unitPrice: String(item.unitPrice),
         discountType: item.discountType || "percent",
@@ -189,6 +204,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
       clone.items.map((item, i) => ({
         key: `clone-${i}-${Math.random().toString(36).slice(2, 7)}`,
         productId: item.productId,
+        description: item.description || "",
         qty: String(item.qty),
         unitPrice: String(item.unitPrice),
         discountType: item.discountType || "percent",
@@ -314,14 +330,11 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
         {/* ── Main form ─────────────────────────────────────────────────── */}
         <div className="lg:col-span-2 space-y-5">
 
-          {/* Customer & Invoice Info */}
-          <div className="rounded-xl border bg-white p-4 shadow-none dark:bg-card sm:p-5 sm:shadow-sm">
-            <SectionHeading icon={User2} label="Customer & Invoice Info" />
-
-            {/* Customer — full width, prominent. Type-and-search inline; "New" opens the
-                modal picker's add-customer form for a customer who doesn't exist yet. */}
-            <div className="mb-4">
-              <FieldGroup label="Customer" required>
+          {/* Customer & Invoice Info — Zoho-style: customer in a shaded band, then one labelled row per field
+              (label left, field right on wide screens; label above field on phones). */}
+          <div className="overflow-hidden rounded-xl border bg-white shadow-none dark:bg-card sm:shadow-sm">
+            <div className="border-b bg-muted/40 p-4 sm:p-5">
+              <HeaderRow label="Customer" required>
                 <div className="flex gap-2">
                   <SearchSelect
                     className="flex-1"
@@ -339,14 +352,17 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
                     New
                   </Button>
                 </div>
-              </FieldGroup>
+              </HeaderRow>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FieldGroup label="Invoice date" required>
+            <div className="space-y-4 p-4 sm:p-5">
+              <HeaderRow label="Invoice #" required>
+                <Input readOnly value={customNumberingOn ? "Assigned automatically on save" : invoiceNumber} className="h-10 bg-muted/30 font-mono text-sm" aria-label="Invoice number" />
+              </HeaderRow>
+              <HeaderRow label="Invoice date" required>
                 <DatePicker value={invoiceDate} onChange={handleInvoiceDateChange} />
-              </FieldGroup>
-              <FieldGroup label="Payment terms">
+              </HeaderRow>
+              <HeaderRow label="Terms">
                 <Select value={paymentTerm} onValueChange={(v) => v && handleTermChange(v as PaymentTerm)}>
                   <SelectTrigger className="h-10 w-full">
                     <SelectValue>{paymentTermLabel}</SelectValue>
@@ -357,12 +373,12 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
                     ))}
                   </SelectContent>
                 </Select>
-              </FieldGroup>
-              <FieldGroup label="Due date">
+              </HeaderRow>
+              <HeaderRow label="Due date">
                 <DatePicker value={dueDate} onChange={setDueDate} />
-              </FieldGroup>
+              </HeaderRow>
               {targetsMeta && (
-                <FieldGroup label="Sales person">
+                <HeaderRow label="Sales person">
                   <Select value={salesPerson ?? "none"} onValueChange={(v) => v && setSalesPersonPick(v === "none" ? null : v)}>
                     <SelectTrigger className="h-10 w-full">
                       <SelectValue>{(v: unknown) => (v === "none" ? "Nobody" : targetsMeta.staff.find((s) => s.id === v)?.name ?? "Choose")}</SelectValue>
@@ -374,7 +390,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
                       ))}
                     </SelectContent>
                   </Select>
-                </FieldGroup>
+                </HeaderRow>
               )}
             </div>
           </div>

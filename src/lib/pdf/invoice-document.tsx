@@ -144,7 +144,10 @@ export function InvoiceDocument({
           </View>
           {invoice.items.map((item, i) => (
             <View key={i} style={styles.tableRow}>
-              <Text style={[styles.td, styles.colProduct]}>{item.productName}</Text>
+              <View style={styles.colProduct}>
+                <Text style={styles.td}>{item.productName}</Text>
+                {item.description ? <Text style={{ fontSize: 8, color: "#6b7280", marginTop: 2 }}>{item.description}</Text> : null}
+              </View>
               <Text style={[styles.td, styles.colQty]}>{item.qty}</Text>
               <Text style={[styles.td, styles.colPrice]}>{money(item.unitPrice)}</Text>
               <Text style={[styles.td, styles.colDisc]}>{item.discountPercent > 0 ? `${item.discountPercent}%` : "—"}</Text>

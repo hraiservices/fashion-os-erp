@@ -87,7 +87,10 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
           <tbody>
             {invoice.items.map((item, i) => (
               <tr key={i} className="border-t">
-                <td className="p-3">{item.productName}</td>
+                <td className="p-3">
+                  {item.productName}
+                  {item.description && <p className="whitespace-pre-line text-xs text-muted-foreground">{item.description}</p>}
+                </td>
                 <td className="p-3 text-right tabular-nums">{item.qty}</td>
                 <td className="p-3 text-right tabular-nums">{inr(item.unitPrice)}</td>
                 <td className="p-3 text-right tabular-nums">{item.discountPercent > 0 ? `${item.discountPercent}%` : "—"}</td>

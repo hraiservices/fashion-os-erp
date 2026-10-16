@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, Trash2, Pencil, Upload, ArrowUpDown, Search } from "lucide-react";
+import { Trash2, Pencil, Upload, ArrowUpDown, Search } from "lucide-react";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { toast } from "sonner";
 import { useExpenses, useDeleteExpense, useBulkDeleteExpenses } from "@/hooks/use-expenses";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { inr, fmtDateShort } from "@/lib/format";
 import type { Expense } from "@/lib/types";
 import { PageHeader } from "@/components/ui/page-header";
+import { NewButton } from "@/components/ui/new-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -148,9 +149,7 @@ function ExpensesPageContent() {
               <Button variant="outline" className="w-full sm:w-auto" nativeButton={false} render={<Link href="/expenses/import" />}>
                 <Upload className="size-4" /> Import
               </Button>
-              <Button className="w-full sm:w-auto" nativeButton={false} render={<Link href="/expenses/new" />}>
-                <Plus className="size-4" /> Add Expense
-              </Button>
+              <NewButton href="/expenses/new" ariaLabel="Add Expense" className="w-full sm:w-auto" />
             </div>
           )
         }
@@ -242,9 +241,7 @@ function ExpensesPageContent() {
             className="border-0"
             action={
               canAdd && (
-                <Button nativeButton={false} render={<Link href="/expenses/new" />}>
-                  <Plus className="size-4" /> Add Expense
-                </Button>
+                <NewButton href="/expenses/new" ariaLabel="Add Expense" />
               )
             }
           />

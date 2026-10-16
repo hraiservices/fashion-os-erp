@@ -2,15 +2,15 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, Factory, ChevronRight } from "lucide-react";
+import { Factory, ChevronRight } from "lucide-react";
 import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useTailorName } from "@/hooks/use-employees";
 import { fmtDate } from "@/lib/format";
 import { WO_STATUS_LABELS, type WoStatus } from "@/lib/manufacturing";
 import { PageHeader } from "@/components/ui/page-header";
+import { NewButton } from "@/components/ui/new-button";
 import { ListDateBar, useListDateFilter } from "@/components/ui/list-date-filter";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -49,9 +49,7 @@ export default function ManufacturingPage() {
         description={`${filtered.length} of ${orders?.length ?? 0} work orders`}
         actions={
           canManage && (
-            <Button nativeButton={false} render={<Link href="/manufacturing/new" />}>
-              <Plus className="size-4" /> New work order
-            </Button>
+            <NewButton href="/manufacturing/new" ariaLabel="New work order" />
           )
         }
       />
@@ -86,9 +84,7 @@ export default function ManufacturingPage() {
           description="Create a work order to convert raw materials into finished-goods stock via your tailors."
           action={
             canManage && (
-              <Button nativeButton={false} render={<Link href="/manufacturing/new" />}>
-                <Plus className="size-4" /> New work order
-              </Button>
+              <NewButton href="/manufacturing/new" ariaLabel="New work order" />
             )
           }
         />

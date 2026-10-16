@@ -13,8 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { FormActionBar } from "@/components/ui/form-action-bar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
+import { SearchSelect } from "@/components/ui/search-select";
+import { AddVendorDialog } from "@/components/purchases/add-vendor-dialog";
 import { LineItemsEditor, linesToItems, blankLine, lineFromItem, type EditableLine } from "@/components/purchases/line-items-editor";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { inr } from "@/lib/format";
@@ -53,6 +54,8 @@ export function PurchaseOrderForm({ existing }: { existing?: PurchaseOrder }) {
   const isEdit = !!existing;
 
   const [poNumber] = useState(existing?.poNumber || genPoNumber());
+  const [addVendorOpen, setAddVendorOpen] = useState(false);
+  const [newVendorName, setNewVendorName] = useState("");
   const [vendorId, setVendorId] = useState(existing?.vendorId || "");
   const [date, setDate] = useState(existing?.date || istDateString());
   const [lines, setLines] = useState<EditableLine[]>(
@@ -117,16 +120,16 @@ export function PurchaseOrderForm({ existing }: { existing?: PurchaseOrder }) {
             <SectionHeading icon={Building2} label="Vendor & date" />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FieldGroup label="Vendor" required>
-                <Select value={vendorId} onValueChange={(v) => v && setVendorId(v)}>
-                  <SelectTrigger className="h-10 w-full">
-                    <SelectValue placeholder="Select vendor…">{vendorLabel}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(vendors || []).map((v) => (
-                      <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchSelect
+                  inputClassName="h-10"
+                  placeholder="Type to search vendor…"
+                  value={vendorId}
+                  fallbackLabel={vendorLabel(vendorId)}
+                  options={(vendors || []).map((v) => ({ value: v.id, label: v.name, sublabel: v.mobile || undefined }))}
+                  onSelect={setVendorId}
+                  createActions={[{ label: "Add new vendor", onCreate: (name) => { setNewVendorName(name); setAddVendorOpen(true); } }]}
+                />
+                <AddVendorDialog open={addVendorOpen} onOpenChange={setAddVendorOpen} defaultName={newVendorName} onCreated={(id) => setVendorId(id)} />
               </FieldGroup>
               <FieldGroup label="Order date" required>
                 <DatePicker value={date} onChange={setDate} />

@@ -114,6 +114,8 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
   const [customer, setCustomer] = useState<Customer | null>(existing ? placeholderCustomer(existing.customerName, existing.customerMobile) : null);
   const priceOverrides = usePriceListItemsMap(customer?.priceListId);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // What was typed in the customer search box when "Add new customer" was chosen — pre-fills the add form.
+  const [newCustomerName, setNewCustomerName] = useState("");
   const [subject, setSubject] = useState(existing?.subject || "");
   const [invoiceDate, setInvoiceDate] = useState(existing?.invoiceDate || istDateString());
   const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>("due_on_receipt");
@@ -347,8 +349,9 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
                       const c = (customers || []).find((c) => c.id === id);
                       if (c) handleSelectCustomer(c);
                     }}
+                    createActions={[{ label: "Add new customer", onCreate: (name) => { setNewCustomerName(name); setPickerOpen(true); } }]}
                   />
-                  <Button type="button" variant="outline" className="h-10 shrink-0" onClick={() => setPickerOpen(true)}>
+                  <Button type="button" variant="outline" className="h-10 shrink-0" onClick={() => { setNewCustomerName(""); setPickerOpen(true); }}>
                     New
                   </Button>
                 </div>
@@ -634,7 +637,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
         </FormActionBar>
       )}
 
-      <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={handleSelectCustomer} />
+      <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={handleSelectCustomer} startInAddMode defaultName={newCustomerName} />
     </div>
   );
 }

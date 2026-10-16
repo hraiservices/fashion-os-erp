@@ -12,11 +12,18 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 /** Quick-add vendor for the middle of another form (e.g. a bill) — just the fields needed to
  *  start billing against them. Full details (GSTIN, address, notes) can be filled in later from
  *  the vendor's own page. */
-export function AddVendorDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (open: boolean) => void; onCreated: (vendorId: string, name: string) => void }) {
+export function AddVendorDialog({ open, onOpenChange, onCreated, defaultName }: { open: boolean; onOpenChange: (open: boolean) => void; onCreated: (vendorId: string, name: string) => void; defaultName?: string }) {
   const { data: user } = useCurrentUser();
   const saveVendor = useSaveVendor();
-  const [name, setName] = useState("");
+  const [name, setName] = useState(defaultName || "");
   const [mobile, setMobile] = useState("");
+
+  // The dialog stays mounted, so re-apply the typed name each time it opens (state adjusted during render, not in an effect).
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) setName(defaultName || "");
+  }
 
   async function handleSave() {
     const trimmed = name.trim();

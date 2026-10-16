@@ -3,14 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Building2, Package2, Tag, FileText, ShoppingCart, Plus } from "lucide-react";
+import { Building2, Package2, Tag, FileText, ShoppingCart, Plus, Truck } from "lucide-react";
 import { useVendors } from "@/hooks/use-vendors";
 import { AddVendorDialog } from "@/components/purchases/add-vendor-dialog";
 import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
 import { useSaveBill } from "@/hooks/use-purchase-mutations";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { genBillNumber } from "@/lib/purchases";
+import { genBillNumber, computePurchaseTotal } from "@/lib/purchases";
 import { computeGst, GST_TYPE_LABELS, type GstType } from "@/lib/gst";
 import { PAYMENT_TERMS, PAYMENT_TERM_LABELS, dueDateFromTerm, type PaymentTerm } from "@/lib/payment-terms";
 import { inr } from "@/lib/format";
@@ -76,6 +76,9 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
   );
   const [gstType, setGstType] = useState<GstType>(existing?.gstType || "none");
   const [taxRate, setTaxRate] = useState(String(existing?.taxRate ?? 5));
+  const blankIfZero = (n: number | undefined) => (n ? String(n) : "");
+  const [shippingCharges, setShippingCharges] = useState(blankIfZero(existing?.shippingCharges));
+  const [otherCharges, setOtherCharges] = useState(blankIfZero(existing?.otherCharges));
   const [notes, setNotes] = useState(existing?.notes || "");
   const [notesOpen, setNotesOpen] = useState(false);
 
@@ -83,6 +86,8 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
     if (!po) return;
     setVendorId(po.vendorId);
     setLines(po.items.map((item, i) => lineFromItem(item, `po-${i}`)));
+    setShippingCharges(blankIfZero(po.shippingCharges));
+    setOtherCharges(blankIfZero(po.otherCharges));
   });
 
   function handleTermChange(term: PaymentTerm) {
@@ -99,6 +104,9 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
   const items = linesToItems(lines);
   const taxableAmount = items.reduce((s, i) => s + i.amount, 0);
   const gstPreview = computeGst(taxableAmount, parseFloat(taxRate) || 0, gstType);
+  const shipping = Math.max(0, parseFloat(shippingCharges) || 0);
+  const other = Math.max(0, parseFloat(otherCharges) || 0);
+  const grandTotal = computePurchaseTotal(gstPreview.total, shipping, other);
 
   async function handleSave() {
     if (!vendorId) return toast.error("Select a vendor");
@@ -116,6 +124,8 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
         items,
         gstType,
         taxRate: parseFloat(taxRate) || 0,
+        shippingCharges: shipping,
+        otherCharges: other,
         notes,
         userEmail: user?.email,
       });
@@ -214,6 +224,19 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
             <LineItemsEditor lines={lines} onChange={setLines} />
           </div>
 
+          {/* Shipping and other charges — added to the total after GST (no GST on them). */}
+          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+            <SectionHeading icon={Truck} label="Charges" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FieldGroup label="Shipping charges">
+                <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="0" value={shippingCharges} onChange={(e) => setShippingCharges(e.target.value)} className="h-10" />
+              </FieldGroup>
+              <FieldGroup label="Other charges" hint="Added after GST — no GST on charges">
+                <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="0" value={otherCharges} onChange={(e) => setOtherCharges(e.target.value)} className="h-10" />
+              </FieldGroup>
+            </div>
+          </div>
+
           {/* Tax */}
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
             <SectionHeading icon={Tag} label="Tax" />
@@ -263,7 +286,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm overflow-hidden">
             <div className="bg-primary px-5 py-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-primary-foreground/70">Bill summary</p>
-              <p className="text-2xl font-bold text-primary-foreground tabular-nums">{inr(gstPreview.total)}</p>
+              <p className="text-2xl font-bold text-primary-foreground tabular-nums">{inr(grandTotal)}</p>
             </div>
             <div className="px-5 py-4 space-y-2 text-sm">
               <div className="flex justify-between text-muted-foreground">
@@ -285,8 +308,18 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
                   <span>IGST</span><span className="tabular-nums">{inr(gstPreview.igst)}</span>
                 </div>
               )}
+              {shipping > 0 && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Shipping charges</span><span className="tabular-nums">{inr(shipping)}</span>
+                </div>
+              )}
+              {other > 0 && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Other charges</span><span className="tabular-nums">{inr(other)}</span>
+                </div>
+              )}
               <div className="flex justify-between border-t pt-2 font-semibold text-base">
-                <span>Total</span><span className="tabular-nums">{inr(gstPreview.total)}</span>
+                <span>Total</span><span className="tabular-nums">{inr(grandTotal)}</span>
               </div>
             </div>
             {isEdit && (
@@ -321,7 +354,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
           disabled={saveBill.isPending}
         >
           <ShoppingCart className="size-3.5" />
-          {saveBill.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(gstPreview.total)}` : `Record Bill · ${inr(gstPreview.total)}`}
+          {saveBill.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(grandTotal)}` : `Record Bill · ${inr(grandTotal)}`}
         </Button>
       </FormActionBar>
     </div>

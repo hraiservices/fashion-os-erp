@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
-import { computeLineItemsTotal, type PurchaseLineItem } from "@/lib/purchases";
+import { computeLineItemsTotal, computePurchaseTotal, type PurchaseLineItem } from "@/lib/purchases";
 
 const lineItemSchema = z.object({
   itemType: z.enum(["raw_material", "product"]).optional(),
@@ -24,6 +24,8 @@ const bodySchema = z.object({
   date: z.string().min(1),
   status: z.enum(["draft", "sent", "received", "cancelled"]),
   items: z.array(lineItemSchema),
+  shippingCharges: z.number().min(0).default(0),
+  otherCharges: z.number().min(0).default(0),
   notes: z.string().default(""),
 });
 
@@ -44,7 +46,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
   const isNew = !fd.id;
-  const total = computeLineItemsTotal(fd.items as PurchaseLineItem[]);
+  const total = computePurchaseTotal(computeLineItemsTotal(fd.items as PurchaseLineItem[]), fd.shippingCharges, fd.otherCharges);
 
   const { data, error } = await db
     .from("purchase_orders")
@@ -56,6 +58,8 @@ export async function POST(request: Request) {
       status: fd.status,
       items: fd.items as never,
       total,
+      shipping_charges: fd.shippingCharges,
+      other_charges: fd.otherCharges,
       notes: fd.notes.trim(),
       created_by: user.email,
     })

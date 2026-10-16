@@ -171,6 +171,22 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
                     )}
                   </>
                 )}
+                {bill.shippingCharges > 0 && (
+                  <tr className="bg-muted/30">
+                    <td className="p-2 text-muted-foreground" colSpan={3}>
+                      Shipping charges
+                    </td>
+                    <td className="p-2 text-right tabular-nums text-muted-foreground">{inr(bill.shippingCharges)}</td>
+                  </tr>
+                )}
+                {bill.otherCharges > 0 && (
+                  <tr className="bg-muted/30">
+                    <td className="p-2 text-muted-foreground" colSpan={3}>
+                      Other charges
+                    </td>
+                    <td className="p-2 text-right tabular-nums text-muted-foreground">{inr(bill.otherCharges)}</td>
+                  </tr>
+                )}
                 <tr className="border-t font-medium">
                   <td className="p-2" colSpan={3}>
                     Total ({GST_TYPE_LABELS[bill.gstType]})

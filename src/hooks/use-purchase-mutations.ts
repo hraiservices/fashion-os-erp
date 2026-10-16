@@ -75,6 +75,8 @@ interface SavePurchaseOrderInput {
   date: string;
   status: PoStatus;
   items: PurchaseLineItem[];
+  shippingCharges: number;
+  otherCharges: number;
   notes: string;
   userEmail?: string;
 }
@@ -107,6 +109,8 @@ interface SaveBillInput {
   items: PurchaseLineItem[];
   gstType: GstType;
   taxRate: number;
+  shippingCharges: number;
+  otherCharges: number;
   notes: string;
   userEmail?: string;
 }

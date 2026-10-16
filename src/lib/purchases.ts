@@ -51,6 +51,13 @@ export function computeLineItemsTotal(items: PurchaseLineItem[]): number {
   return items.reduce((s, i) => s + (i.amount || 0), 0);
 }
 
+/** A bill's / PO's grand total: the items plus GST on them, then shipping and other charges added on top. The charges
+ *  carry no GST — they are added after tax — so GST reports and the taxable amount are unaffected by them. */
+export function computePurchaseTotal(totalWithGst: number, shippingCharges: number, otherCharges: number): number {
+  const sum = (totalWithGst || 0) + Math.max(0, shippingCharges || 0) + Math.max(0, otherCharges || 0);
+  return Math.round(sum * 100) / 100;
+}
+
 export type PoStatus = "draft" | "sent" | "received" | "cancelled";
 export const PO_STATUS_LABELS: Record<PoStatus, string> = {
   draft: "Draft",

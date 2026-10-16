@@ -827,6 +827,8 @@ export interface Database {
           status: string;
           items: Json;
           total: number;
+          shipping_charges: number;
+          other_charges: number;
           notes: string;
           created_by: string | null;
           created_at: string;
@@ -855,6 +857,8 @@ export interface Database {
           sgst: number;
           igst: number;
           total: number;
+          shipping_charges: number;
+          other_charges: number;
           notes: string;
           created_by: string | null;
           created_at: string;

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
-import { computeLineItemsTotal, purchaseItemType, purchaseItemId, type PurchaseLineItem } from "@/lib/purchases";
+import { computeLineItemsTotal, computePurchaseTotal, purchaseItemType, purchaseItemId, type PurchaseLineItem } from "@/lib/purchases";
 import { computeGst } from "@/lib/gst";
 import { notifyStockMatches } from "@/lib/stock-match-notify";
 
@@ -29,6 +29,8 @@ const bodySchema = z.object({
   items: z.array(lineItemSchema),
   gstType: z.enum(["none", "intra", "inter"]),
   taxRate: z.number(),
+  shippingCharges: z.number().min(0).default(0),
+  otherCharges: z.number().min(0).default(0),
   notes: z.string().default(""),
 });
 
@@ -92,7 +94,9 @@ export async function POST(request: Request) {
       cgst: gst.cgst,
       sgst: gst.sgst,
       igst: gst.igst,
-      total: gst.total,
+      shipping_charges: fd.shippingCharges,
+      other_charges: fd.otherCharges,
+      total: computePurchaseTotal(gst.total, fd.shippingCharges, fd.otherCharges),
       notes: fd.notes.trim(),
       created_by: user.email,
     })
@@ -121,6 +125,6 @@ export async function POST(request: Request) {
   const arrivedProductIds = fd.items.filter((i) => i.qty > 0 && purchaseItemType(i as PurchaseLineItem) === "product").map((i) => purchaseItemId(i as PurchaseLineItem)).filter((x): x is string => !!x);
   if (isNew && arrivedProductIds.length) after(() => notifyStockMatches(db, arrivedProductIds).catch(() => undefined));
 
-  await logAction(supabase, user.email, isNew ? `Bill received: ${fd.billNumber}` : `Bill updated: ${fd.billNumber}`, null, `₹${gst.total}`);
+  await logAction(supabase, user.email, isNew ? `Bill received: ${fd.billNumber}` : `Bill updated: ${fd.billNumber}`, null, `₹${computePurchaseTotal(gst.total, fd.shippingCharges, fd.otherCharges)}`);
   return NextResponse.json({ bill: data });
 }

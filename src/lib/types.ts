@@ -528,7 +528,10 @@ export interface PurchaseOrder {
   date: string;
   status: PoStatus;
   items: PurchaseLineItem[];
+  /** Grand total — items plus shipping and other charges. */
   total: number;
+  shippingCharges: number;
+  otherCharges: number;
   notes: string;
   createdAt: string;
 }
@@ -542,6 +545,8 @@ export function mapPurchaseOrderRow(r: PurchaseOrderRow): PurchaseOrder {
     status: (r.status as PoStatus) || "draft",
     items: (Array.isArray(r.items) ? r.items : []) as unknown as PurchaseLineItem[],
     total: r.total || 0,
+    shippingCharges: r.shipping_charges || 0,
+    otherCharges: r.other_charges || 0,
     notes: r.notes || "",
     createdAt: r.created_at,
   };
@@ -561,6 +566,9 @@ export interface PurchaseBill {
   cgst: number;
   sgst: number;
   igst: number;
+  /** Shipping and other charges are added after GST, so they are not part of taxableAmount or the GST figures. */
+  shippingCharges: number;
+  otherCharges: number;
   total: number;
   notes: string;
   createdAt: string;
@@ -581,6 +589,8 @@ export function mapPurchaseBillRow(r: PurchaseBillRow): PurchaseBill {
     cgst: r.cgst || 0,
     sgst: r.sgst || 0,
     igst: r.igst || 0,
+    shippingCharges: r.shipping_charges || 0,
+    otherCharges: r.other_charges || 0,
     total: r.total || 0,
     notes: r.notes || "",
     createdAt: r.created_at,

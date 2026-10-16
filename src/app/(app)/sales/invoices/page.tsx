@@ -16,7 +16,7 @@ import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { useSavedViews } from "@/hooks/use-saved-views";
 import { useRowSelection } from "@/hooks/use-row-selection";
 import { inr, fmtDate } from "@/lib/format";
-import { invoiceDueBadge, avgDaysToGetPaid, computeInvoiceMargin, DOC_STATUS_LABELS, type DueTone } from "@/lib/sales";
+import { invoiceDueBadge, avgDaysToGetPaid, computeInvoiceMargin, totalPieces, DOC_STATUS_LABELS, type DueTone } from "@/lib/sales";
 import { computeInvoiceTotals } from "@/lib/invoice-totals";
 import { DEFAULT_SALES_WHATSAPP_TEMPLATES, buildSalesWhatsAppUrl, type SalesWhatsAppTemplates } from "@/lib/sales-whatsapp";
 import { ExportMenu } from "@/components/ui/export-menu";
@@ -61,6 +61,7 @@ const COLUMNS = [
   { key: "customer", label: "Customer", required: true },
   { key: "quote", label: "Quote#" },
   { key: "amount", label: "Amount" },
+  { key: "pieces", label: "Pieces" },
   { key: "margin", label: "Profit Margin" },
   { key: "balance", label: "Balance" },
   { key: "dueDate", label: "Due Date" },
@@ -232,6 +233,7 @@ export default function SalesInvoicesPage() {
     Customer: inv.customerName,
     Mobile: inv.customerMobile,
     Amount: inv.total,
+    Pieces: totalPieces(inv.items),
     Balance: inv.balance,
     DueDate: inv.dueDate || "",
     DocStatus: DOC_STATUS_LABELS[inv.docStatus],
@@ -363,6 +365,7 @@ export default function SalesInvoicesPage() {
                 {table.isVisible("customer") && <TableHead>Customer</TableHead>}
                 {table.isVisible("quote") && <TableHead>Quote#</TableHead>}
                 {table.isVisible("amount") && <TableHead className="text-right">Amount</TableHead>}
+                {table.isVisible("pieces") && <TableHead className="text-right">Pieces</TableHead>}
                 {table.isVisible("margin") && canViewMargin && <TableHead className="text-right">Profit Margin</TableHead>}
                 {table.isVisible("balance") && (
                   <TableHead className="text-right">
@@ -397,6 +400,7 @@ export default function SalesInvoicesPage() {
                     )}
                     {table.isVisible("quote") && <TableCell className="text-muted-foreground">{inv.quoteId ? quoteNumberById.get(inv.quoteId) || "—" : "—"}</TableCell>}
                     {table.isVisible("amount") && <TableCell className="text-right tabular-nums">{inr(inv.total)}</TableCell>}
+                    {table.isVisible("pieces") && <TableCell className="text-right tabular-nums">{totalPieces(inv.items)}</TableCell>}
                     {table.isVisible("margin") && canViewMargin && (
                       <TableCell
                         className={cn(
@@ -474,6 +478,7 @@ export default function SalesInvoicesPage() {
                 <MobileRecordRow label="Date" value={fmtDate(inv.invoiceDate)} />
                 <MobileRecordRow label="Quote#" value={inv.quoteId ? quoteNumberById.get(inv.quoteId) || "—" : "—"} />
                 <MobileRecordRow label="Amount" value={inr(inv.total)} />
+                <MobileRecordRow label="Pieces" value={totalPieces(inv.items)} />
                 {canViewMargin && (
                   <MobileRecordRow
                     label="Profit Margin"

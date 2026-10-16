@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Building2, Package2, FileText, ClipboardList } from "lucide-react";
+import { Building2, Package2, FileText, ClipboardList, Truck } from "lucide-react";
 import { useVendors } from "@/hooks/use-vendors";
 import { useSavePurchaseOrder } from "@/hooks/use-purchase-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { genPoNumber } from "@/lib/purchases";
+import { genPoNumber, computePurchaseTotal } from "@/lib/purchases";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { FormActionBar } from "@/components/ui/form-action-bar";
@@ -57,11 +58,16 @@ export function PurchaseOrderForm({ existing }: { existing?: PurchaseOrder }) {
   const [lines, setLines] = useState<EditableLine[]>(
     existing ? existing.items.map((item, i) => lineFromItem(item, `existing-${i}`)) : [blankLine()]
   );
+  const [shippingCharges, setShippingCharges] = useState(existing?.shippingCharges ? String(existing.shippingCharges) : "");
+  const [otherCharges, setOtherCharges] = useState(existing?.otherCharges ? String(existing.otherCharges) : "");
   const [notes, setNotes] = useState(existing?.notes || "");
   const [notesOpen, setNotesOpen] = useState(false);
 
   const vendorLabel = (id: string) => (vendors || []).find((v) => v.id === id)?.name ?? "";
-  const total = linesToItems(lines).reduce((s, i) => s + i.amount, 0);
+  const itemsTotal = linesToItems(lines).reduce((s, i) => s + i.amount, 0);
+  const shipping = Math.max(0, parseFloat(shippingCharges) || 0);
+  const other = Math.max(0, parseFloat(otherCharges) || 0);
+  const total = computePurchaseTotal(itemsTotal, shipping, other);
 
   async function handleSave() {
     if (!vendorId) return toast.error("Select a vendor");
@@ -69,7 +75,7 @@ export function PurchaseOrderForm({ existing }: { existing?: PurchaseOrder }) {
     if (items.length === 0) return toast.error("Add at least one item");
 
     try {
-      const res = await savePo.mutateAsync({ id: existing?.id, poNumber, vendorId, date, status: existing?.status || "draft", items, notes, userEmail: user?.email });
+      const res = await savePo.mutateAsync({ id: existing?.id, poNumber, vendorId, date, status: existing?.status || "draft", items, shippingCharges: shipping, otherCharges: other, notes, userEmail: user?.email });
       toast.success(isEdit ? `Purchase order ${poNumber} updated` : `Purchase order ${poNumber} created`);
       router.push(`/purchases/orders/${res.id}`);
     } catch (e) {
@@ -134,6 +140,21 @@ export function PurchaseOrderForm({ existing }: { existing?: PurchaseOrder }) {
             <LineItemsEditor lines={lines} onChange={setLines} />
           </div>
 
+          {/* Shipping and other charges — added to the total (no GST on them). */}
+          <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
+            <SectionHeading icon={Truck} label="Charges" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-sm font-bold text-foreground/80">Shipping charges</Label>
+                <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="0" value={shippingCharges} onChange={(e) => setShippingCharges(e.target.value)} className="h-10" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-bold text-foreground/80">Other charges</Label>
+                <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="0" value={otherCharges} onChange={(e) => setOtherCharges(e.target.value)} className="h-10" />
+              </div>
+            </div>
+          </div>
+
           {/* Notes */}
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
             <Accordion value={notesOpen ? ["notes"] : []} onValueChange={(v) => setNotesOpen(v.includes("notes"))}>
@@ -164,6 +185,23 @@ export function PurchaseOrderForm({ existing }: { existing?: PurchaseOrder }) {
               <p className="text-2xl font-bold text-primary-foreground tabular-nums">{inr(total)}</p>
             </div>
             <div className="px-5 py-4 space-y-2 text-sm">
+              {(shipping > 0 || other > 0) && (
+                <>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Items</span><span className="tabular-nums">{inr(itemsTotal)}</span>
+                  </div>
+                  {shipping > 0 && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Shipping charges</span><span className="tabular-nums">{inr(shipping)}</span>
+                    </div>
+                  )}
+                  {other > 0 && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Other charges</span><span className="tabular-nums">{inr(other)}</span>
+                    </div>
+                  )}
+                </>
+              )}
               <div className="flex justify-between border-t pt-2 font-semibold text-base">
                 <span>Estimated total</span><span className="tabular-nums">{inr(total)}</span>
               </div>

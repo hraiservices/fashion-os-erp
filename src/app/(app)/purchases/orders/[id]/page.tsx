@@ -107,6 +107,22 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
                 ))}
               </tbody>
               <tfoot>
+                {po.shippingCharges > 0 && (
+                  <tr className="border-t bg-muted/30 text-muted-foreground">
+                    <td className="p-2" colSpan={3}>
+                      Shipping charges
+                    </td>
+                    <td className="p-2 text-right tabular-nums">{inr(po.shippingCharges)}</td>
+                  </tr>
+                )}
+                {po.otherCharges > 0 && (
+                  <tr className="bg-muted/30 text-muted-foreground">
+                    <td className="p-2" colSpan={3}>
+                      Other charges
+                    </td>
+                    <td className="p-2 text-right tabular-nums">{inr(po.otherCharges)}</td>
+                  </tr>
+                )}
                 <tr className="border-t bg-muted/30 font-medium">
                   <td className="p-2" colSpan={3}>
                     Total
@@ -126,6 +142,16 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
                 </p>
               </MobileRecordCard>
             ))}
+            {po.shippingCharges > 0 && (
+              <MobileRecordCard>
+                <MobileRecordHeader title="Shipping charges" value={inr(po.shippingCharges)} showChevron={false} />
+              </MobileRecordCard>
+            )}
+            {po.otherCharges > 0 && (
+              <MobileRecordCard>
+                <MobileRecordHeader title="Other charges" value={inr(po.otherCharges)} showChevron={false} />
+              </MobileRecordCard>
+            )}
             <MobileRecordCard className="bg-muted/40">
               <MobileRecordHeader title="Total" value={inr(po.total)} showChevron={false} />
             </MobileRecordCard>

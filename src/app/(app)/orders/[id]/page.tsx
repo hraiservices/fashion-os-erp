@@ -20,7 +20,7 @@ import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
 import { computeOrderProfit } from "@/lib/order-profit";
-import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppUrl, isValidManualOrderNumber, type Lining } from "@/lib/business-rules";
+import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppMessage, buildWhatsAppUrl, isValidManualOrderNumber, type Lining } from "@/lib/business-rules";
 import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
@@ -41,6 +41,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
+import { ReadyPhotoShare } from "@/components/orders/ready-photo-share";
+import { UpiPayButton } from "@/components/payments/upi-pay-dialog";
 import { PrintButton } from "@/components/ui/print-button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -406,6 +408,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <Wallet className="size-4 shrink-0" /> <span className="truncate">Collect payment</span>
             </Button>
           )}
+          {user?.perms.managePayments && order.balance > 0 && <UpiPayButton amount={order.balance} note={`Order ${order.id}`} name={order.name} mobile={order.mobile} className="h-12 min-w-0 w-full text-base sm:h-10 sm:w-auto sm:flex-1 sm:basis-28 sm:text-sm" />}
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -419,6 +422,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             />
           ) : (
             <WhatsAppButton href={waUrl} label="WhatsApp" labelClassName="min-w-0 truncate" className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm" />
+          )}
+          {order.status === "ready" && (
+            <ReadyPhotoShare mobile={order.mobile} balance={order.balance} message={buildWhatsAppMessage({ ...order, trackUrl }, "ready", shop, waTemplates)} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" />
           )}
           {user?.perms.editOrder && (
             <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" nativeButton={false} render={<Link href={`/orders/${id}/edit`} />} aria-label="Edit order">

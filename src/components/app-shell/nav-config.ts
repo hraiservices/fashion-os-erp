@@ -314,6 +314,7 @@ export const SETTINGS_GROUP: NavGroup = {
     { href: "/settings/lead-templates", label: "Lead WhatsApp Messages" },
     { href: "/settings/copilot", label: "AI Copilot" },
     { href: "/settings/ai-assist", label: "AI Helpers" },
+    { href: "/settings/shop-links", label: "UPI Payments" },
     { href: "/settings/navigation", label: "Sidebar Navigation" },
     { href: "/settings/module-licensing", label: "Module Licensing" },
     { href: "/settings/signup-requests", label: "Signup Requests" },
@@ -350,7 +351,7 @@ export function settingsLeafVisible(
   perms: { manageWhatsappSettings: boolean; manageLoyaltySettings: boolean; manageDocumentTemplates: boolean; managePriceLists: boolean; manageNavigationSettings: boolean; manageTargets: boolean }
 ): boolean {
   if (href === "/settings/module-licensing" || href === "/settings/signup-requests" || href === "/settings/admin-console") return isSuperAdmin;
-  if (href === "/settings/copilot" || href === "/settings/ai-assist") return isAdmin;
+  if (href === "/settings/copilot" || href === "/settings/ai-assist" || href === "/settings/shop-links") return isAdmin;
   if (href === "/settings/whatsapp") return perms.manageWhatsappSettings;
   if (href === "/settings/loyalty") return perms.manageLoyaltySettings;
   if (href === "/settings/invoice-terms" || href === "/settings/invoice-template" || href === "/settings/stitching-order-template") return perms.manageDocumentTemplates;

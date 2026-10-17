@@ -44,6 +44,7 @@ import {
 import { computeOrderProfit, STITCHING_EXPENSE_FIXED_CATEGORIES } from "@/lib/order-profit";
 import { apportionAmount } from "@/lib/order-split";
 import { hydrateMeasurements, compactMeasurements, type MeasureLang } from "@/lib/measurements";
+import { measurementChanges } from "@/lib/measurement-diff";
 import { inr, fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { hapticSuccess, hapticError } from "@/lib/haptics";
@@ -293,6 +294,8 @@ function OrderFormFields({
   // is set, upsert it back into the customer's profile array. See lib/measurement-profiles.ts.
   const [measureProfileId, setMeasureProfileId] = useState<string | null>(existingOrder?.measurementProfileId ?? null);
   const [measureProfileName, setMeasureProfileName] = useState<string>(existingOrder?.measurementProfileName ?? "");
+  // The saved values that were loaded into the grid — anything typed over them by a lot is flagged below, in case it's a typo.
+  const [measureBaseline, setMeasureBaseline] = useState<Record<string, string> | null>(null);
   // Whether to persist the measurements typed here back onto the customer at all — off for a
   // genuine one-off order, on otherwise (matches the legacy always-sync behavior by default).
   const [saveMeasurementsToCustomer, setSaveMeasurementsToCustomer] = useState(true);
@@ -583,6 +586,7 @@ function OrderFormFields({
     const toLoad = defaultProfile(profiles);
     const saved = toLoad ? hydrateMeasurements(measureFields, toLoad.values) : hydrateMeasurements(measureFields, customer.measurements);
     setMeasurements(saved);
+    setMeasureBaseline(saved);
     setMeasureProfileId(toLoad?.id ?? null);
     setMeasureProfileName(toLoad?.name ?? "");
     setPrefilled(true);
@@ -592,6 +596,7 @@ function OrderFormFields({
   function handlePickProfile(id: string) {
     if (id === "__blank__") {
       setMeasurements(hydrateMeasurements(measureFields, {}));
+      setMeasureBaseline(null);
       setMeasureProfileId(null);
       setMeasureProfileName("");
       return;
@@ -599,6 +604,7 @@ function OrderFormFields({
     const profile = findProfile(measureProfiles, id);
     if (!profile) return;
     setMeasurements(hydrateMeasurements(measureFields, profile.values));
+    setMeasureBaseline(hydrateMeasurements(measureFields, profile.values));
     setMeasureProfileId(profile.id);
     setMeasureProfileName(profile.name);
   }
@@ -607,6 +613,8 @@ function OrderFormFields({
   useSyncFromSource(mobile, (m) => {
     if (m?.length !== 10) setPrefilled(false);
   });
+
+  const changedMeasurements = measureBaseline ? measurementChanges(measureBaseline, measurements) : [];
 
   const balanceBeforePoints = Math.max(0, total - advance);
   const availablePoints = loyaltyCfg?.enabled ? foundCustomer?.loyaltyPoints || 0 : 0;
@@ -1400,6 +1408,19 @@ function OrderFormFields({
                           </Button>
                         )}
                       </div>
+                    </div>
+                  )}
+                  {changedMeasurements.length > 0 && (
+                    <div role="alert" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+                      <p className="font-medium">Different from the saved measurements — please double-check:</p>
+                      <ul className="mt-1 space-y-0.5">
+                        {changedMeasurements.map((c) => (
+                          <li key={c.key}>
+                            {c.label}: {c.before} → {c.after} ({c.diff > 0 ? "+" : ""}
+                            {c.diff})
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
                   <MeasurementGrid

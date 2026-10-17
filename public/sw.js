@@ -2,6 +2,8 @@
 /* Bump the cache name on every release to force a refresh. v2 also exists to purge the caches
    written by v1, whose fetch handler could poison a request permanently (see below). */
 var CACHE = "fashion-flow-v2";
+/* Files shared INTO the app from WhatsApp (the manifest share_target) wait here until the /share page claims them. */
+var SHARE_CACHE = "fashion-flow-share";
 
 /* App-shell only — Next.js build assets are content-hashed so a stale cache never
    masks a new deploy; the HTML document still bypasses HTTP cache below. */
@@ -22,7 +24,7 @@ self.addEventListener("activate", function (e) {
     caches
       .keys()
       .then(function (keys) {
-        return Promise.all(keys.filter(function (k) { return k !== CACHE; }).map(function (k) { return caches.delete(k); }));
+        return Promise.all(keys.filter(function (k) { return k !== CACHE && k !== SHARE_CACHE; }).map(function (k) { return caches.delete(k); }));
       })
       .then(function () { return self.clients.claim(); })
   );
@@ -44,7 +46,41 @@ self.addEventListener("activate", function (e) {
  *    exactly that (cache miss, then a miss on a "/dashboard" entry that was never precached),
  *    which is how a flaky first fetch turned into permanently missing CSS/JS chunks and a
  *    half-rendered page. Every branch below ends in a Response or a real network attempt. */
+/* Share target: the OS POSTs the shared files to /share-target. They can be far bigger than a serverless request
+   body may be, so they never go to the server here — they are parked in the Cache API and the /share page reads
+   them back, picks the lead, and uploads straight to storage. Always answers with a redirect so a failure still
+   lands on the /share page (which then explains nothing arrived) instead of a browser error. */
+function stashShared(request) {
+  return request
+    .formData()
+    .then(function (form) {
+      return caches.open(SHARE_CACHE).then(function (cache) {
+        return cache
+          .keys()
+          .then(function (old) { return Promise.all(old.map(function (k) { return cache.delete(k); })); })
+          .then(function () {
+            var files = form.getAll("files").filter(function (f) { return typeof f !== "string"; });
+            var meta = { title: String(form.get("title") || ""), text: String(form.get("text") || ""), url: String(form.get("url") || ""), count: files.length, at: Date.now() };
+            var puts = files.map(function (file, i) {
+              return cache.put(
+                "/__shared/" + i,
+                new Response(file, { headers: { "Content-Type": file.type || "application/octet-stream", "X-File-Name": encodeURIComponent(file.name || "file-" + i) } })
+              );
+            });
+            puts.push(cache.put("/__shared/meta", new Response(JSON.stringify(meta), { headers: { "Content-Type": "application/json" } })));
+            return Promise.all(puts);
+          });
+      });
+    })
+    .catch(function () {})
+    .then(function () { return Response.redirect("/share", 303); });
+}
+
 self.addEventListener("fetch", function (e) {
+  if (e.request.method === "POST" && new URL(e.request.url).pathname === "/share-target") {
+    e.respondWith(stashShared(e.request));
+    return;
+  }
   if (e.request.method !== "GET") return;
   if (e.request.mode === "navigate") return;
   var url = new URL(e.request.url);

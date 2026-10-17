@@ -2,9 +2,10 @@
 
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { FileText, ImagePlus, Loader2, Trash2, X } from "lucide-react";
+import { FileText, ImagePlus, Loader2, MessagesSquare, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { describeSummary, useAttachToLead } from "@/hooks/use-lead-whatsapp";
 import { useDeleteLeadAttachment, useLeadAttachments, useUploadLeadAttachments } from "@/hooks/use-targets";
 import { LEAD_MEDIA_MAX_BYTES, formatBytes, guessContentType, leadMediaKind } from "@/lib/lead-media";
 import type { LeadAttachmentDto } from "@/lib/targets-types";
@@ -20,6 +21,8 @@ export function LeadAttachments({ leadId, canEdit }: { leadId: string; canEdit: 
   const upload = useUploadLeadAttachments();
   const remove = useDeleteLeadAttachment();
   const inputRef = useRef<HTMLInputElement>(null);
+  const exportRef = useRef<HTMLInputElement>(null);
+  const importExport = useAttachToLead();
   const [lightbox, setLightbox] = useState<LeadAttachmentDto | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
@@ -47,6 +50,22 @@ export function LeadAttachments({ leadId, canEdit }: { leadId: string; canEdit: 
           failures.forEach((f) => toast.error(f));
         },
         onError: (err) => toast.error(err instanceof Error ? err.message : "Couldn't upload"),
+      }
+    );
+  }
+
+  function onPickExport(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = e.target.files?.[0];
+    e.target.value = "";
+    if (!picked) return;
+    importExport.mutate(
+      { id: leadId, files: [picked] },
+      {
+        onSuccess: (s) => {
+          s.failures.forEach((f) => toast.error(f));
+          toast.success(describeSummary(s));
+        },
+        onError: (err) => toast.error(err instanceof Error ? err.message : "Couldn't import the chat"),
       }
     );
   }
@@ -84,19 +103,24 @@ export function LeadAttachments({ leadId, canEdit }: { leadId: string; canEdit: 
           WhatsApp files{items.length > 0 && <span className="ml-1.5 font-normal">({items.length})</span>}
         </h2>
         {canEdit && (
-          <>
+          <div className="flex items-center gap-3">
+            <input ref={exportRef} type="file" accept=".zip,.txt" className="hidden" onChange={onPickExport} />
+            <button type="button" onClick={() => exportRef.current?.click()} disabled={importExport.isPending} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary disabled:opacity-60">
+              {importExport.isPending ? <Loader2 className="size-4 animate-spin" /> : <MessagesSquare className="size-4" />}
+              {importExport.isPending ? "Importing…" : "Import chat"}
+            </button>
             <input ref={inputRef} type="file" multiple accept={ACCEPT} className="hidden" onChange={onPick} />
             <button type="button" onClick={() => inputRef.current?.click()} disabled={upload.isPending} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary disabled:opacity-60">
               {upload.isPending ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
               {upload.isPending ? "Uploading…" : "Add files"}
             </button>
-          </>
+          </div>
         )}
       </div>
 
       {items.length === 0 ? (
         <p className="rounded-xl border border-dashed px-4 py-5 text-center text-xs text-muted-foreground">
-          {canEdit ? "Photos, voice notes, designs and PDFs from the WhatsApp chat can be kept here. Tap Add files." : "No files yet."}
+          {canEdit ? "Photos, voice notes, designs and PDFs from the WhatsApp chat can be kept here. Tap Add files, or Import chat for a whole conversation." : "No files yet."}
         </p>
       ) : (
         <div className="space-y-3 rounded-xl border bg-card p-3">

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { orderRisks, type OrderRisk } from "@/lib/order-risk";
 import { addDaysIso } from "@/lib/work-tasks";
-import { DEFAULT_AI_CONFIG, aiFeatureOn, type AiAssistConfig, type AiFeature } from "@/lib/ai-config";
+import { DEFAULT_AI_CONFIG, aiFeatureOn, cleanAiConfig, type AiAssistConfig, type AiFeature } from "@/lib/ai-config";
 
 /** Hooks for the AI helpers. Every call goes to a server route that checks the admin's switches and the daily cap. */
 
@@ -25,7 +25,9 @@ export function useAiConfig() {
     queryFn: async (): Promise<AiConfigResponse> => {
       const res = await fetch("/api/settings/ai-assist");
       if (!res.ok) return { config: DEFAULT_AI_CONFIG, used: 0, keyConfigured: false };
-      return res.json();
+      const body = (await res.json().catch(() => null)) as Partial<AiConfigResponse> | null;
+      // A page that shows AI buttons must never crash on an odd response — treat it as "AI off".
+      return { config: cleanAiConfig(body?.config), used: Number(body?.used) || 0, keyConfigured: !!body?.keyConfigured };
     },
     staleTime: 60_000,
   });

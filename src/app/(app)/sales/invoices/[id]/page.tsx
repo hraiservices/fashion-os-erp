@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { UpiPayButton } from "@/components/payments/upi-pay-dialog";
 import { Wallet, Undo2, Trash2, Pencil, Send, Download, Copy, Link2, Printer } from "lucide-react";
 import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { printThermalReceipt } from "@/lib/thermal-receipt";
@@ -387,6 +388,7 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
                 <Wallet className="size-4" /> Record payment
               </Button>
             )}
+            {canManagePayments && invoice.balance > 0 && <UpiPayButton amount={invoice.balance} note={`Invoice ${invoice.invoiceNumber}`} name={invoice.customerName} mobile={invoice.customerMobile} className="mt-2 h-12 w-full text-base sm:h-7 sm:text-[0.8rem] print:hidden" />}
 
             <div className="mt-4 space-y-1.5 print:hidden">
               <p className="px-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Share &amp; notify</p>

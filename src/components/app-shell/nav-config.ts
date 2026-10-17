@@ -312,6 +312,7 @@ export const SETTINGS_GROUP: NavGroup = {
     { href: "/settings/price-lists", label: "Price Lists" },
     { href: "/settings/lead-stages", label: "Lead Stage Names" },
     { href: "/settings/lead-templates", label: "Lead WhatsApp Messages" },
+    { href: "/settings/enquiry-link", label: "Enquiry Link & QR" },
     { href: "/settings/copilot", label: "AI Copilot" },
     { href: "/settings/ai-assist", label: "AI Helpers" },
     { href: "/settings/shop-links", label: "UPI Payments" },
@@ -357,7 +358,7 @@ export function settingsLeafVisible(
   if (href === "/settings/invoice-terms" || href === "/settings/invoice-template" || href === "/settings/stitching-order-template") return perms.manageDocumentTemplates;
   if (href === "/settings/price-lists") return perms.managePriceLists;
   if (href === "/settings/navigation") return perms.manageNavigationSettings;
-  if (href === "/settings/lead-stages" || href === "/settings/lead-templates") return perms.manageTargets;
+  if (href === "/settings/lead-stages" || href === "/settings/lead-templates" || href === "/settings/enquiry-link") return perms.manageTargets;
   return true; // /settings/personalize and /settings/account — everyone (canManageShop kept as a param for callers/backward compat)
 }
 

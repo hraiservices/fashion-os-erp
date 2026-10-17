@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Copy, FileText, Loader2, MessageCircle, Sparkles, Wallet } from "lucide-react";
@@ -105,6 +106,25 @@ export function LeadAiCard({ lead, canEdit }: { lead: LeadDto; canEdit: boolean 
                 }
               >
                 Save to history
+              </Button>
+              <Button
+                type="button"
+                className="h-11 w-full"
+                nativeButton={false}
+                render={
+                  <Link
+                    href={`/orders/new?${new URLSearchParams({
+                      mobile: lead.mobile,
+                      name: lead.name,
+                      leadId: lead.id,
+                      garments: quote.data.items.map((i) => `${i.type}:${i.qty}`).join(","),
+                      ...(lead.neededBy ? { needed: lead.neededBy } : {}),
+                      note: `From quote: ${quote.data.items.map((i) => `${i.qty} × ${i.type}`).join(", ")}`,
+                    }).toString()}`}
+                  />
+                }
+              >
+                Create order from this quote
               </Button>
             </>
           )}

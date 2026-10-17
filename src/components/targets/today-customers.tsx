@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Cake, ChevronDown, MessageCircle, Star } from "lucide-react";
+import { toast } from "sonner";
+import { Cake, ChevronDown, MessageCircle, RotateCcw, Sparkles, Star } from "lucide-react";
+import { useAiOn, useLeadAi, type LeadReply } from "@/hooks/use-ai";
+import { useLeads } from "@/hooks/use-targets";
+import { winBackCandidates, winBackMessage } from "@/lib/win-back";
+import type { LeadDto } from "@/lib/targets-types";
 import { useReviewCandidates, useUpcomingOccasions } from "@/hooks/use-customer-nudges";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { normalizeIndianMobile } from "@/lib/business-rules";
@@ -84,6 +89,45 @@ export function ReviewRequestCard({ today, canEdit }: { today: string; canEdit: 
     <Collapsible icon={Star} title={`${rows.length} recent ${rows.length === 1 ? "customer" : "customers"} to ask for a review`} tone="border-yellow-200 bg-yellow-50/60 text-yellow-800 dark:border-yellow-500/30 dark:bg-yellow-500/5 dark:text-yellow-300">
       {rows.slice(0, 12).map((r) => (
         <Row key={r.id} name={r.name} sub={`Delivered ${r.deliveryDate}`} href={wa(r.mobile, msg(r.name))} label={`Ask ${r.name} for a review`} onSent={() => mark(r.id)} />
+      ))}
+    </Collapsible>
+  );
+}
+
+function WinBackRow({ lead, shopName }: { lead: LeadDto; shopName: string }) {
+  const aiOn = useAiOn("reply");
+  const ai = useLeadAi<LeadReply>(lead.id);
+  const [draft, setDraft] = useState<string | null>(null);
+  const text = draft ?? winBackMessage(lead.name, lead.lostReason, shopName);
+  return (
+    <>
+      <Row name={lead.name} sub={`Said no: ${lead.lostReason} · ${lead.lostAt ? lead.lostAt.slice(0, 10) : ""}`} href={wa(lead.mobile, text)} label={`Message ${lead.name} on WhatsApp`} />
+      {aiOn && (
+        <li className="-mt-0.5 pl-3">
+          <button
+            type="button"
+            disabled={ai.isPending}
+            onClick={() => ai.mutate({ action: "reply", intent: `win back a lead who said no earlier (${lead.lostReason}); be warm, no pressure, mention nothing you don't know` }, { onSuccess: (r) => setDraft(r.text), onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't write it") })}
+            className="inline-flex min-h-11 items-center gap-1 text-xs font-medium text-violet-700 disabled:opacity-60 dark:text-violet-300"
+          >
+            <Sparkles className="size-3.5" /> {ai.isPending ? "Writing…" : draft ? "Write another with AI" : "Write it with AI instead"}
+          </button>
+        </li>
+      )}
+    </>
+  );
+}
+
+/** Leads who said no 1–4 months ago for a reason that can change — a polite second message. */
+export function WinBackCard({ today, canEdit }: { today: string; canEdit: boolean }) {
+  const { data } = useLeads({ stage: "lost", limit: 300 }, { enabled: canEdit });
+  const { data: shop } = useShopSettings();
+  const rows = winBackCandidates(data?.leads ?? [], today).slice(0, 12);
+  if (!canEdit || rows.length === 0) return null;
+  return (
+    <Collapsible icon={RotateCcw} title={`${rows.length} lost ${rows.length === 1 ? "lead" : "leads"} worth another try`} tone="border-teal-200 bg-teal-50/60 text-teal-800 dark:border-teal-500/30 dark:bg-teal-500/5 dark:text-teal-300">
+      {rows.map((l) => (
+        <WinBackRow key={l.id} lead={l} shopName={shop?.name || ""} />
       ))}
     </Collapsible>
   );

@@ -6,6 +6,7 @@ import { resolveOrderImageUrls } from "@/lib/supabase/media-storage";
 import { fetchPublicOrderStatus, parseHistoryLine, type PublicOrderStatusOrder } from "@/lib/public-order-status";
 import { STAGE_META, normalizeIndianMobile, type Stage } from "@/lib/business-rules";
 import { inr, fmtDate } from "@/lib/format";
+import { buildUpiLink, isValidUpiId, type ShopLinks } from "@/lib/shop-links";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { OrderPhotoGallery } from "@/components/track/order-photo-gallery";
 
@@ -45,6 +46,10 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
   const waHref = shopPhone ? `https://wa.me/91${normalizeIndianMobile(shopPhone)}` : "";
   const stitchingDue = orders.reduce((s, o) => s + (o.balance > 0 ? o.balance : 0), 0);
   const totalDue = stitchingDue + salesDue;
+  // "Pay by UPI" shows only when the shop has set its UPI ID; customers pay directly and the shop marks the payment received.
+  const upiRow = db ? (await db.from("app_settings").select("value").eq("key", "shopLinks").maybeSingle()).data : null;
+  const upiLinks = (upiRow?.value as Partial<ShopLinks> | null) ?? null;
+  const upiHref = upiLinks?.upiId && isValidUpiId(upiLinks.upiId) && totalDue > 0 ? buildUpiLink({ upiId: upiLinks.upiId, upiName: upiLinks.upiName ?? "" }, totalDue, "Order dues") : "";
   const payNowHref = shopPhone
     ? `https://wa.me/91${normalizeIndianMobile(shopPhone)}?text=${encodeURIComponent(`Hi, I'd like to pay ${inr(totalDue)} towards my dues.`)}`
     : "";
@@ -80,6 +85,11 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
                   </li>
                 ))}
               </ul>
+            )}
+            {upiHref && (
+              <a href={upiHref} className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground">
+                Pay by UPI
+              </a>
             )}
             {payNowHref && <WhatsAppButton href={payNowHref} label="Pay Now" size="sm" />}
           </div>

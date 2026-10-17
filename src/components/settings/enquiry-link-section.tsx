@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import QRCode from "qrcode";
 import { toast } from "sonner";
 import { Copy, Download } from "lucide-react";
@@ -36,8 +36,12 @@ function QrCard({ source, url }: { source: string; url: string }) {
 
 /** The public enquiry link and a QR code for each place you might share it, so you can see where leads come from. */
 export function EnquiryLinkSection() {
-  const [origin, setOrigin] = useState("");
-  useEffect(() => setOrigin(window.location.origin), []);
+  // The site's address is only known in the browser; "" while rendering on the server.
+  const origin = useSyncExternalStore(
+    () => () => {},
+    () => window.location.origin,
+    () => ""
+  );
   return (
     <Card>
       <CardHeader>

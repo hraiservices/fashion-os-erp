@@ -51,6 +51,10 @@ export interface LeadDto {
   updatedAt: string;
   /** The soonest open task linked to this lead — "next follow-up". Filled in by the list route. */
   nextFollowUp?: { id: string; title: string; dueDate: string | null } | null;
+  /** How many WhatsApp files are attached. Filled in by the list route; absent elsewhere. */
+  attachmentCount?: number;
+  /** The newest thing in the lead's history (a note, call, WhatsApp chat…). Filled in by the list route. */
+  lastActivity?: { kind: string; at: string } | null;
 }
 
 export interface LeadActivityDto {

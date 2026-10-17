@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { LEAD_STAGES, stageLabel, type LeadStage } from "@/lib/lead-stages";
 import { inr } from "@/lib/format";
 import { istDateString } from "@/lib/ist-date";
+import { needsAttention, nextStage } from "@/lib/lead-insights";
 import type { LeadDto } from "@/lib/targets-types";
 import { fetchAllLeads, useLeads, usePatchLead, type TargetsMeta } from "@/hooks/use-targets";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -41,6 +42,7 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
   const [likely, setLikely] = useState(ALL);
   const [owner, setOwner] = useState(ALL);
   const [added, setAdded] = useState<"all" | "month">("all");
+  const [attention, setAttention] = useState(false);
   const [moving, setMoving] = useState<LeadDto | null>(null);
   const [moveTo, setMoveTo] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -60,7 +62,9 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
   const canMove = !!meta?.can.manageLeads;
 
   const monthStart = today.slice(0, 8) + "01";
-  const leads = (query.data?.leads ?? []).filter((l) => added === "all" || istDateString(new Date(l.createdAt)) >= monthStart); // shop-local (IST) day, not the UTC one
+  const inRange = (query.data?.leads ?? []).filter((l) => added === "all" || istDateString(new Date(l.createdAt)) >= monthStart); // shop-local (IST) day, not the UTC one
+  const attentionCount = inRange.filter((l) => needsAttention(l, today)).length;
+  const leads = attention ? inRange.filter((l) => needsAttention(l, today)) : inRange;
   const byStage = (s: string) => leads.filter((l) => l.stage === s);
   const listLeads = stage === ALL ? leads : byStage(stage);
   const wonPct = leads.length ? Math.round((byStage("won").length / leads.length) * 100) : 0;
@@ -76,6 +80,18 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
     } finally {
       setExporting(false);
     }
+  }
+
+  /** One tap on a card: straight to the next stage, except Won, which asks for the amount first. */
+  function advance(lead: LeadDto) {
+    const to = nextStage(lead.stage);
+    if (!to) return;
+    if (to === "won") {
+      setMoveTo("won");
+      setMoving(lead);
+      return;
+    }
+    patch.mutate({ id: lead.id, stage: to }, { onSuccess: () => toast.success(`Moved to ${stageLabel(to, labels)}`), onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't move the lead") });
   }
 
   function dropOn(target: string) {
@@ -101,6 +117,7 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
       today={today}
       labels={labels}
       ownerName={showOwner ? nameOf(l.assignedEmployeeId) : undefined}
+      onAdvance={canMove ? advance : undefined}
       onStageTap={
         canMove
           ? (x) => {
@@ -270,6 +287,17 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
               </button>
             ))}
           </div>
+        </div>
+        <div className="space-y-1">
+          <Label className={filterLabel}>Follow-up</Label>
+          <button
+            type="button"
+            onClick={() => setAttention((v) => !v)}
+            aria-pressed={attention}
+            className={cn("min-h-11 rounded-lg border px-3 text-sm font-medium", attention ? "border-amber-500 bg-amber-500 text-white" : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300")}
+          >
+            Needs attention{attentionCount > 0 && <span className={cn("ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold", attention ? "bg-white/25" : "bg-amber-100 dark:bg-amber-500/20")}>{attentionCount}</span>}
+          </button>
         </div>
         <div className="col-span-2 flex items-center justify-between gap-3 sm:ml-auto sm:justify-end">
           <span className="text-xs text-muted-foreground">

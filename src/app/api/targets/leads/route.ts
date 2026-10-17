@@ -5,7 +5,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { normalizeIndianMobile } from "@/lib/business-rules";
 import { LEAD_STAGES, OPEN_STAGES } from "@/lib/lead-stages";
 import { badRequest, forbidden, isUuid, parseBody, serverError, text, uuid } from "@/lib/targets-api";
-import { isActiveEmployee, mapLeadRow, nextFollowUps, ownershipFilter, targetsContext } from "@/lib/targets-server";
+import { isActiveEmployee, leadExtras, mapLeadRow, nextFollowUps, ownershipFilter, targetsContext } from "@/lib/targets-server";
 import { logAction } from "@/lib/logging";
 
 const createSchema = z.object({
@@ -78,8 +78,13 @@ export async function GET(request: Request) {
     const stageCounts: Record<string, number> = {};
     LEAD_STAGES.forEach((s, i) => (stageCounts[s] = countRes[i].count ?? 0));
 
-    const follow = await nextFollowUps(db, rows.map((r) => r.id));
-    return NextResponse.json({ leads: rows.map((r) => ({ ...mapLeadRow(r), nextFollowUp: follow.get(r.id) ?? null })), stageCounts, total });
+    const ids = rows.map((r) => r.id);
+    const [follow, extras] = await Promise.all([nextFollowUps(db, ids), leadExtras(db, ids)]);
+    return NextResponse.json({
+      leads: rows.map((r) => ({ ...mapLeadRow(r), nextFollowUp: follow.get(r.id) ?? null, attachmentCount: extras.files.get(r.id) ?? 0, lastActivity: extras.last.get(r.id) ?? null })),
+      stageCounts,
+      total,
+    });
   } catch (e) {
     return serverError(e instanceof Error ? e.message : "Failed to load leads");
   }

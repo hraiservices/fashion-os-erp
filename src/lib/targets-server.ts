@@ -344,6 +344,24 @@ export async function nextFollowUps(db: SupabaseClient<Database>, leadIds: strin
   return out;
 }
 
+/**
+ * Two small facts per lead for the list cards: how many files it has and what happened last. Both reads are
+ * best-effort — a shop that hasn't run the attachments migration just sees no counts, and the list still loads.
+ */
+export async function leadExtras(db: SupabaseClient<Database>, leadIds: string[]): Promise<{ files: Map<string, number>; last: Map<string, { kind: string; at: string }> }> {
+  const files = new Map<string, number>();
+  const last = new Map<string, { kind: string; at: string }>();
+  if (!leadIds.length) return { files, last };
+  const [att, acts] = await Promise.all([
+    inBatches(leadIds, (ids) => db.from("lead_attachments").select("lead_id").in("lead_id", ids)).catch(() => []),
+    // Newest first, so the first row seen per lead is its latest.
+    inBatches(leadIds, (ids) => db.from("lead_activities").select("lead_id, kind, created_at").in("lead_id", ids).order("created_at", { ascending: false })).catch(() => []),
+  ]);
+  for (const a of att) files.set(a.lead_id, (files.get(a.lead_id) ?? 0) + 1);
+  for (const a of acts) if (!last.has(a.lead_id)) last.set(a.lead_id, { kind: a.kind, at: a.created_at });
+  return { files, last };
+}
+
 // ── Summary for the Today screen and dashboard cards ──────────────────────
 
 export interface TargetsSummary {

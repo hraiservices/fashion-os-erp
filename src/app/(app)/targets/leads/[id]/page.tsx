@@ -4,14 +4,18 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CalendarPlus, FileText, MessageCircle, Pencil, Phone, ShoppingBag } from "lucide-react";
+import { CalendarPlus, ChevronDown, FileText, MessageCircle, Pencil, Phone, ShoppingBag } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuGroup, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { inr } from "@/lib/format";
 import type { TaskDto } from "@/lib/targets-types";
-import { useAddLeadActivity, useConvertLead, useDeleteLead, useLead, usePatchTask, useProjects, useTargetsMeta } from "@/hooks/use-targets";
+import { useAddLeadActivity, useConvertLead, useCreateTask, useDeleteLead, useLead, usePatchTask, useProjects, useTargetsMeta } from "@/hooks/use-targets";
+import { useAppSetting } from "@/hooks/use-app-setting";
+import { DEFAULT_LEAD_TEMPLATES, LEAD_TEMPLATE_SETTING_KEY, cleanTemplates, fillTemplate } from "@/lib/lead-templates";
+import { addDays, daysQuiet, quietLevel } from "@/lib/lead-insights";
 import { LikelyStar, StageChip, telHref, useStaffLookup, whatsappHref } from "@/components/targets/shared";
 import { BackLink } from "@/components/ui/back-link";
 import { LeadAttachments } from "@/components/targets/lead-attachments";
@@ -55,6 +59,9 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const { data, isLoading } = useLead(id);
   const projects = useProjects().data ?? [];
   const addActivity = useAddLeadActivity();
+  const createTask = useCreateTask();
+  const templatesSetting = useAppSetting<unknown>(LEAD_TEMPLATE_SETTING_KEY, DEFAULT_LEAD_TEMPLATES);
+  const templates = cleanTemplates(templatesSetting.data);
   const convert = useConvertLead();
   const patchTask = usePatchTask();
   const toggleTask = (t: TaskDto) => patchTask.mutate({ id: t.id, status: t.status === "done" ? "todo" : "done" });
@@ -70,6 +77,8 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const { lead, activities, tasks } = data;
   const tel = telHref(lead.mobile);
   const wa = whatsappHref(lead.mobile, `Hello ${lead.name}, `);
+  const quiet = daysQuiet(lead, meta?.today ?? "");
+  const quietTone = quietLevel(quiet);
   const canEdit = !!meta?.can.manageLeads;
   const closed = lead.stage === "won" || lead.stage === "lost";
 
@@ -80,9 +89,31 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     });
   }
 
+  /** A follow-up task for this lead, due `days` from today — owned by the lead's owner when that's allowed, else by you. */
+  function quickFollowUp(days: number, label: string) {
+    const ownerOk = !!lead.assignedEmployeeId && !!meta?.staff.find((s) => s.id === lead.assignedEmployeeId && s.active) && (lead.assignedEmployeeId === meta.me.employeeId || !!meta.can.assignTasks);
+    createTask.mutate(
+      { title: `Follow up with ${lead.name}`, dueDate: addDays(meta?.today ?? "", days), linkType: "lead", linkId: lead.id, ...(ownerOk ? { assigneeId: lead.assignedEmployeeId } : {}) },
+      { onSuccess: () => toast.success(`Follow-up set for ${label.toLowerCase()}`), onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't set the follow-up") }
+    );
+  }
+
   function addNote() {
     if (!text.trim()) return;
-    addActivity.mutate({ id: lead.id, kind, body: text.trim() }, { onSuccess: () => setText(""), onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't save the note") });
+    const savedKind = kind;
+    addActivity.mutate(
+      { id: lead.id, kind, body: text.trim() },
+      {
+        onSuccess: () => {
+          setText("");
+          // After a call or meeting the next step is usually "follow up" — offer it right there.
+          if ((savedKind === "call" || savedKind === "meeting") && !closed && canEdit) {
+            toast.success(`${KIND_LABEL[savedKind]} logged`, { action: { label: "Follow up tomorrow", onClick: () => quickFollowUp(1, "Tomorrow") }, duration: 8000 });
+          }
+        },
+        onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't save the note"),
+      }
+    );
   }
 
   return (
@@ -101,6 +132,9 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">{lead.productInterest || "No product noted"}</p>
             {lead.mobile && <p className="text-sm text-muted-foreground">{lead.mobile}</p>}
+            {quietTone !== "none" && (
+              <p className={cn("mt-1.5 inline-block rounded-full px-2 py-0.5 text-xs font-medium", quietTone === "red" ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300" : "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300")}>No activity for {quiet} days</p>
+            )}
           </div>
           <button type="button" onClick={() => canEdit && setStageOpen(true)} className="min-h-11 shrink-0" aria-label="Change stage">
             <StageChip stage={lead.stage} labels={meta?.stageLabels} />
@@ -142,9 +176,29 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             </Button>
           )}
           {wa && (
-            <Button variant="outline" className="h-12 text-emerald-600" nativeButton={false} render={<a href={wa} target="_blank" rel="noopener noreferrer" />}>
-              <MessageCircle className="size-4" /> WhatsApp
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button variant="outline" className="h-12 text-emerald-600">
+                    <MessageCircle className="size-4" /> WhatsApp <ChevronDown className="size-3.5" />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Start with a message</DropdownMenuLabel>
+                  {templates.map((t) => (
+                    <DropdownMenuItem key={t.id} render={<a href={whatsappHref(lead.mobile, fillTemplate(t.text, lead)) ?? wa} target="_blank" rel="noopener noreferrer" />} className="min-h-11">
+                      {t.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem render={<a href={wa} target="_blank" rel="noopener noreferrer" />} className="min-h-11">
+                  Blank chat
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>
@@ -178,6 +232,15 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             </button>
           )}
         </div>
+        {canEdit && !closed && (
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Quick follow-up">
+            {([[1, "Tomorrow"], [3, "In 3 days"], [7, "Next week"]] as const).map(([d, label]) => (
+              <button key={label} type="button" disabled={createTask.isPending} onClick={() => quickFollowUp(d, label)} className="min-h-11 rounded-full border border-blue-200 bg-blue-50 px-4 text-sm font-medium text-blue-700 disabled:opacity-60 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300">
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         {tasks.length > 0 && (
           <div className="overflow-hidden rounded-xl border bg-card">
             {tasks.map((t) => (

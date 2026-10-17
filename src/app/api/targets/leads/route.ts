@@ -23,6 +23,7 @@ const createSchema = z.object({
   budgetMax: z.number().min(0).max(100_000_000).optional(),
   measurements: text(1000).optional(),
   outfitType: text(80).optional(),
+  referredBy: text(80).optional(),
   pieces: z.number().int().min(0).max(1000).optional(),
   /** Create even if an open lead for the same number already exists. */
   allowDuplicate: z.boolean().default(false),
@@ -142,6 +143,7 @@ export async function POST(request: Request) {
       ...(d.budgetMax ? { budget_max: d.budgetMax } : {}),
       ...(d.measurements?.trim() ? { measurements: d.measurements.trim() } : {}),
       ...(d.outfitType?.trim() ? { outfit_type: d.outfitType.trim() } : {}),
+      ...(d.referredBy?.trim() ? { referred_by: d.referredBy.trim() } : {}),
       ...(d.pieces ? { pieces: d.pieces } : {}),
     })
     .select("id")

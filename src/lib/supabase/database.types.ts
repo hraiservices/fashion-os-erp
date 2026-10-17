@@ -83,6 +83,7 @@ export interface Database {
           measurements?: string;
           outfit_type?: string;
           pieces?: number;
+          referred_by?: string;
         };
         Insert: Partial<Database["public"]["Tables"]["leads"]["Row"]> & {
           name: string;

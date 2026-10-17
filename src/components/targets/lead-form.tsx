@@ -38,6 +38,7 @@ export function LeadForm({ meta, lead }: { meta: TargetsMeta | undefined; lead?:
   const [measurements, setMeasurements] = useState(lead?.measurements ?? "");
   const [outfitType, setOutfitType] = useState(lead?.outfitType ?? "");
   const [pieces, setPieces] = useState(lead?.pieces ?? 0);
+  const [referredBy, setReferredBy] = useState(lead?.referredBy ?? "");
   const [nameError, setNameError] = useState("");
   const [dupe, setDupe] = useState<{ id: string; message: string } | null>(null);
 
@@ -70,6 +71,7 @@ export function LeadForm({ meta, lead }: { meta: TargetsMeta | undefined; lead?:
       ...(measurements.trim() !== (lead?.measurements ?? "") ? { measurements: measurements.trim() } : {}),
       ...(outfitType.trim() !== (lead?.outfitType ?? "") ? { outfitType: outfitType.trim() } : {}),
       ...(pieces !== (lead?.pieces ?? 0) ? { pieces } : {}),
+      ...(referredBy.trim() !== (lead?.referredBy ?? "") ? { referredBy: referredBy.trim() } : {}),
     };
     const done = () => {
       toast.success(lead ? "Lead updated" : "Lead added");
@@ -142,6 +144,9 @@ export function LeadForm({ meta, lead }: { meta: TargetsMeta | undefined; lead?:
                 </Button>
               )}
             </div>
+          </FieldGroup>
+          <FieldGroup label="Referred by (name or mobile)">
+            <Input value={referredBy} onChange={(e) => setReferredBy(e.target.value)} placeholder="Who sent them to you? (optional)" className="h-10" maxLength={80} />
           </FieldGroup>
           <FieldGroup label="Outfit and pieces">
             <div className="flex gap-2">

@@ -178,13 +178,20 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           )}
         </div>
-        {(needed || lead.outfitType || lead.pieces > 0 || lead.budgetMin > 0 || lead.budgetMax > 0 || lead.measurements) && (
+        {(needed || lead.referredBy || lead.outfitType || lead.pieces > 0 || lead.budgetMin > 0 || lead.budgetMax > 0 || lead.measurements) && (
           <div className="grid grid-cols-2 gap-3 border-t pt-3 text-sm">
             {needed && (
               <div>
                 <p className="text-xs text-muted-foreground">Needed by</p>
                 <p className="font-semibold">{fmtDateShort(lead.neededBy as string)}</p>
                 <p className={cn("text-xs", needed.urgent ? "font-medium text-red-600 dark:text-red-400" : "text-muted-foreground")}>{needed.text}</p>
+              </div>
+            )}
+            {lead.referredBy && (
+              <div className="col-span-2">
+                <p className="text-xs text-muted-foreground">Referred by</p>
+                <p className="font-semibold">{lead.referredBy}</p>
+                {lead.stage === "won" && <p className="text-xs text-muted-foreground">Won — remember to thank them (you can issue a referral coupon from their customer page).</p>}
               </div>
             )}
             {(lead.outfitType || lead.pieces > 0) && (

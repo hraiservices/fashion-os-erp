@@ -1,13 +1,27 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { STAGES, STAGE_META, type Stage } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { OrderCard } from "@/components/orders/order-card";
 import { cn } from "@/lib/utils";
+import { nextDueSort, sortOrdersByDue, type DueSort } from "@/lib/order-sort";
 import type { Order } from "@/lib/types";
 import type { Shop } from "@/lib/settings";
+
+const SORT_STORAGE_KEY = "kanban-due-sort";
+const SORT_LABEL: Record<DueSort, string> = { none: "Default order", asc: "Due soonest first", desc: "Due latest first" };
+
+function loadSorts(): Partial<Record<Stage, DueSort>> {
+  if (typeof window === "undefined") return {};
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(SORT_STORAGE_KEY) || "{}");
+    return parsed && typeof parsed === "object" ? (parsed as Partial<Record<Stage, DueSort>>) : {};
+  } catch {
+    return {};
+  }
+}
 
 /**
  * KanbanDesktop(), Stitching_Manager_Pro_v16.html ~line 6253.
@@ -44,6 +58,17 @@ export function KanbanBoard({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<Stage | null>(null);
   const [mobileStage, setMobileStage] = useState<Stage>(STAGES[0]);
+  // Per-stage "days left" sort, remembered on this device.
+  const [sorts, setSorts] = useState<Partial<Record<Stage, DueSort>>>(loadSorts);
+  function cycleSort(stage: Stage) {
+    const next = { ...sorts, [stage]: nextDueSort(sorts[stage] ?? "none") };
+    setSorts(next);
+    try {
+      localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // storage unavailable (private mode) — the sort still works for this visit
+    }
+  }
   const boardScrollRef = useRef<HTMLDivElement>(null);
   // Whether there's more board to the left/right than currently visible — drives the arrow
   // buttons below. Recomputed on mount, on every scroll of the board itself, and on window
@@ -108,7 +133,9 @@ export function KanbanBoard({
     const meta = STAGE_META[stage];
     const style = STAGE_STYLE[stage];
     const Icon = style.icon;
-    const items = orders.filter((o) => o.status === stage);
+    const sort = sorts[stage] ?? "none";
+    const items = sortOrdersByDue(orders.filter((o) => o.status === stage), sort);
+    const SortIcon = sort === "asc" ? ArrowUp : sort === "desc" ? ArrowDown : ArrowUpDown;
     return (
       <section
         key={stage}
@@ -129,6 +156,15 @@ export function KanbanBoard({
         <header className={cn("flex items-center gap-2 rounded-t-xl border border-b-0 px-3 py-2.5", style.surface)}>
           <Icon className="size-4 shrink-0" />
           <h2 className="flex-1 truncate text-sm font-semibold">{meta.label}</h2>
+          <button
+            type="button"
+            onClick={() => cycleSort(stage)}
+            aria-label={`Sort ${meta.label} by days left — ${SORT_LABEL[sort]}. Tap to change.`}
+            title={SORT_LABEL[sort]}
+            className={cn("flex size-7 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-background/70 sm:size-6", sort !== "none" ? "bg-background/80 text-foreground" : "text-foreground/60")}
+          >
+            <SortIcon className="size-3.5" />
+          </button>
           <span className="shrink-0 rounded-full bg-background/70 px-2 py-0.5 text-xs font-medium tabular-nums">{items.length}</span>
         </header>
         <div

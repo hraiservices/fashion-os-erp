@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Cake, ChevronDown, MessageCircle, RotateCcw, Sparkles, Star } from "lucide-react";
+import { CalendarClock, Cake, ChevronDown, MessageCircle, RotateCcw, Sparkles, Star } from "lucide-react";
 import { useAiOn, useLeadAi, type LeadReply } from "@/hooks/use-ai";
-import { useLeads } from "@/hooks/use-targets";
+import { useLeads, useTasks } from "@/hooks/use-targets";
+import { TRIAL_TAG, mobileFromTrial, trialMessage } from "@/lib/trial";
+import { addDaysIso } from "@/lib/work-tasks";
 import { winBackCandidates, winBackMessage } from "@/lib/win-back";
 import type { LeadDto } from "@/lib/targets-types";
 import { useReviewCandidates, useUpcomingOccasions } from "@/hooks/use-customer-nudges";
@@ -129,6 +131,32 @@ export function WinBackCard({ today, canEdit }: { today: string; canEdit: boolea
       {rows.map((l) => (
         <WinBackRow key={l.id} lead={l} shopName={shop?.name || ""} />
       ))}
+    </Collapsible>
+  );
+}
+
+/** Fitting trials today and tomorrow, each with a one-tap reminder to the customer. */
+export function TrialsCard({ today, canEdit }: { today: string; canEdit: boolean }) {
+  const { data } = useTasks({ status: "open" }, canEdit);
+  const { data: shop } = useShopSettings();
+  const tomorrow = addDaysIso(today, 1);
+  const rows = (data ?? []).filter((t) => t.tags?.includes(TRIAL_TAG) && !!t.dueDate && t.dueDate >= today && t.dueDate <= tomorrow).sort((a, b) => (a.dueDate as string).localeCompare(b.dueDate as string) || a.title.localeCompare(b.title));
+  if (!canEdit || rows.length === 0) return null;
+  return (
+    <Collapsible icon={CalendarClock} title={`${rows.length} fitting ${rows.length === 1 ? "trial" : "trials"} today / tomorrow`} tone="border-sky-200 bg-sky-50/60 text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/5 dark:text-sky-300">
+      {rows.map((t) => {
+        const mobile = mobileFromTrial(t.description);
+        const name = /—\s*(.+?)\s*\(/.exec(t.title)?.[1] ?? "there";
+        const time = /^Trial\s+(\d{1,2}:\d{2}\s?[AP]M)/.exec(t.title)?.[1] ?? "";
+        const when = t.dueDate === today ? "today" : "tomorrow";
+        return mobile ? (
+          <Row key={t.id} name={t.title.replace(/^Trial\s*/, "")} sub={`${when === "today" ? "Today" : "Tomorrow"}`} href={wa(mobile, trialMessage({ name, shop: shop?.name || "", dateLabel: when, time, reminder: true }))} label={`Remind ${name} about the trial`} />
+        ) : (
+          <li key={t.id} className="rounded-lg bg-card px-3 py-2 text-sm text-foreground">
+            {t.title}
+          </li>
+        );
+      })}
     </Collapsible>
   );
 }

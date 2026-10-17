@@ -41,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
+import { TrialScheduleButton } from "@/components/orders/trial-schedule";
 import { ReadyPhotoShare } from "@/components/orders/ready-photo-share";
 import { UpiPayButton } from "@/components/payments/upi-pay-dialog";
 import { PrintButton } from "@/components/ui/print-button";
@@ -422,6 +423,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             />
           ) : (
             <WhatsAppButton href={waUrl} label="WhatsApp" labelClassName="min-w-0 truncate" className="h-12 min-w-0 flex-1 basis-28 justify-center text-base sm:h-10 sm:text-sm" />
+          )}
+          {user?.perms.accessTargets && ["received", "cutting", "stitching", "finishing"].includes(order.status) && (
+            <TrialScheduleButton order={{ id: order.id, name: order.name, mobile: order.mobile }} shopName={shop?.name || ""} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" />
           )}
           {order.status === "ready" && (
             <ReadyPhotoShare mobile={order.mobile} balance={order.balance} message={buildWhatsAppMessage({ ...order, trackUrl }, "ready", shop, waTemplates)} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" />

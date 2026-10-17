@@ -26,6 +26,7 @@ export function ReportActionsMenu({
   shopName,
   logoDataUrl,
   hideWhatsApp = false,
+  label = "Export",
 }: {
   rows: Record<string, unknown>[];
   filename: string;
@@ -36,6 +37,8 @@ export function ReportActionsMenu({
   logoDataUrl?: string | null;
   /** The page offers its own Share button (WhatsApp, Email, Copy, a team member) — leave the plain WhatsApp item out. */
   hideWhatsApp?: boolean;
+  /** Button text — give each menu its own when a page has two. */
+  label?: string;
 }) {
   const disabled = rows.length === 0;
 
@@ -51,7 +54,7 @@ export function ReportActionsMenu({
       <DropdownMenuTrigger
         render={
           <Button variant="outline" size="sm" disabled={disabled} className="print:hidden">
-            <Download className="size-4" /> Export
+            <Download className="size-4" /> {label}
           </Button>
         }
       />

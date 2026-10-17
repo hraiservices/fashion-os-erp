@@ -97,20 +97,44 @@ export default function GstSummaryReportPage() {
       title="GST Summary"
       description="Outward-supply totals by tax rate, for your accountant — not a GSTR-1 filing artifact"
       actions={
-        <ReportActionsMenu
-          rows={sortedGroups.map((g) => ({
-            "GST Type": GST_TYPE_LABELS[g.gstType],
-            "Tax Rate %": g.taxRate,
-            Invoices: g.invoiceCount,
-            "Taxable Value": g.taxableValue,
-            CGST: g.cgst,
-            SGST: g.sgst,
-            IGST: g.igst,
-          }))}
-          filename={`gst-summary-${DATE_RANGE_PRESET_LABELS[preset]}`}
-          title="GST Summary"
-          summaryLines={[`Range: ${DATE_RANGE_PRESET_LABELS[preset]}`, `Total GST: ${inr(totalTax)}`, `Taxable value: ${inr(totals.taxableValue)}`]}
-        />
+        <>
+          {/* Invoice-by-invoice listing: what an accountant needs to tie each filing line back to a bill. */}
+          <ReportActionsMenu
+            rows={[...monthInvoices]
+              .sort((a, b) => a.invoiceDate.localeCompare(b.invoiceDate) || a.invoiceNumber.localeCompare(b.invoiceNumber))
+              .map((i) => ({
+                "Invoice No": i.invoiceNumber,
+                Date: i.invoiceDate,
+                Customer: i.customerName,
+                Mobile: i.customerMobile,
+                "GST Type": GST_TYPE_LABELS[i.gstType],
+                "Tax Rate %": i.taxRate,
+                "Taxable Value": i.taxableAmount,
+                CGST: i.cgst,
+                SGST: i.sgst,
+                IGST: i.igst,
+                "Total Tax": i.cgst + i.sgst + i.igst,
+              }))}
+            filename={`gst-invoices-${DATE_RANGE_PRESET_LABELS[preset]}`}
+            title="GST — invoice by invoice"
+            hideWhatsApp
+            label="Invoice-wise"
+          />
+          <ReportActionsMenu
+            rows={sortedGroups.map((g) => ({
+              "GST Type": GST_TYPE_LABELS[g.gstType],
+              "Tax Rate %": g.taxRate,
+              Invoices: g.invoiceCount,
+              "Taxable Value": g.taxableValue,
+              CGST: g.cgst,
+              SGST: g.sgst,
+              IGST: g.igst,
+            }))}
+            filename={`gst-summary-${DATE_RANGE_PRESET_LABELS[preset]}`}
+            title="GST Summary"
+            summaryLines={[`Range: ${DATE_RANGE_PRESET_LABELS[preset]}`, `Total GST: ${inr(totalTax)}`, `Taxable value: ${inr(totals.taxableValue)}`]}
+          />
+        </>
       }
     >
       <ReportFilterBar

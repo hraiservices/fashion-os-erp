@@ -24,6 +24,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     const customerId = await ensureCustomerForLead(db, { name: row.name, mobile: row.mobile });
     if (customerId && customerId !== row.customer_id) await db.from("leads").update({ customer_id: customerId }).eq("id", id);
     const qs = new URLSearchParams({ leadId: id, mobile: row.mobile, name: row.name });
+    // What the person told us carries over, so it isn't asked for twice: the date, the outfit and the sizes.
+    if (row.needed_by) qs.set("needed", row.needed_by);
+    if (row.outfit_type) qs.set("outfit", row.outfit_type);
+    if (row.pieces) qs.set("pieces", String(row.pieces));
+    const note = [row.outfit_type ? `${row.outfit_type}${row.pieces ? ` × ${row.pieces}` : ""}` : "", row.measurements ? `Measurements: ${row.measurements}` : ""].filter(Boolean).join("\n");
+    if (note) qs.set("note", note);
     return NextResponse.json({
       ok: true,
       customerId,

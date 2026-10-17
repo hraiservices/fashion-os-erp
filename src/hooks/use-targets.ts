@@ -218,6 +218,12 @@ export interface LeadInput {
   likelyToClose?: boolean;
   assignedEmployeeId?: string | null;
   notes?: string;
+  neededBy?: string | null;
+  budgetMin?: number;
+  budgetMax?: number;
+  measurements?: string;
+  outfitType?: string;
+  pieces?: number;
   allowDuplicate?: boolean;
 }
 

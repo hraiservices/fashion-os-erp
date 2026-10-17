@@ -26,6 +26,7 @@ const BLANK_CLOUD_API: WhatsAppCloudApiConfig = {
   appSecret: "",
   verifyToken: "",
   conciergeEnabled: false,
+  leadCaptureEnabled: false,
 };
 
 /** Settings for Customer Purchase Intelligence's product-recommendation messages (Phase 6). */
@@ -167,6 +168,14 @@ export function RecommendationWhatsAppSection() {
               onChange={(e) => setDraftCloudApi({ ...draftCloudApi, conciergeEnabled: e.target.checked })}
             />
             Enable the concierge (leave off until the webhook is registered and tested)
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={!!draftCloudApi.leadCaptureEnabled}
+              onChange={(e) => setDraftCloudApi({ ...draftCloudApi, leadCaptureEnabled: e.target.checked })}
+            />
+            Capture incoming WhatsApp chats as leads, with photos and voice notes (untested — turn on once the webhook works)
           </label>
         </div>
 

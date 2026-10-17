@@ -76,6 +76,13 @@ export interface Database {
           created_by: string | null;
           created_at: string;
           updated_at: string;
+          // add_lead_details.sql — optional here because a shop may not have run that migration yet.
+          needed_by?: string | null;
+          budget_min?: number;
+          budget_max?: number;
+          measurements?: string;
+          outfit_type?: string;
+          pieces?: number;
         };
         Insert: Partial<Database["public"]["Tables"]["leads"]["Row"]> & {
           name: string;

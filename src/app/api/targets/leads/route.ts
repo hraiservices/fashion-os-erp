@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { normalizeIndianMobile } from "@/lib/business-rules";
 import { LEAD_STAGES, OPEN_STAGES } from "@/lib/lead-stages";
-import { badRequest, forbidden, isUuid, parseBody, serverError, text, uuid } from "@/lib/targets-api";
+import { badRequest, dateStr, forbidden, isUuid, parseBody, serverError, text, uuid } from "@/lib/targets-api";
 import { isActiveEmployee, leadExtras, mapLeadRow, nextFollowUps, ownershipFilter, targetsContext } from "@/lib/targets-server";
 import { logAction } from "@/lib/logging";
 
@@ -17,6 +17,13 @@ const createSchema = z.object({
   likelyToClose: z.boolean().default(false),
   assignedEmployeeId: uuid.nullable().optional(),
   notes: text(1000).default(""),
+  // Details from add_lead_details.sql — only written when filled in, so adding a plain lead still works before that migration is run.
+  neededBy: dateStr.nullable().optional(),
+  budgetMin: z.number().min(0).max(100_000_000).optional(),
+  budgetMax: z.number().min(0).max(100_000_000).optional(),
+  measurements: text(1000).optional(),
+  outfitType: text(80).optional(),
+  pieces: z.number().int().min(0).max(1000).optional(),
   /** Create even if an open lead for the same number already exists. */
   allowDuplicate: z.boolean().default(false),
 });
@@ -130,6 +137,12 @@ export async function POST(request: Request) {
       assigned_employee_id: owner ?? null,
       notes: d.notes,
       created_by: ctx.email,
+      ...(d.neededBy ? { needed_by: d.neededBy } : {}),
+      ...(d.budgetMin ? { budget_min: d.budgetMin } : {}),
+      ...(d.budgetMax ? { budget_max: d.budgetMax } : {}),
+      ...(d.measurements?.trim() ? { measurements: d.measurements.trim() } : {}),
+      ...(d.outfitType?.trim() ? { outfit_type: d.outfitType.trim() } : {}),
+      ...(d.pieces ? { pieces: d.pieces } : {}),
     })
     .select("id")
     .single();

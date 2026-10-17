@@ -11,6 +11,7 @@ const configSchema = z.object({
   appSecret: z.string().default(""),
   verifyToken: z.string().default(""),
   conciergeEnabled: z.boolean().default(false),
+  leadCaptureEnabled: z.boolean().default(false),
   briefingTemplateName: z.string().default(""),
   readyTemplateName: z.string().default(""),
   paymentReminderTemplateName: z.string().default(""),

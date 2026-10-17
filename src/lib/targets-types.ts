@@ -42,6 +42,16 @@ export interface LeadDto {
   lostReason: string;
   wonValue: number;
   notes: string;
+  /** YYYY-MM-DD the person needs the outfit by (e.g. a wedding date). */
+  neededBy: string | null;
+  /** Budget range in ₹; 0 means not given. */
+  budgetMin: number;
+  budgetMax: number;
+  /** Sizes or measurements they shared, free text. */
+  measurements: string;
+  outfitType: string;
+  /** How many pieces; 0 means not given. */
+  pieces: number;
   wonAt: string | null;
   lostAt: string | null;
   orderId: string | null;
@@ -189,6 +199,12 @@ export function mapLeadRow(r: Tables["leads"]["Row"]): LeadDto {
     lostReason: r.lost_reason || "",
     wonValue: Number(r.won_value) || 0,
     notes: r.notes || "",
+    neededBy: r.needed_by ?? null,
+    budgetMin: Number(r.budget_min) || 0,
+    budgetMax: Number(r.budget_max) || 0,
+    measurements: r.measurements || "",
+    outfitType: r.outfit_type || "",
+    pieces: Number(r.pieces) || 0,
     wonAt: r.won_at,
     lostAt: r.lost_at,
     orderId: r.order_id,

@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarClock, MessageCircle, Phone } from "lucide-react";
+import { CalendarClock, ChevronRight, MessageCircle, Paperclip, Phone } from "lucide-react";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { StageLabelOverrides } from "@/lib/lead-stages";
+import { stageLabel, type StageLabelOverrides } from "@/lib/lead-stages";
+import { ACTIVITY_LABEL, daysQuiet, nextStage, quietLevel, timeAgo, daysSince } from "@/lib/lead-insights";
 import type { LeadDto } from "@/lib/targets-types";
 import { dueLabel, DUE_TONE_CLASS, LikelyStar, StageChip, telHref, whatsappHref } from "@/components/targets/shared";
 
@@ -18,6 +19,7 @@ export function LeadCard({
   ownerName,
   labels,
   onStageTap,
+  onAdvance,
   compact,
   className,
 }: {
@@ -26,6 +28,8 @@ export function LeadCard({
   ownerName?: string;
   labels?: StageLabelOverrides;
   onStageTap?: (lead: LeadDto) => void;
+  /** One-tap "move to the next stage". Omit to hide the button (no permission). */
+  onAdvance?: (lead: LeadDto) => void;
   /** Narrow board columns: stacked layout, icon-only Call / WhatsApp. */
   compact?: boolean;
   className?: string;
@@ -33,6 +37,11 @@ export function LeadCard({
   const tel = telHref(lead.mobile);
   const wa = whatsappHref(lead.mobile, `Hello ${lead.name}, `);
   const next = lead.nextFollowUp ? dueLabel(lead.nextFollowUp.dueDate, today) : null;
+  const quiet = daysQuiet(lead, today);
+  const level = quietLevel(quiet);
+  const advanceTo = onAdvance ? nextStage(lead.stage) : null;
+  const age = today ? daysSince(lead.createdAt, today) : 0;
+  const files = lead.attachmentCount ?? 0;
 
   return (
     <div className={cn("overflow-hidden rounded-xl border bg-card", className)}>
@@ -47,6 +56,24 @@ export function LeadCard({
             {lead.expectedValue > 0 && <span className="font-medium text-foreground"> · {inr(lead.expectedValue)}</span>}
           </p>
           {ownerName && <p className="mt-0.5 truncate text-xs text-muted-foreground">{ownerName}</p>}
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            {lead.source && <span>{lead.source}</span>}
+            <span>{age === 0 ? "Added today" : `${age}d old`}</span>
+            {files > 0 && (
+              <span className="inline-flex items-center gap-0.5">
+                <Paperclip className="size-3" />
+                {files}
+              </span>
+            )}
+            {level !== "none" && (
+              <span className={cn("rounded-full px-1.5 py-0.5 font-medium", level === "red" ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300" : "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300")}>{quiet} days quiet</span>
+            )}
+          </p>
+          {lead.lastActivity && (
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {ACTIVITY_LABEL[lead.lastActivity.kind] ?? lead.lastActivity.kind} · {timeAgo(lead.lastActivity.at)}
+            </p>
+          )}
         </Link>
         <button type="button" onClick={() => onStageTap?.(lead)} disabled={!onStageTap} aria-label={`Change stage of ${lead.name}`} className={cn("shrink-0 self-start disabled:pointer-events-none", compact ? "min-h-8" : "min-h-11")}>
           <StageChip stage={lead.stage} labels={labels} />
@@ -61,8 +88,8 @@ export function LeadCard({
         </p>
       )}
 
-      {(tel || wa) && (
-        <div className="grid grid-cols-2 gap-px border-t bg-border">
+      {(tel || wa || advanceTo) && (
+        <div className={cn("grid gap-px border-t bg-border", advanceTo ? "grid-cols-3" : "grid-cols-2")}>
           {tel ? (
             <a href={tel} className="flex min-h-12 items-center justify-center gap-2 bg-card text-sm font-semibold text-primary active:bg-muted/60">
               <Phone className="size-4" /> <span className={compact ? "sr-only" : undefined}>Call</span>
@@ -76,6 +103,12 @@ export function LeadCard({
             </a>
           ) : (
             <span className="bg-card" />
+          )}
+          {advanceTo && (
+            <button type="button" onClick={() => onAdvance?.(lead)} aria-label={`Move ${lead.name} to ${stageLabel(advanceTo, labels)}`} className="flex min-h-12 items-center justify-center gap-1 bg-card px-1 text-sm font-semibold text-violet-700 active:bg-muted/60 dark:text-violet-300">
+              <span className={cn("truncate", compact && "sr-only")}>{stageLabel(advanceTo, labels)}</span>
+              <ChevronRight className="size-4 shrink-0" />
+            </button>
           )}
         </div>
       )}

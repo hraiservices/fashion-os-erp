@@ -29,6 +29,7 @@ import { PaymentModal } from "@/components/orders/payment-modal";
 import type { Order } from "@/lib/types";
 import { PageHeader } from "@/components/ui/page-header";
 import { NewButton } from "@/components/ui/new-button";
+import { TONES } from "@/lib/ui-tones";
 import { Button } from "@/components/ui/button";
 import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { Input } from "@/components/ui/input";
@@ -478,7 +479,7 @@ function OrdersContent() {
                 onClick={() => setView("list")}
                 aria-pressed={view === "list"}
                 aria-label="List view"
-                className={cn("h-10 w-10 shrink-0 px-0", view === "list" && "bg-muted")}
+                className={cn("h-10 w-10 shrink-0 px-0", view === "list" ? TONES.blue.active : TONES.blue.idle)}
               >
                 <LayoutList className="size-4" />
               </Button>
@@ -489,7 +490,7 @@ function OrdersContent() {
                 onClick={() => setView("board")}
                 aria-pressed={view === "board"}
                 aria-label="Board view"
-                className={cn("h-10 w-10 shrink-0 px-0", view === "board" && "bg-muted")}
+                className={cn("h-10 w-10 shrink-0 px-0", view === "board" ? TONES.purple.active : TONES.purple.idle)}
               >
                 <KanbanSquare className="size-4" />
               </Button>
@@ -500,7 +501,7 @@ function OrdersContent() {
                 onClick={() => setView("calendar")}
                 aria-pressed={view === "calendar"}
                 aria-label="Calendar view"
-                className={cn("h-10 w-10 shrink-0 px-0", view === "calendar" && "bg-muted")}
+                className={cn("h-10 w-10 shrink-0 px-0", view === "calendar" ? TONES.green.active : TONES.green.idle)}
               >
                 <CalendarDays className="size-4" />
               </Button>
@@ -512,9 +513,9 @@ function OrdersContent() {
               value={view}
               onChange={setView}
               options={[
-                { value: "list", label: "List", icon: LayoutList },
-                { value: "board", label: "Board", icon: KanbanSquare },
-                { value: "calendar", label: "Calendar", icon: CalendarDays },
+                { value: "list", label: "List", icon: LayoutList, tone: "blue" },
+                { value: "board", label: "Board", icon: KanbanSquare, tone: "purple" },
+                { value: "calendar", label: "Calendar", icon: CalendarDays, tone: "green" },
               ]}
             />
           }

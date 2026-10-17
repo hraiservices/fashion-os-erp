@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { createServiceClient } from "@/lib/supabase/service";
 import { sendWhatsAppTextMessage, type WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
 import { generateConciergeReply } from "@/lib/chatbot/gemini";
+import { captureInboundForLead, extractAllMessages } from "@/lib/whatsapp-lead-capture";
 import { logWhatsAppSend, updateWhatsAppStatus, type WhatsAppMessageStatus } from "@/lib/whatsapp-log";
 
 /**
@@ -132,10 +133,34 @@ export async function POST(request: Request) {
     await updateWhatsAppStatus(serviceClient, waMessageId, status);
   }
 
+  // Lead capture runs first: a number that is (or becomes) a lead is handled here and the concierge stays quiet for it.
+  const handledByLead = new Set<string>();
+  if (config.leadCaptureEnabled) {
+    for (const m of extractAllMessages(payload)) {
+      // Redelivery check without claiming the id: an unhandled message (an existing customer) still needs the concierge's own claim below.
+      if (m.id) {
+        const { data: seen } = await serviceClient.from("whatsapp_inbound_dedup").select("wa_message_id").eq("wa_message_id", m.id).maybeSingle();
+        if (seen) {
+          handledByLead.add(m.id);
+          continue;
+        }
+      }
+      try {
+        if ((await captureInboundForLead(serviceClient, config, m)) && m.id) {
+          handledByLead.add(m.id);
+          await serviceClient.from("whatsapp_inbound_dedup").insert({ wa_message_id: m.id });
+        }
+      } catch (e) {
+        console.error("WhatsApp lead capture failed:", e);
+      }
+    }
+  }
+
   if (!config.conciergeEnabled) return NextResponse.json({ ok: true });
 
   const inbound = extractInboundMessage(payload);
   if (!inbound) return NextResponse.json({ ok: true });
+  if (inbound.id && handledByLead.has(inbound.id)) return NextResponse.json({ ok: true });
 
   // Meta guarantees at-least-once delivery and retries aggressively on a slow/non-2xx
   // response — without this, a redelivered event would re-run the concierge and send the

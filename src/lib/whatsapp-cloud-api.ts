@@ -34,6 +34,8 @@ export interface WhatsAppCloudApiConfig {
    *  kept separate from having credentials configured, so a shop already using the Cloud API for
    *  recommendation sends isn't opted into replying to inbound messages without asking. */
   conciergeEnabled?: boolean;
+  /** Turns incoming WhatsApp messages into leads / lead history (src/lib/whatsapp-lead-capture.ts). Off by default. */
+  leadCaptureEnabled?: boolean;
   /** Separate approved template for the daily briefing push (src/app/api/ai/daily-briefing) —
    *  a proactive, shop-initiated message needs its own template just like the recommendation
    *  send does; the briefing text doesn't fit that template's 3-parameter shape. Must have

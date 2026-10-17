@@ -5,7 +5,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { normalizeIndianMobile } from "@/lib/business-rules";
 import { DEFAULT_STAGE_LABELS, LEAD_STAGES, validateStageChange, wonValueFor, isLeadStage } from "@/lib/lead-stages";
 import { badRequest, forbidden, notFound, parseBody, serverError, text, uuid } from "@/lib/targets-api";
-import { addLeadActivity, ensureCustomerForLead, isActiveEmployee, leadVisible, mapActivityRow, mapLeadRow, mapTaskRow, targetsContext, taskVisible } from "@/lib/targets-server";
+import { addLeadActivity, customerSummaryForLead, duplicateLeadsFor, ensureCustomerForLead, isActiveEmployee, leadVisible, mapActivityRow, mapLeadRow, mapTaskRow, targetsContext, taskVisible } from "@/lib/targets-server";
 import { logAction } from "@/lib/logging";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -35,14 +35,19 @@ export async function GET(_request: Request, { params }: Ctx) {
   const { data: row } = await db.from("leads").select("*").eq("id", id).maybeSingle();
   if (!row || !leadVisible(row, ctx)) return notFound("Lead not found");
 
-  const [{ data: acts }, { data: tasks }] = await Promise.all([
+  const [{ data: acts }, { data: tasks }, customer, duplicates] = await Promise.all([
     db.from("lead_activities").select("*").eq("lead_id", id).order("created_at", { ascending: false }).limit(200),
     db.from("work_tasks").select("*").eq("link_type", "lead").eq("link_id", id).order("due_date", { ascending: true, nullsFirst: false }),
+    // Nice-to-haves: a failure here must never stop the lead page from opening.
+    customerSummaryForLead(db, row.mobile).catch(() => null),
+    duplicateLeadsFor(db, ctx, { id, mobile: row.mobile }).catch(() => []),
   ]);
   return NextResponse.json({
     lead: mapLeadRow(row),
     activities: (acts || []).map(mapActivityRow),
     tasks: (tasks || []).map(mapTaskRow).filter((t) => taskVisible(t, ctx)),
+    customer,
+    duplicates,
   });
 }
 

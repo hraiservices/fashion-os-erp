@@ -10,7 +10,7 @@ import { customerIdFromMobile, normalizeIndianMobile } from "@/lib/business-rule
 import { istDateString } from "@/lib/ist-date";
 import { OPEN_STAGES } from "@/lib/lead-stages";
 import { computeProgress, monthRange, type LeadFact, type SaleFact, type SaleLine, type TargetDef } from "@/lib/targets";
-import { mapActivityRow, mapLeadRow, mapTargetRow, mapTaskRow, type LeadDto, type StaffOption, type TargetDto, type TargetWithProgress, type TaskDto } from "@/lib/targets-types";
+import { mapActivityRow, mapLeadRow, mapTargetRow, mapTaskRow, type LeadCustomerDto, type LeadDuplicateDto, type LeadDto, type StaffOption, type TargetDto, type TargetWithProgress, type TaskDto } from "@/lib/targets-types";
 import { addDaysIso, bucketTasks, isOverdue, taskVisibleTo } from "@/lib/work-tasks";
 
 /**
@@ -360,6 +360,33 @@ export async function leadExtras(db: SupabaseClient<Database>, leadIds: string[]
   for (const a of att) files.set(a.lead_id, (files.get(a.lead_id) ?? 0) + 1);
   for (const a of acts) if (!last.has(a.lead_id)) last.set(a.lead_id, { kind: a.kind, at: a.created_at });
   return { files, last };
+}
+
+/** Orders so far for the person on this number (and their name, if they are a saved customer). Null when the shop has never seen them. */
+export async function customerSummaryForLead(db: SupabaseClient<Database>, mobile: string): Promise<LeadCustomerDto | null> {
+  const m = normalizeIndianMobile(mobile || "");
+  if (!m) return null;
+  const [cust, orders] = await Promise.all([
+    db.from("customers").select("name").eq("mobile", m).maybeSingle(),
+    db.from("orders").select("total, advance, in_date").eq("mobile", m).order("in_date", { ascending: false }).limit(1000),
+  ]);
+  const rows = orders.data || [];
+  if (!cust.data && rows.length === 0) return null;
+  return {
+    name: cust.data?.name ?? "",
+    mobile: m,
+    orders: rows.length,
+    spent: rows.reduce((s, o) => s + (Number(o.total) || 0), 0),
+    outstanding: rows.reduce((s, o) => s + Math.max(0, (Number(o.total) || 0) - (Number(o.advance) || 0)), 0),
+    lastOrder: rows[0]?.in_date ?? null,
+  };
+}
+
+/** Other leads on the same number that this person may see — a likely duplicate. */
+export async function duplicateLeadsFor(db: SupabaseClient<Database>, ctx: TargetsCtx, lead: { id: string; mobile: string }): Promise<LeadDuplicateDto[]> {
+  if (!lead.mobile) return [];
+  const { data } = await db.from("leads").select("id, name, stage, assigned_employee_id, created_by").eq("mobile", lead.mobile).neq("id", lead.id).limit(20);
+  return (data || []).filter((r) => leadVisible(r, ctx)).map((r) => ({ id: r.id, name: r.name, stage: r.stage }));
 }
 
 // ── Summary for the Today screen and dashboard cards ──────────────────────

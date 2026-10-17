@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HEAT_LABEL, type LeadHeat } from "@/lib/lead-insights";
 import { DEFAULT_STAGE_LABELS, stageLabel, type LeadStage, type StageLabelOverrides } from "@/lib/lead-stages";
 import { TARGET_STATUS_LABELS, type TargetStatus } from "@/lib/targets";
 import { daysBetween } from "@/lib/targets";
@@ -116,4 +117,17 @@ export function telHref(mobile: string): string | null {
 export function whatsappHref(mobile: string, text?: string): string | null {
   const m = normalizeIndianMobile(mobile || "");
   return m ? `https://wa.me/91${m}${text ? `?text=${encodeURIComponent(text)}` : ""}` : null;
+}
+
+// ── Lead temperature chip ─────────────────────────────────────────────────
+
+const HEAT_CLASS: Record<LeadHeat, string> = {
+  hot: "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300",
+  warm: "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300",
+  cold: "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300",
+};
+
+/** Hot / Warm / Cold — a quick read of how likely an open lead is to close (see leadHeat). */
+export function HeatChip({ heat, className }: { heat: LeadHeat; className?: string }) {
+  return <span className={cn("inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-none", HEAT_CLASS[heat], className)}>{HEAT_LABEL[heat]}</span>;
 }

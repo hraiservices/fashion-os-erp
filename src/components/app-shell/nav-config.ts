@@ -179,6 +179,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/sales-leaderboard", label: "Sales Leaderboard" },
     { href: "/reports/lead-pipeline", label: "Lead Pipeline" },
     { href: "/reports/lead-sources", label: "Lead Sources & Win Rate" },
+    { href: "/reports/lead-owners", label: "Lead Conversion by Owner" },
     { href: "/reports/lost-leads", label: "Lost Leads & Reasons" },
     { href: "/reports/tasks-followups", label: "Tasks & Follow-ups" },
     { href: "/reports/project-progress", label: "Project Progress" },

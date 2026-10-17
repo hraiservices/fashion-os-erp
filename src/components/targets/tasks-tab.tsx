@@ -47,7 +47,7 @@ export function TasksTab({ meta }: { meta: TargetsMeta | undefined }) {
   const [quick, setQuick] = useState("");
   const [editing, setEditing] = useState<TaskDto | null>(null);
 
-  // A shared link (/targets?task=<id>) opens that task's panel; the id is dropped from the address once it has.
+  // A shared link (/targets?tab=tasks&task=<id>) opens that task's panel; the id is dropped from the address once it has.
   const linkedId = useSearchParams().get("task");
   const linkedOk = !!linkedId && UUID.test(linkedId);
   const linked = useTask(linkedOk ? linkedId : null, { quiet: true });
@@ -56,10 +56,10 @@ export function TasksTab({ meta }: { meta: TargetsMeta | undefined }) {
     if (linked.data?.task) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- open the task a shared link points at
       setEditing(linked.data.task);
-      router.replace("/targets", { scroll: false });
+      router.replace("/targets?tab=tasks", { scroll: false });
     } else if (!linkedOk || linked.isError) {
       toast.error("That task isn't available — it may have been deleted, or it isn't yours to see");
-      router.replace("/targets", { scroll: false });
+      router.replace("/targets?tab=tasks", { scroll: false });
     }
   }, [linkedId, linkedOk, linked.data, linked.isError, router]);
 

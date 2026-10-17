@@ -12,13 +12,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { inr } from "@/lib/format";
 import type { TaskDto } from "@/lib/targets-types";
-import { useAddLeadActivity, useConvertLead, useCreateTask, useDeleteLead, useLead, usePatchTask, useProjects, useTargetsMeta } from "@/hooks/use-targets";
+import { useAddLeadActivity, useConvertLead, useDeleteLead, useLead, usePatchTask, useProjects, useTargetsMeta } from "@/hooks/use-targets";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { DEFAULT_LEAD_TEMPLATES, LEAD_TEMPLATE_SETTING_KEY, cleanTemplates, fillTemplate } from "@/lib/lead-templates";
-import { addDays, daysQuiet, quietLevel } from "@/lib/lead-insights";
-import { LikelyStar, StageChip, telHref, useStaffLookup, whatsappHref } from "@/components/targets/shared";
+import { daysQuiet, leadHeat, quietLevel } from "@/lib/lead-insights";
+import { useLeadFollowUp } from "@/hooks/use-lead-follow-up";
+import { HeatChip, LikelyStar, StageChip, telHref, useStaffLookup, whatsappHref } from "@/components/targets/shared";
 import { BackLink } from "@/components/ui/back-link";
 import { LeadAttachments } from "@/components/targets/lead-attachments";
+import { LeadCustomerPanel, LeadMerge } from "@/components/targets/lead-extras";
 import { StageSheet } from "@/components/targets/stage-sheet";
 import { TaskSheet } from "@/components/targets/task-sheet";
 import { TaskRow } from "@/components/targets/task-row";
@@ -59,7 +61,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const { data, isLoading } = useLead(id);
   const projects = useProjects().data ?? [];
   const addActivity = useAddLeadActivity();
-  const createTask = useCreateTask();
+  const followUp = useLeadFollowUp(meta);
   const templatesSetting = useAppSetting<unknown>(LEAD_TEMPLATE_SETTING_KEY, DEFAULT_LEAD_TEMPLATES);
   const templates = cleanTemplates(templatesSetting.data);
   const convert = useConvertLead();
@@ -74,7 +76,8 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
 
   if (isLoading) return <Skeleton className="mx-auto h-64 w-full max-w-2xl" />;
   if (!data) return <p className="text-sm text-muted-foreground">Lead not found.</p>;
-  const { lead, activities, tasks } = data;
+  const { lead, activities, tasks, customer, duplicates } = data;
+  const heat = leadHeat(lead, meta?.today ?? "");
   const tel = telHref(lead.mobile);
   const wa = whatsappHref(lead.mobile, `Hello ${lead.name}, `);
   const quiet = daysQuiet(lead, meta?.today ?? "");
@@ -89,12 +92,11 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     });
   }
 
-  /** A follow-up task for this lead, due `days` from today — owned by the lead's owner when that's allowed, else by you. */
+  /** A follow-up for this lead, `days` from today — the Tomorrow / In 3 days / Next week chips and the toast after a call. */
   function quickFollowUp(days: number, label: string) {
-    const ownerOk = !!lead.assignedEmployeeId && !!meta?.staff.find((s) => s.id === lead.assignedEmployeeId && s.active) && (lead.assignedEmployeeId === meta.me.employeeId || !!meta.can.assignTasks);
-    createTask.mutate(
-      { title: `Follow up with ${lead.name}`, dueDate: addDays(meta?.today ?? "", days), linkType: "lead", linkId: lead.id, ...(ownerOk ? { assigneeId: lead.assignedEmployeeId } : {}) },
-      { onSuccess: () => toast.success(`Follow-up set for ${label.toLowerCase()}`), onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't set the follow-up") }
+    followUp.schedule(lead, days).then(
+      () => toast.success(`Follow-up set for ${label.toLowerCase()}`),
+      (e) => toast.error(e instanceof Error ? e.message : "Couldn't set the follow-up")
     );
   }
 
@@ -129,6 +131,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             <h1 className="flex items-center gap-2 text-xl font-semibold leading-tight">
               <span className="truncate">{lead.name}</span>
               {lead.likelyToClose && <LikelyStar on />}
+              {heat && <HeatChip heat={heat} />}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">{lead.productInterest || "No product noted"}</p>
             {lead.mobile && <p className="text-sm text-muted-foreground">{lead.mobile}</p>}
@@ -223,6 +226,9 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         </Link>
       )}
 
+      {customer && <LeadCustomerPanel customer={customer} />}
+      <LeadMerge lead={lead} duplicates={duplicates ?? []} labels={meta?.stageLabels} canEdit={canEdit} />
+
       <section className="space-y-2">
         <div className="flex items-center justify-between px-1">
           <h2 className="text-sm font-semibold text-muted-foreground">Follow-ups</h2>
@@ -235,7 +241,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         {canEdit && !closed && (
           <div className="flex flex-wrap gap-2" role="group" aria-label="Quick follow-up">
             {([[1, "Tomorrow"], [3, "In 3 days"], [7, "Next week"]] as const).map(([d, label]) => (
-              <button key={label} type="button" disabled={createTask.isPending} onClick={() => quickFollowUp(d, label)} className="min-h-11 rounded-full border border-blue-200 bg-blue-50 px-4 text-sm font-medium text-blue-700 disabled:opacity-60 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300">
+              <button key={label} type="button" disabled={followUp.pending} onClick={() => quickFollowUp(d, label)} className="min-h-11 rounded-full border border-blue-200 bg-blue-50 px-4 text-sm font-medium text-blue-700 disabled:opacity-60 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300">
                 {label}
               </button>
             ))}

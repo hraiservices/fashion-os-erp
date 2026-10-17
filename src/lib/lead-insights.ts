@@ -54,13 +54,6 @@ export function nextStage(stage: string): LeadStage | null {
   return next && next !== "lost" ? next : null;
 }
 
-/** "Today", "Tomorrow", "In 3 days" style date, shop-local, counted from `today`. */
-export function addDays(today: string, days: number): string {
-  const d = new Date(`${today}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
 /** "just now", "5m ago", "3h ago", "2d ago", "3w ago" — a short relative time for list cards. */
 export function timeAgo(timestamp: string, now: number = Date.now()): string {
   const then = new Date(timestamp).getTime();
@@ -76,3 +69,64 @@ export function timeAgo(timestamp: string, now: number = Date.now()): string {
 }
 
 export const ACTIVITY_LABEL: Record<string, string> = { note: "Note", call: "Call", meeting: "Meeting", whatsapp: "WhatsApp chat", stage_change: "Stage change" };
+
+export type LeadHeat = "hot" | "warm" | "cold";
+
+export interface HeatInput {
+  stage: string;
+  updatedAt: string;
+  likelyToClose: boolean;
+  expectedValue: number;
+  nextFollowUp?: { dueDate: string | null } | null;
+}
+
+const STAGE_POINTS: Record<string, number> = { new: 0, talking: 1, visit: 2, quoted: 3 };
+
+/**
+ * A plain hot / warm / cold read of an open lead, from signals anyone can see: how far along it is, how recently
+ * anyone touched it, whether a follow-up is lined up, and the size of the sale. The ★ "likely to close" flag is the
+ * manual override — a starred lead is always hot. Closed leads have no heat.
+ */
+export function leadHeat(lead: HeatInput, today: string): LeadHeat | null {
+  if (!isOpenStage(lead.stage)) return null;
+  if (lead.likelyToClose) return "hot";
+  let points = STAGE_POINTS[lead.stage] ?? 0;
+  const quiet = daysQuiet(lead, today);
+  points += quiet < QUIET_AMBER_DAYS ? 2 : quiet >= QUIET_RED_DAYS ? -2 : 0;
+  const due = lead.nextFollowUp?.dueDate;
+  if (lead.nextFollowUp) points += due && due < today ? -1 : 1;
+  if (lead.expectedValue >= 20_000) points += 1;
+  return points >= 6 ? "hot" : points >= 3 ? "warm" : "cold";
+}
+
+export const HEAT_LABEL: Record<LeadHeat, string> = { hot: "Hot", warm: "Warm", cold: "Cold" };
+/** Hottest first, for sorting. */
+export const HEAT_RANK: Record<LeadHeat, number> = { hot: 0, warm: 1, cold: 2 };
+
+export interface TodayLead extends HeatInput {
+  id: string;
+  name: string;
+  expectedValue: number;
+}
+
+export interface TodayBuckets<T> {
+  /** A follow-up is due today or overdue — most overdue first. */
+  due: T[];
+  /** No activity for a few days (and not already in `due`) — quietest first. */
+  quiet: T[];
+  /** Hot leads not already listed above — biggest sale first. */
+  hot: T[];
+}
+
+/** Sorts the open leads into the three "contact today" groups; a lead appears in the first group it fits. */
+export function todayBuckets<T extends TodayLead>(leads: T[], today: string): TodayBuckets<T> {
+  const open = leads.filter((l) => isOpenStage(l.stage));
+  const due = open
+    .filter((l) => !!l.nextFollowUp?.dueDate && (l.nextFollowUp.dueDate as string) <= today)
+    .sort((a, b) => (a.nextFollowUp!.dueDate as string).localeCompare(b.nextFollowUp!.dueDate as string) || b.expectedValue - a.expectedValue);
+  const seen = new Set(due.map((l) => l.id));
+  const quiet = open.filter((l) => !seen.has(l.id) && quietLevel(daysQuiet(l, today)) !== "none").sort((a, b) => daysQuiet(b, today) - daysQuiet(a, today));
+  quiet.forEach((l) => seen.add(l.id));
+  const hot = open.filter((l) => !seen.has(l.id) && leadHeat(l, today) === "hot").sort((a, b) => b.expectedValue - a.expectedValue);
+  return { due, quiet, hot };
+}

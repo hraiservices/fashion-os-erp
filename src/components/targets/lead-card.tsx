@@ -5,9 +5,9 @@ import { CalendarClock, ChevronRight, MessageCircle, Paperclip, Phone } from "lu
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { stageLabel, type StageLabelOverrides } from "@/lib/lead-stages";
-import { ACTIVITY_LABEL, daysQuiet, nextStage, quietLevel, timeAgo, daysSince } from "@/lib/lead-insights";
+import { ACTIVITY_LABEL, daysQuiet, leadHeat, nextStage, quietLevel, timeAgo, daysSince } from "@/lib/lead-insights";
 import type { LeadDto } from "@/lib/targets-types";
-import { dueLabel, DUE_TONE_CLASS, LikelyStar, StageChip, telHref, whatsappHref } from "@/components/targets/shared";
+import { dueLabel, DUE_TONE_CLASS, HeatChip, LikelyStar, StageChip, telHref, whatsappHref } from "@/components/targets/shared";
 
 /**
  * One lead as a card: name, what they want, ₹, stage (tap to move it), next follow-up, and big
@@ -42,6 +42,7 @@ export function LeadCard({
   const advanceTo = onAdvance ? nextStage(lead.stage) : null;
   const age = today ? daysSince(lead.createdAt, today) : 0;
   const files = lead.attachmentCount ?? 0;
+  const heat = today ? leadHeat(lead, today) : null;
 
   return (
     <div className={cn("overflow-hidden rounded-xl border bg-card", className)}>
@@ -50,6 +51,7 @@ export function LeadCard({
           <p className="flex items-center gap-1.5 truncate text-base font-semibold leading-tight">
             <span className="truncate">{lead.name}</span>
             {lead.likelyToClose && <LikelyStar on />}
+            {heat && <HeatChip heat={heat} />}
           </p>
           <p className="mt-0.5 truncate text-sm text-muted-foreground">
             {lead.productInterest || "No product noted"}

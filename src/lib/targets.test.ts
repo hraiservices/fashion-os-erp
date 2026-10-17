@@ -12,6 +12,7 @@ import {
   pipelineSummary,
   saleContribution,
   sourceStats,
+  ownerStats,
   winRate,
   type LeadFact,
   type SaleFact,
@@ -281,5 +282,22 @@ describe("formatWinRate", () => {
   it("shows a dash when nothing has been decided yet", () => {
     expect(formatWinRate(winRate([{ stage: "new" }]))).toBe("–");
     expect(formatWinRate(null)).toBe("–");
+  });
+});
+
+describe("ownerStats", () => {
+  const mk = (over: Partial<LeadFact>): LeadFact => ({ id: "x", stage: "new", assignedEmployeeId: "asha", expectedValue: 0, likelyToClose: false, wonValue: 0, wonDate: null, ...over });
+  it("breaks conversion down by owner, best won value first", () => {
+    const rows = ownerStats([
+      mk({ id: "1", stage: "won", wonValue: 8000, createdDate: "2026-09-01", wonDate: "2026-09-05" }),
+      mk({ id: "2", stage: "won", wonValue: 2000, createdDate: "2026-09-01", wonDate: "2026-09-09" }),
+      mk({ id: "3", stage: "lost" }),
+      mk({ id: "4", stage: "talking" }),
+      mk({ id: "5", stage: "won", assignedEmployeeId: "ravi", wonValue: 50_000, createdDate: "2026-09-02", wonDate: "2026-09-04" }),
+      mk({ id: "6", stage: "new", assignedEmployeeId: null }),
+    ]);
+    expect(rows.map((r) => r.ownerId)).toEqual(["ravi", "asha", null]);
+    expect(rows.find((r) => r.ownerId === "asha")).toMatchObject({ total: 4, won: 2, lost: 1, open: 1, wonValue: 10_000, winRate: 67, avgDaysToWin: 6 });
+    expect(rows.find((r) => r.ownerId === null)).toMatchObject({ total: 1, open: 1, winRate: null, avgDaysToWin: null });
   });
 });

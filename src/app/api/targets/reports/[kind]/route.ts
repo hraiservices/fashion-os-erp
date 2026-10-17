@@ -3,20 +3,20 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { istDateString } from "@/lib/ist-date";
 import { OPEN_STAGES } from "@/lib/lead-stages";
-import { buildLeaderboard, incentiveFor, lostReasonStats, monthRange, pipelineSummary, sourceStats, winRate } from "@/lib/targets";
+import { buildLeaderboard, incentiveFor, lostReasonStats, monthRange, ownerStats, pipelineSummary, sourceStats, winRate } from "@/lib/targets";
 import { buildTaskLoad, overdueAgeBuckets, rangesOverlap } from "@/lib/targets-reports";
 import { dateStr, forbidden, notFound, serverError } from "@/lib/targets-api";
 import { fetchAll, fetchLeadFactRows, fetchLeadRows, fetchSaleFacts, leadFactOf, loadStaff, loadTargetsWithProgress, targetsContext } from "@/lib/targets-server";
-import { mapProjectRow, type LeaderboardReportRow, type LostReport, type PipelineReport, type ProjectsReport, type SourcesReport, type TargetReportRow, type TasksReport } from "@/lib/targets-types";
+import { mapProjectRow, type LeaderboardReportRow, type LostReport, type OwnersReport, type PipelineReport, type ProjectsReport, type SourcesReport, type TargetReportRow, type TasksReport } from "@/lib/targets-types";
 import { isOverdue, projectProgress } from "@/lib/work-tasks";
 
-const KINDS = ["target-vs-achievement", "leaderboard", "pipeline", "sources", "lost", "tasks", "projects"] as const;
+const KINDS = ["target-vs-achievement", "leaderboard", "pipeline", "sources", "owners", "lost", "tasks", "projects"] as const;
 type Kind = (typeof KINDS)[number];
 
 const dayOf = (ts: string | null) => (ts ? istDateString(new Date(ts)) : null);
 
 /**
- * GET /api/targets/reports/<kind>?from=YYYY-MM-DD&to=YYYY-MM-DD — data for the seven Targets
+ * GET /api/targets/reports/<kind>?from=YYYY-MM-DD&to=YYYY-MM-DD — data for the eight Targets
  * reports. These show everyone's numbers, so they need "see everyone's work" plus the normal
  * Reports permission; per-role report switches in Settings → Users hide them from the menu on top.
  */
@@ -98,6 +98,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
       case "sources": {
         const leads = (await fetchLeadFactRows(db)).map(leadFactOf).filter((l) => (l.createdDate || "") >= from && (l.createdDate || "") <= to);
         const payload: SourcesReport = { rows: sourceStats(leads), winRate: winRate(leads), totalLeads: leads.length };
+        return NextResponse.json({ from, to, ...payload });
+      }
+
+      case "owners": {
+        const leads = (await fetchLeadFactRows(db)).map(leadFactOf).filter((l) => (l.createdDate || "") >= from && (l.createdDate || "") <= to);
+        const payload: OwnersReport = { rows: ownerStats(leads).map((r) => ({ ...r, name: nameOf(r.ownerId) })), winRate: winRate(leads), totalLeads: leads.length };
         return NextResponse.json({ from, to, ...payload });
       }
 

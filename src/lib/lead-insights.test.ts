@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { addDays, daysQuiet, daysSince, needsAttention, nextStage, quietLevel, timeAgo } from "@/lib/lead-insights";
+import { HEAT_RANK, daysQuiet, daysSince, leadHeat, needsAttention, nextStage, quietLevel, timeAgo, todayBuckets } from "@/lib/lead-insights";
 
 vi.mock("@/lib/ist-date", () => ({ istDateString: (d: Date) => new Date(d.getTime() + 5.5 * 3_600_000).toISOString().slice(0, 10) }));
 
@@ -55,13 +55,6 @@ describe("nextStage", () => {
   });
 });
 
-describe("addDays", () => {
-  it("adds calendar days across months", () => {
-    expect(addDays("2026-10-30", 3)).toBe("2026-11-02");
-    expect(addDays("2026-12-31", 1)).toBe("2027-01-01");
-  });
-});
-
 describe("timeAgo", () => {
   const now = Date.parse("2026-10-17T12:00:00Z");
   it("reads naturally at every scale", () => {
@@ -72,5 +65,56 @@ describe("timeAgo", () => {
     expect(timeAgo("2026-09-26T12:00:00Z", now)).toBe("3w ago");
     expect(timeAgo("junk", now)).toBe("");
     expect(timeAgo("2026-10-18T12:00:00Z", now)).toBe("just now");
+  });
+});
+
+describe("leadHeat", () => {
+  const base = { stage: "talking", updatedAt: "2026-10-16T05:00:00Z", likelyToClose: false, expectedValue: 5000, nextFollowUp: null as { dueDate: string | null } | null };
+  it("has no heat once decided", () => {
+    expect(leadHeat({ ...base, stage: "won" }, TODAY)).toBeNull();
+    expect(leadHeat({ ...base, stage: "lost" }, TODAY)).toBeNull();
+  });
+  it("treats the star as a manual hot override", () => {
+    expect(leadHeat({ ...base, stage: "new", updatedAt: "2026-01-01T00:00:00Z", likelyToClose: true }, TODAY)).toBe("hot");
+  });
+  it("is hot for a fresh quoted lead with a follow-up lined up", () => {
+    expect(leadHeat({ ...base, stage: "quoted", nextFollowUp: { dueDate: "2026-10-20" } }, TODAY)).toBe("hot");
+  });
+  it("is warm for a recent mid-stage lead and cold once it has gone quiet", () => {
+    expect(leadHeat({ ...base, stage: "visit" }, TODAY)).toBe("warm");
+    expect(leadHeat({ ...base, stage: "talking", updatedAt: "2026-10-01T00:00:00Z" }, TODAY)).toBe("cold");
+  });
+  it("counts a big sale and penalises an overdue follow-up", () => {
+    expect(leadHeat({ ...base, stage: "talking", expectedValue: 50_000 }, TODAY)).toBe("warm");
+    // an overdue follow-up drags a fresh mid-stage lead down a notch (1 + 2 - 1), while a lined-up one lifts it
+    expect(leadHeat({ ...base, stage: "talking", nextFollowUp: { dueDate: "2026-10-10" } }, TODAY)).toBe("cold");
+    expect(leadHeat({ ...base, stage: "talking", nextFollowUp: { dueDate: "2026-10-20" } }, TODAY)).toBe("warm");
+    expect(leadHeat({ ...base, stage: "new", updatedAt: "2026-10-12T05:00:00Z", nextFollowUp: { dueDate: "2026-10-10" } }, TODAY)).toBe("cold");
+  });
+  it("ranks hot before warm before cold", () => {
+    expect(HEAT_RANK.hot).toBeLessThan(HEAT_RANK.warm);
+    expect(HEAT_RANK.warm).toBeLessThan(HEAT_RANK.cold);
+  });
+});
+
+describe("todayBuckets", () => {
+  const mk = (id: string, over: Record<string, unknown> = {}) => ({ id, name: id, stage: "talking", updatedAt: "2026-10-16T05:00:00Z", likelyToClose: false, expectedValue: 1000, nextFollowUp: null as { dueDate: string | null } | null, ...over });
+  it("puts each open lead in the first group it fits and ignores closed ones", () => {
+    const leads = [
+      mk("due-today", { nextFollowUp: { dueDate: "2026-10-17" } }),
+      mk("overdue", { nextFollowUp: { dueDate: "2026-10-12" }, updatedAt: "2026-10-01T05:00:00Z" }),
+      mk("future", { nextFollowUp: { dueDate: "2026-10-25" } }),
+      mk("quiet-long", { updatedAt: "2026-10-01T05:00:00Z" }),
+      mk("quiet-short", { updatedAt: "2026-10-13T05:00:00Z" }),
+      mk("starred", { likelyToClose: true, expectedValue: 9000 }),
+      mk("won", { stage: "won", likelyToClose: true }),
+    ];
+    const b = todayBuckets(leads, TODAY);
+    expect(b.due.map((l) => l.id)).toEqual(["overdue", "due-today"]);
+    expect(b.quiet.map((l) => l.id)).toEqual(["quiet-long", "quiet-short"]);
+    expect(b.hot.map((l) => l.id)).toEqual(["starred"]);
+  });
+  it("is empty when nothing needs contact", () => {
+    expect(todayBuckets([mk("fresh")], TODAY)).toEqual({ due: [], quiet: [], hot: [] });
   });
 });

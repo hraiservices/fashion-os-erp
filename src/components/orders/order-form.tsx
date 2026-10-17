@@ -195,7 +195,7 @@ function FieldGroup({ label, required, error, children, hint, className }: { lab
  * react-hook-form captures defaultValues once at first render, so mounting early would lock
  * in a stale/hardcoded rate card for a new order.
  */
-export function OrderForm({ existingOrder, prefillMobile, prefillName, leadId, initialOrderType, prefillDelivery, prefillSpecial, prefillOutfit }: { existingOrder?: Order; prefillMobile?: string; prefillName?: string; leadId?: string; initialOrderType?: OrderType; prefillDelivery?: string; prefillSpecial?: string; prefillOutfit?: { type: string; pieces: number } }) {
+export function OrderForm({ existingOrder, prefillMobile, prefillName, leadId, initialOrderType, prefillDelivery, prefillSpecial, prefillOutfit, prefillGarments }: { existingOrder?: Order; prefillMobile?: string; prefillName?: string; leadId?: string; initialOrderType?: OrderType; prefillDelivery?: string; prefillSpecial?: string; prefillOutfit?: { type: string; pieces: number }; prefillGarments?: { type: string; qty: number }[] }) {
   const { data: rates, isLoading: ratesLoading } = useAppSetting<RateCard>("rates", DEFAULT_RATES);
   const { data: tailorRates, isLoading: tailorRatesLoading } = useCurrentTailorRates(DEFAULT_TAILOR_RATES);
   const { data: expenseCategories, isLoading: categoriesLoading } = useAppSetting<string[]>("stitchingExpenseCategories", DEFAULT_EXPENSE_CATEGORIES);
@@ -215,6 +215,7 @@ export function OrderForm({ existingOrder, prefillMobile, prefillName, leadId, i
       prefillDelivery={prefillDelivery}
       prefillSpecial={prefillSpecial}
       prefillOutfit={prefillOutfit}
+      prefillGarments={prefillGarments}
       rates={rates || DEFAULT_RATES}
       tailorRates={tailorRates || DEFAULT_TAILOR_RATES}
       expenseCategories={expenseCategories || DEFAULT_EXPENSE_CATEGORIES}
@@ -233,6 +234,17 @@ function leadGarments(outfit: { type: string; pieces: number } | undefined, rate
   return Array.from({ length: count }, (_, i) => ({ type, lining: "s", no: i + 1, amount: rates[type]?.s || 0, tailor, lineId: newLineId() }));
 }
 
+/** Garment lines from an accepted quote ("2 × Designer Blouse, 1 × Simple Suit"): one line per piece at the rate-card price. Unknown types are skipped; null when nothing usable. */
+function quoteGarments(items: { type: string; qty: number }[] | undefined, rates: RateCard, tailor: string) {
+  if (!items?.length) return null;
+  const lines: { type: string; lining: string; no: number; amount: number; tailor: string; lineId: string }[] = [];
+  for (const it of items) {
+    if (!rates[it.type]) continue;
+    for (let i = 0; i < Math.min(10, Math.max(1, it.qty)) && lines.length < 12; i++) lines.push({ type: it.type, lining: "s", no: lines.length + 1, amount: rates[it.type]?.s || 0, tailor, lineId: newLineId() });
+  }
+  return lines.length ? lines : null;
+}
+
 function OrderFormFields({
   existingOrder,
   prefillMobile,
@@ -242,6 +254,7 @@ function OrderFormFields({
   prefillDelivery,
   prefillSpecial,
   prefillOutfit,
+  prefillGarments,
   rates,
   tailorRates,
   expenseCategories,
@@ -257,6 +270,7 @@ function OrderFormFields({
   prefillDelivery?: string;
   prefillSpecial?: string;
   prefillOutfit?: { type: string; pieces: number };
+  prefillGarments?: { type: string; qty: number }[];
   rates: RateCard;
   tailorRates: TailorRateCard;
   expenseCategories: string[];
@@ -447,7 +461,7 @@ function OrderFormFields({
           special: prefillSpecial ?? "",
           advance: 0,
           paymentMethod: "Cash",
-          garments: leadGarments(prefillOutfit, rates, defaultGarmentType, defaultTailor),
+          garments: quoteGarments(prefillGarments, rates, defaultTailor) ?? leadGarments(prefillOutfit, rates, defaultGarmentType, defaultTailor),
           bookingSource: "",
           fabricCost: 0,
           otherCost: 0,

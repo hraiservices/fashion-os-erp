@@ -71,7 +71,7 @@ function parseJsonResponse<T>(text: string): T {
 const BRIEFING_SYSTEM_PROMPT = `You are a friendly, precise business assistant writing a short daily briefing for the
 owner of an Indian tailoring shop + product sales business. You'll be given a JSON summary of
 today's key numbers. Turn it into 3-5 short sentences (or a tight bulleted list) highlighting
-what needs attention today — overdue balances, low stock, and today's activity so far.
+what needs attention today — overdue balances, low stock, orders at risk of missing their delivery date (ordersAtRisk), lead follow-ups due (leadFollowUpsDue), open leads gone quiet for a week (quietLeads), and today's activity so far.
 
 Rules:
 - Lead with whatever is most actionable (overdue money, low stock) — don't bury it.

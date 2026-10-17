@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Cake, ChevronDown, MessageCircle, Star } from "lucide-react";
+import { toast } from "sonner";
+import { CalendarClock, Cake, ChevronDown, MessageCircle, RotateCcw, Sparkles, Star } from "lucide-react";
+import { useAiOn, useLeadAi, type LeadReply } from "@/hooks/use-ai";
+import { useLeads, useTasks } from "@/hooks/use-targets";
+import { TRIAL_TAG, mobileFromTrial, trialMessage } from "@/lib/trial";
+import { addDaysIso } from "@/lib/work-tasks";
+import { winBackCandidates, winBackMessage } from "@/lib/win-back";
+import type { LeadDto } from "@/lib/targets-types";
 import { useReviewCandidates, useUpcomingOccasions } from "@/hooks/use-customer-nudges";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { normalizeIndianMobile } from "@/lib/business-rules";
@@ -85,6 +92,71 @@ export function ReviewRequestCard({ today, canEdit }: { today: string; canEdit: 
       {rows.slice(0, 12).map((r) => (
         <Row key={r.id} name={r.name} sub={`Delivered ${r.deliveryDate}`} href={wa(r.mobile, msg(r.name))} label={`Ask ${r.name} for a review`} onSent={() => mark(r.id)} />
       ))}
+    </Collapsible>
+  );
+}
+
+function WinBackRow({ lead, shopName }: { lead: LeadDto; shopName: string }) {
+  const aiOn = useAiOn("reply");
+  const ai = useLeadAi<LeadReply>(lead.id);
+  const [draft, setDraft] = useState<string | null>(null);
+  const text = draft ?? winBackMessage(lead.name, lead.lostReason, shopName);
+  return (
+    <>
+      <Row name={lead.name} sub={`Said no: ${lead.lostReason} · ${lead.lostAt ? lead.lostAt.slice(0, 10) : ""}`} href={wa(lead.mobile, text)} label={`Message ${lead.name} on WhatsApp`} />
+      {aiOn && (
+        <li className="-mt-0.5 pl-3">
+          <button
+            type="button"
+            disabled={ai.isPending}
+            onClick={() => ai.mutate({ action: "reply", intent: `win back a lead who said no earlier (${lead.lostReason}); be warm, no pressure, mention nothing you don't know` }, { onSuccess: (r) => setDraft(r.text), onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't write it") })}
+            className="inline-flex min-h-11 items-center gap-1 text-xs font-medium text-violet-700 disabled:opacity-60 dark:text-violet-300"
+          >
+            <Sparkles className="size-3.5" /> {ai.isPending ? "Writing…" : draft ? "Write another with AI" : "Write it with AI instead"}
+          </button>
+        </li>
+      )}
+    </>
+  );
+}
+
+/** Leads who said no 1–4 months ago for a reason that can change — a polite second message. */
+export function WinBackCard({ today, canEdit }: { today: string; canEdit: boolean }) {
+  const { data } = useLeads({ stage: "lost", limit: 300 }, { enabled: canEdit });
+  const { data: shop } = useShopSettings();
+  const rows = winBackCandidates(data?.leads ?? [], today).slice(0, 12);
+  if (!canEdit || rows.length === 0) return null;
+  return (
+    <Collapsible icon={RotateCcw} title={`${rows.length} lost ${rows.length === 1 ? "lead" : "leads"} worth another try`} tone="border-teal-200 bg-teal-50/60 text-teal-800 dark:border-teal-500/30 dark:bg-teal-500/5 dark:text-teal-300">
+      {rows.map((l) => (
+        <WinBackRow key={l.id} lead={l} shopName={shop?.name || ""} />
+      ))}
+    </Collapsible>
+  );
+}
+
+/** Fitting trials today and tomorrow, each with a one-tap reminder to the customer. */
+export function TrialsCard({ today, canEdit }: { today: string; canEdit: boolean }) {
+  const { data } = useTasks({ status: "open" }, canEdit);
+  const { data: shop } = useShopSettings();
+  const tomorrow = addDaysIso(today, 1);
+  const rows = (data ?? []).filter((t) => t.tags?.includes(TRIAL_TAG) && !!t.dueDate && t.dueDate >= today && t.dueDate <= tomorrow).sort((a, b) => (a.dueDate as string).localeCompare(b.dueDate as string) || a.title.localeCompare(b.title));
+  if (!canEdit || rows.length === 0) return null;
+  return (
+    <Collapsible icon={CalendarClock} title={`${rows.length} fitting ${rows.length === 1 ? "trial" : "trials"} today / tomorrow`} tone="border-sky-200 bg-sky-50/60 text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/5 dark:text-sky-300">
+      {rows.map((t) => {
+        const mobile = mobileFromTrial(t.description);
+        const name = /—\s*(.+?)\s*\(/.exec(t.title)?.[1] ?? "there";
+        const time = /^Trial\s+(\d{1,2}:\d{2}\s?[AP]M)/.exec(t.title)?.[1] ?? "";
+        const when = t.dueDate === today ? "today" : "tomorrow";
+        return mobile ? (
+          <Row key={t.id} name={t.title.replace(/^Trial\s*/, "")} sub={`${when === "today" ? "Today" : "Tomorrow"}`} href={wa(mobile, trialMessage({ name, shop: shop?.name || "", dateLabel: when, time, reminder: true }))} label={`Remind ${name} about the trial`} />
+        ) : (
+          <li key={t.id} className="rounded-lg bg-card px-3 py-2 text-sm text-foreground">
+            {t.title}
+          </li>
+        );
+      })}
     </Collapsible>
   );
 }

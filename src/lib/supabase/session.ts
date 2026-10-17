@@ -17,7 +17,7 @@ import { getCachedAppSetting } from "@/lib/supabase/app-settings-cache";
 // job is picking which shop's login page to send a brand-new install to. Missing from this list,
 // it got the same treatment as any other unauthenticated protected-route hit: redirected straight
 // to /login before the page's own code ever ran, silently skipping the shop picker entirely.
-const PUBLIC_PATHS = ["/login", "/signup", "/launch", "/checkin", "/invoice/view", "/track", "/api/public", "/api/recurring-invoices/generate"];
+const PUBLIC_PATHS = ["/login", "/signup", "/launch", "/checkin", "/invoice/view", "/track", "/enquiry", "/api/public", "/api/recurring-invoices/generate"];
 
 // Of the public paths, only /login and /signup actually do anything with the auth result (bounce
 // an already-logged-in visitor to /dashboard instead of showing them the form again) — every

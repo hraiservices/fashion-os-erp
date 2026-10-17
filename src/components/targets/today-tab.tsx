@@ -15,7 +15,8 @@ import { todayBuckets } from "@/lib/lead-insights";
 import type { LeadDto } from "@/lib/targets-types";
 import { LeadCard } from "@/components/targets/lead-card";
 import { StageSheet } from "@/components/targets/stage-sheet";
-import { OccasionsCard, ReviewRequestCard } from "@/components/targets/today-customers";
+import { OccasionsCard, ReviewRequestCard, TrialsCard, WinBackCard } from "@/components/targets/today-customers";
+import { TargetGapCard } from "@/components/targets/target-gap";
 import { DailyPlanCard, FestivalNudgeCard, InsightsCard, OrderRiskCard } from "@/components/targets/today-ai";
 import { useStaffLookup } from "@/components/targets/shared";
 import { cn } from "@/lib/utils";
@@ -115,11 +116,14 @@ export function TodayTab({ meta }: { meta: TargetsMeta | undefined }) {
         </div>
       </div>
 
+      <TargetGapCard />
+      <TrialsCard today={today} canEdit={canEdit} />
       <OrderRiskCard today={today} />
       <DailyPlanCard today={today} buckets={buckets} />
       <FestivalNudgeCard canEdit={canEdit} />
       <OccasionsCard today={today} canEdit={canEdit} />
       <ReviewRequestCard today={today} canEdit={canEdit} />
+      <WinBackCard today={today} canEdit={canEdit} />
       {showOwner && <InsightsCard />}
 
       {total === 0 && <EmptyState icon={PartyPopper} title="All caught up" description="No follow-ups are due and no open lead has gone quiet. New leads you add will show here when they need you." />}

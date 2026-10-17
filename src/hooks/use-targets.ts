@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
+import { LEAD_MEDIA_BUCKET, guessContentType } from "@/lib/lead-media";
 import type { StageLabelOverrides } from "@/lib/lead-stages";
 import type { ImportLeadRow } from "@/lib/lead-import";
 import type { ShareContact } from "@/lib/targets-share";
 import type { TargetsSummary } from "@/lib/targets-server";
 import type {
   LeadActivityDto,
+  LeadAttachmentDto,
   LeadDto,
   LeaderboardReportRow,
   LostReport,
@@ -259,7 +262,47 @@ export function useDeleteLead() {
 
 export function useAddLeadActivity() {
   const invalidate = useInvalidate("lead");
-  return useMutation({ mutationFn: ({ id, kind, body }: { id: string; kind: "note" | "call" | "meeting"; body: string }) => send("POST", `/api/targets/leads/${id}/activities`, { kind, body }), onSuccess: invalidate });
+  return useMutation({ mutationFn: ({ id, kind, body }: { id: string; kind: "note" | "call" | "meeting" | "whatsapp"; body: string }) => send("POST", `/api/targets/leads/${id}/activities`, { kind, body }), onSuccess: invalidate });
+}
+
+export function useLeadAttachments(id: string) {
+  return useQuery({
+    queryKey: [KEY, "lead-attachments", id],
+    queryFn: () => api<{ attachments: LeadAttachmentDto[] }>(`/api/targets/leads/${id}/attachments`).then((r) => r.attachments),
+    // Signed links last an hour; refetch before they could go stale while the page sits open.
+    staleTime: 15 * 60_000,
+  });
+}
+
+/** Uploads files straight to storage through one-time signed URLs, then records each against the lead. Reports how many went through. */
+export function useUploadLeadAttachments() {
+  const invalidate = useInvalidate("lead", "lead-attachments");
+  return useMutation({
+    mutationFn: async ({ id, files }: { id: string; files: File[] }) => {
+      const supabase = createClient();
+      let done = 0;
+      const failures: string[] = [];
+      for (const file of files) {
+        const contentType = guessContentType(file.name, file.type);
+        try {
+          const target = await api<{ path: string; token: string }>(`/api/targets/leads/${id}/attachments`, { method: "POST", body: JSON.stringify({ action: "upload-url", name: file.name, contentType, size: file.size }) });
+          const { error } = await supabase.storage.from(LEAD_MEDIA_BUCKET).uploadToSignedUrl(target.path, target.token, file, { contentType });
+          if (error) throw new Error(error.message);
+          await api(`/api/targets/leads/${id}/attachments`, { method: "POST", body: JSON.stringify({ action: "register", path: target.path, name: file.name, contentType, size: file.size }) });
+          done += 1;
+        } catch (e) {
+          failures.push(`${file.name}: ${e instanceof Error ? e.message : "failed"}`);
+        }
+      }
+      return { done, failures };
+    },
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteLeadAttachment() {
+  const invalidate = useInvalidate("lead", "lead-attachments");
+  return useMutation({ mutationFn: ({ leadId, attachmentId }: { leadId: string; attachmentId: string }) => send("DELETE", `/api/targets/leads/${leadId}/attachments/${attachmentId}`), onSuccess: invalidate });
 }
 
 export function useConvertLead() {

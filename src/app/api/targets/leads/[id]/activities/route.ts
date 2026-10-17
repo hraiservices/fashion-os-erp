@@ -6,8 +6,9 @@ import { notFound, parseBody, text } from "@/lib/targets-api";
 import { addLeadActivity, leadVisible, targetsContext } from "@/lib/targets-server";
 
 const schema = z.object({
-  kind: z.enum(["note", "call", "meeting"]),
-  body: text(1000).min(1, "Write something first"),
+  kind: z.enum(["note", "call", "meeting", "whatsapp"]),
+  // A pasted WhatsApp chat can run long; a typed note stays short.
+  body: text(20000).min(1, "Write something first"),
 });
 
 /** POST — add a note, call or meeting to a lead's timeline. */
@@ -24,6 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { data: row } = await db.from("leads").select("assigned_employee_id, created_by").eq("id", id).maybeSingle();
   if (!row || !leadVisible(row, ctx)) return notFound("Lead not found");
 
+  if (body.data.kind !== "whatsapp" && body.data.body.length > 1000) return NextResponse.json({ error: "That note is too long — keep it under 1,000 characters" }, { status: 400 });
   await addLeadActivity(db, id, body.data.kind, body.data.body, ctx.email);
   await db.from("leads").update({ updated_at: new Date().toISOString() }).eq("id", id);
   return NextResponse.json({ ok: true });

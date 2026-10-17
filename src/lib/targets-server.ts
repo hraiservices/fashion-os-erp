@@ -325,7 +325,7 @@ export async function logTaskEvent(db: SupabaseClient<Database>, e: { taskId: st
   }
 }
 
-export async function addLeadActivity(db: SupabaseClient<Database>, leadId: string, kind: "note" | "call" | "meeting" | "stage_change", body: string, email: string) {
+export async function addLeadActivity(db: SupabaseClient<Database>, leadId: string, kind: "note" | "call" | "meeting" | "stage_change" | "whatsapp", body: string, email: string) {
   await db.from("lead_activities").insert({ lead_id: leadId, kind, body, created_by: email });
 }
 

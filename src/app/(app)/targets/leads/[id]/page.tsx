@@ -7,12 +7,14 @@ import { toast } from "sonner";
 import { CalendarPlus, FileText, MessageCircle, Pencil, Phone, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { inr } from "@/lib/format";
 import type { TaskDto } from "@/lib/targets-types";
 import { useAddLeadActivity, useConvertLead, useDeleteLead, useLead, usePatchTask, useProjects, useTargetsMeta } from "@/hooks/use-targets";
 import { LikelyStar, StageChip, telHref, useStaffLookup, whatsappHref } from "@/components/targets/shared";
 import { BackLink } from "@/components/ui/back-link";
+import { LeadAttachments } from "@/components/targets/lead-attachments";
 import { StageSheet } from "@/components/targets/stage-sheet";
 import { TaskSheet } from "@/components/targets/task-sheet";
 import { TaskRow } from "@/components/targets/task-row";
@@ -27,8 +29,23 @@ function nextFollowUp(tasks: TaskDto[]): { title: string; dueDate: string | null
   return open[0] ? { title: open[0].title, dueDate: open[0].dueDate } : null;
 }
 
-type Kind = "note" | "call" | "meeting";
-const KIND_LABEL: Record<string, string> = { note: "Note", call: "Call", meeting: "Meeting", stage_change: "Stage", created: "Created" };
+type Kind = "note" | "call" | "meeting" | "whatsapp";
+const KIND_LABEL: Record<string, string> = { note: "Note", call: "Call", meeting: "Meeting", whatsapp: "WhatsApp chat", stage_change: "Stage", created: "Created" };
+
+/** A pasted WhatsApp chat can run to hundreds of lines — show a few and let the rest unfold. */
+function ActivityBody({ body, long }: { body: string; long: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <p className={cn("mt-0.5 whitespace-pre-wrap", long && !open && "line-clamp-6")}>{body}</p>
+      {long && (
+        <button type="button" onClick={() => setOpen((v) => !v)} className="mt-1 min-h-11 text-xs font-medium text-primary">
+          {open ? "Show less" : "Show the whole chat"}
+        </button>
+      )}
+    </>
+  );
+}
 
 export default function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -170,21 +187,27 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         )}
       </section>
 
+      <LeadAttachments leadId={lead.id} canEdit={canEdit} />
+
       <section className="space-y-2">
         <h2 className="px-1 text-sm font-semibold text-muted-foreground">History</h2>
         {canEdit && (
           <div className="space-y-2">
-            <div className="flex gap-2">
-              {(["note", "call", "meeting"] as const).map((k) => (
-                <button key={k} type="button" onClick={() => setKind(k)} className={cn("min-h-11 flex-1 rounded-full border text-sm font-medium", kind === k ? "border-primary bg-primary/10 text-primary" : "bg-card")}>
-                  {KIND_LABEL[k]}
+            <div className="grid grid-cols-4 gap-1.5">
+              {(["note", "call", "meeting", "whatsapp"] as const).map((k) => (
+                <button key={k} type="button" onClick={() => setKind(k)} className={cn("min-h-11 rounded-full border px-1 text-sm font-medium", kind === k ? "border-primary bg-primary/10 text-primary" : "bg-card")}>
+                  {k === "whatsapp" ? "WhatsApp" : KIND_LABEL[k]}
                 </button>
               ))}
             </div>
-            <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); addNote(); }}>
-              <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="What happened?" className="h-12" maxLength={1000} />
-              <Button type="submit" className="h-12 shrink-0" disabled={!text.trim() || addActivity.isPending}>
-                Save
+            <form className={kind === "whatsapp" ? "space-y-2" : "flex gap-2"} onSubmit={(e) => { e.preventDefault(); addNote(); }}>
+              {kind === "whatsapp" ? (
+                <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder="Paste the WhatsApp chat here — in WhatsApp, long-press a message, tap Select, then Copy" className="resize-none text-base" maxLength={20000} />
+              ) : (
+                <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="What happened?" className="h-12" maxLength={1000} />
+              )}
+              <Button type="submit" className={kind === "whatsapp" ? "h-12 w-full" : "h-12 shrink-0"} disabled={!text.trim() || addActivity.isPending}>
+                {kind === "whatsapp" ? "Save chat to history" : "Save"}
               </Button>
             </form>
           </div>
@@ -196,7 +219,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                 <span className="font-semibold">{KIND_LABEL[a.kind] ?? a.kind}</span>
                 <span>{new Date(a.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</span>
               </p>
-              <p className="mt-0.5 whitespace-pre-wrap">{a.body}</p>
+              <ActivityBody body={a.body} long={a.kind === "whatsapp" && a.body.length > 400} />
             </li>
           ))}
           {activities.length === 0 && <li className="px-1 text-sm text-muted-foreground">Nothing logged yet.</li>}

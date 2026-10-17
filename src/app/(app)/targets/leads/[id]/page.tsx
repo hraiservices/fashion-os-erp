@@ -10,12 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { inr } from "@/lib/format";
+import { fmtDateShort, inr } from "@/lib/format";
 import type { TaskDto } from "@/lib/targets-types";
 import { useAddLeadActivity, useConvertLead, useDeleteLead, useLead, usePatchTask, useProjects, useTargetsMeta } from "@/hooks/use-targets";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { DEFAULT_LEAD_TEMPLATES, LEAD_TEMPLATE_SETTING_KEY, cleanTemplates, fillTemplate } from "@/lib/lead-templates";
-import { daysQuiet, leadHeat, quietLevel } from "@/lib/lead-insights";
+import { daysQuiet, leadHeat, neededLabel, quietLevel } from "@/lib/lead-insights";
 import { useLeadFollowUp } from "@/hooks/use-lead-follow-up";
 import { HeatChip, LikelyStar, StageChip, telHref, useStaffLookup, whatsappHref } from "@/components/targets/shared";
 import { BackLink } from "@/components/ui/back-link";
@@ -78,6 +78,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   if (!data) return <p className="text-sm text-muted-foreground">Lead not found.</p>;
   const { lead, activities, tasks, customer, duplicates } = data;
   const heat = leadHeat(lead, meta?.today ?? "");
+  const needed = neededLabel(lead.neededBy, meta?.today ?? "");
   const tel = telHref(lead.mobile);
   const wa = whatsappHref(lead.mobile, `Hello ${lead.name}, `);
   const quiet = daysQuiet(lead, meta?.today ?? "");
@@ -171,6 +172,38 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           )}
         </div>
+        {(needed || lead.outfitType || lead.pieces > 0 || lead.budgetMin > 0 || lead.budgetMax > 0 || lead.measurements) && (
+          <div className="grid grid-cols-2 gap-3 border-t pt-3 text-sm">
+            {needed && (
+              <div>
+                <p className="text-xs text-muted-foreground">Needed by</p>
+                <p className="font-semibold">{fmtDateShort(lead.neededBy as string)}</p>
+                <p className={cn("text-xs", needed.urgent ? "font-medium text-red-600 dark:text-red-400" : "text-muted-foreground")}>{needed.text}</p>
+              </div>
+            )}
+            {(lead.outfitType || lead.pieces > 0) && (
+              <div>
+                <p className="text-xs text-muted-foreground">Outfit</p>
+                <p className="font-semibold">
+                  {lead.outfitType || "Pieces"}
+                  {lead.pieces > 0 && ` × ${lead.pieces}`}
+                </p>
+              </div>
+            )}
+            {(lead.budgetMin > 0 || lead.budgetMax > 0) && (
+              <div>
+                <p className="text-xs text-muted-foreground">Budget</p>
+                <p className="font-semibold">{lead.budgetMin > 0 && lead.budgetMax > 0 ? `${inr(lead.budgetMin)} – ${inr(lead.budgetMax)}` : lead.budgetMax > 0 ? `Up to ${inr(lead.budgetMax)}` : `From ${inr(lead.budgetMin)}`}</p>
+              </div>
+            )}
+            {lead.measurements && (
+              <div className="col-span-2">
+                <p className="text-xs text-muted-foreground">Measurements / sizes</p>
+                <p className="whitespace-pre-wrap">{lead.measurements}</p>
+              </div>
+            )}
+          </div>
+        )}
         {lead.notes && <p className="whitespace-pre-wrap text-sm">{lead.notes}</p>}
         <div className="grid grid-cols-2 gap-2">
           {tel && (

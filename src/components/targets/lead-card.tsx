@@ -4,8 +4,8 @@ import Link from "next/link";
 import { CalendarClock, ChevronRight, MessageCircle, Paperclip, Phone } from "lucide-react";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { stageLabel, type StageLabelOverrides } from "@/lib/lead-stages";
-import { ACTIVITY_LABEL, daysQuiet, leadHeat, nextStage, quietLevel, timeAgo, daysSince } from "@/lib/lead-insights";
+import { isOpenStage, stageLabel, type StageLabelOverrides } from "@/lib/lead-stages";
+import { ACTIVITY_LABEL, daysQuiet, leadHeat, neededLabel, nextStage, quietLevel, timeAgo, daysSince } from "@/lib/lead-insights";
 import type { LeadDto } from "@/lib/targets-types";
 import { dueLabel, DUE_TONE_CLASS, HeatChip, LikelyStar, StageChip, telHref, whatsappHref } from "@/components/targets/shared";
 
@@ -43,6 +43,7 @@ export function LeadCard({
   const age = today ? daysSince(lead.createdAt, today) : 0;
   const files = lead.attachmentCount ?? 0;
   const heat = today ? leadHeat(lead, today) : null;
+  const needed = today && isOpenStage(lead.stage) ? neededLabel(lead.neededBy, today) : null;
 
   return (
     <div className={cn("overflow-hidden rounded-xl border bg-card", className)}>
@@ -67,6 +68,7 @@ export function LeadCard({
                 {files}
               </span>
             )}
+            {needed && <span className={cn("rounded-full px-1.5 py-0.5 font-medium", needed.urgent ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300" : "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300")}>{needed.text}</span>}
             {level !== "none" && (
               <span className={cn("rounded-full px-1.5 py-0.5 font-medium", level === "red" ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300" : "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300")}>{quiet} days quiet</span>
             )}

@@ -194,7 +194,7 @@ function FieldGroup({ label, required, error, children, hint, className }: { lab
  * react-hook-form captures defaultValues once at first render, so mounting early would lock
  * in a stale/hardcoded rate card for a new order.
  */
-export function OrderForm({ existingOrder, prefillMobile, prefillName, leadId, initialOrderType }: { existingOrder?: Order; prefillMobile?: string; prefillName?: string; leadId?: string; initialOrderType?: OrderType }) {
+export function OrderForm({ existingOrder, prefillMobile, prefillName, leadId, initialOrderType, prefillDelivery, prefillSpecial, prefillOutfit }: { existingOrder?: Order; prefillMobile?: string; prefillName?: string; leadId?: string; initialOrderType?: OrderType; prefillDelivery?: string; prefillSpecial?: string; prefillOutfit?: { type: string; pieces: number } }) {
   const { data: rates, isLoading: ratesLoading } = useAppSetting<RateCard>("rates", DEFAULT_RATES);
   const { data: tailorRates, isLoading: tailorRatesLoading } = useCurrentTailorRates(DEFAULT_TAILOR_RATES);
   const { data: expenseCategories, isLoading: categoriesLoading } = useAppSetting<string[]>("stitchingExpenseCategories", DEFAULT_EXPENSE_CATEGORIES);
@@ -211,6 +211,9 @@ export function OrderForm({ existingOrder, prefillMobile, prefillName, leadId, i
       prefillName={prefillName}
       leadId={leadId}
       initialOrderType={initialOrderType}
+      prefillDelivery={prefillDelivery}
+      prefillSpecial={prefillSpecial}
+      prefillOutfit={prefillOutfit}
       rates={rates || DEFAULT_RATES}
       tailorRates={tailorRates || DEFAULT_TAILOR_RATES}
       expenseCategories={expenseCategories || DEFAULT_EXPENSE_CATEGORIES}
@@ -221,12 +224,23 @@ export function OrderForm({ existingOrder, prefillMobile, prefillName, leadId, i
   );
 }
 
+/** The garment lines a lead's outfit and piece count start the order with: that many lines of the matching rate-card type, else the usual single default line. */
+function leadGarments(outfit: { type: string; pieces: number } | undefined, rates: RateCard, defaultType: string, tailor: string) {
+  const match = outfit ? Object.keys(rates).find((t) => t.toLowerCase() === outfit.type.trim().toLowerCase()) : undefined;
+  const type = match ?? defaultType;
+  const count = match ? Math.min(10, Math.max(1, outfit?.pieces || 1)) : 1;
+  return Array.from({ length: count }, (_, i) => ({ type, lining: "s", no: i + 1, amount: rates[type]?.s || 0, tailor, lineId: newLineId() }));
+}
+
 function OrderFormFields({
   existingOrder,
   prefillMobile,
   prefillName,
   leadId,
   initialOrderType,
+  prefillDelivery,
+  prefillSpecial,
+  prefillOutfit,
   rates,
   tailorRates,
   expenseCategories,
@@ -239,6 +253,9 @@ function OrderFormFields({
   prefillName?: string;
   leadId?: string;
   initialOrderType?: OrderType;
+  prefillDelivery?: string;
+  prefillSpecial?: string;
+  prefillOutfit?: { type: string; pieces: number };
   rates: RateCard;
   tailorRates: TailorRateCard;
   expenseCategories: string[];
@@ -419,15 +436,15 @@ function OrderFormFields({
           mobile: prefillMobile ?? "",
           inDate: todayISO(),
           inTime: nowHHMM(),
-          deliveryDate: "",
+          deliveryDate: prefillDelivery ?? "",
           // Delivery time starts out matching order-received time — the tailor can change
           // it once a delivery date/time is actually agreed with the customer.
           deliveryTime: nowHHMM(),
           tailor: defaultTailor,
-          special: "",
+          special: prefillSpecial ?? "",
           advance: 0,
           paymentMethod: "Cash",
-          garments: [{ type: defaultGarmentType, lining: "s", no: 1, amount: rates[defaultGarmentType]?.s || 0, tailor: defaultTailor, lineId: newLineId() }],
+          garments: leadGarments(prefillOutfit, rates, defaultGarmentType, defaultTailor),
           bookingSource: "",
           fabricCost: 0,
           otherCost: 0,

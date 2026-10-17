@@ -77,6 +77,8 @@ export interface HeatInput {
   updatedAt: string;
   likelyToClose: boolean;
   expectedValue: number;
+  /** YYYY-MM-DD the outfit is needed by — a close date makes the lead more urgent. */
+  neededBy?: string | null;
   nextFollowUp?: { dueDate: string | null } | null;
 }
 
@@ -96,7 +98,24 @@ export function leadHeat(lead: HeatInput, today: string): LeadHeat | null {
   const due = lead.nextFollowUp?.dueDate;
   if (lead.nextFollowUp) points += due && due < today ? -1 : 1;
   if (lead.expectedValue >= 20_000) points += 1;
+  const days = neededInDays(lead.neededBy, today);
+  if (days !== null && days >= 0) points += days <= 7 ? 2 : days <= 21 ? 1 : 0;
   return points >= 6 ? "hot" : points >= 3 ? "warm" : "cold";
+}
+
+/** Days from `today` until the needed-by date (negative once it has passed); null when no date is set. */
+export function neededInDays(neededBy: string | null | undefined, today: string): number | null {
+  if (!neededBy || !today) return null;
+  return dayNumber(neededBy) - dayNumber(today);
+}
+
+/** "Needed today", "Needed in 12 days", "Needed 3 days ago" — and how urgent it looks. */
+export function neededLabel(neededBy: string | null | undefined, today: string): { text: string; urgent: boolean } | null {
+  const d = neededInDays(neededBy, today);
+  if (d === null) return null;
+  if (d < 0) return { text: `Needed ${-d} day${d === -1 ? "" : "s"} ago`, urgent: true };
+  if (d === 0) return { text: "Needed today", urgent: true };
+  return { text: `Needed in ${d} day${d === 1 ? "" : "s"}`, urgent: d <= 7 };
 }
 
 export const HEAT_LABEL: Record<LeadHeat, string> = { hot: "Hot", warm: "Warm", cold: "Cold" };

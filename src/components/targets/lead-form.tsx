@@ -4,11 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Star, StickyNote, UserRound } from "lucide-react";
+import { Scissors, Star, StickyNote, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Textarea } from "@/components/ui/textarea";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FieldGroup, FormCard, FormShell, SectionHeading, pillClass } from "@/components/targets/form-ui";
 import { LEAD_SOURCES } from "@/lib/lead-stages";
@@ -31,6 +32,12 @@ export function LeadForm({ meta, lead }: { meta: TargetsMeta | undefined; lead?:
   const [owner, setOwner] = useState<string>(lead ? lead.assignedEmployeeId ?? NO_OWNER : meta?.me.employeeId ?? NO_OWNER);
   const [likely, setLikely] = useState(lead?.likelyToClose ?? false);
   const [notes, setNotes] = useState(lead?.notes ?? "");
+  const [neededBy, setNeededBy] = useState(lead?.neededBy ?? "");
+  const [budgetMin, setBudgetMin] = useState(lead?.budgetMin ?? 0);
+  const [budgetMax, setBudgetMax] = useState(lead?.budgetMax ?? 0);
+  const [measurements, setMeasurements] = useState(lead?.measurements ?? "");
+  const [outfitType, setOutfitType] = useState(lead?.outfitType ?? "");
+  const [pieces, setPieces] = useState(lead?.pieces ?? 0);
   const [nameError, setNameError] = useState("");
   const [dupe, setDupe] = useState<{ id: string; message: string } | null>(null);
 
@@ -54,6 +61,16 @@ export function LeadForm({ meta, lead }: { meta: TargetsMeta | undefined; lead?:
       notes: notes.trim(),
       assignedEmployeeId: owner === NO_OWNER ? null : owner,
     };
+    // The occasion / outfit details only go to the server when they differ from what is saved, so a shop that hasn't
+    // run the lead-details migration yet can still save leads that don't use them.
+    const details = {
+      ...((neededBy || null) !== (lead?.neededBy ?? null) ? { neededBy: neededBy || null } : {}),
+      ...(budgetMin !== (lead?.budgetMin ?? 0) ? { budgetMin } : {}),
+      ...(budgetMax !== (lead?.budgetMax ?? 0) ? { budgetMax } : {}),
+      ...(measurements.trim() !== (lead?.measurements ?? "") ? { measurements: measurements.trim() } : {}),
+      ...(outfitType.trim() !== (lead?.outfitType ?? "") ? { outfitType: outfitType.trim() } : {}),
+      ...(pieces !== (lead?.pieces ?? 0) ? { pieces } : {}),
+    };
     const done = () => {
       toast.success(lead ? "Lead updated" : "Lead added");
       router.push(backHref);
@@ -63,8 +80,8 @@ export function LeadForm({ meta, lead }: { meta: TargetsMeta | undefined; lead?:
       if (typeof dup === "string") setDupe({ id: dup, message: e instanceof Error ? e.message : "Duplicate lead" });
       else toast.error(e instanceof Error ? e.message : "Couldn't save the lead");
     };
-    if (lead) patch.mutate({ id: lead.id, ...payload }, { onSuccess: done, onError: fail });
-    else create.mutate({ ...payload, allowDuplicate }, { onSuccess: done, onError: fail });
+    if (lead) patch.mutate({ id: lead.id, ...payload, ...details }, { onSuccess: done, onError: fail });
+    else create.mutate({ ...payload, ...details, allowDuplicate }, { onSuccess: done, onError: fail });
   }
 
   return (
@@ -109,6 +126,46 @@ export function LeadForm({ meta, lead }: { meta: TargetsMeta | undefined; lead?:
             </div>
           </div>
         )}
+      </FormCard>
+
+      <FormCard>
+        <SectionHeading icon={Scissors} label="Occasion and outfit" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FieldGroup label="Needed by" hint="e.g. the wedding date. Leads with a close date rise to the top.">
+            <div className="flex gap-2">
+              <div className="min-w-0 flex-1">
+                <DatePicker value={neededBy} onChange={setNeededBy} placeholder="Pick a date" />
+              </div>
+              {neededBy && (
+                <Button type="button" variant="ghost" className="h-10 shrink-0" onClick={() => setNeededBy("")}>
+                  Clear
+                </Button>
+              )}
+            </div>
+          </FieldGroup>
+          <FieldGroup label="Outfit and pieces">
+            <div className="flex gap-2">
+              <Input list="lead-outfit-types" value={outfitType} onChange={(e) => setOutfitType(e.target.value)} placeholder="e.g. Lehenga" className="h-10 min-w-0 flex-1" maxLength={80} />
+              <datalist id="lead-outfit-types">
+                {(meta?.garmentTypes ?? []).map((g) => (
+                  <option key={g} value={g} />
+                ))}
+              </datalist>
+              <NumberInput className="h-10 w-20 shrink-0" inputMode="numeric" placeholder="Qty" min={0} step={1} aria-label="Number of pieces" value={pieces} onChange={(n) => setPieces(Math.max(0, Math.round(n)))} />
+            </div>
+          </FieldGroup>
+          <FieldGroup label="Budget from (₹)">
+            <NumberInput className="h-10" value={budgetMin} onChange={setBudgetMin} />
+          </FieldGroup>
+          <FieldGroup label="Budget up to (₹)">
+            <NumberInput className="h-10" value={budgetMax} onChange={setBudgetMax} />
+          </FieldGroup>
+          <div className="sm:col-span-2">
+            <FieldGroup label="Measurements / size notes" hint="Anything they told you — it carries over to the order.">
+              <Textarea rows={3} value={measurements} onChange={(e) => setMeasurements(e.target.value)} placeholder="e.g. Blouse 36, length 15; lehenga waist 30" className="resize-none" maxLength={1000} />
+            </FieldGroup>
+          </div>
+        </div>
       </FormCard>
 
       <FormCard>

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { HEAT_RANK, daysQuiet, daysSince, leadHeat, needsAttention, nextStage, quietLevel, timeAgo, todayBuckets } from "@/lib/lead-insights";
+import { HEAT_RANK, daysQuiet, daysSince, leadHeat, neededInDays, neededLabel, needsAttention, nextStage, quietLevel, timeAgo, todayBuckets } from "@/lib/lead-insights";
 
 vi.mock("@/lib/ist-date", () => ({ istDateString: (d: Date) => new Date(d.getTime() + 5.5 * 3_600_000).toISOString().slice(0, 10) }));
 
@@ -91,6 +91,15 @@ describe("leadHeat", () => {
     expect(leadHeat({ ...base, stage: "talking", nextFollowUp: { dueDate: "2026-10-20" } }, TODAY)).toBe("warm");
     expect(leadHeat({ ...base, stage: "new", updatedAt: "2026-10-12T05:00:00Z", nextFollowUp: { dueDate: "2026-10-10" } }, TODAY)).toBe("cold");
   });
+  it("lifts a lead whose outfit is needed soon", () => {
+    // quoted (3) + fresh (2) = 5; a date within a week adds 2 and tips it to hot
+    expect(leadHeat({ ...base, stage: "quoted", neededBy: "2026-10-22" }, TODAY)).toBe("hot");
+    // new (0) + fresh (2) = 2 is cold; the same lead needed in 5 days (+2) is warm
+    expect(leadHeat({ ...base, stage: "new" }, TODAY)).toBe("cold");
+    expect(leadHeat({ ...base, stage: "new", neededBy: "2026-10-22" }, TODAY)).toBe("warm");
+    // a date that has already passed adds nothing
+    expect(leadHeat({ ...base, stage: "new", neededBy: "2026-09-01" }, TODAY)).toBe("cold");
+  });
   it("ranks hot before warm before cold", () => {
     expect(HEAT_RANK.hot).toBeLessThan(HEAT_RANK.warm);
     expect(HEAT_RANK.warm).toBeLessThan(HEAT_RANK.cold);
@@ -116,5 +125,20 @@ describe("todayBuckets", () => {
   });
   it("is empty when nothing needs contact", () => {
     expect(todayBuckets([mk("fresh")], TODAY)).toEqual({ due: [], quiet: [], hot: [] });
+  });
+});
+
+describe("neededInDays / neededLabel", () => {
+  it("counts days to the date", () => {
+    expect(neededInDays("2026-10-27", TODAY)).toBe(10);
+    expect(neededInDays("2026-10-10", TODAY)).toBe(-7);
+    expect(neededInDays(null, TODAY)).toBeNull();
+  });
+  it("words it and flags the urgent ones", () => {
+    expect(neededLabel("2026-10-17", TODAY)).toEqual({ text: "Needed today", urgent: true });
+    expect(neededLabel("2026-10-18", TODAY)).toEqual({ text: "Needed in 1 day", urgent: true });
+    expect(neededLabel("2026-10-30", TODAY)).toEqual({ text: "Needed in 13 days", urgent: false });
+    expect(neededLabel("2026-10-16", TODAY)).toEqual({ text: "Needed 1 day ago", urgent: true });
+    expect(neededLabel(undefined, TODAY)).toBeNull();
   });
 });

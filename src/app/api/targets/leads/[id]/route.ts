@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { normalizeIndianMobile } from "@/lib/business-rules";
 import { DEFAULT_STAGE_LABELS, LEAD_STAGES, validateStageChange, wonValueFor, isLeadStage } from "@/lib/lead-stages";
-import { badRequest, forbidden, notFound, parseBody, serverError, text, uuid } from "@/lib/targets-api";
+import { badRequest, dateStr, forbidden, notFound, parseBody, serverError, text, uuid } from "@/lib/targets-api";
 import { addLeadActivity, customerSummaryForLead, duplicateLeadsFor, ensureCustomerForLead, isActiveEmployee, leadVisible, mapActivityRow, mapLeadRow, mapTaskRow, targetsContext, taskVisible } from "@/lib/targets-server";
 import { logAction } from "@/lib/logging";
 
@@ -19,6 +19,12 @@ const patchSchema = z.object({
   likelyToClose: z.boolean().optional(),
   assignedEmployeeId: uuid.nullable().optional(),
   notes: text(1000).optional(),
+  neededBy: dateStr.nullable().optional(),
+  budgetMin: z.number().min(0).max(100_000_000).optional(),
+  budgetMax: z.number().min(0).max(100_000_000).optional(),
+  measurements: text(1000).optional(),
+  outfitType: text(80).optional(),
+  pieces: z.number().int().min(0).max(1000).optional(),
   stage: z.enum(LEAD_STAGES).optional(),
   lostReason: text(200).optional(),
   wonValue: z.number().min(0).max(100_000_000).optional(),
@@ -72,6 +78,13 @@ export async function PATCH(request: Request, { params }: Ctx) {
   if (d.productInterest !== undefined) update.product_interest = d.productInterest;
   if (d.expectedValue !== undefined) update.expected_value = d.expectedValue;
   if (d.notes !== undefined) update.notes = d.notes;
+  // add_lead_details.sql columns: only touched when the request carries them (older shops without the migration keep saving).
+  if (d.neededBy !== undefined) update.needed_by = d.neededBy;
+  if (d.budgetMin !== undefined) update.budget_min = d.budgetMin;
+  if (d.budgetMax !== undefined) update.budget_max = d.budgetMax;
+  if (d.measurements !== undefined) update.measurements = d.measurements;
+  if (d.outfitType !== undefined) update.outfit_type = d.outfitType;
+  if (d.pieces !== undefined) update.pieces = d.pieces;
   if (d.mobile !== undefined) {
     const mobile = d.mobile ? normalizeIndianMobile(d.mobile) : "";
     if (d.mobile && mobile.length < 10) return badRequest("That mobile number doesn't look right");

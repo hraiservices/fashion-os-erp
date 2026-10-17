@@ -32,7 +32,7 @@ const task = (over: Partial<TaskDto> = {}): TaskDto => ({
 
 const lead = (over: Partial<LeadDto> = {}): LeadDto => ({
   id: "l-1", name: "Sneha Kapoor", mobile: "9876543210", customerId: null, source: "Instagram", productInterest: "Bridal lehenga", expectedValue: 45000, stage: "talking",
-  likelyToClose: true, assignedEmployeeId: "asha", lostReason: "", wonValue: 0, notes: "", wonAt: null, lostAt: null, orderId: null, invoiceId: null, createdBy: null,
+  likelyToClose: true, assignedEmployeeId: "asha", lostReason: "", wonValue: 0, notes: "", neededBy: null, budgetMin: 0, budgetMax: 0, measurements: "", outfitType: "", pieces: 0, wonAt: null, lostAt: null, orderId: null, invoiceId: null, createdBy: null,
   createdAt: "2026-10-01T00:00:00Z", updatedAt: "2026-10-01T00:00:00Z", ...over,
 });
 

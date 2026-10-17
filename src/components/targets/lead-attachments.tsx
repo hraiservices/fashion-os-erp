@@ -2,8 +2,10 @@
 
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { FileText, ImagePlus, Loader2, MessagesSquare, Trash2, X } from "lucide-react";
+import { FileText, ImagePlus, Loader2, MessagesSquare, Sparkles, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AttachmentAiDialog } from "@/components/targets/lead-ai";
+import { useAiOn } from "@/hooks/use-ai";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { describeSummary, useAttachToLead } from "@/hooks/use-lead-whatsapp";
 import { useDeleteLeadAttachment, useLeadAttachments, useUploadLeadAttachments } from "@/hooks/use-targets";
@@ -25,6 +27,9 @@ export function LeadAttachments({ leadId, canEdit }: { leadId: string; canEdit: 
   const importExport = useAttachToLead();
   const [lightbox, setLightbox] = useState<LeadAttachmentDto | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [aiFor, setAiFor] = useState<LeadAttachmentDto | null>(null);
+  const specOn = useAiOn("spec") && canEdit;
+  const voiceOn = useAiOn("voice") && canEdit;
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files ?? []);
@@ -133,6 +138,11 @@ export function LeadAttachments({ leadId, canEdit }: { leadId: string; canEdit: 
                     {a.url ? <img src={a.url} alt={a.name} className="size-full object-cover" loading="lazy" /> : null}
                   </button>
                   <RemoveBtn a={a} className="absolute right-0.5 top-0.5 bg-background/85 backdrop-blur" />
+                  {specOn && (
+                    <button type="button" onClick={() => setAiFor(a)} aria-label={`Describe ${a.name} with AI`} className="absolute bottom-0.5 left-0.5 inline-flex min-h-11 min-w-11 items-center justify-center rounded-md bg-background/85 text-violet-600 backdrop-blur">
+                      <Sparkles className="size-4" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -144,6 +154,11 @@ export function LeadAttachments({ leadId, canEdit }: { leadId: string; canEdit: 
               {audios.map((a) => (
                 <div key={a.id} className="flex items-center gap-1">
                   {a.url ? <audio controls preload="none" src={a.url} className="h-10 min-w-0 flex-1" /> : <span className="flex-1 text-xs text-muted-foreground">{a.name}</span>}
+                  {voiceOn && (
+                    <button type="button" onClick={() => setAiFor(a)} aria-label={`Summarise ${a.name} with AI`} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-violet-600">
+                      <Sparkles className="size-4" />
+                    </button>
+                  )}
                   <RemoveBtn a={a} />
                 </div>
               ))}
@@ -182,6 +197,8 @@ export function LeadAttachments({ leadId, canEdit }: { leadId: string; canEdit: 
           )}
         </div>
       )}
+
+      <AttachmentAiDialog leadId={leadId} attachment={aiFor} onClose={() => setAiFor(null)} />
 
       <Dialog open={!!lightbox} onOpenChange={(v) => !v && setLightbox(null)}>
         <DialogContent className="max-w-3xl p-2 sm:p-3">

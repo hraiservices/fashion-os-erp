@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { bucketTasks, isOverdue, subtaskProgress } from "@/lib/work-tasks";
 import type { TaskDto } from "@/lib/targets-types";
+import { TasksFromTextButton } from "@/components/targets/tasks-from-text";
 import { useCreateTask, usePatchTask, useProjects, useTask, useTasks, type TargetsMeta } from "@/hooks/use-targets";
 import { useStaffLookup } from "@/components/targets/shared";
 import { TaskRow } from "@/components/targets/task-row";
@@ -146,9 +147,12 @@ export function TasksTab({ meta }: { meta: TargetsMeta | undefined }) {
             </Select>
           </div>
         )}
-        <Button className="ml-auto hidden h-11 lg:inline-flex" onClick={() => router.push("/targets/tasks/new")}>
-          <Plus className="size-4" /> Add Task
-        </Button>
+        <div className="ml-auto flex gap-2">
+          <TasksFromTextButton />
+          <Button className="hidden h-11 lg:inline-flex" onClick={() => router.push("/targets/tasks/new")}>
+            <Plus className="size-4" /> Add Task
+          </Button>
+        </div>
       </div>
 
       {!tasksQ.isLoading && (

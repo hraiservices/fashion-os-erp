@@ -5,8 +5,9 @@ import type { Database } from "@/lib/supabase/database.types";
 import { normalizeIndianMobile } from "@/lib/business-rules";
 import { DEFAULT_STAGE_LABELS, LEAD_STAGES, validateStageChange, wonValueFor, isLeadStage } from "@/lib/lead-stages";
 import { badRequest, dateStr, forbidden, notFound, parseBody, serverError, text, uuid } from "@/lib/targets-api";
-import { addLeadActivity, customerSummaryForLead, duplicateLeadsFor, ensureCustomerForLead, isActiveEmployee, leadVisible, mapActivityRow, mapLeadRow, mapTaskRow, targetsContext, taskVisible } from "@/lib/targets-server";
+import { addLeadActivity, customerSummaryForLead, fetchAll, duplicateLeadsFor, ensureCustomerForLead, isActiveEmployee, leadVisible, mapActivityRow, mapLeadRow, mapTaskRow, targetsContext, taskVisible } from "@/lib/targets-server";
 import { logAction } from "@/lib/logging";
+import { buildWinModel, winChance, type ClosedLead } from "@/lib/win-chance";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -30,6 +31,20 @@ const patchSchema = z.object({
   wonValue: z.number().min(0).max(100_000_000).optional(),
 });
 
+/** The learned win chance for an open lead — from how this shop's closed leads with the same traits ended. Null until there are enough of them. */
+async function winChanceFor(db: SupabaseClient<Database>, row: Database["public"]["Tables"]["leads"]["Row"]) {
+  const closed = await fetchAll((a, b) => db.from("leads").select("*").in("stage", ["won", "lost"]).order("id").range(a, b));
+  const asTraits = (r: Database["public"]["Tables"]["leads"]["Row"]): ClosedLead => ({
+    stage: r.stage,
+    source: r.source || "",
+    outfitType: r.outfit_type || "",
+    budgetMax: Number(r.budget_max) || 0,
+    expectedValue: Number(r.expected_value) || 0,
+    neededBy: r.needed_by || null,
+  });
+  return winChance(buildWinModel(closed.map(asTraits)), asTraits(row));
+}
+
 /** GET — one lead with its timeline and linked tasks. */
 export async function GET(_request: Request, { params }: Ctx) {
   const { id } = await params;
@@ -41,12 +56,13 @@ export async function GET(_request: Request, { params }: Ctx) {
   const { data: row } = await db.from("leads").select("*").eq("id", id).maybeSingle();
   if (!row || !leadVisible(row, ctx)) return notFound("Lead not found");
 
-  const [{ data: acts }, { data: tasks }, customer, duplicates] = await Promise.all([
+  const [{ data: acts }, { data: tasks }, customer, duplicates, chance] = await Promise.all([
     db.from("lead_activities").select("*").eq("lead_id", id).order("created_at", { ascending: false }).limit(200),
     db.from("work_tasks").select("*").eq("link_type", "lead").eq("link_id", id).order("due_date", { ascending: true, nullsFirst: false }),
     // Nice-to-haves: a failure here must never stop the lead page from opening.
     customerSummaryForLead(db, row.mobile).catch(() => null),
     duplicateLeadsFor(db, ctx, { id, mobile: row.mobile }).catch(() => []),
+    winChanceFor(db, row).catch(() => null),
   ]);
   return NextResponse.json({
     lead: mapLeadRow(row),
@@ -54,6 +70,7 @@ export async function GET(_request: Request, { params }: Ctx) {
     tasks: (tasks || []).map(mapTaskRow).filter((t) => taskVisible(t, ctx)),
     customer,
     duplicates,
+    winChance: row.stage === "won" || row.stage === "lost" ? null : chance,
   });
 }
 

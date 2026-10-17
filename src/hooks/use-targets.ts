@@ -204,7 +204,7 @@ export function useLeads(filters: LeadFilters, opts?: { enabled?: boolean }) {
 export function useLead(id: string) {
   return useQuery({
     queryKey: [KEY, "lead", id],
-    queryFn: () => api<{ lead: LeadDto; activities: LeadActivityDto[]; tasks: TaskDto[]; customer: LeadCustomerDto | null; duplicates: LeadDuplicateDto[] }>(`/api/targets/leads/${id}`),
+    queryFn: () => api<{ lead: LeadDto; activities: LeadActivityDto[]; tasks: TaskDto[]; customer: LeadCustomerDto | null; duplicates: LeadDuplicateDto[]; winChance: { pct: number; basis: number } | null }>(`/api/targets/leads/${id}`),
     staleTime: 15_000,
   });
 }

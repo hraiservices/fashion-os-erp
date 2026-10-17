@@ -4,6 +4,7 @@ import { formatWinRate, type OwnerRow } from "@/lib/targets";
 import { inr } from "@/lib/format";
 import { useTargetsReport } from "@/hooks/use-targets";
 import { useReportDateRange } from "@/lib/report-date-range";
+import { InsightsCard } from "@/components/targets/today-ai";
 import { targetsRange, TargetsReportView, type ReportColumn } from "@/components/targets/report-page";
 
 type Row = OwnerRow & { name: string };
@@ -33,6 +34,7 @@ export default function LeadOwnersPage() {
       dateRange={dr}
       loading={q.isLoading}
       error={q.error?.message}
+      above={<InsightsCard range={dr.range.from && dr.range.to ? { from: dr.range.from, to: dr.range.to } : undefined} />}
       rows={rows}
       columns={COLUMNS}
       rowKey={(r) => r.ownerId || "none"}

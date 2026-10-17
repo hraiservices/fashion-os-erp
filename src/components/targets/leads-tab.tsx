@@ -284,8 +284,8 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
                 value={view}
                 onChange={setView}
                 options={[
-                  { value: "list", label: "List", icon: List },
-                  { value: "board", label: "Board", icon: LayoutGrid },
+                  { value: "list", label: "List", icon: List, tone: "blue" },
+                  { value: "board", label: "Board", icon: LayoutGrid, tone: "purple" },
                 ]}
               />
             </div>

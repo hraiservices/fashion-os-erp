@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FolderKanban, ListTodo, Target, Users } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
-import { useTargetsMeta } from "@/hooks/use-targets";
+import { useProjects, useTargetsMeta, useTargetsSummary } from "@/hooks/use-targets";
 import { TasksTab } from "@/components/targets/tasks-tab";
 import { ProjectsTab } from "@/components/targets/projects-tab";
 import { LeadsTab } from "@/components/targets/leads-tab";
@@ -21,6 +21,10 @@ function TargetsHome() {
   const tab: Tab = raw === "leads" || raw === "targets" || raw === "projects" ? raw : "tasks";
   const metaQuery = useTargetsMeta();
   const meta = metaQuery.data;
+  // Counts for the tab badges; both are cached queries the tabs use anyway, and the badges just stay off until they arrive.
+  const summary = useTargetsSummary({ quiet: true }).data;
+  const projects = useProjects().data;
+  const activeProjects = projects?.filter((p) => p.status === "active").length;
 
   // Older links and the "+" menus used ?new=task / ?new=lead; those screens are pages now.
   const wantNew = params.get("new");
@@ -41,10 +45,10 @@ function TargetsHome() {
         value={tab}
         onChange={setTab}
         options={[
-          { value: "tasks", label: "Tasks", icon: ListTodo },
-          { value: "projects", label: "Projects", icon: FolderKanban },
-          { value: "leads", label: "Leads", icon: Users },
-          { value: "targets", label: "Targets", icon: Target },
+          { value: "tasks", label: "Tasks", icon: ListTodo, tone: "blue", count: summary?.openTaskCount },
+          { value: "projects", label: "Projects", icon: FolderKanban, tone: "amber", count: activeProjects },
+          { value: "leads", label: "Leads", icon: Users, tone: "green", count: summary?.openLeads },
+          { value: "targets", label: "Targets", icon: Target, tone: "purple", count: summary?.targets.length },
         ]}
       />
 

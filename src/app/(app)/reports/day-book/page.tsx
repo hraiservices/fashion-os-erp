@@ -474,9 +474,9 @@ export default function DayBookPage() {
             value={mode}
             onChange={setMode}
             options={[
-              { value: "day", label: "Day", icon: CalendarDays },
-              { value: "week", label: "Week", icon: CalendarRange },
-              { value: "month", label: "Month", icon: CalendarRange },
+              { value: "day", label: "Day", icon: CalendarDays, tone: "blue" },
+              { value: "week", label: "Week", icon: CalendarRange, tone: "green" },
+              { value: "month", label: "Month", icon: CalendarRange, tone: "purple" },
             ]}
           />
           <Button variant="outline" size="sm" onClick={() => setDate((d) => stepDate(d, mode, -1))} aria-label="Previous">
@@ -548,8 +548,8 @@ export default function DayBookPage() {
               value={compare}
               onChange={setCompare}
               options={[
-                { value: "yesterday", label: "vs yesterday" },
-                { value: "lastWeek", label: "vs last week" },
+                { value: "yesterday", label: "vs yesterday", tone: "amber" },
+                { value: "lastWeek", label: "vs last week", tone: "teal" },
               ]}
             />
             <div className="flex items-center gap-2">

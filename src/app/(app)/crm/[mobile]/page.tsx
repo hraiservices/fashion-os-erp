@@ -443,9 +443,9 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             {custOrders.length > 0 && (
               <Tabs value={historyFilter} onValueChange={(v) => v && setHistoryFilter(v as typeof historyFilter)}>
                 <TabsList>
-                  <TabsTrigger value="all">All</TabsTrigger>
-                  <TabsTrigger value="new">Stitching</TabsTrigger>
-                  <TabsTrigger value="alteration">Alterations</TabsTrigger>
+                  <TabsTrigger value="all" tone="blue">All</TabsTrigger>
+                  <TabsTrigger value="new" tone="purple">Stitching</TabsTrigger>
+                  <TabsTrigger value="alteration" tone="amber">Alterations</TabsTrigger>
                 </TabsList>
               </Tabs>
             )}

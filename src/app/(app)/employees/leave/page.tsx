@@ -183,11 +183,11 @@ export default function EmployeeLeavePage() {
 
       <Tabs value={tab} onValueChange={(v) => v && setTab(v as "pending" | "all")}>
         <TabsList>
-          <TabsTrigger value="pending" className="gap-1.5">
+          <TabsTrigger value="pending" tone="amber" className="gap-1.5">
             Pending approvals
             {!!pendingCount?.length && <Badge variant="secondary" className="h-4 min-w-4 px-1">{pendingCount.length}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="all">All requests</TabsTrigger>
+          <TabsTrigger value="all" tone="blue">All requests</TabsTrigger>
         </TabsList>
       </Tabs>
 

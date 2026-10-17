@@ -157,8 +157,8 @@ export default function AgingInventoryReportPage() {
 
       <Tabs defaultValue="aging">
         <TabsList>
-          <TabsTrigger value="aging">Aging</TabsTrigger>
-          <TabsTrigger value="loss">Holding Loss</TabsTrigger>
+          <TabsTrigger value="aging" tone="blue">Aging</TabsTrigger>
+          <TabsTrigger value="loss" tone="rose">Holding Loss</TabsTrigger>
         </TabsList>
 
         <TabsContent value="aging" className="space-y-3 pt-3">

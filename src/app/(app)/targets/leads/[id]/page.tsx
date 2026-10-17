@@ -20,6 +20,7 @@ import { useLeadFollowUp } from "@/hooks/use-lead-follow-up";
 import { HeatChip, LikelyStar, StageChip, telHref, useStaffLookup, whatsappHref } from "@/components/targets/shared";
 import { BackLink } from "@/components/ui/back-link";
 import { LeadAttachments } from "@/components/targets/lead-attachments";
+import { LeadAiCard } from "@/components/targets/lead-ai";
 import { LeadCustomerPanel, LeadMerge } from "@/components/targets/lead-extras";
 import { StageSheet } from "@/components/targets/stage-sheet";
 import { TaskSheet } from "@/components/targets/task-sheet";
@@ -136,6 +137,11 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">{lead.productInterest || "No product noted"}</p>
             {lead.mobile && <p className="text-sm text-muted-foreground">{lead.mobile}</p>}
+            {!closed && data?.winChance && (
+              <p className="mt-1.5 inline-block rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-500/20 dark:text-violet-300" title={`Learned from ${data.winChance.basis} closed leads`}>
+                ~{data.winChance.pct}% chance to win
+              </p>
+            )}
             {quietTone !== "none" && (
               <p className={cn("mt-1.5 inline-block rounded-full px-2 py-0.5 text-xs font-medium", quietTone === "red" ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300" : "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300")}>No activity for {quiet} days</p>
             )}
@@ -288,6 +294,8 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         )}
       </section>
+
+      <LeadAiCard lead={lead} canEdit={canEdit} />
 
       <LeadAttachments leadId={lead.id} canEdit={canEdit} />
 

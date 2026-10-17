@@ -50,6 +50,8 @@ export interface LeadDto {
   /** Sizes or measurements they shared, free text. */
   measurements: string;
   outfitType: string;
+  /** Who referred this lead (a customer's name or mobile); empty when nobody did. */
+  referredBy: string;
   /** How many pieces; 0 means not given. */
   pieces: number;
   wonAt: string | null;
@@ -204,6 +206,7 @@ export function mapLeadRow(r: Tables["leads"]["Row"]): LeadDto {
     budgetMax: Number(r.budget_max) || 0,
     measurements: r.measurements || "",
     outfitType: r.outfit_type || "",
+    referredBy: r.referred_by || "",
     pieces: Number(r.pieces) || 0,
     wonAt: r.won_at,
     lostAt: r.lost_at,

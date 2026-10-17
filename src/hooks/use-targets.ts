@@ -223,6 +223,7 @@ export interface LeadInput {
   budgetMax?: number;
   measurements?: string;
   outfitType?: string;
+  referredBy?: string;
   pieces?: number;
   allowDuplicate?: boolean;
 }

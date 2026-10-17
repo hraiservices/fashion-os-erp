@@ -62,6 +62,19 @@ export interface LeadActivityDto {
   createdAt: string;
 }
 
+/** A file attached to a lead (a photo, voice note, design or PDF that came in on WhatsApp). `url` is a short-lived signed link. */
+export interface LeadAttachmentDto {
+  id: string;
+  leadId: string;
+  kind: "image" | "audio" | "video" | "file";
+  name: string;
+  contentType: string;
+  sizeBytes: number;
+  url: string | null;
+  createdBy: string | null;
+  createdAt: string;
+}
+
 export interface TaskDto {
   id: string;
   title: string;

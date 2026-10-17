@@ -99,6 +99,25 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["lead_activities"]["Row"]>;
         Relationships: [];
       };
+      lead_attachments: {
+        Row: {
+          id: string;
+          lead_id: string;
+          kind: string;
+          name: string;
+          path: string;
+          content_type: string;
+          size_bytes: number;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["lead_attachments"]["Row"]> & {
+          lead_id: string;
+          path: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["lead_attachments"]["Row"]>;
+        Relationships: [];
+      };
       work_projects: {
         Row: {
           id: string;

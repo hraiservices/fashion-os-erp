@@ -2,29 +2,36 @@
 
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FolderKanban, ListTodo, Target, Users } from "lucide-react";
+import { CalendarCheck, FolderKanban, ListTodo, Target, Users } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
-import { useProjects, useTargetsMeta, useTargetsSummary } from "@/hooks/use-targets";
+import { useLeads, useProjects, useTargetsMeta, useTargetsSummary } from "@/hooks/use-targets";
+import { todayBuckets } from "@/lib/lead-insights";
+import { TodayTab } from "@/components/targets/today-tab";
 import { TasksTab } from "@/components/targets/tasks-tab";
 import { ProjectsTab } from "@/components/targets/projects-tab";
 import { LeadsTab } from "@/components/targets/leads-tab";
 import { TargetsTab } from "@/components/targets/targets-tab";
 import { TargetsNoAccess } from "@/components/targets/no-access";
 
-type Tab = "tasks" | "projects" | "leads" | "targets";
+type Tab = "today" | "tasks" | "projects" | "leads" | "targets";
 
 function TargetsHome() {
   const router = useRouter();
   const params = useSearchParams();
   const raw = params.get("tab");
-  const tab: Tab = raw === "leads" || raw === "targets" || raw === "projects" ? raw : "tasks";
+  // "Today" (who to contact) is the landing tab; a shared task link (?task=…) goes straight to Tasks.
+  const tab: Tab = raw === "tasks" || raw === "leads" || raw === "targets" || raw === "projects" ? raw : params.get("task") ? "tasks" : "today";
   const metaQuery = useTargetsMeta();
   const meta = metaQuery.data;
   // Counts for the tab badges; both are cached queries the tabs use anyway, and the badges just stay off until they arrive.
   const summary = useTargetsSummary({ quiet: true }).data;
   const projects = useProjects().data;
   const activeProjects = projects?.filter((p) => p.status === "active").length;
+  // The same cached query the Today tab reads; its groups are what the badge counts.
+  const openLeads = useLeads({ stage: "open", limit: 1000 }).data?.leads;
+  const buckets = openLeads && meta ? todayBuckets(openLeads, meta.today) : null;
+  const todayCount = buckets ? buckets.due.length + buckets.quiet.length + buckets.hot.length : undefined;
 
   // Older links and the "+" menus used ?new=task / ?new=lead; those screens are pages now.
   const wantNew = params.get("new");
@@ -35,7 +42,7 @@ function TargetsHome() {
 
   if (metaQuery.isError) return <TargetsNoAccess message={metaQuery.error.message} />;
 
-  const setTab = (t: Tab) => router.replace(t === "tasks" ? "/targets" : `/targets?tab=${t}`, { scroll: false });
+  const setTab = (t: Tab) => router.replace(t === "today" ? "/targets" : `/targets?tab=${t}`, { scroll: false });
 
   return (
     <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 space-y-4">
@@ -45,6 +52,7 @@ function TargetsHome() {
         value={tab}
         onChange={setTab}
         options={[
+          { value: "today", label: "Today", icon: CalendarCheck, tone: "rose", count: todayCount },
           { value: "tasks", label: "Tasks", icon: ListTodo, tone: "blue", count: summary?.openTaskCount },
           { value: "projects", label: "Projects", icon: FolderKanban, tone: "amber", count: activeProjects },
           { value: "leads", label: "Leads", icon: Users, tone: "green", count: summary?.openLeads },
@@ -52,6 +60,7 @@ function TargetsHome() {
         ]}
       />
 
+      {tab === "today" && <TodayTab meta={meta} />}
       {tab === "tasks" && <TasksTab meta={meta} />}
       {tab === "projects" && <ProjectsTab meta={meta} />}
       {tab === "leads" && <LeadsTab meta={meta} />}

@@ -57,7 +57,7 @@ export function TodaysWorkWidget() {
           <h2 className="text-sm font-semibold">Today&apos;s work</h2>
           {total > 0 && <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{total}</span>}
         </div>
-        <Link href="/targets" className="flex items-center gap-1 text-xs text-primary hover:underline">
+        <Link href="/targets?tab=tasks" className="flex items-center gap-1 text-xs text-primary hover:underline">
           Open <ArrowRight className="size-3" />
         </Link>
       </div>
@@ -69,7 +69,7 @@ export function TodaysWorkWidget() {
             const due = dueLabel(t.dueDate, data.today);
             return (
               <li key={t.id}>
-                <Link href={t.linkType === "lead" && t.linkId ? `/targets/leads/${t.linkId}` : "/targets"} className="flex min-h-12 items-center gap-3 px-3 py-2 hover:bg-muted/40">
+                <Link href={t.linkType === "lead" && t.linkId ? `/targets/leads/${t.linkId}` : "/targets?tab=tasks"} className="flex min-h-12 items-center gap-3 px-3 py-2 hover:bg-muted/40">
                   <span className="min-w-0 flex-1 truncate text-sm">{t.title}</span>
                   <span className={cn("shrink-0 text-xs", DUE_TONE_CLASS[due.tone])}>{due.text}</span>
                 </Link>
@@ -108,5 +108,5 @@ export function OverdueTasksWidget() {
   const { data, isLoading, isError } = useTargetsSummary({ quiet: true });
   if (isError) return null;
   if (isLoading || !data) return <Skeleton className="h-24 w-full" />;
-  return <StatCard label="Overdue tasks" value={String(data.overdueTaskCount)} icon={WarningDuotoneIcon} tone={data.overdueTaskCount > 0 ? "danger" : "default"} href="/targets" hint={`${data.openTaskCount} open in total`} />;
+  return <StatCard label="Overdue tasks" value={String(data.overdueTaskCount)} icon={WarningDuotoneIcon} tone={data.overdueTaskCount > 0 ? "danger" : "default"} href="/targets?tab=tasks" hint={`${data.openTaskCount} open in total`} />;
 }

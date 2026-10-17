@@ -8,9 +8,12 @@ import type { TargetsSummary } from "@/lib/targets-server";
 import type {
   LeadActivityDto,
   LeadAttachmentDto,
+  LeadCustomerDto,
+  LeadDuplicateDto,
   LeadDto,
   LeaderboardReportRow,
   LostReport,
+  OwnersReport,
   PipelineReport,
   ProjectDto,
   ProjectsReport,
@@ -183,7 +186,7 @@ export interface LeadFilters {
   limit?: number;
 }
 
-export function useLeads(filters: LeadFilters) {
+export function useLeads(filters: LeadFilters, opts?: { enabled?: boolean }) {
   const qs = new URLSearchParams();
   if (filters.limit) qs.set("limit", String(filters.limit));
   if (filters.stage) qs.set("stage", filters.stage);
@@ -194,13 +197,14 @@ export function useLeads(filters: LeadFilters) {
     queryKey: [KEY, "leads", qs.toString()],
     queryFn: () => api<{ leads: LeadDto[]; stageCounts: Record<string, number>; total: number }>(`/api/targets/leads?${qs.toString()}`),
     staleTime: 20_000,
+    enabled: opts?.enabled ?? true,
   });
 }
 
 export function useLead(id: string) {
   return useQuery({
     queryKey: [KEY, "lead", id],
-    queryFn: () => api<{ lead: LeadDto; activities: LeadActivityDto[]; tasks: TaskDto[] }>(`/api/targets/leads/${id}`),
+    queryFn: () => api<{ lead: LeadDto; activities: LeadActivityDto[]; tasks: TaskDto[]; customer: LeadCustomerDto | null; duplicates: LeadDuplicateDto[] }>(`/api/targets/leads/${id}`),
     staleTime: 15_000,
   });
 }
@@ -303,6 +307,12 @@ export function useUploadLeadAttachments() {
 export function useDeleteLeadAttachment() {
   const invalidate = useInvalidate("lead", "lead-attachments");
   return useMutation({ mutationFn: ({ leadId, attachmentId }: { leadId: string; attachmentId: string }) => send("DELETE", `/api/targets/leads/${leadId}/attachments/${attachmentId}`), onSuccess: invalidate });
+}
+
+/** Folds a duplicate lead into this one: its history, files, follow-ups and orders move over, then it is removed. */
+export function useMergeLead() {
+  const invalidate = useInvalidate(...LEAD_CHANGE_VIEWS, "lead-attachments");
+  return useMutation({ mutationFn: ({ id, fromId }: { id: string; fromId: string }) => send("POST", `/api/targets/leads/${id}/merge`, { fromId }), onSuccess: invalidate });
 }
 
 export function useConvertLead() {
@@ -448,6 +458,7 @@ type ReportData = {
   leaderboard: { rows: LeaderboardReportRow[] };
   pipeline: PipelineReport;
   sources: SourcesReport;
+  owners: OwnersReport;
   lost: LostReport;
   tasks: TasksReport;
   projects: ProjectsReport;

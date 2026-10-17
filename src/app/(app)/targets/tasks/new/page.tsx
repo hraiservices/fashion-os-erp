@@ -9,7 +9,7 @@ import { TargetsNoAccess } from "@/components/targets/no-access";
 
 /** Only ever send people back to a Targets screen — the `from` link comes from the address bar. */
 function safeBack(from: string | null): string {
-  return from && from.startsWith("/targets") && !from.startsWith("//") ? from : "/targets";
+  return from && from.startsWith("/targets") && !from.startsWith("//") ? from : "/targets?tab=tasks";
 }
 
 function NewTask() {

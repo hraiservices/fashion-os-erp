@@ -85,7 +85,7 @@ describe("task message", () => {
       "For lead: Himanshu",
       "Steps: 1 of 2 done",
       "Note: Use the blue silk",
-      "Open: https://shop.example.com/targets?task=t-1",
+      "Open: https://shop.example.com/targets?tab=tasks&task=t-1",
     ]);
   });
   it("copes with an unassigned task with no date, and with no origin", () => {
@@ -242,7 +242,7 @@ describe("list digests", () => {
     const text = taskListShareMessage("All open", many, ctx).text;
     expect(text.split("\n").filter((l) => l.startsWith("• ")).length).toBe(MAX_SHARE_ROWS);
     expect(text).toContain(`+${30 - MAX_SHARE_ROWS} more — open the app for the full list`);
-    expect(text.split("\n").at(-1)).toBe("Open: https://shop.example.com/targets");
+    expect(text.split("\n").at(-1)).toBe("Open: https://shop.example.com/targets?tab=tasks");
   });
   it("never runs past the length limit even with long titles", () => {
     const long = Array.from({ length: 30 }, (_, i) => task({ id: `l${i}`, title: "w".repeat(200) + i }));

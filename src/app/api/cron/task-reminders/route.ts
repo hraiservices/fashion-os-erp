@@ -65,8 +65,8 @@ export async function GET(req: Request) {
       const first = tasks[0];
       const payload =
         tasks.length === 1
-          ? { critical: true, title: "Task reminder", body: `${first.title} — ${dueInWords(first.due_date as string, today)}`, url: first.link_type === "lead" && first.link_id ? `/targets/leads/${first.link_id}` : "/targets" }
-          : { critical: true, title: `${tasks.length} task reminders`, body: `${tasks.slice(0, 3).map((t) => t.title).join(", ")}${tasks.length > 3 ? "…" : ""}`, url: "/targets" };
+          ? { critical: true, title: "Task reminder", body: `${first.title} — ${dueInWords(first.due_date as string, today)}`, url: first.link_type === "lead" && first.link_id ? `/targets/leads/${first.link_id}` : "/targets?tab=tasks" }
+          : { critical: true, title: `${tasks.length} task reminders`, body: `${tasks.slice(0, 3).map((t) => t.title).join(", ")}${tasks.length > 3 ? "…" : ""}`, url: "/targets?tab=tasks" };
       const devices = await sendPushToEmails([email], payload).catch(() => 0);
       if (devices > 0) for (const t of tasks) reached.add(t.id);
     }

@@ -18,7 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { LEAD_STAGES, stageLabel, type LeadStage } from "@/lib/lead-stages";
 import { inr } from "@/lib/format";
 import { istDateString } from "@/lib/ist-date";
-import { needsAttention, nextStage } from "@/lib/lead-insights";
+import { HEAT_LABEL, HEAT_RANK, leadHeat, needsAttention, nextStage, type LeadHeat } from "@/lib/lead-insights";
+import { LeadFunnel } from "@/components/targets/lead-funnel";
 import type { LeadDto } from "@/lib/targets-types";
 import { fetchAllLeads, useLeads, usePatchLead, type TargetsMeta } from "@/hooks/use-targets";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -43,6 +44,7 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
   const [owner, setOwner] = useState(ALL);
   const [added, setAdded] = useState<"all" | "month">("all");
   const [attention, setAttention] = useState(false);
+  const [heatFilter, setHeatFilter] = useState<LeadHeat | typeof ALL>(ALL);
   const [moving, setMoving] = useState<LeadDto | null>(null);
   const [moveTo, setMoveTo] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -64,7 +66,7 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
   const monthStart = today.slice(0, 8) + "01";
   const inRange = (query.data?.leads ?? []).filter((l) => added === "all" || istDateString(new Date(l.createdAt)) >= monthStart); // shop-local (IST) day, not the UTC one
   const attentionCount = inRange.filter((l) => needsAttention(l, today)).length;
-  const leads = attention ? inRange.filter((l) => needsAttention(l, today)) : inRange;
+  const leads = inRange.filter((l) => (!attention || needsAttention(l, today)) && (heatFilter === ALL || leadHeat(l, today) === heatFilter));
   const byStage = (s: string) => leads.filter((l) => l.stage === s);
   const listLeads = stage === ALL ? leads : byStage(stage);
   const wonPct = leads.length ? Math.round((byStage("won").length / leads.length) * 100) : 0;
@@ -228,6 +230,8 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
         </DropdownMenu>
       </div>
 
+      <LeadFunnel leads={inRange} labels={labels} />
+
       {/* Labelled filter row, like Orders */}
       <div className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-xl border bg-card p-3 sm:flex sm:flex-wrap sm:items-end">
         {showOwner && (
@@ -287,6 +291,22 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
               </button>
             ))}
           </div>
+        </div>
+        <div className="space-y-1 sm:w-36">
+          <Label className={filterLabel}>Temperature</Label>
+          <Select value={heatFilter} onValueChange={(v) => v && setHeatFilter(v as LeadHeat | typeof ALL)}>
+            <SelectTrigger className="h-11 w-full">
+              <SelectValue>{(v: unknown) => (v === ALL ? "Any" : HEAT_LABEL[v as LeadHeat])}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>Any</SelectItem>
+              {(Object.keys(HEAT_RANK) as LeadHeat[]).map((h) => (
+                <SelectItem key={h} value={h}>
+                  {HEAT_LABEL[h]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1">
           <Label className={filterLabel}>Follow-up</Label>

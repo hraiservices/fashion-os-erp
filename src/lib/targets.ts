@@ -383,6 +383,39 @@ export function sourceStats(leads: LeadFact[]): SourceRow[] {
   }).sort((a, b) => b.total - a.total);
 }
 
+export interface OwnerRow {
+  /** The staff member who owns these leads; null for leads nobody owns. */
+  ownerId: string | null;
+  total: number;
+  won: number;
+  lost: number;
+  open: number;
+  winRate: number | null;
+  /** Total value recorded on this owner's won leads. */
+  wonValue: number;
+  avgDaysToWin: number | null;
+}
+
+/** Conversion per lead owner — who turns leads into sales, how fast, and for how much. */
+export function ownerStats(leads: LeadFact[]): OwnerRow[] {
+  const groups = new Map<string | null, LeadFact[]>();
+  for (const l of leads) groups.set(l.assignedEmployeeId, [...(groups.get(l.assignedEmployeeId) || []), l]);
+  return Array.from(groups, ([ownerId, list]) => {
+    const wonLeads = list.filter((l) => l.stage === "won");
+    const days = wonLeads.filter((l) => l.createdDate && l.wonDate).map((l) => Math.max(0, daysBetween(l.createdDate!, l.wonDate!)));
+    return {
+      ownerId,
+      total: list.length,
+      won: wonLeads.length,
+      lost: list.filter((l) => l.stage === "lost").length,
+      open: list.filter((l) => isOpenStage(l.stage)).length,
+      winRate: winRate(list),
+      wonValue: wonLeads.reduce((s, l) => s + (l.wonValue || 0), 0),
+      avgDaysToWin: days.length ? Math.round(days.reduce((s, d) => s + d, 0) / days.length) : null,
+    };
+  }).sort((a, b) => b.wonValue - a.wonValue || b.total - a.total);
+}
+
 export function lostReasonStats(leads: LeadFact[]): { reason: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const l of leads) {

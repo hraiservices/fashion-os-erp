@@ -1,5 +1,5 @@
 import type { Database } from "@/lib/supabase/database.types";
-import type { PipelineRow, SourceRow, TargetMetric, TargetOverride, TargetProgress, TargetScope } from "@/lib/targets";
+import type { OwnerRow, PipelineRow, SourceRow, TargetMetric, TargetOverride, TargetProgress, TargetScope } from "@/lib/targets";
 import type { AgeBucket, TaskLoadRow } from "@/lib/targets-reports";
 import { parseChecklist, type ChecklistItem, type TaskLinkType } from "@/lib/work-tasks";
 
@@ -77,6 +77,23 @@ export interface LeadAttachmentDto {
   url: string | null;
   createdBy: string | null;
   createdAt: string;
+}
+
+/** What the shop already knows about the person behind a lead: their orders so far. Null when the number isn't a customer yet. */
+export interface LeadCustomerDto {
+  name: string;
+  mobile: string;
+  orders: number;
+  spent: number;
+  outstanding: number;
+  lastOrder: string | null;
+}
+
+/** Another open or closed lead with the same phone number. */
+export interface LeadDuplicateDto {
+  id: string;
+  name: string;
+  stage: string;
 }
 
 export interface TaskDto {
@@ -266,6 +283,12 @@ export interface PipelineReport {
 
 export interface SourcesReport {
   rows: SourceRow[];
+  winRate: number | null;
+  totalLeads: number;
+}
+
+export interface OwnersReport {
+  rows: (OwnerRow & { name: string })[];
   winRate: number | null;
   totalLeads: number;
 }

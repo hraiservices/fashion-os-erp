@@ -179,7 +179,7 @@ export function taskShareMessage(task: TaskDto, ctx: ShareCtx, extra?: { project
   if (steps.total) lines.push(`Steps: ${steps.done} of ${steps.total} done`);
   const note = oneLine(task.description);
   if (note) lines.push(`Note: ${clip(note, 240)}`);
-  lines.push(...openLine(ctx, `/targets?task=${task.id}`));
+  lines.push(...openLine(ctx, `/targets?tab=tasks&task=${task.id}`));
   return { subject: `Task: ${title}`, text: lines.join("\n") };
 }
 
@@ -268,7 +268,7 @@ function taskRow(t: TaskDto, ctx: ShareCtx, showOwner: boolean): string {
 export function taskListShareMessage(title: string, tasks: TaskDto[], ctx: ShareCtx, opts?: { showOwner?: boolean; path?: string }): ShareMessage {
   const heading = `${title} (${tasks.length})`;
   const rows = tasks.map((t) => taskRow(t, ctx, opts?.showOwner !== false));
-  return { subject: heading, text: digest([`📝 *${heading}*`], rows, openLine(ctx, opts?.path ?? "/targets")) };
+  return { subject: heading, text: digest([`📝 *${heading}*`], rows, openLine(ctx, opts?.path ?? "/targets?tab=tasks")) };
 }
 
 /** A list of leads as one message: a stage, "Likely to close", this month's… `showOwner: false` for someone who only sees their own. */

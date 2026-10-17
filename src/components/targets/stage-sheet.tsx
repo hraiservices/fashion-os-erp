@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LEAD_STAGES, LOST_REASONS, stageLabel, type StageLabelOverrides } from "@/lib/lead-stages";
 import type { LeadDto } from "@/lib/targets-types";
-import { usePatchLead } from "@/hooks/use-targets";
+import { useCreateTask, usePatchLead, useTargetsMeta } from "@/hooks/use-targets";
+import { addDaysIso } from "@/lib/work-tasks";
 import { STAGE_STYLE } from "@/components/targets/shared";
 import { cn } from "@/lib/utils";
 import { inr } from "@/lib/format";
@@ -31,6 +32,10 @@ export function StageSheet({
   initialStage?: string | null;
 }) {
   const patch = usePatchLead();
+  const createTask = useCreateTask();
+  const today = useTargetsMeta().data?.today ?? "";
+  // On by default: most lost leads are "not now", and a reminder in a month is how they come back.
+  const [reconsider, setReconsider] = useState(true);
   const [pending, setPending] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [wonValue, setWonValue] = useState("");
@@ -40,6 +45,7 @@ export function StageSheet({
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reset each time the sheet opens
       setPending(initialStage === "won" || initialStage === "lost" ? initialStage : null);
       setReason("");
+      setReconsider(true);
       setWonValue(lead?.expectedValue ? String(lead.expectedValue) : "");
     }
   }, [open, initialStage, lead?.id, lead?.expectedValue]);
@@ -52,6 +58,12 @@ export function StageSheet({
       {
         onSuccess: () => {
           toast.success(stage === "won" ? "Marked as won 🎉" : stage === "lost" ? "Marked as lost" : `Moved to ${stageLabel(stage, labels)}`);
+          if (stage === "lost" && reconsider && today) {
+            createTask.mutate(
+              { title: `Reconsider ${lead!.name}`, description: extra?.lostReason ? `Marked lost: ${extra.lostReason}` : "", dueDate: addDaysIso(today, 30), reminder: "on_due", linkType: "lead", linkId: lead!.id },
+              { onError: () => toast.info("Marked lost, but the 30-day reminder couldn't be set") }
+            );
+          }
           onOpenChange(false);
         },
         onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't move the lead"),
@@ -94,6 +106,10 @@ export function StageSheet({
               ))}
             </div>
             <Input placeholder="Or type a reason" value={reason} onChange={(e) => setReason(e.target.value)} className="h-12" maxLength={200} />
+            <label className="flex min-h-11 items-center gap-2 text-sm">
+              <input type="checkbox" checked={reconsider} onChange={(e) => setReconsider(e.target.checked)} className="size-4 accent-primary" />
+              Remind me to reconsider in 30 days
+            </label>
             <div className="flex gap-2 pt-1">
               <Button variant="outline" className="h-12 flex-1" onClick={() => setPending(null)}>
                 Back

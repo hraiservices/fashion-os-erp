@@ -746,7 +746,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         {order.history.length === 0 ? (
           <p className="px-4 py-6 text-center text-sm text-muted-foreground">No history yet.</p>
         ) : (
-          <ol className="max-h-72 divide-y overflow-y-auto">
+          <ol className="divide-y">
             {order.history.map((h, i) => (
               <li key={i} className="px-4 py-2.5 text-sm text-muted-foreground">
                 {scrubIds(h)}

@@ -16,6 +16,7 @@ export interface BuiltinWidgetMeta {
 }
 
 export const BUILTIN_WIDGETS: BuiltinWidgetMeta[] = [
+  { key: "needs-me",                    title: "What Needs Me Today",  size: "lg",   href: "/orders",                description: "A short ranked list: late orders, overdue money, ready pickups, lead follow-ups, low stock" },
   { key: "upcoming-deliveries",         title: "Delivery Countdown",   size: "lg",   href: "/orders?view=board",     description: "Live days:hours:minutes:seconds countdown for the next 10 customers by delivery deadline" },
   { key: "upcoming-payments-countdown", title: "Payment Countdown",    size: "lg",   href: "/reports/aging",         description: "Live days:hours:minutes:seconds countdown for the next 10 customers by overdue/upcoming payment" },
   { key: "outstanding-balance",         title: "Outstanding Balance",  size: "lg",   href: "/reports/aging",         description: "Stitching balance due, current vs overdue" },
@@ -59,6 +60,7 @@ export const BUILTIN_WIDGET_BY_KEY = new Map(BUILTIN_WIDGETS.map((w) => [w.key, 
  *  gate by module, not role). Checked at render time in the dashboard page, not baked into
  *  BUILTIN_WIDGETS itself, so a role change takes effect without touching anyone's saved layout. */
 const WIDGET_ROLE_RESTRICTIONS: Record<string, Role[]> = {
+  "needs-me": ["admin", "manager"],
   "profit-overview": ["admin", "manager"],
   "pipeline-velocity": ["admin", "manager"],
   "tailor-performance": ["admin", "manager"],

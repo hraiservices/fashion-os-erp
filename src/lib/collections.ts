@@ -35,8 +35,10 @@ const dayDiff = (from: string, to: string) => Math.round((Date.parse(`${to}T00:0
 /** Stitching orders only count once the garment is ready or handed over; invoices once past due. */
 const BILLABLE_ORDER_STATUSES = new Set(["ready", "delivered", "payment"]);
 
-export function toneFor(daysLate: number, orderCount: number): CollectionRow["tone"] {
+export function toneFor(daysLate: number, orderCount: number, overdueCount = 1): CollectionRow["tone"] {
   if (daysLate > 30) return "firm";
+  // Several things overdue at once is a pattern, not an oversight.
+  if (daysLate > 7 && overdueCount >= 2) return "firm";
   if (daysLate > 7 && orderCount < 3) return "firm";
   if (daysLate > 7) return "friendly";
   return orderCount >= 3 ? "gentle" : "friendly";
@@ -62,7 +64,7 @@ export function buildCollections(orders: (DueOrder & { id: string })[], invoices
     if (late > 0) add(i.customerMobile, i.customerName, i.balance, late, `invoice ${i.invoiceNumber}`);
   }
   return [...rows.values()]
-    .map((r) => ({ ...r, tone: toneFor(r.daysLate, r.orderCount) }))
+    .map((r) => ({ ...r, tone: toneFor(r.daysLate, r.orderCount, r.refs.length) }))
     .sort((a, b) => b.amount * (1 + b.daysLate / 30) - a.amount * (1 + a.daysLate / 30));
 }
 

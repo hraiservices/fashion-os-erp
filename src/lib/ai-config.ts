@@ -19,6 +19,12 @@ export const AI_FEATURES = {
   tryon: "Virtual try-on preview",
   trackchat: "Order tracking chat",
   memory: "Customer taste notes",
+  eod: "End-of-day note",
+  numbers: "Ask your numbers",
+  thanks: "Thank-you messages",
+  reorder: "Time-to-reorder messages",
+  lostreason: "Lost-reason suggestion",
+  oneliner: "Lead one-line summary",
 } as const;
 
 export type AiFeature = keyof typeof AI_FEATURES;

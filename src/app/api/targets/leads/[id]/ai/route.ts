@@ -6,6 +6,7 @@ import { DEFAULT_RATES, type RateCard } from "@/lib/business-rules";
 import { aiErrorResponse, aiJson, aiText, SHOP_VOICE, type AiPart } from "@/lib/ai-assist";
 import { istDateString } from "@/lib/ist-date";
 import { LEAD_MEDIA_BUCKET } from "@/lib/lead-media";
+import { LOST_REASONS } from "@/lib/lead-stages";
 import { addDaysIso } from "@/lib/work-tasks";
 import { badRequest, isUuid, notFound, parseBody, text, uuid } from "@/lib/targets-api";
 import { addLeadActivity, customerSummaryForLead, leadVisible, mapLeadRow, targetsContext } from "@/lib/targets-server";
@@ -16,6 +17,8 @@ const bodySchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("brief") }),
   z.object({ action: z.literal("reply"), intent: text(200).optional() }),
   z.object({ action: z.literal("quote") }),
+  z.object({ action: z.literal("lostreason") }),
+  z.object({ action: z.literal("oneliner") }),
   z.object({ action: z.literal("spec"), attachmentId: uuid }),
   z.object({ action: z.literal("voice"), attachmentId: uuid }),
 ]);
@@ -100,6 +103,29 @@ export async function POST(request: Request, { params }: Ctx) {
           ctx.email
         );
         return NextResponse.json({ text: reply.replace(/^["“]|["”]$/g, "") });
+      }
+
+      case "lostreason": {
+        const out = await aiJson<{ reason?: string; why?: string }>(
+          db,
+          "lostreason",
+          `${SHOP_VOICE}\nA salesperson is about to mark this lead as lost. From the lead and its chat/notes history, pick the single most likely reason from EXACTLY this list: ${JSON.stringify(LOST_REASONS)}. Answer as JSON: {"reason": one item from the list, copied exactly, or null if the history gives no clue, "why": one short sentence quoting or pointing at what in the history suggests it}. Never guess when the history is silent — use null.`,
+          [{ text: facts }],
+          ctx.email
+        );
+        const reason = (LOST_REASONS as readonly string[]).includes(String(out.reason)) ? String(out.reason) : null;
+        return NextResponse.json({ reason, why: reason ? String(out.why ?? "").slice(0, 200) : "" });
+      }
+
+      case "oneliner": {
+        const line = await aiText(
+          db,
+          "oneliner",
+          `${SHOP_VOICE}\nSum up this lead in ONE plain-English sentence of at most 28 words for a salesperson glancing at the page: who they are, what they want, and the most important thing to do next. Use only facts in the data. No greeting, no markdown. Output only the sentence.`,
+          [{ text: facts }],
+          ctx.email
+        );
+        return NextResponse.json({ text: line.replace(/\s+/g, " ").slice(0, 240) });
       }
 
       case "spec": {

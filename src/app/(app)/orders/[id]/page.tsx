@@ -43,6 +43,7 @@ import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { TrialScheduleButton } from "@/components/orders/trial-schedule";
 import { ReadyPhotoShare } from "@/components/orders/ready-photo-share";
+import { ThankYouButton } from "@/components/orders/thank-you-button";
 import { UpiPayButton } from "@/components/payments/upi-pay-dialog";
 import { PrintButton } from "@/components/ui/print-button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -430,6 +431,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           {order.status === "ready" && (
             <ReadyPhotoShare mobile={order.mobile} balance={order.balance} message={buildWhatsAppMessage({ ...order, trackUrl }, "ready", shop, waTemplates)} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" />
           )}
+          {["delivered", "payment"].includes(order.status) && <ThankYouButton orderId={order.id} name={order.name} mobile={order.mobile} className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" />}
           {user?.perms.editOrder && (
             <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" nativeButton={false} render={<Link href={`/orders/${id}/edit`} />} aria-label="Edit order">
               <Pencil className="size-4" />

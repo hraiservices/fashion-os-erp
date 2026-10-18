@@ -15,6 +15,8 @@ import { isModuleEnabled } from "@/lib/entitlements";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { isReportEnabled, isSettingEnabled } from "@/lib/entitlements";
 import { STAGE_META } from "@/lib/business-rules";
+import { useAiOn, useSmartSearch } from "@/hooks/use-ai";
+import { Sparkles } from "lucide-react";
 
 /**
  * Inline "Search Anything" — types straight into the topbar bar itself (a real cmdk Command,
@@ -42,6 +44,8 @@ export function CommandTrigger() {
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const smartOn = useAiOn("search");
+  const smart = useSmartSearch();
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -72,6 +76,7 @@ export function CommandTrigger() {
   function close() {
     setOpen(false);
     setQuery("");
+    smart.reset();
     inputRef.current?.blur();
   }
 
@@ -134,11 +139,36 @@ export function CommandTrigger() {
           // breathe while staying inside the viewport (3rem accounts for the hamburger button
           // plus a right-edge margin, which a plain 1.5rem subtraction — fine for a right-aligned
           // popover like NotificationBell's — isn't enough of for this left-anchored one).
-          <div className="absolute left-0 top-full z-50 mt-1.5 w-[min(24rem,calc(100vw-3rem))] overflow-hidden rounded-xl border bg-popover shadow-lg sm:w-full">
+          <div className="absolute left-0 top-full z-50 mt-1.5 w-full overflow-hidden rounded-xl border bg-popover shadow-lg max-sm:fixed max-sm:inset-x-3 max-sm:top-14 max-sm:mt-0 max-sm:w-auto sm:w-full">
             <CommandList className="max-h-[70vh] sm:max-h-96">
               {hasResults || pages.flat.length > 0 ? (
                 <>
-                  <CommandEmpty>No results found.</CommandEmpty>
+                  {!(smartOn && query.trim().split(/\s+/).length >= 3) && <CommandEmpty>No results found.</CommandEmpty>}
+
+                  {smartOn && query.trim().split(/\s+/).length >= 3 && (
+                    <CommandGroup heading="Ask AI" forceMount>
+                      <CommandItem forceMount value={`ask-ai ${query}`} onSelect={() => smart.mutate(query.trim())} disabled={smart.isPending}>
+                        <Sparkles className="size-4 text-violet-600" />
+                        <span className="truncate">{smart.isPending ? "Searching…" : `Find "${query.trim()}" with AI`}</span>
+                      </CommandItem>
+                      {smart.isError && <p className="px-3 py-1.5 text-xs text-red-600">{smart.error instanceof Error ? smart.error.message : "Couldn't search"}</p>}
+                      {smart.data && smart.data.orders.length === 0 && smart.data.customers.length === 0 && <p className="px-3 py-1.5 text-xs text-muted-foreground">The AI found nothing that matches.</p>}
+                      {smart.data?.orders.map((o) => (
+                        <CommandItem forceMount key={`ai-o-${o.id}`} value={`ai-order ${o.id}`} onSelect={() => go(`/orders/${o.id}`)}>
+                          <span className="truncate">{o.name}</span>
+                          <span className="ml-2 shrink-0 text-xs text-muted-foreground">
+                            {o.id} · {STAGE_META[o.status as keyof typeof STAGE_META]?.label ?? o.status}
+                          </span>
+                        </CommandItem>
+                      ))}
+                      {smart.data?.customers.map((c) => (
+                        <CommandItem forceMount key={`ai-c-${c.mobile}`} value={`ai-customer ${c.mobile}`} onSelect={() => go(`/crm/${c.mobile}`)}>
+                          <span className="truncate">{c.name}</span>
+                          <span className="ml-2 shrink-0 text-xs text-muted-foreground">{c.mobile}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
 
                   {(orders || []).length > 0 && (
                     <CommandGroup heading="Stitching Orders">

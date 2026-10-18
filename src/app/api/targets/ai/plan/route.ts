@@ -22,7 +22,8 @@ export async function POST(request: Request) {
       gate.ctx.db,
       "plan",
       `${SHOP_VOICE}\nToday is ${istDateString()}. You plan a salesperson's day. Given today's leads to contact and orders at risk of missing delivery, answer as JSON: {"plan": [up to 6 short English steps in the order to do them, each naming the person or order and what to do — e.g. "Call Meera first — quote sent 5 days ago, hot lead, ₹18,000"]}. Put time-critical and high-value items first. Use only the data given.`,
-      [{ text: JSON.stringify(body.data) }]
+      [{ text: JSON.stringify(body.data) }],
+      gate.ctx.email
     );
     return NextResponse.json({ plan: (out.plan ?? []).filter((s) => typeof s === "string" && s.trim()).slice(0, 6) });
   } catch (e) {

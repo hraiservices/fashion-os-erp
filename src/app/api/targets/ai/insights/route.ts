@@ -47,7 +47,8 @@ export async function POST(request: Request) {
       db,
       "insights",
       `${SHOP_VOICE}\nYou write a short weekly briefing for the owner of a tailoring/boutique shop from lead statistics. Answer in plain English as JSON: {"headline": one sentence, "bullets": 3 to 5 specific observations with the numbers (best source, biggest loss reason, who is ahead or behind, leads going cold), "coaching": [{"name": exactly a salesperson name from the data, "tip": one friendly, concrete tip based on THEIR numbers}] — only for people with at least 3 leads}. Be fair and constructive, never harsh. Do not invent numbers; if the data is thin, say so.`,
-      [{ text: JSON.stringify(data) }]
+      [{ text: JSON.stringify(data) }],
+      ctx.email
     );
     const known = new Set(data.owners.map((o) => o.name));
     return NextResponse.json({

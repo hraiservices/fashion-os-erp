@@ -66,6 +66,53 @@ export function AiAssistSection() {
         <Button className="h-12 px-6 text-base sm:h-9 sm:px-4 sm:text-sm" disabled={save.isPending} onClick={onSave}>
           {save.isPending ? "Saving…" : "Save"}
         </Button>
+
+        {data.usage && (
+          <div className="space-y-3 border-t pt-4">
+            <h3 className="text-sm font-semibold">Usage report</h3>
+            {data.usage.byDay.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No AI requests yet.</p>
+            ) : (
+              <>
+                <div>
+                  <p className="mb-1 text-xs text-muted-foreground">Requests per day (last {data.usage.byDay.length} days)</p>
+                  <div className="flex h-16 items-end gap-0.5" role="img" aria-label="Requests per day">
+                    {data.usage.byDay.map((d) => {
+                      const max = Math.max(...data.usage!.byDay.map((x) => x.count), 1);
+                      return <div key={d.date} title={`${d.date}: ${d.count}`} className="flex-1 rounded-sm bg-primary/70" style={{ height: `${Math.max(6, (d.count / max) * 100)}%` }} />;
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-1 text-xs text-muted-foreground">By feature, last 7 days</p>
+                  <ul className="space-y-0.5 text-sm">
+                    {Object.entries(data.usage.byFeature)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([f, n]) => (
+                        <li key={f} className="flex justify-between gap-2">
+                          <span>{AI_FEATURES[f as AiFeature] ?? f}</span>
+                          <span className="tabular-nums text-muted-foreground">{n}</span>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+                {data.usage.byUser.length > 0 && (
+                  <div>
+                    <p className="mb-1 text-xs text-muted-foreground">Busiest users</p>
+                    <ul className="space-y-0.5 text-sm">
+                      {data.usage.byUser.map((u) => (
+                        <li key={u.email} className="flex justify-between gap-2">
+                          <span className="min-w-0 truncate">{u.email}</span>
+                          <span className="tabular-nums text-muted-foreground">{u.count}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

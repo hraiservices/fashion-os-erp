@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { resolveGeminiApiKey } from "@/lib/gemini-config";
 import { istDateString } from "@/lib/ist-date";
-import { AI_CONFIG_KEY, AI_FEATURES, AI_USAGE_KEY, aiFeatureOn, cleanAiConfig, type AiAssistConfig, type AiFeature } from "@/lib/ai-config";
+import { AI_CONFIG_KEY, AI_FEATURES, AI_LOG_KEY, AI_USAGE_KEY, type AiUsageLog, aiFeatureOn, cleanAiConfig, type AiAssistConfig, type AiFeature } from "@/lib/ai-config";
 
 /**
  * Server side of the AI helpers: checks the admin's switches and the shop's daily cap, then asks Gemini (the same key
@@ -36,13 +36,38 @@ export async function aiUsageToday(db: SupabaseClient<Database>): Promise<number
   return v?.date === istDateString() ? Number(v.count) || 0 : 0;
 }
 
+export async function loadAiLog(db: SupabaseClient<Database>): Promise<AiUsageLog> {
+  const { data } = await db.from("app_settings").select("value").eq("key", AI_LOG_KEY).maybeSingle();
+  const v = (data?.value ?? {}) as Partial<AiUsageLog>;
+  return { days: v.days && typeof v.days === "object" ? v.days : {}, users: v.users && typeof v.users === "object" ? v.users : {} };
+}
+
+/** Records one call in the usage log (best effort — a failure here never blocks the AI answer). */
+async function logAiCall(db: SupabaseClient<Database>, feature: AiFeature, who?: string): Promise<void> {
+  try {
+    const log = await loadAiLog(db);
+    const today = istDateString();
+    log.days[today] = { ...(log.days[today] ?? {}), [feature]: (log.days[today]?.[feature] ?? 0) + 1 };
+    // Keep 30 days.
+    for (const d of Object.keys(log.days).sort().slice(0, Math.max(0, Object.keys(log.days).length - 30))) delete log.days[d];
+    if (who) log.users[who] = (log.users[who] ?? 0) + 1;
+    // The per-person tally is a running 30-day-ish total: trim to the 50 busiest so it can't grow without bound.
+    const top = Object.entries(log.users).sort((a, b) => b[1] - a[1]).slice(0, 50);
+    log.users = Object.fromEntries(top);
+    await db.from("app_settings").upsert({ key: AI_LOG_KEY, value: JSON.parse(JSON.stringify(log)) });
+  } catch {
+    /* usage logging is informational */
+  }
+}
+
 /** Throws if the feature is switched off or today's cap is used up; otherwise counts this call. */
-export async function reserveAiCall(db: SupabaseClient<Database>, feature: AiFeature): Promise<void> {
+export async function reserveAiCall(db: SupabaseClient<Database>, feature: AiFeature, who?: string): Promise<void> {
   const config = await loadAiConfig(db);
   if (!aiFeatureOn(config, feature)) throw new AiError(`${AI_FEATURES[feature]} is switched off. An admin can turn it on in Settings → AI Helpers.`, 403);
   const used = await aiUsageToday(db);
   if (used >= config.dailyCap) throw new AiError(`The shop's AI limit for today (${config.dailyCap} requests) has been used. It resets tomorrow, or an admin can raise it in Settings → AI Helpers.`, 429);
   await db.from("app_settings").upsert({ key: AI_USAGE_KEY, value: { date: istDateString(), count: used + 1 } });
+  await logAiCall(db, feature, who);
 }
 
 export type AiPart = { text: string } | { inlineData: { mimeType: string; data: string } };
@@ -73,16 +98,16 @@ async function generate(system: string, parts: AiPart[], json: boolean, temperat
 }
 
 /** Plain-text answer. */
-export async function aiText(db: SupabaseClient<Database>, feature: AiFeature, system: string, parts: AiPart[]): Promise<string> {
-  await reserveAiCall(db, feature);
+export async function aiText(db: SupabaseClient<Database>, feature: AiFeature, system: string, parts: AiPart[], who?: string): Promise<string> {
+  await reserveAiCall(db, feature, who);
   const out = await generate(system, parts, false, 0.5);
   if (!out) throw new AiError("The AI helper returned nothing — please try again.", 502);
   return out;
 }
 
 /** JSON answer, parsed (Gemini sometimes wraps JSON in a code fence). */
-export async function aiJson<T>(db: SupabaseClient<Database>, feature: AiFeature, system: string, parts: AiPart[]): Promise<T> {
-  await reserveAiCall(db, feature);
+export async function aiJson<T>(db: SupabaseClient<Database>, feature: AiFeature, system: string, parts: AiPart[], who?: string): Promise<T> {
+  await reserveAiCall(db, feature, who);
   const out = await generate(system, parts, true, 0.3);
   try {
     return JSON.parse(out.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "")) as T;

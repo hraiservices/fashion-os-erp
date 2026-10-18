@@ -117,6 +117,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/tailor-worksheet", label: "Daily Tailor Worksheet" },
     { href: "/reports/material-availability", label: "Raw Material & Work Available" },
     { href: "/reports/tailor-payable-details", label: "Tailor Payable Report" },
+    { href: "/reports/collections", label: "Collections" },
     { href: "/reports/aging", label: "Balance Aging" },
     { href: "/reports/pending-orders", label: "Pending Orders" },
     { href: "/reports/overdue", label: "Overdue Orders" },
@@ -153,6 +154,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/customers", label: "Customer Lifetime" },
     { href: "/reports/loyalty-impact", label: "Loyalty Impact" },
     { href: "/reports/recommendations", label: "Recommendation Performance" },
+    { href: "/reports/social-planner", label: "Instagram Planner" },
 
     { href: "/reports/inventory", label: "Inventory", section: "Inventory" },
     { href: "/reports/inventory/aging", label: "Aging Inventory" },

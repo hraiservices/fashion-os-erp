@@ -19,7 +19,8 @@ export async function POST(request: Request) {
       gate.ctx.db,
       "tasks",
       `${SHOP_VOICE}\nExtract the to-dos from the text below for a tailoring shop's task list. Today is ${today} (use it to turn "tomorrow", "Friday", "next week" into real dates). Answer as JSON: {"tasks": [{"title": short imperative sentence in English, "description": extra detail or "", "dueDate": "YYYY-MM-DD" or null}]}. Only real action items; at most 12; merge duplicates; do not invent deadlines.`,
-      [{ text: body.data.text }]
+      [{ text: body.data.text }],
+      gate.ctx.email
     );
     const tasks = (out.tasks ?? [])
       .filter((t) => t.title?.trim())

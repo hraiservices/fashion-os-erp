@@ -94,13 +94,13 @@ export default function RootLayout({
       {/* suppressHydrationWarning: browser extensions (Grammarly, etc.) inject attributes like
           data-gr-ext-installed onto <body> before React hydrates, which otherwise trips a
           hydration-mismatch warning that has nothing to do with our own code. */}
-      {/* body is pinned to the viewport (fixed + overflow-hidden) instead of scrolling itself —
+      {/* On phones/tablets (below lg) body is pinned to the viewport (fixed + overflow-hidden) instead of scrolling itself; on computer screens the normal page scroll is used, since the pinned layout could clip the bottom of long pages there —
           mobile Safari's rubber-band bounce on the document/body can't be fully suppressed by CSS
           (overscroll-behavior only stops scroll-chaining there, not the bounce itself), so the
           real scrolling happens one level down on #scroll-root, which contains its bounce inside
           its own bg-background box instead of revealing whatever sits behind the document. */}
-      <body className="fixed inset-0 overflow-hidden bg-background" suppressHydrationWarning>
-        <div id="scroll-root" className="flex h-full w-full flex-col overflow-y-auto overscroll-contain bg-background [-webkit-overflow-scrolling:touch]">
+      <body className="bg-background max-lg:fixed max-lg:inset-0 max-lg:overflow-hidden" suppressHydrationWarning>
+        <div id="scroll-root" className="flex w-full flex-col bg-background max-lg:h-full max-lg:overflow-y-auto max-lg:overscroll-contain [-webkit-overflow-scrolling:touch]">
           <Providers>{children}</Providers>
         </div>
       </body>

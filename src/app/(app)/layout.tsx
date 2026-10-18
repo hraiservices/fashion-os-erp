@@ -48,7 +48,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     // every single page — which Next's static prerendering surfaces as a hard build failure,
     // so no deploy since this was introduced actually shipped.
     <CopilotOpenProvider>
-      <div className="flex min-h-screen min-h-dvh flex-1 bg-muted/20 print:block print:bg-white">
+      <div className="flex min-h-screen min-h-dvh shrink-0 grow basis-auto bg-muted/20 print:block print:bg-white">
         <div className="print:hidden">
           <Sidebar />
         </div>

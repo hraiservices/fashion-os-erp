@@ -85,7 +85,8 @@ export async function POST(request: Request, { params }: Ctx) {
           db,
           "brief",
           `${SHOP_VOICE}\nYou are briefing a salesperson who is about to contact a lead. Answer in plain English as JSON: {"summary": 2 short sentences on where this lead stands, "occasion": what they need it for or "Not known", "budget": their budget or "Not known", "taste": style/colour/fabric preferences seen in the chat or "Not known", "objections": up to 3 worries or hesitations they showed (empty list if none), "nextStep": the single best next action, one sentence}. Use only facts in the data.`,
-          [{ text: `${facts}${customer ? `\n\nEXISTING CUSTOMER: ${JSON.stringify(customer)}` : ""}` }]
+          [{ text: `${facts}${customer ? `\n\nEXISTING CUSTOMER: ${JSON.stringify(customer)}` : ""}` }],
+          ctx.email
         );
         return NextResponse.json({ summary: out.summary ?? "", occasion: out.occasion ?? "Not known", budget: out.budget ?? "Not known", taste: out.taste ?? "Not known", objections: (out.objections ?? []).slice(0, 3), nextStep: out.nextStep ?? "" });
       }
@@ -95,7 +96,8 @@ export async function POST(request: Request, { params }: Ctx) {
           db,
           "reply",
           `${SHOP_VOICE}\nDraft the next WhatsApp message from the shop to this lead, ready to send. ${d.intent ? `The staff member wants to: ${d.intent}.` : "Respond to what the customer said last, or if they have gone quiet, give a friendly nudge that moves the sale forward."} Keep it under 60 words, one clear question or next step, no placeholders. Output only the message.`,
-          [{ text: facts }]
+          [{ text: facts }],
+          ctx.email
         );
         return NextResponse.json({ text: reply.replace(/^["“]|["”]$/g, "") });
       }
@@ -110,7 +112,8 @@ export async function POST(request: Request, { params }: Ctx) {
           db,
           "spec",
           `You are a tailoring-shop assistant reading a customer's reference photo (a design they want stitched). Answer as JSON: {"garment": what it is, "neckline": ..., "sleeves": ..., "fabric": best guess, "work": embroidery/zari/print/lace details, "colours": [main colours], "notes": anything a tailor must know (fit, back design, dupatta, etc.), "rateCardType": the closest match from this exact list or null: ${JSON.stringify(types)}}. Use "Not clear" for anything you cannot see. Never invent details.`,
-          [file.part, { text: "Describe the garment in this photo for the order." }]
+          [file.part, { text: "Describe the garment in this photo for the order." }],
+          ctx.email
         );
         const rateCardType = types.find((t) => t === out.rateCardType) ?? null;
         return NextResponse.json({ garment: out.garment ?? "", neckline: out.neckline ?? "", sleeves: out.sleeves ?? "", fabric: out.fabric ?? "", work: out.work ?? "", colours: out.colours ?? [], notes: out.notes ?? "", rateCardType });
@@ -123,7 +126,8 @@ export async function POST(request: Request, { params }: Ctx) {
           db,
           "voice",
           `You listen to a voice note a customer sent a tailoring shop (English, Hindi or Hinglish). Answer as JSON: {"transcript": the words spoken, in the language/script spoken, not translated, "summary": one or two English sentences, "actions": short English to-dos for the shop (empty list if none)}. If it is silent or unclear, transcript "(could not transcribe)".`,
-          [file.part, { text: "Transcribe and summarise this voice note." }]
+          [file.part, { text: "Transcribe and summarise this voice note." }],
+          ctx.email
         );
         const transcript = (out.transcript ?? "").trim();
         const summary = (out.summary ?? "").trim();
@@ -143,7 +147,8 @@ export async function POST(request: Request, { params }: Ctx) {
           db,
           "quote",
           `${SHOP_VOICE}\nPropose a stitching quote for this lead. Answer as JSON: {"items": [{"type": exactly one of ${JSON.stringify(types)}, "qty": whole number}], "deliveryDays": realistic days from today to finish (the shop currently has ${open ?? 0} orders in progress; a single garment normally takes about 7 days, more orders in progress means longer), "notes": one short sentence for staff on what you assumed}. Pick only garments the customer asked for or clearly needs; if unsure return fewer items. Prices are added by the system — do not give prices.`,
-          [{ text: facts }]
+          [{ text: facts }],
+          ctx.email
         );
         const items = (out.items ?? [])
           .filter((i): i is { type: string; qty?: number } => !!i.type && types.includes(i.type))

@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { ClearanceCard } from "@/components/inventory/clearance-card";
 import { useTableSort } from "@/hooks/use-table-sort";
 
 type ItemFilter = "all" | "product" | "raw_material";
@@ -147,6 +148,14 @@ export default function AgingInventoryReportPage() {
       }
     >
       <ItemFilterControl value={itemFilter} onChange={setItemFilter} />
+      <ClearanceCard
+        items={sortedItems
+          .filter((i) => i.oldestBatchAgeDays >= 60 && i.stockQty > 0)
+          .sort((a, b) => b.stockValue - a.stockValue)
+          .slice(0, 12)
+          .map((i) => ({ name: nameByKey.get(stockKey(i.itemType, i.itemId))?.name ?? "", type: i.itemType === "product" ? ("product" as const) : ("raw_material" as const), qty: i.stockQty, ageDays: i.oldestBatchAgeDays, unitCost: i.unitCost, value: Math.round(i.stockValue) }))
+          .filter((i) => i.name)}
+      />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Stock Value (aging)" value={inr(totalValue)} icon={Boxes} />

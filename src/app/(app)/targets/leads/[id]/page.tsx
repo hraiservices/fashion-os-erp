@@ -21,6 +21,7 @@ import { HeatChip, LikelyStar, StageChip, telHref, useStaffLookup, whatsappHref 
 import { BackLink } from "@/components/ui/back-link";
 import { LeadAttachments } from "@/components/targets/lead-attachments";
 import { LeadAiCard } from "@/components/targets/lead-ai";
+import { TasteNotesCard } from "@/components/crm/taste-notes-card";
 import { LeadCustomerPanel, LeadMerge } from "@/components/targets/lead-extras";
 import { StageSheet } from "@/components/targets/stage-sheet";
 import { TaskSheet } from "@/components/targets/task-sheet";
@@ -273,6 +274,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       )}
 
       {customer && <LeadCustomerPanel customer={customer} />}
+      {customer && lead.mobile && <TasteNotesCard mobile={lead.mobile} readOnly />}
       <LeadMerge lead={lead} duplicates={duplicates ?? []} labels={meta?.stageLabels} canEdit={canEdit} />
 
       <section className="space-y-2">

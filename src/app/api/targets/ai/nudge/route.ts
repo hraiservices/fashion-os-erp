@@ -56,7 +56,8 @@ export async function GET() {
             db,
             "nudge",
             `${SHOP_VOICE}\nWrite one WhatsApp message a boutique sends to past customers before ${festival.name} (${festival.daysAway} days away), inviting them to get a new outfit stitched in time. Under 45 words, warm, one clear invitation, mention that early booking helps delivery on time. Start with "Hi {name}!" — keep {name} literally, it is filled in per customer. Output only the message.`,
-            [{ text: "Write the message." }]
+            [{ text: "Write the message." }],
+            gate.ctx.email
           );
           if (drafted.includes("{name}")) {
             message = drafted;

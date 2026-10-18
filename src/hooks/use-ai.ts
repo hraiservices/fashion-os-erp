@@ -17,6 +17,8 @@ export interface AiConfigResponse {
   config: AiAssistConfig;
   used: number;
   keyConfigured: boolean;
+  /** Admins only. */
+  usage?: { byFeature: Record<string, number>; byDay: { date: string; count: number }[]; byUser: { email: string; count: number }[] } | null;
 }
 
 export function useAiConfig() {
@@ -27,7 +29,7 @@ export function useAiConfig() {
       if (!res.ok) return { config: DEFAULT_AI_CONFIG, used: 0, keyConfigured: false };
       const body = (await res.json().catch(() => null)) as Partial<AiConfigResponse> | null;
       // A page that shows AI buttons must never crash on an odd response — treat it as "AI off".
-      return { config: cleanAiConfig(body?.config), used: Number(body?.used) || 0, keyConfigured: !!body?.keyConfigured };
+      return { config: cleanAiConfig(body?.config), used: Number(body?.used) || 0, keyConfigured: !!body?.keyConfigured, usage: body?.usage ?? null };
     },
     staleTime: 60_000,
   });
@@ -169,3 +171,74 @@ export function useOrderRisks(today: string, enabled: boolean) {
     staleTime: 5 * 60_000,
   });
 }
+
+// ── Smart search ──────────────────────────────────────────────────────────
+export interface SmartSearchResult {
+  orders: { id: string; name: string; status: string; deliveryDate: string }[];
+  customers: { name: string; mobile: string }[];
+}
+export const useSmartSearch = () => useMutation({ mutationFn: (query: string) => post<SmartSearchResult>("/api/ai/smart-search", { query }) });
+
+// ── Instagram planner ─────────────────────────────────────────────────────
+export interface SocialPlan {
+  basedOn: { orders: number; topGarments: { type: string; count: number }[]; festival: string | null };
+  posts: { day: string; kind: string; idea: string; caption: string; hashtags: string[] }[];
+  reels: { title: string; hook: string; scenes: string[]; caption: string }[];
+}
+export const useSocialPlan = () => useMutation({ mutationFn: () => post<SocialPlan>("/api/ai/social-plan", {}) });
+
+// ── Collections ───────────────────────────────────────────────────────────
+export const useCollectionsMessage = () =>
+  useMutation({ mutationFn: (payload: { name: string; amount: number; daysLate: number; tone: "gentle" | "friendly" | "firm"; refs: string[]; orderCount: number }) => post<{ text: string }>("/api/ai/collections-message", payload) });
+
+// ── Dead-stock clearance ──────────────────────────────────────────────────
+export interface ClearanceItem {
+  name: string;
+  type: "product" | "raw_material";
+  qty: number;
+  ageDays: number;
+  unitCost: number;
+  value: number;
+}
+export interface ClearanceIdea {
+  items: string[];
+  idea: string;
+  discountPercent: number;
+  message: string;
+}
+export const useClearanceIdeas = () => useMutation({ mutationFn: (items: ClearanceItem[]) => post<{ ideas: ClearanceIdea[] }>("/api/ai/clearance", { items }) });
+
+// ── Fabric forecast: message to the vendor ────────────────────────────────
+export const useVendorMessage = () => useMutation({ mutationFn: (payload: { festival: string | null; items: { name: string; qty: number; unit: string }[] }) => post<{ text: string }>("/api/ai/vendor-message", payload) });
+
+// ── Virtual try-on preview (experimental) ─────────────────────────────────
+export const useTryOn = () => useMutation({ mutationFn: (payload: { person: string; design: string; consent: true; notes?: string }) => post<{ image: string }>("/api/ai/try-on", payload) });
+
+// ── Customer taste notes (wardrobe memory) ────────────────────────────────
+export function useTasteNotes(mobile: string, enabled = true) {
+  return useQuery({
+    queryKey: ["taste-notes", mobile],
+    enabled: enabled && !!mobile,
+    queryFn: async (): Promise<{ notes: string[]; supported: boolean }> => {
+      const res = await fetch(`/api/customers/${encodeURIComponent(mobile)}/taste-notes`);
+      if (!res.ok) return { notes: [], supported: false };
+      return res.json();
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useSaveTasteNotes(mobile: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (notes: string[]) => {
+      const res = await fetch(`/api/customers/${encodeURIComponent(mobile)}/taste-notes`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes }) });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Couldn't save the notes");
+      return body as { notes: string[] };
+    },
+    onSuccess: (r) => qc.setQueryData(["taste-notes", mobile], { notes: r.notes, supported: true }),
+  });
+}
+
+export const useSuggestTasteNotes = (mobile: string) => useMutation({ mutationFn: () => post<{ suggestions: string[] }>(`/api/customers/${encodeURIComponent(mobile)}/taste-notes`, {}) });

@@ -77,6 +77,7 @@ export const ORDERS_GROUP: NavGroup = {
   children: [
     { href: "/orders?view=list", label: "All Orders", newHref: "/orders/new" },
     { href: "/orders/measurements", label: "Search Measurement" },
+    { href: "/orders/try-on", label: "Try-on Preview" },
     { href: "/settings/rates", label: "Rate Card" },
     { href: "/settings/measurements", label: "Measurements" },
     { href: "/settings/expense-categories", label: "Stitching Expense Categories" },
@@ -117,6 +118,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/tailor-worksheet", label: "Daily Tailor Worksheet" },
     { href: "/reports/material-availability", label: "Raw Material & Work Available" },
     { href: "/reports/tailor-payable-details", label: "Tailor Payable Report" },
+    { href: "/reports/collections", label: "Collections" },
     { href: "/reports/aging", label: "Balance Aging" },
     { href: "/reports/pending-orders", label: "Pending Orders" },
     { href: "/reports/overdue", label: "Overdue Orders" },
@@ -153,9 +155,11 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/customers", label: "Customer Lifetime" },
     { href: "/reports/loyalty-impact", label: "Loyalty Impact" },
     { href: "/reports/recommendations", label: "Recommendation Performance" },
+    { href: "/reports/social-planner", label: "Instagram Planner" },
 
     { href: "/reports/inventory", label: "Inventory", section: "Inventory" },
     { href: "/reports/inventory/aging", label: "Aging Inventory" },
+    { href: "/reports/fabric-forecast", label: "Fabric Demand Forecast" },
 
     { href: "/reports/purchases", label: "Payable Summary", section: "Purchases" },
     { href: "/reports/payables/vendor-balance-summary", label: "Vendor Balance Summary" },

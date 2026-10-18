@@ -4,6 +4,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
 import { useAiConfig, useSaveAiConfig } from "@/hooks/use-ai";
+import { useAppSetting } from "@/hooks/use-app-setting";
+import { Textarea } from "@/components/ui/textarea";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { AI_FEATURES, type AiAssistConfig, type AiFeature } from "@/lib/ai-config";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,6 +66,90 @@ export function AiAssistSection() {
           <p className="text-xs text-muted-foreground">Used today: {data.used} of {cfg.dailyCap}</p>
         </div>
         <Button className="h-12 px-6 text-base sm:h-9 sm:px-4 sm:text-sm" disabled={save.isPending} onClick={onSave}>
+          {save.isPending ? "Saving…" : "Save"}
+        </Button>
+
+        {data.usage && (
+          <div className="space-y-3 border-t pt-4">
+            <h3 className="text-sm font-semibold">Usage report</h3>
+            {data.usage.byDay.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No AI requests yet.</p>
+            ) : (
+              <>
+                <div>
+                  <p className="mb-1 text-xs text-muted-foreground">Requests per day (last {data.usage.byDay.length} days)</p>
+                  <div className="flex h-16 items-end gap-0.5" role="img" aria-label="Requests per day">
+                    {data.usage.byDay.map((d) => {
+                      const max = Math.max(...data.usage!.byDay.map((x) => x.count), 1);
+                      return <div key={d.date} title={`${d.date}: ${d.count}`} className="flex-1 rounded-sm bg-primary/70" style={{ height: `${Math.max(6, (d.count / max) * 100)}%` }} />;
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-1 text-xs text-muted-foreground">By feature, last 7 days</p>
+                  <ul className="space-y-0.5 text-sm">
+                    {Object.entries(data.usage.byFeature)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([f, n]) => (
+                        <li key={f} className="flex justify-between gap-2">
+                          <span>{AI_FEATURES[f as AiFeature] ?? f}</span>
+                          <span className="tabular-nums text-muted-foreground">{n}</span>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+                {data.usage.byUser.length > 0 && (
+                  <div>
+                    <p className="mb-1 text-xs text-muted-foreground">Busiest users</p>
+                    <ul className="space-y-0.5 text-sm">
+                      {data.usage.byUser.map((u) => (
+                        <li key={u.email} className="flex justify-between gap-2">
+                          <span className="min-w-0 truncate">{u.email}</span>
+                          <span className="tabular-nums text-muted-foreground">{u.count}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** What the order-tracking chat may say about the shop itself — hours, address, usual timings, policies. */
+export function ShopFaqSection() {
+  const { data, isLoading, save } = useAppSetting<{ text: string }>("shopFaq", { text: "" });
+  const [draft, setDraft] = useState<string | null>(null);
+  useSyncFromSource(data, (v) => {
+    if (v && draft === null) setDraft(v.text);
+  });
+  if (isLoading || draft === null) return <Skeleton className="h-48 w-full" />;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Shop info for the order-tracking chat</CardTitle>
+        <CardDescription>
+          When &quot;Order tracking chat&quot; is on, customers can ask questions on their tracking page. It answers from their own orders plus the text below, nothing else. Write plain facts: opening hours, address, how long a blouse or suit usually takes, alteration and payment policy.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={7} maxLength={2000} placeholder={"Open 10am–8pm, closed Mondays.\nBlouse usually takes 5–7 days, suits 10–12 days.\nAlterations are free within 7 days of delivery."} className="text-base" />
+        <Button
+          className="h-12 px-6 text-base sm:h-9 sm:px-4 sm:text-sm"
+          disabled={save.isPending}
+          onClick={async () => {
+            try {
+              await save.mutateAsync({ text: draft.trim() });
+              toast.success("Saved");
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Failed to save");
+            }
+          }}
+        >
           {save.isPending ? "Saving…" : "Save"}
         </Button>
       </CardContent>

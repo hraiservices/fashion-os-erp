@@ -522,6 +522,37 @@ export interface DeliveryEstimate {
   /** What the base turnaround figure (before queue buffer/garment-count adjustments) came from —
    *  shown in the UI so the suggestion doesn't read as an opaque black box. */
   basis: "tailor" | "garment-type" | "default";
+  /** Extra days added because this time of year was much busier last year (festival / wedding rush); 0 when it wasn't. */
+  rushDays: number;
+}
+
+const addIsoDays = (iso: string, n: number) => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+/**
+ * Extra days to allow because the weeks ahead were unusually busy at this time last year. Compares how many orders came in
+ * during the same 3-week window a year ago with the shop's average 3-week intake over the year before `fromIso`.
+ * Needs enough history to mean anything (otherwise 0).
+ */
+export function seasonalRushDays(orders: Pick<Order, "inDate">[], fromIso: string): { extraDays: number; ratio: number } {
+  const WINDOW = 21;
+  const lastYearStart = addIsoDays(fromIso, -365);
+  const lastYearEnd = addIsoDays(lastYearStart, WINDOW);
+  const yearStart = addIsoDays(fromIso, -365);
+  let lastYearWindow = 0;
+  let pastYear = 0;
+  for (const o of orders) {
+    if (!o.inDate) continue;
+    if (o.inDate >= lastYearStart && o.inDate < lastYearEnd) lastYearWindow += 1;
+    if (o.inDate >= yearStart && o.inDate < fromIso) pastYear += 1;
+  }
+  const baseline = pastYear / (365 / WINDOW);
+  if (pastYear < 40 || lastYearWindow < 8 || baseline <= 0) return { extraDays: 0, ratio: 0 };
+  const ratio = lastYearWindow / baseline;
+  return { extraDays: ratio >= 2.5 ? 4 : ratio >= 1.7 ? 2 : ratio >= 1.3 ? 1 : 0, ratio: Math.round(ratio * 10) / 10 };
 }
 
 /** Shop-wide average turnaround (delivery_date − in_date) per garment type, from completed
@@ -574,13 +605,14 @@ export function estimateDeliveryDate(orders: Order[], tailorId: string, garmentT
 
   const buffer = workload ? CAPACITY_BUFFER_DAYS[workload.capacity] : 0;
   const extraGarmentDays = Math.max(0, garmentTypes.length - 1);
-  const days = Math.max(1, baseDays + buffer + extraGarmentDays);
+  const rushDays = seasonalRushDays(orders, fromDateIso).extraDays;
+  const days = Math.max(1, baseDays + buffer + extraGarmentDays + rushDays);
 
   const from = new Date(`${fromDateIso}T00:00:00`);
   from.setDate(from.getDate() + days);
   const date = from.toISOString().slice(0, 10);
 
-  return { date, days, basis };
+  return { date, days, basis, rushDays };
 }
 
 export interface GarmentRevRow {

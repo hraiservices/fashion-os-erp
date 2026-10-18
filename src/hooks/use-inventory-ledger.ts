@@ -114,3 +114,27 @@ export function useRawMaterialConsumption(lookbackDays: number) {
     staleTime: 60_000,
   });
 }
+
+async function fetchRawMaterialMoves() {
+  const supabase = createClient();
+  const pageSize = 1000;
+  const rows: { item_id: string; movement: number; ref_type: string; created_at: string }[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("inventory_ledger")
+      .select("item_id, movement, ref_type, created_at")
+      .eq("item_type", "raw_material")
+      .gte("created_at", new Date(Date.now() - 400 * 86_400_000).toISOString())
+      .order("created_at", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows.map((r) => ({ itemId: r.item_id, movement: r.movement, refType: r.ref_type, createdAt: r.created_at }));
+}
+
+/** Raw-material stock movements for the last ~13 months, with their type (purchase / consumed) — feeds the fabric demand forecast. */
+export function useRawMaterialMoves() {
+  return useQuery({ queryKey: ["inventory-ledger-raw-moves"], queryFn: fetchRawMaterialMoves, staleTime: 5 * 60_000 });
+}

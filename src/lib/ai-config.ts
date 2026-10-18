@@ -10,6 +10,15 @@ export const AI_FEATURES = {
   plan: "Daily plan",
   insights: "Weekly insights and coaching",
   nudge: "Festival message drafts",
+  search: "Smart search",
+  deadstock: "Dead-stock clearance ideas",
+  social: "Instagram posts and reel scripts",
+  collections: "Collections message drafts",
+  delivery: "Smart delivery date",
+  forecast: "Fabric demand forecast",
+  tryon: "Virtual try-on preview",
+  trackchat: "Order tracking chat",
+  memory: "Customer taste notes",
 } as const;
 
 export type AiFeature = keyof typeof AI_FEATURES;
@@ -27,6 +36,15 @@ export const DEFAULT_AI_CONFIG: AiAssistConfig = { enabled: false, dailyCap: 200
 
 export const AI_CONFIG_KEY = "aiAssistConfig";
 export const AI_USAGE_KEY = "aiAssistUsage";
+/** Per-day, per-feature and per-person request counts for the last 30 days (Settings → AI Helpers usage report). */
+export const AI_LOG_KEY = "aiAssistLog";
+
+export interface AiUsageLog {
+  /** date → feature → count */
+  days: Record<string, Record<string, number>>;
+  /** email → count (last 30 days) */
+  users: Record<string, number>;
+}
 
 export function cleanAiConfig(raw: unknown): AiAssistConfig {
   const r = (raw && typeof raw === "object" ? raw : {}) as Partial<AiAssistConfig>;

@@ -1034,7 +1034,8 @@ function OrderFormFields({
                           : deliveryEstimate!.basis === "garment-type"
                             ? "typical for these garments"
                             : "default estimate"}
-                        {tailorWorkload && (tailorWorkload.capacity === "High" || tailorWorkload.capacity === "Overloaded") ? " + queue" : ""})
+                        {tailorWorkload && (tailorWorkload.capacity === "High" || tailorWorkload.capacity === "Overloaded") ? " + queue" : ""}
+                        {deliveryEstimate!.rushDays > 0 ? ` + ${deliveryEstimate!.rushDays}d festival rush` : ""})
                       </span>
                     </button>
                   )}

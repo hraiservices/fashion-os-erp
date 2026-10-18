@@ -3,7 +3,9 @@ import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { resolveGeminiApiKey } from "@/lib/gemini-config";
-import { aiUsageToday, loadAiConfig } from "@/lib/ai-assist";
+import { aiUsageToday, loadAiConfig, loadAiLog } from "@/lib/ai-assist";
+import { istDateString } from "@/lib/ist-date";
+import { addDaysIso } from "@/lib/work-tasks";
 import { AI_CONFIG_KEY, AI_FEATURES, cleanAiConfig, type AiFeature } from "@/lib/ai-config";
 
 const featureShape = Object.fromEntries((Object.keys(AI_FEATURES) as AiFeature[]).map((k) => [k, z.boolean().optional()]));
@@ -16,7 +18,22 @@ export async function GET() {
   const serviceClient = createServiceClient();
   if (!serviceClient) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
   const [config, used, key] = await Promise.all([loadAiConfig(serviceClient), aiUsageToday(serviceClient), resolveGeminiApiKey()]);
-  return NextResponse.json({ config, used, keyConfigured: !!key });
+  // The usage report is for admins only; everyone else just needs to know what is switched on.
+  let usage: { byFeature: Record<string, number>; byDay: { date: string; count: number }[]; byUser: { email: string; count: number }[] } | null = null;
+  if (user.role === "admin") {
+    const log = await loadAiLog(serviceClient);
+    const weekAgo = addDaysIso(istDateString(), -6);
+    const byFeature: Record<string, number> = {};
+    const byDay = Object.entries(log.days)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, features]) => {
+        const count = Object.values(features).reduce((s, n) => s + n, 0);
+        if (date >= weekAgo) for (const [f, n] of Object.entries(features)) byFeature[f] = (byFeature[f] ?? 0) + n;
+        return { date, count };
+      });
+    usage = { byFeature, byDay, byUser: Object.entries(log.users).map(([email, count]) => ({ email, count })).sort((a, b) => b.count - a.count).slice(0, 10) };
+  }
+  return NextResponse.json({ config, used, keyConfigured: !!key, usage });
 }
 
 /** POST — admins only. */

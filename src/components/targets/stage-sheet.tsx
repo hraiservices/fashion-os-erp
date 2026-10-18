@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { LEAD_STAGES, LOST_REASONS, stageLabel, type StageLabelOverrides } from "@/lib/lead-stages";
 import type { LeadDto } from "@/lib/targets-types";
 import { useCreateTask, usePatchLead, useTargetsMeta } from "@/hooks/use-targets";
+import { useAiOn, useLeadAi, type LostReasonSuggestion } from "@/hooks/use-ai";
+import { Loader2, Sparkles } from "lucide-react";
 import { addDaysIso } from "@/lib/work-tasks";
 import { STAGE_STYLE } from "@/components/targets/shared";
 import { cn } from "@/lib/utils";
@@ -33,6 +35,9 @@ export function StageSheet({
 }) {
   const patch = usePatchLead();
   const createTask = useCreateTask();
+  const suggestOn = useAiOn("lostreason");
+  const suggest = useLeadAi<LostReasonSuggestion>(lead?.id ?? "");
+  const [suggestWhy, setSuggestWhy] = useState("");
   const today = useTargetsMeta().data?.today ?? "";
   // On by default: most lost leads are "not now", and a reminder in a month is how they come back.
   const [reconsider, setReconsider] = useState(true);
@@ -45,6 +50,7 @@ export function StageSheet({
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reset each time the sheet opens
       setPending(initialStage === "won" || initialStage === "lost" ? initialStage : null);
       setReason("");
+      setSuggestWhy("");
       setReconsider(true);
       setWonValue(lead?.expectedValue ? String(lead.expectedValue) : "");
     }
@@ -105,6 +111,31 @@ export function StageSheet({
                 </button>
               ))}
             </div>
+            {suggestOn && (
+              <div className="space-y-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 text-violet-700 dark:text-violet-300"
+                  disabled={suggest.isPending}
+                  onClick={() =>
+                    suggest.mutate(
+                      { action: "lostreason" },
+                      {
+                        onSuccess: (r) => {
+                          if (r.reason) setReason(r.reason);
+                          setSuggestWhy(r.reason ? r.why : "Nothing in the history says why — pick one yourself.");
+                        },
+                        onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't suggest a reason"),
+                      }
+                    )
+                  }
+                >
+                  {suggest.isPending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />} Suggest a reason
+                </Button>
+                {suggestWhy && <p className="text-xs text-muted-foreground">{suggestWhy}</p>}
+              </div>
+            )}
             <Input placeholder="Or type a reason" value={reason} onChange={(e) => setReason(e.target.value)} className="h-12" maxLength={200} />
             <label className="flex min-h-11 items-center gap-2 text-sm">
               <input type="checkbox" checked={reconsider} onChange={(e) => setReconsider(e.target.checked)} className="size-4 accent-primary" />

@@ -78,6 +78,10 @@ export interface LeadQuote {
   fitsDeadline: boolean | null;
   notes: string;
 }
+export interface LostReasonSuggestion {
+  reason: string | null;
+  why: string;
+}
 export interface VoiceSummary {
   transcript: string;
   summary: string;
@@ -88,6 +92,8 @@ export type LeadAiRequest =
   | { action: "brief" }
   | { action: "reply"; intent?: string }
   | { action: "quote" }
+  | { action: "lostreason" }
+  | { action: "oneliner" }
   | { action: "spec"; attachmentId: string }
   | { action: "voice"; attachmentId: string };
 
@@ -242,3 +248,35 @@ export function useSaveTasteNotes(mobile: string) {
 }
 
 export const useSuggestTasteNotes = (mobile: string) => useMutation({ mutationFn: () => post<{ suggestions: string[] }>(`/api/customers/${encodeURIComponent(mobile)}/taste-notes`, {}) });
+
+// ── Ask your numbers ──────────────────────────────────────────────────────
+export interface NumbersAnswerDto {
+  headline: string;
+  rows: { label: string; text: string }[];
+  note: string;
+}
+export const useAskNumbers = () => useMutation({ mutationFn: (question: string) => post<NumbersAnswerDto>("/api/ai/ask-numbers", { question }) });
+
+// ── Thank-you after delivery ──────────────────────────────────────────────
+export const useThankYou = () => useMutation({ mutationFn: (orderId: string) => post<{ text: string }>("/api/ai/thank-you", { orderId }) });
+
+// ── Time-to-reorder nudges ────────────────────────────────────────────────
+export interface ReorderResult {
+  message: string;
+  aiDrafted: boolean;
+  customers: { name: string; mobile: string; lastOrder: string; usualGapDays: number; daysSince: number; lastGarment: string; orderCount: number }[];
+}
+export function useReorderNudges(enabled: boolean) {
+  return useQuery({
+    queryKey: ["ai-reorder"],
+    enabled,
+    queryFn: async (): Promise<ReorderResult> => {
+      const res = await fetch("/api/targets/ai/reorder");
+      if (!res.ok) throw new Error("Couldn't load the reorder list");
+      // A card must never crash the Today tab on an odd response — treat it as "nobody due".
+      const body = (await res.json().catch(() => null)) as Partial<ReorderResult> | null;
+      return { message: typeof body?.message === "string" ? body.message : "", aiDrafted: body?.aiDrafted === true, customers: Array.isArray(body?.customers) ? body.customers : [] };
+    },
+    staleTime: 6 * 60 * 60_000,
+  });
+}

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { CalendarClock, Cake, ChevronDown, MessageCircle, RotateCcw, Sparkles, Star } from "lucide-react";
-import { useAiOn, useLeadAi, type LeadReply } from "@/hooks/use-ai";
+import { CalendarClock, Cake, ChevronDown, MessageCircle, Repeat, RotateCcw, Sparkles, Star } from "lucide-react";
+import { useAiOn, useLeadAi, useReorderNudges, useThankYou, type LeadReply } from "@/hooks/use-ai";
 import { useLeads, useTasks } from "@/hooks/use-targets";
 import { TRIAL_TAG, mobileFromTrial, trialMessage } from "@/lib/trial";
 import { addDaysIso } from "@/lib/work-tasks";
@@ -12,6 +12,8 @@ import type { LeadDto } from "@/lib/targets-types";
 import { useReviewCandidates, useUpcomingOccasions } from "@/hooks/use-customer-nudges";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { normalizeIndianMobile } from "@/lib/business-rules";
+import { fillReorder } from "@/lib/reorder";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 const wa = (mobile: string, text: string) => `https://wa.me/91${normalizeIndianMobile(mobile)}?text=${encodeURIComponent(text)}`;
@@ -63,6 +65,30 @@ export function OccasionsCard({ today, canEdit }: { today: string; canEdit: bool
   );
 }
 
+/** One recently delivered order: the plain review ask, or a personal thank-you written by AI (when switched on). */
+function ReviewRow({ row, fallback, onSent }: { row: { id: string; name: string; mobile: string; deliveryDate: string }; fallback: string; onSent: () => void }) {
+  const aiOn = useAiOn("thanks");
+  const thanks = useThankYou();
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <>
+      <Row name={row.name} sub={`Delivered ${row.deliveryDate}`} href={wa(row.mobile, draft ?? fallback)} label={`Ask ${row.name} for a review`} onSent={onSent} />
+      {aiOn && (
+        <li className="-mt-0.5 pl-3">
+          <button
+            type="button"
+            disabled={thanks.isPending}
+            onClick={() => thanks.mutate(row.id, { onSuccess: (r) => setDraft(r.text), onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't write it") })}
+            className="inline-flex min-h-11 items-center gap-1 text-xs font-medium text-violet-700 disabled:opacity-60 dark:text-violet-300"
+          >
+            <Sparkles className="size-3.5" /> {thanks.isPending ? "Writing…" : draft ? "Write another with AI" : "Personal thank-you with AI"}
+          </button>
+        </li>
+      )}
+    </>
+  );
+}
+
 /** Recently delivered orders: ask happy customers for a Google review. Only shows once a review link is set in Shop Profile. */
 export function ReviewRequestCard({ today, canEdit }: { today: string; canEdit: boolean }) {
   const { data: shop } = useShopSettings();
@@ -90,7 +116,7 @@ export function ReviewRequestCard({ today, canEdit }: { today: string; canEdit: 
   return (
     <Collapsible icon={Star} title={`${rows.length} recent ${rows.length === 1 ? "customer" : "customers"} to ask for a review`} tone="border-yellow-200 bg-yellow-50/60 text-yellow-800 dark:border-yellow-500/30 dark:bg-yellow-500/5 dark:text-yellow-300">
       {rows.slice(0, 12).map((r) => (
-        <Row key={r.id} name={r.name} sub={`Delivered ${r.deliveryDate}`} href={wa(r.mobile, msg(r.name))} label={`Ask ${r.name} for a review`} onSent={() => mark(r.id)} />
+        <ReviewRow key={r.id} row={r} fallback={msg(r.name)} onSent={() => mark(r.id)} />
       ))}
     </Collapsible>
   );
@@ -157,6 +183,28 @@ export function TrialsCard({ today, canEdit }: { today: string; canEdit: boolean
           </li>
         );
       })}
+    </Collapsible>
+  );
+}
+
+/** Regulars who usually order every couple of months and are due again — a relaxed "ready for something new?" message. Works without AI (plain wording). */
+export function ReorderCard({ canEdit }: { canEdit: boolean }) {
+  const { data } = useReorderNudges(canEdit);
+  const [message, setMessage] = useState<string | null>(null);
+  if (!canEdit || !data || data.customers.length === 0) return null;
+  const text = message ?? data.message;
+  return (
+    <Collapsible icon={Repeat} title={`${data.customers.length} regular ${data.customers.length === 1 ? "customer is" : "customers are"} due for a new outfit`} tone="border-indigo-200 bg-indigo-50/60 text-indigo-800 dark:border-indigo-500/30 dark:bg-indigo-500/5 dark:text-indigo-300">
+      <li className="space-y-1">
+        <Textarea value={text} onChange={(e) => setMessage(e.target.value)} rows={3} className="bg-card text-base text-foreground" aria-label="Message to send" />
+        <p className="text-xs text-muted-foreground">
+          {data.aiDrafted ? "Written by AI — " : ""}
+          {"{name}"} and {"{garment}"} are filled in for each customer. Edit freely.
+        </p>
+      </li>
+      {data.customers.map((c) => (
+        <Row key={c.mobile} name={c.name} sub={`Usually orders every ~${Math.round(c.usualGapDays / 7)} weeks · last ${c.daysSince} days ago${c.lastGarment ? ` (${c.lastGarment})` : ""}`} href={wa(c.mobile, fillReorder(text, c))} label={`Message ${c.name} on WhatsApp`} />
+      ))}
     </Collapsible>
   );
 }

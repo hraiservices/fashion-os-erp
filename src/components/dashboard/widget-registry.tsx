@@ -6,6 +6,7 @@ import { PipelineWidget } from "@/components/dashboard/widgets/pipeline-widget";
 import { MonthlyOverviewWidget } from "@/components/dashboard/widgets/monthly-overview-widget";
 import { TopExpensesWidget } from "@/components/dashboard/widgets/top-expenses-widget";
 import { PendingPaymentsWidget } from "@/components/dashboard/widgets/pending-payments-widget";
+import { NeedsMeWidget } from "@/components/dashboard/widgets/needs-me-widget";
 import { NeedsAttentionWidget } from "@/components/dashboard/widgets/needs-attention-widget";
 import { RecentOrdersWidget } from "@/components/dashboard/widgets/recent-orders-widget";
 import { TailorLoadWidget } from "@/components/dashboard/widgets/tailor-load-widget";
@@ -48,6 +49,7 @@ export const WIDGET_COMPONENTS: Record<string, React.ComponentType> = {
   "monthly-overview": MonthlyOverviewWidget,
   "top-expenses": TopExpensesWidget,
   "pending-payments": PendingPaymentsWidget,
+  "needs-me": NeedsMeWidget,
   "needs-attention": NeedsAttentionWidget,
   "recent-orders": RecentOrdersWidget,
   "tailor-load": TailorLoadWidget,

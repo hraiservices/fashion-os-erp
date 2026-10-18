@@ -21,6 +21,7 @@ import { HeatChip, LikelyStar, StageChip, telHref, useStaffLookup, whatsappHref 
 import { BackLink } from "@/components/ui/back-link";
 import { LeadAttachments } from "@/components/targets/lead-attachments";
 import { LeadAiCard } from "@/components/targets/lead-ai";
+import { LeadSummary } from "@/components/targets/lead-summary";
 import { TasteNotesCard } from "@/components/crm/taste-notes-card";
 import { LeadCustomerPanel, LeadMerge } from "@/components/targets/lead-extras";
 import { StageSheet } from "@/components/targets/stage-sheet";
@@ -138,6 +139,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">{lead.productInterest || "No product noted"}</p>
             {lead.mobile && <p className="text-sm text-muted-foreground">{lead.mobile}</p>}
+            <LeadSummary lead={lead} today={meta?.today ?? ""} activities={activities} canEdit={canEdit} />
             {!closed && data?.winChance && (
               <p className="mt-1.5 inline-block rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-500/20 dark:text-violet-300" title={`Learned from ${data.winChance.basis} closed leads`}>
                 ~{data.winChance.pct}% chance to win

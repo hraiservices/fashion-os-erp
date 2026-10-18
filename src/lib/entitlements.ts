@@ -118,6 +118,7 @@ const WIDGET_MODULE: Record<string, ModuleId | null> = {
   "monthly-overview": null,
   "top-expenses": "expenses",
   "pending-payments": null,
+  "needs-me": null,
   "needs-attention": null,
   "recent-orders": null,
   "tailor-load": null,

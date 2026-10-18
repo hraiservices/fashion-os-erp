@@ -25,3 +25,11 @@ describe("buildCollections", () => {
     expect(collectionMessage({ name: "Asha Rao", amount: 1500, refs: ["order A1"], tone: "friendly" }, "Rose", "₹1,500")).toContain("₹1,500");
   });
 });
+
+describe("toneFor with several overdue items", () => {
+  it("goes firm for a loyal customer with two things overdue past a week", () => {
+    expect(toneFor(10, 5, 1)).toBe("friendly");
+    expect(toneFor(10, 5, 2)).toBe("firm");
+    expect(toneFor(3, 5, 2)).toBe("gentle");
+  });
+});

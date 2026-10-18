@@ -15,7 +15,7 @@ import { isModuleEnabled } from "@/lib/entitlements";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { isReportEnabled, isSettingEnabled } from "@/lib/entitlements";
 import { STAGE_META } from "@/lib/business-rules";
-import { useAiOn, useSmartSearch } from "@/hooks/use-ai";
+import { useAiOn, useAskNumbers, useSmartSearch } from "@/hooks/use-ai";
 import { Sparkles } from "lucide-react";
 
 /**
@@ -46,6 +46,8 @@ export function CommandTrigger() {
   const [query, setQuery] = useState("");
   const smartOn = useAiOn("search");
   const smart = useSmartSearch();
+  const numbersOn = useAiOn("numbers") && !!user?.perms.viewReports && !restricted;
+  const numbers = useAskNumbers();
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -77,6 +79,7 @@ export function CommandTrigger() {
     setOpen(false);
     setQuery("");
     smart.reset();
+    numbers.reset();
     inputRef.current?.blur();
   }
 
@@ -143,10 +146,33 @@ export function CommandTrigger() {
             <CommandList className="max-h-[70vh] sm:max-h-96">
               {hasResults || pages.flat.length > 0 ? (
                 <>
-                  {!(smartOn && query.trim().split(/\s+/).length >= 3) && <CommandEmpty>No results found.</CommandEmpty>}
+                  {!((smartOn || numbersOn) && query.trim().split(/\s+/).length >= 3) && <CommandEmpty>No results found.</CommandEmpty>}
 
-                  {smartOn && query.trim().split(/\s+/).length >= 3 && (
+                  {(smartOn || numbersOn) && query.trim().split(/\s+/).length >= 3 && (
                     <CommandGroup heading="Ask AI" forceMount>
+                      {numbersOn && (
+                        <>
+                          <CommandItem forceMount value={`ask-numbers ${query}`} onSelect={() => numbers.mutate(query.trim())} disabled={numbers.isPending}>
+                            <Sparkles className="size-4 text-violet-600" />
+                            <span className="truncate">{numbers.isPending ? "Working it out…" : `Ask my numbers: "${query.trim()}"`}</span>
+                          </CommandItem>
+                          {numbers.isError && <p className="px-3 py-1.5 text-xs text-red-600">{numbers.error instanceof Error ? numbers.error.message : "Couldn't work that out"}</p>}
+                          {numbers.data && (
+                            <div className="space-y-1 px-3 py-2 text-sm">
+                              <p className="font-semibold">{numbers.data.headline}</p>
+                              {numbers.data.rows.map((r) => (
+                                <p key={r.label} className="flex justify-between gap-3 text-muted-foreground">
+                                  <span className="truncate">{r.label}</span>
+                                  <span className="shrink-0 font-medium text-foreground">{r.text}</span>
+                                </p>
+                              ))}
+                              <p className="text-xs text-muted-foreground">{numbers.data.note}</p>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {smartOn && (
+                        <>
                       <CommandItem forceMount value={`ask-ai ${query}`} onSelect={() => smart.mutate(query.trim())} disabled={smart.isPending}>
                         <Sparkles className="size-4 text-violet-600" />
                         <span className="truncate">{smart.isPending ? "Searching…" : `Find "${query.trim()}" with AI`}</span>
@@ -167,6 +193,8 @@ export function CommandTrigger() {
                           <span className="ml-2 shrink-0 text-xs text-muted-foreground">{c.mobile}</span>
                         </CommandItem>
                       ))}
+                        </>
+                      )}
                     </CommandGroup>
                   )}
 

@@ -9,6 +9,7 @@ import { inr, fmtDate } from "@/lib/format";
 import { buildUpiLink, isValidUpiId, type ShopLinks } from "@/lib/shop-links";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { OrderPhotoGallery } from "@/components/track/order-photo-gallery";
+import { TrackChat } from "@/components/track/track-chat";
 
 /** Fulfillment stages only — "payment" is a financial state layered on top of "delivered",
  *  not a step in this timeline (mirrors how STAGE_META itself treats it). */
@@ -207,6 +208,8 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
           </div>
         </div>
       )}
+
+      <TrackChat token={token} shopPhone={shopPhone} />
 
       <div className="flex flex-wrap gap-2 border-t pt-4">
         {waHref && <WhatsAppButton href={waHref} label="Message us" />}

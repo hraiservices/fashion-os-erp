@@ -27,6 +27,7 @@ import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { TasteNotesCard } from "@/components/crm/taste-notes-card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -435,6 +436,8 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           ))
         )}
       </section>
+
+      <TasteNotesCard mobile={mobile} />
 
       <section className="rounded-xl border bg-card">
         <div className="border-b px-4 py-3">

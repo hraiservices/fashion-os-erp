@@ -213,3 +213,32 @@ export const useVendorMessage = () => useMutation({ mutationFn: (payload: { fest
 
 // ── Virtual try-on preview (experimental) ─────────────────────────────────
 export const useTryOn = () => useMutation({ mutationFn: (payload: { person: string; design: string; consent: true; notes?: string }) => post<{ image: string }>("/api/ai/try-on", payload) });
+
+// ── Customer taste notes (wardrobe memory) ────────────────────────────────
+export function useTasteNotes(mobile: string, enabled = true) {
+  return useQuery({
+    queryKey: ["taste-notes", mobile],
+    enabled: enabled && !!mobile,
+    queryFn: async (): Promise<{ notes: string[]; supported: boolean }> => {
+      const res = await fetch(`/api/customers/${encodeURIComponent(mobile)}/taste-notes`);
+      if (!res.ok) return { notes: [], supported: false };
+      return res.json();
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useSaveTasteNotes(mobile: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (notes: string[]) => {
+      const res = await fetch(`/api/customers/${encodeURIComponent(mobile)}/taste-notes`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes }) });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Couldn't save the notes");
+      return body as { notes: string[] };
+    },
+    onSuccess: (r) => qc.setQueryData(["taste-notes", mobile], { notes: r.notes, supported: true }),
+  });
+}
+
+export const useSuggestTasteNotes = (mobile: string) => useMutation({ mutationFn: () => post<{ suggestions: string[] }>(`/api/customers/${encodeURIComponent(mobile)}/taste-notes`, {}) });

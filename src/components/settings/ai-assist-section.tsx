@@ -4,6 +4,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
 import { useAiConfig, useSaveAiConfig } from "@/hooks/use-ai";
+import { useAppSetting } from "@/hooks/use-app-setting";
+import { Textarea } from "@/components/ui/textarea";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { AI_FEATURES, type AiAssistConfig, type AiFeature } from "@/lib/ai-config";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -113,6 +115,43 @@ export function AiAssistSection() {
             )}
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** What the order-tracking chat may say about the shop itself — hours, address, usual timings, policies. */
+export function ShopFaqSection() {
+  const { data, isLoading, save } = useAppSetting<{ text: string }>("shopFaq", { text: "" });
+  const [draft, setDraft] = useState<string | null>(null);
+  useSyncFromSource(data, (v) => {
+    if (v && draft === null) setDraft(v.text);
+  });
+  if (isLoading || draft === null) return <Skeleton className="h-48 w-full" />;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Shop info for the order-tracking chat</CardTitle>
+        <CardDescription>
+          When &quot;Order tracking chat&quot; is on, customers can ask questions on their tracking page. It answers from their own orders plus the text below, nothing else. Write plain facts: opening hours, address, how long a blouse or suit usually takes, alteration and payment policy.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={7} maxLength={2000} placeholder={"Open 10am–8pm, closed Mondays.\nBlouse usually takes 5–7 days, suits 10–12 days.\nAlterations are free within 7 days of delivery."} className="text-base" />
+        <Button
+          className="h-12 px-6 text-base sm:h-9 sm:px-4 sm:text-sm"
+          disabled={save.isPending}
+          onClick={async () => {
+            try {
+              await save.mutateAsync({ text: draft.trim() });
+              toast.success("Saved");
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Failed to save");
+            }
+          }}
+        >
+          {save.isPending ? "Saving…" : "Save"}
+        </Button>
       </CardContent>
     </Card>
   );

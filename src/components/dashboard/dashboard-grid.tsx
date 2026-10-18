@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { BUILTIN_WIDGET_BY_KEY, type WidgetInstance, type WidgetSize } from "@/lib/dashboard-widgets";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widget-registry";
 import { WidgetShell } from "@/components/dashboard/widget-shell";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { CustomCardWidget } from "@/components/dashboard/custom-card-widget";
 
 const SIZE_TO_COLS: Record<WidgetSize, 1 | 2 | 3 | 4> = { sm: 1, lg: 2, full: 4 };
@@ -81,12 +82,20 @@ export function DashboardGrid({
   }
 
   function renderContent(w: WidgetInstance) {
-    if (w.kind === "custom" && w.customConfig) return <CustomCardWidget config={w.customConfig} />;
-    if (w.kind === "builtin" && w.builtinKey) {
-      const Component = WIDGET_COMPONENTS[w.builtinKey];
-      return Component ? <Component /> : null;
-    }
-    return null;
+    // Every card is wrapped on its own: one widget throwing (an API answering in an unexpected
+    // shape, a number that isn't there) used to take the whole Dashboard down to the route-level
+    // "Something went wrong" page. Now the broken card says so and the rest still works.
+    const label = w.kind === "builtin" && w.builtinKey ? BUILTIN_WIDGET_BY_KEY.get(w.builtinKey)?.title : w.customConfig?.title;
+    const inner = () => {
+      if (w.kind === "custom" && w.customConfig) return <CustomCardWidget config={w.customConfig} />;
+      if (w.kind === "builtin" && w.builtinKey) {
+        const Component = WIDGET_COMPONENTS[w.builtinKey];
+        return Component ? <Component /> : null;
+      }
+      return null;
+    };
+    const content = inner();
+    return content ? <ErrorBoundary label={label || "This card"}>{content}</ErrorBoundary> : null;
   }
 
   return (

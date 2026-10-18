@@ -5,7 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 import { computeInvoiceTotals, type DiscountType } from "@/lib/invoice-totals";
 import { type GstType } from "@/lib/gst";
-import type { SalesLineItem } from "@/lib/sales";
+import { genInvoiceNumber, type SalesLineItem } from "@/lib/sales";
 import { DEFAULT_DOCUMENT_NUMBERING, formatDocNumber, periodKeyFor, type DocumentNumberingSettings } from "@/lib/document-numbering";
 import { canActOnLead } from "@/lib/targets-server";
 
@@ -147,6 +147,7 @@ export async function POST(request: Request) {
   // sent for a brand-new invoice -- the client-side value is only ever a fallback placeholder
   // for when this is disabled. Editing an existing invoice never renumbers it.
   let invoiceNumber = fd.invoiceNumber;
+  let numberIsSequential = false;
   if (!isEdit) {
     const { data: numberingSetting } = await db.from("app_settings").select("value").eq("key", "documentNumbering").maybeSingle();
     const numbering: DocumentNumberingSettings = { ...DEFAULT_DOCUMENT_NUMBERING, ...((numberingSetting?.value as Partial<DocumentNumberingSettings>) || {}) };
@@ -160,6 +161,20 @@ export async function POST(request: Request) {
       });
       if (seqError) return NextResponse.json({ error: seqError.message }, { status: 500 });
       invoiceNumber = formatDocNumber(fmt, nextNumber, year);
+      numberIsSequential = true;
+    }
+  }
+
+  // With sequential numbering off, the number the browser sent is a random one, and
+  // sales_invoices.invoice_number is UNIQUE — so check it is free and draw again if it isn't,
+  // BEFORE the ledger notes below are written with it. A number chosen here is still only
+  // almost certainly free (two invoices saved in the same instant can still both pass this),
+  // so the save itself retries on a unique violation as well.
+  if (!isEdit && !numberIsSequential) {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { data: clash } = await db.from("sales_invoices").select("id").eq("invoice_number", invoiceNumber).maybeSingle();
+      if (!clash) break;
+      invoiceNumber = genInvoiceNumber();
     }
   }
 
@@ -218,10 +233,11 @@ export async function POST(request: Request) {
       }))
     : null;
 
-  const { data, error } = await db
-    .rpc("save_sales_invoice", {
+  const saveInvoice = (numberToUse: string) =>
+    db
+      .rpc("save_sales_invoice", {
       p_id: fd.id ?? null,
-      p_invoice_number: invoiceNumber,
+      p_invoice_number: numberToUse,
       p_customer_mobile: fd.customerMobile,
       p_customer_name: fd.customerName,
       p_quote_id: fd.quoteId ?? null,
@@ -247,14 +263,36 @@ export async function POST(request: Request) {
       p_ledger_rows: ledgerRows,
       p_mark_quote_accepted: !isEdit && !!fd.quoteId,
       p_payments: paymentRows,
-    })
-    .single();
+      })
+      .single();
+
+  let { data, error } = await saveInvoice(invoiceNumber);
+
+  // 23505 = unique_violation, and TWO different constraints on this table can raise it:
+  //
+  //  * invoice_number is UNIQUE, so two invoices saved in the same instant can still draw the
+  //    same random number past the check above. That used to be reported as "This quotation was
+  //    already converted" — a message about something the user wasn't doing — and retrying got
+  //    the same number again, because the form holds it for as long as it is open. A fresh
+  //    number and one more attempt clears it. When sequential numbering is on the sequence is
+  //    atomic and can't collide, so there is nothing to retry.
+  //  * idx_sales_invoices_quote_unique is the race guard for two near-simultaneous
+  //    "Convert to Invoice" calls on the same quotation. That one really is already converted.
+  if (error?.code === "23505" && !isEdit && !numberIsSequential && /invoice_number/i.test(`${error.message} ${error.details ?? ""}`)) {
+    invoiceNumber = genInvoiceNumber();
+    ({ data, error } = await saveInvoice(invoiceNumber));
+  }
   if (error) {
-    // 23505 = unique_violation — specifically the idx_sales_invoices_quote_unique race guard
-    // (see the migration) firing when two near-simultaneous "Convert to Invoice" calls target
-    // the same quote; everything else is a genuine unexpected failure.
     if (error.code === "23505") {
-      return NextResponse.json({ error: "This quotation was already converted to an invoice." }, { status: 409 });
+      const onNumber = /invoice_number/i.test(`${error.message} ${error.details ?? ""}`);
+      return NextResponse.json(
+        {
+          error: onNumber
+            ? "That invoice number is already taken. Reload the page to get a new one and save again."
+            : "This quotation was already converted to an invoice.",
+        },
+        { status: 409 }
+      );
     }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

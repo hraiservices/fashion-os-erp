@@ -119,7 +119,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { data: cur } = await db.from("orders").select("garments").eq("id", id).maybeSingle();
     const curGarments = (Array.isArray(cur?.garments) ? cur.garments : []) as { lineId?: string; payableAmount?: number }[];
     const payableByLineId = new Map(curGarments.filter((g) => g.lineId).map((g) => [g.lineId, g.payableAmount]));
-    patch.garments = patch.garments.map((g) => ({ ...g, payableAmount: g.lineId ? payableByLineId.get(g.lineId) : undefined }));
+    // Garments saved before `lineId` existed have none, so they fall back to their position in
+    // the array — the same key tailor-worksheet.ts uses (`lineId ?? index`). Without that
+    // fallback, a tailor saving an older order didn't just fail to change the pay, it ERASED
+    // the stored payableAmount on every one of its garments.
+    patch.garments = patch.garments.map((g, i) => ({
+      ...g,
+      payableAmount: g.lineId ? payableByLineId.get(g.lineId) : curGarments[i]?.payableAmount,
+    }));
   }
 
   // Changing order/delivery date is a distinct, separately-toggleable action from editing the

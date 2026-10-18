@@ -14,7 +14,7 @@ export function useWhatsAppTemplates(enabled: boolean) {
       const res = await fetch("/api/settings/whatsapp-cloud-api/templates");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Couldn't fetch templates");
-      return data.templates;
+      return data.templates ?? [];
     },
     enabled,
     staleTime: 60_000,

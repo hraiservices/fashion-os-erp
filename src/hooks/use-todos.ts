@@ -9,7 +9,7 @@ async function fetchTodos(): Promise<Todo[]> {
   const res = await fetch("/api/todos");
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || "Could not load your to-dos");
-  return body.todos as Todo[];
+  return (body.todos ?? []) as Todo[];
 }
 
 /** The logged-in user's own to-do list — the desktop utility rail's To-do icon. */

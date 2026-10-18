@@ -9,7 +9,7 @@ async function fetchNotes(): Promise<Note[]> {
   const res = await fetch("/api/notes");
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || "Could not load your notes");
-  return body.notes as Note[];
+  return (body.notes ?? []) as Note[];
 }
 
 /** The logged-in user's own sticky notes — the desktop utility rail's Notes icon. Several

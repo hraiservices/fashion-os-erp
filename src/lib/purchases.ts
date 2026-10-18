@@ -1,5 +1,7 @@
 // Purchases business logic — Vendors, Purchase Orders, Bills, Vendor Payments, Vendor Credits.
 
+import { istDateString } from "@/lib/ist-date";
+
 export type PurchaseItemType = "raw_material" | "product";
 
 /**
@@ -34,13 +36,11 @@ export function purchaseItemName(item: PurchaseLineItem): string {
   return purchaseItemType(item) === "product" ? item.productName || "Unknown" : item.rawMaterialName || "Unknown";
 }
 
+/** Same change, and for the same reasons, as sales.ts's genNumber — `purchase_orders.po_number`
+ *  and `purchase_bills.bill_number` are UNIQUE too, and 900 numbers a day was not enough. */
 function genNumber(prefix: string): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const rand = String(Math.floor(Math.random() * 900) + 100);
-  return `${prefix}-${y}${m}${day}-${rand}`;
+  const rand = String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
+  return `${prefix}-${istDateString().replace(/-/g, "")}-${rand}`;
 }
 
 export const genPoNumber = () => genNumber("PO");

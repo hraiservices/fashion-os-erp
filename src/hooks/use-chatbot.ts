@@ -19,7 +19,7 @@ export function useChatbotHistory() {
       const res = await fetch("/api/chatbot");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load history");
-      return data.messages as ChatbotMessage[];
+      return (data.messages ?? []) as ChatbotMessage[];
     },
   });
 }

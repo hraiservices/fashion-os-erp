@@ -8,6 +8,7 @@ import { useProducts } from "@/hooks/use-products";
 import { useSaveQuotation } from "@/hooks/use-sales-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { genQuoteNumber } from "@/lib/sales";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { computeGst, GST_TYPE_LABELS, type GstType } from "@/lib/gst";
 import { inr } from "@/lib/format";
 import { Label } from "@/components/ui/label";
@@ -61,7 +62,13 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
   const saveQuotation = useSaveQuotation();
   const isEdit = !!existing;
 
-  const [quoteNumber] = useState(existing?.quoteNumber || genQuoteNumber());
+  // Same as invoice-form: a random number drawn during render differs between the server and the
+  // browser, which costs the page its server HTML on every load. See useHydrated.
+  const hydrated = useHydrated();
+  const [generatedNumber] = useState(genQuoteNumber);
+  const quoteNumber = existing?.quoteNumber || generatedNumber;
+  // Blank for the one render that has to match the server's; the real number is a tick behind.
+  const shownNumber = hydrated ? quoteNumber : "";
   const [customer, setCustomer] = useState<Customer | null>(existing ? placeholderCustomer(existing.customerName, existing.customerMobile) : null);
   const priceOverrides = usePriceListItemsMap(customer?.priceListId);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -128,7 +135,7 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
           </BackLink>
           <div className="min-w-0 flex-1">
             <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Quotation" : "New Quotation"}</h1>
-            <p className="text-[11px] text-muted-foreground font-mono truncate">{quoteNumber}</p>
+            <p className="text-[11px] text-muted-foreground font-mono truncate">{shownNumber}</p>
           </div>
           {/* Duplicate of the bottom FormActionBar — mobile only, so Create/Save is reachable
              without scrolling all the way down. */}

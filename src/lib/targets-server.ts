@@ -7,6 +7,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { DEFAULT_ENTITLEMENTS, isModuleEnabled, type ModuleEntitlements } from "@/lib/entitlements";
 import type { Permissions } from "@/lib/permissions";
 import { customerIdFromMobile, normalizeIndianMobile } from "@/lib/business-rules";
+import { fetchAll } from "@/lib/fetch-all";
 import { istDateString } from "@/lib/ist-date";
 import { OPEN_STAGES } from "@/lib/lead-stages";
 import { computeProgress, monthRange, type LeadFact, type SaleFact, type SaleLine, type TargetDef } from "@/lib/targets";
@@ -55,20 +56,12 @@ export async function targetsContext(need?: keyof Permissions): Promise<{ ctx: T
 }
 
 /**
- * Fetches every row of a query, paging past PostgREST's 1000-row cap. A plain `.limit(5000)` does NOT
- * get past it: the server still stops at its max-rows setting (1000 by default), silently. Callers
- * must give the query a stable order so pages don't overlap or skip rows.
+ * Kept as a re-export: callers all over the Targets code import `fetchAll` from here. A plain
+ * `.limit(5000)` does NOT get past PostgREST's cap — the server still stops at its max-rows
+ * setting (1000 by default), silently. Callers must give the query a stable order so pages
+ * don't overlap or skip rows.
  */
-export async function fetchAll<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
-  const out: T[] = [];
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await page(from, from + 999);
-    if (error) throw new Error(error.message);
-    out.push(...(data || []));
-    if (!data || data.length < 1000) break;
-  }
-  return out;
-}
+export { fetchAll };
 
 const dateOf = (ts: string | null | undefined): string | null => (ts ? istDateString(new Date(ts)) : null);
 

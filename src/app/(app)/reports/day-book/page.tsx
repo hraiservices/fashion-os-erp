@@ -298,7 +298,7 @@ export default function DayBookPage() {
   }, [entries]);
 
   const selectedTailor = useMemo(
-    () => data?.tailorActivity.find((t) => t.tailorId === selectedTailorId) || null,
+    () => data?.tailorActivity?.find((t) => t.tailorId === selectedTailorId) || null,
     [data, selectedTailorId]
   );
 
@@ -354,7 +354,9 @@ export default function DayBookPage() {
     return MODULES.map((m) => ({ module: m, label: DAY_BOOK_MODULE_LABELS[m], count: counts.get(m) || 0 })).filter((r) => r.count > 0);
   }, [entries]);
 
-  const financialChartData = data
+  // `data.totals` (and the other blocks below) are only read once the whole shape is there: a
+  // partial body from the API used to take the entire Day Book down to the route error page.
+  const financialChartData = data?.totals
     ? [
         { name: "Sales", value: data.totals.sales, color: "#0ea5e9" },
         { name: "Payments", value: data.totals.payments, color: "#059669" },
@@ -379,7 +381,7 @@ export default function DayBookPage() {
 
   /** Series for a KPI sparkline from the 7-day range query. */
   function spark(key: "totalBilled" | "sales" | "payments" | "purchases" | "expenses" | "refunds"): number[] | undefined {
-    return sparkRange.data?.days.map((d) => d[key]);
+    return sparkRange.data?.days?.map((d) => d[key]);
   }
 
   /** Click a KPI card / chart bar → filter the timeline to that module and jump to it. */
@@ -495,10 +497,10 @@ export default function DayBookPage() {
             title={`Day Book — ${fmtDate(date)}`}
             summaryLines={[
               `Date: ${fmtDate(date)}`,
-              `Total billed: ${inr(data?.totals.totalBilled ?? 0)}`,
-              `Sales: ${inr(data?.totals.sales ?? 0)}`,
-              `Payments: ${inr(data?.totals.payments ?? 0)}`,
-              `Expenses: ${inr(data?.totals.expenses ?? 0)}`,
+              `Total billed: ${inr(data?.totals?.totalBilled ?? 0)}`,
+              `Sales: ${inr(data?.totals?.sales ?? 0)}`,
+              `Payments: ${inr(data?.totals?.payments ?? 0)}`,
+              `Expenses: ${inr(data?.totals?.expenses ?? 0)}`,
               ...(data ? [`Expected cash: ${inr(data.cash.expected)}`, ...(data.closing ? [`Counted cash: ${inr(data.closing.countedCash)}`] : [])] : []),
             ]}
           />
@@ -552,7 +554,9 @@ export default function DayBookPage() {
                 { value: "lastWeek", label: "vs last week", tone: "teal" },
               ]}
             />
-            <div className="flex items-center gap-2">
+            {/* flex-wrap, not a single row: the three buttons together are wider than a 390px
+                phone, so on one row the last one sat off the right edge where nobody could reach it. */}
+            <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={downloadAccountantPack}>
                 <FileSpreadsheet className="size-4" /> Accountant Excel
               </Button>

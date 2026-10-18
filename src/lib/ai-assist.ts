@@ -61,12 +61,12 @@ async function logAiCall(db: SupabaseClient<Database>, feature: AiFeature, who?:
 }
 
 /** Throws if the feature is switched off or today's cap is used up; otherwise counts this call. */
-export async function reserveAiCall(db: SupabaseClient<Database>, feature: AiFeature, who?: string): Promise<void> {
+export async function reserveAiCall(db: SupabaseClient<Database>, feature: AiFeature, who?: string, weight = 1): Promise<void> {
   const config = await loadAiConfig(db);
   if (!aiFeatureOn(config, feature)) throw new AiError(`${AI_FEATURES[feature]} is switched off. An admin can turn it on in Settings → AI Helpers.`, 403);
   const used = await aiUsageToday(db);
-  if (used >= config.dailyCap) throw new AiError(`The shop's AI limit for today (${config.dailyCap} requests) has been used. It resets tomorrow, or an admin can raise it in Settings → AI Helpers.`, 429);
-  await db.from("app_settings").upsert({ key: AI_USAGE_KEY, value: { date: istDateString(), count: used + 1 } });
+  if (used + weight > config.dailyCap) throw new AiError(`The shop's AI limit for today (${config.dailyCap} requests) has been used. It resets tomorrow, or an admin can raise it in Settings → AI Helpers.`, 429);
+  await db.from("app_settings").upsert({ key: AI_USAGE_KEY, value: { date: istDateString(), count: used + weight } });
   await logAiCall(db, feature, who);
 }
 
@@ -118,3 +118,29 @@ export async function aiJson<T>(db: SupabaseClient<Database>, feature: AiFeature
 
 /** Customer-facing wording rules shared by every prompt. */
 export const SHOP_VOICE = `You help the owner and staff of an Indian tailoring and fashion boutique. Write the way a warm, professional shop owner texts on WhatsApp: short, friendly, plain text, no markdown. Use ₹ for money. Reply in the customer's own language and script (English, Hindi, or Roman-script Hinglish — match how they wrote). Never invent prices, dates, or promises that are not in the data you are given; if something is unknown, say so or ask.`;
+
+/** Image models cost more per call, so a generated picture counts as this many requests against the daily cap. */
+const IMAGE_CALL_WEIGHT = 3;
+const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
+
+/** Asks Gemini to make a picture. Returns the first image it sends back. */
+export async function aiImage(db: SupabaseClient<Database>, feature: AiFeature, prompt: string, images: { mimeType: string; data: string }[], who?: string): Promise<{ mimeType: string; data: string }> {
+  await reserveAiCall(db, feature, who, IMAGE_CALL_WEIGHT);
+  const apiKey = await resolveGeminiApiKey();
+  if (!apiKey) throw new AiError("AI isn't set up yet — an admin needs to add the Gemini key under Settings → AI Copilot.", 501);
+  const ai = new GoogleGenAI({ apiKey });
+  try {
+    const res = await ai.models.generateContent({
+      model: IMAGE_MODEL,
+      contents: [{ role: "user", parts: [...images.map((i) => ({ inlineData: i })), { text: prompt }] }],
+      config: { responseModalities: ["IMAGE", "TEXT"] },
+    });
+    const part = res.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data);
+    if (!part?.inlineData?.data) throw new AiError("The AI didn't return a picture this time — try a clearer photo.", 502);
+    return { mimeType: part.inlineData.mimeType || "image/png", data: part.inlineData.data };
+  } catch (e) {
+    if (e instanceof AiError) throw e;
+    console.error("AI image call failed:", e);
+    throw new AiError("The picture preview couldn't be made just now — please try again.", 502);
+  }
+}

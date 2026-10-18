@@ -77,6 +77,7 @@ export const ORDERS_GROUP: NavGroup = {
   children: [
     { href: "/orders?view=list", label: "All Orders", newHref: "/orders/new" },
     { href: "/orders/measurements", label: "Search Measurement" },
+    { href: "/orders/try-on", label: "Try-on Preview" },
     { href: "/settings/rates", label: "Rate Card" },
     { href: "/settings/measurements", label: "Measurements" },
     { href: "/settings/expense-categories", label: "Stitching Expense Categories" },
@@ -158,6 +159,7 @@ export const REPORTS_GROUP: NavGroup = {
 
     { href: "/reports/inventory", label: "Inventory", section: "Inventory" },
     { href: "/reports/inventory/aging", label: "Aging Inventory" },
+    { href: "/reports/fabric-forecast", label: "Fabric Demand Forecast" },
 
     { href: "/reports/purchases", label: "Payable Summary", section: "Purchases" },
     { href: "/reports/payables/vendor-balance-summary", label: "Vendor Balance Summary" },

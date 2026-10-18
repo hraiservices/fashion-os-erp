@@ -207,3 +207,9 @@ export interface ClearanceIdea {
   message: string;
 }
 export const useClearanceIdeas = () => useMutation({ mutationFn: (items: ClearanceItem[]) => post<{ ideas: ClearanceIdea[] }>("/api/ai/clearance", { items }) });
+
+// ── Fabric forecast: message to the vendor ────────────────────────────────
+export const useVendorMessage = () => useMutation({ mutationFn: (payload: { festival: string | null; items: { name: string; qty: number; unit: string }[] }) => post<{ text: string }>("/api/ai/vendor-message", payload) });
+
+// ── Virtual try-on preview (experimental) ─────────────────────────────────
+export const useTryOn = () => useMutation({ mutationFn: (payload: { person: string; design: string; consent: true; notes?: string }) => post<{ image: string }>("/api/ai/try-on", payload) });

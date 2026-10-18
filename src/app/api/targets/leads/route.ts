@@ -7,6 +7,8 @@ import { LEAD_STAGES, OPEN_STAGES } from "@/lib/lead-stages";
 import { badRequest, dateStr, forbidden, isUuid, parseBody, serverError, text, uuid } from "@/lib/targets-api";
 import { isActiveEmployee, leadExtras, mapLeadRow, nextFollowUps, ownershipFilter, targetsContext } from "@/lib/targets-server";
 import { logAction } from "@/lib/logging";
+import { autoStartSequence } from "@/lib/lead-sequences";
+import { loadSequences, startSequence } from "@/lib/lead-sequence-server";
 
 const createSchema = z.object({
   name: text(120).min(1, "Enter the person's name"),
@@ -151,5 +153,15 @@ export async function POST(request: Request) {
   if (error || !data) return serverError(error?.message || "Couldn't add the lead");
 
   after(() => logAction(db, ctx.email, `🤝 Lead added: ${d.name}`, null, d.productInterest || null));
+  // A shop can mark one follow-up plan "start by itself"; its steps become tasks for the lead's owner.
+  // Best effort — a lead must still be added if the plan can't be created.
+  after(async () => {
+    try {
+      const seq = autoStartSequence(await loadSequences(db));
+      if (seq) await startSequence(db, { id: data.id, name: d.name, assigned_employee_id: owner ?? null }, seq, ctx.email);
+    } catch (e) {
+      console.error("Follow-up plan couldn't be started:", e);
+    }
+  });
   return NextResponse.json({ ok: true, id: data.id });
 }

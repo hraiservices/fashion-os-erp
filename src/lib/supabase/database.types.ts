@@ -84,6 +84,8 @@ export interface Database {
           outfit_type?: string;
           pieces?: number;
           referred_by?: string;
+          /** add_lead_first_response.sql — optional until that migration is run. */
+          first_response_at?: string | null;
         };
         Insert: Partial<Database["public"]["Tables"]["leads"]["Row"]> & {
           name: string;
@@ -171,6 +173,9 @@ export interface Database {
           duration_hours: number | null;
           completion_pct: number;
           reminder: string;
+          /** add_task_repeat.sql — optional until that migration is run. */
+          repeat_rule?: string;
+          repeat_mode?: string;
           /** The due date a reminder was last sent for (see the task-reminders cron); null = not sent. */
           reminder_sent_for: string | null;
           depends_on: string[];

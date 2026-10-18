@@ -5,9 +5,11 @@ import { istDateString } from "@/lib/ist-date";
 import { sendPushToEmails } from "@/lib/push";
 import { fetchAll, inBatches } from "@/lib/targets-server";
 import { addDaysIso, dueInWords, isReminderDue } from "@/lib/work-tasks";
+import { runScheduledRepeats } from "@/lib/task-repeat-server";
 
 /**
- * Morning cron (vercel.json, ~9 am IST): sends each task's "Reminder" — the choice on the task form (on the due
+ * Morning cron (vercel.json, ~9 am IST): creates the day's repeating tasks (shop routines on a fixed
+ * schedule — see task-repeat.ts), then sends each task's "Reminder" — the choice on the task form (on the due
  * date, 1 or 2 days before, a week before) — as a push notification to the person the task is for. A task
  * with no owner goes to whoever created it.
  *
@@ -29,6 +31,15 @@ export async function GET(req: Request) {
   if (!isModuleEnabled(entitlements, "targets")) return NextResponse.json({ skipped: true, reason: "Targets module is off" });
 
   const today = istDateString();
+  // Shop routines first, so a routine falling due today can still send its own reminder below.
+  // Best effort: a failure here must not stop the reminders, which are the point of this cron.
+  let repeatsCreated = 0;
+  try {
+    repeatsCreated = (await runScheduledRepeats(db, today)).created;
+  } catch (e) {
+    console.error("Repeating tasks couldn't be created:", e);
+  }
+
   try {
     // Open tasks with a reminder whose due date is today or within the longest lead time (a week).
     const candidates = await fetchAll((a, b) =>
@@ -43,7 +54,7 @@ export async function GET(req: Request) {
         .range(a, b)
     );
     const due = candidates.filter((t) => isReminderDue({ dueDate: t.due_date, reminder: t.reminder, status: t.status, reminderSentFor: t.reminder_sent_for }, today));
-    if (due.length === 0) return NextResponse.json({ sent: 0, tasks: 0 });
+    if (due.length === 0) return NextResponse.json({ sent: 0, tasks: 0, repeatsCreated });
 
     // Who each task is for: the owner's login emails, else the creator's.
     const employeeIds = Array.from(new Set(due.map((t) => t.assignee_id).filter((x): x is string => !!x)));
@@ -78,8 +89,8 @@ export async function GET(req: Request) {
       for (let i = 0; i < ids.length; i += 100) await db.from("work_tasks").update({ reminder_sent_for: dueDate }).in("id", ids.slice(i, i + 100));
     }
 
-    return NextResponse.json({ sent: reached.size, tasks: due.length, people: byPerson.size });
+    return NextResponse.json({ sent: reached.size, tasks: due.length, people: byPerson.size, repeatsCreated });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Reminders failed" }, { status: 500 });
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Reminders failed", repeatsCreated }, { status: 500 });
   }
 }

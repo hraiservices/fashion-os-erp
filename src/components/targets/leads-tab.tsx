@@ -19,6 +19,7 @@ import { LEAD_STAGES, stageLabel, type LeadStage } from "@/lib/lead-stages";
 import { inr } from "@/lib/format";
 import { istDateString } from "@/lib/ist-date";
 import { HEAT_LABEL, HEAT_RANK, leadHeat, needsAttention, nextStage, type LeadHeat } from "@/lib/lead-insights";
+import { isUnowned } from "@/lib/lead-response";
 import { LeadFunnel } from "@/components/targets/lead-funnel";
 import type { LeadDto } from "@/lib/targets-types";
 import { fetchAllLeads, useLeads, usePatchLead, type TargetsMeta } from "@/hooks/use-targets";
@@ -44,6 +45,7 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
   const [owner, setOwner] = useState(ALL);
   const [added, setAdded] = useState<"all" | "month">("all");
   const [attention, setAttention] = useState(false);
+  const [unownedOnly, setUnownedOnly] = useState(false);
   const [heatFilter, setHeatFilter] = useState<LeadHeat | typeof ALL>(ALL);
   const [moving, setMoving] = useState<LeadDto | null>(null);
   const [moveTo, setMoveTo] = useState<string | null>(null);
@@ -66,7 +68,8 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
   const monthStart = today.slice(0, 8) + "01";
   const inRange = (query.data?.leads ?? []).filter((l) => added === "all" || istDateString(new Date(l.createdAt)) >= monthStart); // shop-local (IST) day, not the UTC one
   const attentionCount = inRange.filter((l) => needsAttention(l, today)).length;
-  const leads = inRange.filter((l) => (!attention || needsAttention(l, today)) && (heatFilter === ALL || leadHeat(l, today) === heatFilter));
+  const unownedCount = inRange.filter((l) => isUnowned(l)).length;
+  const leads = inRange.filter((l) => (!attention || needsAttention(l, today)) && (!unownedOnly || isUnowned(l)) && (heatFilter === ALL || leadHeat(l, today) === heatFilter));
   const byStage = (s: string) => leads.filter((l) => l.stage === s);
   const listLeads = stage === ALL ? leads : byStage(stage);
   const wonPct = leads.length ? Math.round((byStage("won").length / leads.length) * 100) : 0;
@@ -307,6 +310,17 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
               ))}
             </SelectContent>
           </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className={filterLabel}>Owner</Label>
+          <button
+            type="button"
+            onClick={() => setUnownedOnly((v) => !v)}
+            aria-pressed={unownedOnly}
+            className={cn("min-h-11 rounded-lg border px-3 text-sm font-medium", unownedOnly ? "border-red-500 bg-red-500 text-white" : "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300")}
+          >
+            No owner{unownedCount > 0 && <span className={cn("ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold", unownedOnly ? "bg-white/25" : "bg-red-100 dark:bg-red-500/20")}>{unownedCount}</span>}
+          </button>
         </div>
         <div className="space-y-1">
           <Label className={filterLabel}>Follow-up</Label>

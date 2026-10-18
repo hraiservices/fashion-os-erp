@@ -22,6 +22,7 @@ import { BackLink } from "@/components/ui/back-link";
 import { LeadAttachments } from "@/components/targets/lead-attachments";
 import { LeadAiCard } from "@/components/targets/lead-ai";
 import { LeadSummary } from "@/components/targets/lead-summary";
+import { LeadPlanCard } from "@/components/targets/lead-plan";
 import { TasteNotesCard } from "@/components/crm/taste-notes-card";
 import { LeadCustomerPanel, LeadMerge } from "@/components/targets/lead-extras";
 import { StageSheet } from "@/components/targets/stage-sheet";
@@ -306,6 +307,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         )}
       </section>
 
+      <LeadPlanCard leadId={lead.id} canEdit={canEdit} closed={closed} />
       <LeadAiCard lead={lead} canEdit={canEdit} />
 
       <LeadAttachments leadId={lead.id} canEdit={canEdit} />

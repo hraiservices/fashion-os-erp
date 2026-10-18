@@ -6,6 +6,7 @@ import { badRequest, dateStr, forbidden, isUuid, parseBody, serverError, text, u
 import { fetchAll, inBatches, isActiveEmployee, leadVisible, logTaskEvent, mapTaskRow, ownershipFilter, targetsContext, taskVisible } from "@/lib/targets-server";
 import { checkDependencies, checkTaskWorkspaceRefs, loadProjectFor } from "@/lib/targets-workspace";
 import { canAssignTo, TASK_PRIORITIES, TASK_STATUSES } from "@/lib/work-tasks";
+import { parseRepeatRule } from "@/lib/task-repeat";
 import { logAction } from "@/lib/logging";
 
 const taskFields = {
@@ -29,6 +30,8 @@ const taskFields = {
   completionPct: z.number().int().min(0).max(100).optional(),
   reminder: z.enum(["none", "on_due", "1_day", "2_days", "1_week"]).optional(),
   dependsOn: z.array(uuid).max(20).optional(),
+  repeatRule: text(40).optional(),
+  repeatMode: z.enum(["schedule", "after_done"]).optional(),
 };
 const createSchema = z.object(taskFields);
 
@@ -151,6 +154,8 @@ export async function POST(request: Request) {
       ...(d.completionPct ? { completion_pct: d.completionPct } : {}),
       ...(d.reminder && d.reminder !== "none" ? { reminder: d.reminder } : {}),
       ...(d.dependsOn?.length ? { depends_on: d.dependsOn } : {}),
+      // A routine needs a due date to repeat from, so the rule is only kept when there is one.
+      ...(d.repeatRule && d.dueDate && parseRepeatRule(d.repeatRule) ? { repeat_rule: d.repeatRule, repeat_mode: d.repeatMode ?? "schedule" } : {}),
     })
     .select("id")
     .single();

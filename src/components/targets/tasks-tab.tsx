@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { CalendarDays, List, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -20,9 +20,12 @@ import { TaskSheet } from "@/components/targets/task-sheet";
 import { ShareButton } from "@/components/targets/share-dialog";
 import { taskListShareMessage } from "@/lib/targets-share";
 import { groupTasks, WorkTable } from "@/components/targets/work-table";
+import { SegmentedToggle } from "@/components/ui/segmented-toggle";
+import { WeekCalendar } from "@/components/targets/week-calendar";
 import { cn } from "@/lib/utils";
 
 type View = "open" | "today" | "overdue" | "done";
+type Layout = "list" | "week";
 const ALL = "all";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VIEW_LABEL: Record<View, string> = { open: "All open", today: "Due today", overdue: "Overdue", done: "Done" };
@@ -43,6 +46,7 @@ function Group({ title, tone, children }: { title: string; tone?: "late"; childr
 export function TasksTab({ meta }: { meta: TargetsMeta | undefined }) {
   const router = useRouter();
   const [view, setView] = useState<View>("open");
+  const [layout, setLayout] = useState<Layout>("list");
   const [person, setPerson] = useState(ALL);
   const [projectFilter, setProjectFilter] = useState(ALL);
   const [quick, setQuick] = useState("");
@@ -147,7 +151,18 @@ export function TasksTab({ meta }: { meta: TargetsMeta | undefined }) {
             </Select>
           </div>
         )}
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex items-center gap-2">
+          <div className="w-40">
+            <SegmentedToggle<Layout>
+              ariaLabel="Task view"
+              value={layout}
+              onChange={setLayout}
+              options={[
+                { value: "list", label: "List", icon: List },
+                { value: "week", label: "Week", icon: CalendarDays },
+              ]}
+            />
+          </div>
           <TasksFromTextButton />
           <Button className="hidden h-11 lg:inline-flex" onClick={() => router.push("/targets/tasks/new")}>
             <Plus className="size-4" /> Add Task
@@ -182,8 +197,10 @@ export function TasksTab({ meta }: { meta: TargetsMeta | undefined }) {
         </div>
       )}
 
+      {!tasksQ.isLoading && layout === "week" && <WeekCalendar tasks={all} today={today} onOpen={setEditing} />}
+
       {/* Desktop: Zoho-style table */}
-      {!tasksQ.isLoading && (
+      {!tasksQ.isLoading && layout === "list" && (
         <div className="hidden lg:block">
           {topLevel.length === 0 && view !== "open" ? (
             <EmptyState title={`Nothing ${view === "done" ? "finished yet" : view === "today" ? "due today" : "overdue"}`} />
@@ -204,7 +221,7 @@ export function TasksTab({ meta }: { meta: TargetsMeta | undefined }) {
       )}
 
       {/* Phone: cards */}
-      {!tasksQ.isLoading && (
+      {!tasksQ.isLoading && layout === "list" && (
         <div className="space-y-4 lg:hidden">
           {view !== "done" && (
             <form

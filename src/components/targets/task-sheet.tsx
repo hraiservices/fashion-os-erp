@@ -17,6 +17,7 @@ import { useAddComment, useAddDocument, useAddTimeLog, useCreateTask, useDeleteD
 import { cn } from "@/lib/utils";
 import { fmtDateShort } from "@/lib/format";
 import { fmtHours, REMINDER_LABELS, STATUS_CELL, taskCode } from "@/components/targets/work-ui";
+import { presetOfRule, REPEAT_MODE_LABELS, REPEAT_PRESETS, ruleForPreset } from "@/lib/task-repeat";
 import { useStaffLookup } from "@/components/targets/shared";
 import { ShareButton } from "@/components/targets/share-dialog";
 import { taskShareMessage } from "@/lib/targets-share";
@@ -100,6 +101,8 @@ export function TaskSheet({
   const [tags, setTags] = useState<string[]>([]);
   const [tagText, setTagText] = useState("");
   const [reminder, setReminder] = useState("none");
+  const [repeat, setRepeat] = useState("");
+  const [repeatMode, setRepeatMode] = useState("schedule");
   const [dependsOn, setDependsOn] = useState<string[]>([]);
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [newItem, setNewItem] = useState("");
@@ -134,6 +137,8 @@ export function TaskSheet({
     setCompletion(String(task?.completionPct ?? 0));
     setTags(task?.tags ?? []);
     setReminder(task?.reminder ?? "none");
+    setRepeat(presetOfRule(task?.repeatRule));
+    setRepeatMode(task?.repeatMode === "after_done" ? "after_done" : "schedule");
     setDependsOn(task?.dependsOn ?? []);
     setChecklist(task?.checklist ?? []);
   }, [open, task, defaults, meta?.me.employeeId]);
@@ -166,6 +171,8 @@ export function TaskSheet({
       completionPct: Math.min(100, Math.max(0, parseInt(completion, 10) || 0)),
       tags,
       reminder,
+      repeatRule: ruleForPreset(repeat, due || null),
+      repeatMode: repeatMode === "after_done" ? "after_done" : "schedule",
       dependsOn,
       checklist: [...checklist, ...(pendingStep ? [{ text: pendingStep, done: false }] : [])].filter((c) => c.text.trim()),
     };
@@ -298,6 +305,14 @@ export function TaskSheet({
             <Row label="Reminder">
               <PickerSelect value={reminder} onChange={setReminder} options={Object.entries(REMINDER_LABELS).map(([value, label]) => ({ value, label }))} />
             </Row>
+            <Row label="Repeats">
+              <PickerSelect value={repeat} onChange={setRepeat} options={REPEAT_PRESETS.map((r) => ({ value: r.value, label: r.label }))} />
+            </Row>
+            {repeat && (
+              <Row label="Next one">
+                <PickerSelect value={repeatMode} onChange={setRepeatMode} options={[{ value: "schedule", label: REPEAT_MODE_LABELS.schedule }, { value: "after_done", label: REPEAT_MODE_LABELS.after_done }]} />
+              </Row>
+            )}
             {projects.length > 0 && (
               <Row label="Project">
                 <PickerSelect

@@ -327,6 +327,20 @@ export async function logTaskEvent(db: SupabaseClient<Database>, e: { taskId: st
 
 export async function addLeadActivity(db: SupabaseClient<Database>, leadId: string, kind: "note" | "call" | "meeting" | "stage_change" | "whatsapp", body: string, email: string) {
   await db.from("lead_activities").insert({ lead_id: leadId, kind, body, created_by: email });
+  // Stamp how long the enquiry waited for a human (see lead-response.ts). A stage change on its own
+  // isn't a reply to the customer, and inbound WhatsApp messages are inserted straight into
+  // lead_activities by the capture webhook, so neither can pass through here and stop the clock early.
+  if (kind !== "stage_change") await stampFirstResponse(db, leadId);
+}
+
+/** Records the first time staff answered this lead. Best effort: a shop that hasn't run add_targets_followups.sql just has no timer. */
+export async function stampFirstResponse(db: SupabaseClient<Database>, leadId: string): Promise<void> {
+  try {
+    const { data } = await db.from("leads").select("first_response_at").eq("id", leadId).maybeSingle();
+    if (data && data.first_response_at == null) await db.from("leads").update({ first_response_at: new Date().toISOString() }).eq("id", leadId);
+  } catch {
+    /* column not added yet — the rest of the lead still works */
+  }
 }
 
 /** The soonest open task linked to each lead — the lead's "next follow-up". */

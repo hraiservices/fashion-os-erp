@@ -179,7 +179,7 @@ export function CommandTrigger() {
                       </CommandItem>
                       {smart.isError && <p className="px-3 py-1.5 text-xs text-red-600">{smart.error instanceof Error ? smart.error.message : "Couldn't search"}</p>}
                       {smart.data && smart.data.orders.length === 0 && smart.data.customers.length === 0 && <p className="px-3 py-1.5 text-xs text-muted-foreground">The AI found nothing that matches.</p>}
-                      {smart.data?.orders.map((o) => (
+                      {smart.data?.orders?.map((o) => (
                         <CommandItem forceMount key={`ai-o-${o.id}`} value={`ai-order ${o.id}`} onSelect={() => go(`/orders/${o.id}`)}>
                           <span className="truncate">{o.name}</span>
                           <span className="ml-2 shrink-0 text-xs text-muted-foreground">
@@ -187,7 +187,7 @@ export function CommandTrigger() {
                           </span>
                         </CommandItem>
                       ))}
-                      {smart.data?.customers.map((c) => (
+                      {smart.data?.customers?.map((c) => (
                         <CommandItem forceMount key={`ai-c-${c.mobile}`} value={`ai-customer ${c.mobile}`} onSelect={() => go(`/crm/${c.mobile}`)}>
                           <span className="truncate">{c.name}</span>
                           <span className="ml-2 shrink-0 text-xs text-muted-foreground">{c.mobile}</span>

@@ -1,3 +1,4 @@
+import { fetchAll } from "@/lib/fetch-all";
 import { istDateString, istDayBoundsUtc } from "@/lib/ist-date";
 import { STAGE_META } from "@/lib/business-rules";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -255,18 +256,6 @@ export function buildReviewFlags(input: {
     }
   }
   return flags;
-}
-
-/** Fetches every row of a query, paging past PostgREST's 1000-row cap. */
-async function fetchAll<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
-  const out: T[] = [];
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await page(from, from + 999);
-    if (error) throw new Error(error.message);
-    out.push(...(data || []));
-    if (!data || data.length < 1000) break;
-  }
-  return out;
 }
 
 /** Per-day totals across a date range (inclusive), bucketed by IST calendar day. */

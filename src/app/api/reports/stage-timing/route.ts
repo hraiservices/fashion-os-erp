@@ -6,6 +6,7 @@ import { STAGE_META, type Stage } from "@/lib/business-rules";
 import { displayNameFromEmail } from "@/lib/day-book";
 import { getBusinessHours } from "@/lib/settings";
 import { businessMinutesBetween } from "@/lib/business-hours";
+import { fetchAll, fetchAllByIds } from "@/lib/fetch-all";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const STAGE_CHANGE_RE = /Stage changed: (.+?) → (.+?) for (.+)$/;
@@ -49,34 +50,51 @@ export async function GET(request: Request) {
   const db = createServiceClient();
   if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
 
-  // Step 1: which orders had a stage change in the requested window at all.
-  let inRangeQuery = db
-    .from("activity_log")
-    .select("id, user_email, user_name, action, order_id, created_at")
-    .ilike("action", "%Stage changed:%")
-    .not("order_id", "is", null);
-  if (from) inRangeQuery = inRangeQuery.gte("created_at", istDayBoundsUtc(from).startUtc);
-  if (to) inRangeQuery = inRangeQuery.lt("created_at", istDayBoundsUtc(to).endUtc);
-  const { data: inRangeRows, error: inRangeError } = await inRangeQuery;
-  if (inRangeError) return NextResponse.json({ error: inRangeError.message }, { status: 500 });
+  // Step 1: which orders had a stage change in the requested window at all. Paged: a busy month
+  // passes 1000 stage changes easily (eight stages per order), and PostgREST would have cut the
+  // list off there without a word, so the report quietly covered only part of the window.
+  const inRangeRows = await fetchAll<ActivityRow>((a, b) => {
+    let q = db
+      .from("activity_log")
+      .select("id, user_email, user_name, action, order_id, created_at")
+      .ilike("action", "%Stage changed:%")
+      .not("order_id", "is", null);
+    if (from) q = q.gte("created_at", istDayBoundsUtc(from).startUtc);
+    if (to) q = q.lt("created_at", istDayBoundsUtc(to).endUtc);
+    return q.order("id").range(a, b) as unknown as PromiseLike<{ data: ActivityRow[] | null; error: { message: string } | null }>;
+  }).catch((e: unknown) => (e instanceof Error ? e : new Error("Failed to read the stage history")));
+  if (inRangeRows instanceof Error) return NextResponse.json({ error: inRangeRows.message }, { status: 500 });
 
-  const orderIds = Array.from(new Set((inRangeRows || []).map((r) => r.order_id as string)));
+  const orderIds = Array.from(new Set(inRangeRows.map((r) => r.order_id)));
   if (orderIds.length === 0) return NextResponse.json({ rows: [], byStage: [], byEmployee: [], summary: { count: 0, avgMinutes: 0 } });
 
   // Step 2: those orders' FULL stage-change history (unbounded by date) plus their creation time.
-  const [{ data: fullHistoryRows, error: historyError }, { data: orderRows, error: orderError }, { data: employeeRows }, { data: userRoleRows }, businessHours] = await Promise.all([
-    db.from("activity_log").select("id, user_email, user_name, action, order_id, created_at").ilike("action", "%Stage changed:%").in("order_id", orderIds),
-    db.from("orders").select("id, name, mobile, created_at").in("id", orderIds),
-    db.from("employees").select("id, name"),
-    db.from("user_roles").select("email, linked_employee_id").not("linked_employee_id", "is", null),
-    getBusinessHours(db),
-  ]);
-  if (historyError) return NextResponse.json({ error: historyError.message }, { status: 500 });
-  if (orderError) return NextResponse.json({ error: orderError.message }, { status: 500 });
+  // Both are keyed on the whole order-id list, so they go in chunks as well as pages — a few
+  // hundred UUIDs in one `.in()` makes a URL long enough to be rejected before it reaches the DB.
+  let fullHistoryRows: ActivityRow[];
+  let orderRows: { id: string; name: string | null; mobile: string | null; created_at: string }[];
+  let employeeRows: { id: string; name: string }[] | null;
+  let userRoleRows: { email: string; linked_employee_id: string | null }[] | null;
+  let businessHours: Awaited<ReturnType<typeof getBusinessHours>>;
+  try {
+    [fullHistoryRows, orderRows, { data: employeeRows }, { data: userRoleRows }, businessHours] = await Promise.all([
+      fetchAllByIds<ActivityRow>(orderIds, (chunk, a, b) =>
+        db.from("activity_log").select("id, user_email, user_name, action, order_id, created_at").ilike("action", "%Stage changed:%").in("order_id", chunk).order("id").range(a, b) as unknown as PromiseLike<{ data: ActivityRow[] | null; error: { message: string } | null }>
+      ),
+      fetchAllByIds<{ id: string; name: string | null; mobile: string | null; created_at: string }>(orderIds, (chunk, a, b) =>
+        db.from("orders").select("id, name, mobile, created_at").in("id", chunk).order("id").range(a, b)
+      ),
+      db.from("employees").select("id, name"),
+      db.from("user_roles").select("email, linked_employee_id").not("linked_employee_id", "is", null),
+      getBusinessHours(db),
+    ]);
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to read the stage history" }, { status: 500 });
+  }
 
   const employeeNameById = new Map((employeeRows || []).map((e) => [e.id, e.name]));
   const orderById = new Map((orderRows || []).map((o) => [o.id, o]));
-  const inRangeIds = new Set((inRangeRows || []).map((r) => r.id));
+  const inRangeIds = new Set(inRangeRows.map((r) => r.id));
 
   // A login linked to an employee (user_roles.linked_employee_id) may still use its own real
   // email rather than the synthetic emp-<id>@dashboard.local one that displayNameFromEmail()

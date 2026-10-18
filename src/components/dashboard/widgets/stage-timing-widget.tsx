@@ -48,10 +48,10 @@ export function StageTimingWidget() {
       </div>
 
       <div className="flex flex-wrap gap-x-6 gap-y-3">
-        <NumberStat label="Stage changes today" value={data?.summary.count || 0} />
+        <NumberStat label="Stage changes today" value={data?.summary?.count || 0} />
         <div className="min-w-[6rem]">
           <p className="text-xs text-muted-foreground">Avg time per change</p>
-          <p className="text-lg font-bold tabular-nums">{data?.summary.avgMinutes != null ? fmtMinutes(data.summary.avgMinutes) : "—"}</p>
+          <p className="text-lg font-bold tabular-nums">{data?.summary?.avgMinutes != null ? fmtMinutes(data.summary.avgMinutes) : "—"}</p>
         </div>
       </div>
 

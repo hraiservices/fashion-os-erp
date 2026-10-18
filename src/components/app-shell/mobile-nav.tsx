@@ -16,6 +16,7 @@ import {
 } from "@/components/app-shell/nav-config";
 import { NavContent, NavBrand } from "@/components/app-shell/nav-content";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
@@ -117,6 +118,12 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
   const { data: entitlements } = useModuleEntitlements();
   const { open: copilotOpen, setOpen: setCopilotOpen } = useCopilotOpen();
   const [createOpen, setCreateOpen] = useState(false);
+  // Every tab in this bar depends on the signed-in user's permissions, and those only arrive on
+  // the client. Rendering a guessed bar on the server and the real one on the client made React
+  // report a hydration mismatch and throw the server HTML away — on EVERY page of the app, not
+  // just this nav — so the bar holds a same-height placeholder until the permissions are known.
+  // The placeholder is what both the server and the first client render produce, so they agree.
+  const ready = useHydrated() && !!user;
   const restricted = !!user?.restricted;
   // Admin/manager: Home, Orders, Board, +, Clients, Invoices, Reports — Support/Copilot live in
   // the hamburger drawer instead (see NavContent). Tailor/sales: Orders, Board, +, Support,
@@ -183,11 +190,13 @@ function MobileTabBarInner({ searchParams }: { searchParams: ReturnType<typeof u
     );
   }
 
+  const navClass = "fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden";
+
+  // min-h-12 matches a real tab's height so the bar doesn't jump when the tabs land.
+  if (!ready) return <nav aria-label="Primary" className={cn(navClass, "min-h-12")} aria-busy="true" />;
+
   return (
-    <nav
-      aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
-    >
+    <nav aria-label="Primary" className={navClass}>
       {left.map(TabLink)}
       {canAdd && (
         <button

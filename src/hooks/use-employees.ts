@@ -31,7 +31,7 @@ async function fetchEmployees(canSeeSalary: boolean) {
     const res = await fetch("/api/employees");
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || "Could not load employees");
-    return body.employees as Employee[];
+    return (body.employees ?? []) as Employee[];
   }
 
   const supabase = createClient();

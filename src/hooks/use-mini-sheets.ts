@@ -9,7 +9,7 @@ async function fetchSheets(): Promise<MiniSheet[]> {
   const res = await fetch("/api/sheets");
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || "Could not load your sheets");
-  return body.sheets as MiniSheet[];
+  return (body.sheets ?? []) as MiniSheet[];
 }
 
 /** The logged-in user's own mini spreadsheets — the desktop utility rail's Sheets icon. Several

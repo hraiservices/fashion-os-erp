@@ -26,7 +26,11 @@ export function PageHeader({
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
         {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
       </div>
-      {actions && <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">{actions}</div>}
+      {/* No `shrink-0` on purpose: a wide toolbar that refuses to shrink runs off the right edge
+          on a tablet (measured at 820px on Dashboard) instead of wrapping. The buttons inside
+          carry their own `shrink-0`, so letting this box shrink makes its flex-wrap drop them to
+          the next line rather than squashing any of them. */}
+      {actions && <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">{actions}</div>}
     </div>
   );
 }

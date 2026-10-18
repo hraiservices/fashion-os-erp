@@ -4,6 +4,7 @@
 // and Purchases can evolve without coupling to each other.
 
 import { daysLeft } from "@/lib/business-rules";
+import { istDateString } from "@/lib/ist-date";
 
 export interface SalesLineItem {
   productId: string;
@@ -51,13 +52,22 @@ export function computeInvoiceMargin(items: SalesLineItem[], invoiceDiscountAmou
   return Math.round((lineMargin - (invoiceDiscountAmount || 0)) * 100) / 100;
 }
 
+/**
+ * A document number for a shop that hasn't switched on real sequential numbering
+ * (Settings > Document Numbering, see document-numbering.ts) — a date plus a random tail.
+ *
+ * The tail is 6 digits, not 3. `sales_invoices.invoice_number` is UNIQUE, and 900 possible
+ * values per day meant a shop writing 40 invoices in a day had a better-than-even chance of two
+ * of them landing on the same number and the save being rejected. A million values makes that
+ * vanishingly unlikely, and the route retries with a fresh one if it ever happens anyway.
+ *
+ * The date is the shop's IST calendar date, not the machine's: on a server running in UTC, and
+ * between midnight and 5:30am IST, `new Date()` still reads yesterday — which put the wrong day
+ * in the number of a late-night invoice and made the server's number disagree with the browser's.
+ */
 function genNumber(prefix: string): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const rand = String(Math.floor(Math.random() * 900) + 100);
-  return `${prefix}-${y}${m}${day}-${rand}`;
+  const rand = String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
+  return `${prefix}-${istDateString().replace(/-/g, "")}-${rand}`;
 }
 
 export const genQuoteNumber = () => genNumber("QUO");

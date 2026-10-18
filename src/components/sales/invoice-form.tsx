@@ -14,6 +14,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useTargetsMeta } from "@/hooks/use-targets";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { genInvoiceNumber, computeInvoiceMargin, totalPieces } from "@/lib/sales";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { GST_TYPE_LABELS, type GstType } from "@/lib/gst";
 import { computeInvoiceTotals, type DiscountType } from "@/lib/invoice-totals";
 import { PAYMENT_TERMS, PAYMENT_TERM_LABELS, dueDateFromTerm, type PaymentTerm } from "@/lib/payment-terms";
@@ -109,7 +110,15 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
   // save time -- this client-generated value is only ever a placeholder for the (required,
   // non-empty) form payload when it's disabled, or a fallback if settings haven't loaded yet.
   // It's deliberately never shown to the user as if it were real once custom numbering is on.
-  const [invoiceNumber] = useState(existing?.invoiceNumber || genInvoiceNumber());
+  // Generated after hydration, never during render: genInvoiceNumber() is random, so the server
+  // and the browser produced different numbers for the same form and React discarded the
+  // server's HTML for the whole page. The number is display-only here — the route re-checks it
+  // (and overrides it entirely when sequential numbering is on) before it is saved.
+  const hydrated = useHydrated();
+  const [generated] = useState(genInvoiceNumber);
+  const invoiceNumber = existing?.invoiceNumber || generated;
+  // Blank for the one render that has to match the server's; the real number is a tick behind.
+  const shownNumber = hydrated ? invoiceNumber : "";
   const customNumberingOn = !isEdit && numbering?.invoice.enabled;
   const [customer, setCustomer] = useState<Customer | null>(existing ? placeholderCustomer(existing.customerName, existing.customerMobile) : null);
   const priceOverrides = usePriceListItemsMap(customer?.priceListId);
@@ -297,7 +306,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
           </BackLink>
           <div className="min-w-0 flex-1">
             <h1 className="text-base font-semibold truncate">{isEdit ? "Edit Invoice" : "New Invoice"}</h1>
-            <p className="text-[11px] text-muted-foreground font-mono truncate">{customNumberingOn ? "Assigned automatically on save" : invoiceNumber}</p>
+            <p className="text-[11px] text-muted-foreground font-mono truncate">{customNumberingOn ? "Assigned automatically on save" : shownNumber}</p>
           </div>
           {/* Duplicate of the bottom FormActionBar — native app only. On mobile web/PWA
              (isNativePlatform() false) the bottom bar is this device's only action row; showing
@@ -360,7 +369,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
 
             <div className="space-y-4 p-4 sm:p-5">
               <HeaderRow label="Invoice #" required>
-                <Input readOnly value={customNumberingOn ? "Assigned automatically on save" : invoiceNumber} className="h-10 bg-muted/30 font-mono text-sm" aria-label="Invoice number" />
+                <Input readOnly value={customNumberingOn ? "Assigned automatically on save" : shownNumber} className="h-10 bg-muted/30 font-mono text-sm" aria-label="Invoice number" />
               </HeaderRow>
               <HeaderRow label="Invoice date" required>
                 <DatePicker value={invoiceDate} onChange={handleInvoiceDateChange} />

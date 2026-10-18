@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FieldGroup, FormCard, FormShell, SectionHeading, pillClass } from "@/components/targets/form-ui";
 import { REMINDER_LABELS } from "@/components/targets/work-ui";
 import { addDaysIso, TASK_PRIORITIES, TASK_PRIORITY_LABELS, type ChecklistItem } from "@/lib/work-tasks";
+import { REPEAT_MODE_LABELS, REPEAT_PRESETS, ruleForPreset } from "@/lib/task-repeat";
 import { useCreateTask, useProject, useProjects, type TargetsMeta } from "@/hooks/use-targets";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +64,8 @@ export function TaskForm({ meta, defaults, backHref }: { meta: TargetsMeta | und
   const [tags, setTags] = useState<string[]>([]);
   const [tagText, setTagText] = useState("");
   const [reminder, setReminder] = useState("none");
+  const [repeat, setRepeat] = useState("");
+  const [repeatMode, setRepeatMode] = useState("schedule");
   const [projectId, setProjectId] = useState(defaults?.projectId ?? NONE);
   const [listId, setListId] = useState(defaults?.taskListId ?? NONE);
   const [phaseId, setPhaseId] = useState(NONE);
@@ -104,6 +107,8 @@ export function TaskForm({ meta, defaults, backHref }: { meta: TargetsMeta | und
         durationHours: duration.trim() ? parseFloat(duration) || null : null,
         tags,
         reminder,
+        repeatRule: ruleForPreset(repeat, due || null),
+        repeatMode: repeatMode === "after_done" ? "after_done" : "schedule",
         checklist: [...checklist, ...(pendingStep ? [{ text: pendingStep, done: false }] : [])].filter((c) => c.text.trim()),
         linkType,
         linkId,
@@ -175,6 +180,14 @@ export function TaskForm({ meta, defaults, backHref }: { meta: TargetsMeta | und
           <FieldGroup label="Duration (hours)">
             <Input type="number" inputMode="decimal" min={0} step="0.5" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="e.g. 4" className="h-10" />
           </FieldGroup>
+          <FieldGroup label="Repeats" hint={repeat && !due && repeat !== "daily" && repeat !== "fortnightly" ? "Pick a due date too — the repeat follows it." : repeat ? "A new task appears when this one is done or its day passes." : undefined}>
+            <Pick value={repeat} onChange={setRepeat} options={REPEAT_PRESETS.map((r) => ({ value: r.value, label: r.label }))} />
+          </FieldGroup>
+          {repeat && (
+            <FieldGroup label="Next one appears">
+              <Pick value={repeatMode} onChange={setRepeatMode} options={[{ value: "schedule", label: REPEAT_MODE_LABELS.schedule }, { value: "after_done", label: REPEAT_MODE_LABELS.after_done }]} />
+            </FieldGroup>
+          )}
           <FieldGroup label="Reminder" hint={reminder !== "none" && !due ? "Pick a due date too — the reminder is sent relative to it." : "Sent as a notification at about 9 am (notifications must be switched on for your login)."}>
             <Pick value={reminder} onChange={setReminder} options={Object.entries(REMINDER_LABELS).map(([value, label]) => ({ value, label }))} />
           </FieldGroup>

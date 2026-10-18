@@ -17,6 +17,7 @@ import { LeadCard } from "@/components/targets/lead-card";
 import { StageSheet } from "@/components/targets/stage-sheet";
 import { OccasionsCard, ReorderCard, ReviewRequestCard, TrialsCard, WinBackCard } from "@/components/targets/today-customers";
 import { TargetGapCard } from "@/components/targets/target-gap";
+import { UnownedLeadsCard } from "@/components/targets/unowned-card";
 import { DailyPlanCard, FestivalNudgeCard, InsightsCard, OrderRiskCard } from "@/components/targets/today-ai";
 import { useStaffLookup } from "@/components/targets/shared";
 import { cn } from "@/lib/utils";
@@ -117,6 +118,7 @@ export function TodayTab({ meta }: { meta: TargetsMeta | undefined }) {
       </div>
 
       <TargetGapCard />
+      <UnownedLeadsCard leads={query.data?.leads ?? []} meta={meta} />
       <TrialsCard today={today} canEdit={canEdit} />
       <OrderRiskCard today={today} />
       <DailyPlanCard today={today} buckets={buckets} />

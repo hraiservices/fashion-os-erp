@@ -67,6 +67,8 @@ export interface LeadDto {
   attachmentCount?: number;
   /** The newest thing in the lead's history (a note, call, WhatsApp chat…). Filled in by the list route. */
   lastActivity?: { kind: string; at: string } | null;
+  /** When staff first replied to this enquiry; null until they do (needs add_targets_followups.sql). */
+  firstResponseAt?: string | null;
 }
 
 export interface LeadActivityDto {
@@ -134,6 +136,10 @@ export interface TaskDto {
   durationHours: number | null;
   completionPct: number;
   reminder: string;
+  /** Routine that comes back: the rule (see task-repeat.ts) and when the next one appears.
+   *  Optional — absent until add_targets_followups.sql has been run. */
+  repeatRule?: string;
+  repeatMode?: string;
   dependsOn: string[];
   createdBy: string | null;
   createdAt: string;
@@ -215,6 +221,7 @@ export function mapLeadRow(r: Tables["leads"]["Row"]): LeadDto {
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    firstResponseAt: r.first_response_at ?? null,
   };
 }
 
@@ -246,6 +253,8 @@ export function mapTaskRow(r: Tables["work_tasks"]["Row"]): TaskDto {
     durationHours: r.duration_hours != null ? Number(r.duration_hours) : null,
     completionPct: r.status === "done" ? 100 : r.completion_pct ?? 0,
     reminder: r.reminder ?? "none",
+    repeatRule: r.repeat_rule ?? "",
+    repeatMode: r.repeat_mode ?? "",
     dependsOn: r.depends_on ?? [],
     createdBy: r.created_by,
     createdAt: r.created_at,
@@ -315,6 +324,23 @@ export interface OwnersReport {
 export interface LostReport {
   reasons: { reason: string; count: number }[];
   leads: { id: string; name: string; reason: string; value: number; owner: string; lostOn: string | null }[];
+}
+
+/** How fast enquiries get answered — Reports → Lead Response Time. */
+export interface ResponseReportRow {
+  employeeId: string | null;
+  name: string;
+  replied: number;
+  noReply: number;
+  medianMinutes: number | null;
+  slowestMinutes: number | null;
+  medianText: string;
+  slowestText: string;
+}
+export interface ResponseReport {
+  rows: ResponseReportRow[];
+  speed: { key: string; label: string; leads: number; won: number; winRatePct: number }[];
+  totalLeads: number;
 }
 
 export interface TasksReport {

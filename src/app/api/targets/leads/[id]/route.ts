@@ -7,6 +7,7 @@ import { DEFAULT_STAGE_LABELS, LEAD_STAGES, validateStageChange, wonValueFor, is
 import { badRequest, dateStr, forbidden, notFound, parseBody, serverError, text, uuid } from "@/lib/targets-api";
 import { addLeadActivity, customerSummaryForLead, fetchAll, duplicateLeadsFor, ensureCustomerForLead, isActiveEmployee, leadVisible, mapActivityRow, mapLeadRow, mapTaskRow, targetsContext, taskVisible } from "@/lib/targets-server";
 import { logAction } from "@/lib/logging";
+import { cancelSequenceTasks } from "@/lib/lead-sequence-server";
 import { buildWinModel, winChance, type ClosedLead } from "@/lib/win-chance";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -166,6 +167,8 @@ export async function PATCH(request: Request, { params }: Ctx) {
     await addLeadActivity(db, id, "stage_change", stageNote, ctx.email);
     after(() => logAction(db, ctx.email, `🤝 Lead ${d.stage === "won" ? "won" : d.stage === "lost" ? "lost" : "moved"}: ${row.name}`, null, stageNote));
   }
+  // Once a lead is decided, the rest of its follow-up plan is noise — call off the steps still waiting.
+  if (d.stage === "won" || d.stage === "lost") after(() => cancelSequenceTasks(db, id).catch((e) => console.error("Couldn't stop the follow-up plan:", e)));
   return NextResponse.json({ ok: true });
 }
 

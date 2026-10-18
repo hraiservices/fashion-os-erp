@@ -9,8 +9,9 @@ import { dateStr, forbidden, notFound, serverError } from "@/lib/targets-api";
 import { fetchAll, fetchLeadFactRows, fetchLeadRows, fetchSaleFacts, leadFactOf, loadStaff, loadTargetsWithProgress, targetsContext } from "@/lib/targets-server";
 import { mapProjectRow, type LeaderboardReportRow, type LostReport, type OwnersReport, type PipelineReport, type ProjectsReport, type SourcesReport, type TargetReportRow, type TasksReport } from "@/lib/targets-types";
 import { isOverdue, projectProgress } from "@/lib/work-tasks";
+import { formatMinutes, responseByOwner, speedVsWinRate } from "@/lib/lead-response";
 
-const KINDS = ["target-vs-achievement", "leaderboard", "pipeline", "sources", "owners", "lost", "tasks", "projects"] as const;
+const KINDS = ["target-vs-achievement", "leaderboard", "pipeline", "sources", "owners", "lost", "tasks", "projects", "response"] as const;
 type Kind = (typeof KINDS)[number];
 
 const dayOf = (ts: string | null) => (ts ? istDateString(new Date(ts)) : null);
@@ -105,6 +106,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
         const leads = (await fetchLeadFactRows(db)).map(leadFactOf).filter((l) => (l.createdDate || "") >= from && (l.createdDate || "") <= to);
         const payload: OwnersReport = { rows: ownerStats(leads).map((r) => ({ ...r, name: nameOf(r.ownerId) })), winRate: winRate(leads), totalLeads: leads.length };
         return NextResponse.json({ from, to, ...payload });
+      }
+
+      case "response": {
+        // How long each enquiry waited for its first reply, and what that did to the win rate.
+        const rows = (await fetchLeadRows(db)).filter((l) => (dayOf(l.created_at) || "") >= from && (dayOf(l.created_at) || "") <= to);
+        const forStats = rows.map((l) => ({ stage: l.stage, assignedEmployeeId: l.assigned_employee_id, createdAt: l.created_at, firstResponseAt: l.first_response_at ?? null }));
+        const owners = responseByOwner(forStats).map((r) => ({
+          ...r,
+          name: nameOf(r.employeeId),
+          medianText: r.medianMinutes == null ? "–" : formatMinutes(r.medianMinutes),
+          slowestText: r.slowestMinutes == null ? "–" : formatMinutes(r.slowestMinutes),
+        }));
+        return NextResponse.json({ from, to, rows: owners, speed: speedVsWinRate(forStats), totalLeads: rows.length });
       }
 
       case "lost": {

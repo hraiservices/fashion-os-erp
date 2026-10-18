@@ -6,6 +6,9 @@ import { badRequest, dateStr, forbidden, notFound, parseBody, serverError, text,
 import { isActiveEmployee, logTaskEvent, mapTaskRow, targetsContext, taskVisible } from "@/lib/targets-server";
 import { checkDependencies, checkTaskWorkspaceRefs, loadProjectFor } from "@/lib/targets-workspace";
 import { canAssignTo, TASK_PRIORITIES, TASK_STATUSES } from "@/lib/work-tasks";
+import { nextDueDate, parseRepeatRule } from "@/lib/task-repeat";
+import { spawnNextOccurrence } from "@/lib/task-repeat-server";
+import { istDateString } from "@/lib/ist-date";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -27,6 +30,8 @@ const patchSchema = z.object({
   completionPct: z.number().int().min(0).max(100).optional(),
   reminder: z.enum(["none", "on_due", "1_day", "2_days", "1_week"]).optional(),
   dependsOn: z.array(uuid).max(20).optional(),
+  repeatRule: text(40).optional(),
+  repeatMode: z.enum(["schedule", "after_done"]).optional(),
 });
 
 async function loadVisible(db: SupabaseClient<Database>, id: string, ctx: Parameters<typeof taskVisible>[1]) {
@@ -77,6 +82,12 @@ export async function PATCH(request: Request, { params }: Ctx) {
   if (d.durationHours !== undefined) update.duration_hours = d.durationHours;
   if (d.completionPct !== undefined) update.completion_pct = d.completionPct;
   if (d.reminder !== undefined) update.reminder = d.reminder;
+  if (d.repeatRule !== undefined) {
+    update.repeat_rule = parseRepeatRule(d.repeatRule) ? d.repeatRule : "";
+    update.repeat_mode = update.repeat_rule ? d.repeatMode ?? row.repeat_mode ?? "schedule" : "";
+  } else if (d.repeatMode !== undefined && row.repeat_rule) {
+    update.repeat_mode = d.repeatMode;
+  }
   if (d.dependsOn !== undefined) {
     if (d.dependsOn.includes(id)) return badRequest("A task can't depend on itself");
     const problem = await checkDependencies(db, id, d.dependsOn, (r) => taskVisible(mapTaskRow(r), ctx));
@@ -110,8 +121,23 @@ export async function PATCH(request: Request, { params }: Ctx) {
     update.completed_at = d.status === "done" ? new Date().toISOString() : null;
   }
 
+  // A routine that is being ticked off hands the repeat to its replacement, so the chain can never fork.
+  const finishing = d.status === "done" && row.status !== "done";
+  const repeatRule = update.repeat_rule !== undefined ? update.repeat_rule : row.repeat_rule ?? "";
+  const repeatMode = update.repeat_mode !== undefined ? update.repeat_mode : row.repeat_mode ?? "";
+  const carryOn = finishing && repeatMode === "after_done" && !!parseRepeatRule(repeatRule);
+  if (carryOn) {
+    update.repeat_rule = "";
+    update.repeat_mode = "";
+  }
+
   const { error } = await db.from("work_tasks").update(update).eq("id", id);
   if (error) return serverError(error.message);
+  if (carryOn) {
+    const from = update.due_date !== undefined ? update.due_date : row.due_date;
+    const next = nextDueDate(repeatRule, from || istDateString());
+    if (next) after(() => spawnNextOccurrence(db, row, next, repeatRule, repeatMode).catch((e) => console.error("Couldn't create the next repeat:", e)));
+  }
   if (update.status) after(() => logTaskEvent(db, { taskId: id, projectId: row.project_id, kind: "status", body: `Status changed to ${update.status}`, email: ctx.email }));
   if (update.assignee_id !== undefined) after(() => logTaskEvent(db, { taskId: id, projectId: row.project_id, kind: "assigned", body: "Owner changed", email: ctx.email }));
   return NextResponse.json({ ok: true });

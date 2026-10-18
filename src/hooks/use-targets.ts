@@ -17,6 +17,7 @@ import type {
   PipelineReport,
   ProjectDto,
   ProjectsReport,
+  ResponseReport,
   ProjectWithProgress,
   DocumentDto,
   PhaseDto,
@@ -378,6 +379,9 @@ export interface TaskInput {
   durationHours?: number | null;
   completionPct?: number;
   reminder?: string;
+  /** Shop routine: how it repeats (task-repeat.ts) and when the next one appears. */
+  repeatRule?: string;
+  repeatMode?: string;
   dependsOn?: string[];
 }
 
@@ -469,6 +473,7 @@ type ReportData = {
   lost: LostReport;
   tasks: TasksReport;
   projects: ProjectsReport;
+  response: ResponseReport;
 };
 
 export function useTargetsReport<K extends keyof ReportData>(kind: K, range?: Partial<Range>, enabled = true) {

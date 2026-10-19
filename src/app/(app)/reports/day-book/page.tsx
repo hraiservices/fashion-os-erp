@@ -56,6 +56,8 @@ import {
   type DayBookTargets,
 } from "@/components/reports/day-book-panels";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { usePersistedOpenSections } from "@/hooks/use-persisted-open-sections";
 import { DAY_BOOK_MODULE_ICONS, DAY_BOOK_MODULE_LABELS, fmtTime, type DayBookEntry, type DayBookModule, type TailorStageActivity, type TailorStageOrder } from "@/lib/day-book";
 import { StageBadge } from "@/components/orders/stage-badge";
 import { inr, fmtDate } from "@/lib/format";
@@ -162,6 +164,23 @@ const STAGE_STEPS: { key: "receivedToCutting" | "cuttingToStitching" | "stitchin
   { key: "finishingToReady", label: "Finishing → Ready", icon: PackageCheck },
 ];
 
+/** One named, independently collapsible group of cards — see DAY_BOOK_SECTION_KEYS. Styled like
+ *  the ReportCard it wraps (rounded border, card background) rather than the plain flat-list
+ *  look Accordion defaults to, so a closed section reads as its own card among the always-open
+ *  ones above it, not as a stray list row. */
+function DayBookSection({ value, icon: Icon, label, children }: { value: DayBookSectionKey; icon: typeof Banknote; label: string; children: React.ReactNode }) {
+  return (
+    <AccordionItem value={value} className="overflow-hidden rounded-xl border bg-card">
+      <AccordionTrigger className="rounded-none px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:no-underline">
+        <span className="flex items-center gap-2">
+          <Icon className="size-4" /> {label}
+        </span>
+      </AccordionTrigger>
+      <AccordionContent className="space-y-4 px-4 pb-4">{children}</AccordionContent>
+    </AccordionItem>
+  );
+}
+
 /** A stage count as a small clickable chip — clicking it selects this tailor (filtering the
  *  timeline below to their touched orders, same as clicking the card itself) and expands the
  *  card to show every group's order list, this one included — "click a number to see those
@@ -249,8 +268,25 @@ function TailorActivityCard({
   );
 }
 
+/**
+ * The ~13 cards below the KPI numbers (Tailor Activity, Cash Position, Deliveries, Collections,
+ * Sold Today, Discounts, Attendance, Staff Summary, both charts, the filters+entries list…) are
+ * most of why this page is a very long scroll. They're grouped into four named, independently
+ * collapsible sections (any combination can be open at once — this isn't a one-at-a-time
+ * accordion) so a phone screen can show just the headings and whichever groups are wanted.
+ * The numbers up top, Review flags, and the Target card stay always visible — this is about the
+ * detail underneath them, not the headline figures.
+ *
+ * `DAY_BOOK_DEFAULT_OPEN` must stay a module-level constant, never inlined at the call site —
+ * see usePersistedOpenSections's doc comment for why.
+ */
+const DAY_BOOK_SECTION_KEYS = ["cash", "operations", "charts", "log"] as const;
+type DayBookSectionKey = (typeof DAY_BOOK_SECTION_KEYS)[number];
+const DAY_BOOK_DEFAULT_OPEN: string[] = [...DAY_BOOK_SECTION_KEYS];
+
 export default function DayBookPage() {
   const { data: user } = useCurrentUser();
+  const [openSections, setOpenSections] = usePersistedOpenSections("day-book", DAY_BOOK_DEFAULT_OPEN);
   const [date, setDate] = useState(todayISO());
   const [moduleFilter, setModuleFilter] = useState<DayBookModule | "all">("all");
   const [userFilter, setUserFilter] = useState<string>("all");
@@ -384,10 +420,16 @@ export default function DayBookPage() {
     return sparkRange.data?.days?.map((d) => d[key]);
   }
 
-  /** Click a KPI card / chart bar → filter the timeline to that module and jump to it. */
+  /** Click a KPI card / chart bar → filter the timeline to that module and jump to it. The
+   *  Transaction Log section the timeline lives in is independently collapsible, so this also
+   *  has to make sure it's open — scrolling to a collapsed section would land on its header
+   *  with nothing to see underneath. A longer delay than before: the section's open/close is an
+   *  animated height change, so scrolling has to wait for that to actually start opening up,
+   *  not just for the next tick. */
   function focusModule(m: DayBookModule) {
     setModuleFilter(m);
-    setTimeout(() => timelineRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    if (!openSections.includes("log")) setOpenSections([...openSections, "log"]);
+    setTimeout(() => timelineRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   }
 
   async function downloadAccountantPack() {
@@ -616,6 +658,8 @@ export default function DayBookPage() {
 
           <ReviewStrip flags={data.reviewFlags} />
 
+          <Accordion value={openSections} onValueChange={(v) => setOpenSections(v as string[])} multiple className="space-y-4">
+          <DayBookSection value="cash" icon={Banknote} label="Cash & Payments">
           <div className="grid items-start gap-4 lg:grid-cols-2">
             <div className="space-y-4">
             <CashPositionCard
@@ -664,7 +708,9 @@ export default function DayBookPage() {
               <VarianceHistoryCard history={history.data} />
             </div>
           </div>
+          </DayBookSection>
 
+          <DayBookSection value="operations" icon={PackageCheck} label="Operations">
           <DeliveriesCard board={data.deliveries} isToday={isToday} />
 
           <div className="grid items-start gap-4 lg:grid-cols-2">
@@ -797,7 +843,9 @@ export default function DayBookPage() {
               )}
             </ReportCard>
           )}
+          </DayBookSection>
 
+          <DayBookSection value="charts" icon={ActivityIcon} label="Charts & Staff">
           {/* Charts */}
           <div className="grid gap-4 lg:grid-cols-2">
             <ReportCard className="p-4">
@@ -853,9 +901,15 @@ export default function DayBookPage() {
           </div>
 
           <StaffSummaryCard rows={staffRows} />
+          </DayBookSection>
 
+          {/* Kept outside the collapsible content, not inside it: focusModule() needs a target
+              that's always mounted to scroll to, whether or not the Transaction Log section
+              below happens to be open at the time — it force-opens the section itself, but
+              scrollIntoView still needs somewhere real to land on right away. */}
           <div ref={timelineRef} className="scroll-mt-20" />
 
+          <DayBookSection value="log" icon={ListIcon} label="Transaction Log">
           {/* Filters */}
           <ReportCard className="flex flex-wrap items-center gap-2 p-3 print:hidden">
             {selectedTailor && (
@@ -1000,6 +1054,8 @@ export default function DayBookPage() {
               </MobileRecordList>
             </>
           )}
+          </DayBookSection>
+          </Accordion>
 
           {/* Print-only closing block — the signed sheet for the accountant. */}
           <div className="mt-10 hidden space-y-6 print:block">

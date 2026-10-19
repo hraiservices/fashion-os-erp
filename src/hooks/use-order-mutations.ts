@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { hapticSuccess, hapticError } from "@/lib/haptics";
 import type { Order } from "@/lib/types";
 import type { MaterialItem } from "@/lib/order-materials";
@@ -94,8 +95,14 @@ export function useCreateOrder() {
 export function useAdvanceStage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (orderId: string) => postJson<{ order: Order }>(`/api/orders/${orderId}/advance-stage`, {}),
-    onSuccess: () => hapticSuccess(),
+    mutationFn: (orderId: string) => postJson<{ order: Order; stageLogWarning?: string }>(`/api/orders/${orderId}/advance-stage`, {}),
+    onSuccess: (data) => {
+      hapticSuccess();
+      // Rare: the stage change itself always succeeds here (it's a separate, already-committed
+      // RPC) — this means only that the record of it failed to save, so the step won't show up
+      // in today's Day Book or count toward the tailor's payable. See logAction()'s doc comment.
+      if (data.stageLogWarning) toast.warning(data.stageLogWarning, { duration: 12_000 });
+    },
     onError: () => hapticError(),
     // onSettled, not onSuccess: a 409 ("Stage was already changed by another request") means the
     // server rejected OUR view of the order, not that nothing happened — someone else's request
@@ -114,8 +121,12 @@ export function useSetStage() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ orderId, stage }: { orderId: string; stage: string }) =>
-      postJson<{ order: Order }>(`/api/orders/${orderId}/set-stage`, { stage }),
-    onSuccess: () => hapticSuccess(),
+      postJson<{ order: Order; stageLogWarning?: string }>(`/api/orders/${orderId}/set-stage`, { stage }),
+    onSuccess: (data) => {
+      hapticSuccess();
+      // See useAdvanceStage — same rare case, same reason.
+      if (data.stageLogWarning) toast.warning(data.stageLogWarning, { duration: 12_000 });
+    },
     onError: () => hapticError(),
     // See useAdvanceStage — same reasoning: a conflict means the board's copy of this order is
     // stale, so it needs refetching exactly as much as a success does.

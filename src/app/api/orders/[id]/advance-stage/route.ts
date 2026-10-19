@@ -52,11 +52,23 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   // order.tailor is now an employee id, not a name — dropped from this detail string (was
   // showing a raw UUID); the order's own detail page already shows the tailor's name.
-  await logAction(
+  //
+  // Same reasoning as set-stage's identical line: this is the ONLY record this transition
+  // happened, the Day Book's per-tailor payable is built entirely by reading it back, and the
+  // order's status has already committed by this point — so a failed write here means the order
+  // moves on looking completely normal while a tailor's credit for finishing a piece silently
+  // never happens. Surfaced rather than let that pass, same as the loyalty/WhatsApp failures
+  // already handled below.
+  const stageLogOk = await logAction(
     supabase, user.email,
     `${curMeta.emoji} → ${nextMeta.emoji} Stage changed: ${curMeta.label} → ${nextMeta.label} for ${order.name}`,
     id
   );
+  let stageLogWarning: string | undefined;
+  if (!stageLogOk) {
+    stageLogWarning = `Order moved to ${nextMeta.label}, but it couldn't be recorded in the activity log — this step won't show up in today's Day Book or count toward anyone's payable. Let an admin know so it can be added by hand.`;
+    await logAction(supabase, user.email, `⚠️ Stage-change log failed for ${id} (${curMeta.label} → ${nextMeta.label}) — tailor payable for this step needs a manual correction`, id);
+  }
   await sendAdminNotification(supabase, user.email, {
     orderId: id, customerName: order.name, fromStage: curMeta.label, toStage: nextMeta.label,
   }, userName);
@@ -93,7 +105,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
         const DONE_STAGES = new Set(["ready", "delivered", "payment"]);
         groupReady = (siblingRows || []).every((s) => DONE_STAGES.has(s.status));
       }
-      if (!groupReady) return NextResponse.json({ order: updated });
+      if (!groupReady) return NextResponse.json({ order: updated, stageLogWarning });
 
       const [{ data: cloudApiSetting }, { data: customerRow }] = await Promise.all([
         db.from("app_settings").select("value").eq("key", "whatsappCloudApiConfig").maybeSingle(),
@@ -114,5 +126,5 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     }
   }
 
-  return NextResponse.json({ order: mapOrderRow(updatedRow) });
+  return NextResponse.json({ order: mapOrderRow(updatedRow), stageLogWarning });
 }

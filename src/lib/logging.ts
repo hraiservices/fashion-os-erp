@@ -34,22 +34,44 @@ export async function nameFromEmail(supabase: SupabaseClient<Database>, email: s
   return data?.name || "Staff";
 }
 
-/** logAction()/client.db.addLog, used throughout the old app to write activity_log rows. */
+/**
+ * logAction()/client.db.addLog, used throughout the old app to write activity_log rows.
+ *
+ * Returns whether the insert actually succeeded, instead of the `Promise<void>` this used to be
+ * — every one of the ~140 existing `await logAction(...)` call sites that don't look at the
+ * return value keeps working exactly as before. The reason to add it: the insert's own error was
+ * previously discarded outright (not even checked, just dropped), so a failed write here was
+ * completely invisible — no console line, no thrown error, nothing. For most callers that's a
+ * missed line in an audit trail nobody was going to read anyway. But for a "Stage changed: X → Y"
+ * line specifically, this IS the data: it's the only record a stage transition ever happened,
+ * and the Day Book's per-tailor payable report (buildTailorStageProgress in day-book.ts) is built
+ * entirely by reading these lines back. A silent failure right here means the order still
+ * advances normally — the status update is a separate, successful RPC call — while the tailor who
+ * did that work never gets credited for it, with nothing in the UI to say why. See set-stage and
+ * advance-stage routes, which now check this and raise a visible warning when it happens.
+ */
 export async function logAction(
   supabase: SupabaseClient<Database>,
   userEmail: string | null | undefined,
   action: string,
   orderId?: string | null,
   details?: string | null
-): Promise<void> {
+): Promise<boolean> {
   const userName = await nameFromEmail(supabase, userEmail);
-  await supabase.from("activity_log").insert({
+  const { error } = await supabase.from("activity_log").insert({
     user_email: userEmail || null,
     user_name: userName,
     action,
     order_id: orderId || null,
     details: details || null,
   });
+  if (error) {
+    // Surfaced at minimum, even for callers that don't check the return value — previously this
+    // vanished completely, with no trace anywhere that the write was ever attempted.
+    console.error(`[logAction] activity_log insert failed for order ${orderId ?? "(none)"}: ${action}`, error);
+    return false;
+  }
+  return true;
 }
 
 /** sendAdminNotification(), line ~16385. `note` appends a short flag to the message — used for

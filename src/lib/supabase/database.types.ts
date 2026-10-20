@@ -86,6 +86,8 @@ export interface Database {
           referred_by?: string;
           /** add_lead_first_response.sql — optional until that migration is run. */
           first_response_at?: string | null;
+          /** add_lead_type.sql — optional until that migration is run. */
+          lead_type?: string | null;
         };
         Insert: Partial<Database["public"]["Tables"]["leads"]["Row"]> & {
           name: string;

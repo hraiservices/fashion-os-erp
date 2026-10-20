@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { formatWinRate, type SourceRow } from "@/lib/targets";
-import { useTargetsReport } from "@/hooks/use-targets";
+import { useTargetsMeta, useTargetsReport } from "@/hooks/use-targets";
 import { useReportDateRange } from "@/lib/report-date-range";
-import { targetsRange, TargetsReportView, type ReportColumn } from "@/components/targets/report-page";
+import { targetsRange, TargetsReportView, LeadTypeReportFilter, type ReportColumn } from "@/components/targets/report-page";
 
 const pct = formatWinRate; // the server sends a whole percent already
 
@@ -19,7 +20,9 @@ const COLUMNS: ReportColumn<SourceRow>[] = [
 
 export default function LeadSourcesPage() {
   const dr = useReportDateRange("this-month");
-  const q = useTargetsReport("sources", targetsRange(dr.range));
+  const meta = useTargetsMeta().data;
+  const [typeFilter, setTypeFilter] = useState("");
+  const q = useTargetsReport("sources", targetsRange(dr.range), true, typeFilter);
   const rows = q.data?.rows ?? [];
   return (
     <TargetsReportView
@@ -29,6 +32,7 @@ export default function LeadSourcesPage() {
       dateRange={dr}
       loading={q.isLoading}
       error={q.error?.message}
+      above={<LeadTypeReportFilter types={meta?.leadTypes} value={typeFilter} onChange={setTypeFilter} />}
       rows={rows}
       columns={COLUMNS}
       rowKey={(r) => r.source || "none"}

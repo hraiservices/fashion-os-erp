@@ -29,6 +29,7 @@ export function LeadForm({ meta, lead }: { meta: TargetsMeta | undefined; lead?:
   const [wants, setWants] = useState(lead?.productInterest ?? "");
   const [value, setValue] = useState(lead?.expectedValue ?? 0);
   const [source, setSource] = useState(lead?.source ?? "");
+  const [leadType, setLeadType] = useState(lead?.leadType ?? "");
   const [owner, setOwner] = useState<string>(lead ? lead.assignedEmployeeId ?? NO_OWNER : meta?.me.employeeId ?? NO_OWNER);
   const [likely, setLikely] = useState(lead?.likelyToClose ?? false);
   const [notes, setNotes] = useState(lead?.notes ?? "");
@@ -72,6 +73,7 @@ export function LeadForm({ meta, lead }: { meta: TargetsMeta | undefined; lead?:
       ...(outfitType.trim() !== (lead?.outfitType ?? "") ? { outfitType: outfitType.trim() } : {}),
       ...(pieces !== (lead?.pieces ?? 0) ? { pieces } : {}),
       ...(referredBy.trim() !== (lead?.referredBy ?? "") ? { referredBy: referredBy.trim() } : {}),
+      ...((leadType || null) !== (lead?.leadType ?? null) ? { leadType: leadType || null } : {}),
     };
     const done = () => {
       toast.success(lead ? "Lead updated" : "Lead added");
@@ -185,6 +187,17 @@ export function LeadForm({ meta, lead }: { meta: TargetsMeta | undefined; lead?:
               ))}
             </div>
           </FieldGroup>
+          {!!meta?.leadTypes.length && (
+            <FieldGroup label="Type of lead" hint="Edit this list in Settings > Lead Types.">
+              <div className="flex flex-wrap gap-2">
+                {meta.leadTypes.map((t) => (
+                  <button key={t} type="button" onClick={() => setLeadType(leadType === t ? "" : t)} className={pillClass(leadType === t)}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </FieldGroup>
+          )}
           {canPickOwner && (
             <FieldGroup label="Owner">
               <Select value={owner} onValueChange={(v) => v && setOwner(v)}>

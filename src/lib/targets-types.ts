@@ -54,6 +54,9 @@ export interface LeadDto {
   referredBy: string;
   /** How many pieces; 0 means not given. */
   pieces: number;
+  /** Which of the shop's Settings > Leads categories this is — null until someone sets it
+   *  (needs add_lead_type.sql). "Stitching Customer", "App Sale (Fashion Flow)", etc. */
+  leadType: string | null;
   wonAt: string | null;
   lostAt: string | null;
   orderId: string | null;
@@ -214,6 +217,7 @@ export function mapLeadRow(r: Tables["leads"]["Row"]): LeadDto {
     outfitType: r.outfit_type || "",
     referredBy: r.referred_by || "",
     pieces: Number(r.pieces) || 0,
+    leadType: r.lead_type ?? null,
     wonAt: r.won_at,
     lostAt: r.lost_at,
     orderId: r.order_id,

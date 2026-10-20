@@ -1,11 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { formatWinRate, type OwnerRow } from "@/lib/targets";
 import { inr } from "@/lib/format";
-import { useTargetsReport } from "@/hooks/use-targets";
+import { useTargetsMeta, useTargetsReport } from "@/hooks/use-targets";
 import { useReportDateRange } from "@/lib/report-date-range";
 import { InsightsCard } from "@/components/targets/today-ai";
-import { targetsRange, TargetsReportView, type ReportColumn } from "@/components/targets/report-page";
+import { targetsRange, TargetsReportView, LeadTypeReportFilter, type ReportColumn } from "@/components/targets/report-page";
 
 type Row = OwnerRow & { name: string };
 
@@ -24,7 +25,9 @@ const COLUMNS: ReportColumn<Row>[] = [
 
 export default function LeadOwnersPage() {
   const dr = useReportDateRange("this-month");
-  const q = useTargetsReport("owners", targetsRange(dr.range));
+  const meta = useTargetsMeta().data;
+  const [typeFilter, setTypeFilter] = useState("");
+  const q = useTargetsReport("owners", targetsRange(dr.range), true, typeFilter);
   const rows = q.data?.rows ?? [];
   return (
     <TargetsReportView
@@ -34,7 +37,12 @@ export default function LeadOwnersPage() {
       dateRange={dr}
       loading={q.isLoading}
       error={q.error?.message}
-      above={<InsightsCard range={dr.range.from && dr.range.to ? { from: dr.range.from, to: dr.range.to } : undefined} />}
+      above={
+        <>
+          <LeadTypeReportFilter types={meta?.leadTypes} value={typeFilter} onChange={setTypeFilter} />
+          <InsightsCard range={dr.range.from && dr.range.to ? { from: dr.range.from, to: dr.range.to } : undefined} />
+        </>
+      }
       rows={rows}
       columns={COLUMNS}
       rowKey={(r) => r.ownerId || "none"}

@@ -127,10 +127,10 @@ export async function fetchSaleFacts(db: SupabaseClient<Database>, from: string,
 }
 
 /** The lead columns the progress maths, summary and visibility rules actually read — a lot lighter than `select *` (notes, product interest, names). */
-const LEAD_FACT_COLUMNS = "id, stage, assigned_employee_id, created_by, expected_value, likely_to_close, won_value, won_at, source, created_at, lost_reason, lost_at";
+const LEAD_FACT_COLUMNS = "id, stage, assigned_employee_id, created_by, expected_value, likely_to_close, won_value, won_at, source, created_at, lost_reason, lost_at, lead_type";
 export type LeadFactRow = Pick<
   Database["public"]["Tables"]["leads"]["Row"],
-  "id" | "stage" | "assigned_employee_id" | "created_by" | "expected_value" | "likely_to_close" | "won_value" | "won_at" | "source" | "created_at" | "lost_reason" | "lost_at"
+  "id" | "stage" | "assigned_employee_id" | "created_by" | "expected_value" | "likely_to_close" | "won_value" | "won_at" | "source" | "created_at" | "lost_reason" | "lost_at" | "lead_type"
 >;
 
 export function leadFactOf(r: LeadFactRow): LeadFact {
@@ -146,6 +146,7 @@ export function leadFactOf(r: LeadFactRow): LeadFact {
     createdDate: dateOf(r.created_at) || undefined,
     lostReason: r.lost_reason || "",
     lostDate: dateOf(r.lost_at),
+    leadType: r.lead_type ?? null,
   };
 }
 

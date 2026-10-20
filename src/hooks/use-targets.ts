@@ -94,6 +94,9 @@ export interface TargetsMeta {
   products: { id: string; name: string; sku: string }[];
   garmentTypes: string[];
   stageLabels: StageLabelOverrides;
+  /** Settings > Leads categories (needs add_lead_type.sql) — the 4 starter types until a shop
+   *  edits the list themselves. See cleanLeadTypes. */
+  leadTypes: string[];
 }
 
 /**
@@ -476,10 +479,13 @@ type ReportData = {
   response: ResponseReport;
 };
 
-export function useTargetsReport<K extends keyof ReportData>(kind: K, range?: Partial<Range>, enabled = true) {
+/** `leadType` (Settings > Leads category, needs add_lead_type.sql) only affects the six
+ *  lead-sourced reports — see the route; harmless to pass for the other three, which ignore it. */
+export function useTargetsReport<K extends keyof ReportData>(kind: K, range?: Partial<Range>, enabled = true, leadType?: string) {
   const qs = new URLSearchParams();
   if (range?.from) qs.set("from", range.from);
   if (range?.to) qs.set("to", range.to);
+  if (leadType) qs.set("leadType", leadType);
   return useQuery({
     queryKey: [KEY, "report", kind, qs.toString()],
     enabled,

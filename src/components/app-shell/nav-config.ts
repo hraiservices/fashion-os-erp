@@ -316,6 +316,7 @@ export const SETTINGS_GROUP: NavGroup = {
     { href: "/settings/stitching-order-template", label: "Stitching Order Template" },
     { href: "/settings/price-lists", label: "Price Lists" },
     { href: "/settings/lead-stages", label: "Lead Stage Names" },
+    { href: "/settings/lead-types", label: "Lead Types" },
     { href: "/settings/lead-templates", label: "Lead WhatsApp Messages" },
     { href: "/settings/lead-sequences", label: "Follow-up Plans" },
     { href: "/settings/enquiry-link", label: "Enquiry Link & QR" },
@@ -364,7 +365,7 @@ export function settingsLeafVisible(
   if (href === "/settings/invoice-terms" || href === "/settings/invoice-template" || href === "/settings/stitching-order-template") return perms.manageDocumentTemplates;
   if (href === "/settings/price-lists") return perms.managePriceLists;
   if (href === "/settings/navigation") return perms.manageNavigationSettings;
-  if (href === "/settings/lead-stages" || href === "/settings/lead-templates" || href === "/settings/lead-sequences" || href === "/settings/enquiry-link") return perms.manageTargets;
+  if (href === "/settings/lead-stages" || href === "/settings/lead-types" || href === "/settings/lead-templates" || href === "/settings/lead-sequences" || href === "/settings/enquiry-link") return perms.manageTargets;
   return true; // /settings/personalize and /settings/account — everyone (canManageShop kept as a param for callers/backward compat)
 }
 

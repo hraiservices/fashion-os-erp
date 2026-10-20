@@ -1,10 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { fmtDateShort, inr } from "@/lib/format";
 import type { LostReport } from "@/lib/targets-types";
-import { useTargetsReport } from "@/hooks/use-targets";
+import { useTargetsMeta, useTargetsReport } from "@/hooks/use-targets";
 import { useReportDateRange } from "@/lib/report-date-range";
-import { targetsRange, TargetsReportView, type ReportColumn } from "@/components/targets/report-page";
+import { targetsRange, TargetsReportView, LeadTypeReportFilter, type ReportColumn } from "@/components/targets/report-page";
 
 type Row = LostReport["leads"][number];
 
@@ -18,7 +19,9 @@ const COLUMNS: ReportColumn<Row>[] = [
 
 export default function LostLeadsPage() {
   const dr = useReportDateRange("this-month");
-  const q = useTargetsReport("lost", targetsRange(dr.range));
+  const meta = useTargetsMeta().data;
+  const [typeFilter, setTypeFilter] = useState("");
+  const q = useTargetsReport("lost", targetsRange(dr.range), true, typeFilter);
   const rows = q.data?.leads ?? [];
   const reasons = q.data?.reasons ?? [];
   return (
@@ -35,15 +38,18 @@ export default function LostLeadsPage() {
       summaryLines={[`Lost leads: ${rows.length}`, `Value lost: ${inr(rows.reduce((s, r) => s + r.value, 0))}`]}
       emptyTitle="No lost leads in this period"
       above={
-        reasons.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {reasons.map((r) => (
-              <span key={r.reason} className="rounded-full border bg-card px-3 py-1.5 text-sm">
-                {r.reason || "Not noted"} <span className="font-semibold">{r.count}</span>
-              </span>
-            ))}
-          </div>
-        )
+        <>
+          <LeadTypeReportFilter types={meta?.leadTypes} value={typeFilter} onChange={setTypeFilter} />
+          {reasons.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {reasons.map((r) => (
+                <span key={r.reason} className="rounded-full border bg-card px-3 py-1.5 text-sm">
+                  {r.reason || "Not noted"} <span className="font-semibold">{r.count}</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </>
       }
     />
   );

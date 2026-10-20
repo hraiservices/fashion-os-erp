@@ -5,6 +5,7 @@ import { DEFAULT_RATES } from "@/lib/business-rules";
 import { isModuleEnabled } from "@/lib/entitlements";
 import { istDateString } from "@/lib/ist-date";
 import { LEAD_STAGES, type StageLabelOverrides } from "@/lib/lead-stages";
+import { cleanLeadTypes, LEAD_TYPE_SETTING_KEY } from "@/lib/lead-types";
 import { loadStaff, targetsContext } from "@/lib/targets-server";
 
 /**
@@ -23,11 +24,14 @@ export async function GET(request: Request) {
   const db: SupabaseClient<Database> = ctx.db;
   const lite = new URL(request.url).searchParams.get("lite") === "1";
 
-  const [staff, productsRes, ratesRes, labelsRes] = await Promise.all([
+  const [staff, productsRes, ratesRes, labelsRes, leadTypesRes] = await Promise.all([
     loadStaff(db),
     lite ? null : db.from("products").select("id, name, sku").order("name").limit(1000),
     lite ? null : db.from("app_settings").select("value").eq("key", "rates").maybeSingle(),
     lite ? null : db.from("app_settings").select("value").eq("key", "leadStageLabels").maybeSingle(),
+    // Cheap enough (one row) to always read, even for `lite` — the leads list filter bar and
+    // the lead-type pill on cards both need it, and neither is a "lite" screen anyway.
+    db.from("app_settings").select("value").eq("key", LEAD_TYPE_SETTING_KEY).maybeSingle(),
   ]);
 
   const rates = (ratesRes?.data?.value as Record<string, unknown> | null) || DEFAULT_RATES;
@@ -60,5 +64,6 @@ export async function GET(request: Request) {
     products: (productsRes?.data || []).map((p) => ({ id: p.id, name: p.name, sku: p.sku })),
     garmentTypes: Object.keys(rates),
     stageLabels,
+    leadTypes: cleanLeadTypes(leadTypesRes.data?.value),
   });
 }

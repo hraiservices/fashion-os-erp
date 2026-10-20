@@ -27,6 +27,8 @@ const createSchema = z.object({
   outfitType: text(80).optional(),
   referredBy: text(80).optional(),
   pieces: z.number().int().min(0).max(1000).optional(),
+  /** needs add_lead_type.sql — written only when sent, same as the other optional fields above. */
+  leadType: text(40).nullable().optional(),
   /** Create even if an open lead for the same number already exists. */
   allowDuplicate: z.boolean().default(false),
 });
@@ -147,6 +149,7 @@ export async function POST(request: Request) {
       ...(d.outfitType?.trim() ? { outfit_type: d.outfitType.trim() } : {}),
       ...(d.referredBy?.trim() ? { referred_by: d.referredBy.trim() } : {}),
       ...(d.pieces ? { pieces: d.pieces } : {}),
+      ...(d.leadType ? { lead_type: d.leadType } : {}),
     })
     .select("id")
     .single();

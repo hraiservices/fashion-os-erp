@@ -19,6 +19,7 @@ import { LEAD_STAGES, stageLabel, type LeadStage } from "@/lib/lead-stages";
 import { inr } from "@/lib/format";
 import { istDateString } from "@/lib/ist-date";
 import { HEAT_LABEL, HEAT_RANK, leadHeat, needsAttention, nextStage, type LeadHeat } from "@/lib/lead-insights";
+import { matchesLeadTypeFilter, UNSET_LEAD_TYPE } from "@/lib/lead-types";
 import { isUnowned } from "@/lib/lead-response";
 import { LeadFunnel } from "@/components/targets/lead-funnel";
 import type { LeadDto } from "@/lib/targets-types";
@@ -47,6 +48,7 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
   const [attention, setAttention] = useState(false);
   const [unownedOnly, setUnownedOnly] = useState(false);
   const [heatFilter, setHeatFilter] = useState<LeadHeat | typeof ALL>(ALL);
+  const [typeFilter, setTypeFilter] = useState<string>(ALL);
   const [moving, setMoving] = useState<LeadDto | null>(null);
   const [moveTo, setMoveTo] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -69,7 +71,13 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
   const inRange = (query.data?.leads ?? []).filter((l) => added === "all" || istDateString(new Date(l.createdAt)) >= monthStart); // shop-local (IST) day, not the UTC one
   const attentionCount = inRange.filter((l) => needsAttention(l, today)).length;
   const unownedCount = inRange.filter((l) => isUnowned(l)).length;
-  const leads = inRange.filter((l) => (!attention || needsAttention(l, today)) && (!unownedOnly || isUnowned(l)) && (heatFilter === ALL || leadHeat(l, today) === heatFilter));
+  const leads = inRange.filter(
+    (l) =>
+      (!attention || needsAttention(l, today)) &&
+      (!unownedOnly || isUnowned(l)) &&
+      (heatFilter === ALL || leadHeat(l, today) === heatFilter) &&
+      (typeFilter === ALL || matchesLeadTypeFilter(l.leadType, typeFilter))
+  );
   const byStage = (s: string) => leads.filter((l) => l.stage === s);
   const listLeads = stage === ALL ? leads : byStage(stage);
   const wonPct = leads.length ? Math.round((byStage("won").length / leads.length) * 100) : 0;
@@ -269,6 +277,25 @@ export function LeadsTab({ meta }: { meta: TargetsMeta | undefined }) {
                     {stageLabel(s, labels)} ({byStage(s).length})
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        {!!meta?.leadTypes.length && (
+          <div className="space-y-1 sm:w-40">
+            <Label className={filterLabel}>Type</Label>
+            <Select value={typeFilter} onValueChange={(v) => v && setTypeFilter(v)}>
+              <SelectTrigger className="h-11 w-full">
+                <SelectValue>{(v: unknown) => (v === ALL ? "All types" : v === UNSET_LEAD_TYPE ? "Not set" : (v as string))}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All types</SelectItem>
+                {meta.leadTypes.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+                <SelectItem value={UNSET_LEAD_TYPE}>Not set</SelectItem>
               </SelectContent>
             </Select>
           </div>

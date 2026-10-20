@@ -28,6 +28,7 @@ const patchSchema = z.object({
   outfitType: text(80).optional(),
   referredBy: text(80).optional(),
   pieces: z.number().int().min(0).max(1000).optional(),
+  leadType: text(40).nullable().optional(),
   stage: z.enum(LEAD_STAGES).optional(),
   lostReason: text(200).optional(),
   wonValue: z.number().min(0).max(100_000_000).optional(),
@@ -105,6 +106,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
   if (d.outfitType !== undefined) update.outfit_type = d.outfitType;
   if (d.referredBy !== undefined) update.referred_by = d.referredBy;
   if (d.pieces !== undefined) update.pieces = d.pieces;
+  if (d.leadType !== undefined) update.lead_type = d.leadType || null;
   if (d.mobile !== undefined) {
     const mobile = d.mobile ? normalizeIndianMobile(d.mobile) : "";
     if (d.mobile && mobile.length < 10) return badRequest("That mobile number doesn't look right");

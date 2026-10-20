@@ -11,6 +11,39 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useReportDateRange } from "@/lib/report-date-range";
 import { ShareButton } from "@/components/targets/share-dialog";
 import { reportShareMessage, shareDate } from "@/lib/targets-share";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UNSET_LEAD_TYPE } from "@/lib/lead-types";
+
+const ALL_LEAD_TYPES = "all";
+
+/**
+ * The Settings > Leads category filter, shared by the six lead-sourced Targets reports (owners,
+ * pipeline, sources, lost, response, leaderboard — see the report route's `leadType` handling).
+ * Hidden entirely when the shop has no types configured, same as the Leads list filter bar.
+ */
+export function LeadTypeReportFilter({ types, value, onChange }: { types: string[] | undefined; value: string; onChange: (v: string) => void }) {
+  if (!types?.length) return null;
+  return (
+    <div className="flex items-center gap-2">
+      <Label className="text-xs font-medium text-muted-foreground">Type</Label>
+      <Select value={value || ALL_LEAD_TYPES} onValueChange={(v) => v && onChange(v === ALL_LEAD_TYPES ? "" : v)}>
+        <SelectTrigger className="h-9 w-44">
+          <SelectValue>{(v: unknown) => (v === ALL_LEAD_TYPES ? "All types" : v === UNSET_LEAD_TYPE ? "Not set" : (v as string))}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL_LEAD_TYPES}>All types</SelectItem>
+          {types.map((t) => (
+            <SelectItem key={t} value={t}>
+              {t}
+            </SelectItem>
+          ))}
+          <SelectItem value={UNSET_LEAD_TYPE}>Not set</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
 
 /** Report date range as the Targets API wants it: "All time" becomes a very wide range instead of an empty one (the API would default an empty range to this month). */
 export function targetsRange(range: { from: string; to: string }) {

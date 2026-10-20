@@ -63,6 +63,7 @@ export function LeadCard({
           </p>
           {ownerName && <p className="mt-0.5 truncate text-xs text-muted-foreground">{ownerName}</p>}
           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            {lead.leadType && <span className="rounded-full bg-indigo-100 px-1.5 py-0.5 font-medium text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300">{lead.leadType}</span>}
             {lead.source && <span>{lead.source}</span>}
             <span>{age === 0 ? "Added today" : `${age}d old`}</span>
             {files > 0 && (

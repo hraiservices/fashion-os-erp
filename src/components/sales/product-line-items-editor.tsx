@@ -534,7 +534,16 @@ export function ProductLineItemsEditor({
                     <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="Rate" className="h-10 w-full text-sm 2xl:text-right" value={line.unitPrice} onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })} />
                   </div>
                   {showDiscount && (
-                    <div className={cn(cell, "col-span-2")}>
+                    // col-span-2 is for the mobile 2-column grid only. The wrapper around Qty/
+                    // Rate/Discount switches to `2xl:contents` at table width, which promotes
+                    // these three straight into the ROW's own 6-column grid (Item/Qty/Rate/
+                    // Discount/Amount/Actions) — without `2xl:col-span-1` here to cancel it,
+                    // the unqualified col-span-2 kept applying there too, so Discount ate two of
+                    // those six tracks instead of one. Everything after it then shifted over by
+                    // a column: Amount got squeezed into the Actions column's narrow 4rem track
+                    // (looking like its value wasn't "filling" the cell), and Clone/Remove had no
+                    // column left in that row at all, so the grid wrapped them onto a new row.
+                    <div className={cn(cell, "col-span-2 2xl:col-span-1")}>
                       <label className={mobileLabel}>Discount</label>
                       <div className="flex h-10 items-stretch overflow-hidden rounded-md border">
                         <button

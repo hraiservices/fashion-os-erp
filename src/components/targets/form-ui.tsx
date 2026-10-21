@@ -79,7 +79,7 @@ export function FormShell({
       }}
     >
       <div className="sticky top-0 z-20 border-b bg-white shadow-sm dark:bg-card">
-        <div className="mx-auto flex max-w-4xl items-center gap-4 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
           <BackLink href={backHref}>
             <span className="hidden sm:inline">{backLabel}</span>
           </BackLink>
@@ -99,7 +99,7 @@ export function FormShell({
         </div>
       </div>
 
-      <div className="mx-auto max-w-4xl space-y-5 px-4 py-6 sm:px-6">{children}</div>
+      <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6">{children}</div>
 
       <FormActionBar className="justify-start sm:justify-end">
         {extraActions}

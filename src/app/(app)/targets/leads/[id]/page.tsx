@@ -78,7 +78,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const [text, setText] = useState("");
   const [confirm, setConfirm] = useState(false);
 
-  if (isLoading) return <Skeleton className="mx-auto h-64 w-full max-w-2xl" />;
+  if (isLoading) return <Skeleton className="mx-auto h-64 w-full max-w-6xl" />;
   if (!data) return <p className="text-sm text-muted-foreground">Lead not found.</p>;
   const { lead, activities, tasks, customer, duplicates } = data;
   const heat = leadHeat(lead, meta?.today ?? "");
@@ -124,7 +124,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl p-4 sm:p-6 space-y-5 pb-8">
+    <div className="mx-auto w-full max-w-6xl p-4 sm:p-6 space-y-5 pb-8">
       <div className="flex items-center justify-between gap-2">
         <BackLink href="/targets?tab=leads">Leads</BackLink>
         <ShareButton title="Share lead" build={(origin) => leadShareMessage(lead, { origin, today: meta?.today ?? "", nameOf }, { labels: meta?.stageLabels, nextFollowUp: nextFollowUp(tasks) })} />

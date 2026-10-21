@@ -1,10 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { inr } from "@/lib/format";
 import type { LeaderboardReportRow } from "@/lib/targets-types";
-import { useTargetsReport } from "@/hooks/use-targets";
+import { useTargetsMeta, useTargetsReport } from "@/hooks/use-targets";
 import { useReportDateRange } from "@/lib/report-date-range";
-import { targetsRange, TargetsReportView, type ReportColumn } from "@/components/targets/report-page";
+import { targetsRange, TargetsReportView, LeadTypeReportFilter, type ReportColumn } from "@/components/targets/report-page";
 
 const COLUMNS: ReportColumn<LeaderboardReportRow>[] = [
   { label: "Person", cell: (r) => r.name, exportValue: (r) => r.name },
@@ -18,16 +19,19 @@ const COLUMNS: ReportColumn<LeaderboardReportRow>[] = [
 
 export default function SalesLeaderboardPage() {
   const dr = useReportDateRange("this-month");
-  const q = useTargetsReport("leaderboard", targetsRange(dr.range));
+  const meta = useTargetsMeta().data;
+  const [typeFilter, setTypeFilter] = useState("");
+  const q = useTargetsReport("leaderboard", targetsRange(dr.range), true, typeFilter);
   const rows = q.data?.rows ?? [];
   return (
     <TargetsReportView
       title="Sales Leaderboard"
-      description="Who sold the most in the period. Invoices count for the sales person named on them; stitching orders count through the lead they came from."
+      description="Who sold the most in the period. Invoices count for the sales person named on them; stitching orders count through the lead they came from. A Type filter narrows only the lead side — a plain sales invoice with no lead still counts."
       filename="sales-leaderboard"
       dateRange={dr}
       loading={q.isLoading}
       error={q.error?.message}
+      above={<LeadTypeReportFilter types={meta?.leadTypes} value={typeFilter} onChange={setTypeFilter} />}
       rows={rows}
       columns={COLUMNS}
       rowKey={(r, i) => r.personId ?? `none-${i}`}

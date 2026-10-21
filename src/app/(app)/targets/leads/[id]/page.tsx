@@ -169,6 +169,12 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
               <p className="font-semibold">{lead.source}</p>
             </div>
           )}
+          {lead.leadType && (
+            <div>
+              <p className="text-xs text-muted-foreground">Type</p>
+              <p className="font-semibold">{lead.leadType}</p>
+            </div>
+          )}
           {lead.stage === "won" && (
             <div>
               <p className="text-xs text-muted-foreground">Won value</p>

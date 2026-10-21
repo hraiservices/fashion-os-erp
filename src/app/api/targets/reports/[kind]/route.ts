@@ -4,6 +4,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { istDateString } from "@/lib/ist-date";
 import { OPEN_STAGES } from "@/lib/lead-stages";
 import { buildLeaderboard, incentiveFor, lostReasonStats, monthRange, ownerStats, pipelineSummary, sourceStats, winRate } from "@/lib/targets";
+import { matchesLeadTypeFilter } from "@/lib/lead-types";
 import { buildTaskLoad, overdueAgeBuckets, rangesOverlap } from "@/lib/targets-reports";
 import { dateStr, forbidden, notFound, serverError } from "@/lib/targets-api";
 import { fetchAll, fetchLeadFactRows, fetchLeadRows, fetchSaleFacts, leadFactOf, loadStaff, loadTargetsWithProgress, targetsContext } from "@/lib/targets-server";
@@ -37,6 +38,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
   const from = dateStr.safeParse(sp.get("from")).success ? (sp.get("from") as string) : month.start;
   const to = dateStr.safeParse(sp.get("to")).success ? (sp.get("to") as string) : month.end;
   if (to < from) return NextResponse.json({ error: "The end date can't be before the start date" }, { status: 400 });
+  // Settings > Leads category (needs add_lead_type.sql) — only the six lead-sourced reports
+  // take it; tasks/projects/target-vs-achievement aren't about individual leads.
+  const leadType = sp.get("leadType") || "";
 
   try {
     const staff = await loadStaff(db);
@@ -60,7 +64,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
         ]);
         const commission = new Map((empRes.data || []).map((e) => [e.id, e]));
         const hit = targets.filter((t) => t.progress.status === "achieved" && rangesOverlap({ start: t.startDate, end: t.endDate }, { start: from, end: to }));
-        const rows: LeaderboardReportRow[] = buildLeaderboard(sales, leadRows.map(leadFactOf), { start: from, end: to }).map((r) => {
+        // Sales (invoices/stitching orders) have no lead_type of their own, so the type filter
+        // only narrows the lead side of the board — a sales-only row still counts regardless.
+        const typedLeadRows = leadRows.filter((l) => matchesLeadTypeFilter(l.lead_type, leadType));
+        const rows: LeaderboardReportRow[] = buildLeaderboard(sales, typedLeadRows.map(leadFactOf), { start: from, end: to }).map((r) => {
           const c = r.personId ? commission.get(r.personId) : null;
           return {
             ...r,
@@ -73,7 +80,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
       }
 
       case "pipeline": {
-        const leads = (await fetchLeadRows(db)).filter((r) => (OPEN_STAGES as readonly string[]).includes(r.stage));
+        const leads = (await fetchLeadRows(db)).filter((r) => (OPEN_STAGES as readonly string[]).includes(r.stage) && matchesLeadTypeFilter(r.lead_type, leadType));
         const facts = leads.map(leadFactOf);
         const summary = pipelineSummary(facts, OPEN_STAGES);
         const owners = new Map<string | null, { ownerId: string | null; name: string; count: number; value: number; likelyValue: number }>();
@@ -97,20 +104,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
       }
 
       case "sources": {
-        const leads = (await fetchLeadFactRows(db)).map(leadFactOf).filter((l) => (l.createdDate || "") >= from && (l.createdDate || "") <= to);
+        const leads = (await fetchLeadFactRows(db)).map(leadFactOf).filter((l) => (l.createdDate || "") >= from && (l.createdDate || "") <= to && matchesLeadTypeFilter(l.leadType, leadType));
         const payload: SourcesReport = { rows: sourceStats(leads), winRate: winRate(leads), totalLeads: leads.length };
         return NextResponse.json({ from, to, ...payload });
       }
 
       case "owners": {
-        const leads = (await fetchLeadFactRows(db)).map(leadFactOf).filter((l) => (l.createdDate || "") >= from && (l.createdDate || "") <= to);
+        const leads = (await fetchLeadFactRows(db)).map(leadFactOf).filter((l) => (l.createdDate || "") >= from && (l.createdDate || "") <= to && matchesLeadTypeFilter(l.leadType, leadType));
         const payload: OwnersReport = { rows: ownerStats(leads).map((r) => ({ ...r, name: nameOf(r.ownerId) })), winRate: winRate(leads), totalLeads: leads.length };
         return NextResponse.json({ from, to, ...payload });
       }
 
       case "response": {
         // How long each enquiry waited for its first reply, and what that did to the win rate.
-        const rows = (await fetchLeadRows(db)).filter((l) => (dayOf(l.created_at) || "") >= from && (dayOf(l.created_at) || "") <= to);
+        const rows = (await fetchLeadRows(db)).filter((l) => (dayOf(l.created_at) || "") >= from && (dayOf(l.created_at) || "") <= to && matchesLeadTypeFilter(l.lead_type, leadType));
         const forStats = rows.map((l) => ({ stage: l.stage, assignedEmployeeId: l.assigned_employee_id, createdAt: l.created_at, firstResponseAt: l.first_response_at ?? null }));
         const owners = responseByOwner(forStats).map((r) => ({
           ...r,
@@ -122,7 +129,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
       }
 
       case "lost": {
-        const rows = (await fetchLeadRows(db)).filter((l) => l.stage === "lost" && (dayOf(l.lost_at) || "") >= from && (dayOf(l.lost_at) || "") <= to);
+        const rows = (await fetchLeadRows(db)).filter((l) => l.stage === "lost" && (dayOf(l.lost_at) || "") >= from && (dayOf(l.lost_at) || "") <= to && matchesLeadTypeFilter(l.lead_type, leadType));
         const payload: LostReport = {
           reasons: lostReasonStats(rows.map(leadFactOf)),
           leads: rows.map((l) => ({ id: l.id, name: l.name, reason: l.lost_reason || "Not recorded", value: Number(l.expected_value) || 0, owner: nameOf(l.assigned_employee_id), lostOn: dayOf(l.lost_at) })),

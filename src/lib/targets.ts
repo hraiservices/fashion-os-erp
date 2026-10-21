@@ -85,6 +85,8 @@ export interface LeadFact {
   createdDate?: string;
   lostReason?: string;
   lostDate?: string | null;
+  /** Which Settings > Leads category this lead is — null/undefined until set. */
+  leadType?: string | null;
 }
 
 export interface PersonCredit {

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Check, ExternalLink, Plus, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, ExternalLink, Paperclip, Plus, Trash2, X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { addDaysIso, TASK_PRIORITIES, TASK_PRIORITY_LABELS, TASK_STATUS_LABELS, TASK_STATUSES, type ChecklistItem } from "@/lib/work-tasks";
 import type { ProjectWithProgress, TaskDto } from "@/lib/targets-types";
-import { useAddComment, useAddDocument, useAddTimeLog, useCreateTask, useDeleteDocument, useDeleteTask, useDeleteTimeLog, useDocuments, usePatchTask, useProject, useTask, useTaskEvents, useTasks, useTimeLogs, type TargetsMeta, type TaskInput } from "@/hooks/use-targets";
+import { useAddComment, useAddDocument, useAddTimeLog, useCreateTask, useDeleteDocument, useDeleteTask, useDeleteTimeLog, useDocuments, usePatchTask, useProject, useTask, useTaskEvents, useTasks, useTimeLogs, useUploadDocuments, type TargetsMeta, type TaskInput } from "@/hooks/use-targets";
 import { cn } from "@/lib/utils";
 import { fmtDateShort } from "@/lib/format";
 import { fmtHours, REMINDER_LABELS, STATUS_CELL, taskCode } from "@/components/targets/work-ui";
@@ -23,6 +23,22 @@ import { ShareButton } from "@/components/targets/share-dialog";
 import { taskShareMessage } from "@/lib/targets-share";
 
 const NONE = "none";
+
+/** A collapsible card (chevron + bold title), used to group the task sheet into Status / Task
+ *  Information / Description sections — same shape every task-management tool uses, so the sheet
+ *  reads at a glance instead of as one long scroll. */
+function Collapsible({ title, defaultOpen = true, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className="rounded-xl border bg-card">
+      <button type="button" onClick={() => setOpen((o) => !o)} className="flex min-h-11 w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-semibold">
+        <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", !open && "-rotate-90")} />
+        {title}
+      </button>
+      {open && <div className="space-y-1.5 border-t px-4 pb-3 pt-1">{children}</div>}
+    </section>
+  );
+}
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -228,16 +244,18 @@ export function TaskSheet({
           }}
         >
           {task && (
-            <div className="flex flex-wrap gap-2">
-              {TASK_STATUSES.map((s) => (
-                <button key={s} type="button" onClick={() => setStatus(s)} className={cn("min-h-10 rounded px-3 text-xs font-semibold transition-opacity", STATUS_CELL[s], status === s ? "ring-2 ring-foreground/40 ring-offset-1" : "opacity-45")}>
-                  {TASK_STATUS_LABELS[s]}
-                </button>
-              ))}
-            </div>
+            <Collapsible title="Status">
+              <div className="flex flex-wrap gap-2 pb-1">
+                {TASK_STATUSES.map((s) => (
+                  <button key={s} type="button" onClick={() => setStatus(s)} className={cn("min-h-10 rounded px-3 text-xs font-semibold transition-opacity", STATUS_CELL[s], status === s ? "ring-2 ring-foreground/40 ring-offset-1" : "opacity-45")}>
+                    {TASK_STATUS_LABELS[s]}
+                  </button>
+                ))}
+              </div>
+            </Collapsible>
           )}
 
-          <section className="rounded-xl border bg-card px-4">
+          <Collapsible title="Task Information">
             <Row label="Owner">
               {canAssign ? <PickerSelect value={assignee} onChange={setAssignee} none="Nobody yet" options={staff.map((s) => ({ value: s.id, label: s.name }))} /> : <span className="text-sm">You</span>}
             </Row>
@@ -337,12 +355,11 @@ export function TaskSheet({
                 <PickerSelect value={phaseId} onChange={setPhaseId} none="No phase" options={phases.map((p) => ({ value: p.id, label: p.name }))} />
               </Row>
             )}
-          </section>
+          </Collapsible>
 
-          <section className="space-y-1.5">
-            <h3 className="text-sm font-semibold">Description</h3>
+          <Collapsible title="Description">
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Anything else to remember" className="text-lg font-bold" maxLength={2000} />
-          </section>
+          </Collapsible>
 
           <section className="space-y-2">
             <h3 className="text-sm font-semibold">Checklist</h3>
@@ -460,6 +477,8 @@ function TaskTabs({
   const docs = useDocuments({ taskId: task.id }, tab === "docs").data ?? [];
   const addDoc = useAddDocument();
   const delDoc = useDeleteDocument();
+  const uploadDoc = useUploadDocuments();
+  const docFileRef = useRef<HTMLInputElement>(null);
   const logs = useTimeLogs({ task: task.id }, tab === "time").data ?? [];
   const addLog = useAddTimeLog();
   const delLog = useDeleteTimeLog();
@@ -535,6 +554,25 @@ function TaskTabs({
           <Button type="button" className="h-11" disabled={!docName.trim() || !docUrl.trim() || addDoc.isPending} onClick={() => addDoc.mutate({ taskId: task.id, name: docName.trim(), url: docUrl.trim() }, { onSuccess: () => { setDocName(""); setDocUrl(""); }, onError: err })}>
             Add link
           </Button>
+          <div className="flex items-center gap-2">
+            <p className="flex-1 text-xs text-muted-foreground">Or upload a file (up to 25 MB).</p>
+            <Button type="button" variant="outline" className="h-10 shrink-0" disabled={uploadDoc.isPending} onClick={() => docFileRef.current?.click()}>
+              <Paperclip className="size-4" />
+              {uploadDoc.isPending ? "Uploading…" : "Upload"}
+            </Button>
+            <input
+              ref={docFileRef}
+              type="file"
+              className="sr-only"
+              multiple
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                e.target.value = "";
+                if (!files.length) return;
+                uploadDoc.mutate({ scope: { taskId: task.id }, files }, { onSuccess: (r) => { if (r.failures.length) toast.error(r.failures.join("; ")); else if (r.done) toast.success(`${r.done} file(s) uploaded`); } });
+              }}
+            />
+          </div>
         </div>
         <ul className="space-y-1.5">
           {docs.map((d) => (

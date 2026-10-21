@@ -216,8 +216,20 @@ export interface Database {
         Relationships: [];
       };
       work_documents: {
-        Row: { id: string; project_id: string | null; task_id: string | null; name: string; url: string; created_by: string | null; created_at: string };
-        Insert: Partial<Database["public"]["Tables"]["work_documents"]["Row"]> & { name: string; url: string };
+        Row: {
+          id: string;
+          project_id: string | null;
+          task_id: string | null;
+          name: string;
+          url: string | null;
+          /** add_task_document_uploads.sql — set for an uploaded file instead of a pasted link. */
+          path?: string | null;
+          content_type?: string | null;
+          size_bytes?: number | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["work_documents"]["Row"]> & { name: string };
         Update: Partial<Database["public"]["Tables"]["work_documents"]["Row"]>;
         Relationships: [];
       };

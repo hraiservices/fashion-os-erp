@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { LEAD_MEDIA_BUCKET, guessContentType } from "@/lib/lead-media";
+import { TASK_DOCUMENT_BUCKET } from "@/lib/task-media";
 import type { StageLabelOverrides } from "@/lib/lead-stages";
 import type { ImportLeadRow } from "@/lib/lead-import";
 import type { ShareContact } from "@/lib/targets-share";
@@ -559,6 +560,32 @@ export function useAddDocument() {
 export function useDeleteDocument() {
   const invalidate = useInvalidate("documents");
   return useMutation({ mutationFn: (id: string) => send("DELETE", `/api/targets/documents/${id}`), onSuccess: invalidate });
+}
+
+/** Uploads files straight to storage through one-time signed URLs, then registers each against the task/project. Reports how many went through. */
+export function useUploadDocuments() {
+  const invalidate = useInvalidate("documents");
+  return useMutation({
+    mutationFn: async ({ scope, files }: { scope: { projectId?: string | null; taskId?: string | null }; files: File[] }) => {
+      const supabase = createClient();
+      let done = 0;
+      const failures: string[] = [];
+      for (const file of files) {
+        const contentType = guessContentType(file.name, file.type);
+        try {
+          const target = await api<{ path: string; token: string }>("/api/targets/documents", { method: "POST", body: JSON.stringify({ action: "upload-url", ...scope, name: file.name, contentType, size: file.size }) });
+          const { error } = await supabase.storage.from(TASK_DOCUMENT_BUCKET).uploadToSignedUrl(target.path, target.token, file, { contentType });
+          if (error) throw new Error(error.message);
+          await api("/api/targets/documents", { method: "POST", body: JSON.stringify({ action: "register", ...scope, path: target.path, name: file.name, contentType, size: file.size }) });
+          done += 1;
+        } catch (e) {
+          failures.push(`${file.name}: ${e instanceof Error ? e.message : "failed"}`);
+        }
+      }
+      return { done, failures };
+    },
+    onSuccess: invalidate,
+  });
 }
 
 export interface TimeLogFilters {

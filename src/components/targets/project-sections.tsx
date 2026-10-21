@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Check, ChevronLeft, ChevronRight, ExternalLink, Plus, Trash2, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, ExternalLink, Paperclip, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { fmtDateShort } from "@/lib/format";
 import { isFinished, isOverdue, TASK_STATUS_LABELS, TASK_STATUSES } from "@/lib/work-tasks";
 import type { PhaseDto, ProjectWithProgress, TaskDto } from "@/lib/targets-types";
-import { useAddDocument, useAddTimeLog, useCreatePhase, useDeleteDocument, useDeletePhase, useDeleteTimeLog, useDocuments, usePatchPhase, useProjectFeed, useSetProjectMembers, useTimeLogs, type TargetsMeta } from "@/hooks/use-targets";
+import { useAddDocument, useAddTimeLog, useCreatePhase, useDeleteDocument, useDeletePhase, useDeleteTimeLog, useDocuments, usePatchPhase, useProjectFeed, useSetProjectMembers, useTimeLogs, useUploadDocuments, type TargetsMeta } from "@/hooks/use-targets";
 
 import { fmtHours } from "@/components/targets/work-ui";
 import { cn } from "@/lib/utils";
@@ -267,11 +267,13 @@ export function ProjectDocuments({ projectId }: { projectId: string }) {
   const docs = useDocuments({ projectId }).data ?? [];
   const add = useAddDocument();
   const del = useDeleteDocument();
+  const upload = useUploadDocuments();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   return (
     <div className="space-y-4">
-      <Card title="Add a document link">
+      <Card title="Add a document">
         <div className="grid gap-2 sm:grid-cols-[1fr_1.5fr_auto]">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className="h-11" maxLength={120} />
           <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Link (https://…)" inputMode="url" className="h-11" maxLength={1000} />
@@ -279,7 +281,25 @@ export function ProjectDocuments({ projectId }: { projectId: string }) {
             Add link
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">Keep files in Google Drive, Dropbox or similar and paste the share link here.</p>
+        <div className="flex items-center gap-3">
+          <p className="flex-1 text-xs text-muted-foreground">Or upload a file (PDF, photo, office doc — up to 25 MB) straight from your device.</p>
+          <Button type="button" variant="outline" className="h-10 shrink-0" disabled={upload.isPending} onClick={() => fileInputRef.current?.click()}>
+            <Paperclip className="size-4" />
+            {upload.isPending ? "Uploading…" : "Upload a file"}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="sr-only"
+            multiple
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              e.target.value = "";
+              if (!files.length) return;
+              upload.mutate({ scope: { projectId }, files }, { onSuccess: (r) => { if (r.failures.length) toast.error(r.failures.join("; ")); else if (r.done) toast.success(`${r.done} file(s) uploaded`); } });
+            }}
+          />
+        </div>
       </Card>
       {docs.length === 0 && <EmptyState title="No documents yet" />}
       <ul className="space-y-1.5">

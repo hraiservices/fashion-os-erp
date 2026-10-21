@@ -9,7 +9,7 @@ import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useEmployees } from "@/hooks/use-employees";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr } from "@/lib/format";
-import { isOrderReadyOrBeyond } from "@/lib/business-rules";
+import { STAGES, type Stage } from "@/lib/business-rules";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
@@ -38,6 +38,15 @@ const SORT_COMPARATORS: Record<string, (a: TailorPayableRow, b: TailorPayableRow
 };
 const SORT_DESC_KEYS = new Set(["completed", "payable", "pending", "allTime"]);
 
+/** This report counts a garment as "earned" (Payable, not Pending) one stage earlier than
+ *  everywhere else in the app (payroll, the order/work-order detail page's confirmation) —
+ *  Finishing or later, not Ready-or-later — per the owner's explicit ask to see it the moment
+ *  stitching hands off to finishing, rather than waiting for Ready. */
+const FINISHING_STAGE_INDEX = STAGES.indexOf("finishing");
+function isOrderFinishingOrBeyond(status: string): boolean {
+  return STAGES.indexOf(status as Stage) >= FINISHING_STAGE_INDEX;
+}
+
 /** A garment carrying a payable whose `tailor` resolves to no employee — money that is owed to
  *  a real person but attributed to nobody, so it silently vanishes from every per-tailor total.
  *  Usually a legacy garment storing a typed NAME instead of the employee's id. */
@@ -51,9 +60,9 @@ interface UnattributedRow {
  *  recalculated from the current tailor rate card the moment an order is received (see
  *  add_early_tailor_payables.sql / add_tailor_rate_versions.sql) and keeps updating straight
  *  through to payroll confirmation — that underlying system is unchanged. What changed is what
- *  this REPORT counts toward "Payable": only garments whose order has reached Ready/Delivered/
- *  Payment stage, per the owner's explicit ask to see what's actually earned so far, not what's
- *  still in progress. Garments still in Received/Cutting/Stitching/Finishing show up in
+ *  this REPORT counts toward "Payable": only garments whose order has reached Finishing/Ready/
+ *  Delivered/Payment stage, per the owner's explicit ask to see it the moment stitching hands
+ *  off to finishing, not wait for Ready. Garments still in Received/Cutting/Stitching show up in
  *  rangePending instead — visible, not hidden, just not counted as payable yet. Confirming a
  *  payable for real payroll still happens on the order/work-order detail page, not here. */
 export default function TailorPayablesPage() {
@@ -99,7 +108,7 @@ export default function TailorPayablesPage() {
           // rangePayable (completed) or rangePending (still in progress) depends on the order's
           // current stage, not on when it was received.
           const inRange = isWithinDateRange(o.inDate, range);
-          const completed = isOrderReadyOrBeyond(o.status);
+          const completed = isOrderFinishingOrBeyond(o.status);
           for (const g of o.garments) {
             if (g.tailor !== t.id || !g.payableAmount) continue;
             if (completed) allTimePayable += g.payableAmount;
@@ -178,7 +187,7 @@ export default function TailorPayablesPage() {
   return (
     <ReportShell
       title="Tailor Payables"
-      description="What each tailor has actually earned — only garments whose order has reached Ready, Delivered, or Paid. Still-in-progress work shows separately as Pending."
+      description="What each tailor has actually earned — only garments whose order has reached Finishing or later. Still-in-progress work shows separately as Pending."
       actions={
         <ReportActionsMenu
           rows={exportRows}
@@ -231,7 +240,7 @@ export default function TailorPayablesPage() {
       {rows.length > 0 && (
         <p className="text-sm text-muted-foreground">
           <span className="font-medium text-foreground">{rangeCompletedCount} of {rangeTotalCount}</span> garments in range are
-          Ready/Delivered/Paid — actual payable for completed work is <span className="font-semibold text-foreground">{inr(rangeTotal)}</span>.
+          Finishing or later — actual payable for completed work is <span className="font-semibold text-foreground">{inr(rangeTotal)}</span>.
           {rangePendingTotal > 0 && ` ${inr(rangePendingTotal)} more is still in progress (Pending).`}
         </p>
       )}

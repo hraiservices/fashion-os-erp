@@ -4,6 +4,7 @@ import { getServerUser } from "@/lib/auth-server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { mapPayslipRow, mapEmployeeRow, mapPayrollRunRow, mapEmployeeAdvanceRow } from "@/lib/types";
 import { PayslipDocument } from "@/lib/pdf/payslip-document";
+import { pieceRateItemsFromOrders, pieceRateItemsFromWorkOrders, type PieceRateItem } from "@/lib/piece-rate";
 
 export const runtime = "nodejs";
 
@@ -47,6 +48,25 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!employeeRow || !runRow) return NextResponse.json({ error: "Payslip's employee or payroll run not found" }, { status: 404 });
 
   const payslip = mapPayslipRow(payslipRow);
+
+  // Reconstructs exactly what this run's "Piece-rate pay" total is made of — every order/work
+  // order this run marked paid_by_payroll_run_id against, filtered to this tailor's own garments
+  // — so the PDF can list it, not just the lump sum. No new table: paid_by_payroll_run_id is
+  // already stamped on each row by the payroll run itself (see /api/payroll/run).
+  let pieceRateItems: PieceRateItem[] = [];
+  if (employeeRow.piece_rate_eligible && payslip.pieceRatePay > 0) {
+    const [{ data: orderRows }, { data: woRows }] = await Promise.all([
+      db
+        .from("orders")
+        .select("id, name, in_date, ready_at, garments")
+        .eq("paid_by_payroll_run_id", payslip.payrollRunId)
+        .filter("garments", "cs", JSON.stringify([{ tailor: payslip.employeeId }])),
+      db.from("work_orders").select("id, wo_number, product_name, completed_at, tailor, labor_cost").eq("paid_by_payroll_run_id", payslip.payrollRunId).eq("tailor", payslip.employeeId),
+    ]);
+    const orders = (orderRows || []).map((r) => ({ id: r.id, name: r.name, inDate: r.in_date, readyAt: r.ready_at, garments: Array.isArray(r.garments) ? (r.garments as never[]) : [] }));
+    const workOrders = (woRows || []).map((w) => ({ id: w.id, woNumber: w.wo_number, productName: w.product_name, completedAt: w.completed_at, tailor: w.tailor, laborCost: w.labor_cost }));
+    pieceRateItems = [...pieceRateItemsFromOrders(payslip.employeeId, orders), ...pieceRateItemsFromWorkOrders(payslip.employeeId, workOrders)];
+  }
   // The credential columns aren't selected above and aren't used by the document — filled in
   // here only to satisfy the EmployeeRow shape, same as use-employees.ts does client-side.
   const employee = mapEmployeeRow({
@@ -77,6 +97,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       employee={employee}
       run={run}
       advances={advances}
+      pieceRateItems={pieceRateItems}
       shopName={shop.name || ""}
       shopAddress={shop.address || ""}
       shopPhone={shop.phone || ""}

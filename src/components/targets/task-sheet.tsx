@@ -341,7 +341,7 @@ export function TaskSheet({
 
           <section className="space-y-1.5">
             <h3 className="text-sm font-semibold">Description</h3>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Anything else to remember" className="text-base" maxLength={2000} />
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Anything else to remember" className="text-lg font-bold" maxLength={2000} />
           </section>
 
           <section className="space-y-2">

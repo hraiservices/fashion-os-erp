@@ -252,7 +252,7 @@ export function TaskForm({ meta, defaults, backHref }: { meta: TargetsMeta | und
         <SectionHeading icon={ListChecks} label="Description and checklist" />
         <div className="space-y-4">
           <FieldGroup label="Description">
-            <Textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Anything else to remember" className="resize-none" maxLength={2000} />
+            <Textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Anything else to remember" className="resize-none text-lg font-bold" maxLength={2000} />
           </FieldGroup>
           <FieldGroup label="Checklist">
             <div className="space-y-2">

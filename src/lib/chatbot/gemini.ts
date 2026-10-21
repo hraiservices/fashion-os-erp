@@ -19,7 +19,12 @@ export class GeminiNotConfiguredError extends Error {
 async function getClient(): Promise<GoogleGenAI> {
   const apiKey = await resolveGeminiApiKey();
   if (!apiKey) throw new GeminiNotConfiguredError();
-  return new GoogleGenAI({ apiKey });
+  // The SDK has no default timeout — a stalled connection to Google's API (a proxy that accepts
+  // it but never forwards a response is a real failure mode for outbound HTTPS from some hosts)
+  // left every one of this file's callers waiting forever with no error, which reads as "AI
+  // doesn't work at all" rather than "this one connection is stuck." Bounded here, once, for
+  // every caller — see the identical reasoning on ai-assist.ts's AI_CALL_TIMEOUT_MS.
+  return new GoogleGenAI({ apiKey, httpOptions: { timeout: 25_000 } });
 }
 
 // "latest" alias rather than a pinned version — the pinned "gemini-2.5-flash" tag is listed

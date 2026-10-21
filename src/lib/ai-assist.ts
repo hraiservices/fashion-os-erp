@@ -13,6 +13,9 @@ import { AI_CONFIG_KEY, AI_FEATURES, AI_LOG_KEY, AI_USAGE_KEY, type AiUsageLog, 
  */
 
 const MODEL = "gemini-flash-latest";
+/** No request past this ever gets to look "stuck" — a real answer is far faster than this in
+ *  practice; this is purely a ceiling for a connection that never comes back. */
+const AI_CALL_TIMEOUT_MS = 25_000;
 
 export class AiError extends Error {
   constructor(message: string, readonly status: number) {
@@ -77,7 +80,13 @@ const retryable = (e: unknown) => /"code"\s*:\s*(503|429)\b|\b(UNAVAILABLE|RESOU
 async function generate(system: string, parts: AiPart[], json: boolean, temperature: number): Promise<string> {
   const apiKey = await resolveGeminiApiKey();
   if (!apiKey) throw new AiError("AI isn't set up yet — an admin needs to add the Gemini key under Settings → AI Copilot.", 501);
-  const ai = new GoogleGenAI({ apiKey });
+  // The SDK has no default timeout — a stalled TCP connection (a proxy that accepts the
+  // connection but never forwards a response is a real failure mode for outbound HTTPS from
+  // some hosts) left every "Writing…" button spinning forever with no error, which reads as
+  // "AI doesn't work at all" rather than "something's blocking this one request." Bounded here
+  // so a genuine network problem surfaces as the same clear, timed-out message every other
+  // failure already gets, instead of an indefinite spinner.
+  const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: AI_CALL_TIMEOUT_MS } });
   const call = () =>
     ai.models.generateContent({
       model: MODEL,
@@ -122,13 +131,16 @@ export const SHOP_VOICE = `You help the owner and staff of an Indian tailoring a
 /** Image models cost more per call, so a generated picture counts as this many requests against the daily cap. */
 const IMAGE_CALL_WEIGHT = 3;
 const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
+/** Image generation is genuinely slower than a text/JSON answer — same reasoning as
+ *  AI_CALL_TIMEOUT_MS, just a longer ceiling before it's treated as stuck. */
+const AI_IMAGE_TIMEOUT_MS = 45_000;
 
 /** Asks Gemini to make a picture. Returns the first image it sends back. */
 export async function aiImage(db: SupabaseClient<Database>, feature: AiFeature, prompt: string, images: { mimeType: string; data: string }[], who?: string): Promise<{ mimeType: string; data: string }> {
   await reserveAiCall(db, feature, who, IMAGE_CALL_WEIGHT);
   const apiKey = await resolveGeminiApiKey();
   if (!apiKey) throw new AiError("AI isn't set up yet — an admin needs to add the Gemini key under Settings → AI Copilot.", 501);
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: AI_IMAGE_TIMEOUT_MS } });
   try {
     const res = await ai.models.generateContent({
       model: IMAGE_MODEL,

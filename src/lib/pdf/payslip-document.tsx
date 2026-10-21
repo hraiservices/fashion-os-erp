@@ -1,6 +1,7 @@
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
 import { fmtDate } from "@/lib/format";
 import type { Payslip, Employee, PayrollRun, EmployeeAdvance } from "@/lib/types";
+import type { PieceRateItem } from "@/lib/piece-rate";
 
 // react-pdf's built-in fonts have no ₹ glyph — same convention as invoice-document.tsx.
 function money(n: number): string {
@@ -29,6 +30,10 @@ const styles = StyleSheet.create({
   totalRow: { flexDirection: "row", justifyContent: "space-between", borderTop: "1 solid #111827", marginTop: 6, paddingTop: 6 },
   totalLabel: { fontSize: 12, fontFamily: "Helvetica-Bold" },
   totalValue: { fontSize: 12, fontFamily: "Helvetica-Bold" },
+  itemRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2, paddingLeft: 10 },
+  itemLabel: { fontSize: 8, color: "#6b7280", flex: 1 },
+  itemDate: { fontSize: 8, color: "#9ca3af", width: 60, textAlign: "right" },
+  itemValue: { fontSize: 8, color: "#6b7280", width: 60, textAlign: "right" },
   footer: { position: "absolute", bottom: 24, left: 32, right: 32, textAlign: "center", fontSize: 7, color: "#9ca3af" },
 });
 
@@ -37,6 +42,7 @@ export function PayslipDocument({
   employee,
   run,
   advances,
+  pieceRateItems,
   shopName,
   shopAddress,
   shopPhone,
@@ -46,6 +52,10 @@ export function PayslipDocument({
   employee: Employee;
   run: PayrollRun;
   advances: EmployeeAdvance[];
+  /** What the "Piece-rate pay" total below is made of — one row per garment/work order paid out
+   *  in this run, so a tailor who tracks his own work on paper has something to check it
+   *  against. Empty for a non-piece-rate employee, or one who earned nothing this run. */
+  pieceRateItems?: PieceRateItem[];
   shopName: string;
   shopAddress?: string;
   shopPhone?: string;
@@ -130,10 +140,19 @@ export function PayslipDocument({
             </View>
           )}
           {payslip.pieceRatePay > 0 && (
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Piece-rate pay</Text>
-              <Text style={styles.rowValue}>{money(payslip.pieceRatePay)}</Text>
-            </View>
+            <>
+              <View style={styles.row}>
+                <Text style={styles.rowLabel}>Piece-rate pay</Text>
+                <Text style={styles.rowValue}>{money(payslip.pieceRatePay)}</Text>
+              </View>
+              {(pieceRateItems ?? []).map((it, i) => (
+                <View style={styles.itemRow} key={`${it.source}-${it.id}-${i}`}>
+                  <Text style={styles.itemLabel}>{it.label}</Text>
+                  <Text style={styles.itemDate}>{it.date ? fmtDate(it.date) : "—"}</Text>
+                  <Text style={styles.itemValue}>{money(it.amount)}</Text>
+                </View>
+              ))}
+            </>
           )}
           {advances.map((a) => (
             <View style={styles.row} key={a.id}>

@@ -40,6 +40,41 @@ export function computePieceRatePay(
   return Math.round((computeOrderPieceRatePay(employeeId, unpaidOrders) + computeWorkOrderPieceRatePay(employeeId, unpaidWorkOrders)) * 100) / 100;
 }
 
+/** One garment or work order that contributed to a tailor's piece-rate pay on a payslip — what a
+ *  payslip's lump "Piece-rate pay" total is actually made of, so a tailor who tracks every piece
+ *  on paper has something to check it against instead of a single number to take on trust. */
+export interface PieceRateItem {
+  source: "order" | "work_order";
+  id: string;
+  label: string;
+  /** The best date available for when this was done — a garment has no completion date of its
+   *  own, so an order's readyAt (falling back to when it came in) stands in for it; a work
+   *  order's own completedAt is exact. */
+  date: string | null;
+  amount: number;
+}
+
+/** Builds the itemized list behind computeOrderPieceRatePay — same inputs, same filter
+ *  (tailor + a real payableAmount), but keeps one row per garment instead of only the sum. */
+export function pieceRateItemsFromOrders(employeeId: string, orders: Pick<Order, "id" | "name" | "inDate" | "readyAt" | "garments">[]): PieceRateItem[] {
+  const items: PieceRateItem[] = [];
+  for (const o of orders) {
+    for (const g of o.garments) {
+      if (g.tailor === employeeId && g.payableAmount) {
+        items.push({ source: "order", id: o.id, label: `${o.name} — ${g.type}${g.lining ? ` (${g.lining})` : ""}`, date: o.readyAt ?? o.inDate ?? null, amount: g.payableAmount });
+      }
+    }
+  }
+  return items;
+}
+
+/** Same as pieceRateItemsFromOrders, for manufacturing work orders. */
+export function pieceRateItemsFromWorkOrders(employeeId: string, workOrders: Pick<WorkOrder, "id" | "woNumber" | "productName" | "completedAt" | "tailor" | "laborCost">[]): PieceRateItem[] {
+  return workOrders
+    .filter((w) => w.tailor === employeeId && w.laborCost)
+    .map((w): PieceRateItem => ({ source: "work_order", id: w.id, label: `${w.woNumber} — ${w.productName}`, date: w.completedAt, amount: w.laborCost || 0 }));
+}
+
 /**
  * How much more an employee can draw as an advance against piece-rate they've earned but not
  * yet been paid out for. Defined as: order/work-order payables not yet paid out by a payroll run

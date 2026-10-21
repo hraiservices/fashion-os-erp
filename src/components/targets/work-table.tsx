@@ -60,7 +60,7 @@ export function WorkTable({
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [adding, setAdding] = useState<Record<string, string>>({});
-  const cols = useMemo(() => 9 + (showProject ? 1 : 0), [showProject]);
+  const cols = useMemo(() => 10 + (showProject ? 1 : 0), [showProject]);
   const th = "whitespace-nowrap px-3 py-2.5 text-left text-xs font-medium text-muted-foreground";
 
   return (
@@ -77,6 +77,7 @@ export function WorkTable({
             <th className={th}>Tags</th>
             <th className={th}>Start date</th>
             <th className={th}>Due date</th>
+            <th className={th}>Duration</th>
             <th className={th}>Priority</th>
             <th className={th}>Completion</th>
           </tr>
@@ -123,6 +124,7 @@ export function WorkTable({
                       <td className="px-3">
                         <DueText due={t.dueDate} status={t.status} today={today} />
                       </td>
+                      <td className="whitespace-nowrap px-3 text-muted-foreground">{t.durationHours != null ? `${t.durationHours}h` : "–"}</td>
                       <td className="px-3">
                         <PriorityMark priority={t.priority} />
                       </td>

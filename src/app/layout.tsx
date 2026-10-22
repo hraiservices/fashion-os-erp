@@ -90,6 +90,19 @@ export default function RootLayout({
             __html: `(function(){try{var c=JSON.parse(localStorage.getItem("shop-font-config"));if(!c)return;var h=document.documentElement;h.style.setProperty("font-family",'"'+c.family+'", sans-serif');h.style.setProperty("font-weight",String(c.weight));h.style.setProperty("font-size",c.size+"px");var l=document.createElement("link");l.id="sw-google-font-link";l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?family="+c.family.replace(/\\s+/g,"+")+":wght@"+c.weight+"&display=swap";document.head.appendChild(l);}catch(e){}})();`,
           }}
         />
+        {/* Same reasoning as the font script above, for the shop's accent color, sidebar style,
+            and corner radius (cached by ColorThemeLoader in localStorage): without this, every
+            load — not just the first — painted the default black/white theme for a moment before
+            ColorThemeLoader's Supabase fetch resolved and swapped it to the shop's actual color,
+            since that swap was happening in a useEffect with nothing to go on until then. The id
+            lists here must stay in sync with src/lib/color-themes.ts (COLOR_THEMES/SIDEBAR_STYLES/
+            CORNER_STYLES) — this script runs before any app code is loaded, so it can't import
+            from there. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var c=JSON.parse(localStorage.getItem("shop-color-config"));if(!c)return;var h=document.documentElement;["default","violet","blue","indigo","sky","cyan","teal","emerald","amber","orange","rose","pink","slate"].forEach(function(t){h.classList.remove("theme-"+t)});if(c.colorTheme)h.classList.add("theme-"+c.colorTheme);["dark","black","light","colored"].forEach(function(s){h.classList.remove("sidebar-"+s)});if(c.sidebarStyle)h.classList.add("sidebar-"+c.sidebarStyle);var radii={sharp:"0rem",small:"0.3rem",default:"0.625rem",large:"1rem",full:"1.5rem"};if(c.cornerStyle&&radii[c.cornerStyle])h.style.setProperty("--radius",radii[c.cornerStyle]);}catch(e){}})();`,
+          }}
+        />
       </head>
       {/* suppressHydrationWarning: browser extensions (Grammarly, etc.) inject attributes like
           data-gr-ext-installed onto <body> before React hydrates, which otherwise trips a

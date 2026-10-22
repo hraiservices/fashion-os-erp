@@ -32,6 +32,7 @@ import { ShareButton } from "@/components/targets/share-dialog";
 import { leadShareMessage } from "@/lib/targets-share";
 import { isFinished } from "@/lib/work-tasks";
 import { cn } from "@/lib/utils";
+import { CustomerLink } from "@/components/crm/customer-link";
 
 /** The soonest open follow-up task, dated ones first — the "Next follow-up" line of a shared lead. */
 function nextFollowUp(tasks: TaskDto[]): { title: string; dueDate: string | null } | null {
@@ -137,6 +138,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
               <span className="truncate">{lead.name}</span>
               {lead.likelyToClose && <LikelyStar on />}
               {heat && <HeatChip heat={heat} />}
+              {lead.customerId && <CustomerLink mobile={lead.mobile} label={lead.name} />}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">{lead.productInterest || "No product noted"}</p>
             {lead.mobile && <p className="text-sm text-muted-foreground">{lead.mobile}</p>}

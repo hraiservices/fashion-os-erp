@@ -199,13 +199,14 @@ export async function GET(request: Request) {
     (orderActivityRes.data || []).filter((r) => r.order_id && r.action.includes("Stage changed")).map((r) => r.order_id as string)
   );
   const { data: stageChangeOrderRows } = stageChangeOrderIds.size
-    ? await db.from("orders").select("id, name, status, garments").in("id", Array.from(stageChangeOrderIds))
+    ? await db.from("orders").select("id, name, mobile, status, garments").in("id", Array.from(stageChangeOrderIds))
     : { data: [] };
   const stageChangeOrdersById = new Map(
     (stageChangeOrderRows || []).map((o) => [
       o.id,
       {
         name: o.name,
+        mobile: o.mobile || "",
         // Same legacy "trial" -> "ready" fold mapOrderRow does (src/lib/types.ts) — a raw
         // 'trial' row would otherwise render an unrecognized stage badge here.
         status: (o.status === "trial" ? "ready" : o.status) as Stage,

@@ -70,7 +70,9 @@ export default function ReportsIndexPage() {
 
   const favoriteCount = useMemo(() => allReports.filter((r) => favorites.has(r.href)).length, [allReports, favorites]);
 
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  // Favourites first — the owner's pinned reports are what they actually open daily, so that's
+  // what should be waiting the moment Reports opens, not the full 80-report list.
+  const [activeCategory, setActiveCategory] = useState<string | null>(FAVORITES_CATEGORY);
   const [search, setSearch] = useState("");
   const query = useMemo(() => search.trim().toLowerCase(), [search]);
 

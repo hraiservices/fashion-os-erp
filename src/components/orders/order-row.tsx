@@ -24,6 +24,7 @@ import type { useRowSelection } from "@/hooks/use-row-selection";
 import type { Order } from "@/lib/types";
 import type { Shop } from "@/lib/settings";
 import type { OrderProfitBreakdown } from "@/lib/order-profit";
+import { CustomerLink } from "@/components/crm/customer-link";
 
 interface RowProps {
   order: Order;
@@ -250,7 +251,10 @@ export function OrderTableRow(props: TableRowProps) {
       )}
       {isVisible("customer") && (
         <td className="px-2.5 py-2.5">
-          <p className="truncate font-medium">{order.name}</p>
+          <div className="flex items-center gap-1">
+            <p className="truncate font-medium">{order.name}</p>
+            <CustomerLink mobile={order.mobile} label={order.name} />
+          </div>
           <p className="truncate text-xs text-muted-foreground">{order.mobile}</p>
         </td>
       )}

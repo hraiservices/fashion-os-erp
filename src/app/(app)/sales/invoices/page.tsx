@@ -39,6 +39,7 @@ import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
 import { SavedViewsMenu } from "@/components/ui/saved-views-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { CustomerLink } from "@/components/crm/customer-link";
 
 const TONE_CLASS: Record<DueTone, string> = {
   overdue: "text-red-600 dark:text-red-400",
@@ -391,7 +392,10 @@ export default function SalesInvoicesPage() {
                     {table.isVisible("date") && <TableCell className="text-muted-foreground">{fmtDate(inv.invoiceDate)}</TableCell>}
                     {table.isVisible("customer") && (
                       <TableCell>
-                        <p className="font-medium">{inv.customerName}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="font-medium">{inv.customerName}</p>
+                          <CustomerLink mobile={inv.customerMobile} label={inv.customerName} />
+                        </div>
                         <p className="text-xs text-muted-foreground">{inv.customerMobile}</p>
                       </TableCell>
                     )}

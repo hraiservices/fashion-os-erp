@@ -18,6 +18,7 @@ import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { useTableSort } from "@/hooks/use-table-sort";
+import { CustomerLink } from "@/components/crm/customer-link";
 
 type SalesByCustomerRow = { customerMobile: string; customerName: string; count: number; billed: number; paid: number; balance: number };
 
@@ -126,7 +127,12 @@ export default function SalesByCustomerPage() {
                 </ReportTotalsRow>
                 {sortedRows.map((r) => (
                   <tr key={r.customerMobile} className="hover:bg-muted/30">
-                    <Td className="font-medium">{r.customerName}</Td>
+                    <Td className="font-medium">
+                      <div className="flex items-center gap-1">
+                        {r.customerName}
+                        <CustomerLink mobile={r.customerMobile} label={r.customerName} />
+                      </div>
+                    </Td>
                     <Td className="text-muted-foreground">{r.customerMobile}</Td>
                     <Td align="right">{r.count}</Td>
                     <Td align="right">{inr(r.billed)}</Td>

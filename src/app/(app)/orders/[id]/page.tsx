@@ -62,6 +62,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { BackLink } from "@/components/ui/back-link";
+import { CustomerLink } from "@/components/crm/customer-link";
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -284,7 +285,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <div className="p-4 sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="truncate text-xl font-semibold tracking-tight">{order.name}</h1>
+              <div className="flex min-w-0 items-center gap-1.5">
+                <h1 className="truncate text-xl font-semibold tracking-tight">{order.name}</h1>
+                <CustomerLink mobile={order.mobile} label={order.name} />
+              </div>
               <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                 <span>{order.id}</span>
                 {user?.perms.deleteOrder && (

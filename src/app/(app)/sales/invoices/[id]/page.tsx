@@ -31,6 +31,7 @@ import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { PrintButton } from "@/components/ui/print-button";
 import { RaiseSalesCreditDialog } from "@/components/sales/raise-sales-credit-dialog";
 import { BackLink } from "@/components/ui/back-link";
+import { CustomerLink } from "@/components/crm/customer-link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -148,9 +149,12 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{invoice.invoiceNumber}</h1>
             {invoice.subject && <p className="mt-0.5 text-sm">{invoice.subject}</p>}
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {invoice.customerName} · {fmtDate(invoice.invoiceDate)}
-              {invoice.dueDate && ` · Due ${fmtDate(invoice.dueDate)}`}
+            <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
+              <span>
+                {invoice.customerName} · {fmtDate(invoice.invoiceDate)}
+                {invoice.dueDate && ` · Due ${fmtDate(invoice.dueDate)}`}
+              </span>
+              <CustomerLink mobile={invoice.customerMobile} label={invoice.customerName} />
             </p>
             {customer?.gstin && <p className="mt-0.5 text-xs text-muted-foreground">Customer GSTIN: {customer.gstin}</p>}
           </div>

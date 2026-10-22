@@ -15,7 +15,7 @@ import { todayBuckets } from "@/lib/lead-insights";
 import type { LeadDto } from "@/lib/targets-types";
 import { LeadCard } from "@/components/targets/lead-card";
 import { StageSheet } from "@/components/targets/stage-sheet";
-import { OccasionsCard, ReorderCard, ReviewRequestCard, TrialsCard, WinBackCard } from "@/components/targets/today-customers";
+import { OccasionsCard, ReferralCard, ReorderCard, ReviewRequestCard, TrialsCard, WinBackCard } from "@/components/targets/today-customers";
 import { TargetGapCard } from "@/components/targets/target-gap";
 import { UnownedLeadsCard } from "@/components/targets/unowned-card";
 import { DailyPlanCard, FestivalNudgeCard, InsightsCard, OrderRiskCard } from "@/components/targets/today-ai";
@@ -125,6 +125,7 @@ export function TodayTab({ meta }: { meta: TargetsMeta | undefined }) {
       <FestivalNudgeCard canEdit={canEdit} />
       <OccasionsCard today={today} canEdit={canEdit} />
       <ReviewRequestCard today={today} canEdit={canEdit} />
+      <ReferralCard today={today} canEdit={canEdit} />
       <ReorderCard canEdit={canEdit} />
       <WinBackCard today={today} canEdit={canEdit} />
       {showOwner && <InsightsCard />}

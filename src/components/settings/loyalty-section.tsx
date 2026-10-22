@@ -63,6 +63,10 @@ export function LoyaltySection() {
               <NumberInput min={0} {...field("deliveryBonus")} />
             </div>
             <div className="space-y-2">
+              <Label>Bonus pts for a Google review</Label>
+              <NumberInput min={0} {...field("reviewBonus")} />
+            </div>
+            <div className="space-y-2">
               <Label>₹ discount per 100 pts redeemed</Label>
               <NumberInput min={1} {...field("redeemPer100pts")} />
             </div>

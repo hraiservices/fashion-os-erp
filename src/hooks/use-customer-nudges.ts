@@ -48,3 +48,34 @@ export function useReviewCandidates(today: string, enabled: boolean) {
     staleTime: 30 * 60_000,
   });
 }
+
+export interface ReferralCandidate {
+  id: string;
+  name: string;
+  mobile: string;
+  deliveryDate: string;
+}
+
+/** Same delivered-2-10-days-ago window as review candidates — a happy, recently-delivered
+ *  customer is also the right moment to nudge them to refer a friend. */
+export function useReferralCandidates(today: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["referral-candidates", today],
+    enabled: enabled && !!today,
+    queryFn: async (): Promise<ReferralCandidate[]> => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id, name, mobile, delivery_date")
+        .in("status", ["delivered", "payment"])
+        .gte("delivery_date", addDaysIso(today, -10))
+        .lte("delivery_date", addDaysIso(today, -2))
+        .order("delivery_date", { ascending: false })
+        .limit(60);
+      if (error || !data) return [];
+      const seen = new Set<string>();
+      return data.filter((o) => (seen.has(o.mobile) ? false : (seen.add(o.mobile), true))).map((o) => ({ id: o.id, name: o.name, mobile: o.mobile, deliveryDate: o.delivery_date }));
+    },
+    staleTime: 30 * 60_000,
+  });
+}

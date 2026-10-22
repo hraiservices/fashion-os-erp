@@ -162,6 +162,7 @@ export interface LoyaltyConfig {
   earnPer100: number;
   orderBonus: number;
   deliveryBonus: number;
+  reviewBonus: number;
   redeemPer100pts: number;
   minRedeem: number;
   tierSilver: number;
@@ -175,6 +176,7 @@ export const DEFAULT_LOYALTY_CONFIG: LoyaltyConfig = {
   earnPer100: 5,
   orderBonus: 10,
   deliveryBonus: 20,
+  reviewBonus: 25,
   redeemPer100pts: 10,
   minRedeem: 100,
   tierSilver: 500,
@@ -282,6 +284,13 @@ export function computeEarnPoints(orderTotal: number, cfg: LoyaltyConfig = DEFAU
 /** Awarded once when an order transitions to "delivered" (line ~16933). */
 export function deliveryBonusPoints(cfg: LoyaltyConfig = DEFAULT_LOYALTY_CONFIG): number {
   return cfg.deliveryBonus || 20;
+}
+
+/** Awarded when staff confirms a customer actually left the Google review they were asked for
+ *  (CRM/Today tab "Got a review" action) — there's no way to verify a review automatically, so
+ *  this is a manual, staff-triggered grant rather than something awarded on order state change. */
+export function reviewBonusPoints(cfg: LoyaltyConfig = DEFAULT_LOYALTY_CONFIG): number {
+  return cfg.reviewBonus || 25;
 }
 
 /**

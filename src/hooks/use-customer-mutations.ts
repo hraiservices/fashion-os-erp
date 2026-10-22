@@ -95,3 +95,17 @@ export function useGiveLoyaltyBonus() {
     },
   });
 }
+
+/** Awards the configured review bonus once staff confirms a customer actually left the Google
+ *  review they were asked for — see /api/customers/[mobile]/review-bonus. */
+export function useAwardReviewBonus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ mobile, name }: { mobile: string; name: string }) =>
+      sendJson<{ ok: true; pts: number }>(`/api/customers/${encodeURIComponent(mobile)}/review-bonus`, "POST", { name }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["customer-by-mobile"] });
+    },
+  });
+}

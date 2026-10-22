@@ -2,17 +2,20 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { CalendarClock, Cake, ChevronDown, MessageCircle, Repeat, RotateCcw, Sparkles, Star } from "lucide-react";
+import { CalendarClock, Cake, ChevronDown, Gift, MessageCircle, Repeat, RotateCcw, Sparkles, Star } from "lucide-react";
 import { useAiOn, useLeadAi, useReorderNudges, useThankYou, type LeadReply } from "@/hooks/use-ai";
 import { useLeads, useTasks } from "@/hooks/use-targets";
 import { TRIAL_TAG, mobileFromTrial, trialMessage } from "@/lib/trial";
 import { addDaysIso } from "@/lib/work-tasks";
 import { winBackCandidates, winBackMessage } from "@/lib/win-back";
 import type { LeadDto } from "@/lib/targets-types";
-import { useReviewCandidates, useUpcomingOccasions } from "@/hooks/use-customer-nudges";
+import { useReferralCandidates, useReviewCandidates, useUpcomingOccasions } from "@/hooks/use-customer-nudges";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { normalizeIndianMobile } from "@/lib/business-rules";
 import { fillReorder } from "@/lib/reorder";
+import { referralInviteMessage } from "@/lib/referral-nudge";
+import { useAwardReviewBonus } from "@/hooks/use-customer-mutations";
+import { useIssueReferralCoupon } from "@/hooks/use-referral-coupons";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -70,11 +73,13 @@ function ReviewRow({ row, fallback, onSent }: { row: { id: string; name: string;
   const aiOn = useAiOn("thanks");
   const thanks = useThankYou();
   const [draft, setDraft] = useState<string | null>(null);
+  const [rewarded, setRewarded] = useState(false);
+  const bonus = useAwardReviewBonus();
   return (
     <>
       <Row name={row.name} sub={`Delivered ${row.deliveryDate}`} href={wa(row.mobile, draft ?? fallback)} label={`Ask ${row.name} for a review`} onSent={onSent} />
-      {aiOn && (
-        <li className="-mt-0.5 pl-3">
+      <li className="-mt-0.5 flex flex-wrap items-center gap-3 pl-3">
+        {aiOn && (
           <button
             type="button"
             disabled={thanks.isPending}
@@ -83,8 +88,24 @@ function ReviewRow({ row, fallback, onSent }: { row: { id: string; name: string;
           >
             <Sparkles className="size-3.5" /> {thanks.isPending ? "Writing…" : draft ? "Write another with AI" : "Personal thank-you with AI"}
           </button>
-        </li>
-      )}
+        )}
+        <button
+          type="button"
+          disabled={rewarded || bonus.isPending}
+          onClick={() =>
+            bonus.mutate({ mobile: row.mobile, name: row.name }, {
+              onSuccess: (r) => {
+                setRewarded(true);
+                toast.success(`+${r.pts} loyalty pts added for ${row.name}`);
+              },
+              onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't award points"),
+            })
+          }
+          className="inline-flex min-h-11 items-center gap-1 text-xs font-medium text-emerald-700 disabled:opacity-60 dark:text-emerald-300"
+        >
+          <Gift className="size-3.5" /> {rewarded ? "Points awarded" : bonus.isPending ? "Awarding…" : "Got a review — award points"}
+        </button>
+      </li>
     </>
   );
 }
@@ -117,6 +138,65 @@ export function ReviewRequestCard({ today, canEdit }: { today: string; canEdit: 
     <Collapsible icon={Star} title={`${rows.length} recent ${rows.length === 1 ? "customer" : "customers"} to ask for a review`} tone="border-yellow-200 bg-yellow-50/60 text-yellow-800 dark:border-yellow-500/30 dark:bg-yellow-500/5 dark:text-yellow-300">
       {rows.slice(0, 12).map((r) => (
         <ReviewRow key={r.id} row={r} fallback={msg(r.name)} onSent={() => mark(r.id)} />
+      ))}
+    </Collapsible>
+  );
+}
+
+/** One recently delivered customer: issue them a referral coupon and open WhatsApp with the invite pre-filled. */
+function ReferralRow({ row, shopName, onSent }: { row: { id: string; name: string; mobile: string; deliveryDate: string }; shopName: string; onSent: () => void }) {
+  const issue = useIssueReferralCoupon();
+  const [href, setHref] = useState<string | null>(null);
+  if (href) return <Row name={row.name} sub={`Delivered ${row.deliveryDate} · coupon ready`} href={href} label={`Invite ${row.name} to refer a friend`} onSent={onSent} />;
+  return (
+    <li className="flex items-center gap-2 rounded-lg bg-card px-3 py-1.5 text-sm text-foreground">
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium">{row.name}</span>
+        <span className="block text-xs text-muted-foreground">Delivered {row.deliveryDate}</span>
+      </span>
+      <button
+        type="button"
+        disabled={issue.isPending}
+        onClick={() =>
+          issue.mutate(row.mobile, {
+            onSuccess: (r) => setHref(wa(row.mobile, referralInviteMessage(row.name, r.coupon.code, r.coupon.discountAmount, shopName))),
+            onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't issue a coupon"),
+          })
+        }
+        className="inline-flex h-11 shrink-0 items-center gap-1 rounded-lg bg-emerald-600 px-3 text-xs font-medium text-white disabled:opacity-60"
+      >
+        <Gift className="size-3.5" /> {issue.isPending ? "Issuing…" : "Invite a friend"}
+      </button>
+    </li>
+  );
+}
+
+/** Recently delivered orders: nudge happy customers to refer a friend, issuing a coupon on the spot. */
+export function ReferralCard({ today, canEdit }: { today: string; canEdit: boolean }) {
+  const { data: shop } = useShopSettings();
+  const { data = [] } = useReferralCandidates(today, canEdit);
+  const [asked, setAsked] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem("referral-asked") || "[]") as string[]);
+    } catch {
+      return new Set();
+    }
+  });
+  const rows = data.filter((r) => !asked.has(r.id));
+  if (!canEdit || rows.length === 0) return null;
+  const mark = (id: string) => {
+    const next = new Set(asked).add(id);
+    setAsked(next);
+    try {
+      localStorage.setItem("referral-asked", JSON.stringify([...next].slice(-300)));
+    } catch {
+      /* private mode — it just reappears next time */
+    }
+  };
+  return (
+    <Collapsible icon={Gift} title={`${rows.length} recent ${rows.length === 1 ? "customer" : "customers"} to invite for a referral`} tone="border-sky-200 bg-sky-50/60 text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/5 dark:text-sky-300">
+      {rows.slice(0, 12).map((r) => (
+        <ReferralRow key={r.id} row={r} shopName={shop?.name || ""} onSent={() => mark(r.id)} />
       ))}
     </Collapsible>
   );

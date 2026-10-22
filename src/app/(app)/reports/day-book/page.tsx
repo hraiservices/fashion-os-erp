@@ -76,6 +76,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts";
 import { cn } from "@/lib/utils";
 import { useTableSort } from "@/hooks/use-table-sort";
+import { CustomerLink } from "@/components/crm/customer-link";
 
 type DayBookRow = DayBookEntry;
 
@@ -147,6 +148,7 @@ function TailorOrderList({ label, icon: Icon, orders }: { label: string; icon: t
               <Link href={`/orders/${o.orderId}`} className="font-medium text-primary hover:underline">
                 {o.customerName}
               </Link>
+              <CustomerLink mobile={o.customerMobile} label={o.customerName} />
               <span className="text-xs text-muted-foreground">{o.orderId}</span>
               <StageBadge stage={o.status} size="sm" />
             </li>

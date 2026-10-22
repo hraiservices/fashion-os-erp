@@ -616,6 +616,7 @@ export function sortEntries(entries: DayBookEntry[], order: "asc" | "desc"): Day
 export interface TailorStageOrder {
   orderId: string;
   customerName: string;
+  customerMobile: string;
   status: Stage;
 }
 
@@ -666,6 +667,7 @@ export function emptyTailorActivity(tailorId: string, tailorName: string): Tailo
 
 interface StageChangeOrder {
   name: string;
+  mobile: string;
   status: Stage;
   garments: { tailor?: string; payableAmount?: number; no?: number }[];
 }
@@ -747,7 +749,7 @@ export function buildTailorStageProgress(
     const order = ordersById.get(r.order_id);
     const garments = order?.garments || [];
     const tailorIds = new Set(garments.map((g) => g.tailor || "").filter(Boolean));
-    const orderDetail: TailorStageOrder = { orderId: r.order_id, customerName: order?.name || "—", status: order?.status || "received" };
+    const orderDetail: TailorStageOrder = { orderId: r.order_id, customerName: order?.name || "—", customerMobile: order?.mobile || "", status: order?.status || "received" };
 
     for (const tailorId of tailorIds.size ? tailorIds : [""]) {
       const entry = entryFor(tailorId);

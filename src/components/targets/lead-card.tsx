@@ -9,6 +9,7 @@ import { ACTIVITY_LABEL, daysQuiet, leadHeat, neededLabel, nextStage, quietLevel
 import type { LeadDto } from "@/lib/targets-types";
 import { formatMinutes, isUnowned, responseMinutes } from "@/lib/lead-response";
 import { dueLabel, DUE_TONE_CLASS, HeatChip, LikelyStar, StageChip, telHref, whatsappHref } from "@/components/targets/shared";
+import { CustomerLink } from "@/components/crm/customer-link";
 
 /**
  * One lead as a card: name, what they want, ₹, stage (tap to move it), next follow-up, and big
@@ -85,6 +86,7 @@ export function LeadCard({
             </p>
           )}
         </Link>
+        {lead.customerId && <CustomerLink mobile={lead.mobile} label={lead.name} className="mt-0.5 shrink-0 self-start" />}
         <button type="button" onClick={() => onStageTap?.(lead)} disabled={!onStageTap} aria-label={`Change stage of ${lead.name}`} className={cn("shrink-0 self-start disabled:pointer-events-none", compact ? "min-h-8" : "min-h-11")}>
           <StageChip stage={lead.stage} labels={labels} />
         </button>

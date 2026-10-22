@@ -15,6 +15,7 @@ import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { cn } from "@/lib/utils";
 import { useTableSort } from "@/hooks/use-table-sort";
+import { CustomerLink } from "@/components/crm/customer-link";
 
 type CustomerLifetimeRow = {
   name: string;
@@ -144,7 +145,10 @@ export default function CustomerLifetimePage() {
                 {sortedClvData.map((c) => (
                   <tr key={c.mobile} className="hover:bg-muted/30">
                     <Td>
-                      <p className="truncate font-medium">{c.name}</p>
+                      <div className="flex items-center gap-1">
+                        <p className="truncate font-medium">{c.name}</p>
+                        <CustomerLink mobile={c.mobile} label={c.name} />
+                      </div>
                     </Td>
                     <Td className="text-muted-foreground">{c.mobile}</Td>
                     <Td align="right">{c.totalOrders}</Td>

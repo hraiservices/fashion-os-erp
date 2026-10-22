@@ -20,9 +20,13 @@ import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist
 import { DigitalClock } from "@/components/dashboard/digital-clock";
 import { LiveUsersCard } from "@/components/dashboard/live-users-card";
 import { isWidgetVisibleForRole, type WidgetInstance } from "@/lib/dashboard-widgets";
+import { useAppSetting } from "@/hooks/use-app-setting";
+import { DEFAULT_CARD_HEADER_BG_CONFIG, resolveCardHeaderBgUrl, type CardHeaderBgConfig } from "@/lib/card-header-bg";
 
 export default function DashboardPage() {
   const { data: user } = useCurrentUser();
+  const { data: bgCfg } = useAppSetting<CardHeaderBgConfig>("cardHeaderBg", DEFAULT_CARD_HEADER_BG_CONFIG);
+  const headerBg = bgCfg ?? DEFAULT_CARD_HEADER_BG_CONFIG;
   const { data: shop } = useShopSettings();
   const { widgets: savedWidgets, rawData: layoutRawData, isLoading: layoutLoading, save } = useDashboardLayout();
   const { data: entitlements, isLoading: entitlementsLoading } = useModuleEntitlements();
@@ -60,7 +64,14 @@ export default function DashboardPage() {
   return (
     <div className="space-y-5 p-4 sm:p-6">
       {shop && (shop.name || shop.logoDataUrl) && (
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-4">
+        <div className="relative flex flex-wrap items-center justify-between gap-4 overflow-hidden rounded-xl border bg-card p-4">
+          {headerBg.enabled && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 -z-10 opacity-[0.08] dark:hidden"
+              style={{ backgroundImage: `url(${resolveCardHeaderBgUrl(headerBg)})`, backgroundRepeat: "repeat", backgroundSize: "170px 170px" }}
+            />
+          )}
           <div className="flex items-center gap-3">
             {shop.logoDataUrl ? (
               // eslint-disable-next-line @next/next/no-img-element

@@ -25,7 +25,7 @@ function parseImageDataUrl(dataUrl: string): { contentType: string; extension: s
 /** Uploads a branding image (logo/favicon) and returns its public URL. `null` passes through (no
  *  image set); a value that's already an https:// Storage URL (unchanged since a previous save
  *  already migrated it) passes through too — only a raw `data:` URL triggers an upload. */
-export async function migrateBrandingImage(db: SupabaseClient<Database>, key: "logo" | "favicon", dataUrl: string | null): Promise<string | null> {
+export async function migrateBrandingImage(db: SupabaseClient<Database>, key: "logo" | "favicon" | "cardHeaderBg", dataUrl: string | null): Promise<string | null> {
   if (!dataUrl || !dataUrl.startsWith("data:")) return dataUrl;
   const { contentType, extension, bytes } = parseImageDataUrl(dataUrl);
   const path = `${key}/${randomUUID()}.${extension}`;

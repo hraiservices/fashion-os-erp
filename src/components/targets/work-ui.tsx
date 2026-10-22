@@ -18,7 +18,7 @@ export const STATUS_CELL: Record<string, string> = {
 };
 
 export function StatusCell({ status, className }: { status: string; className?: string }) {
-  return <span className={cn("inline-flex min-w-20 items-center justify-center rounded px-2.5 py-1.5 text-xs font-semibold", STATUS_CELL[status] ?? STATUS_CELL.todo, className)}>{TASK_STATUS_LABELS[status as TaskStatus] ?? status}</span>;
+  return <span className={cn("inline-flex min-w-20 items-center justify-center whitespace-nowrap rounded px-2.5 py-1.5 text-xs font-semibold", STATUS_CELL[status] ?? STATUS_CELL.todo, className)}>{TASK_STATUS_LABELS[status as TaskStatus] ?? status}</span>;
 }
 
 const PRIORITY_COLOR: Record<string, string> = { urgent: "text-red-600", high: "text-red-500", medium: "text-amber-500", low: "text-emerald-600" };

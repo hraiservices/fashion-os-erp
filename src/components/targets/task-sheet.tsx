@@ -247,7 +247,7 @@ export function TaskSheet({
             <Collapsible title="Status">
               <div className="flex flex-wrap gap-2 pb-1">
                 {TASK_STATUSES.map((s) => (
-                  <button key={s} type="button" onClick={() => setStatus(s)} className={cn("min-h-10 rounded px-3 text-xs font-semibold transition-opacity", STATUS_CELL[s], status === s ? "ring-2 ring-foreground/40 ring-offset-1" : "opacity-45")}>
+                  <button key={s} type="button" onClick={() => setStatus(s)} className={cn("min-h-10 whitespace-nowrap rounded px-3 text-xs font-semibold transition-opacity", STATUS_CELL[s], status === s ? "ring-2 ring-foreground/40 ring-offset-1" : "opacity-45")}>
                     {TASK_STATUS_LABELS[s]}
                   </button>
                 ))}

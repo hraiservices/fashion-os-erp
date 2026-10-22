@@ -1,3 +1,7 @@
+"use client";
+
+import { useAppSetting } from "@/hooks/use-app-setting";
+import { DEFAULT_CARD_HEADER_BG_CONFIG, resolveCardHeaderBgUrl, type CardHeaderBgConfig } from "@/lib/card-header-bg";
 import { cn } from "@/lib/utils";
 
 /**
@@ -15,13 +19,26 @@ export function PageHeader({
   actions?: React.ReactNode;
   className?: string;
 }) {
+  // Settings → Personalize → Appearance lets an admin replace or turn this off; see
+  // card-header-bg-section.tsx. Dark mode skips it — the illustration is drawn for a light
+  // background and would just look washed-out grey, not faded, on a dark one.
+  const { data: bgCfg } = useAppSetting<CardHeaderBgConfig>("cardHeaderBg", DEFAULT_CARD_HEADER_BG_CONFIG);
+  const cfg = bgCfg ?? DEFAULT_CARD_HEADER_BG_CONFIG;
+
   return (
     // Stacked (not wrapped) below `sm`: relying on flex-wrap + justify-between to drop a wide
     // action toolbar onto its own line is a known Safari/iOS flexbox gap miscalculation — it
     // can keep everything on one row and let the actions overflow the viewport instead of
     // wrapping, forcing the whole page to scroll horizontally. A plain column stack on mobile
     // sidesteps that engine bug entirely; `sm:` restores the original row layout for desktop.
-    <div className={cn("flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between", className)}>
+    <div className={cn("relative flex flex-col items-start gap-3 overflow-hidden rounded-lg sm:flex-row sm:flex-wrap sm:items-start sm:justify-between", className)}>
+      {cfg.enabled && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.08] dark:hidden"
+          style={{ backgroundImage: `url(${resolveCardHeaderBgUrl(cfg)})`, backgroundRepeat: "repeat", backgroundSize: "170px 170px" }}
+        />
+      )}
       <div className="min-w-0">
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
         {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}

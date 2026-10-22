@@ -6,19 +6,19 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { migrateBrandingImage } from "@/lib/supabase/branding-storage";
 
 const bodySchema = z.object({
-  key: z.enum(["logo", "favicon"]),
+  key: z.enum(["logo", "favicon", "cardHeaderBg"]),
   dataUrl: z.string().startsWith("data:"),
 });
 
 /**
- * Uploads a shop logo/favicon (sent as a client-resized base64 data URL, see
- * src/lib/image-utils.ts) to the branding-media Storage bucket and returns its public URL —
- * ShopSection swaps the data URL for this URL before calling the normal app_settings save, so
- * the ~100-300KB of base64 image text that used to ride along on every useShopSettings() fetch
- * (the app shell, login/signup pages, every PDF/report) is replaced with a short URL string.
- * Same non-restricted-role gate as the Personalize page's Company Profile section
- * (canManageShop = !user?.restricted) — this route doesn't itself touch app_settings, so no
- * further permission split is needed.
+ * Uploads a shop logo/favicon/card-header-background image (sent as a client-resized base64 data
+ * URL, see src/lib/image-utils.ts) to the branding-media Storage bucket and returns its public
+ * URL — the setting's own section swaps the data URL for this URL before calling the normal
+ * app_settings save, so the base64 image text doesn't ride along on every fetch of that setting
+ * (for logo/favicon: the app shell, login/signup pages, every PDF/report; for cardHeaderBg: every
+ * page via PageHeader — see src/components/ui/page-header.tsx). Same non-restricted-role gate as
+ * the Personalize page's Company Profile section (canManageShop = !user?.restricted) — this route
+ * doesn't itself touch app_settings, so no further permission split is needed.
  */
 export async function POST(request: Request) {
   const { user } = await getServerUser();

@@ -11,6 +11,7 @@ import { ColorThemeSection } from "@/components/settings/color-theme-section";
 import { ThemeModeSection } from "@/components/settings/theme-mode-section";
 import { FontSection } from "@/components/settings/font-section";
 import { DashboardHeaderSection } from "@/components/settings/dashboard-header-section";
+import { CardHeaderBgSection } from "@/components/settings/card-header-bg-section";
 import { DocumentNumberingSection } from "@/components/settings/document-numbering-section";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -59,6 +60,7 @@ export default function Page() {
             <ThemeModeSection />
             <FontSection />
             <DashboardHeaderSection />
+            <CardHeaderBgSection />
 
             <SectionLabel>Document Numbering</SectionLabel>
             <DocumentNumberingSection />

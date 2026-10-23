@@ -1,8 +1,6 @@
 import { Mail, Phone } from "lucide-react";
 import { APP_VERSION } from "@/lib/app-version";
-
-const SUPPORT_EMAIL = "connect@fashionflow.app";
-const SUPPORT_PHONE = "+919897504343";
+import { SUPPORT_EMAIL, SUPPORT_PHONE } from "@/lib/support-contact";
 
 /** A thin line at the bottom of every page — version + support contact, nothing else. Desktop
  *  only (hidden below lg): on mobile that space is already spoken for by the bottom tab bar. */

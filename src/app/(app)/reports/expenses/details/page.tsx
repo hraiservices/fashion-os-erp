@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useExpenses } from "@/hooks/use-expenses";
+import { useEmployees } from "@/hooks/use-employees";
+import { expensePayeeKey, expensePayeeName } from "@/lib/expense-payee";
 import { inr, fmtDate } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
@@ -30,23 +32,39 @@ const SORT_DESC_KEYS = new Set(["date", "amount"]);
 
 export default function ExpenseDetailsPage() {
   const { data: expenses, isLoading } = useExpenses();
+  const { data: employees } = useEmployees();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
+  const [payee, setPayee] = useState("all");
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+
+  const employeeNameById = useMemo(() => new Map((employees || []).map((e) => [e.id, e.name])), [employees]);
 
   const categories = useMemo(() => {
     const set = new Set((expenses || []).map((e) => e.category).filter(Boolean));
     return Array.from(set).sort();
   }, [expenses]);
 
+  // Who an expense is paid to/for — an employee when linked, else the free-text customer name.
+  const payees = useMemo(() => {
+    const map = new Map<string, string>();
+    (expenses || []).forEach((e) => {
+      const key = expensePayeeKey(e);
+      if (key === "unlinked") return;
+      map.set(key, expensePayeeName(e, employeeNameById));
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [expenses, employeeNameById]);
+
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (expenses || [])
       .filter((e) => !q || e.category.toLowerCase().includes(q) || e.description.toLowerCase().includes(q))
       .filter((e) => category === "all" || e.category === category)
+      .filter((e) => payee === "all" || expensePayeeKey(e) === payee)
       .filter((e) => isWithinDateRange(e.date, range))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [expenses, search, category, range]);
+  }, [expenses, search, category, payee, range]);
 
   const total = useMemo(() => rows.reduce((s, e) => s + e.amount, 0), [rows]);
 
@@ -61,7 +79,15 @@ export default function ExpenseDetailsPage() {
       description="Every expense logged, with category, method, and who recorded it."
       actions={
         <ReportActionsMenu
-          rows={sortedRows.map((e) => ({ Date: e.date, Category: e.category, Description: e.description, Amount: e.amount, Method: e.payMethod, "Recorded By": e.createdBy || "" }))}
+          rows={sortedRows.map((e) => ({
+            Date: e.date,
+            Category: e.category,
+            Description: e.description,
+            Amount: e.amount,
+            Method: e.payMethod,
+            "Paid To": expensePayeeKey(e) === "unlinked" ? "" : expensePayeeName(e, employeeNameById),
+            "Recorded By": e.createdBy || "",
+          }))}
           filename="expense-details"
           title="Expense Details"
           summaryLines={[`Expenses: ${rows.length}`, `Total: ${inr(total)}`]}
@@ -81,19 +107,34 @@ export default function ExpenseDetailsPage() {
         onCustomToChange={setCustomTo}
         resultLabel={`${rows.length} expense${rows.length === 1 ? "" : "s"}`}
         category={
-          <Select value={category} onValueChange={(v) => v && setCategory(v)}>
-            <SelectTrigger className="h-9 w-40">
-              <SelectValue>{category === "all" ? "All Categories" : category}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Select value={category} onValueChange={(v) => v && setCategory(v)}>
+              <SelectTrigger className="h-9 w-full sm:w-40">
+                <SelectValue>{category === "all" ? "All Categories" : category}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={payee} onValueChange={(v) => v && setPayee(v)}>
+              <SelectTrigger className="h-9 w-full sm:w-44">
+                <SelectValue>{payee === "all" ? "All Employees/Customers" : payees.find(([k]) => k === payee)?.[1] || "All Employees/Customers"}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Employees/Customers</SelectItem>
+                {payees.map(([key, name]) => (
+                  <SelectItem key={key} value={key}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         }
       />
 
@@ -114,13 +155,14 @@ export default function ExpenseDetailsPage() {
                   <Th sortKey="category" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Category</Th>
                   <Th sortKey="description" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Description</Th>
                   <Th sortKey="method" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Method</Th>
+                  <Th>Paid To</Th>
                   <Th sortKey="createdBy" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Recorded By</Th>
                   <Th align="right" sortKey="amount" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Amount</Th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 <ReportTotalsRow>
-                  <Td colSpan={5}>Total</Td>
+                  <Td colSpan={6}>Total</Td>
                   <Td align="right">{inr(total)}</Td>
                 </ReportTotalsRow>
                 {sortedRows.map((e) => (
@@ -129,6 +171,7 @@ export default function ExpenseDetailsPage() {
                     <Td className="font-medium">{e.category}</Td>
                     <Td className="max-w-56 truncate text-muted-foreground">{e.description || "—"}</Td>
                     <Td className="text-muted-foreground">{e.payMethod}</Td>
+                    <Td className="text-muted-foreground">{expensePayeeKey(e) === "unlinked" ? "—" : expensePayeeName(e, employeeNameById)}</Td>
                     <Td className="text-muted-foreground">{e.createdBy || "—"}</Td>
                     <Td align="right" className="font-medium">{inr(e.amount)}</Td>
                   </tr>
@@ -146,6 +189,7 @@ export default function ExpenseDetailsPage() {
                 <MobileRecordHeader boldTitle title={e.category} subtitle={fmtDate(e.date)} value={inr(e.amount)} showChevron={false} valueClassName="text-red-600 dark:text-red-400" />
                 <MobileRecordRow label="Description" value={e.description || "—"} />
                 <MobileRecordRow label="Method" value={e.payMethod} />
+                <MobileRecordRow label="Paid To" value={expensePayeeKey(e) === "unlinked" ? "—" : expensePayeeName(e, employeeNameById)} />
                 <MobileRecordRow label="Recorded By" value={e.createdBy || "—"} />
               </MobileRecordCard>
             ))}

@@ -20,8 +20,12 @@ export function PageHeader({
   className?: string;
 }) {
   // Settings → Personalize → Appearance lets an admin replace or turn this off; see
-  // card-header-bg-section.tsx. Dark mode skips it — the illustration is drawn for a light
-  // background and would just look washed-out grey, not faded, on a dark one.
+  // card-header-bg-section.tsx. 8% opacity turned out to be invisible in practice (reported:
+  // visible in the settings preview swatch, which renders at full opacity, but not on any real
+  // page) — bumped to a level that actually reads as a faint watermark. Dark mode now shows an
+  // inverted, even fainter version instead of skipping it outright: the artwork is dark linework
+  // on a light ground, so a flat opacity on a dark background would just look like grey smudging,
+  // but inverted (light linework on dark) at low opacity reads the same way dark mode does.
   const { data: bgCfg } = useAppSetting<CardHeaderBgConfig>("cardHeaderBg", DEFAULT_CARD_HEADER_BG_CONFIG);
   const cfg = bgCfg ?? DEFAULT_CARD_HEADER_BG_CONFIG;
 
@@ -35,7 +39,7 @@ export function PageHeader({
       {cfg.enabled && (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.08] dark:hidden"
+          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.16] dark:opacity-[0.08] dark:invert"
           style={{ backgroundImage: `url(${resolveCardHeaderBgUrl(cfg)})`, backgroundRepeat: "repeat", backgroundSize: "170px 170px" }}
         />
       )}

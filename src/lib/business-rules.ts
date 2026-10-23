@@ -18,18 +18,25 @@ export function getNextStage(status: string): Stage | null {
   return i >= 0 && i < STAGES.length - 1 ? STAGES[i + 1] : null;
 }
 
-const READY_STAGE_INDEX = STAGES.indexOf("ready");
+const FINISHING_STAGE_INDEX = STAGES.indexOf("finishing");
 
-/** Whether an order's garments are actually payable work — Ready, Delivered, or Payment stage,
- *  not still in progress (Received/Cutting/Stitching/Finishing). Shared by the Tailor Payables
- *  summary and detail reports so the two always agree on which garments count toward a "what's
- *  actually earned so far" total — a report-level display rule only; it does NOT affect the
- *  underlying live payableAmount calculation or the payroll confirm/freeze workflow (see
- *  add_early_tailor_payables.sql / unfreeze_tailor_payables_at_ready.sql), which keep tracking
- *  every assigned garment from the moment it's received, same as before. */
-export function isOrderReadyOrBeyond(status: string): boolean {
+/** Whether an order's garments are actually payable work — Finishing, Ready, Delivered, or
+ *  Payment stage, not still in progress (Received/Cutting/Stitching). Shared by the Tailor
+ *  Payables summary and detail reports so the two always agree on which garments count toward a
+ *  "what's actually earned so far" total — a report-level display rule only; it does NOT affect
+ *  the underlying live payableAmount calculation or the payroll run itself (see
+ *  add_early_tailor_payables.sql / unfreeze_tailor_payables_at_ready.sql /
+ *  remove_tailor_payable_confirm_step.sql), which keep tracking and paying out every assigned
+ *  garment from the moment it's received, regardless of stage, same as before.
+ *
+ *  Previously gated on Ready-or-later; moved to Finishing-or-later per the owner's explicit ask
+ *  to see a garment as "earned" the moment stitching hands off to finishing rather than waiting
+ *  for Ready — this was already the rule on the Tailor Payables summary report (as a local,
+ *  un-exported duplicate) but not on the detail report, so the two silently disagreed on which
+ *  garments counted toward their totals. */
+export function isOrderFinishingOrBeyond(status: string): boolean {
   const i = STAGES.indexOf(status as Stage);
-  return i >= READY_STAGE_INDEX;
+  return i >= FINISHING_STAGE_INDEX;
 }
 
 export type Lining = "s" | "h" | "f";

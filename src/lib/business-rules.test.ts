@@ -8,7 +8,7 @@ import {
   deliveryBonusPoints,
   loyaltyTier,
   getNextStage,
-  isOrderReadyOrBeyond,
+  isOrderFinishingOrBeyond,
   normalizeIndianMobile,
   loyaltyDiscountOf,
   DEFAULT_LOYALTY_CONFIG,
@@ -77,23 +77,23 @@ describe("getNextStage", () => {
   });
 });
 
-describe("isOrderReadyOrBeyond", () => {
-  it("is false for every in-progress stage", () => {
-    expect(isOrderReadyOrBeyond("received")).toBe(false);
-    expect(isOrderReadyOrBeyond("cutting")).toBe(false);
-    expect(isOrderReadyOrBeyond("stitching")).toBe(false);
-    expect(isOrderReadyOrBeyond("finishing")).toBe(false);
+describe("isOrderFinishingOrBeyond", () => {
+  it("is false for every stage before finishing", () => {
+    expect(isOrderFinishingOrBeyond("received")).toBe(false);
+    expect(isOrderFinishingOrBeyond("cutting")).toBe(false);
+    expect(isOrderFinishingOrBeyond("stitching")).toBe(false);
   });
 
-  it("is true for ready and every stage after it", () => {
-    expect(isOrderReadyOrBeyond("ready")).toBe(true);
-    expect(isOrderReadyOrBeyond("delivered")).toBe(true);
-    expect(isOrderReadyOrBeyond("payment")).toBe(true);
+  it("is true for finishing and every stage after it", () => {
+    expect(isOrderFinishingOrBeyond("finishing")).toBe(true);
+    expect(isOrderFinishingOrBeyond("ready")).toBe(true);
+    expect(isOrderFinishingOrBeyond("delivered")).toBe(true);
+    expect(isOrderFinishingOrBeyond("payment")).toBe(true);
   });
 
   it("treats an unrecognized status as not yet payable rather than throwing", () => {
-    expect(isOrderReadyOrBeyond("")).toBe(false);
-    expect(isOrderReadyOrBeyond("trial")).toBe(false);
+    expect(isOrderFinishingOrBeyond("")).toBe(false);
+    expect(isOrderFinishingOrBeyond("trial")).toBe(false);
   });
 });
 

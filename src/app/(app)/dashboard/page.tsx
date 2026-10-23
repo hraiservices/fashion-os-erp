@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardGrid } from "@/components/dashboard/dashboard-grid";
 import { CustomizePanel } from "@/components/dashboard/customize-panel";
 import { GettingStartedTab } from "@/components/dashboard/getting-started-tab";
+import { RecentUpdatesTab } from "@/components/dashboard/recent-updates-tab";
 import { DigitalClock } from "@/components/dashboard/digital-clock";
 import { LiveUsersCard } from "@/components/dashboard/live-users-card";
 import { isWidgetVisibleForRole, type WidgetInstance } from "@/lib/dashboard-widgets";
@@ -35,7 +36,7 @@ export default function DashboardPage() {
   const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
   const [initialized, setInitialized] = useState(false);
-  const [tab, setTab] = useState<"dashboard" | "getting-started">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "getting-started" | "recent-updates">("dashboard");
 
   // Guard on layoutRawData (the actual fetched array, not the defaultLayout() fallback) so this
   // only locks once real data arrives. Without this, entitlements arriving from cache before the
@@ -104,10 +105,11 @@ export default function DashboardPage() {
       {/* Mirrors the Zoho Books "Dashboard / Getting Started" tab layout — replaces the earlier
           inline checklist card with a full onboarding page one click away, instead of competing
           for space on the dashboard itself. */}
-      <Tabs value={tab} onValueChange={(v) => v && setTab(v as "dashboard" | "getting-started")}>
+      <Tabs value={tab} onValueChange={(v) => v && setTab(v as "dashboard" | "getting-started" | "recent-updates")}>
         <TabsList>
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="getting-started">Getting Started</TabsTrigger>
+          <TabsTrigger value="recent-updates">Recent Updates</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-4">
@@ -162,6 +164,10 @@ export default function DashboardPage() {
 
         <TabsContent value="getting-started">
           <GettingStartedTab />
+        </TabsContent>
+
+        <TabsContent value="recent-updates">
+          <RecentUpdatesTab />
         </TabsContent>
       </Tabs>
 

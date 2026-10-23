@@ -1,7 +1,7 @@
 "use client";
 
 import { useAppSetting } from "@/hooks/use-app-setting";
-import { DEFAULT_CARD_HEADER_BG_CONFIG, resolveCardHeaderBgUrl, type CardHeaderBgConfig } from "@/lib/card-header-bg";
+import { DEFAULT_CARD_HEADER_BG_CONFIG, cardHeaderBgDarkOpacity, cardHeaderBgOpacity, resolveCardHeaderBgUrl, type CardHeaderBgConfig } from "@/lib/card-header-bg";
 import { cn } from "@/lib/utils";
 
 /**
@@ -19,15 +19,17 @@ export function PageHeader({
   actions?: React.ReactNode;
   className?: string;
 }) {
-  // Settings → Personalize → Appearance lets an admin replace or turn this off; see
-  // card-header-bg-section.tsx. 8% opacity turned out to be invisible in practice (reported:
-  // visible in the settings preview swatch, which renders at full opacity, but not on any real
-  // page) — bumped to a level that actually reads as a faint watermark. Dark mode now shows an
-  // inverted, even fainter version instead of skipping it outright: the artwork is dark linework
-  // on a light ground, so a flat opacity on a dark background would just look like grey smudging,
-  // but inverted (light linework on dark) at low opacity reads the same way dark mode does.
+  // Settings → Personalize → Appearance lets an admin replace, turn off, or tune the opacity of
+  // this — see card-header-bg-section.tsx. A fixed 16% was still reported "hardly visible", so
+  // opacity is now admin-tunable per shop/monitor rather than a judgment call baked into the
+  // code. Rendered as two separate layers (not one Tailwind opacity-[...]/dark:opacity-[...]
+  // class pair) because the opacity is a runtime value from app_settings, not something
+  // Tailwind's build-time class generation can pick up. Dark mode's layer is inverted (light
+  // linework on dark) rather than just dimmed further — the artwork is dark linework on a light
+  // ground, so a flat opacity on a dark background would read as grey smudging, not a watermark.
   const { data: bgCfg } = useAppSetting<CardHeaderBgConfig>("cardHeaderBg", DEFAULT_CARD_HEADER_BG_CONFIG);
   const cfg = bgCfg ?? DEFAULT_CARD_HEADER_BG_CONFIG;
+  const bgStyle = { backgroundImage: `url(${resolveCardHeaderBgUrl(cfg)})`, backgroundRepeat: "repeat", backgroundSize: "170px 170px" } as const;
 
   return (
     // Stacked (not wrapped) below `sm`: relying on flex-wrap + justify-between to drop a wide
@@ -37,11 +39,10 @@ export function PageHeader({
     // sidesteps that engine bug entirely; `sm:` restores the original row layout for desktop.
     <div className={cn("relative flex flex-col items-start gap-3 overflow-hidden rounded-lg sm:flex-row sm:flex-wrap sm:items-start sm:justify-between", className)}>
       {cfg.enabled && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.16] dark:opacity-[0.08] dark:invert"
-          style={{ backgroundImage: `url(${resolveCardHeaderBgUrl(cfg)})`, backgroundRepeat: "repeat", backgroundSize: "170px 170px" }}
-        />
+        <>
+          <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 dark:hidden" style={{ ...bgStyle, opacity: cardHeaderBgOpacity(cfg) }} />
+          <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 hidden invert dark:block" style={{ ...bgStyle, opacity: cardHeaderBgDarkOpacity(cfg) }} />
+        </>
       )}
       <div className="min-w-0">
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>

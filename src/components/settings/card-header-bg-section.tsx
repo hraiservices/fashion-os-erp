@@ -1,14 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Check } from "lucide-react";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { fileToDataUrl } from "@/lib/image-utils";
-import { BUILTIN_CARD_HEADER_BG_URL, DEFAULT_CARD_HEADER_BG_CONFIG, resolveCardHeaderBgUrl, type CardHeaderBgConfig } from "@/lib/card-header-bg";
+import {
+  BUILTIN_CARD_HEADER_BG_URL,
+  DEFAULT_CARD_HEADER_BG_CONFIG,
+  MAX_CARD_HEADER_BG_OPACITY,
+  MIN_CARD_HEADER_BG_OPACITY,
+  resolveCardHeaderBgUrl,
+  type CardHeaderBgConfig,
+} from "@/lib/card-header-bg";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +34,18 @@ export function CardHeaderBgSection() {
     if (d) setCfg(d);
   });
 
+  // Dragging the slider fires onChange continuously — debounce the save so it isn't one request
+  // per pixel of drag, while the preview swatch and live header still update on every tick.
+  const debouncedOpacity = useDebouncedValue(cfg.opacity, 400);
+  const cfgRef = useRef(cfg);
+  useEffect(() => {
+    cfgRef.current = cfg;
+  }, [cfg]);
+  useEffect(() => {
+    if (data && debouncedOpacity !== data.opacity) save.mutate({ ...cfgRef.current, opacity: debouncedOpacity });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the debounced value should retrigger this; save/data/cfg would fire on every keystroke-equivalent render
+  }, [debouncedOpacity]);
+
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -39,7 +60,7 @@ export function CardHeaderBgSection() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Upload failed");
-      const next: CardHeaderBgConfig = { enabled: true, imageUrl: json.url as string };
+      const next: CardHeaderBgConfig = { ...cfg, enabled: true, imageUrl: json.url as string };
       setCfg(next);
       await save.mutateAsync(next);
       toast.success("Header background updated");
@@ -51,7 +72,7 @@ export function CardHeaderBgSection() {
   }
 
   async function handleRemove() {
-    const next: CardHeaderBgConfig = { enabled: false, imageUrl: null };
+    const next: CardHeaderBgConfig = { ...cfg, enabled: false, imageUrl: null };
     setCfg(next);
     try {
       await save.mutateAsync(next);
@@ -62,7 +83,7 @@ export function CardHeaderBgSection() {
   }
 
   async function handleRestoreDefault() {
-    const next: CardHeaderBgConfig = { enabled: true, imageUrl: null };
+    const next: CardHeaderBgConfig = { ...cfg, enabled: true, imageUrl: null };
     setCfg(next);
     try {
       await save.mutateAsync(next);
@@ -86,10 +107,12 @@ export function CardHeaderBgSection() {
         <p className="text-xs text-muted-foreground">A faint repeating illustration shown behind the Dashboard greeting and every page&apos;s title bar.</p>
 
         <div className="flex items-center gap-3">
-          <div
-            className={cn("h-16 w-24 shrink-0 rounded-lg border bg-card bg-repeat", !cfg.enabled && "opacity-30")}
-            style={{ backgroundImage: `url(${previewUrl})`, backgroundSize: "60px 60px" }}
-          />
+          <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border bg-card">
+            <div
+              className={cn("absolute inset-0 bg-repeat", !cfg.enabled && "opacity-30")}
+              style={{ backgroundImage: `url(${previewUrl})`, backgroundSize: "60px 60px", opacity: cfg.enabled ? cfg.opacity / 100 : undefined }}
+            />
+          </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" disabled={uploading} nativeButton={false} render={<label className="cursor-pointer" />}>
               {uploading ? "Uploading…" : "Upload a replacement"}
@@ -111,7 +134,7 @@ export function CardHeaderBgSection() {
                 size="sm"
                 disabled={save.isPending}
                 onClick={async () => {
-                  const next: CardHeaderBgConfig = { enabled: true, imageUrl: cfg.imageUrl };
+                  const next: CardHeaderBgConfig = { ...cfg, enabled: true };
                   setCfg(next);
                   try {
                     await save.mutateAsync(next);
@@ -126,6 +149,26 @@ export function CardHeaderBgSection() {
           </div>
         </div>
         {!isCustom && cfg.enabled && <p className="text-xs text-muted-foreground">Using the default — {BUILTIN_CARD_HEADER_BG_URL.split("/").pop()}</p>}
+
+        {cfg.enabled && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label>Opacity</Label>
+              <span className="text-xs tabular-nums text-muted-foreground">{cfg.opacity}%</span>
+            </div>
+            <input
+              type="range"
+              min={MIN_CARD_HEADER_BG_OPACITY}
+              max={MAX_CARD_HEADER_BG_OPACITY}
+              step={1}
+              value={cfg.opacity}
+              onChange={(e) => setCfg((c) => ({ ...c, opacity: Number(e.target.value) }))}
+              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-muted accent-primary"
+              aria-label="Header background opacity"
+            />
+            <p className="text-xs text-muted-foreground">How faint the illustration looks — turned down too low and it&apos;s invisible, turned up too high and it fights with the text.</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

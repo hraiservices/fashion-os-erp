@@ -21,7 +21,7 @@ import { DigitalClock } from "@/components/dashboard/digital-clock";
 import { LiveUsersCard } from "@/components/dashboard/live-users-card";
 import { isWidgetVisibleForRole, type WidgetInstance } from "@/lib/dashboard-widgets";
 import { useAppSetting } from "@/hooks/use-app-setting";
-import { DEFAULT_CARD_HEADER_BG_CONFIG, resolveCardHeaderBgUrl, type CardHeaderBgConfig } from "@/lib/card-header-bg";
+import { DEFAULT_CARD_HEADER_BG_CONFIG, cardHeaderBgDarkOpacity, cardHeaderBgOpacity, resolveCardHeaderBgUrl, type CardHeaderBgConfig } from "@/lib/card-header-bg";
 
 export default function DashboardPage() {
   const { data: user } = useCurrentUser();
@@ -66,11 +66,18 @@ export default function DashboardPage() {
       {shop && (shop.name || shop.logoDataUrl) && (
         <div className="relative flex flex-wrap items-center justify-between gap-4 overflow-hidden rounded-xl border bg-card p-4">
           {headerBg.enabled && (
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 -z-10 opacity-[0.16] dark:opacity-[0.08] dark:invert"
-              style={{ backgroundImage: `url(${resolveCardHeaderBgUrl(headerBg)})`, backgroundRepeat: "repeat", backgroundSize: "170px 170px" }}
-            />
+            <>
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 -z-10 dark:hidden"
+                style={{ backgroundImage: `url(${resolveCardHeaderBgUrl(headerBg)})`, backgroundRepeat: "repeat", backgroundSize: "170px 170px", opacity: cardHeaderBgOpacity(headerBg) }}
+              />
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 -z-10 hidden invert dark:block"
+                style={{ backgroundImage: `url(${resolveCardHeaderBgUrl(headerBg)})`, backgroundRepeat: "repeat", backgroundSize: "170px 170px", opacity: cardHeaderBgDarkOpacity(headerBg) }}
+              />
+            </>
           )}
           <div className="flex items-center gap-3">
             {shop.logoDataUrl ? (

@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { PieChart } from "lucide-react";
 import { useExpenses } from "@/hooks/use-expenses";
+import { useEmployees } from "@/hooks/use-employees";
+import { expensePayeeKey, expensePayeeName } from "@/lib/expense-payee";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
@@ -26,16 +28,29 @@ const SORT_DESC_KEYS = new Set(["count", "total", "pct"]);
 
 export default function ExpensesByCategoryPage() {
   const { data: expenses, isLoading } = useExpenses();
+  const { data: employees } = useEmployees();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
   const [payMethod, setPayMethod] = useState("all");
+  const [payee, setPayee] = useState("all");
 
   const payMethods = useMemo(() => Array.from(new Set((expenses || []).map((e) => e.payMethod).filter(Boolean))).sort(), [expenses]);
+  const employeeNameById = useMemo(() => new Map((employees || []).map((e) => [e.id, e.name])), [employees]);
+  const payees = useMemo(() => {
+    const map = new Map<string, string>();
+    (expenses || []).forEach((e) => {
+      const key = expensePayeeKey(e);
+      if (key === "unlinked") return;
+      map.set(key, expensePayeeName(e, employeeNameById));
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [expenses, employeeNameById]);
 
   const rows = useMemo(() => {
     const map = new Map<string, { category: string; count: number; total: number }>();
     (expenses || [])
       .filter((e) => isWithinDateRange(e.date, range))
       .filter((e) => payMethod === "all" || e.payMethod === payMethod)
+      .filter((e) => payee === "all" || expensePayeeKey(e) === payee)
       .forEach((e) => {
         const row = map.get(e.category) || { category: e.category, count: 0, total: 0 };
         row.count += 1;
@@ -46,7 +61,7 @@ export default function ExpensesByCategoryPage() {
     return Array.from(map.values())
       .map((r) => ({ ...r, pct: grandTotal > 0 ? (r.total / grandTotal) * 100 : 0 }))
       .sort((a, b) => b.total - a.total);
-  }, [expenses, range, payMethod]);
+  }, [expenses, range, payMethod, payee]);
 
   const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<CategoryRow>("expenses-by-category", SORT_COMPARATORS, SORT_DESC_KEYS);
   const sortedRows = applySort(rows);
@@ -75,19 +90,34 @@ export default function ExpensesByCategoryPage() {
         onCustomToChange={setCustomTo}
         resultLabel={`${rows.length} categor${rows.length === 1 ? "y" : "ies"}`}
         category={
-          <Select value={payMethod} onValueChange={(v) => v && setPayMethod(v)}>
-            <SelectTrigger className="h-9 w-40">
-              <SelectValue>{payMethod === "all" ? "All Methods" : payMethod}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Methods</SelectItem>
-              {payMethods.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Select value={payMethod} onValueChange={(v) => v && setPayMethod(v)}>
+              <SelectTrigger className="h-9 w-full sm:w-40">
+                <SelectValue>{payMethod === "all" ? "All Methods" : payMethod}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Methods</SelectItem>
+                {payMethods.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={payee} onValueChange={(v) => v && setPayee(v)}>
+              <SelectTrigger className="h-9 w-full sm:w-44">
+                <SelectValue>{payee === "all" ? "All Employees/Customers" : payees.find(([k]) => k === payee)?.[1] || "All Employees/Customers"}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Employees/Customers</SelectItem>
+                {payees.map(([key, name]) => (
+                  <SelectItem key={key} value={key}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         }
       />
 

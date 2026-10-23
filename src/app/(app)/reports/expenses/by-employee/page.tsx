@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useExpenses } from "@/hooks/use-expenses";
+import { useEmployees } from "@/hooks/use-employees";
+import { expensePayeeKey, expensePayeeName } from "@/lib/expense-payee";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
@@ -23,12 +25,16 @@ const SORT_COMPARATORS: Record<string, (a: ByEmployeeRow, b: ByEmployeeRow) => n
 };
 const SORT_DESC_KEYS = new Set(["count", "total"]);
 
-/** "Employee" here is whoever was logged in when the expense was recorded (`createdBy`) — this app doesn't have a separate staff/employee directory beyond user accounts. */
+/** Grouped by who the expense was paid to/for — a linked employee when there is one, else the
+ *  free-text customer name, else an "Unlinked" bucket — so e.g. Salaries & Wages can be broken
+ *  down by which tailor got paid, not by which staff member logged the expense into the app. */
 export default function ExpensesByEmployeePage() {
   const { data: expenses, isLoading } = useExpenses();
+  const { data: employees } = useEmployees();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
   const [category, setCategory] = useState("all");
 
+  const employeeNameById = useMemo(() => new Map((employees || []).map((e) => [e.id, e.name])), [employees]);
   const categories = useMemo(() => Array.from(new Set((expenses || []).map((e) => e.category).filter(Boolean))).sort(), [expenses]);
 
   const rows = useMemo(() => {
@@ -37,14 +43,15 @@ export default function ExpensesByEmployeePage() {
       .filter((e) => isWithinDateRange(e.date, range))
       .filter((e) => category === "all" || e.category === category)
       .forEach((e) => {
-        const key = e.createdBy || "Unknown";
-        const row = map.get(key) || { user: key, count: 0, total: 0 };
+        const key = expensePayeeKey(e);
+        const name = key === "unlinked" ? "Unlinked" : expensePayeeName(e, employeeNameById);
+        const row = map.get(key) || { user: name, count: 0, total: 0 };
         row.count += 1;
         row.total += e.amount;
         map.set(key, row);
       });
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [expenses, range, category]);
+  }, [expenses, range, category, employeeNameById]);
 
   const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<ByEmployeeRow>("expenses-by-employee", SORT_COMPARATORS, SORT_DESC_KEYS);
   const sortedRows = applySort(rows);
@@ -54,10 +61,10 @@ export default function ExpensesByEmployeePage() {
   return (
     <ReportShell
       title="Expenses by Employee"
-      description="Expense totals grouped by the user who recorded each one."
+      description="Expense totals grouped by who the expense was paid to or for."
       actions={
         <ReportActionsMenu
-          rows={sortedRows.map((r) => ({ User: r.user, "Expense Count": r.count, Total: r.total }))}
+          rows={sortedRows.map((r) => ({ "Employee/Customer": r.user, "Expense Count": r.count, Total: r.total }))}
           filename="expenses-by-employee"
           title="Expenses by Employee"
           summaryLines={[`Users: ${rows.length}`, `Total: ${inr(rows.reduce((s, r) => s + r.total, 0))}`]}
@@ -97,7 +104,7 @@ export default function ExpensesByEmployeePage() {
             <ReportTable>
               <thead className="border-b bg-muted/40">
                 <tr>
-                  <Th sortKey="user" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>User</Th>
+                  <Th sortKey="user" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Employee/Customer</Th>
                   <Th align="right" sortKey="count" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Expenses</Th>
                   <Th align="right" sortKey="total" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Total</Th>
                 </tr>

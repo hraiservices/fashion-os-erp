@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, LayoutGrid, LayoutList, ArrowUpDown, Upload, MessageSquare, ImagePlus, MoreVertical } from "lucide-react";
+import { Search, LayoutGrid, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, Upload, MessageSquare, ImagePlus, MoreVertical } from "lucide-react";
 import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
@@ -41,6 +41,15 @@ const ALL_SEGMENTS = "__all_segments__";
 const tagFilterLabel = (v: unknown) => (v === ALL_TAGS ? "All tags" : String(v ?? ""));
 
 type SortKey = "name" | "orders" | "spent" | "lastOrder" | "balance";
+
+const SORT_KEY_LABELS: Record<SortKey, string> = {
+  name: "Name",
+  orders: "Orders",
+  spent: "Spent",
+  lastOrder: "Last order",
+  balance: "Balance",
+};
+const SORT_KEYS = Object.keys(SORT_KEY_LABELS) as SortKey[];
 
 const CUSTOMER_LIST_COLUMNS = [
   { key: "customer", label: "Customer", required: true },
@@ -86,6 +95,16 @@ function CrmContent() {
       setSortKey(key);
       setSortAsc(key === "name");
     }
+  }
+
+  /** The Cards-view sort dropdown: picking a key always switches to its own default direction
+   *  (like clicking a fresh List-view column header) — direction after that is the separate
+   *  arrow button, not re-selecting the same dropdown value (Select doesn't fire onValueChange
+   *  for re-picking the already-selected option). */
+  function changeSortKey(key: SortKey) {
+    if (key === sortKey) return;
+    setSortKey(key);
+    setSortAsc(key === "name");
   }
 
   const view = searchParams.get("view") === "list" ? "list" : "cards";
@@ -260,6 +279,32 @@ function CrmContent() {
           </button>
         </div>
         {view === "list" && <ColumnCustomizerMenu table={columnTable} />}
+        {view === "cards" && (
+          <div className="flex items-center gap-1">
+            <Select value={sortKey} onValueChange={(v) => v && changeSortKey(v as SortKey)}>
+              <SelectTrigger className="h-10 w-36" aria-label="Sort by">
+                <SelectValue>{(v: unknown) => `Sort: ${SORT_KEY_LABELS[v as SortKey] ?? v}`}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_KEYS.map((k) => (
+                  <SelectItem key={k} value={k}>
+                    {SORT_KEY_LABELS[k]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+              onClick={() => setSortAsc((a) => !a)}
+              aria-label={sortAsc ? "Sorted ascending — click for descending" : "Sorted descending — click for ascending"}
+            >
+              {sortAsc ? <ArrowUp className="size-4" /> : <ArrowDown className="size-4" />}
+            </Button>
+          </div>
+        )}
         <div className="relative max-w-md flex-1 min-w-48">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input

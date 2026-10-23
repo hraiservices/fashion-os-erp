@@ -68,7 +68,7 @@ export default function DashboardPage() {
           {headerBg.enabled && (
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-0 -z-10 opacity-[0.08] dark:hidden"
+              className="pointer-events-none absolute inset-0 -z-10 opacity-[0.16] dark:opacity-[0.08] dark:invert"
               style={{ backgroundImage: `url(${resolveCardHeaderBgUrl(headerBg)})`, backgroundRepeat: "repeat", backgroundSize: "170px 170px" }}
             />
           )}

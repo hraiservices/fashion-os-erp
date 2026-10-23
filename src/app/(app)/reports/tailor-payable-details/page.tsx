@@ -8,7 +8,7 @@ import { useOrders } from "@/hooks/use-orders";
 import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useActiveTailors, useTailorName } from "@/hooks/use-employees";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { LINING_LABELS, isOrderReadyOrBeyond, type Lining } from "@/lib/business-rules";
+import { LINING_LABELS, isOrderFinishingOrBeyond, type Lining } from "@/lib/business-rules";
 import { inr, fmtDate } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
@@ -52,9 +52,10 @@ interface PayableRow {
   lining: string;
   qty: number;
   amount: number;
-  /** Order not yet Ready/Delivered/Paid — still in progress, so not yet actually earned. Kept
-   *  visible in the table (not filtered out) but excluded from every total, per the owner's
-   *  explicit ask: pay only for completed work, but still see the full pipeline. */
+  /** Order not yet reached Finishing/Ready/Delivered/Paid — still in progress, so not yet
+   *  actually earned. Kept visible in the table (not filtered out) but excluded from every
+   *  total, per the owner's explicit ask: pay only for completed work, but still see the full
+   *  pipeline. */
   isPending: boolean;
 }
 
@@ -76,10 +77,12 @@ const SORT_DESC_KEYS = new Set(["orderDate", "qty", "payable"]);
  *  and same numbers as that page: EVERY garment with a tailor assigned in range still appears
  *  here (payableAmount is still live-recalculated from the moment an order is received, exactly
  *  as before — see add_early_tailor_payables.sql / unfreeze_tailor_payables_at_ready.sql, neither
- *  of which changed), but only garments whose order has reached Ready/Delivered/Payment stage
- *  count toward any total — a report-display rule only, added per the owner's explicit ask to
- *  see "what's actually earned so far" without waiting on a payroll run, not a change to when a
- *  payable actually freezes/gets paid. Still-in-progress garments are shown marked "Pending"
+ *  of which changed), but only garments whose order has reached Finishing/Ready/Delivered/Payment
+ *  stage count toward any total — a report-display rule only (isOrderFinishingOrBeyond, shared
+ *  with the summary report so the two always agree), per the owner's explicit ask to see "what's
+ *  actually earned so far" the moment stitching hands off to finishing, without waiting on Ready
+ *  or a payroll run, not a change to when a payable actually freezes/gets paid. Still-in-progress
+ *  garments are shown marked "Pending"
  *  rather than hidden, so the full pipeline stays visible. Also includes manufacturing Work
  *  Orders' laborCost — omitting those would make this report's per-tailor totals silently
  *  disagree with the Tailor Payables summary page for any tailor who does both stitching and
@@ -118,7 +121,7 @@ export default function TailorPayableDetailsPage() {
           lining: o.orderType === "alteration" ? "—" : LINING_LABELS[(g.lining as Lining) || "s"] || g.lining || "",
           qty: g.no || 1,
           amount: g.payableAmount || 0,
-          isPending: !isOrderReadyOrBeyond(o.status),
+          isPending: !isOrderFinishingOrBeyond(o.status),
         });
       });
     }
@@ -259,8 +262,8 @@ export default function TailorPayableDetailsPage() {
         </div>
       )}
       <p className="text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">{completedRows.length} of {rows.length}</span> garments in range are
-        Ready/Delivered/Paid — actual payable for completed work is <span className="font-semibold text-foreground">{inr(grandTotal)}</span>.
+        <span className="font-medium text-foreground">{completedRows.length} of {rows.length}</span> garments in range have reached
+        Finishing/Ready/Delivered/Paid — actual payable for completed work is <span className="font-semibold text-foreground">{inr(grandTotal)}</span>.
         {rows.length - completedRows.length > 0 && ` The rest are still in progress and shown below marked "Pending".`}
       </p>
 

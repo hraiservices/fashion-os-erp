@@ -9,7 +9,7 @@ import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useEmployees } from "@/hooks/use-employees";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr } from "@/lib/format";
-import { STAGES, type Stage } from "@/lib/business-rules";
+import { isOrderFinishingOrBeyond } from "@/lib/business-rules";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
@@ -37,15 +37,6 @@ const SORT_COMPARATORS: Record<string, (a: TailorPayableRow, b: TailorPayableRow
   allTime: (a, b) => a.allTimePayable - b.allTimePayable,
 };
 const SORT_DESC_KEYS = new Set(["completed", "payable", "pending", "allTime"]);
-
-/** This report counts a garment as "earned" (Payable, not Pending) one stage earlier than
- *  everywhere else in the app (payroll, the order/work-order detail page's confirmation) —
- *  Finishing or later, not Ready-or-later — per the owner's explicit ask to see it the moment
- *  stitching hands off to finishing, rather than waiting for Ready. */
-const FINISHING_STAGE_INDEX = STAGES.indexOf("finishing");
-function isOrderFinishingOrBeyond(status: string): boolean {
-  return STAGES.indexOf(status as Stage) >= FINISHING_STAGE_INDEX;
-}
 
 /** A garment carrying a payable whose `tailor` resolves to no employee — money that is owed to
  *  a real person but attributed to nobody, so it silently vanishes from every per-tailor total.

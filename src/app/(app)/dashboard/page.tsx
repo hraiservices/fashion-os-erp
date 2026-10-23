@@ -12,11 +12,12 @@ import { isWidgetEnabled } from "@/lib/entitlements";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardGrid } from "@/components/dashboard/dashboard-grid";
 import { CustomizePanel } from "@/components/dashboard/customize-panel";
-import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
+import { GettingStartedTab } from "@/components/dashboard/getting-started-tab";
 import { DigitalClock } from "@/components/dashboard/digital-clock";
 import { LiveUsersCard } from "@/components/dashboard/live-users-card";
 import { isWidgetVisibleForRole, type WidgetInstance } from "@/lib/dashboard-widgets";
@@ -34,6 +35,7 @@ export default function DashboardPage() {
   const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [tab, setTab] = useState<"dashboard" | "getting-started">("dashboard");
 
   // Guard on layoutRawData (the actual fetched array, not the defaultLayout() fallback) so this
   // only locks once real data arrives. Without this, entitlements arriving from cache before the
@@ -99,55 +101,69 @@ export default function DashboardPage() {
 
       {user?.role === "admin" && <LiveUsersCard />}
 
-      <OnboardingChecklist />
+      {/* Mirrors the Zoho Books "Dashboard / Getting Started" tab layout — replaces the earlier
+          inline checklist card with a full onboarding page one click away, instead of competing
+          for space on the dashboard itself. */}
+      <Tabs value={tab} onValueChange={(v) => v && setTab(v as "dashboard" | "getting-started")}>
+        <TabsList>
+          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="getting-started">Getting Started</TabsTrigger>
+        </TabsList>
 
-      <PageHeader
-        title="Dashboard"
-        description="Today's snapshot of your company"
-        // Sticky on desktop only (sm+) — mirrors the Topbar's own sticky/backdrop-blur treatment
-        // and sits just below it (top-14 = Topbar's min-h-14) so the quick-action buttons stay
-        // reachable while scrolling the widget grid, instead of scrolling away with the title.
-        // Mobile keeps the normal in-flow header — its actions are hidden here anyway (shown via
-        // the bottom tab bar instead), so there's nothing worth pinning.
-        className="sm:sticky sm:top-14 sm:z-20 sm:-mx-6 sm:border-b sm:bg-background/95 sm:px-6 sm:py-3 sm:backdrop-blur"
-        actions={
-          <>
-            {user?.perms.addOrder && (
-              <Button nativeButton={false} render={<Link href="/orders/new" />} className="hidden sm:inline-flex">
-                <ClipboardList className="size-4" /> New Order
-              </Button>
-            )}
-            {user?.perms.manageSales && (
-              <Button nativeButton={false} render={<Link href="/sales/invoices/new" />} className="hidden sm:inline-flex">
-                <Receipt className="size-4" /> New Invoice
-              </Button>
-            )}
-            <Button nativeButton={false} render={<Link href="/expenses/new" />} className="hidden sm:inline-flex">
-              <Wallet className="size-4" /> New Expense
-            </Button>
-            {user?.perms.managePayments && <NewPaymentButton className="hidden sm:inline-flex" />}
-            {(user?.perms.manageCustomers || user?.role === "admin" || user?.role === "manager") && (
-              <Button nativeButton={false} render={<Link href="/crm/new" />} className="hidden sm:inline-flex">
-                <UserPlus className="size-4" /> New Customer
-              </Button>
-            )}
-            <Button variant={panelOpen ? "default" : "outline"} onClick={() => setPanelOpen(true)}>
-              {panelOpen ? <Check className="size-4" /> : <Settings2 className="size-4" />}
-              Customize
-            </Button>
-          </>
-        }
-      />
+        <TabsContent value="dashboard" className="space-y-4">
+          <PageHeader
+            title="Dashboard"
+            description="Today's snapshot of your company"
+            // Sticky on desktop only (sm+) — mirrors the Topbar's own sticky/backdrop-blur treatment
+            // and sits just below it (top-14 = Topbar's min-h-14) so the quick-action buttons stay
+            // reachable while scrolling the widget grid, instead of scrolling away with the title.
+            // Mobile keeps the normal in-flow header — its actions are hidden here anyway (shown via
+            // the bottom tab bar instead), so there's nothing worth pinning.
+            className="sm:sticky sm:top-14 sm:z-20 sm:-mx-6 sm:border-b sm:bg-background/95 sm:px-6 sm:py-3 sm:backdrop-blur"
+            actions={
+              <>
+                {user?.perms.addOrder && (
+                  <Button nativeButton={false} render={<Link href="/orders/new" />} className="hidden sm:inline-flex">
+                    <ClipboardList className="size-4" /> New Order
+                  </Button>
+                )}
+                {user?.perms.manageSales && (
+                  <Button nativeButton={false} render={<Link href="/sales/invoices/new" />} className="hidden sm:inline-flex">
+                    <Receipt className="size-4" /> New Invoice
+                  </Button>
+                )}
+                <Button nativeButton={false} render={<Link href="/expenses/new" />} className="hidden sm:inline-flex">
+                  <Wallet className="size-4" /> New Expense
+                </Button>
+                {user?.perms.managePayments && <NewPaymentButton className="hidden sm:inline-flex" />}
+                {(user?.perms.manageCustomers || user?.role === "admin" || user?.role === "manager") && (
+                  <Button nativeButton={false} render={<Link href="/crm/new" />} className="hidden sm:inline-flex">
+                    <UserPlus className="size-4" /> New Customer
+                  </Button>
+                )}
+                <Button variant={panelOpen ? "default" : "outline"} onClick={() => setPanelOpen(true)}>
+                  {panelOpen ? <Check className="size-4" /> : <Settings2 className="size-4" />}
+                  Customize
+                </Button>
+              </>
+            }
+          />
 
-      {!initialized && (layoutLoading || entitlementsLoading) ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full" />
-          ))}
-        </div>
-      ) : (
-        <DashboardGrid widgets={roleVisibleWidgets} editing={panelOpen} onChange={handleChange} />
-      )}
+          {!initialized && (layoutLoading || entitlementsLoading) ? (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton key={i} className="h-24 w-full" />
+              ))}
+            </div>
+          ) : (
+            <DashboardGrid widgets={roleVisibleWidgets} editing={panelOpen} onChange={handleChange} />
+          )}
+        </TabsContent>
+
+        <TabsContent value="getting-started">
+          <GettingStartedTab />
+        </TabsContent>
+      </Tabs>
 
       <CustomizePanel open={panelOpen} onOpenChange={setPanelOpen} widgets={roleVisibleWidgets} onChange={handleChange} />
     </div>

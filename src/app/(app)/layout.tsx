@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Sidebar } from "@/components/app-shell/sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
+import { AppFooter } from "@/components/app-shell/app-footer";
 import { MobileTabBar } from "@/components/app-shell/mobile-nav";
 import { ExpiryBanner } from "@/components/app-shell/expiry-banner";
 import { OfflineBanner } from "@/components/app-shell/offline-banner";
@@ -63,6 +64,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <ExpiryBanner />
           {/* pb-24 on mobile keeps content clear of the fixed bottom tab bar. */}
           <main className="flex-1 pb-24 lg:pb-0 print:pb-0">{children}</main>
+          <AppFooter />
         </div>
         <div className="print:hidden">
           <MobileTabBar />

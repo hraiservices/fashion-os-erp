@@ -579,6 +579,22 @@ function OrderFormFields({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTailor]);
 
+  // The reverse direction: picking a different tailor on one garment's own "Tailor" dropdown used
+  // to leave this order-level field silently stale (reported: order detail showed one tailor,
+  // the single garment on it showed another, with no way to tell which was "real" — this is
+  // exactly how that happens). The order detail page's inline tailor pickers already reconcile
+  // this way (see changeGarmentTailor in orders/[id]/page.tsx); this form didn't. Only follows
+  // once every garment agrees on the same tailor — a split order deliberately on different
+  // tailors should leave the order-level field as whichever "default" it already was, not flip
+  // to one garment's tailor arbitrarily.
+  useEffect(() => {
+    if (garments.length === 0) return;
+    const first = garments[0]?.tailor || "";
+    if (!first || !garments.every((g) => g.tailor === first) || first === selectedTailor) return;
+    setValue("tailor", first, { shouldDirty: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [garments]);
+
   // Look up an existing customer once the mobile number is complete, so we can offer to
   // reuse their saved measurements and redeem their loyalty points (old app: fillCust()).
   const lookupMobile = !existingOrder && mobile?.length === 10 ? mobile : "";

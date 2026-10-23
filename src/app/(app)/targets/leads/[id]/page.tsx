@@ -229,7 +229,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             )}
           </div>
         )}
-        {lead.notes && <p className="whitespace-pre-wrap text-sm">{lead.notes}</p>}
+        {lead.notes && <p className="whitespace-pre-wrap text-sm text-red-600 dark:text-red-400">{lead.notes}</p>}
         <div className="grid grid-cols-2 gap-2">
           {tel && (
             <Button variant="outline" className="h-12" nativeButton={false} render={<a href={tel} />}>

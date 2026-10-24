@@ -247,8 +247,26 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     }
   }
 
+  // Single most important action for the mobile sticky bar below — whichever one a tailor/
+  // counter staffer would reach for first on this order right now. Priority: move the order
+  // forward > collect an owed balance > the all-purpose WhatsApp send. The full button row
+  // further down still has every action (including this one) in normal flow — this bar is a
+  // shortcut so it doesn't require scrolling past Garments/Payments/History to find it.
+  const primaryAction = user?.perms.changeStage && next
+    ? { label: <><ArrowRight className="size-4 shrink-0" /> <span className="truncate"><MoveToStageLabel label={STAGE_META[next].label} /></span></>, onClick: requestAdvance, className: STAGE_STYLE[next].solid }
+    : user?.perms.managePayments && order.balance > 0
+      ? { label: <><Wallet className="size-4 shrink-0" /> <span className="truncate">Collect payment</span></>, onClick: () => setPaymentOpen(true), className: "" }
+      : null;
+
   return (
-    <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+    <div className="mx-auto max-w-6xl space-y-4 p-4 pb-20 sm:p-6 sm:pb-6">
+      {primaryAction && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 p-3 pr-20 backdrop-blur-sm sm:hidden print:hidden">
+          <Button className={cn("h-12 w-full text-base", primaryAction.className)} disabled={advanceStage.isPending} onClick={primaryAction.onClick}>
+            {primaryAction.label}
+          </Button>
+        </div>
+      )}
       <div className="flex items-center justify-between gap-3">
         <BackLink href="/orders">Orders</BackLink>
         <div className="flex shrink-0 items-center gap-1.5">

@@ -30,7 +30,15 @@ const tabsListVariants = cva(
   // blowing out the page's own width, which forced the whole page to scroll sideways to reach
   // content past the tabs (reported on the Dashboard's 4-tab row on a phone). scrollbar-hide
   // matches the other horizontal scroll rails in the app (see globals.css).
-  "group/tabs-list scrollbar-hide inline-flex w-fit max-w-full items-center justify-center overflow-x-auto rounded-lg p-[3px] text-muted-foreground group-data-horizontal/tabs:h-11 sm:group-data-horizontal/tabs:h-8 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col group-data-vertical/tabs:overflow-visible data-[variant=line]:rounded-none",
+  //
+  // justify-start, not justify-center: with overflowing content, `justify-content: center` makes
+  // the browser center the *overflow* itself — the container's native scroll position starts
+  // with the row already scrolled so content is clipped equally on both ends (the first tab's
+  // label cut on the left, the last tab's on the right), rather than starting flush at the first
+  // tab the way every other horizontal scroller in this app does. Reported as the tab row being
+  // "stuck" showing neither end. justify-start keeps that default scrollLeft-0 starting position
+  // regardless of whether the row happens to overflow.
+  "group/tabs-list scrollbar-hide inline-flex w-fit max-w-full items-center justify-start overflow-x-auto rounded-lg p-[3px] text-muted-foreground group-data-horizontal/tabs:h-11 sm:group-data-horizontal/tabs:h-8 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col group-data-vertical/tabs:overflow-visible data-[variant=line]:rounded-none",
   {
     variants: {
       variant: {

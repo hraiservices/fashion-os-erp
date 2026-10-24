@@ -72,20 +72,25 @@ export function DigitalClock() {
   const dateStr = now.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 
   return (
-    <div className="flex flex-wrap items-center gap-2.5 text-sm">
+    <div className="flex flex-wrap items-center gap-2 text-sm sm:gap-2.5">
       {cfg.showClock && (
         <div className="flex items-baseline gap-0.5 tabular-nums" aria-label={`${h}:${m}:${s} ${ampm}`}>
-          <span className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">{h}</span>
-          <span className="text-2xl font-semibold text-muted-foreground">:</span>
-          <span className="text-2xl font-semibold text-green-700 dark:text-green-400">{m}</span>
-          <span className="text-2xl font-semibold text-muted-foreground">:</span>
-          <span className="text-2xl font-semibold text-orange-600 dark:text-orange-400">{s}</span>
+          <span className="text-lg font-semibold text-neutral-900 sm:text-2xl dark:text-neutral-100">{h}</span>
+          <span className="text-lg font-semibold text-muted-foreground sm:text-2xl">:</span>
+          <span className="text-lg font-semibold text-green-700 sm:text-2xl dark:text-green-400">{m}</span>
+          {/* Seconds dropped below sm — mostly noise on a small header and the biggest single
+           *  contributor to this row's width on a phone. */}
+          <span className="hidden text-2xl font-semibold text-muted-foreground sm:inline">:</span>
+          <span className="hidden text-2xl font-semibold text-orange-600 sm:inline dark:text-orange-400">{s}</span>
           <span className="ml-1 text-xs font-medium text-muted-foreground">{ampm}</span>
         </div>
       )}
-      {cfg.showDate && <span className="text-muted-foreground">{dateStr}</span>}
-      {cfg.showGlobe && <RotatingGlobe />}
-      {cfg.showFlag && <IndiaFlag />}
+      {/* Date, globe and flag are all below sm — the clock + AM/PM is the one thing worth the
+       *  header's space on a phone; the rest already repeats information available elsewhere
+       *  (the device's own status bar shows the date). */}
+      {cfg.showDate && <span className="hidden text-muted-foreground sm:inline">{dateStr}</span>}
+      {cfg.showGlobe && <span className="hidden sm:inline-flex"><RotatingGlobe /></span>}
+      {cfg.showFlag && <span className="hidden sm:inline-flex"><IndiaFlag /></span>}
     </div>
   );
 }

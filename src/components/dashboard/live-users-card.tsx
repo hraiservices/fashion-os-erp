@@ -12,11 +12,17 @@ const MAX_SHOWN = 5;
 const COLLAPSE_KEY = "dashboard-live-users-collapsed";
 
 /** try/catch around every localStorage call, same as use-column-visibility.ts — a private window
- *  or blocked storage should never crash the dashboard, just fall back to "not collapsed". */
+ *  or blocked storage should never crash the dashboard, just fall back to "not collapsed" on
+ *  desktop. On a phone-width screen with no stored preference yet, default to collapsed instead
+ *  — this card's expanded content (avatars, sparkline, portal breakdown) ate a full screen's
+ *  worth of space above anything else on the dashboard; a first-time mobile visitor can still
+ *  tap to expand it. */
 function readCollapsed(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    return localStorage.getItem(COLLAPSE_KEY) === "1";
+    const stored = localStorage.getItem(COLLAPSE_KEY);
+    if (stored !== null) return stored === "1";
+    return window.matchMedia("(max-width: 639px)").matches;
   } catch {
     return false;
   }

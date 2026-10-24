@@ -51,6 +51,7 @@ describe("ROLE_DEFAULTS matrix", () => {
       manageTargets: true,
       viewAllTargets: true,
       assignTasks: true,
+      usePlanner: true,
     });
   });
 
@@ -120,6 +121,7 @@ describe("ROLE_DEFAULTS matrix", () => {
       manageTargets: false,
       viewAllTargets: false,
       assignTasks: false,
+      usePlanner: false,
     });
   });
 });

@@ -22,6 +22,7 @@ import type {
   ProjectWithProgress,
   DocumentDto,
   PhaseDto,
+  PlannerEntryDto,
   SourcesReport,
   TaskEventDto,
   TaskListDto,
@@ -90,7 +91,7 @@ const PROJECT_VIEWS = ["projects", "project", "summary", "tasks", "report"];
 export interface TargetsMeta {
   today: string;
   me: { email: string; employeeId: string | null; role: string };
-  can: { manageLeads: boolean; manageTargets: boolean; viewAll: boolean; assignTasks: boolean; viewReports: boolean; createInvoice: boolean; createOrder: boolean };
+  can: { manageLeads: boolean; manageTargets: boolean; viewAll: boolean; assignTasks: boolean; viewReports: boolean; createInvoice: boolean; createOrder: boolean; usePlanner: boolean };
   staff: StaffOption[];
   products: { id: string; name: string; sku: string }[];
   garmentTypes: string[];
@@ -419,6 +420,46 @@ export function usePatchTask() {
 export function useDeleteTask() {
   const invalidate = useInvalidate(...TASK_VIEWS);
   return useMutation({ mutationFn: (id: string) => send("DELETE", `/api/targets/tasks/${id}`), onSuccess: invalidate });
+}
+
+// ── Planner ───────────────────────────────────────────────────────────────
+
+/** `from`/`to` are inclusive YYYY-MM-DD — pass the same date twice for a single day. */
+export function usePlannerEntries(from: string, to: string) {
+  return useQuery({
+    queryKey: [KEY, "planner", from, to],
+    enabled: !!from && !!to,
+    queryFn: () => api<{ entries: PlannerEntryDto[] }>(`/api/targets/planner?from=${from}&to=${to}`).then((r) => r.entries),
+    staleTime: 15_000,
+  });
+}
+
+export interface PlannerEntryInput {
+  entryDate: string;
+  kind?: "note" | "todo";
+  text: string;
+  reminderAt?: string | null;
+  linkType?: "lead" | "customer" | "order" | "invoice" | null;
+  linkId?: string | null;
+  linkLabel?: string;
+}
+
+export function useCreatePlannerEntry() {
+  const invalidate = useInvalidate("planner");
+  return useMutation({ mutationFn: (input: PlannerEntryInput) => send("POST", "/api/targets/planner", input), onSuccess: invalidate });
+}
+
+export function useUpdatePlannerEntry() {
+  const invalidate = useInvalidate("planner");
+  return useMutation({
+    mutationFn: ({ id, ...patch }: { id: string } & Partial<PlannerEntryInput> & { done?: boolean }) => send("PATCH", `/api/targets/planner/${id}`, patch),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeletePlannerEntry() {
+  const invalidate = useInvalidate("planner");
+  return useMutation({ mutationFn: (id: string) => send("DELETE", `/api/targets/planner/${id}`), onSuccess: invalidate });
 }
 
 export function useProjects() {

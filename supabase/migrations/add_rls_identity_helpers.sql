@@ -45,7 +45,7 @@ LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $fn$
       "manageNavigationSettings": true, "viewActivityLog": true, "useCostEstimator": true,
       "backdateOrders": true, "awardLoyaltyPoints": true, "sendWhatsappBroadcast": true,
       "closeRegister": true,
-      "accessTargets": true, "manageLeads": true, "manageTargets": true, "viewAllTargets": true, "assignTasks": true
+      "accessTargets": true, "manageLeads": true, "manageTargets": true, "viewAllTargets": true, "assignTasks": true, "usePlanner": true
     },
     "manager": {
       "addOrder": true, "deleteOrder": false, "editOrder": true, "managePayments": true,
@@ -61,7 +61,7 @@ LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $fn$
       "manageNavigationSettings": false, "viewActivityLog": true, "useCostEstimator": true,
       "backdateOrders": true, "awardLoyaltyPoints": true, "sendWhatsappBroadcast": true,
       "closeRegister": true,
-      "accessTargets": true, "manageLeads": true, "manageTargets": true, "viewAllTargets": true, "assignTasks": true
+      "accessTargets": true, "manageLeads": true, "manageTargets": true, "viewAllTargets": true, "assignTasks": true, "usePlanner": true
     },
     "sales": {
       "addOrder": true, "deleteOrder": false, "editOrder": true, "managePayments": false,
@@ -77,7 +77,7 @@ LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $fn$
       "manageNavigationSettings": false, "viewActivityLog": false, "useCostEstimator": false,
       "backdateOrders": false, "awardLoyaltyPoints": false, "sendWhatsappBroadcast": false,
       "closeRegister": false,
-      "accessTargets": true, "manageLeads": true, "manageTargets": false, "viewAllTargets": false, "assignTasks": false
+      "accessTargets": true, "manageLeads": true, "manageTargets": false, "viewAllTargets": false, "assignTasks": false, "usePlanner": false
     },
     "tailor": {
       "addOrder": false, "deleteOrder": false, "editOrder": false, "managePayments": false,
@@ -93,7 +93,7 @@ LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $fn$
       "manageNavigationSettings": false, "viewActivityLog": false, "useCostEstimator": false,
       "backdateOrders": false, "awardLoyaltyPoints": false, "sendWhatsappBroadcast": false,
       "closeRegister": false,
-      "accessTargets": true, "manageLeads": false, "manageTargets": false, "viewAllTargets": false, "assignTasks": false
+      "accessTargets": true, "manageLeads": false, "manageTargets": false, "viewAllTargets": false, "assignTasks": false, "usePlanner": false
     }
   }'::jsonb;
 $fn$;

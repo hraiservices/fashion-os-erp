@@ -191,6 +191,26 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["work_tasks"]["Row"]>;
         Relationships: [];
       };
+      planner_entries: {
+        Row: {
+          id: string;
+          owner_id: string;
+          entry_date: string;
+          kind: string;
+          text: string;
+          done: boolean;
+          reminder_at: string | null;
+          reminder_sent_for: string | null;
+          link_type: string | null;
+          link_id: string | null;
+          link_label: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["planner_entries"]["Row"]> & { owner_id: string; entry_date: string; text: string };
+        Update: Partial<Database["public"]["Tables"]["planner_entries"]["Row"]>;
+        Relationships: [];
+      };
       work_task_lists: {
         Row: { id: string; project_id: string; name: string; sort_order: number; created_at: string };
         Insert: Partial<Database["public"]["Tables"]["work_task_lists"]["Row"]> & { project_id: string; name: string };

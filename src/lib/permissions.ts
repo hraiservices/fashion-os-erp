@@ -91,6 +91,8 @@ export interface Permissions {
   viewAllTargets: boolean;
   /** Targets module: assign tasks to other people (without it, tasks can only be for yourself). */
   assignTasks: boolean;
+  /** Targets module: the Planner tab — a private daily/weekly agenda, admin/manager only by default. */
+  usePlanner: boolean;
 }
 
 export const PERMISSION_LABELS: Record<keyof Permissions, string> = {
@@ -138,6 +140,7 @@ export const PERMISSION_LABELS: Record<keyof Permissions, string> = {
   manageTargets: "Targets: Create Targets & Projects",
   viewAllTargets: "Targets: See Everyone's Work & Scoreboard",
   assignTasks: "Targets: Assign Tasks to Others",
+  usePlanner: "Targets: Use the Planner",
 };
 
 export const ROLE_DEFAULTS: Record<Role, Permissions> = {
@@ -186,6 +189,7 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     manageTargets: true,
     viewAllTargets: true,
     assignTasks: true,
+    usePlanner: true,
   },
   manager: {
     addOrder: true,
@@ -232,6 +236,7 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     manageTargets: true,
     viewAllTargets: true,
     assignTasks: true,
+    usePlanner: true,
   },
   sales: {
     addOrder: true,
@@ -278,6 +283,7 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     manageTargets: false,
     viewAllTargets: false,
     assignTasks: false,
+    usePlanner: false,
   },
   tailor: {
     addOrder: false,
@@ -324,6 +330,7 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
     manageTargets: false,
     viewAllTargets: false,
     assignTasks: false,
+    usePlanner: false,
   },
 };
 
@@ -332,7 +339,7 @@ export const ROLE_DEFAULTS: Record<Role, Permissions> = {
 export const PERMISSION_GROUPS: { label: string; keys: (keyof Permissions)[] }[] = [
   { label: "Orders", keys: ["addOrder", "editOrder", "deleteOrder", "changeStage", "managePayments", "editMeasurements", "backdateOrders"] },
   { label: "Customers", keys: ["manageCustomers", "deleteCustomers", "awardLoyaltyPoints", "sendWhatsappBroadcast"] },
-  { label: "Targets", keys: ["accessTargets", "manageLeads", "manageTargets", "viewAllTargets", "assignTasks"] },
+  { label: "Targets", keys: ["accessTargets", "manageLeads", "manageTargets", "viewAllTargets", "assignTasks", "usePlanner"] },
   { label: "Modules", keys: ["manageInventory", "adjustStock", "transferStock", "deleteInventory", "managePurchases", "cancelPurchases", "payVendors", "manageManufacturing", "manageSales", "voidSales", "manageCreditNotes", "usePOS", "closeRegister"] },
   { label: "Expenses", keys: ["manageExpenses"] },
   { label: "Employees", keys: ["manageEmployees", "approveLeave", "managePayroll"] },

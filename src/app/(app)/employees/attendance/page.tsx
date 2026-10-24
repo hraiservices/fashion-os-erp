@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { CalendarCheck, Camera, Pencil } from "lucide-react";
+import { CalendarCheck, Camera, MoreVertical, Pencil } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
 import { useAttendanceForDate, useMarkAttendance } from "@/hooks/use-attendance";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -11,21 +11,30 @@ import { DatePicker, toISODate } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { AttendanceDetailDialog } from "@/components/employees/attendance-detail-dialog";
 import { AttendanceEditDialog } from "@/components/employees/attendance-edit-dialog";
+import { ATTENDANCE_STATUS_LABELS, ATTENDANCE_STATUS_TONE, roleAvatarTone } from "@/lib/attendance-colors";
+import { TONES } from "@/lib/ui-tones";
 import { cn } from "@/lib/utils";
 import type { AttendanceStatus, Attendance } from "@/lib/types";
 import { BackLink } from "@/components/ui/back-link";
 
-const STATUSES: { value: AttendanceStatus; label: string; tone: string }[] = [
-  { value: "present", label: "Present", tone: "border-green-500/30 bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400" },
-  { value: "half_day", label: "Half day", tone: "border-amber-500/30 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400" },
-  { value: "leave", label: "Leave", tone: "border-border text-muted-foreground" },
-  { value: "absent", label: "Absent", tone: "border-red-500/30 bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400" },
-];
+const STATUS_OPTIONS = (Object.keys(ATTENDANCE_STATUS_LABELS) as AttendanceStatus[]).map((value) => ({
+  value,
+  label: ATTENDANCE_STATUS_LABELS[value],
+  tone: ATTENDANCE_STATUS_TONE[value],
+}));
 
 function todayISO() {
   return toISODate(new Date());
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase() || "?";
 }
 
 export default function AttendancePage() {
@@ -57,7 +66,7 @@ export default function AttendancePage() {
       {employeesLoading || attendanceLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 w-full" />
+            <Skeleton key={i} className="h-20 w-full" />
           ))}
         </div>
       ) : active.length === 0 ? (
@@ -66,56 +75,53 @@ export default function AttendancePage() {
         <div className="space-y-2">
           {active.map((e) => {
             const current = attendanceByEmployee.get(e.id);
+            const flagged = current?.checkInWithinGeofence === false || current?.checkOutWithinGeofence === false;
+            const hasMenu = current?.source === "self_service" || canManage;
             return (
-              <div key={e.id} className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{e.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{e.role || "—"}</p>
+              <div key={e.id} className="space-y-3 rounded-xl border bg-card p-3 sm:p-4">
+                <div className="flex items-center gap-3">
+                  <Avatar size="lg" className="shrink-0">
+                    <AvatarFallback className={cn("font-semibold", TONES[roleAvatarTone(e.role)].idle)}>{initials(e.name)}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{e.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{e.role || "—"}</p>
+                  </div>
+                  {hasMenu && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button type="button" variant="ghost" size="icon-sm" aria-label={`More actions for ${e.name}`}>
+                            <MoreVertical className="size-4" />
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent align="end">
+                        {current?.source === "self_service" && (
+                          <DropdownMenuItem onClick={() => setDetailFor({ attendance: current, employeeName: e.name })}>
+                            <Camera className="size-4" />
+                            {flagged ? <span className="text-red-600 dark:text-red-400">Self check-in — flagged</span> : "View self check-in"}
+                          </DropdownMenuItem>
+                        )}
+                        {canManage && (
+                          <DropdownMenuItem onClick={() => setEditFor({ employeeId: e.id, employeeName: e.name, attendance: current })}>
+                            <Pencil className="size-4" /> Edit attendance
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
-                {current?.source === "self_service" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5"
-                    onClick={() => setDetailFor({ attendance: current, employeeName: e.name })}
-                  >
-                    <Camera className="size-3.5" />
-                    {current.checkInWithinGeofence === false || current.checkOutWithinGeofence === false ? (
-                      <span className="text-red-600 dark:text-red-400">Flagged</span>
-                    ) : (
-                      "Self check-in"
-                    )}
-                  </Button>
-                )}
-                <div className="flex flex-wrap gap-1.5">
-                  {STATUSES.map((s) => (
-                    <button
-                      key={s.value}
-                      type="button"
-                      disabled={!canManage || markAttendance.isPending}
-                      onClick={() => mark(e.id, s.value)}
-                      className={cn(
-                        "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50",
-                        current?.status === s.value ? s.tone : "border-border text-muted-foreground hover:bg-muted"
-                      )}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
+                {/* No status is ever truly "" — the cast just lets an unmarked day render with
+                    nothing selected instead of forcing a default. */}
+                <div className={cn((!canManage || markAttendance.isPending) && "pointer-events-none opacity-60")}>
+                  <SegmentedToggle
+                    value={current?.status ?? ("" as AttendanceStatus)}
+                    onChange={(v) => mark(e.id, v)}
+                    options={STATUS_OPTIONS}
+                    ariaLabel={`Attendance status for ${e.name}`}
+                  />
                 </div>
-                {canManage && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-sm"
-                    aria-label={`Edit attendance for ${e.name}`}
-                    title="Edit attendance"
-                    onClick={() => setEditFor({ employeeId: e.id, employeeName: e.name, attendance: current })}
-                  >
-                    <Pencil className="size-4" />
-                  </Button>
-                )}
               </div>
             );
           })}

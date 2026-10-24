@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CalendarCheck, FolderKanban, ListTodo, Target, Users } from "lucide-react";
+import { CalendarCheck, CalendarDays, FolderKanban, ListTodo, Target, Users } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
 import { useLeads, useProjects, useTargetsMeta, useTargetsSummary } from "@/hooks/use-targets";
@@ -12,16 +12,17 @@ import { TasksTab } from "@/components/targets/tasks-tab";
 import { ProjectsTab } from "@/components/targets/projects-tab";
 import { LeadsTab } from "@/components/targets/leads-tab";
 import { TargetsTab } from "@/components/targets/targets-tab";
+import { PlannerTab } from "@/components/targets/planner-tab";
 import { TargetsNoAccess } from "@/components/targets/no-access";
 
-type Tab = "today" | "tasks" | "projects" | "leads" | "targets";
+type Tab = "today" | "tasks" | "projects" | "leads" | "targets" | "planner";
 
 function TargetsHome() {
   const router = useRouter();
   const params = useSearchParams();
   const raw = params.get("tab");
   // "Today" (who to contact) is the landing tab; a shared task link (?task=…) goes straight to Tasks.
-  const tab: Tab = raw === "tasks" || raw === "leads" || raw === "targets" || raw === "projects" ? raw : params.get("task") ? "tasks" : "today";
+  const tab: Tab = raw === "tasks" || raw === "leads" || raw === "targets" || raw === "projects" || raw === "planner" ? raw : params.get("task") ? "tasks" : "today";
   const metaQuery = useTargetsMeta();
   const meta = metaQuery.data;
   // Counts for the tab badges; both are cached queries the tabs use anyway, and the badges just stay off until they arrive.
@@ -38,7 +39,11 @@ function TargetsHome() {
   useEffect(() => {
     if (wantNew === "task") router.replace("/targets/tasks/new");
     else if (wantNew === "lead") router.replace("/targets/leads/new");
-  }, [wantNew, router]);
+    // A direct ?tab=planner link for someone without the permission (rather than someone who just
+    // had it taken away mid-session) — the API would 403 anyway, but there's no reason to let the
+    // tab render at all once the permission is known.
+    else if (tab === "planner" && meta && !meta.can.usePlanner) router.replace("/targets");
+  }, [wantNew, tab, meta, router]);
 
   if (metaQuery.isError) return <TargetsNoAccess message={metaQuery.error.message} />;
 
@@ -57,6 +62,7 @@ function TargetsHome() {
           { value: "projects", label: "Projects", icon: FolderKanban, tone: "amber", count: activeProjects },
           { value: "leads", label: "Leads", icon: Users, tone: "green", count: summary?.openLeads },
           { value: "targets", label: "Targets", icon: Target, tone: "purple", count: summary?.targets.length },
+          ...(meta?.can.usePlanner ? [{ value: "planner" as const, label: "Planner", icon: CalendarDays, tone: "teal" as const }] : []),
         ]}
       />
 
@@ -65,6 +71,7 @@ function TargetsHome() {
       {tab === "projects" && <ProjectsTab meta={meta} />}
       {tab === "leads" && <LeadsTab meta={meta} />}
       {tab === "targets" && <TargetsTab meta={meta} />}
+      {tab === "planner" && meta?.can.usePlanner && <PlannerTab meta={meta} />}
     </div>
   );
 }

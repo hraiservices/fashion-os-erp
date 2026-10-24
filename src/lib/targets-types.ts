@@ -403,3 +403,37 @@ export interface TimeLogDto {
   note: string;
   createdAt: string;
 }
+
+export interface PlannerEntryDto {
+  id: string;
+  ownerId: string;
+  entryDate: string;
+  kind: "note" | "todo";
+  text: string;
+  done: boolean;
+  reminderAt: string | null;
+  reminderSentFor: string | null;
+  linkType: "lead" | "customer" | "order" | "invoice" | null;
+  linkId: string | null;
+  linkLabel: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function mapPlannerRow(r: Tables["planner_entries"]["Row"]): PlannerEntryDto {
+  return {
+    id: r.id,
+    ownerId: r.owner_id,
+    entryDate: r.entry_date,
+    kind: r.kind === "todo" ? "todo" : "note",
+    text: r.text,
+    done: r.done,
+    reminderAt: r.reminder_at,
+    reminderSentFor: r.reminder_sent_for,
+    linkType: (r.link_type as PlannerEntryDto["linkType"]) ?? null,
+    linkId: r.link_id,
+    linkLabel: r.link_label || "",
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}

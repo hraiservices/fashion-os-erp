@@ -55,6 +55,7 @@ export async function GET(request: Request) {
       manageTargets: ctx.perms.manageTargets,
       viewAll: ctx.seesAll,
       assignTasks: ctx.perms.assignTasks,
+      usePlanner: ctx.perms.usePlanner,
       viewReports: ctx.perms.viewReports,
       /** The invoice screens only exist when Product Sales is licensed and permitted. */
       createInvoice: ctx.perms.manageSales && isModuleEnabled(ctx.modules, "sales"),

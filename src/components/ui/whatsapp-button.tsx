@@ -32,9 +32,6 @@ function useWhatsAppPreference() {
     choose(app: WhatsAppApp, remember: boolean) {
       setWhatsAppPreference(remember ? app : null);
     },
-    forget() {
-      setWhatsAppPreference(null);
-    },
   };
 }
 
@@ -88,31 +85,20 @@ interface WhatsAppButtonProps {
 
 /** Icon + label WhatsApp action — the default everywhere there's room for text. */
 export function WhatsAppButton({ href, label = "WhatsApp", variant = "outline", size = "default", className, labelClassName, tone = "whatsapp" }: WhatsAppButtonProps) {
-  const { preference, choose, forget } = useWhatsAppPreference();
+  const { preference, choose } = useWhatsAppPreference();
   const [open, setOpen] = useState(false);
 
   if (preference !== null) {
     return (
-      // display:contents — Button keeps acting as the direct flex child callers size via
-      // `className` (flex-1, w-full, basis-28, …); this wrapper only exists to slot in the
-      // "Change" link as a sibling, without it the sizing classes below would size this
-      // wrapper instead of the button they're meant for.
-      <div className="contents">
-        <Button
-          variant={variant}
-          size={size}
-          className={cn("gap-1.5", className)}
-          nativeButton={false}
-          render={<a href={resolveWhatsAppHref(href, preference ?? "regular")} target="_blank" rel="noopener noreferrer" />}
-        >
-          <WhatsAppIcon className={cn("size-4", TONE_ICON_COLOR[tone])} /> <span className={labelClassName}>{label}</span>
-        </Button>
-        {preference && (
-          <button type="button" onClick={forget} className="shrink-0 text-xs text-muted-foreground underline-offset-2 hover:underline">
-            Change
-          </button>
-        )}
-      </div>
+      <Button
+        variant={variant}
+        size={size}
+        className={cn("gap-1.5", className)}
+        nativeButton={false}
+        render={<a href={resolveWhatsAppHref(href, preference ?? "regular")} target="_blank" rel="noopener noreferrer" />}
+      >
+        <WhatsAppIcon className={cn("size-4", TONE_ICON_COLOR[tone])} /> <span className={labelClassName}>{label}</span>
+      </Button>
     );
   }
 

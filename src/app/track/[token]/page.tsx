@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { Phone } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -10,6 +12,38 @@ import { buildUpiLink, isValidUpiId, type ShopLinks } from "@/lib/shop-links";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { OrderPhotoGallery } from "@/components/track/order-photo-gallery";
 import { TrackChat } from "@/components/track/track-chat";
+
+/**
+ * WhatsApp (and every other chat app) builds its link-preview card from these tags — without
+ * them a shared tracking link shows as bare text, same gap /g/[token] (WhatsApp photo gallery
+ * links) was built to close. Image preference: the order's own first garment photo (resolved to
+ * an absolute signed Storage URL) when there is one — a shop's own OG crawler convention won't
+ * follow a data: URL, so a legacy base64-stored photo is skipped rather than passed through —
+ * else the shop's logo/favicon via /api/branding/icon, built absolute from the request host
+ * since generateMetadata has no window.location to read.
+ */
+export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
+  const { token } = await params;
+  const supabase = await createClient();
+  const data = await fetchPublicOrderStatus(supabase, token);
+  if (!data) return { title: "Order Status" };
+
+  const { customerName, shopName, orders } = data;
+  const title = shopName ? `${shopName} — Order Status` : "Order Status";
+  const firstOrder = orders[0];
+  const description = firstOrder
+    ? `${customerName || "Customer"}'s order ${firstOrder.id} is ${STAGE_META[firstOrder.status].label}.${firstOrder.balance > 0 ? ` Balance due ${inr(firstOrder.balance)}.` : ""}`
+    : `Track ${customerName || "your"} order${orders.length > 1 ? "s" : ""} with ${shopName || "us"}.`;
+
+  const h = await headers();
+  const origin = `${h.get("x-forwarded-proto") || "https"}://${h.get("host")}`;
+  const db = createServiceClient();
+  const rawFirstImage = firstOrder?.images[0];
+  const resolvedFirstImage = db && rawFirstImage ? (await resolveOrderImageUrls(db, [rawFirstImage]))[0] : undefined;
+  const image = resolvedFirstImage?.startsWith("http") ? resolvedFirstImage : `${origin}/api/branding/icon`;
+
+  return { title, description, openGraph: { title, description, images: [{ url: image }] } };
+}
 
 /** Fulfillment stages only — "payment" is a financial state layered on top of "delivered",
  *  not a step in this timeline (mirrors how STAGE_META itself treats it). */

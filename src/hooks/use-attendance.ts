@@ -70,6 +70,16 @@ export function useAttendanceInRange(from: string, to: string) {
   });
 }
 
+type MarkAttendanceVars = {
+  employeeId: string;
+  date: string;
+  status: AttendanceStatus;
+  checkIn?: string | null;
+  checkOut?: string | null;
+  notes?: string;
+  userEmail?: string;
+};
+
 /**
  * Marks (or updates) one employee's attendance for a given day.
  *
@@ -80,26 +90,18 @@ export function useAttendanceInRange(from: string, to: string) {
  *
  * `userEmail` is still accepted so existing callers don't have to change, but it is no longer
  * sent anywhere: the server records the actor from the session cookie.
+ *
+ * Optimistic: the attendance grid used to sit dimmed and unclickable for the whole server
+ * round-trip (auth check + two DB reads + the write itself) before a status pill updated at
+ * all — reported as a ~1.5s lag per click. `onMutate` below writes the new status into the
+ * ["attendance","date",date] cache immediately so the pill highlights on click; `onError` rolls
+ * it back and the caller shows a toast; `onSettled` refetches to reconcile with whatever the
+ * server actually persisted (server-computed fields like hoursWorked, or a rejected write).
  */
 export function useMarkAttendance() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      employeeId,
-      date,
-      status,
-      checkIn,
-      checkOut,
-      notes,
-    }: {
-      employeeId: string;
-      date: string;
-      status: AttendanceStatus;
-      checkIn?: string | null;
-      checkOut?: string | null;
-      notes?: string;
-      userEmail?: string;
-    }) => {
+    mutationFn: async ({ employeeId, date, status, checkIn, checkOut, notes }: MarkAttendanceVars) => {
       const res = await fetch("/api/attendance/mark", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -108,8 +110,58 @@ export function useMarkAttendance() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to mark attendance");
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["attendance"] });
+    onMutate: async (vars: MarkAttendanceVars) => {
+      const queryKey = ["attendance", "date", vars.date] as const;
+      await qc.cancelQueries({ queryKey });
+      const previous = qc.getQueryData<Attendance[]>(queryKey);
+      qc.setQueryData<Attendance[]>(queryKey, (old) => {
+        const list = old ? [...old] : [];
+        const idx = list.findIndex((a) => a.employeeId === vars.employeeId);
+        if (idx >= 0) {
+          list[idx] = { ...list[idx], status: vars.status, checkIn: vars.checkIn ?? list[idx].checkIn, checkOut: vars.checkOut ?? list[idx].checkOut, notes: vars.notes ?? list[idx].notes };
+        } else {
+          // No row for this employee/day yet — a minimal manual row, good enough to render the
+          // selected pill until onSettled's refetch replaces it with the server's real row.
+          list.push({
+            id: `optimistic-${vars.employeeId}-${vars.date}`,
+            employeeId: vars.employeeId,
+            date: vars.date,
+            status: vars.status,
+            checkIn: vars.checkIn ?? null,
+            checkOut: vars.checkOut ?? null,
+            notes: vars.notes ?? "",
+            createdAt: new Date().toISOString(),
+            source: "manual",
+            checkInAt: null,
+            checkOutAt: null,
+            checkInLat: null,
+            checkInLng: null,
+            checkInAccuracyM: null,
+            checkOutLat: null,
+            checkOutLng: null,
+            checkOutAccuracyM: null,
+            checkInPhoto: null,
+            checkOutPhoto: null,
+            checkInWithinGeofence: null,
+            checkOutWithinGeofence: null,
+            checkInDistanceM: null,
+            checkOutDistanceM: null,
+            hoursWorked: null,
+            overtimeHours: 0,
+            workNotes: "",
+          });
+        }
+        return list;
+      });
+      return { previous, queryKey };
+    },
+    onError: (_err, _vars, context) => {
+      if (context) qc.setQueryData(context.queryKey, context.previous);
+    },
+    onSettled: (_data, _err, vars) => {
+      qc.invalidateQueries({ queryKey: ["attendance", "date", vars.date] });
+      qc.invalidateQueries({ queryKey: ["attendance", "employee", vars.employeeId] });
+      qc.invalidateQueries({ queryKey: ["attendance", "range"] });
     },
   });
 }

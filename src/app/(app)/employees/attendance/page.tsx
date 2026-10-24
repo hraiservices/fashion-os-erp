@@ -113,8 +113,10 @@ export default function AttendancePage() {
                   )}
                 </div>
                 {/* No status is ever truly "" — the cast just lets an unmarked day render with
-                    nothing selected instead of forcing a default. */}
-                <div className={cn((!canManage || markAttendance.isPending) && "pointer-events-none opacity-60")}>
+                    nothing selected instead of forcing a default. Not dimmed while a mark is in
+                    flight: useMarkAttendance updates this row's pill optimistically, so there's
+                    nothing to wait for visually — only "can't manage attendance" disables it. */}
+                <div className={cn(!canManage && "pointer-events-none opacity-60")}>
                   <SegmentedToggle
                     value={current?.status ?? ("" as AttendanceStatus)}
                     onChange={(v) => mark(e.id, v)}

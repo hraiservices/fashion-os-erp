@@ -4,7 +4,7 @@ import { MaterialBadge, showMaterialBadge } from "@/components/orders/material-b
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Wallet, RotateCcw, Trash2, Link as LinkIcon } from "lucide-react";
+import { Wallet, RotateCcw, Trash2, Link as LinkIcon, MoreVertical } from "lucide-react";
 import { getNextStage, buildWhatsAppUrl, STAGE_META } from "@/lib/business-rules";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
@@ -17,6 +17,12 @@ import { DueBadge, MoveToStageLabel } from "@/components/orders/stage-badge";
 import { Button } from "@/components/ui/button";
 import { BalanceDue } from "@/components/ui/money-text";
 import { WhatsAppButton, WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,7 +45,7 @@ import type { Shop } from "@/lib/settings";
  * order or select it first. Self-contained (own confirm dialog + mutation) so it drops into any
  * card/row type with no wiring through the parent list/board.
  */
-export function DeleteOrderButton({ order, compact, showLabel }: { order: Order; compact?: boolean; showLabel?: boolean }) {
+export function DeleteOrderButton({ order, compact, showLabel, asMenuItem }: { order: Order; compact?: boolean; showLabel?: boolean; asMenuItem?: boolean }) {
   const { data: user } = useCurrentUser();
   const deleteOrder = useDeleteOrder();
   const [open, setOpen] = useState(false);
@@ -59,28 +65,44 @@ export function DeleteOrderButton({ order, compact, showLabel }: { order: Order;
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger
-        render={
-          <Button
-            variant="outline"
-            size={showLabel ? "sm" : "icon-sm"}
-            className={cn(
-              showLabel ? "h-11 min-w-0 flex-1 gap-1.5 px-2 text-sm" : "size-9 shrink-0",
-              "text-destructive hover:bg-destructive/10",
-              !compact && !showLabel && "sm:size-8"
-            )}
-            aria-label={`Delete order ${order.id}`}
-            title="Delete order"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-          >
-            <Trash2 className="size-4 shrink-0" />
-            {showLabel && <span className="truncate">Delete</span>}
-          </Button>
-        }
-      />
+      {asMenuItem ? (
+        /* No AlertDialogTrigger here — a dropdown menu item closes its menu (and unmounts) the
+         * instant it's clicked, which would tear down a nested trigger before the dialog opens.
+         * Opening the dialog from this item's own onClick, controlled via `open` above, works
+         * regardless of the menu's own closing animation. */
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={(e) => {
+            e.preventDefault();
+            setOpen(true);
+          }}
+        >
+          <Trash2 className="size-4 shrink-0" /> Delete order
+        </DropdownMenuItem>
+      ) : (
+        <AlertDialogTrigger
+          render={
+            <Button
+              variant="outline"
+              size={showLabel ? "sm" : "icon-sm"}
+              className={cn(
+                showLabel ? "h-11 min-w-0 flex-1 gap-1.5 px-2 text-sm" : "size-9 shrink-0",
+                "text-destructive hover:bg-destructive/10",
+                !compact && !showLabel && "sm:size-8"
+              )}
+              aria-label={`Delete order ${order.id}`}
+              title="Delete order"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+            >
+              <Trash2 className="size-4 shrink-0" />
+              {showLabel && <span className="truncate">Delete</span>}
+            </Button>
+          }
+        />
+      )}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete this order?</AlertDialogTitle>
@@ -194,6 +216,10 @@ export function OrderCard({
 }) {
   const next = getNextStage(order.status);
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
+  const { data: user } = useCurrentUser();
+  const canRecordPayment = Boolean(onRecordPayment && order.balance > 0);
+  const canDelete = Boolean(user?.perms.deleteOrder);
+  const hasOverflowActions = canRecordPayment || canDelete;
 
   return (
     <div
@@ -278,35 +304,48 @@ export function OrderCard({
           </span>
         </div>
 
-        {/* Mobile-only: Payment/WhatsApp/Delete share a row with text labels — the full-width
-            card has room for this; the narrow kanban column on sm+ doesn't (labels truncated to
-            "Pay…"/"Dele…" there, which is what this reverts). A flex row (each button flex-1)
-            rather than a fixed-column grid: Payment and Delete are permission/condition-gated and
-            can be entirely absent for some roles — flex-1 lets the remaining buttons stretch to
-            fill the row evenly instead of a fixed grid leaving a dead empty column where a
-            missing button would have been. */}
+        {/* Mobile-only: one primary action (WhatsApp — the action present on every card,
+            regardless of role or balance) plus a kebab menu for everything else. Payment and
+            Delete used to sit here as their own flex-1 labeled buttons, which left a cramped
+            three-way row on narrow phones; they're conditionally present (role/balance-gated) so
+            the overflow menu just omits what doesn't apply, same as before. */}
         <div className="mt-1.5 flex gap-1.5 sm:hidden">
-          {onRecordPayment && order.balance > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-11 min-w-0 flex-1 gap-1.5 px-2 text-sm"
-              aria-label={`Record payment for ${order.name}`}
-              onClick={(e) => {
-                e.preventDefault();
-                onRecordPayment(order);
-              }}
-            >
-              <Wallet className="size-4 shrink-0" /> <span className="truncate">Payment</span>
-            </Button>
-          )}
           <WhatsAppButton
             href={buildWhatsAppUrl({ ...order, trackUrl }, resolveWaType(order), shop, waTemplates)}
             label="WhatsApp"
             size="sm"
             className="h-11 min-w-0 flex-1 px-2 text-sm"
           />
-          <DeleteOrderButton order={order} showLabel />
+          {hasOverflowActions && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    className="h-11 w-11 shrink-0"
+                    aria-label={`More actions for ${order.name}`}
+                    onClick={(e) => e.preventDefault()}
+                  >
+                    <MoreVertical className="size-4" />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end">
+                {onRecordPayment && order.balance > 0 && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onRecordPayment(order);
+                    }}
+                  >
+                    <Wallet className="size-4 shrink-0" /> Record payment
+                  </DropdownMenuItem>
+                )}
+                <DeleteOrderButton order={order} asMenuItem />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
     </div>

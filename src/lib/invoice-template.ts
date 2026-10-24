@@ -23,6 +23,9 @@ export interface InvoiceTemplateConfig {
   showDiscount: boolean;
   showAmountInWords: boolean;
   showPageNumbers: boolean;
+  showCompanyEmail: boolean;
+  showCustomerAddress: boolean;
+  showCustomerEmail: boolean;
   showQrCode: boolean;
   showLogo: boolean;
   showSignature: boolean;
@@ -60,6 +63,9 @@ export function blankInvoiceTemplate(name = "Default"): InvoiceTemplateConfig {
     showDiscount: true,
     showAmountInWords: true,
     showPageNumbers: true,
+    showCompanyEmail: false,
+    showCustomerAddress: false,
+    showCustomerEmail: false,
     showQrCode: false,
     showLogo: false,
     showSignature: false,

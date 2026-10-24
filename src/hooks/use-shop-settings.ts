@@ -5,6 +5,8 @@ import { useAppSetting } from "@/hooks/use-app-setting";
 export interface ShopConfig {
   name: string;
   phone: string;
+  /** Shown on invoices alongside phone/address when the invoice template's "Company email" field is turned on. */
+  email: string;
   address: string;
   gstin: string;
   /** Despite the name, a public Storage URL since the branding-media migration (see
@@ -37,6 +39,7 @@ export interface ShopConfig {
 export const DEFAULT_SHOP_CONFIG: ShopConfig = {
   name: "",
   phone: "",
+  email: "",
   address: "",
   gstin: "",
   logoDataUrl: null,

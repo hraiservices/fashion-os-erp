@@ -257,7 +257,14 @@ export function InvoiceTemplateSection() {
             <CheckboxRow label="Tax breakup (GST)" checked={active.showTax} onChange={(v) => updateActive({ showTax: v })} />
             <CheckboxRow label="Amount in words" checked={active.showAmountInWords} onChange={(v) => updateActive({ showAmountInWords: v })} />
             <CheckboxRow label="Page numbers" checked={active.showPageNumbers} onChange={(v) => updateActive({ showPageNumbers: v })} />
+            <CheckboxRow label="Company email" checked={active.showCompanyEmail} onChange={(v) => updateActive({ showCompanyEmail: v })} />
+            <CheckboxRow label="Customer address" checked={active.showCustomerAddress} onChange={(v) => updateActive({ showCustomerAddress: v })} />
+            <CheckboxRow label="Customer email" checked={active.showCustomerEmail} onChange={(v) => updateActive({ showCustomerEmail: v })} />
           </div>
+          {/* Company address/phone and customer phone are always shown when the data itself is
+             filled in (Settings → Shop / the customer's CRM record) — these three are the ones
+             that need an explicit toggle since showing them by default would be a surprise. */}
+          <p className="text-xs text-muted-foreground">Company email comes from Settings → Shop. Customer address/email come from the customer&apos;s CRM record.</p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">

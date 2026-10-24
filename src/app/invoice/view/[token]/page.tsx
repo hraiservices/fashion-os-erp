@@ -12,7 +12,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
   const data = await fetchPublicInvoice(supabase, token);
   if (!data) notFound();
 
-  const { invoice, paidTotal, balance, shopName, shopPhone, shopAddress, shopGstin, customerGstin, template } = data;
+  const { invoice, paidTotal, balance, shopName, shopPhone, shopAddress, shopGstin, shopEmail, customerGstin, customerAddress, customerEmail, template } = data;
   const lineSubtotal = invoice.items.reduce((s, i) => s + i.amount, 0);
   const discountAmount = lineSubtotal - invoice.taxableAmount + invoice.shippingCharges;
   const showLogo = template.showLogo && template.logoDataUrl;
@@ -31,6 +31,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
             <h1 className="text-lg font-semibold">{shopName || "Invoice"}</h1>
             {shopAddress && <p className="text-sm text-muted-foreground">{shopAddress}</p>}
             {shopPhone && <p className="text-sm text-muted-foreground">{shopPhone}</p>}
+            {template.showCompanyEmail && shopEmail && <p className="text-sm text-muted-foreground">{shopEmail}</p>}
             {shopGstin && <p className="text-sm text-muted-foreground">GSTIN: {shopGstin}</p>}
           </div>
         </div>
@@ -54,6 +55,8 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Billed to</p>
           <p className="mt-1 font-medium">{invoice.customerName}</p>
           <p className="text-sm text-muted-foreground">{invoice.customerMobile}</p>
+          {template.showCustomerAddress && customerAddress && <p className="text-sm text-muted-foreground">{customerAddress}</p>}
+          {template.showCustomerEmail && customerEmail && <p className="text-sm text-muted-foreground">{customerEmail}</p>}
           {customerGstin && <p className="text-sm text-muted-foreground">GSTIN: {customerGstin}</p>}
         </div>
         <div>

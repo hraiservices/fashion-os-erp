@@ -13,7 +13,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   const data = await fetchPublicInvoice(supabase, token);
   if (!data) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
 
-  const { invoice, paidTotal, balance, shopName, shopPhone, shopAddress, shopGstin, customerGstin, template } = data;
+  const { invoice, paidTotal, balance, shopName, shopPhone, shopAddress, shopGstin, shopEmail, customerGstin, customerAddress, customerEmail, template } = data;
 
   const buffer = await renderToBuffer(
     <InvoiceDocument
@@ -22,7 +22,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       shopPhone={shopPhone}
       shopAddress={shopAddress}
       shopGstin={shopGstin}
+      shopEmail={shopEmail}
       customerGstin={customerGstin}
+      customerAddress={customerAddress}
+      customerEmail={customerEmail}
       paidTotal={paidTotal}
       balance={balance}
       template={template}

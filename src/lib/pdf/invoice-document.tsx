@@ -70,7 +70,10 @@ export function InvoiceDocument({
   shopPhone,
   shopAddress,
   shopGstin,
+  shopEmail,
   customerGstin,
+  customerAddress,
+  customerEmail,
   paidTotal,
   balance,
   template,
@@ -80,7 +83,10 @@ export function InvoiceDocument({
   shopPhone: string;
   shopAddress?: string;
   shopGstin?: string;
+  shopEmail?: string;
   customerGstin?: string;
+  customerAddress?: string;
+  customerEmail?: string;
   paidTotal: number;
   balance: number;
   template?: InvoiceTemplateConfig;
@@ -101,6 +107,7 @@ export function InvoiceDocument({
             <Text style={[styles.shopName, { fontSize: t.shopNameFontSize, fontFamily: t.boldShopName ? bold : t.font }]}>{shopName || "Your Company"}</Text>
             {shopAddress && <Text style={styles.muted}>{shopAddress}</Text>}
             {shopPhone && <Text style={styles.muted}>{shopPhone}</Text>}
+            {t.showCompanyEmail && shopEmail && <Text style={styles.muted}>{shopEmail}</Text>}
             {shopGstin && <Text style={styles.muted}>GSTIN: {shopGstin}</Text>}
           </View>
           <View>
@@ -115,6 +122,8 @@ export function InvoiceDocument({
             <Text style={styles.label}>Billed to</Text>
             <Text style={[styles.value, { fontSize: t.customerNameFontSize, fontFamily: t.boldCustomerName ? bold : t.font }]}>{invoice.customerName}</Text>
             <Text style={styles.value}>{invoice.customerMobile}</Text>
+            {t.showCustomerAddress && customerAddress && <Text style={styles.value}>{customerAddress}</Text>}
+            {t.showCustomerEmail && customerEmail && <Text style={styles.value}>{customerEmail}</Text>}
             {customerGstin && <Text style={styles.value}>GSTIN: {customerGstin}</Text>}
           </View>
           <View>

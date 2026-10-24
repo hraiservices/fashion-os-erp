@@ -33,10 +33,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const paidTotal = (payments || []).reduce((s, p) => s + (p.amount || 0), 0);
   const creditsTotal = (credits || []).reduce((s, c) => s + (c.total || 0), 0);
   const balance = deriveInvoiceBalance(invoice.total, creditsTotal, paidTotal);
-  const shop = (shopSetting?.value as { name?: string; phone?: string; address?: string; gstin?: string } | null) || {};
+  const shop = (shopSetting?.value as { name?: string; phone?: string; email?: string; address?: string; gstin?: string } | null) || {};
   const template = getDefaultTemplate((templateSetting?.value as InvoiceTemplatesSetting | null) || DEFAULT_INVOICE_TEMPLATES_SETTING);
 
-  const { data: customerRow } = await supabase.from("customers").select("gstin").eq("mobile", invoice.customerMobile).maybeSingle();
+  const { data: customerRow } = await supabase.from("customers").select("gstin, address, email").eq("mobile", invoice.customerMobile).maybeSingle();
 
   const buffer = await renderToBuffer(
     <InvoiceDocument
@@ -45,7 +45,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       shopPhone={shop.phone || ""}
       shopAddress={shop.address || ""}
       shopGstin={shop.gstin || ""}
+      shopEmail={shop.email || ""}
       customerGstin={customerRow?.gstin || ""}
+      customerAddress={customerRow?.address || ""}
+      customerEmail={customerRow?.email || ""}
       paidTotal={paidTotal}
       balance={balance}
       template={template}

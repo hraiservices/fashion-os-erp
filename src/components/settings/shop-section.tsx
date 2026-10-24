@@ -151,6 +151,10 @@ export function ShopSection() {
           <Input value={shop.address} onChange={(e) => setShop({ ...shop, address: e.target.value })} placeholder="Shop no., street, city, pincode…" />
         </div>
         <div className="space-y-2">
+          <Label>Email (shown on invoices when enabled below)</Label>
+          <Input type="email" value={shop.email} onChange={(e) => setShop({ ...shop, email: e.target.value })} placeholder="billing@yourcompany.com" />
+        </div>
+        <div className="space-y-2">
           <Label>GSTIN (shown on invoices)</Label>
           <Input value={shop.gstin} onChange={(e) => setShop({ ...shop, gstin: e.target.value })} placeholder="e.g. 09ABCDE1234F1Z5" className="uppercase" />
         </div>

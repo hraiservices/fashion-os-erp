@@ -13,7 +13,10 @@ export interface PublicInvoiceData {
   shopPhone: string;
   shopAddress: string;
   shopGstin: string;
+  shopEmail: string;
   customerGstin: string;
+  customerAddress: string;
+  customerEmail: string;
   template: InvoiceTemplateConfig;
 }
 
@@ -25,7 +28,10 @@ interface GetPublicInvoiceResult {
   shopPhone: string;
   shopAddress: string;
   shopGstin: string;
+  shopEmail: string;
   customerGstin: string;
+  customerAddress: string;
+  customerEmail: string;
   invoiceTemplates: InvoiceTemplatesSetting | null;
 }
 
@@ -48,7 +54,10 @@ export async function fetchPublicInvoice(supabase: SupabaseClient<Database>, tok
     shopPhone: result.shopPhone || "",
     shopAddress: result.shopAddress || "",
     shopGstin: result.shopGstin || "",
+    shopEmail: result.shopEmail || "",
     customerGstin: result.customerGstin || "",
+    customerAddress: result.customerAddress || "",
+    customerEmail: result.customerEmail || "",
     template: getDefaultTemplate(result.invoiceTemplates || DEFAULT_INVOICE_TEMPLATES_SETTING),
   };
 }

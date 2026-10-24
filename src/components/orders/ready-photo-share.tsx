@@ -41,7 +41,11 @@ export function ReadyPhotoShare({ mobile, message, balance, className }: { mobil
 
   return (
     <>
-      <input ref={inputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPick} />
+      {/* No `capture` attribute — on Android that forces Chrome's own in-page capture overlay,
+          which sometimes hands back a black/frozen preview (a known Chrome bug, not something we
+          can fix). Omitting it lets the OS's normal picker offer the real Camera app (its own,
+          more reliable capture flow) alongside the gallery, same as MediaCapture's "Upload". */}
+      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onPick} />
       <Button type="button" variant="outline" className={className} disabled={busy} onClick={() => inputRef.current?.click()}>
         {busy ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />} <span className="min-w-0 truncate">Send photo</span>
       </Button>

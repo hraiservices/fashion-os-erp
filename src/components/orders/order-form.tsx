@@ -1435,7 +1435,11 @@ function OrderFormFields({
                           >
                             <ScanLine className="size-3.5" />
                             {extractMeasurements.isPending ? "Reading chart…" : "Scan chart"}
-                            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScanChart} disabled={extractMeasurements.isPending} />
+                            {/* No `capture` attribute — see ready-photo-share.tsx for why: forcing
+                                Chrome's own in-page capture overlay on Android sometimes hands back
+                                a black/frozen preview. The OS's normal picker still offers the real
+                                Camera app, just alongside the gallery instead of forcing it. */}
+                            <input type="file" accept="image/*" className="hidden" onChange={handleScanChart} disabled={extractMeasurements.isPending} />
                           </Button>
                         )}
                       </div>

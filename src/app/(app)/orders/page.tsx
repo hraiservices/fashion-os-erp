@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Search, LayoutList, KanbanSquare, CalendarDays, ArrowRight, Trash2, Upload, MessageCircle, Printer } from "lucide-react";
+import { Search, LayoutList, KanbanSquare, CalendarDays, ArrowRight, Trash2, Upload, MessageCircle, Printer, RefreshCw } from "lucide-react";
 import { BulkWhatsAppDialog } from "@/components/orders/bulk-whatsapp-dialog";
 import { CalendarView } from "@/components/orders/calendar-view";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
@@ -21,6 +21,8 @@ import { computeOrderProfit, type OrderProfitBreakdown } from "@/lib/order-profi
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { useSavedViews } from "@/hooks/use-saved-views";
 import { useRowSelection } from "@/hooks/use-row-selection";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useQueryClient } from "@tanstack/react-query";
 import { KanbanBoard } from "@/components/orders/kanban-board";
 import { OrdersList } from "@/components/orders/orders-list";
 import { OrderFilters, EMPTY_FILTERS, type FilterState } from "@/components/orders/order-filters";
@@ -48,7 +50,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Suspense } from "react";
-import { daysLeft, getNextStage, STAGE_META, type Stage } from "@/lib/business-rules";
+import { daysLeft, getNextStage, STAGE_META, STAGES, type Stage } from "@/lib/business-rules";
 import { inr } from "@/lib/format";
 
 interface PendingStageChange {
@@ -92,6 +94,26 @@ const ORDERS_AUTO_HIDE = { belowWidth: 1920, keys: ["garment", "tailor", "profit
 // Text columns sort A-Z on first click (like the Customers page); every other column (money,
 // dates) sorts largest/latest-first on first click.
 const TEXT_SORT_COLUMNS = new Set(["order", "customer", "garment", "stage", "tailor"]);
+
+/** Shaped like a collapsed OrderCard (header line + two detail lines + action row) so the board
+ *  view's loading state doesn't flash a generic list skeleton while kanban cards are what's
+ *  about to render. */
+function SkeletonOrderCard() {
+  return (
+    <div className="space-y-2 overflow-hidden rounded-lg border bg-card p-3">
+      <div className="flex items-center justify-between gap-2">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-5 w-14" />
+      </div>
+      <Skeleton className="h-3 w-24" />
+      <Skeleton className="h-3 w-40" />
+      <div className="mt-2 flex gap-1.5">
+        <Skeleton className="h-11 flex-1 sm:h-8" />
+        <Skeleton className="h-11 w-11 sm:h-8 sm:w-8" />
+      </div>
+    </div>
+  );
+}
 
 export default function OrdersPage() {
   return (
@@ -138,6 +160,10 @@ function OrdersContent() {
 
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const isLoading = useDelayedLoading(ordersLoading);
+  const queryClient = useQueryClient();
+  const { containerRef: ptrContainerRef, pull: ptrPull, refreshing: ptrRefreshing, threshold: ptrThreshold, onTouchStart: ptrOnTouchStart, onTouchMove: ptrOnTouchMove, onTouchEnd: ptrOnTouchEnd } = usePullToRefresh(
+    () => queryClient.invalidateQueries({ queryKey: ["orders"] })
+  );
   const { data: shop } = useShopSettings();
   // A brand-new order redirects here (not to its detail page) — see order-form.tsx — so this is
   // where the "received" WhatsApp message actually gets sent from. Built once for the whole list
@@ -463,6 +489,48 @@ function OrdersContent() {
           {view === "list" && <ColumnCustomizerMenu table={columnTable} />}
         </div>
 
+        {/* Mobile-only: a compact search bar (the sm:block search above stays hidden below sm)
+            plus a horizontally-scrollable row of stage chips (Zomato/Blinkit-style quick
+            filters) so the most common filter — stage — never needs opening the full Filters
+            sheet below. Tapping an already-active chip clears it back to "all". */}
+        <div className="space-y-2 sm:hidden">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              enterKeyHint="search"
+              placeholder="Search name, mobile or order ID…"
+              className="h-10 pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search orders"
+            />
+          </div>
+          <div className="scrollbar-hide -mx-4 flex gap-1.5 overflow-x-auto px-4">
+            <Button
+              type="button"
+              size="sm"
+              variant={filters.stage === "all" ? "default" : "outline"}
+              className="h-8 shrink-0 rounded-full px-3 text-xs"
+              onClick={() => setFilters({ ...filters, stage: "all" })}
+            >
+              All
+            </Button>
+            {STAGES.map((s) => (
+              <Button
+                key={s}
+                type="button"
+                size="sm"
+                variant={filters.stage === s ? "default" : "outline"}
+                className="h-8 shrink-0 rounded-full px-3 text-xs"
+                onClick={() => setFilters({ ...filters, stage: filters.stage === s ? "all" : s })}
+              >
+                {STAGE_META[s].label}
+              </Button>
+            ))}
+          </div>
+        </div>
+
         <OrderFilters
           value={filters}
           onChange={setFilters}
@@ -549,52 +617,79 @@ function OrdersContent() {
         </div>
       )}
 
-      {isLoading ? (
-        <div className="space-y-2.5">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <SkeletonListItem key={i} />
-          ))}
+      {/* Pull-to-refresh (mobile only — touch events don't fire on desktop pointer devices, so
+          no extra gating needed): the indicator's height tracks the drag distance, and the
+          content below is pushed down by the same amount so the pull feels connected to what's
+          being refreshed instead of floating above it. */}
+      <div
+        ref={ptrContainerRef}
+        onTouchStart={ptrOnTouchStart}
+        onTouchMove={ptrOnTouchMove}
+        onTouchEnd={ptrOnTouchEnd}
+      >
+        <div
+          className="flex items-center justify-center overflow-hidden text-muted-foreground sm:hidden"
+          style={{ height: ptrRefreshing ? 40 : ptrPull }}
+          aria-hidden={!ptrRefreshing && ptrPull === 0}
+        >
+          <RefreshCw className={cn("size-5", (ptrRefreshing || ptrPull >= ptrThreshold) && "animate-spin")} />
         </div>
-      ) : view === "board" ? (
-        <KanbanBoard
-          orders={filtered}
-          canChangeStage={user?.perms.changeStage}
-          onAdvance={handleAdvance}
-          advancingId={advancingId}
-          shop={shop}
-          onSetStage={handleSetStage}
-          onRecordPayment={user?.perms.managePayments ? setPaymentOrder : undefined}
-          trackUrlByMobile={trackUrlByMobile}
-        />
-      ) : view === "calendar" ? (
-        <CalendarView
-          orders={calendarOrders}
-          canChangeStage={user?.perms.changeStage}
-          onAdvance={handleAdvance}
-          advancingId={advancingId}
-          shop={shop}
-          onRecordPayment={user?.perms.managePayments ? setPaymentOrder : undefined}
-          tailorName={tailorName}
-          trackUrlByMobile={trackUrlByMobile}
-        />
-      ) : (
-        <OrdersList
-          orders={filtered}
-          canChangeStage={user?.perms.changeStage}
-          onAdvance={handleAdvance}
-          advancingId={advancingId}
-          shop={shop}
-          onRecordPayment={user?.perms.managePayments ? setPaymentOrder : undefined}
-          columnTable={columnTable}
-          selection={user?.perms.deleteOrder || user?.perms.managePayments ? selection : undefined}
-          profitByOrderId={profitByOrderId}
-          tailorName={tailorName}
-          trackUrlByMobile={trackUrlByMobile}
-          sortKey={colSort?.key ?? null}
-          sortAsc={colSort?.asc ?? false}
-          onSort={toggleColumnSort}
-        />
-      )}
+
+        {isLoading ? (
+          view === "board" ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <SkeletonOrderCard key={i} />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <SkeletonListItem key={i} />
+              ))}
+            </div>
+          )
+        ) : view === "board" ? (
+          <KanbanBoard
+            orders={filtered}
+            canChangeStage={user?.perms.changeStage}
+            onAdvance={handleAdvance}
+            advancingId={advancingId}
+            shop={shop}
+            onSetStage={handleSetStage}
+            onRecordPayment={user?.perms.managePayments ? setPaymentOrder : undefined}
+            trackUrlByMobile={trackUrlByMobile}
+          />
+        ) : view === "calendar" ? (
+          <CalendarView
+            orders={calendarOrders}
+            canChangeStage={user?.perms.changeStage}
+            onAdvance={handleAdvance}
+            advancingId={advancingId}
+            shop={shop}
+            onRecordPayment={user?.perms.managePayments ? setPaymentOrder : undefined}
+            tailorName={tailorName}
+            trackUrlByMobile={trackUrlByMobile}
+          />
+        ) : (
+          <OrdersList
+            orders={filtered}
+            canChangeStage={user?.perms.changeStage}
+            onAdvance={handleAdvance}
+            advancingId={advancingId}
+            shop={shop}
+            onRecordPayment={user?.perms.managePayments ? setPaymentOrder : undefined}
+            columnTable={columnTable}
+            selection={user?.perms.deleteOrder || user?.perms.managePayments ? selection : undefined}
+            profitByOrderId={profitByOrderId}
+            tailorName={tailorName}
+            trackUrlByMobile={trackUrlByMobile}
+            sortKey={colSort?.key ?? null}
+            sortAsc={colSort?.asc ?? false}
+            onSort={toggleColumnSort}
+          />
+        )}
+      </div>
 
       {/* Stage change confirmation dialog */}
       <AlertDialog open={!!pendingChange} onOpenChange={(open) => { if (!open) setPendingChange(null); }}>

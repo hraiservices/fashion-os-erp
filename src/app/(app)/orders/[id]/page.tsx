@@ -284,12 +284,31 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     }
   }
 
+  // Single most important action for the mobile sticky bar below — whichever one a tailor/
+  // counter staffer would reach for first on this order right now. Priority: move the order
+  // forward > collect an owed balance. The full button row further down still has every action
+  // (including this one) in normal flow — this bar is a shortcut so it doesn't require
+  // scrolling past Garments/Payments/History to find it.
+  const primaryAction = user?.perms.changeStage && next
+    ? { label: <><ArrowRight className="size-4 shrink-0" /> <span className="truncate"><MoveToStageLabel label={STAGE_META[next].label} /></span></>, onClick: requestAdvance, className: STAGE_STYLE[next].solid }
+    : user?.perms.managePayments && order.balance > 0
+      ? { label: <><Wallet className="size-4 shrink-0" /> <span className="truncate">Collect payment</span></>, onClick: () => setPaymentOpen(true), className: "" }
+      : null;
+
   return (
-    <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+    <div className={cn("mx-auto max-w-6xl space-y-4 p-4 sm:p-6", primaryAction && "pb-20 sm:pb-6")}>
+      {primaryAction && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 p-3 pr-20 backdrop-blur-sm sm:hidden print:hidden">
+          <Button className={cn("h-12 w-full text-base", primaryAction.className)} disabled={advanceStage.isPending} onClick={primaryAction.onClick}>
+            {primaryAction.label}
+          </Button>
+        </div>
+      )}
       {/* Mobile sticky mini header (#3) — appears once the main header card below scrolls out of
        *  view, so the customer's name and a tap-to-call link stay reachable without scrolling
        *  back up. sm:hidden since desktop never scrolls this far before the lg:col-span-4 header
-       *  column runs out of its own content. */}
+       *  column runs out of its own content. Pinned to top-14 (below the app topbar); the
+       *  primary-action bar above is pinned to the bottom instead, so the two never collide. */}
       {showStickyHeader && (
         <div className="fixed inset-x-0 top-14 z-20 flex items-center justify-between gap-3 border-b bg-background/95 px-4 py-2 backdrop-blur-sm sm:hidden">
           <p className="min-w-0 truncate text-sm font-semibold">{order.name}</p>
@@ -439,15 +458,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      {/* Actions — a plain wrapping/flex layout in normal document flow, not a fixed/sticky bar.
-          A fixed bottom bar fought for the same screen corner as the app-wide WhatsApp-support/
-          AI-Copilot bubbles (no amount of horizontal clearance fully avoided it) and forced a
-          horizontally scrollable row to fit its buttons, which is worse than just wrapping them.
-          Every button is `flex-1` with a `basis` floor, not a fixed-column grid — a grid's column
-          count is set by container width alone, so whenever the trailing row had fewer buttons
-          than that column count (e.g. 2 buttons in a 3-column grid), the leftover column just sat
-          empty instead of the row filling out. flex-1 lets each wrapped row's items share exactly
-          that row's width, however many end up on it. */}
+      {/* Full action row — every action (including whichever one the mobile sticky bar above
+          shortcuts to) in normal document flow, not just a fixed bar. Every button is `flex-1`
+          with a `basis` floor, not a fixed-column grid — a grid's column count is set by
+          container width alone, so whenever the trailing row had fewer buttons than that column
+          count (e.g. 2 buttons in a 3-column grid), the leftover column just sat empty instead
+          of the row filling out. flex-1 lets each wrapped row's items share exactly that row's
+          width, however many end up on it. */}
       <div className="space-y-2 print:hidden">
         {/* Full-width stacked below `sm:` instead of flex-wrap's basis-36 — "Move to DELIVERED"
          *  (and similarly long stage names) was truncating when squeezed two-to-a-row on a phone;

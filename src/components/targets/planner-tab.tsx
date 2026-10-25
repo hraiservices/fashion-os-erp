@@ -262,7 +262,7 @@ function DayColumn({ date, today, entries, isToday, onAdded }: { date: string; t
         <Popover open={composerOpen} onOpenChange={setComposerOpen}>
           <PopoverTrigger
             render={
-              <Button type="button" variant="ghost" size="icon-sm" aria-label={`Add to ${dayLabel(date)}`} className="size-6">
+              <Button type="button" variant="ghost" size="icon-sm" aria-label={`Add to ${dayLabel(date)}`} className="size-9">
                 <Plus className="size-3.5" />
               </Button>
             }

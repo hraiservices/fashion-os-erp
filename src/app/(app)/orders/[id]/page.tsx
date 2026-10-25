@@ -296,9 +296,17 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       : null;
 
   return (
-    <div className={cn("mx-auto max-w-6xl space-y-4 p-4 sm:p-6", primaryAction && "pb-20 sm:pb-6")}>
+    <div className={cn("mx-auto max-w-6xl space-y-4 p-4 sm:p-6", primaryAction && "pb-32 sm:pb-6")}>
       {primaryAction && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 p-3 pr-20 backdrop-blur-sm sm:hidden print:hidden">
+        // Stacked above the global mobile tab bar (`MobileTabBar`, fixed bottom-0, z-40,
+        // min-h-12 + its own safe-area padding) rather than at bottom-0 itself — otherwise the
+        // tab bar would sit on top of and hide this bar entirely. Mirrors the same
+        // `calc(3rem + safe-area-inset-bottom)` convention the Dashboard's own bottom-tabs bar
+        // (PR #474) already uses for the same reason.
+        <div
+          className="fixed inset-x-0 z-30 border-t bg-card/95 p-3 pr-20 backdrop-blur-sm sm:hidden print:hidden"
+          style={{ bottom: "calc(3rem + env(safe-area-inset-bottom))" }}
+        >
           <Button className={cn("h-12 w-full text-base", primaryAction.className)} disabled={advanceStage.isPending} onClick={primaryAction.onClick}>
             {primaryAction.label}
           </Button>

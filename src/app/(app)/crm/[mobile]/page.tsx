@@ -4,7 +4,8 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ChevronRight, Mail, MapPin, Cake, Heart, FileText, Ticket, Shirt, Wallet } from "lucide-react";
+import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ChevronRight, ChevronDown, Mail, MapPin, Cake, Heart, FileText, Ticket, Shirt, Wallet } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ReceiptDuotoneIcon, ShoppingBagDuotoneIcon, WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useCustomerCredit } from "@/hooks/use-customer-credit";
@@ -76,6 +77,19 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   const [editOpen, setEditOpen] = useState(false);
   const [bonusInput, setBonusInput] = useState("");
   const [historyFilter, setHistoryFilter] = useState<"all" | "new" | "alteration">("all");
+  // Mobile-only accordion state for the lower sections — same pattern as the Order Detail page.
+  // "Wardrobe & order history" starts open since it's what staff look at most for a returning
+  // customer; Loyalty/Payments/Product sales invoices start collapsed to cut down scrolling on
+  // a phone. Ignored on sm+, which always shows every section (see each section's "sm:block").
+  const [openSections, setOpenSections] = useState<Set<string>>(() => new Set(["history"]));
+  function toggleSection(key: string) {
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   if (isLoading) {
     return (
@@ -330,17 +344,20 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
 
       {loyaltyCfg?.enabled && (
         <section className="rounded-xl border bg-card">
-          <div className="flex items-center justify-between border-b px-4 py-3">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <Gift className="size-4" /> Loyalty
-            </h2>
-            {tier && (
-              <span className="rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: tier.bg, color: tier.color }}>
-                {tier.label}
-              </span>
-            )}
-          </div>
-          <div className="space-y-3 p-4">
+          <CollapsibleSectionHeader
+            title="Loyalty"
+            icon={<Gift className="size-4 text-muted-foreground" />}
+            trailing={
+              tier && (
+                <span className="rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: tier.bg, color: tier.color }}>
+                  {tier.label}
+                </span>
+              )
+            }
+            collapsed={!openSections.has("loyalty")}
+            onToggle={() => toggleSection("loyalty")}
+          />
+          <div className={cn(!openSections.has("loyalty") && "hidden", "space-y-3 p-4 sm:block")}>
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg bg-muted/50 p-3 text-center">
                 <p className="text-2xl font-semibold tabular-nums">{cust.loyaltyPoints}</p>
@@ -390,12 +407,14 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
       <CustomerMeasurementProfiles cust={cust} />
 
       <section className="rounded-xl border bg-card">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <Wallet className="size-4" /> Payments ({paymentRows.length})
-          </h2>
-          {totalPaid > 0 && <span className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{inr(totalPaid)}</span>}
-        </div>
+        <CollapsibleSectionHeader
+          title={`Payments (${paymentRows.length})`}
+          icon={<Wallet className="size-4 text-muted-foreground" />}
+          trailing={totalPaid > 0 && <span className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{inr(totalPaid)}</span>}
+          collapsed={!openSections.has("payments")}
+          onToggle={() => toggleSection("payments")}
+        />
+        <div className={cn(!openSections.has("payments") && "hidden", "sm:block")}>
         {paymentRows.length === 0 ? (
           <EmptyState icon={WalletDuotoneIcon} title="No payments recorded yet" className="border-0" />
         ) : (
@@ -435,26 +454,42 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             </div>
           ))
         )}
+        </div>
       </section>
 
       <TasteNotesCard mobile={mobile} />
 
+      {/* Wardrobe & order history — open by default on mobile (#2), unlike the sections below.
+       *  Uses its own toggle (not CollapsibleSectionHeader) since the header row already holds
+       *  an interactive Tabs control; wrapping the whole row in a button would nest one
+       *  interactive element inside another. */}
       <section className="rounded-xl border bg-card">
         <div className="border-b px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold">Wardrobe & order history ({filteredHistoryOrders.length})</h2>
-            {custOrders.length > 0 && (
-              <Tabs value={historyFilter} onValueChange={(v) => v && setHistoryFilter(v as typeof historyFilter)}>
-                <TabsList>
-                  <TabsTrigger value="all" tone="blue">All</TabsTrigger>
-                  <TabsTrigger value="new" tone="purple">Stitching</TabsTrigger>
-                  <TabsTrigger value="alteration" tone="amber">Alterations</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            )}
+            <div className="flex items-center gap-2">
+              {custOrders.length > 0 && (
+                <Tabs value={historyFilter} onValueChange={(v) => v && setHistoryFilter(v as typeof historyFilter)}>
+                  <TabsList>
+                    <TabsTrigger value="all" tone="blue">All</TabsTrigger>
+                    <TabsTrigger value="new" tone="purple">Stitching</TabsTrigger>
+                    <TabsTrigger value="alteration" tone="amber">Alterations</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )}
+              <button
+                type="button"
+                aria-label={openSections.has("history") ? "Collapse wardrobe & order history" : "Expand wardrobe & order history"}
+                onClick={() => toggleSection("history")}
+                className="flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-muted sm:hidden"
+              >
+                <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", openSections.has("history") && "rotate-180")} />
+              </button>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground">Everything this customer has had stitched with us.</p>
         </div>
+        <div className={cn(!openSections.has("history") && "hidden", "sm:block")}>
         {custOrders.length === 0 ? (
           <EmptyState icon={ReceiptDuotoneIcon} title="No orders yet" className="border-0" />
         ) : filteredHistoryOrders.length === 0 ? (
@@ -491,13 +526,17 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             ))}
           </ul>
         )}
+        </div>
       </section>
 
       <section className="rounded-xl border bg-card">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <h2 className="text-sm font-semibold">Product sales invoices ({custInvoices.length})</h2>
-          {salesDue > 0 && <BalanceDue amount={salesDue} suffix=" due" paidLabel="" className="text-xs" />}
-        </div>
+        <CollapsibleSectionHeader
+          title={`Product sales invoices (${custInvoices.length})`}
+          trailing={salesDue > 0 && <BalanceDue amount={salesDue} suffix=" due" paidLabel="" className="text-xs" />}
+          collapsed={!openSections.has("invoices")}
+          onToggle={() => toggleSection("invoices")}
+        />
+        <div className={cn(!openSections.has("invoices") && "hidden", "sm:block")}>
         {custInvoices.length === 0 ? (
           <EmptyState icon={ShoppingBagDuotoneIcon} title="No product sales invoices yet" description="Products bought by this customer will appear here." className="border-0" />
         ) : (
@@ -524,9 +563,46 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             ))}
           </ul>
         )}
+        </div>
       </section>
 
       <EditCustomerModal cust={cust} open={editOpen} onOpenChange={setEditOpen} />
     </div>
+  );
+}
+
+/** Mobile-only accordion trigger for a section below — same pattern as the Order Detail page's
+ *  own CollapsibleSectionHeader. The header row itself doubles as the toggle button.
+ *  `sm:pointer-events-none` turns the click off on desktop/tablet (where the chevron is also
+ *  hidden) rather than unmounting any handler, since the section's content stays forced open
+ *  there regardless of `collapsed` (see each section's own "sm:block" override). */
+function CollapsibleSectionHeader({
+  title,
+  subtitle,
+  icon,
+  trailing,
+  collapsed,
+  onToggle,
+}: {
+  title: string;
+  subtitle?: React.ReactNode;
+  icon?: React.ReactNode;
+  trailing?: React.ReactNode;
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button type="button" onClick={onToggle} className="flex w-full items-center justify-between gap-2 border-b px-4 py-3 text-left sm:pointer-events-none">
+      <div className="min-w-0">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+          {icon} {title}
+        </h2>
+        {subtitle}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {trailing}
+        <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform sm:hidden", !collapsed && "rotate-180")} />
+      </div>
+    </button>
   );
 }

@@ -511,7 +511,7 @@ function OrdersContent() {
               type="button"
               size="sm"
               variant={filters.stage === "all" ? "default" : "outline"}
-              className="h-8 shrink-0 rounded-full px-3 text-xs"
+              className="h-10 shrink-0 rounded-full px-3 text-xs"
               onClick={() => setFilters({ ...filters, stage: "all" })}
             >
               All
@@ -522,7 +522,7 @@ function OrdersContent() {
                 type="button"
                 size="sm"
                 variant={filters.stage === s ? "default" : "outline"}
-                className="h-8 shrink-0 rounded-full px-3 text-xs"
+                className="h-10 shrink-0 rounded-full px-3 text-xs"
                 onClick={() => setFilters({ ...filters, stage: filters.stage === s ? "all" : s })}
               >
                 {STAGE_META[s].label}

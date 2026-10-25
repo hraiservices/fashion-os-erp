@@ -6,6 +6,7 @@ import { CalendarCheck, Camera, MoreVertical, Pencil } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
 import { useAttendanceForDate, useMarkAttendance } from "@/hooks/use-attendance";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { hapticTap } from "@/lib/haptics";
 import { PageHeader } from "@/components/ui/page-header";
 import { DatePicker, toISODate } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ export default function AttendancePage() {
   const attendanceByEmployee = new Map((attendance || []).map((a) => [a.employeeId, a]));
 
   async function mark(employeeId: string, status: AttendanceStatus) {
+    hapticTap();
     try {
       await markAttendance.mutateAsync({ employeeId, date, status, userEmail: user?.email });
     } catch (e) {

@@ -108,7 +108,7 @@ export function GettingStartedTab() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">{step.description}</p>
-                <Button variant={done ? "outline" : "default"} size="sm" onClick={() => setOpenStep(step.id)}>
+                <Button variant={done ? "outline" : "default"} size="sm" className="h-11 text-sm sm:h-7 sm:text-[0.8rem]" onClick={() => setOpenStep(step.id)}>
                   {done ? "Add another" : step.actionLabel}
                 </Button>
               </CardContent>

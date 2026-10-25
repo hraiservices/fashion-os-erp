@@ -14,6 +14,7 @@ import {
   withPieceLabel,
 } from "@/lib/garment-checklist";
 import { cn } from "@/lib/utils";
+import { hapticTap } from "@/lib/haptics";
 import type { Garment } from "@/lib/types";
 
 function ChecklistChips({
@@ -84,6 +85,7 @@ export function GarmentChecklistRow({
         disabled={disabled}
         onToggle={(step) => {
           if (disabled) return;
+          hapticTap();
           const next = garments.map((g, i) => (i === index ? withChecklistStep(g, step, !checklist[step]) : g));
           onChange(next);
         }}
@@ -118,6 +120,7 @@ export function GarmentChecklistRow({
               disabled={disabled}
               onToggle={(step) => {
                 if (disabled) return;
+                hapticTap();
                 const next = garments.map((g, i) => (i === index ? withPieceChecklistStep(g, pieceIndex, step, !checklist[step]) : g));
                 onChange(next);
               }}

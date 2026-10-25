@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Search, ArrowUpDown, Copy, Upload, Wallet, Send, Trash2 } from "lucide-react";
+import { Search, ArrowUpDown, Copy, Upload, Wallet, Send, Trash2, MoreVertical } from "lucide-react";
 import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useSalesInvoices, type SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import { useDelayedLoading } from "@/hooks/use-delayed-loading";
@@ -31,10 +31,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { MobileRecordList, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { BalanceDue } from "@/components/ui/money-text";
 import { Checkbox } from "@/components/ui/checkbox";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
+import { useWhatsAppPreferenceStore, resolveWhatsAppHref } from "@/lib/whatsapp-launch";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
 import { SavedViewsMenu } from "@/components/ui/saved-views-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -94,6 +96,7 @@ export default function SalesInvoicesPage() {
   const { data: templates } = useAppSetting<SalesWhatsAppTemplates>("salesWhatsAppTemplates", DEFAULT_SALES_WHATSAPP_TEMPLATES);
   const setDocStatus = useSetInvoiceDocStatus();
   const deleteInvoice = useDeleteInvoice();
+  const waPreference = useWhatsAppPreferenceStore();
   const canManage = !!user?.perms.manageSales;
   // Profit margin is restricted to the admin role specifically, not just viewReports (which
   // managers also hold) — a shop-wide requirement, not just this one table.
@@ -469,31 +472,70 @@ export default function SalesInvoicesPage() {
           {filtered.map((inv) => {
             const badge = invoiceDueBadge(inv.dueDate, inv.paymentStatus);
             return (
-              <MobileRecordCard key={inv.id} href={`/sales/invoices/${inv.id}`}>
-                <MobileRecordHeader
-                  title={inv.customerName}
-                  subtitle={inv.customerMobile}
-                  value={<BalanceDue amount={inv.balance} paidLabel="" />}
-                />
-                <MobileRecordRow label="Invoice#" value={inv.invoiceNumber} />
-                <MobileRecordRow label="Date" value={fmtDate(inv.invoiceDate)} />
-                <MobileRecordRow label="Quote#" value={inv.quoteId ? quoteNumberById.get(inv.quoteId) || "—" : "—"} />
-                <MobileRecordRow label="Amount" value={inr(inv.total)} />
-                <MobileRecordRow label="Pieces" value={totalPieces(inv.items)} />
-                {canViewMargin && (
+              // Not MobileRecordCard (which wraps everything in one anchor/button) — this row
+              // needs a kebab menu alongside the nav link, same as every other list's mobile
+              // card got a kebab once it needed per-row actions (see order-card.tsx). The
+              // desktop table had Record payment/WhatsApp reminder/Send PDF/Clone per row;
+              // the mobile cards had none of those at all until this fix.
+              <div key={inv.id} className="space-y-1.5 rounded-xl border bg-card p-3">
+                <div className="flex items-start gap-2">
+                  <Link href={`/sales/invoices/${inv.id}`} className="min-w-0 flex-1">
+                    <MobileRecordHeader title={inv.customerName} subtitle={inv.customerMobile} value={<BalanceDue amount={inv.balance} paidLabel="" />} showChevron={false} />
+                  </Link>
+                  {canManage && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button variant="ghost" size="icon-sm" className="size-9 shrink-0" aria-label={`More actions for ${inv.invoiceNumber}`}>
+                            <MoreVertical className="size-4" />
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent align="end">
+                        {inv.balance > 0 && (
+                          <DropdownMenuItem nativeButton={false} render={<Link href={`/sales/invoices/${inv.id}/payment`} />}>
+                            <Wallet className="size-4" /> Record payment
+                          </DropdownMenuItem>
+                        )}
+                        {inv.balance > 0 && (
+                          <DropdownMenuItem
+                            nativeButton={false}
+                            render={<a href={resolveWhatsAppHref(reminderUrl(inv), waPreference ?? "regular")} target="_blank" rel="noopener noreferrer" />}
+                          >
+                            <Send className="size-4" /> WhatsApp reminder
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem nativeButton={false} render={<a href={resolveWhatsAppHref(sendPdfUrl(inv), waPreference ?? "regular")} target="_blank" rel="noopener noreferrer" />}>
+                          <Send className="size-4" /> Send PDF link
+                        </DropdownMenuItem>
+                        <DropdownMenuItem nativeButton={false} render={<Link href={`/sales/invoices/new?cloneId=${inv.id}`} />}>
+                          <Copy className="size-4" /> Clone invoice
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
+                <Link href={`/sales/invoices/${inv.id}`} className="block space-y-1.5">
+                  <MobileRecordRow label="Invoice#" value={inv.invoiceNumber} />
+                  <MobileRecordRow label="Date" value={fmtDate(inv.invoiceDate)} />
+                  <MobileRecordRow label="Quote#" value={inv.quoteId ? quoteNumberById.get(inv.quoteId) || "—" : "—"} />
+                  <MobileRecordRow label="Amount" value={inr(inv.total)} />
+                  <MobileRecordRow label="Pieces" value={totalPieces(inv.items)} />
+                  {canViewMargin && (
+                    <MobileRecordRow
+                      label="Profit Margin"
+                      value={marginText(invoiceMargin(inv))}
+                      valueClassName={invoiceMargin(inv) === null ? "text-muted-foreground" : "text-emerald-600 dark:text-emerald-400 font-medium"}
+                    />
+                  )}
+                  <MobileRecordRow label="Due Date" value={inv.dueDate ? fmtDate(inv.dueDate) : "—"} />
+                  <MobileRecordRow label="Doc" value={<Badge variant="outline">{DOC_STATUS_LABELS[inv.docStatus]}</Badge>} />
                   <MobileRecordRow
-                    label="Profit Margin"
-                    value={marginText(invoiceMargin(inv))}
-                    valueClassName={invoiceMargin(inv) === null ? "text-muted-foreground" : "text-emerald-600 dark:text-emerald-400 font-medium"}
+                    label="Status"
+                    value={<span className={cn("text-xs font-medium uppercase tracking-wide", TONE_CLASS[badge.tone])}>{badge.text}</span>}
                   />
-                )}
-                <MobileRecordRow label="Due Date" value={inv.dueDate ? fmtDate(inv.dueDate) : "—"} />
-                <MobileRecordRow label="Doc" value={<Badge variant="outline">{DOC_STATUS_LABELS[inv.docStatus]}</Badge>} />
-                <MobileRecordRow
-                  label="Status"
-                  value={<span className={cn("text-xs font-medium uppercase tracking-wide", TONE_CLASS[badge.tone])}>{badge.text}</span>}
-                />
-              </MobileRecordCard>
+                </Link>
+              </div>
             );
           })}
         </MobileRecordList>

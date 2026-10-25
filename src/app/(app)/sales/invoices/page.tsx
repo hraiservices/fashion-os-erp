@@ -50,7 +50,34 @@ const TONE_CLASS: Record<DueTone, string> = {
   none: "text-muted-foreground",
 };
 
-type SortKey = "date" | "balance";
+type SortKey = "date" | "customer" | "quote" | "amount" | "pieces" | "margin" | "balance" | "dueDate" | "invoiceNumber" | "doc" | "status";
+
+function sortValue(inv: SalesInvoiceWithBalance, key: SortKey, quoteNumberById: Map<string, string>): number | string {
+  switch (key) {
+    case "date":
+      return new Date(inv.invoiceDate).getTime();
+    case "customer":
+      return inv.customerName.toLowerCase();
+    case "quote":
+      return (inv.quoteId ? quoteNumberById.get(inv.quoteId) : "") || "";
+    case "amount":
+      return inv.total;
+    case "pieces":
+      return totalPieces(inv.items);
+    case "margin":
+      return invoiceMargin(inv) ?? -Infinity;
+    case "balance":
+      return inv.balance;
+    case "dueDate":
+      return inv.dueDate ? new Date(inv.dueDate).getTime() : 0;
+    case "invoiceNumber":
+      return inv.invoiceNumber;
+    case "doc":
+      return DOC_STATUS_LABELS[inv.docStatus];
+    case "status":
+      return invoiceDueBadge(inv.dueDate, inv.paymentStatus).text;
+  }
+}
 
 interface InvoiceViewFilters {
   search: string;
@@ -173,14 +200,26 @@ export default function SalesInvoicesPage() {
       (inv) => !q || inv.invoiceNumber.toLowerCase().includes(q) || inv.customerName.toLowerCase().includes(q) || inv.customerMobile.includes(q)
     );
     list = [...list].sort((a, b) => {
-      const diff = sortKey === "balance" ? a.balance - b.balance : new Date(a.invoiceDate).getTime() - new Date(b.invoiceDate).getTime();
+      const av = sortValue(a, sortKey, quoteNumberById);
+      const bv = sortValue(b, sortKey, quoteNumberById);
+      const diff = typeof av === "string" ? av.localeCompare(bv as string) : (av as number) - (bv as number);
       return sortAsc ? diff : -diff;
     });
     return list;
-  }, [dated.rows, search, sortKey, sortAsc]);
+  }, [dated.rows, search, sortKey, sortAsc, quoteNumberById]);
 
   const selection = useRowSelection(filtered.map((i) => i.id));
   const selectedInvoices = filtered.filter((i) => selection.selected.has(i.id));
+
+  function sortHead(key: SortKey, label: string, align: "left" | "right" = "left") {
+    return (
+      <TableHead className={align === "right" ? "text-right" : undefined}>
+        <button type="button" onClick={() => toggleSort(key)} className={cn("inline-flex items-center gap-1 hover:text-foreground", align === "right" && "flex-row-reverse")}>
+          {label} <ArrowUpDown className={cn("size-3", sortKey === key && "text-foreground")} />
+        </button>
+      </TableHead>
+    );
+  }
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortAsc((a) => !a);
@@ -359,23 +398,17 @@ export default function SalesInvoicesPage() {
                     />
                   </TableHead>
                 )}
-                {table.isVisible("date") && <TableHead>Date</TableHead>}
-                {table.isVisible("customer") && <TableHead>Customer</TableHead>}
-                {table.isVisible("quote") && <TableHead>Quote#</TableHead>}
-                {table.isVisible("amount") && <TableHead className="text-right">Amount</TableHead>}
-                {table.isVisible("pieces") && <TableHead className="text-right">Pieces</TableHead>}
-                {table.isVisible("margin") && canViewMargin && <TableHead className="text-right">Profit Margin</TableHead>}
-                {table.isVisible("balance") && (
-                  <TableHead className="text-right">
-                    <button type="button" onClick={() => toggleSort("balance")} className="inline-flex items-center gap-1 hover:text-foreground">
-                      Balance <ArrowUpDown className="size-3" />
-                    </button>
-                  </TableHead>
-                )}
-                {table.isVisible("dueDate") && <TableHead>Due Date</TableHead>}
-                {table.isVisible("invoiceNumber") && <TableHead>Invoice#</TableHead>}
-                {table.isVisible("doc") && <TableHead>Doc</TableHead>}
-                {table.isVisible("status") && <TableHead>Status</TableHead>}
+                {table.isVisible("date") && sortHead("date", "Date")}
+                {table.isVisible("customer") && sortHead("customer", "Customer")}
+                {table.isVisible("quote") && sortHead("quote", "Quote#")}
+                {table.isVisible("amount") && sortHead("amount", "Amount", "right")}
+                {table.isVisible("pieces") && sortHead("pieces", "Pieces", "right")}
+                {table.isVisible("margin") && canViewMargin && sortHead("margin", "Profit Margin", "right")}
+                {table.isVisible("balance") && sortHead("balance", "Balance", "right")}
+                {table.isVisible("dueDate") && sortHead("dueDate", "Due Date")}
+                {table.isVisible("invoiceNumber") && sortHead("invoiceNumber", "Invoice#")}
+                {table.isVisible("doc") && sortHead("doc", "Doc")}
+                {table.isVisible("status") && sortHead("status", "Status")}
                 {canManage && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>

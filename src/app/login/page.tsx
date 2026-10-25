@@ -38,7 +38,10 @@ function IconField({
             tabIndex={-1}
             onClick={() => setReveal((r) => !r)}
             aria-label={reveal ? "Hide password" : "Show password"}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            // flex items-center justify-center on a fixed min-h-11/min-w-11 box (not just the
+            // bare icon) gives this a real ~44px touch target on a phone, where the icon alone
+            // was easy to miss next to the much larger password field it sits inside.
+            className="absolute right-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground"
           >
             {reveal ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>

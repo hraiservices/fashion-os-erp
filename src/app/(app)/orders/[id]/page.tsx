@@ -1,10 +1,10 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt, FileDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt, FileDown } from "lucide-react";
 import { useOrder } from "@/hooks/use-order";
 import { MaterialsPanel } from "@/components/orders/materials-panel";
 import { useOrders } from "@/hooks/use-orders";
@@ -113,6 +113,30 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   // immediately on click, which is exactly the "confirmation pop-up doesn't show, stage just
   // changes" bug reported from here specifically.
   const [confirmAdvanceOpen, setConfirmAdvanceOpen] = useState(false);
+  // Mobile-only accordion state for the lower sections (#2) — Garments starts open since it's
+  // what staff look at most; everything else starts collapsed to cut down scrolling on a phone.
+  // Ignored on sm+, which always shows every section (see each section's "sm:block" override).
+  const [openSections, setOpenSections] = useState<Set<string>>(() => new Set(["garments"]));
+  function toggleSection(key: string) {
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+  // Mobile sticky mini header (#3) — shown once the main order header card scrolls out of view,
+  // via IntersectionObserver rather than a scroll-position calculation (simpler, no scroll
+  // listener to throttle).
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [showStickyHeader, setShowStickyHeader] = useState(false);
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => setShowStickyHeader(!entry.isIntersecting), { rootMargin: "-1px 0px 0px 0px" });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isLoading, order]);
 
   async function doDeletePayment() {
     if (!deletePaymentId) return;
@@ -153,8 +177,21 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   if (isLoading) {
     return (
       <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
-        <Skeleton className="h-28 w-full" />
-        <Skeleton className="h-48 w-full" />
+        <div className="flex items-center justify-between gap-3">
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-9 w-20" />
+        </div>
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
+          <div className="space-y-4 lg:col-span-4">
+            <Skeleton className="h-44 w-full rounded-xl" />
+            <Skeleton className="h-28 w-full rounded-xl" />
+          </div>
+          <div className="space-y-4 lg:col-span-8">
+            <Skeleton className="h-40 w-full rounded-xl" />
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-24 w-full rounded-xl" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -247,24 +284,18 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     }
   }
 
-  // Single most important action for the mobile sticky bar below — whichever one a tailor/
-  // counter staffer would reach for first on this order right now. Priority: move the order
-  // forward > collect an owed balance > the all-purpose WhatsApp send. The full button row
-  // further down still has every action (including this one) in normal flow — this bar is a
-  // shortcut so it doesn't require scrolling past Garments/Payments/History to find it.
-  const primaryAction = user?.perms.changeStage && next
-    ? { label: <><ArrowRight className="size-4 shrink-0" /> <span className="truncate"><MoveToStageLabel label={STAGE_META[next].label} /></span></>, onClick: requestAdvance, className: STAGE_STYLE[next].solid }
-    : user?.perms.managePayments && order.balance > 0
-      ? { label: <><Wallet className="size-4 shrink-0" /> <span className="truncate">Collect payment</span></>, onClick: () => setPaymentOpen(true), className: "" }
-      : null;
-
   return (
-    <div className="mx-auto max-w-6xl space-y-4 p-4 pb-20 sm:p-6 sm:pb-6">
-      {primaryAction && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 p-3 pr-20 backdrop-blur-sm sm:hidden print:hidden">
-          <Button className={cn("h-12 w-full text-base", primaryAction.className)} disabled={advanceStage.isPending} onClick={primaryAction.onClick}>
-            {primaryAction.label}
-          </Button>
+    <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+      {/* Mobile sticky mini header (#3) — appears once the main header card below scrolls out of
+       *  view, so the customer's name and a tap-to-call link stay reachable without scrolling
+       *  back up. sm:hidden since desktop never scrolls this far before the lg:col-span-4 header
+       *  column runs out of its own content. */}
+      {showStickyHeader && (
+        <div className="fixed inset-x-0 top-14 z-20 flex items-center justify-between gap-3 border-b bg-background/95 px-4 py-2 backdrop-blur-sm sm:hidden">
+          <p className="min-w-0 truncate text-sm font-semibold">{order.name}</p>
+          <a href={`tel:${order.mobile}`} aria-label={`Call ${order.name}`} className="flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium">
+            <Phone className="size-3.5" /> Call
+          </a>
         </div>
       )}
       <div className="flex items-center justify-between gap-3">
@@ -298,7 +329,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
       <div className="space-y-4 lg:col-span-4">
       {/* Header */}
-      <div className="overflow-hidden rounded-xl border bg-card">
+      <div ref={headerRef} className="overflow-hidden rounded-xl border bg-card">
         <div className={cn("h-1", STAGE_STYLE[order.status].accent)} />
         <div className="p-4 sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -545,11 +576,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Garments */}
+      {/* Garments — accordion-open by default on mobile (#2), unlike the sections below. */}
       <section className="rounded-xl border bg-card">
-        <div className="border-b px-4 py-3">
-          <h2 className="text-sm font-semibold">Garments</h2>
-        </div>
+        <CollapsibleSectionHeader title="Garments" collapsed={!openSections.has("garments")} onToggle={() => toggleSection("garments")} />
+        <div className={cn(!openSections.has("garments") && "hidden", "sm:block")}>
         <ul className="divide-y">
           {order.garments.map((g, i) => (
             <li key={i} className="space-y-2 px-4 py-2.5 text-sm">
@@ -599,6 +629,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <p className="mt-1 text-sm">{order.special}</p>
           </div>
         )}
+        </div>
       </section>
 
       {/* Linked orders — this order came from a "one order per garment" split submission (see
@@ -607,11 +638,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           is deliberately NOT shared across them (see order-form.tsx's submitSplitOrders). */}
       {groupSiblings.length > 0 && (
         <section className="rounded-xl border bg-card">
-          <div className="border-b px-4 py-3">
-            <h2 className="text-sm font-semibold">Linked orders</h2>
-            <p className="text-xs text-muted-foreground">Same customer visit, split into one order per garment — each moves independently.</p>
-          </div>
-          <ul className="divide-y">
+          <CollapsibleSectionHeader
+            title="Linked orders"
+            subtitle={<p className="text-xs text-muted-foreground">Same customer visit, split into one order per garment — each moves independently.</p>}
+            collapsed={!openSections.has("linked")}
+            onToggle={() => toggleSection("linked")}
+          />
+          <ul className={cn(!openSections.has("linked") && "hidden", "divide-y sm:block")}>
             {groupSiblings.map((sib) => (
               <li key={sib.id}>
                 <Link href={`/orders/${sib.id}`} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-muted/40">
@@ -640,11 +673,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           told to come here, but this section didn't exist for them at all. */}
       {(user?.perms.managePayments || user?.perms.deleteOrder) && (
         <section className="rounded-xl border bg-card">
-          <div className="border-b px-4 py-3">
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold">
-              <Wallet className="size-4 text-muted-foreground" /> Payments
-            </h2>
-          </div>
+          <CollapsibleSectionHeader title="Payments" icon={<Wallet className="size-4 text-muted-foreground" />} collapsed={!openSections.has("payments")} onToggle={() => toggleSection("payments")} />
+          <div className={cn(!openSections.has("payments") && "hidden", "sm:block")}>
           {paymentsError ? (
             // Never collapse a failed query into "no payments" — that made a real problem
             // (missing table / denied read) look like an empty, healthy order.
@@ -701,6 +731,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               ))}
             </ul>
           )}
+          </div>
         </section>
       )}
 
@@ -708,12 +739,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           figures are restricted to the admin role specifically, everywhere in the app. */}
       {user?.perms.viewFinancialReports && (
         <section className="rounded-xl border bg-card">
-          <div className="border-b px-4 py-3">
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold">
-              <Receipt className="size-4 text-muted-foreground" /> Profitability
-            </h2>
-          </div>
-          <div className="space-y-1.5 px-4 py-3 text-sm">
+          <CollapsibleSectionHeader title="Profitability" icon={<Receipt className="size-4 text-muted-foreground" />} collapsed={!openSections.has("profit")} onToggle={() => toggleSection("profit")} />
+          <div className={cn(!openSections.has("profit") && "hidden", "space-y-1.5 px-4 py-3 text-sm sm:block")}>
             <div className="flex justify-between text-muted-foreground">
               <span>Order value</span>
               <span className="tabular-nums">{inr(profit.revenue)}</span>
@@ -747,13 +774,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       {/* Measurements */}
       {hasMeasurements(order.measurements) && (
         <section className="rounded-xl border bg-card">
-          <div className="border-b px-4 py-3">
-            <h2 className="text-sm font-semibold">Measurements</h2>
-            {order.measurementProfileName && (
-              <p className="mt-0.5 text-xs text-muted-foreground">From profile: {order.measurementProfileName}</p>
-            )}
-          </div>
-          <div className="p-4">
+          <CollapsibleSectionHeader
+            title="Measurements"
+            subtitle={order.measurementProfileName ? <p className="mt-0.5 text-xs text-muted-foreground">From profile: {order.measurementProfileName}</p> : undefined}
+            collapsed={!openSections.has("measurements")}
+            onToggle={() => toggleSection("measurements")}
+          />
+          <div className={cn(!openSections.has("measurements") && "hidden", "p-4 sm:block")}>
             <MeasurementView fields={measureFields || []} values={hydrateMeasurements(measureFields || [], order.measurements)} />
           </div>
         </section>
@@ -764,9 +791,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* History */}
       <section className="rounded-xl border bg-card">
-        <div className="border-b px-4 py-3">
-          <h2 className="text-sm font-semibold">History</h2>
-        </div>
+        <CollapsibleSectionHeader title="History" collapsed={!openSections.has("history")} onToggle={() => toggleSection("history")} />
+        <div className={cn(!openSections.has("history") && "hidden", "sm:block")}>
         {order.history.length === 0 ? (
           <p className="px-4 py-6 text-center text-sm text-muted-foreground">No history yet.</p>
         ) : (
@@ -778,6 +804,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             ))}
           </ol>
         )}
+        </div>
       </section>
 
       </div>
@@ -820,6 +847,24 @@ function TailorPicker({ value, tailors, nameOf, disabled, onChange, className }:
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+/** Mobile-only accordion trigger for a section below (#2) — the header row itself doubles as the
+ *  toggle button. `sm:pointer-events-none` turns the click off on desktop/tablet (where the
+ *  chevron is also hidden) rather than unmounting any handler, since the section's content stays
+ *  forced open there regardless of `collapsed` (see each section's own "sm:block" override). */
+function CollapsibleSectionHeader({ title, subtitle, icon, collapsed, onToggle }: { title: string; subtitle?: React.ReactNode; icon?: React.ReactNode; collapsed: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" onClick={onToggle} className="flex w-full items-center justify-between gap-2 border-b px-4 py-3 text-left sm:pointer-events-none">
+      <div className="min-w-0">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+          {icon} {title}
+        </h2>
+        {subtitle}
+      </div>
+      <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform sm:hidden", !collapsed && "rotate-180")} />
+    </button>
   );
 }
 

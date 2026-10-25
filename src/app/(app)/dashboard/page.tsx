@@ -25,6 +25,19 @@ import { LiveUsersCard } from "@/components/dashboard/live-users-card";
 import { isWidgetVisibleForRole, type WidgetInstance } from "@/lib/dashboard-widgets";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { DEFAULT_CARD_HEADER_BG_CONFIG, cardHeaderBgDarkOpacity, cardHeaderBgOpacity, resolveCardHeaderBgUrl, type CardHeaderBgConfig } from "@/lib/card-header-bg";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { useQueryClient } from "@tanstack/react-query";
+import { RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type DashboardTab = "dashboard" | "getting-started" | "recent-updates" | "get-support";
+
+const MOBILE_TABS: { value: DashboardTab; label: string }[] = [
+  { value: "dashboard", label: "Dashboard" },
+  { value: "getting-started", label: "Getting Started" },
+  { value: "recent-updates", label: "Updates" },
+  { value: "get-support", label: "Support" },
+];
 
 export default function DashboardPage() {
   const { data: user } = useCurrentUser();
@@ -33,11 +46,25 @@ export default function DashboardPage() {
   const { data: shop } = useShopSettings();
   const { widgets: savedWidgets, rawData: layoutRawData, isLoading: layoutLoading, save } = useDashboardLayout();
   const { data: entitlements, isLoading: entitlementsLoading } = useModuleEntitlements();
+  const queryClient = useQueryClient();
 
   const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
   const [initialized, setInitialized] = useState(false);
-  const [tab, setTab] = useState<"dashboard" | "getting-started" | "recent-updates" | "get-support">("dashboard");
+  const [tab, setTab] = useState<DashboardTab>("dashboard");
+
+  // Re-fetches everything the dashboard's own hooks feed from, rather than one specific query
+  // key — the page pulls from several independent sources (layout, entitlements, each widget's
+  // own query) with no single key that covers all of them.
+  const {
+    containerRef: ptrContainerRef,
+    pull: ptrPull,
+    refreshing: ptrRefreshing,
+    threshold: ptrThreshold,
+    onTouchStart: ptrOnTouchStart,
+    onTouchMove: ptrOnTouchMove,
+    onTouchEnd: ptrOnTouchEnd,
+  } = usePullToRefresh(() => queryClient.invalidateQueries());
 
   // Guard on layoutRawData (the actual fetched array, not the defaultLayout() fallback) so this
   // only locks once real data arrives. Without this, entitlements arriving from cache before the
@@ -66,7 +93,26 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="space-y-5 p-4 sm:p-6">
+    <div
+      ref={ptrContainerRef}
+      onTouchStart={ptrOnTouchStart}
+      onTouchMove={ptrOnTouchMove}
+      onTouchEnd={ptrOnTouchEnd}
+      // pb-16 (on top of the app shell's own pb-24 for the global bottom nav) clears this
+      // page's own mobile tab bar below — see MOBILE_TABS. sm:py-6 restores the plain p-6
+      // on all sides that bar doesn't exist at that breakpoint.
+      className="space-y-5 px-4 pt-4 pb-16 sm:px-6 sm:py-6"
+    >
+      {/* Pull-to-refresh indicator — only ever visible while actively dragging past the top on
+       *  mobile (see usePullToRefresh); desktop never fires the touch events that drive `pull`. */}
+      <div
+        className="flex items-center justify-center overflow-hidden text-muted-foreground sm:hidden"
+        style={{ height: ptrRefreshing ? 40 : ptrPull }}
+        aria-hidden={!ptrRefreshing && ptrPull === 0}
+      >
+        <RefreshCw className={cn("size-5", (ptrRefreshing || ptrPull >= ptrThreshold) && "animate-spin")} />
+      </div>
+
       {shop && (shop.name || shop.logoDataUrl) && (
         <div className="relative flex flex-wrap items-center justify-between gap-4 overflow-hidden rounded-xl border bg-card p-4">
           {headerBg.enabled && (
@@ -106,8 +152,10 @@ export default function DashboardPage() {
       {/* Mirrors the Zoho Books "Dashboard / Getting Started" tab layout — replaces the earlier
           inline checklist card with a full onboarding page one click away, instead of competing
           for space on the dashboard itself. */}
-      <Tabs value={tab} onValueChange={(v) => v && setTab(v as "dashboard" | "getting-started" | "recent-updates" | "get-support")}>
-        <TabsList>
+      <Tabs value={tab} onValueChange={(v) => v && setTab(v as DashboardTab)}>
+        {/* Hidden on mobile — the fixed bottom bar below (MOBILE_TABS) replaces it there,
+         *  thumb-reachable instead of needing a reach-up-and-tap at the top of the screen. */}
+        <TabsList className="hidden sm:inline-flex">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="getting-started">Getting Started</TabsTrigger>
           <TabsTrigger value="recent-updates">Recent Updates</TabsTrigger>
@@ -178,6 +226,34 @@ export default function DashboardPage() {
       </Tabs>
 
       <CustomizePanel open={panelOpen} onOpenChange={setPanelOpen} widgets={roleVisibleWidgets} onChange={handleChange} />
+
+      {/* Mobile-only bottom bar for this page's OWN 4 tabs — not the app's primary navigation
+       *  (see MobileTabBar in src/components/app-shell/mobile-nav.tsx, which already owns
+       *  bottom-0 app-wide). Stacked directly above that bar (`bottom-[3rem+safe-area]`,
+       *  matching its own `min-h-12` + safe-area-inset-bottom sizing) rather than overlapping
+       *  it — two independent fixed bottom bars, not one replacing the other. The app shell's
+       *  `pb-24` on `<main>` already reserves room for the global bar; this page adds its own
+       *  extra `pb-16` above (see the root div's className) so content clears both. */}
+      <nav
+        aria-label="Dashboard sections"
+        className="fixed inset-x-0 z-30 flex items-stretch border-t bg-card/95 backdrop-blur-sm sm:hidden print:hidden"
+        style={{ bottom: "calc(3rem + env(safe-area-inset-bottom))" }}
+      >
+        {MOBILE_TABS.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            onClick={() => setTab(t.value)}
+            aria-current={tab === t.value ? "page" : undefined}
+            className={cn(
+              "flex min-h-11 flex-1 items-center justify-center truncate px-1 text-[11px] font-medium transition-colors",
+              tab === t.value ? "text-primary" : "text-muted-foreground"
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

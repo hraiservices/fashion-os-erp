@@ -151,7 +151,12 @@ export function TasksTab({ meta }: { meta: TargetsMeta | undefined }) {
             </Select>
           </div>
         )}
-        <div className="ml-auto flex items-center gap-2">
+        {/* col-span-2: on mobile this sits in a 2-col grid alongside the view chips, where a
+         *  single cell (~half the phone's width) can't fit the layout toggle plus the "Add from
+         *  text" button together — they'd overflow/crush into each other. Spanning both columns
+         *  gives this row its own full-width line, with flex-wrap as a fallback on the very
+         *  narrowest phones. lg:contents classes are no-ops once the parent switches to flex. */}
+        <div className="col-span-2 ml-auto flex flex-wrap items-center gap-2 lg:col-span-1 lg:flex-nowrap">
           <div className="w-40">
             <SegmentedToggle<Layout>
               ariaLabel="Task view"

@@ -2,9 +2,15 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Expense } from "@/lib/types";
+import { rethrowFriendly } from "@/lib/error-message";
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  let res: Response;
+  try {
+    res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  } catch (e) {
+    rethrowFriendly(e);
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Request failed");
   return data;
@@ -52,7 +58,12 @@ export function useUpdateExpense() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...input }: CreateExpenseInput & { id: string }) => {
-      const res = await fetch(`/api/expenses/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+      let res: Response;
+      try {
+        res = await fetch(`/api/expenses/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+      } catch (e) {
+        rethrowFriendly(e);
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update expense");
       return data as { expense: Expense };
@@ -65,7 +76,12 @@ export function useDeleteExpense() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/expenses/${id}`, { method: "DELETE" });
+      let res: Response;
+      try {
+        res = await fetch(`/api/expenses/${id}`, { method: "DELETE" });
+      } catch (e) {
+        rethrowFriendly(e);
+      }
       if (!res.ok) throw new Error("Failed to delete expense");
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["expenses"] }),

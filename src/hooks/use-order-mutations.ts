@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { hapticSuccess, hapticError } from "@/lib/haptics";
+import { rethrowFriendly } from "@/lib/error-message";
 import type { Order } from "@/lib/types";
 import type { MaterialItem } from "@/lib/order-materials";
 
@@ -58,21 +59,36 @@ interface CreateOrderInput {
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  let res: Response;
+  try {
+    res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  } catch (e) {
+    rethrowFriendly(e);
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Request failed");
   return data;
 }
 
 async function patchJson<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  let res: Response;
+  try {
+    res = await fetch(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  } catch (e) {
+    rethrowFriendly(e);
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Request failed");
   return data;
 }
 
 async function deleteJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { method: "DELETE" });
+  let res: Response;
+  try {
+    res = await fetch(url, { method: "DELETE" });
+  } catch (e) {
+    rethrowFriendly(e);
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Request failed");
   return data;
@@ -245,7 +261,12 @@ export function useDeleteOrder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id }: { id: string; name: string; userEmail?: string }) => {
-      const res = await fetch(`/api/orders/${id}`, { method: "DELETE" });
+      let res: Response;
+      try {
+        res = await fetch(`/api/orders/${id}`, { method: "DELETE" });
+      } catch (e) {
+        rethrowFriendly(e);
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Delete failed");
       // Set only when an admin-override delete had money collected against the order — see

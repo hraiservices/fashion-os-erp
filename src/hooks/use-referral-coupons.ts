@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { mapReferralCouponRow } from "@/lib/types";
+import { rethrowFriendly } from "@/lib/error-message";
 import type { ReferralCoupon } from "@/lib/types";
 
 async function fetchReferralCoupons() {
@@ -21,7 +22,12 @@ export function useReferralCoupons() {
 }
 
 async function postJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { method: "POST" });
+  let res: Response;
+  try {
+    res = await fetch(url, { method: "POST" });
+  } catch (e) {
+    rethrowFriendly(e);
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Request failed");
   return data;

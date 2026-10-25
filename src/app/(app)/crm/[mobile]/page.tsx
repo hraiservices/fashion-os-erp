@@ -440,7 +440,9 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             <div className="flex items-center gap-2">
               {totalPaid > 0 && <span className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{inr(totalPaid)}</span>}
               {user?.perms.managePayments && combinedDue > 0 && (
-                <NewPaymentButton customerMobile={cust.mobile} label="+ New" variant="ghost" className="h-7 px-2 text-xs" />
+                <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/payments/new?customer=${encodeURIComponent(cust.mobile)}`} />} className="h-7 px-2 text-xs">
+                  <Plus className="size-3.5" /> New
+                </Button>
               )}
             </div>
           }
@@ -494,48 +496,38 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
       <TasteNotesCard mobile={mobile} />
 
       {/* Wardrobe & order history — Zoho-style, collapsed by default on every breakpoint (#1).
-       *  Same chevron+amount+"New" header shape as Payments/Product sales invoices below (the
-       *  stitching-balance-due figure mirrors Product sales invoices' "X due"); the All/
-       *  Stitching/Alterations filter sits on its own row underneath instead of sharing the
-       *  title row, so the filter's interactive Tabs control is never nested inside the title's
-       *  own clickable toggle button. */}
+       *  Uses the same CollapsibleSectionHeader as Payments/Product sales invoices below, so the
+       *  chevron+amount+"New" group lines up in the exact same column with the exact same sizing
+       *  across all three sections. The All/Stitching/Alterations filter sits on its own row
+       *  underneath the header instead of sharing its title row, so the filter's interactive
+       *  Tabs control is never nested inside the header's own clickable toggle button. */}
       <section className="rounded-xl border bg-card">
-        <div className="border-b px-4 py-3">
-          <button
-            type="button"
-            onClick={() => toggleSection("history")}
-            className="flex w-full items-center justify-between gap-2 text-left"
-          >
-            <h2 className="text-sm font-semibold">Wardrobe & order history ({filteredHistoryOrders.length})</h2>
-            <div className="flex shrink-0 items-center gap-2">
+        <CollapsibleSectionHeader
+          title={`Wardrobe & order history (${filteredHistoryOrders.length})`}
+          subtitle={<p className="text-xs text-muted-foreground">Everything this customer has had stitched with us.</p>}
+          trailing={
+            <div className="flex items-center gap-2">
               {outstanding > 0 && <span className="text-sm font-semibold tabular-nums text-red-600 dark:text-red-400">{inr(outstanding)} due</span>}
-              <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", openSections.has("history") && "rotate-180")} />
+              <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}`} />} className="h-7 px-2 text-xs">
+                <Plus className="size-3.5" /> New
+              </Button>
             </div>
-          </button>
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-            {custOrders.length > 0 ? (
-              <Tabs value={historyFilter} onValueChange={(v) => v && setHistoryFilter(v as typeof historyFilter)}>
-                <TabsList>
-                  <TabsTrigger value="all" tone="blue">All</TabsTrigger>
-                  <TabsTrigger value="new" tone="purple">Stitching</TabsTrigger>
-                  <TabsTrigger value="alteration" tone="amber">Alterations</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            ) : (
-              <span />
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              nativeButton={false}
-              render={<Link href={`/orders/new?mobile=${cust.mobile}`} />}
-              className="h-7 px-2 text-xs"
-            >
-              <Plus className="size-3.5" /> New
-            </Button>
+          }
+          collapsed={!openSections.has("history")}
+          onToggle={() => toggleSection("history")}
+          alwaysCollapsible
+        />
+        {custOrders.length > 0 && (
+          <div className="flex items-center gap-2 border-b px-4 py-2.5">
+            <Tabs value={historyFilter} onValueChange={(v) => v && setHistoryFilter(v as typeof historyFilter)}>
+              <TabsList>
+                <TabsTrigger value="all" tone="blue">All</TabsTrigger>
+                <TabsTrigger value="new" tone="purple">Stitching</TabsTrigger>
+                <TabsTrigger value="alteration" tone="amber">Alterations</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">Everything this customer has had stitched with us.</p>
-        </div>
+        )}
         <div className={cn(!openSections.has("history") && "hidden")}>
         {custOrders.length === 0 ? (
           <EmptyState icon={ReceiptDuotoneIcon} title="No orders yet" className="border-0" />
@@ -581,7 +573,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           title={`Product sales invoices (${custInvoices.length})`}
           trailing={
             <div className="flex items-center gap-2">
-              {salesDue > 0 && <BalanceDue amount={salesDue} suffix=" due" paidLabel="" className="text-xs" />}
+              {salesDue > 0 && <BalanceDue amount={salesDue} suffix=" due" paidLabel="" className="text-sm font-semibold" />}
               <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="h-7 px-2 text-xs">
                 <Plus className="size-3.5" /> New
               </Button>

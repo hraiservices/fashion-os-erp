@@ -18,7 +18,7 @@ import { useAllSalesPayments } from "@/hooks/use-sales-payments";
 import { buildOrderPaymentRows, buildInvoicePaymentRows, sortPaymentRows, type PaymentSource } from "@/lib/payments-received";
 import { useIssueReferralCoupon } from "@/hooks/use-referral-coupons";
 import { printCoupon } from "@/lib/order-coupon";
-import { loyaltyTier, normalizeIndianMobile, buildWardrobeSummaryUrl } from "@/lib/business-rules";
+import { loyaltyTier, normalizeIndianMobile, buildWardrobeSummaryUrl, daysLeft } from "@/lib/business-rules";
 import { LOYALTY_TYPE_LABELS, type LoyaltyHistoryEntry } from "@/lib/crm";
 import { INVOICE_STATUS_LABELS } from "@/lib/sales";
 import { useShopSettings } from "@/hooks/use-shop-settings";
@@ -40,6 +40,9 @@ import { CustomerMeasurements } from "@/components/crm/customer-measurements";
 import { CustomerMeasurementProfiles } from "@/components/crm/customer-measurement-profiles";
 import { CustomerBuyingProfileCard } from "@/components/crm/customer-buying-profile-card";
 import { CustomerProductRecommendations } from "@/components/crm/customer-product-recommendations";
+import { CustomerPhotoAvatar } from "@/components/crm/customer-photo-avatar";
+import { CustomerSpendChart, buildCustomerSpendByMonth } from "@/components/crm/customer-spend-chart";
+import { CustomerActivityTimeline } from "@/components/crm/customer-activity-timeline";
 import { BackLink } from "@/components/ui/back-link";
 import {
   AlertDialog,
@@ -77,11 +80,11 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   const [editOpen, setEditOpen] = useState(false);
   const [bonusInput, setBonusInput] = useState("");
   const [historyFilter, setHistoryFilter] = useState<"all" | "new" | "alteration">("all");
-  // Mobile-only accordion state for the lower sections — same pattern as the Order Detail page.
-  // "Wardrobe & order history" starts open since it's what staff look at most for a returning
-  // customer; Loyalty/Payments/Product sales invoices start collapsed to cut down scrolling on
-  // a phone. Ignored on sm+, which always shows every section (see each section's "sm:block").
-  const [openSections, setOpenSections] = useState<Set<string>>(() => new Set(["history"]));
+  // Accordion state for the lower sections — same pattern as the Order Detail page, extended
+  // Zoho-style: Payments / Wardrobe & order history / Product sales invoices stay collapsed by
+  // default on every breakpoint (not just mobile), each with a "+New" shortcut in its header.
+  // Loyalty keeps the older behavior (collapsed on mobile only, always open on sm+).
+  const [openSections, setOpenSections] = useState<Set<string>>(() => new Set());
   function toggleSection(key: string) {
     setOpenSections((prev) => {
       const next = new Set(prev);
@@ -143,6 +146,20 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   const tier = loyaltyCfg?.enabled ? loyaltyTier(cust.totalEarned, loyaltyCfg) : null;
   const history = (cust.loyaltyHistory as unknown as LoyaltyHistoryEntry[]) || [];
   const initial = cust.name?.[0]?.toUpperCase() || "?";
+  const spendByMonth = buildCustomerSpendByMonth(custOrders, custInvoices);
+
+  // Delivery-due badge — "2 orders due this week" (or an overdue-styled version) — a tailor's
+  // staff scan for the delivery date first, not just payment due. Counts open orders (not yet
+  // delivered/payment stage) due today through 7 days out, separately from any already overdue.
+  const openOrdersWithDates = custOrders.filter((o) => o.status !== "delivered" && o.status !== "payment" && o.deliveryDate);
+  const overdueCount = openOrdersWithDates.filter((o) => daysLeft(o.deliveryDate) < 0).length;
+  const dueThisWeekCount = openOrdersWithDates.filter((o) => daysLeft(o.deliveryDate) >= 0 && daysLeft(o.deliveryDate) <= 7).length;
+  const deliveryBadge =
+    overdueCount > 0
+      ? { text: `${overdueCount} order${overdueCount === 1 ? "" : "s"} overdue`, bg: "#FEE2E2", color: "#991B1B" }
+      : dueThisWeekCount > 0
+        ? { text: `${dueThisWeekCount} order${dueThisWeekCount === 1 ? "" : "s"} due this week`, bg: "#FEF3C7", color: "#92400E" }
+        : null;
 
   async function doDelete() {
     try {
@@ -182,9 +199,16 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
 
       <div className="rounded-xl border bg-card p-4 sm:p-5">
         <div className="flex items-start gap-4">
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg font-semibold text-primary">{initial}</span>
+          <CustomerPhotoAvatar mobile={cust.mobile} photoPath={cust.photoPath} initial={initial} canEdit={!!user?.perms.manageCustomers} />
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-xl font-semibold tracking-tight">{cust.name}</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-xl font-semibold tracking-tight">{cust.name}</h1>
+              {deliveryBadge && (
+                <span className="rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: deliveryBadge.bg, color: deliveryBadge.color }}>
+                  {deliveryBadge.text}
+                </span>
+              )}
+            </div>
             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
               <a href={tel} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
                 <Phone className="size-3.5" /> {cust.mobile}
@@ -332,6 +356,8 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
         </div>
       </div>
 
+      <CustomerSpendChart data={spendByMonth} />
+
       <CustomerBuyingProfileCard mobile={cust.mobile} />
       <CustomerProductRecommendations customer={cust} />
 
@@ -410,11 +436,19 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
         <CollapsibleSectionHeader
           title={`Payments (${paymentRows.length})`}
           icon={<Wallet className="size-4 text-muted-foreground" />}
-          trailing={totalPaid > 0 && <span className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{inr(totalPaid)}</span>}
+          trailing={
+            <div className="flex items-center gap-2">
+              {totalPaid > 0 && <span className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{inr(totalPaid)}</span>}
+              {user?.perms.managePayments && combinedDue > 0 && (
+                <NewPaymentButton customerMobile={cust.mobile} label="+ New" variant="ghost" className="h-7 px-2 text-xs" />
+              )}
+            </div>
+          }
           collapsed={!openSections.has("payments")}
           onToggle={() => toggleSection("payments")}
+          alwaysCollapsible
         />
-        <div className={cn(!openSections.has("payments") && "hidden", "sm:block")}>
+        <div className={cn(!openSections.has("payments") && "hidden")}>
         {paymentRows.length === 0 ? (
           <EmptyState icon={WalletDuotoneIcon} title="No payments recorded yet" className="border-0" />
         ) : (
@@ -459,7 +493,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
 
       <TasteNotesCard mobile={mobile} />
 
-      {/* Wardrobe & order history — open by default on mobile (#2), unlike the sections below.
+      {/* Wardrobe & order history — Zoho-style, collapsed by default on every breakpoint (#1).
        *  Uses its own toggle (not CollapsibleSectionHeader) since the header row already holds
        *  an interactive Tabs control; wrapping the whole row in a button would nest one
        *  interactive element inside another. */}
@@ -477,11 +511,20 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
                   </TabsList>
                 </Tabs>
               )}
+              <Button
+                variant="ghost"
+                size="sm"
+                nativeButton={false}
+                render={<Link href={`/orders/new?mobile=${cust.mobile}`} />}
+                className="h-7 px-2 text-xs"
+              >
+                <Plus className="size-3.5" /> New
+              </Button>
               <button
                 type="button"
                 aria-label={openSections.has("history") ? "Collapse wardrobe & order history" : "Expand wardrobe & order history"}
                 onClick={() => toggleSection("history")}
-                className="flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-muted sm:hidden"
+                className="flex size-9 shrink-0 items-center justify-center rounded-md hover:bg-muted"
               >
                 <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", openSections.has("history") && "rotate-180")} />
               </button>
@@ -489,7 +532,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           </div>
           <p className="text-xs text-muted-foreground">Everything this customer has had stitched with us.</p>
         </div>
-        <div className={cn(!openSections.has("history") && "hidden", "sm:block")}>
+        <div className={cn(!openSections.has("history") && "hidden")}>
         {custOrders.length === 0 ? (
           <EmptyState icon={ReceiptDuotoneIcon} title="No orders yet" className="border-0" />
         ) : filteredHistoryOrders.length === 0 ? (
@@ -532,11 +575,19 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
       <section className="rounded-xl border bg-card">
         <CollapsibleSectionHeader
           title={`Product sales invoices (${custInvoices.length})`}
-          trailing={salesDue > 0 && <BalanceDue amount={salesDue} suffix=" due" paidLabel="" className="text-xs" />}
+          trailing={
+            <div className="flex items-center gap-2">
+              {salesDue > 0 && <BalanceDue amount={salesDue} suffix=" due" paidLabel="" className="text-xs" />}
+              <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="h-7 px-2 text-xs">
+                <Plus className="size-3.5" /> New
+              </Button>
+            </div>
+          }
           collapsed={!openSections.has("invoices")}
           onToggle={() => toggleSection("invoices")}
+          alwaysCollapsible
         />
-        <div className={cn(!openSections.has("invoices") && "hidden", "sm:block")}>
+        <div className={cn(!openSections.has("invoices") && "hidden")}>
         {custInvoices.length === 0 ? (
           <EmptyState icon={ShoppingBagDuotoneIcon} title="No product sales invoices yet" description="Products bought by this customer will appear here." className="border-0" />
         ) : (
@@ -566,6 +617,8 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
         </div>
       </section>
 
+      <CustomerActivityTimeline mobile={mobile} />
+
       <EditCustomerModal cust={cust} open={editOpen} onOpenChange={setEditOpen} />
     </div>
   );
@@ -583,6 +636,7 @@ function CollapsibleSectionHeader({
   trailing,
   collapsed,
   onToggle,
+  alwaysCollapsible,
 }: {
   title: string;
   subtitle?: React.ReactNode;
@@ -590,19 +644,26 @@ function CollapsibleSectionHeader({
   trailing?: React.ReactNode;
   collapsed: boolean;
   onToggle: () => void;
+  /** Zoho-style: stays collapsed by default on every breakpoint, not just mobile — unlike the
+   *  usual pattern here where sm+ always forces the section open regardless of `collapsed`. */
+  alwaysCollapsible?: boolean;
 }) {
   return (
-    <button type="button" onClick={onToggle} className="flex w-full items-center justify-between gap-2 border-b px-4 py-3 text-left sm:pointer-events-none">
-      <div className="min-w-0">
-        <h2 className="flex items-center gap-1.5 text-sm font-semibold">
-          {icon} {title}
-        </h2>
-        {subtitle}
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        {trailing}
-        <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform sm:hidden", !collapsed && "rotate-180")} />
-      </div>
-    </button>
+    <div className="flex w-full items-center justify-between gap-2 border-b px-4 py-3">
+      <button
+        type="button"
+        onClick={onToggle}
+        className={cn("flex min-w-0 flex-1 items-center justify-between gap-2 text-left", !alwaysCollapsible && "sm:pointer-events-none")}
+      >
+        <div className="min-w-0">
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+            {icon} {title}
+          </h2>
+          {subtitle}
+        </div>
+        <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", !alwaysCollapsible && "sm:hidden", !collapsed && "rotate-180")} />
+      </button>
+      {trailing && <div className="flex shrink-0 items-center gap-2">{trailing}</div>}
+    </div>
   );
 }

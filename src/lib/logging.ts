@@ -55,16 +55,30 @@ export async function logAction(
   userEmail: string | null | undefined,
   action: string,
   orderId?: string | null,
-  details?: string | null
+  details?: string | null,
+  // Only needed for events with no order_id to join through later (profile edits, measurement
+  // profile changes, manual loyalty grants, sales invoices) — see
+  // supabase/migrations/add_customer_activity_log_photo.sql. Order-scoped events keep joining
+  // through order_id → orders.mobile at read time and don't need this.
+  customerMobile?: string | null
 ): Promise<boolean> {
   const userName = await nameFromEmail(supabase, userEmail);
-  const { error } = await supabase.from("activity_log").insert({
+  const base = {
     user_email: userEmail || null,
     user_name: userName,
     action,
     order_id: orderId || null,
     details: details || null,
-  });
+  };
+  const insertOne = (payload: typeof base & { customer_mobile?: string | null }) => supabase.from("activity_log").insert(payload as never);
+  let { error } = await insertOne(customerMobile ? { ...base, customer_mobile: customerMobile } : base);
+  // The customer_mobile column may not exist yet (migration not run against this database) —
+  // retry without it rather than letting a brand-new, optional column break every single
+  // activity_log write across the app, including the ~140 pre-existing call sites that pass no
+  // customerMobile at all and would otherwise be unaffected.
+  if (error && customerMobile) {
+    ({ error } = await insertOne(base));
+  }
   if (error) {
     // Surfaced at minimum, even for callers that don't check the return value — previously this
     // vanished completely, with no trace anywhere that the write was ever attempted.

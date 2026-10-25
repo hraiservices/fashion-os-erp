@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       }
       return NextResponse.json({ error: migrateError.message }, { status: 500 });
     }
-    await logAction(supabase, user.email, `📱 Mobile changed: ${fd.originalMobile} → ${fd.mobile} (${fd.name})`);
+    await logAction(supabase, user.email, `📱 Mobile changed: ${fd.originalMobile} → ${fd.mobile} (${fd.name})`, null, null, fd.mobile);
   }
 
   // Loyalty columns are deliberately absent — they are only ever moved by the loyalty RPCs.
@@ -89,6 +89,6 @@ export async function POST(request: Request) {
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await logAction(supabase, user.email, `✏️ Customer profile updated: ${fd.name} (${fd.mobile})`);
+  await logAction(supabase, user.email, `✏️ Customer profile updated: ${fd.name} (${fd.mobile})`, null, null, fd.mobile);
   return NextResponse.json({ ok: true });
 }

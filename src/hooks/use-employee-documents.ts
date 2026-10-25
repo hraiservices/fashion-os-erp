@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { rethrowFriendly } from "@/lib/error-message";
 
 export interface EmployeeDocumentListItem {
   id: string;
@@ -40,7 +41,12 @@ export function useEmployeeDocuments(employeeId: string, enabled: boolean) {
 }
 
 async function postJson(url: string, body: unknown): Promise<{ ok: true }> {
-  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  let res: Response;
+  try {
+    res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  } catch (e) {
+    rethrowFriendly(e);
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Request failed");
   return data;

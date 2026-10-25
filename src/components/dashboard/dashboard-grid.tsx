@@ -194,7 +194,7 @@ export function DashboardGrid({
             <button
               type="button"
               onClick={() => setMobileShowAll((v) => !v)}
-              className="mt-2 w-full rounded-lg border bg-card py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+              className="mt-2 min-h-11 w-full rounded-lg border bg-card py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
             >
               {mobileShowAll ? "Show less" : `Show ${visible.length - MOBILE_COLLAPSED_COUNT} more`}
             </button>

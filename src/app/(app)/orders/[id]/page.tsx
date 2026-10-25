@@ -293,7 +293,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       {showStickyHeader && (
         <div className="fixed inset-x-0 top-14 z-20 flex items-center justify-between gap-3 border-b bg-background/95 px-4 py-2 backdrop-blur-sm sm:hidden">
           <p className="min-w-0 truncate text-sm font-semibold">{order.name}</p>
-          <a href={`tel:${order.mobile}`} aria-label={`Call ${order.name}`} className="flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium">
+          <a href={`tel:${order.mobile}`} aria-label={`Call ${order.name}`} className="flex h-9 shrink-0 items-center gap-1 rounded-md border px-3 text-sm font-medium">
             <Phone className="size-3.5" /> Call
           </a>
         </div>

@@ -494,43 +494,47 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
       <TasteNotesCard mobile={mobile} />
 
       {/* Wardrobe & order history — Zoho-style, collapsed by default on every breakpoint (#1).
-       *  Uses its own toggle (not CollapsibleSectionHeader) since the header row already holds
-       *  an interactive Tabs control; wrapping the whole row in a button would nest one
-       *  interactive element inside another. */}
+       *  Same chevron+amount+"New" header shape as Payments/Product sales invoices below (the
+       *  stitching-balance-due figure mirrors Product sales invoices' "X due"); the All/
+       *  Stitching/Alterations filter sits on its own row underneath instead of sharing the
+       *  title row, so the filter's interactive Tabs control is never nested inside the title's
+       *  own clickable toggle button. */}
       <section className="rounded-xl border bg-card">
         <div className="border-b px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => toggleSection("history")}
+            className="flex w-full items-center justify-between gap-2 text-left"
+          >
             <h2 className="text-sm font-semibold">Wardrobe & order history ({filteredHistoryOrders.length})</h2>
-            <div className="flex items-center gap-2">
-              {custOrders.length > 0 && (
-                <Tabs value={historyFilter} onValueChange={(v) => v && setHistoryFilter(v as typeof historyFilter)}>
-                  <TabsList>
-                    <TabsTrigger value="all" tone="blue">All</TabsTrigger>
-                    <TabsTrigger value="new" tone="purple">Stitching</TabsTrigger>
-                    <TabsTrigger value="alteration" tone="amber">Alterations</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                nativeButton={false}
-                render={<Link href={`/orders/new?mobile=${cust.mobile}`} />}
-                className="h-7 px-2 text-xs"
-              >
-                <Plus className="size-3.5" /> New
-              </Button>
-              <button
-                type="button"
-                aria-label={openSections.has("history") ? "Collapse wardrobe & order history" : "Expand wardrobe & order history"}
-                onClick={() => toggleSection("history")}
-                className="flex size-9 shrink-0 items-center justify-center rounded-md hover:bg-muted"
-              >
-                <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", openSections.has("history") && "rotate-180")} />
-              </button>
+            <div className="flex shrink-0 items-center gap-2">
+              {outstanding > 0 && <span className="text-sm font-semibold tabular-nums text-red-600 dark:text-red-400">{inr(outstanding)} due</span>}
+              <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", openSections.has("history") && "rotate-180")} />
             </div>
+          </button>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            {custOrders.length > 0 ? (
+              <Tabs value={historyFilter} onValueChange={(v) => v && setHistoryFilter(v as typeof historyFilter)}>
+                <TabsList>
+                  <TabsTrigger value="all" tone="blue">All</TabsTrigger>
+                  <TabsTrigger value="new" tone="purple">Stitching</TabsTrigger>
+                  <TabsTrigger value="alteration" tone="amber">Alterations</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            ) : (
+              <span />
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              nativeButton={false}
+              render={<Link href={`/orders/new?mobile=${cust.mobile}`} />}
+              className="h-7 px-2 text-xs"
+            >
+              <Plus className="size-3.5" /> New
+            </Button>
           </div>
-          <p className="text-xs text-muted-foreground">Everything this customer has had stitched with us.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Everything this customer has had stitched with us.</p>
         </div>
         <div className={cn(!openSections.has("history") && "hidden")}>
         {custOrders.length === 0 ? (

@@ -14,17 +14,18 @@ import { FontSection } from "@/components/settings/font-section";
 import { DashboardHeaderSection } from "@/components/settings/dashboard-header-section";
 import { CardHeaderBgSection } from "@/components/settings/card-header-bg-section";
 import { DocumentNumberingSection } from "@/components/settings/document-numbering-section";
+import { MobileSection } from "@/components/settings/mobile-section";
 import { Skeleton } from "@/components/ui/skeleton";
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <p className="pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground first:pt-0">{children}</p>;
-}
 
 /** Shop Profile, Account, Appearance, and Document Numbering merged onto one page — the four
  *  "how does this deployment look and identify itself" settings a shop sets up once and rarely
  *  revisits, as opposed to the day-to-day config pages (rates, loyalty, templates, etc). Each
  *  section keeps its own permission check inline (rather than redirecting the whole page away)
- *  since Account is visible to everyone while the others require more access. */
+ *  since Account is visible to everyone while the others require more access.
+ *
+ *  Below `sm`, each group collapses behind its own MobileSection header — "Company Profile"
+ *  starts open (the group someone arriving here is usually after), the rest start collapsed.
+ *  Desktop/tablet is unchanged (every group always expanded, plain SectionLabel). */
 export default function Page() {
   const { data: user, isLoading } = useCurrentUser();
   const canManageShop = !user?.restricted;
@@ -42,30 +43,32 @@ export default function Page() {
     <SettingsPage title="Personalize" description="Company profile, your account, appearance, and document numbering — all in one place">
       <div className="space-y-4">
         {canManageShop && (
-          <>
-            <SectionLabel>Company Profile</SectionLabel>
+          <MobileSection title="Company Profile" defaultOpen>
             <ShopSection />
-          </>
+          </MobileSection>
         )}
 
-        <SectionLabel>Account</SectionLabel>
-        <SecuritySection />
-        <PushNotificationsSection />
-        <WhatsAppAppChoiceSection />
-        <AlertPrefsSection />
-        <DataExportSection />
+        <MobileSection title="Account" defaultOpen={!canManageShop}>
+          <SecuritySection />
+          <PushNotificationsSection />
+          <WhatsAppAppChoiceSection />
+          <AlertPrefsSection />
+          <DataExportSection />
+        </MobileSection>
 
         {isAdmin && (
           <>
-            <SectionLabel>Appearance</SectionLabel>
-            <ColorThemeSection />
-            <ThemeModeSection />
-            <FontSection />
-            <DashboardHeaderSection />
-            <CardHeaderBgSection />
+            <MobileSection title="Appearance">
+              <ColorThemeSection />
+              <ThemeModeSection />
+              <FontSection />
+              <DashboardHeaderSection />
+              <CardHeaderBgSection />
+            </MobileSection>
 
-            <SectionLabel>Document Numbering</SectionLabel>
-            <DocumentNumberingSection />
+            <MobileSection title="Document Numbering">
+              <DocumentNumberingSection />
+            </MobileSection>
           </>
         )}
       </div>

@@ -42,6 +42,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ mob
     return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to grant points" }, { status: 500 });
   }
 
-  await logAction(supabase, user.email, `🎁 Manual loyalty grant: ${pts > 0 ? "+" : ""}${pts} pts to ${name} (${mobile})`);
+  await logAction(supabase, user.email, `🎁 Manual loyalty grant: ${pts > 0 ? "+" : ""}${pts} pts to ${name} (${mobile})`, null, null, mobile);
   return NextResponse.json({ ok: true });
 }

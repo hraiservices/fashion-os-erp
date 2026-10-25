@@ -313,7 +313,7 @@ export async function POST(request: Request) {
     if (stampError?.code === "23505") {
       const { data: winner } = await db.from("sales_invoices").select("id, invoice_number").eq("idempotency_key", fd.idempotencyKey).maybeSingle();
       if (winner) {
-        await logAction(supabase, user.email, `Invoice created: ${invoiceNumber} (duplicate submission, returning existing)`, null, `₹${totals.total}`);
+        await logAction(supabase, user.email, `Invoice created: ${invoiceNumber} (duplicate submission, returning existing)`, null, `₹${totals.total}`, fd.customerMobile);
         return NextResponse.json({ ok: true, data: winner });
       }
     }
@@ -344,6 +344,6 @@ export async function POST(request: Request) {
     }
   }
 
-  await logAction(supabase, user.email, isEdit ? `Invoice updated: ${invoiceNumber}` : `Invoice created: ${invoiceNumber}`, null, `₹${totals.total}`);
+  await logAction(supabase, user.email, isEdit ? `Invoice updated: ${invoiceNumber}` : `Invoice created: ${invoiceNumber}`, null, `₹${totals.total}`, fd.customerMobile);
   return NextResponse.json({ ok: true, data });
 }

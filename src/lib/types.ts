@@ -283,10 +283,17 @@ export interface Customer {
    *  Empty for a customer who's never engaged with this; the flat `measurements` field above
    *  still works exactly as before and getProfiles() synthesizes a fallback from it. */
   measurementProfiles: MeasurementProfile[];
+  /** Storage object path in the customer-photos bucket, or "" if none/not yet migrated — see
+   *  supabase/migrations/add_customer_activity_log_photo.sql. Not in the generated CustomerRow
+   *  type until that migration runs against the live project, so this reads via an `as unknown`
+   *  cast rather than a typed column, same as taste_notes' own pre-migration handling
+   *  (src/app/api/customers/[mobile]/taste-notes/route.ts). */
+  photoPath?: string;
 }
 
 /** mapCust(), line ~2324. */
 export function mapCustomerRow(r: CustomerRow): Customer {
+  const photoPath = (r as unknown as { photo_path?: string | null }).photo_path || "";
   return {
     id: r.id,
     name: r.name || "",
@@ -308,6 +315,7 @@ export function mapCustomerRow(r: CustomerRow): Customer {
     whatsappOptOut: !!r.whatsapp_opt_out,
     shareToken: r.share_token || "",
     measurementProfiles: (Array.isArray(r.measurement_profiles) ? r.measurement_profiles : []) as unknown as MeasurementProfile[],
+    photoPath,
   };
 }
 

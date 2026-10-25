@@ -51,7 +51,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     supabase, user.email,
     `🗑️ Customer deleted: ${cust?.name || mobile} (${mobile})`,
     null,
-    `${deletedCount ?? 0} order(s) removed`
+    `${deletedCount ?? 0} order(s) removed`,
+    mobile
   );
   return NextResponse.json({ ok: true, deletedOrders: deletedCount ?? 0 });
 }

@@ -54,7 +54,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ mo
   const { error } = await db.from("customers").update({ measurement_profiles: toJson(nextProfiles) }).eq("id", customer.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await logAction(supabase, user.email, `📏 Measurement profile ${body.action} for ${mobile}`, null, body.id);
+  await logAction(supabase, user.email, `📏 Measurement profile ${body.action} for ${mobile}`, null, body.id, mobile);
 
   return NextResponse.json({ profiles: nextProfiles });
 }

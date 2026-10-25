@@ -25,6 +25,7 @@ export interface CustomerProfile {
   createdAt: string;
   measurementProfiles: MeasurementProfile[];
   shareToken: string;
+  photoPath: string;
 }
 
 /**
@@ -39,7 +40,7 @@ export function buildCustomerMap(orders: Order[], customers: Customer[]): Custom
     name, mobile, email: "", dob: "", anniversary: "", address: "",
     orders: [], spent: 0, measurements: {}, notes: "",
     loyaltyPoints: 0, totalEarned: 0, loyaltyHistory: [], paymentTerms: "due_on_receipt", priceListId: null, tags: [], gstin: "", whatsappOptOut: false,
-    createdAt: "", measurementProfiles: [], shareToken: "",
+    createdAt: "", measurementProfiles: [], shareToken: "", photoPath: "",
   });
 
   orders.forEach((o) => {
@@ -61,6 +62,7 @@ export function buildCustomerMap(orders: Order[], customers: Customer[]): Custom
     m[c.mobile].measurements = c.measurements || {};
     m[c.mobile].notes = c.notes || "";
     m[c.mobile].custId = c.id;
+    m[c.mobile].photoPath = c.photoPath || "";
     m[c.mobile].loyaltyPoints = c.loyaltyPoints || 0;
     m[c.mobile].totalEarned = c.totalEarned || 0;
     m[c.mobile].loyaltyHistory = c.loyaltyHistory || [];

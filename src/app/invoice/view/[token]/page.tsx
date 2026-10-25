@@ -45,7 +45,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
         href={`/api/public/invoices/${token}/pdf`}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+        className="inline-flex h-11 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted sm:h-auto sm:py-1.5"
       >
         <Download className="size-4" /> Download PDF
       </a>

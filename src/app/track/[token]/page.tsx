@@ -12,6 +12,7 @@ import { buildUpiLink, isValidUpiId, type ShopLinks } from "@/lib/shop-links";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { OrderPhotoGallery } from "@/components/track/order-photo-gallery";
 import { TrackChat } from "@/components/track/track-chat";
+import { OrderCollapse } from "@/components/track/order-collapse";
 
 /**
  * WhatsApp (and every other chat app) builds its link-preview card from these tags — without
@@ -122,11 +123,11 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
               </ul>
             )}
             {upiHref && (
-              <a href={upiHref} className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground">
+              <a href={upiHref} className="inline-flex h-11 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground sm:h-9">
                 Pay by UPI
               </a>
             )}
-            {payNowHref && <WhatsAppButton href={payNowHref} label="Pay Now" size="sm" />}
+            {payNowHref && <WhatsAppButton href={payNowHref} label="Pay Now" className="h-11 sm:h-7" />}
           </div>
         )}
       </div>
@@ -144,18 +145,39 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
 
       {orders.length === 0 && <p className="text-sm text-muted-foreground">No orders found for this link.</p>}
 
-      {orders.map((order) => (
-        <div key={order.id} className="space-y-4 rounded-xl border bg-card p-4">
-          <div className="flex items-start justify-between gap-4">
+      {orders.map((order, orderIdx) => (
+        <OrderCollapse
+          key={order.id}
+          defaultOpen={orderIdx === 0}
+          summary={
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
+                  Order {order.id}
+                  {order.reworkFlag && (
+                    <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">Rework</span>
+                  )}
+                </p>
+              </div>
+              <span
+                className="shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium"
+                style={{ color: STAGE_META[order.status].color, background: STAGE_META[order.status].bg, borderColor: STAGE_META[order.status].border }}
+              >
+                {STAGE_META[order.status].emoji} {STAGE_META[order.status].label}
+              </span>
+            </div>
+          }
+        >
+          {/* Hidden on mobile — OrderCollapse's own summary row already shows order id + stage
+           *  badge there (both collapsed and expanded). Desktop never renders that summary row
+           *  (every order's card is always fully open), so this is the only place it shows. */}
+          <div className="hidden items-start justify-between gap-4 sm:flex">
             <div>
               <p className="flex items-center gap-1.5 text-sm font-semibold">
                 Order {order.id}
                 {order.reworkFlag && (
                   <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">Rework</span>
                 )}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Expected delivery: <span className="font-medium text-emerald-600 dark:text-emerald-400">{fmtDate(order.deliveryDate)}</span>
               </p>
             </div>
             <span
@@ -165,6 +187,9 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
               {STAGE_META[order.status].emoji} {STAGE_META[order.status].label}
             </span>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Expected delivery: <span className="font-medium text-emerald-600 dark:text-emerald-400">{fmtDate(order.deliveryDate)}</span>
+          </p>
 
           {order.reworkFlag && (
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -172,15 +197,18 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
             </p>
           )}
 
-          <div className="flex flex-wrap gap-x-1 gap-y-2">
+          {/* Horizontally scrollable, not wrapping — 6 stages + arrows is wider than a phone
+           *  screen, and wrapping mid-row split an arrow from the stage it points at. Scrolling
+           *  keeps the whole timeline readable left-to-right instead. */}
+          <div className="-mx-1 flex gap-x-1 gap-y-2 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {timelineFor(order).map(({ stage, meta, done, when }, i) => (
-              <div key={stage} className="flex items-center">
+              <div key={stage} className="flex shrink-0 items-center">
                 <div className={`flex flex-col items-center gap-1 ${done ? "" : "opacity-40"}`}>
                   <span className="text-lg leading-none">{meta.emoji}</span>
-                  <span className="text-[11px] font-medium">{meta.label}</span>
-                  <span className="text-[10px] text-muted-foreground">{when || "—"}</span>
+                  <span className="whitespace-nowrap text-[11px] font-medium">{meta.label}</span>
+                  <span className="whitespace-nowrap text-[10px] text-muted-foreground">{when || "—"}</span>
                 </div>
-                {i < TIMELINE_STAGES.length - 1 && <span className="mx-1.5 mb-4 text-muted-foreground/40">→</span>}
+                {i < TIMELINE_STAGES.length - 1 && <span className="mx-1.5 mb-4 shrink-0 text-muted-foreground/40">→</span>}
               </div>
             ))}
           </div>
@@ -226,7 +254,7 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
             <span>Balance due</span>
             <span className={`tabular-nums ${order.balance > 0 ? "text-red-600 dark:text-red-400" : ""}`}>{inr(order.balance)}</span>
           </div>
-        </div>
+        </OrderCollapse>
       ))}
 
       {measurementEntries.length > 0 && (
@@ -246,9 +274,9 @@ export default async function CustomerOrderStatusPage({ params }: { params: Prom
       <TrackChat token={token} shopPhone={shopPhone} />
 
       <div className="flex flex-wrap gap-2 border-t pt-4">
-        {waHref && <WhatsAppButton href={waHref} label="Message us" />}
+        {waHref && <WhatsAppButton href={waHref} label="Message us" className="h-11 sm:h-8" />}
         {shopPhone && (
-          <a href={`tel:${shopPhone}`} className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted">
+          <a href={`tel:${shopPhone}`} className="inline-flex h-11 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted sm:h-8">
             <Phone className="size-4" /> Call {shopName || "us"}
           </a>
         )}

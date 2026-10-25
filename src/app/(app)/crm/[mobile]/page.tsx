@@ -96,7 +96,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6">
+      <div className="mx-auto max-w-7xl space-y-4 p-4 sm:p-6">
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-40 w-full" />
       </div>
@@ -194,7 +194,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6">
+    <div className="mx-auto max-w-7xl space-y-4 p-4 sm:p-6">
       <BackLink href="/crm">Customers</BackLink>
 
       <div className="rounded-xl border bg-card p-4 sm:p-5">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, LayoutGrid, BarChart3, Star, Search } from "lucide-react";
@@ -14,8 +14,20 @@ import { cn } from "@/lib/utils";
  * of a grid of collapsible cards. Both the category list and every report row still derive
  * straight from REPORTS_GROUP in nav-config.ts (via useReportsNav), so this page can never
  * drift out of sync with the sidebar submenu or with reports/layout.tsx's persistent rail.
+ *
+ * useSearchParams() (for the ?cat= deep link from ReportsSidebar) requires a Suspense boundary
+ * at the page level, or Next.js fails to statically prerender this route at build time — hence
+ * the wrapper below instead of exporting the body directly.
  */
 export default function ReportsIndexPage() {
+  return (
+    <Suspense fallback={null}>
+      <ReportsIndexPageInner />
+    </Suspense>
+  );
+}
+
+function ReportsIndexPageInner() {
   const { allReports, categories, favorites, favoriteCount, toggleFavorite } = useReportsNav();
 
   // Deep-linked from ReportsSidebar (shown on every other report page): clicking a category

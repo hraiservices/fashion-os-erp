@@ -19,17 +19,20 @@ export function Providers({ children }: { children: React.ReactNode }) {
         defaultOptions: {
           queries: {
             staleTime: 30_000,
-            // This app is money-critical: reports and pages read live balances that other
-            // screens (or another device/tab) can change seconds earlier — deleting a payment,
-            // recording one, editing an order. Relying on every single mutation to remember to
-            // invalidate every report's query key is exactly the fragile pattern that kept
-            // producing "stale until I hard-refresh" bugs (Day Book showing a deleted payment's
-            // total, the order Payments list not updating, etc.) — one missed invalidation
-            // anywhere and a screen silently lies about money. Instead, always revalidate
-            // in the background whenever a screen is (re)mounted or the tab regains focus;
-            // staleTime above still avoids duplicate refetches within a single active view.
-            refetchOnMount: "always",
-            refetchOnWindowFocus: true,
+            // Was `refetchOnMount: "always"` globally — applied to every query in the app
+            // (products, customers, dashboard widgets, everything), not just the money-critical
+            // ones it was meant for. On a mobile-first app where staff switch apps constantly,
+            // that forced a full re-fetch of every mounted query on every single screen visit
+            // and every tab refocus regardless of staleTime, which is what actually blew past
+            // the Supabase egress/log-ingestion quota (288% / 128% over) — not big files
+            // (Storage Size stayed ~20MB the whole period), just the same small queries re-run
+            // far more often than the data could possibly have changed.
+            //
+            // Back to the normal default here (refetch only once staleTime above has elapsed).
+            // The specific screens that genuinely need "another tab/device may have changed this
+            // in the last few seconds" (Day Book, cash closing history) opt back into
+            // `refetchOnMount: "always"` individually — see src/hooks/use-day-book.ts — instead
+            // of every query in the app paying that cost by default.
             // React Query's default (3 retries, delay doubling up to 30s) was built for a
             // desktop tab left open in the background, not the first query of a cold app open on
             // a phone's mobile radio — a single transient failure (a 5G tower handoff, a dropped

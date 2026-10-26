@@ -5,6 +5,13 @@ import { createClient } from "@/lib/supabase/client";
 import { ORDER_MEDIA_BUCKET, isOrderMediaPath } from "@/lib/supabase/media-storage-shared";
 
 const SIGNED_URL_TTL_SECONDS = 3600;
+// Same reasoning as src/hooks/use-resolved-media-url.ts's identical cache: a re-signed path is a
+// different URL even though the object is unchanged, which defeats the browser's HTTP cache and
+// forces a full re-download. One shared module-level cache so remounting this component (e.g.
+// revisiting an order) reuses the same signed URL — and so the same cached image — instead of
+// minting (and re-downloading) a fresh one.
+const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
+const REFRESH_MARGIN_MS = 5 * 60_000;
 
 /**
  * Client-side counterpart to resolveOrderImageUrls() (src/lib/supabase/media-storage.ts) — same
@@ -18,7 +25,15 @@ const SIGNED_URL_TTL_SECONDS = 3600;
  * user edits back onto it.
  */
 export function useResolvedMediaUrls(paths: string[]): string[] {
-  const [resolved, setResolved] = useState<Record<string, string>>({});
+  const [resolved, setResolved] = useState<Record<string, string>>(() => {
+    const fromCache: Record<string, string> = {};
+    const now = Date.now();
+    for (const p of paths) {
+      const cached = signedUrlCache.get(p);
+      if (cached && cached.expiresAt > now) fromCache[p] = cached.url;
+    }
+    return fromCache;
+  });
   const key = paths.join("\u0000");
 
   useEffect(() => {
@@ -33,7 +48,11 @@ export function useResolvedMediaUrls(paths: string[]): string[] {
         setResolved((prev) => {
           const next = { ...prev };
           data.forEach((d, i) => {
-            if (d.signedUrl) next[d.path || toFetch[i]] = d.signedUrl;
+            const path = d.path || toFetch[i];
+            if (d.signedUrl) {
+              next[path] = d.signedUrl;
+              signedUrlCache.set(path, { url: d.signedUrl, expiresAt: Date.now() + SIGNED_URL_TTL_SECONDS * 1000 - REFRESH_MARGIN_MS });
+            }
           });
           return next;
         });

@@ -171,22 +171,19 @@ export function DashboardGrid({
         })}
       </div>
 
-      {/* Mobile, not editing: horizontally-scrollable carousel instead of a tall stacked column
-       *  — each widget keeps its own card styling (set inside the widget components themselves,
-       *  not by WidgetShell), just laid out side by side with scroll-snap instead of one per
-       *  row. Reordering/resizing don't apply here (no grip, no handles — WidgetShell's own
-       *  editing-only chrome stays off since editing is always false in this branch). */}
+      {/* Mobile, not editing: stacked one-per-row, same as the desktop grid just single-column —
+       *  no horizontal/side-swipe scrolling. Reordering/resizing don't apply here (no grip, no
+       *  handles — WidgetShell's own editing-only chrome stays off since editing is always false
+       *  in this branch). */}
       {!editing && (
         <div className="sm:hidden">
-          <div className="scrollbar-hide -mx-4 flex gap-3 overflow-x-auto px-4 pb-1" style={{ scrollSnapType: "x mandatory" }}>
+          <div className="flex flex-col gap-4">
             {mobileVisible.map((w) => {
               const href = w.kind === "builtin" ? BUILTIN_WIDGET_BY_KEY.get(w.builtinKey || "")?.href : undefined;
               return (
-                <div key={w.id} className="w-[85vw] max-w-sm shrink-0" style={{ scrollSnapAlign: "start" }}>
-                  <WidgetShell colSpan={1} href={href} editing={false}>
-                    {renderContent(w)}
-                  </WidgetShell>
-                </div>
+                <WidgetShell key={w.id} colSpan={1} href={href} editing={false}>
+                  {renderContent(w)}
+                </WidgetShell>
               );
             })}
           </div>

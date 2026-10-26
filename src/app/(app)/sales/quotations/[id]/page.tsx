@@ -72,9 +72,9 @@ export default function QuotationDetailPage({ params }: { params: Promise<{ id: 
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{quote.quoteNumber}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{quote.customerName}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {quote.customerName} · {fmtDate(quote.date)}
+            {quote.quoteNumber} · {fmtDate(quote.date)}
             {quote.validUntil && ` · Valid until ${fmtDate(quote.validUntil)}`}
           </p>
         </div>

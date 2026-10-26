@@ -28,6 +28,27 @@ import { istDateString } from "@/lib/ist-date";
 
 const TENDER_METHODS = ["Cash", "UPI", "Bank Transfer", "Cheque", "Card"];
 
+// Deterministic per-product color accent (hashed from id) — purely visual, so the product grid
+// reads as a real tap-friendly POS tile board instead of a flat list of identical gray cards.
+// No product data needed (no category field on Product yet), so this is the simplest way to
+// give each tile its own identity while staying stable across reloads for the same product.
+const TILE_ACCENTS = [
+  "border-l-rose-400 dark:border-l-rose-500",
+  "border-l-amber-400 dark:border-l-amber-500",
+  "border-l-emerald-400 dark:border-l-emerald-500",
+  "border-l-sky-400 dark:border-l-sky-500",
+  "border-l-violet-400 dark:border-l-violet-500",
+  "border-l-fuchsia-400 dark:border-l-fuchsia-500",
+  "border-l-teal-400 dark:border-l-teal-500",
+  "border-l-orange-400 dark:border-l-orange-500",
+];
+
+function tileAccent(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return TILE_ACCENTS[hash % TILE_ACCENTS.length];
+}
+
 interface CartLine {
   productId: string;
   productName: string;
@@ -346,11 +367,11 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
                   key={p.id}
                   type="button"
                   onClick={() => addProduct(p)}
-                  className="min-w-0 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-muted/50 active:bg-muted"
+                  className={`min-w-0 rounded-lg border border-l-4 bg-card p-3 text-left transition-colors hover:bg-muted/50 active:bg-muted ${tileAccent(p.id)}`}
                 >
                   <p className="truncate text-sm font-medium">{p.name}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">{p.sku}</p>
-                  <p className="mt-1 text-sm font-semibold tabular-nums">{inr(p.sellingPrice)}</p>
+                  <p className="mt-1 text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{inr(p.sellingPrice)}</p>
                 </button>
               ))}
             </div>
@@ -360,8 +381,12 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
         {/* Right: cart + checkout */}
         <div className="space-y-3 lg:sticky lg:top-4">
           <Card className="p-4">
-            <button type="button" onClick={() => setPickerOpen(true)} className="mb-3 flex w-full items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-left hover:bg-muted/60">
-              <User className="size-4 shrink-0 text-muted-foreground" />
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className={`mb-3 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left ${customer ? "border-primary/30 bg-primary/5 hover:bg-primary/10" : "bg-muted/40 hover:bg-muted/60"}`}
+            >
+              <User className={`size-4 shrink-0 ${customer ? "text-primary" : "text-muted-foreground"}`} />
               <span className="min-w-0 flex-1 truncate text-sm">{customer ? `${customer.name} · ${customer.mobile}` : "Walk-in customer"}</span>
               {customer && (
                 <span
@@ -403,7 +428,7 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
                         <Plus className="size-3" />
                       </Button>
                     </div>
-                    <span className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums">{inr(line.qty * line.unitPrice)}</span>
+                    <span className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{inr(line.qty * line.unitPrice)}</span>
                     <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={() => removeLine(line.productId)} aria-label={`Remove ${line.productName}`}>
                       <Trash2 className="size-3.5" />
                     </Button>
@@ -413,15 +438,15 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
               </div>
             )}
 
-            <div className="mt-4 rounded-lg bg-muted/50 p-3">
+            <div className="mt-4 rounded-lg bg-primary/10 p-3 dark:bg-primary/15">
               <div className="flex items-center justify-between">
-                <span className="text-xs uppercase tracking-wide text-muted-foreground">Total</span>
-                <span className="text-xl font-semibold tabular-nums">{inr(total)}</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-primary">Total</span>
+                <span className="text-xl font-bold tabular-nums text-primary">{inr(total)}</span>
               </div>
             </div>
           </Card>
 
-          <Card className="space-y-3 p-4">
+          <Card className="space-y-3 border-l-4 border-l-primary/40 p-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Payment</p>
             {tenders.map((t, i) => (
               <div key={i} className="flex items-center gap-2">

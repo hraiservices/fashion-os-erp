@@ -1,78 +1,45 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ChevronRight, LayoutGrid, BarChart3, Scissors, ShoppingCart, Users, Package, Truck, Factory, Wallet, Star, Search, type LucideIcon } from "lucide-react";
-import { REPORTS_GROUP, resolveReportSection, isReportAllowedForRole, DEFAULT_REPORT_ROLE_ACCESS, type ReportRoleAccess } from "@/components/app-shell/nav-config";
-import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
-import { isReportEnabled } from "@/lib/entitlements";
-import { useAppSetting } from "@/hooks/use-app-setting";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { ChevronRight, LayoutGrid, BarChart3, Star, Search } from "lucide-react";
+import { useReportsNav, type ReportItem } from "@/hooks/use-reports-nav";
+import { FAVORITES_CATEGORY, SECTION_ICON } from "@/components/reports/reports-sidebar";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-
-const FAVORITES_CATEGORY = "__favorites__";
-
-const SECTION_ICON: Record<string, LucideIcon> = {
-  Summary: BarChart3,
-  "Stitching Orders": Scissors,
-  Sales: ShoppingCart,
-  Customers: Users,
-  Inventory: Package,
-  Purchases: Truck,
-  Expenses: Wallet,
-  Manufacturing: Factory,
-};
-
-interface ReportItem {
-  href: string;
-  label: string;
-  category: string;
-}
 
 /**
  * Reports Center — a category rail on the left, one searchable table on the right, instead
  * of a grid of collapsible cards. Both the category list and every report row still derive
- * straight from REPORTS_GROUP in nav-config.ts, so this page can never drift out of sync
- * with the sidebar submenu.
+ * straight from REPORTS_GROUP in nav-config.ts (via useReportsNav), so this page can never
+ * drift out of sync with the sidebar submenu or with reports/layout.tsx's persistent rail.
+ *
+ * useSearchParams() (for the ?cat= deep link from ReportsSidebar) requires a Suspense boundary
+ * at the page level, or Next.js fails to statically prerender this route at build time — hence
+ * the wrapper below instead of exporting the body directly.
  */
 export default function ReportsIndexPage() {
-  const { data: entitlements } = useModuleEntitlements();
-  const { data: user } = useCurrentUser();
-  // Shop-wide (not per-browser) — anyone marking a report favourite changes it for everyone,
-  // same as the rest of app_settings.
-  const { data: favoriteHrefs, save: saveFavorites } = useAppSetting<string[]>("favoriteReports", []);
-  const favorites = useMemo(() => new Set(favoriteHrefs || []), [favoriteHrefs]);
-  const { data: reportAccess } = useAppSetting<ReportRoleAccess>("reportRoleAccess", DEFAULT_REPORT_ROLE_ACCESS);
+  return (
+    <Suspense fallback={null}>
+      <ReportsIndexPageInner />
+    </Suspense>
+  );
+}
 
-  const allReports = useMemo<ReportItem[]>(() => {
-    if (!entitlements) return [];
-    return REPORTS_GROUP.children
-      .filter((leaf) => !leaf.adminOnly || !!user?.perms.viewFinancialReports)
-      .filter((leaf) => isReportAllowedForRole(leaf.href, user?.role ?? "tailor", reportAccess))
-      .map((leaf) => ({ href: leaf.href, label: leaf.label, category: resolveReportSection(leaf.href) || "" }))
-      .filter((r) => isReportEnabled(entitlements, r.href, r.category));
-  }, [entitlements, user?.role, reportAccess]);
+function ReportsIndexPageInner() {
+  const { allReports, categories, favorites, favoriteCount, toggleFavorite } = useReportsNav();
 
-  const categories = useMemo(() => {
-    const seen = new Set<string>();
-    const list: { label: string; count: number }[] = [];
-    allReports.forEach((r) => {
-      if (seen.has(r.category)) {
-        list.find((c) => c.label === r.category)!.count += 1;
-      } else {
-        seen.add(r.category);
-        list.push({ label: r.category, count: 1 });
-      }
-    });
-    return list;
-  }, [allReports]);
+  // Deep-linked from ReportsSidebar (shown on every other report page): clicking a category
+  // there navigates here with ?cat=<category> so the list opens already filtered, same as
+  // clicking that category from this page itself would.
+  const searchParams = useSearchParams();
+  const catParam = searchParams.get("cat");
+  const initialCategory = catParam === "favourites" ? FAVORITES_CATEGORY : catParam || null;
 
-  const favoriteCount = useMemo(() => allReports.filter((r) => favorites.has(r.href)).length, [allReports, favorites]);
-
-  // Favourites first — the owner's pinned reports are what they actually open daily, so that's
-  // what should be waiting the moment Reports opens, not the full 80-report list.
-  const [activeCategory, setActiveCategory] = useState<string | null>(FAVORITES_CATEGORY);
+  // Favourites first by default — the owner's pinned reports are what they actually open daily,
+  // so that's what should be waiting the moment Reports opens, not the full 80-report list.
+  const [activeCategory, setActiveCategory] = useState<string | null>(catParam !== null ? initialCategory : FAVORITES_CATEGORY);
   const [search, setSearch] = useState("");
   const query = useMemo(() => search.trim().toLowerCase(), [search]);
 
@@ -86,12 +53,6 @@ export default function ReportsIndexPage() {
     if (!query) return base;
     return base.filter((r) => r.label.toLowerCase().includes(query) || r.category.toLowerCase().includes(query));
   }, [allReports, activeCategory, favorites, query]);
-
-  function toggleFavorite(href: string) {
-    const current = favoriteHrefs || [];
-    const next = favorites.has(href) ? current.filter((h) => h !== href) : [...current, href];
-    saveFavorites.mutate(next);
-  }
 
   // Grouped-by-category list for the report rows within one category card, shared by both the
   // mobile grouped-sections view and (implicitly) mirrors the desktop table's row content.

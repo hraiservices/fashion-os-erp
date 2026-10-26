@@ -7,7 +7,7 @@ import { ReceiptDuotoneIcon, WalletDuotoneIcon } from "@/components/icons/duoton
 import { useAllSalesPayments } from "@/hooks/use-sales-payments";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useAllOrderPayments } from "@/hooks/use-order-payments";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersLight } from "@/hooks/use-orders-light";
 import { buildInvoicePaymentRows, buildOrderPaymentRows, sortPaymentRows, type PaymentSource, type PaymentReceivedRow } from "@/lib/payments-received";
 import { inr, fmtDate } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
@@ -39,7 +39,7 @@ export default function PaymentsReceivedReportPage() {
   const { data: salesPayments, isLoading: l1 } = useAllSalesPayments();
   const { data: invoices, isLoading: l2 } = useSalesInvoices();
   const { data: orderPayments, isLoading: l3 } = useAllOrderPayments();
-  const { data: orders, isLoading: l4 } = useOrders();
+  const { data: orders, isLoading: l4 } = useOrdersLight();
   const isLoading = l1 || l2 || l3 || l4;
 
   const [source, setSource] = useState<"all" | PaymentSource>("all");

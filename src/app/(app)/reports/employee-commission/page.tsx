@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { UserCog } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersLight } from "@/hooks/use-orders-light";
 import { computeCommission } from "@/lib/commission";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
@@ -29,7 +29,7 @@ const SORT_DESC_KEYS = new Set(["orders", "value", "commission"]);
 
 export default function EmployeeCommissionReportPage() {
   const { data: employees, isLoading: employeesLoading } = useEmployees();
-  const { data: orders, isLoading: ordersLoading } = useOrders();
+  const { data: orders, isLoading: ordersLoading } = useOrdersLight();
   const isLoading = employeesLoading || ordersLoading;
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
   const [employeeFilter, setEmployeeFilter] = useState("all");

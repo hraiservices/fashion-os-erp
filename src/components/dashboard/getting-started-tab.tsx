@@ -13,7 +13,7 @@ import { ProductFormDialog } from "@/components/inventory/product-form-dialog";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useProducts } from "@/hooks/use-products";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersLight } from "@/hooks/use-orders-light";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { cn } from "@/lib/utils";
 
@@ -73,7 +73,7 @@ export function GettingStartedTab() {
   const { data: shop } = useShopSettings();
   const { data: products } = useProducts();
   const { profiles } = useCustomerProfiles();
-  const { data: orders } = useOrders();
+  const { data: orders } = useOrdersLight();
   const { data: invoices } = useSalesInvoices();
   const [openStep, setOpenStep] = useState<StepId | null>(null);
 

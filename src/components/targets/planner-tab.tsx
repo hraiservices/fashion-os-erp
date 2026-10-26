@@ -22,7 +22,7 @@ import {
   type TargetsMeta,
 } from "@/hooks/use-targets";
 import { useCustomers } from "@/hooks/use-customers";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersLight } from "@/hooks/use-orders-light";
 import { addDaysIso } from "@/lib/work-tasks";
 import { PLANNER_KINDS, PLANNER_KIND_LABELS, type PlannerKind, type PlannerLinkType } from "@/lib/planner";
 import { shareDate, type ShareMessage } from "@/lib/targets-share";
@@ -58,7 +58,7 @@ function LinkPicker({ value, onChange }: { value: LinkChoice | null; onChange: (
   const [query, setQuery] = useState("");
   const leads = useLeads({ stage: "open", limit: 200 }, { enabled: open });
   const { data: customers } = useCustomers();
-  const { data: orders } = useOrders();
+  const { data: orders } = useOrdersLight();
 
   const q = query.trim().toLowerCase();
   const leadMatches = q ? (leads.data?.leads ?? []).filter((l) => l.name.toLowerCase().includes(q)).slice(0, 5) : [];

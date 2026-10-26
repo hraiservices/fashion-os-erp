@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, ChevronDown, ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt, FileDown } from "lucide-react";
 import { useOrder } from "@/hooks/use-order";
 import { MaterialsPanel } from "@/components/orders/materials-panel";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersLight } from "@/hooks/use-orders-light";
 import { useOrderGroup } from "@/hooks/use-order-group";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -81,7 +81,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   // Same list + ordering (newest-first by created_at) the notification bell and dashboard
   // widgets already query — reused here just to let the detail page step to the adjacent
   // order without forcing a round trip back through the list's own filters/search/sort.
-  const { data: allOrders } = useOrders();
+  const { data: allOrders } = useOrdersLight();
   const orderIndex = allOrders?.findIndex((o) => o.id === id) ?? -1;
   const prevOrderId = orderIndex > 0 ? allOrders?.[orderIndex - 1]?.id : undefined;
   const nextOrderId = orderIndex >= 0 && allOrders && orderIndex < allOrders.length - 1 ? allOrders[orderIndex + 1]?.id : undefined;

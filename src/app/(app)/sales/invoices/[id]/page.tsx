@@ -147,14 +147,14 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
             <img src={template.logoDataUrl!} alt="Company logo" className="h-12 w-12 shrink-0 rounded object-contain" />
           )}
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{invoice.invoiceNumber}</h1>
-            {invoice.subject && <p className="mt-0.5 text-sm">{invoice.subject}</p>}
-            <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
-              <span>
-                {invoice.customerName} · {fmtDate(invoice.invoiceDate)}
-                {invoice.dueDate && ` · Due ${fmtDate(invoice.dueDate)}`}
-              </span>
+            <h1 className="flex items-center gap-1 text-2xl font-semibold tracking-tight">
+              {invoice.customerName}
               <CustomerLink mobile={invoice.customerMobile} label={invoice.customerName} />
+            </h1>
+            {invoice.subject && <p className="mt-0.5 text-sm">{invoice.subject}</p>}
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {invoice.invoiceNumber} · {fmtDate(invoice.invoiceDate)}
+              {invoice.dueDate && ` · Due ${fmtDate(invoice.dueDate)}`}
             </p>
             {customer?.gstin && <p className="mt-0.5 text-xs text-muted-foreground">Customer GSTIN: {customer.gstin}</p>}
           </div>

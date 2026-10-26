@@ -92,24 +92,32 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
-  if (fd.salesPersonId) {
-    const { data: person } = await db.from("employees").select("id, active").eq("id", fd.salesPersonId).maybeSingle();
-    if (!person?.active) return NextResponse.json({ error: "The chosen sales person isn't an active staff member" }, { status: 400 });
-  }
-
   const isEdit = !!fd.id;
+
+  // Everything in this block is an independent read — none depends on another's result — so
+  // they go out as one batch of concurrent round-trips to Supabase instead of five-plus
+  // sequential ones stacked end to end (the dominant cost of a save on a slow connection).
+  const productIds = Array.from(new Set(fd.items.map((i) => i.productId).filter((id): id is string => !!id)));
+  const [salesPersonCheck, idempotencyCheck, editGuardCheck, numberingSettingRow, productRows] = await Promise.all([
+    fd.salesPersonId ? db.from("employees").select("id, active").eq("id", fd.salesPersonId).maybeSingle() : Promise.resolve(null),
+    !isEdit && fd.idempotencyKey ? db.from("sales_invoices").select("id, invoice_number").eq("idempotency_key", fd.idempotencyKey).maybeSingle() : Promise.resolve(null),
+    isEdit
+      ? Promise.all([db.from("sales_payments").select("id").eq("invoice_id", fd.id!).limit(1), db.from("sales_credit_notes").select("id").eq("invoice_id", fd.id!).limit(1)])
+      : Promise.resolve(null),
+    !isEdit ? db.from("app_settings").select("value").eq("key", "documentNumbering").maybeSingle() : Promise.resolve(null),
+    productIds.length > 0 ? db.from("products").select("id, cost_price").in("id", productIds) : Promise.resolve(null),
+  ]);
+
+  if (fd.salesPersonId && !salesPersonCheck?.data?.active) {
+    return NextResponse.json({ error: "The chosen sales person isn't an active staff member" }, { status: 400 });
+  }
 
   // Idempotent replay: if this exact checkout attempt already succeeded (the client retried
   // after a network drop that actually went through server-side), return the existing invoice
   // instead of running the whole save again.
   if (!isEdit && fd.idempotencyKey) {
-    const { data: existing, error: existingError } = await db
-      .from("sales_invoices")
-      .select("id, invoice_number")
-      .eq("idempotency_key", fd.idempotencyKey)
-      .maybeSingle();
-    if (existingError) return NextResponse.json({ error: `Could not check for a duplicate submission: ${existingError.message}` }, { status: 500 });
-    if (existing) return NextResponse.json({ ok: true, data: existing });
+    if (idempotencyCheck?.error) return NextResponse.json({ error: `Could not check for a duplicate submission: ${idempotencyCheck.error.message}` }, { status: 500 });
+    if (idempotencyCheck?.data) return NextResponse.json({ ok: true, data: idempotencyCheck.data });
   }
 
   // H-3: Block financial edits on invoices that have payments OR credit notes. Credit notes
@@ -118,11 +126,8 @@ export async function POST(request: Request) {
   // sale's stock decrement while the credit note's separate restock still stood, netting a
   // stock gain that never actually happened (and letting the edited total drop below what's
   // already been credited).
-  if (isEdit) {
-    const [{ data: payments, error: paymentsError }, { data: credits, error: creditsError }] = await Promise.all([
-      db.from("sales_payments").select("id").eq("invoice_id", fd.id!).limit(1),
-      db.from("sales_credit_notes").select("id").eq("invoice_id", fd.id!).limit(1),
-    ]);
+  if (isEdit && editGuardCheck) {
+    const [{ data: payments, error: paymentsError }, { data: credits, error: creditsError }] = editGuardCheck;
     // A failed check here must not silently read as "no payments/credits found" — that's
     // exactly the gap this guard exists to close, and it fails toward the dangerous side:
     // an edit sails through as if the invoice were untouched, when the truth is simply unknown.
@@ -149,8 +154,7 @@ export async function POST(request: Request) {
   let invoiceNumber = fd.invoiceNumber;
   let numberIsSequential = false;
   if (!isEdit) {
-    const { data: numberingSetting } = await db.from("app_settings").select("value").eq("key", "documentNumbering").maybeSingle();
-    const numbering: DocumentNumberingSettings = { ...DEFAULT_DOCUMENT_NUMBERING, ...((numberingSetting?.value as Partial<DocumentNumberingSettings>) || {}) };
+    const numbering: DocumentNumberingSettings = { ...DEFAULT_DOCUMENT_NUMBERING, ...((numberingSettingRow?.data?.value as Partial<DocumentNumberingSettings>) || {}) };
     const fmt = numbering.invoice;
     if (fmt.enabled) {
       const year = new Date(fd.invoiceDate).getFullYear();
@@ -183,12 +187,8 @@ export async function POST(request: Request) {
   // client-computed/-supplied number is forgeable. This is also the actual "snapshot" moment
   // for margin purposes (frozen at save time using real cost, not whatever value the line held
   // client-side since it was added, which could be stale or wrong).
-  const productIds = Array.from(new Set(fd.items.map((i) => i.productId).filter((id): id is string => !!id)));
   const costById = new Map<string, number>();
-  if (productIds.length > 0) {
-    const { data: productRows } = await db.from("products").select("id, cost_price").in("id", productIds);
-    for (const p of productRows || []) costById.set(p.id, p.cost_price || 0);
-  }
+  for (const p of productRows?.data || []) costById.set(p.id, p.cost_price || 0);
   const itemsWithVerifiedCost: SalesLineItem[] = fd.items.map((i) => ({
     ...i,
     costPrice: i.productId ? costById.get(i.productId) ?? 0 : 0,

@@ -15,6 +15,7 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["sales-credit-notes"] });
   qc.invalidateQueries({ queryKey: ["products"] });
   qc.invalidateQueries({ queryKey: ["inventory-ledger"] });
+  qc.invalidateQueries({ queryKey: ["pos-session"] });
 }
 
 // Recording/deleting a payment only ever moves money against invoices already on the books —
@@ -27,6 +28,7 @@ function invalidatePaymentEffects(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["sales-invoices"] });
   qc.invalidateQueries({ queryKey: ["sales-invoice"] });
   qc.invalidateQueries({ queryKey: ["sales-payments"] });
+  qc.invalidateQueries({ queryKey: ["pos-session"] });
 }
 
 async function apiPost<T>(url: string, body: unknown): Promise<T> {

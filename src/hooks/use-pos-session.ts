@@ -58,6 +58,28 @@ export function useSessionCashTotal(sessionId: string | undefined) {
   });
 }
 
+/** Every payment (any method) recorded against this session, for the on-screen "today's sales"
+ *  summary — distinct invoice count and total collected, shown right on the POS screen instead
+ *  of making the cashier leave POS to check Sales > Payments. */
+async function fetchSessionSalesSummary(sessionId: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("sales_payments").select("amount, invoice_id").eq("pos_session_id", sessionId);
+  if (error) throw error;
+  const rows = data || [];
+  const total = rows.reduce((s, r) => s + (r.amount || 0), 0);
+  const count = new Set(rows.map((r) => r.invoice_id)).size;
+  return { count, total };
+}
+
+export function useSessionSalesSummary(sessionId: string | undefined) {
+  return useQuery({
+    queryKey: ["pos-session", "sales-summary", sessionId],
+    queryFn: () => fetchSessionSalesSummary(sessionId!),
+    enabled: !!sessionId,
+    refetchInterval: 30_000,
+  });
+}
+
 /**
  * Closes the register through POST /api/pos/session.
  *

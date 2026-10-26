@@ -17,6 +17,18 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["inventory-ledger"] });
 }
 
+// Recording/deleting a payment only ever moves money against invoices already on the books —
+// it never touches quotations, credit notes, or stock. invalidateAll's other five keys were
+// firing (and refetching, on every active screen that holds them — dashboard widgets, product
+// lists, etc.) for every payment regardless, competing for bandwidth with the very refetch the
+// user is actually waiting on (the invoice they just paid, right after this mutation resolves)
+// and making the save feel much slower than the single lightweight RPC call it actually is.
+function invalidatePaymentEffects(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ["sales-invoices"] });
+  qc.invalidateQueries({ queryKey: ["sales-invoice"] });
+  qc.invalidateQueries({ queryKey: ["sales-payments"] });
+}
+
 async function apiPost<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const data = await res.json();
@@ -178,7 +190,7 @@ export function useRecordSalesPayment() {
   return useMutation({
     mutationFn: ({ userEmail: _ignored, ...input }: RecordSalesPaymentInput) =>
       apiPost<{ ok: true }>("/api/sales/payments", input),
-    onSuccess: () => invalidateAll(qc),
+    onSuccess: () => invalidatePaymentEffects(qc),
   });
 }
 
@@ -188,7 +200,7 @@ export function useDeleteSalesPayment() {
   return useMutation({
     mutationFn: ({ id }: { id: string; amount: number; invoiceNumber: string; userEmail?: string }) =>
       apiDelete<{ ok: true }>(`/api/sales/payments/${id}`),
-    onSuccess: () => invalidateAll(qc),
+    onSuccess: () => invalidatePaymentEffects(qc),
   });
 }
 
@@ -199,7 +211,7 @@ export function useBulkDeleteSalesPayments() {
     mutationFn: async ({ ids }: { ids: string[]; userEmail?: string }) => {
       await Promise.all(ids.map((id) => apiDelete(`/api/sales/payments/${id}`)));
     },
-    onSuccess: () => invalidateAll(qc),
+    onSuccess: () => invalidatePaymentEffects(qc),
   });
 }
 

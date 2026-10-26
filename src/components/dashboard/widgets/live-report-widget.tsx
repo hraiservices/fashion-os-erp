@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { ArrowRight, Radio, PackageCheck, Wallet } from "lucide-react";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersLight } from "@/hooks/use-orders-light";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { buildWhatsAppUrl } from "@/lib/business-rules";
@@ -20,7 +20,7 @@ const MAX_ROWS = 6;
  *  capped to the top few of each so the tile stays a glance rather than a scroll. "Full report"
  *  goes to the real page for the complete list. */
 export function LiveReportWidget() {
-  const { data: orders, isLoading } = useOrders();
+  const { data: orders, isLoading } = useOrdersLight();
   const { data: shop } = useShopSettings();
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
 

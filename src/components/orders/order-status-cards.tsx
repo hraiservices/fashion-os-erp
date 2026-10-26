@@ -3,7 +3,7 @@ import Link from "next/link";
 import { CalendarClock, AlertTriangle, Inbox, Scissors, Shirt, Sparkles, PackageCheck, Truck, ChevronDown } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getOrderStatusCounts } from "@/lib/analytics";
-import type { Order } from "@/lib/types";
+import type { OrderLight } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "orderStatusCardsExpanded";
@@ -45,7 +45,7 @@ const CARDS: CardDef[] = [
  *  pipeline (see getOrderStatusCounts()). Each card is a plain Link to the filtered view it
  *  describes rather than an inline preview, so there's exactly one place ("the real list") that
  *  ever needs to agree with what got counted here. */
-export function OrderStatusCards({ orders }: { orders: Order[] }) {
+export function OrderStatusCards({ orders }: { orders: OrderLight[] }) {
   const counts = getOrderStatusCounts(orders);
   const [expanded, setExpanded] = useState(loadExpanded);
 

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, BarChart3, LineChart as LineChartIcon, Radio } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersLight } from "@/hooks/use-orders-light";
 import { getPipelineVelocity } from "@/lib/analytics";
 import { bucketsForRange, type ChartRange } from "@/lib/period-buckets";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,9 +34,9 @@ export function PipelineVelocityWidget() {
   const [range, setRange] = useState<ChartRange>("month");
   const [chartKind, setChartKind] = useState<ChartKind>("bar");
 
-  const { data: orders, isLoading } = useOrders();
+  const { data: orders, isLoading } = useOrdersLight();
 
-  useLiveRefresh(qc, [["orders"]]);
+  useLiveRefresh(qc, [["orders-light"]]);
 
   const data = useMemo(() => {
     if (!orders) return [];

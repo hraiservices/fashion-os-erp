@@ -224,6 +224,94 @@ export function mapOrderRow(r: OrderRowForMapping): Order {
   };
 }
 
+/**
+ * Lighter-weight counterpart to Order for list/summary consumers (dashboard widgets, the
+ * notification bell, command palette, etc.) that never read these seven JSONB/text blob
+ * columns — see src/hooks/use-orders-light.ts. Dropping them from the query is the whole
+ * point: a live Supabase log audit found the orders LIST query (shared by ~20 call sites under
+ * one cache entry) was the single heaviest query in the app precisely because most of those
+ * columns are per-order logs/ledgers that almost no caller actually reads off the list.
+ */
+export type OrderLight = Omit<Order, "special" | "history" | "measurements" | "payments" | "payBreakdown" | "materials" | "materialsNote" | "images" | "audios" | "videos">;
+
+/** An allowlist, not a blocklist — unlike OrderRowForMapping, this only requires the columns
+ *  mapOrderRowLight actually reads, so use-orders-light.ts's select string stays exactly as
+ *  narrow as the light hook needs rather than having to carry columns (like `balance`, which is
+ *  always derived, never read off the row) just to satisfy the type. Same "no `as` cast"
+ *  discipline otherwise: a column mapOrderRowLight reads but this type omits is a compile error. */
+type OrderRowForLightMapping = Pick<
+  OrderRow,
+  | "id"
+  | "name"
+  | "mobile"
+  | "in_date"
+  | "delivery_date"
+  | "in_time"
+  | "delivery_time"
+  | "garments"
+  | "total"
+  | "advance"
+  | "tailor"
+  | "status"
+  | "order_type"
+  | "booking_source"
+  | "fabric_cost"
+  | "other_cost"
+  | "rework_flag"
+  | "rework_reason"
+  | "rework_flagged_by"
+  | "rework_flagged_at"
+  | "rework_count"
+  | "ready_at"
+  | "payables_confirmed_at"
+  | "payables_confirmed_by"
+  | "piece_rate_paid_at"
+  | "created_at"
+  | "group_id"
+  | "measurement_profile_id"
+  | "measurement_profile_name"
+> &
+  Partial<Pick<OrderRow, "lead_id">>;
+
+export function mapOrderRowLight(r: OrderRowForLightMapping): OrderLight {
+  const total = r.total || 0;
+  const advance = r.advance || 0;
+  return {
+    id: r.id,
+    name: r.name || "",
+    mobile: r.mobile || "",
+    inDate: typeof r.in_date === "string" ? r.in_date : "",
+    deliveryDate: typeof r.delivery_date === "string" ? r.delivery_date : "",
+    inTime: r.in_time || "",
+    deliveryTime: r.delivery_time || "",
+    garments: (Array.isArray(r.garments) ? r.garments : []) as unknown as Garment[],
+    total,
+    advance,
+    balance: deriveBalance(total, advance),
+    tailor: r.tailor || "",
+    status: (r.status === "trial" ? "ready" : STAGES.includes((r.status || "") as Stage) ? r.status : "received") as Stage,
+    orderType: (r.order_type === "alteration" ? "alteration" : "new") as OrderType,
+    bookingSource: r.booking_source || "",
+    fabricCost: r.fabric_cost || 0,
+    otherCost: r.other_cost || 0,
+    reworkFlag: !!r.rework_flag,
+    reworkReason: r.rework_reason || "",
+    reworkFlaggedBy: r.rework_flagged_by ?? null,
+    reworkFlaggedAt: r.rework_flagged_at ?? null,
+    reworkCount: r.rework_count || 0,
+    readyAt: r.ready_at ?? null,
+    payablesConfirmedAt: r.payables_confirmed_at ?? null,
+    payablesConfirmedBy: r.payables_confirmed_by ?? null,
+    pieceRatePaidAt: r.piece_rate_paid_at ?? null,
+    rawStatus: r.status || "received",
+    createdAt: r.created_at || "",
+    groupId: r.group_id ?? null,
+    leadId: r.lead_id ?? null,
+    measurementProfileId: r.measurement_profile_id ?? null,
+    measurementProfileName: r.measurement_profile_name ?? null,
+  };
+}
+
 /** A stitching-order line-item cost (lining, thread, buttons, electricity, ...) — see
  *  supabase/migrations/add_order_expenses.sql. `amount` is always authoritative; qty/unit/rate
  *  are only present for expenses entered as qty*rate rather than a flat figure. */

@@ -4,19 +4,19 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlarmClock, Wallet } from "lucide-react";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersLight } from "@/hooks/use-orders-light";
 import { isOrderOutstanding } from "@/lib/balances";
 import { inr } from "@/lib/format";
 import { deliveryTarget } from "@/lib/delivery-countdown";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Order } from "@/lib/types";
+import type { OrderLight } from "@/lib/types";
 
 /** One row per distinct customer (by mobile) — keeps the "next 10" list from being crowded
  * out by a single repeat customer with several orders. Each customer's most urgent (soonest
  * or most overdue) qualifying order represents them. */
-function topCustomersByDeadline(orders: Order[], predicate: (o: Order) => boolean, limit: number): { order: Order; target: number }[] {
-  const byCustomer = new Map<string, { order: Order; target: number }>();
+function topCustomersByDeadline(orders: OrderLight[], predicate: (o: OrderLight) => boolean, limit: number): { order: OrderLight; target: number }[] {
+  const byCustomer = new Map<string, { order: OrderLight; target: number }>();
   for (const o of orders) {
     if (!o.deliveryDate || !predicate(o)) continue;
     const key = o.mobile || o.id;
@@ -52,7 +52,7 @@ function useTicker() {
   return now;
 }
 
-function CountdownRow({ order, target, now, amount }: { order: Order; target: number; now: number; amount?: number }) {
+function CountdownRow({ order, target, now, amount }: { order: OrderLight; target: number; now: number; amount?: number }) {
   const { prefix, seconds, overdue } = formatCountdown(target - now);
   return (
     <li>
@@ -82,7 +82,7 @@ function CountdownRow({ order, target, now, amount }: { order: Order; target: nu
 /** Next 10 customers by soonest (or most overdue) delivery deadline, among orders still in the
  * active pipeline — i.e. customers currently waiting on a stitching order. */
 export function UpcomingDeliveriesWidget() {
-  const { data: orders, isLoading } = useOrders();
+  const { data: orders, isLoading } = useOrdersLight();
   const now = useTicker();
 
   const rows = useMemo(
@@ -125,7 +125,7 @@ export function UpcomingDeliveriesWidget() {
  * carry a balance — reuses the same delivery-date deadline the rest of the app treats as the
  * payment-pressure reference point (see dueBadge() / DueBadge), scoped to unpaid orders only. */
 export function UpcomingPaymentsWidget() {
-  const { data: orders, isLoading } = useOrders();
+  const { data: orders, isLoading } = useOrdersLight();
   const now = useTicker();
 
   const rows = useMemo(() => topCustomersByDeadline(orders || [], isOrderOutstanding, 10), [orders]);

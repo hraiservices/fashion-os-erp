@@ -46,6 +46,7 @@ function useRenameGarmentType() {
       qc.invalidateQueries({ queryKey: ["app-setting", "fabricUsage"] });
       qc.invalidateQueries({ queryKey: ["tailor-rate-versions"] });
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-light"] });
     },
   });
 }

@@ -1,13 +1,13 @@
 "use client";
 
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersLight } from "@/hooks/use-orders-light";
 import { OrderStatusCards } from "@/components/orders/order-status-cards";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /** Dashboard-tile version of the small clickable count cards atop the Orders list — same
  *  component, same counts, so the two never drift apart. */
 export function OrderStatusCardsWidget() {
-  const { data: orders, isLoading } = useOrders();
+  const { data: orders, isLoading } = useOrdersLight();
 
   if (isLoading) return <Skeleton className="h-24 w-full" />;
 

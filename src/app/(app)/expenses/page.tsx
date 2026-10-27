@@ -281,7 +281,11 @@ function ExpensesPageContent() {
                       </td>
                     )}
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">{fmtDateShort(e.date)}</td>
-                    <td className="px-4 py-3 font-medium">{e.category}</td>
+                    <td className="px-4 py-3 font-medium">
+                      <Link href={`/expenses/${e.id}`} className="hover:underline">
+                        {e.category}
+                      </Link>
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">{linkedNameFor(e)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{e.description || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{e.payMethod}</td>

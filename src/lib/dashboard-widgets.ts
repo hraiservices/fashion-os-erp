@@ -51,6 +51,8 @@ export const BUILTIN_WIDGETS: BuiltinWidgetMeta[] = [
   { key: "targets-at-risk",             title: "Targets Behind Pace",  size: "sm",   href: "/targets?tab=targets",   description: "Active targets that are behind where they should be" },
   { key: "overdue-tasks",               title: "Overdue Tasks",        size: "sm",   href: "/targets?tab=tasks",     description: "Open tasks past their due date" },
   { key: "order-status-cards",          title: "Order Pipeline",       size: "full", href: "/orders",                description: "Due Today / Overdue / and a live count per stage — click a card to jump straight to that filtered list" },
+  { key: "top-selling-items",           title: "Top Selling Items",    size: "lg",   href: "/reports/sales/by-item", description: "Top 6 products by quantity sold in the last 30 days" },
+  { key: "inventory-aging",             title: "Inventory Aging",      size: "lg",   href: "/reports/inventory/aging", description: "Stock value by how long it's sat unsold — flags what's worth discounting or clearing" },
 ];
 
 export const BUILTIN_WIDGET_BY_KEY = new Map(BUILTIN_WIDGETS.map((w) => [w.key, w]));

@@ -82,7 +82,7 @@ export function useSetQuotationStatus() {
 
 // ── Invoices (selling stock happens here) ───────────────────────────────────
 
-interface SaveInvoiceInput {
+export interface SaveInvoiceInput {
   id?: string;
   invoiceNumber: string;
   customerMobile: string;

@@ -20,6 +20,22 @@ export function useOpenPosSession() {
   });
 }
 
+async function fetchLastClosedSession() {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("pos_sessions").select("*").eq("status", "closed").order("closed_at", { ascending: false }).limit(1).maybeSingle();
+  if (error) throw error;
+  return data ? mapPosSessionRow(data) : null;
+}
+
+/** The most recently closed register session — shown on the "Register is closed" screen so
+ *  whoever opens next sees the previous shift's handover note (see CloseRegisterDialog). */
+export function useLastClosedSession() {
+  return useQuery({
+    queryKey: ["pos-session", "last-closed"],
+    queryFn: fetchLastClosedSession,
+  });
+}
+
 /**
  * Opens the register through POST /api/pos/session — `opened_by` is taken from the session
  * cookie there, not from this call, so the register can't be opened in someone else's name.
@@ -92,11 +108,11 @@ export function useSessionSalesSummary(sessionId: string | undefined) {
 export function useCloseRegister() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ sessionId, closingCash }: { sessionId: string; closingCash: number; expectedCash?: number }) => {
+    mutationFn: async ({ sessionId, closingCash, notes }: { sessionId: string; closingCash: number; expectedCash?: number; notes?: string }) => {
       const res = await fetch("/api/pos/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "close", sessionId, closingCash }),
+        body: JSON.stringify({ action: "close", sessionId, closingCash, notes }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Could not close the register");

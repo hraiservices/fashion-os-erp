@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Sidebar } from "@/components/app-shell/sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
 import { AppFooter } from "@/components/app-shell/app-footer";
@@ -17,11 +18,24 @@ import { UtilityRail, useUtilityRailCollapsed } from "@/components/app-shell/uti
 import { cn } from "@/lib/utils";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { data: user } = useCurrentUser();
+  const { data: user, isLoading: userLoading, isFetched: userFetched } = useCurrentUser();
   const pathname = usePathname();
   const router = useRouter();
   const { collapsed: railCollapsed, toggle: toggleRail } = useUtilityRailCollapsed();
   usePresenceHeartbeat(!!user);
+
+  // useCurrentUser() resolves to `null` (not an error) once the session is gone — an expired
+  // Supabase cookie, a token revoked from another device — so every page under here was
+  // rendering through with `user` just silently undefined: permission checks hid buttons one by
+  // one, but nothing ever told the person why their screen suddenly looked broken or sent them
+  // back to sign in. isFetched (not just !isLoading) gates this so it only fires once the query
+  // has actually settled at least once, never on the first render before data exists yet.
+  useEffect(() => {
+    if (userFetched && !userLoading && user === null) {
+      toast.error("Your session has expired — please sign in again.");
+      router.replace("/login");
+    }
+  }, [userFetched, userLoading, user, router]);
 
   // Mirrors the old app's `_isRestrictedRole && _RESTRICTED_TABS.indexOf(tab) !== -1` guard
   // (line ~17686): a restricted role landing on a hidden route is bounced to Orders.

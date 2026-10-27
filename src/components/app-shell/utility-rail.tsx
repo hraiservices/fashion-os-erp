@@ -34,7 +34,7 @@ import { isModuleEnabled, DEFAULT_ENTITLEMENTS } from "@/lib/entitlements";
 import { useNotes } from "@/hooks/use-notes";
 import { useMiniSheets } from "@/hooks/use-mini-sheets";
 import { useTodos } from "@/hooks/use-todos";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersLight } from "@/hooks/use-orders-light";
 import { useAllOrderPayments } from "@/hooks/use-order-payments";
 import { useAllSalesPayments } from "@/hooks/use-sales-payments";
 import { NOTE_COLORS, type Note, type NoteColor, type MiniSheet, type Todo } from "@/lib/types";
@@ -846,12 +846,12 @@ function DeliveryEstimatorWidget() {
 
 /** Today's snapshot — orders due today, orders with money still owed as of today (including
  *  overdue), and what's been collected today across both stitching-order and sales payments.
- *  Reads off the same cached useOrders()/useAllOrderPayments()/useAllSalesPayments() queries
+ *  Reads off the same cached useOrdersLight()/useAllOrderPayments()/useAllSalesPayments() queries
  *  already used elsewhere in the app, so opening this doesn't fire any extra requests beyond
  *  the first time those queries load. Visible to anyone (same as Notes/Calculator/Sheets) — the
  *  figures here are operational (due dates, balances), not the admin-only profit numbers. */
 function TodaySnapshotPopover() {
-  const { data: orders, isLoading: ordersLoading } = useOrders();
+  const { data: orders, isLoading: ordersLoading } = useOrdersLight();
   const { data: orderPayments, isLoading: opLoading } = useAllOrderPayments();
   const { data: salesPayments, isLoading: spLoading } = useAllSalesPayments();
   const loading = ordersLoading || opLoading || spLoading;

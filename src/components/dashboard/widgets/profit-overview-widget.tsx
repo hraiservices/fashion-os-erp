@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, BarChart3, LineChart as LineChartIcon, Radio } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersLight } from "@/hooks/use-orders-light";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useWorkOrders } from "@/hooks/use-work-orders";
@@ -45,7 +45,7 @@ export function ProfitOverviewWidget() {
   const [range, setRange] = useState<ChartRange>("month");
   const [chartKind, setChartKind] = useState<ChartKind>("bar");
 
-  const { data: orders, isLoading: l1 } = useOrders();
+  const { data: orders, isLoading: l1 } = useOrdersLight();
   const { data: invoices, isLoading: l2 } = useSalesInvoices();
   const { data: bills, isLoading: l3 } = usePurchaseBills();
   const { data: workOrders, isLoading: l4 } = useWorkOrders();

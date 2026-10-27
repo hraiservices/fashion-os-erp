@@ -1,7 +1,7 @@
 // Combined P&L — every revenue stream (stitching + retail sales) against every cost stream
 // (purchases, manufacturing labor, shop expenses). Kept as its own module rather than folded
 // into lib/analytics.ts since it spans modules that evolved independently.
-import type { Order, Expense, OrderExpense, Payslip, Employee } from "@/lib/types";
+import type { OrderLight, Expense, OrderExpense, Payslip, Employee } from "@/lib/types";
 import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import type { PurchaseBillWithBalance } from "@/hooks/use-purchase-bills";
 import type { WorkOrder } from "@/lib/types";
@@ -38,7 +38,7 @@ export interface CombinedMonthStat {
 function computeBucket(
   key: string,
   label: string,
-  orders: Order[],
+  orders: OrderLight[],
   invoices: SalesInvoiceWithBalance[],
   bills: PurchaseBillWithBalance[],
   workOrders: WorkOrder[],
@@ -98,7 +98,7 @@ function computeBucket(
 }
 
 export function getCombinedMonthly(
-  orders: Order[],
+  orders: OrderLight[],
   invoices: SalesInvoiceWithBalance[],
   bills: PurchaseBillWithBalance[],
   workOrders: WorkOrder[],
@@ -121,7 +121,7 @@ export function getCombinedMonthly(
 /** Same shape as getCombinedMonthly, bucketed by day instead of month — the dashboard's Profit
  *  Overview card uses this for its Week (7) and Month-to-date (day-of-month) views. */
 export function getCombinedDaily(
-  orders: Order[],
+  orders: OrderLight[],
   invoices: SalesInvoiceWithBalance[],
   bills: PurchaseBillWithBalance[],
   workOrders: WorkOrder[],

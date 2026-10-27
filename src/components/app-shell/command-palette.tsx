@@ -6,7 +6,7 @@ import { Command as CommandPrimitive } from "cmdk";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, TARGETS_NAV_ITEM, resolveReportSection, SETTINGS_GROUP, settingsLeafVisible, EMPLOYEES_GROUP, employeesLeafVisible, ORDERS_GROUP, ordersLeafVisible } from "@/components/app-shell/nav-config";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersLight } from "@/hooks/use-orders-light";
 import { useCustomers } from "@/hooks/use-customers";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useProducts } from "@/hooks/use-products";
@@ -29,7 +29,7 @@ import { Sparkles } from "lucide-react";
 export function CommandTrigger() {
   const router = useRouter();
   const { data: user } = useCurrentUser();
-  const { data: orders } = useOrders();
+  const { data: orders } = useOrdersLight();
   const { data: entitlements } = useModuleEntitlements();
   const restricted = !!user?.restricted;
   const isAdmin = user?.role === "admin";

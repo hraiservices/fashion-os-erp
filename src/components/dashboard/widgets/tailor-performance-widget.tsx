@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Radio } from "lucide-react";
 import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersLight } from "@/hooks/use-orders-light";
 import { useTailorName } from "@/hooks/use-employees";
 import { getTailorPerformance } from "@/lib/analytics";
 import { rangeStartKey, type ChartRange } from "@/lib/period-buckets";
@@ -35,9 +35,9 @@ export function TailorPerformanceWidget() {
   const tailorName = useTailorName();
   const [range, setRange] = useState<ChartRange>("month");
 
-  const { data: orders, isLoading } = useOrders();
+  const { data: orders, isLoading } = useOrdersLight();
 
-  useLiveRefresh(qc, [["orders"]]);
+  useLiveRefresh(qc, [["orders-light"]]);
 
   const stats = useMemo(() => {
     if (!orders) return [];

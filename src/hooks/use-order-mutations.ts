@@ -101,6 +101,7 @@ export function useCreateOrder() {
       postJson<{ order: Order; ptDiscount: number; limitWarning?: string; paymentLedgerWarning?: string }>("/api/orders", input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-light"] });
       qc.invalidateQueries({ queryKey: ["customers"] });
       qc.invalidateQueries({ queryKey: ["customer-by-mobile"] });
       qc.invalidateQueries({ queryKey: ["order-expenses"] });
@@ -127,6 +128,7 @@ export function useAdvanceStage() {
     // with nothing on screen telling the user their card was already stale.
     onSettled: (_data, _error, orderId) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-light"] });
       qc.invalidateQueries({ queryKey: ["order", orderId] });
     },
   });
@@ -148,6 +150,7 @@ export function useSetStage() {
     // stale, so it needs refetching exactly as much as a success does.
     onSettled: (_data, _error, vars) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-light"] });
       qc.invalidateQueries({ queryKey: ["order", vars.orderId] });
     },
   });
@@ -161,6 +164,7 @@ export function useSetOrderRework() {
       postJson<{ order: Order }>(`/api/orders/${orderId}/rework`, { flag, reason }),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-light"] });
       qc.invalidateQueries({ queryKey: ["order", vars.orderId] });
     },
   });
@@ -187,6 +191,7 @@ export function useRecordPayment() {
     onSuccess: (_data, vars) => {
       hapticSuccess();
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-light"] });
       qc.invalidateQueries({ queryKey: ["order", vars.orderId] });
       // Was missing — the order detail page's Payments section reads this exact key, so a
       // newly-collected payment never appeared there until a full page reload re-fetched
@@ -210,6 +215,7 @@ export function useDeleteOrderPayment() {
       deleteJson<{ order: Order }>(`/api/orders/${orderId}/payments/${paymentId}`),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-light"] });
       qc.invalidateQueries({ queryKey: ["order", vars.orderId] });
       qc.invalidateQueries({ queryKey: ["order-payments", vars.orderId] });
       qc.invalidateQueries({ queryKey: ["order-payments", "all"] });
@@ -251,6 +257,7 @@ export function useUpdateOrder() {
       patchJson<{ order: Order }>(`/api/orders/${id}`, patch),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-light"] });
       qc.invalidateQueries({ queryKey: ["order", vars.id] });
       qc.invalidateQueries({ queryKey: ["order-expenses"] });
     },
@@ -278,6 +285,7 @@ export function useDeleteOrder() {
     onSuccess: () => {
       hapticSuccess();
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-light"] });
       // The DELETE route refunds loyalty points and reverses referral-bonus points on the
       // customer's row when the deleted order had a redemption or coupon — every sibling
       // payment mutation (useRecordPayment, useDeleteOrderPayment) already invalidates these
@@ -296,6 +304,7 @@ export function useSetOrderMaterials() {
       patchJson<{ materials: MaterialItem[]; materialsNote: string }>(`/api/orders/${id}/materials`, { materials, materialsNote }),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-light"] });
       qc.invalidateQueries({ queryKey: ["order", vars.id] });
     },
   });
@@ -307,6 +316,7 @@ export function useRenameOrder() {
     mutationFn: ({ id, newId }: { id: string; newId: string }) => postJson<{ order: Order }>(`/api/orders/${id}/rename`, { newId }),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-light"] });
       qc.invalidateQueries({ queryKey: ["order", vars.id] });
       qc.invalidateQueries({ queryKey: ["order", vars.newId] });
     },

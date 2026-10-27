@@ -72,6 +72,7 @@ export function useDeleteCustomerAndOrders() {
       sendJson<{ ok: true; deletedOrders: number }>(`/api/customers/${encodeURIComponent(mobile)}`, "DELETE"),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-light"] });
       qc.invalidateQueries({ queryKey: ["customers"] });
       qc.invalidateQueries({ queryKey: ["customer-by-mobile"] });
     },

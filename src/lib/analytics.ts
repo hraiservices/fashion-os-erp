@@ -5,7 +5,7 @@ import { istDateString } from "@/lib/ist-date";
 import { isWithinDateRange, type DateRange } from "@/lib/report-date-range";
 import { computeOrderProfit } from "@/lib/order-profit";
 import { normalizePhone } from "@/lib/auth-errors";
-import type { Order, Customer, ReferralCoupon, OrderExpense, Expense, Employee, Payslip } from "@/lib/types";
+import type { Order, OrderLight, Customer, ReferralCoupon, OrderExpense, Expense, Employee, Payslip } from "@/lib/types";
 
 function fmtMon(yyyyMm: string): string {
   const [y, m] = yyyyMm.split("-").map(Number);
@@ -239,7 +239,7 @@ export interface PipelineVelocityBucket {
  *  lastNDayBuckets) and reports how fast each bucket's orders actually moved: average
  *  days-to-ready and on-time %. This is a time TREND of getTailorTurnaround's own metric,
  *  not per-tailor — how the whole shop's pipeline speed is moving, bucket to bucket. */
-export function getPipelineVelocity(orders: Order[], buckets: { key: string; label: string }[]): PipelineVelocityBucket[] {
+export function getPipelineVelocity(orders: OrderLight[], buckets: { key: string; label: string }[]): PipelineVelocityBucket[] {
   return buckets.map(({ key, label }) => {
     const bucketOrders = orders.filter((o) => o.inDate?.startsWith(key));
     const days: number[] = [];
@@ -281,7 +281,7 @@ export interface TailorPerformanceStat {
  *  by in_date >= a range cutoff before calling this) — revenue, order count, actual turnaround,
  *  and total rework count. Order-level tailor assignment only (o.tailor), same as
  *  getTailorTurnaround; a per-garment tailor override isn't split out here. */
-export function getTailorPerformance(orders: Order[]): TailorPerformanceStat[] {
+export function getTailorPerformance(orders: OrderLight[]): TailorPerformanceStat[] {
   const byTailor = new Map<string, { count: number; revenue: number; days: number[]; reworkCount: number }>();
   for (const o of orders) {
     if (!o.tailor) continue;
@@ -699,7 +699,7 @@ export function getLoyaltyImpact(orders: Order[], customers: Customer[], cfg: Lo
   return { totalPointsOutstanding, totalPointsEverEarned, totalDiscountGiven, redeemingCustomers, totalCustomers: customers.length, tierCounts };
 }
 
-export interface ReadyUncollectedRow extends Order {
+export interface ReadyUncollectedRow extends OrderLight {
   daysWaiting: number;
 }
 
@@ -707,7 +707,7 @@ export interface ReadyUncollectedRow extends Order {
  *  getAgingList, which is about the delivery-date promise, not physical pickup. Orders that
  *  reached "ready" before the ready_at column existed have no timestamp to measure from and
  *  are excluded rather than shown with a misleading 0-day wait. */
-export function getReadyUncollected(orders: Order[]): ReadyUncollectedRow[] {
+export function getReadyUncollected(orders: OrderLight[]): ReadyUncollectedRow[] {
   return orders
     .filter((o) => o.status === "ready" && o.readyAt)
     .map((o) => ({ ...o, daysWaiting: Math.max(0, Math.floor((Date.now() - new Date(o.readyAt!).getTime()) / 86400000)) }))
@@ -718,11 +718,11 @@ export function getReadyUncollected(orders: Order[]): ReadyUncollectedRow[] {
  *  advances a "delivered" order to "payment" the moment its balance hits zero (see
  *  add_atomic_order_payment.sql), so any order still sitting at "delivered" is, by definition,
  *  collected but unpaid. Sorted biggest balance first — the ones most worth a reminder call. */
-export function getDeliveredUnpaid(orders: Order[]): Order[] {
+export function getDeliveredUnpaid(orders: OrderLight[]): OrderLight[] {
   return orders.filter((o) => o.status === "delivered" && o.balance > 0).sort((a, b) => b.balance - a.balance);
 }
 
-export interface OverdueInProductionRow extends Order {
+export interface OverdueInProductionRow extends OrderLight {
   daysLate: number;
 }
 
@@ -735,7 +735,7 @@ const PRE_READY_STAGES = new Set(["received", "cutting", "stitching", "finishing
 /** Orders whose delivery date has already passed while they're still stuck earlier in the
  *  pipeline — sorted worst (most days late) first. A missing deliveryDate is excluded rather
  *  than shown as falsely overdue, same reasoning as dueBadge(). */
-export function getOverdueInProduction(orders: Order[]): OverdueInProductionRow[] {
+export function getOverdueInProduction(orders: OrderLight[]): OverdueInProductionRow[] {
   return orders
     .filter((o) => PRE_READY_STAGES.has(o.status) && o.deliveryDate && daysLeft(o.deliveryDate) < 0)
     .map((o) => ({ ...o, daysLate: Math.abs(daysLeft(o.deliveryDate)) }))
@@ -759,7 +759,7 @@ export interface OrderStatusCounts {
  *  both definitions rather than inventing a third notion of "today"/"late". Stage counts are a
  *  live snapshot of the whole pipeline (no date restriction), one bucket per STAGES entry minus
  *  "payment" (folded into "delivered" for this glance-level view). */
-export function getOrderStatusCounts(orders: Order[]): OrderStatusCounts {
+export function getOrderStatusCounts(orders: OrderLight[]): OrderStatusCounts {
   let dueToday = 0;
   let received = 0;
   let cutting = 0;

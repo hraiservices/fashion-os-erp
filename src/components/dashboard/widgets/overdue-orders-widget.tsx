@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { WarningDuotoneIcon } from "@/components/icons/duotone-icons";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersLight } from "@/hooks/use-orders-light";
 import { getOverdueInProduction } from "@/lib/analytics";
 import { StageBadge } from "@/components/orders/stage-badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -14,7 +14,7 @@ const MAX_ROWS = 6;
 
 /** Dashboard-tile version of /reports/overdue — worst delays first, capped to a glance. */
 export function OverdueOrdersWidget() {
-  const { data: orders, isLoading } = useOrders();
+  const { data: orders, isLoading } = useOrdersLight();
   const overdue = useMemo(() => (orders ? getOverdueInProduction(orders) : []), [orders]);
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;

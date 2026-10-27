@@ -4,7 +4,7 @@
  *  of a second, possibly-inconsistent notion of "today". */
 import { daysLeft } from "@/lib/business-rules";
 import { istDateString } from "@/lib/ist-date";
-import type { Order, OrderPayment, SalesPayment } from "@/lib/types";
+import type { OrderLight, OrderPayment, SalesPayment } from "@/lib/types";
 
 export interface DueTodayOrder {
   id: string;
@@ -22,7 +22,7 @@ export interface TodaySnapshot {
   collectedToday: number;
 }
 
-export function computeTodaySnapshot(orders: Order[], orderPayments: OrderPayment[], salesPayments: SalesPayment[]): TodaySnapshot {
+export function computeTodaySnapshot(orders: OrderLight[], orderPayments: OrderPayment[], salesPayments: SalesPayment[]): TodaySnapshot {
   const dueToday: DueTodayOrder[] = [];
   let pendingCount = 0;
   let pendingTotal = 0;

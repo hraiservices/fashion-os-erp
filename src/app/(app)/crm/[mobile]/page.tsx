@@ -43,6 +43,7 @@ import { CustomerProductRecommendations } from "@/components/crm/customer-produc
 import { CustomerPhotoAvatar } from "@/components/crm/customer-photo-avatar";
 import { CustomerSpendChart, buildCustomerSpendByMonth } from "@/components/crm/customer-spend-chart";
 import { CustomerActivityTimeline } from "@/components/crm/customer-activity-timeline";
+import { CustomerSidebarList } from "@/components/crm/customer-sidebar-list";
 import { BackLink } from "@/components/ui/back-link";
 import {
   AlertDialog,
@@ -106,8 +107,11 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   const cust = profiles.find((c) => c.mobile === mobile);
   if (!cust) {
     return (
-      <div className="p-6">
-        <EmptyState icon={ReceiptDuotoneIcon} title="Customer not found" action={<Button nativeButton={false} render={<Link href="/crm" />}>Back to customers</Button>} />
+      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+        <CustomerSidebarList profiles={profiles} invoices={allInvoices} activeMobile={mobile} />
+        <div className="min-w-0 flex-1 p-2">
+          <EmptyState icon={ReceiptDuotoneIcon} title="Customer not found" action={<Button nativeButton={false} render={<Link href="/crm" />}>Back to customers</Button>} />
+        </div>
       </div>
     );
   }
@@ -194,7 +198,9 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4 p-4 sm:p-6">
+    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <CustomerSidebarList profiles={profiles} invoices={allInvoices} activeMobile={mobile} />
+      <div className="min-w-0 max-w-7xl flex-1 space-y-4">
       <BackLink href="/crm">Customers</BackLink>
 
       <div className="rounded-xl border bg-card p-4 sm:p-5">
@@ -616,6 +622,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
       <CustomerActivityTimeline mobile={mobile} />
 
       <EditCustomerModal cust={cust} open={editOpen} onOpenChange={setEditOpen} />
+      </div>
     </div>
   );
 }

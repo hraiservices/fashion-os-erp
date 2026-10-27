@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { bucketTasks, isOverdue, subtaskProgress } from "@/lib/work-tasks";
+import { bucketTasks, isOverdue, subtaskProgress, TASK_PRIORITIES, TASK_PRIORITY_LABELS, type TaskPriority } from "@/lib/work-tasks";
 import type { TaskDto } from "@/lib/targets-types";
 import { TasksFromTextButton } from "@/components/targets/tasks-from-text";
 import { useCreateTask, usePatchTask, useProjects, useTask, useTasks, type TargetsMeta } from "@/hooks/use-targets";
@@ -49,6 +49,9 @@ export function TasksTab({ meta }: { meta: TargetsMeta | undefined }) {
   const [layout, setLayout] = useState<Layout>("list");
   const [person, setPerson] = useState(ALL);
   const [projectFilter, setProjectFilter] = useState(ALL);
+  const [priorityFilter, setPriorityFilter] = useState<TaskPriority | typeof ALL>(ALL);
+  const [dueFrom, setDueFrom] = useState("");
+  const [dueTo, setDueTo] = useState("");
   const [quick, setQuick] = useState("");
   const [editing, setEditing] = useState<TaskDto | null>(null);
 
@@ -78,11 +81,21 @@ export function TasksTab({ meta }: { meta: TargetsMeta | undefined }) {
   const projectName = (id: string | null) => projects.find((p) => p.id === id)?.name ?? "Project";
 
   const all = useMemo(() => tasksQ.data ?? [], [tasksQ.data]);
+  const filtered = useMemo(
+    () =>
+      all.filter(
+        (t) =>
+          (priorityFilter === ALL || t.priority === priorityFilter) &&
+          (!dueFrom || (t.dueDate ?? "") >= dueFrom) &&
+          (!dueTo || (!!t.dueDate && t.dueDate <= dueTo))
+      ),
+    [all, priorityFilter, dueFrom, dueTo]
+  );
   const visible = useMemo(() => {
-    if (view === "today") return all.filter((t) => t.dueDate === today || isOverdue(t, today));
-    if (view === "overdue") return all.filter((t) => isOverdue(t, today));
-    return all;
-  }, [all, view, today]);
+    if (view === "today") return filtered.filter((t) => t.dueDate === today || isOverdue(t, today));
+    if (view === "overdue") return filtered.filter((t) => isOverdue(t, today));
+    return filtered;
+  }, [filtered, view, today]);
   const topLevel = useMemo(() => visible.filter((t) => !t.parentTaskId), [visible]);
   const buckets = useMemo(() => bucketTasks(topLevel, today), [topLevel, today]);
   const groups = useMemo(() => groupTasks(visible, { by: "project", projectName }), [visible, projects]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -151,6 +164,32 @@ export function TasksTab({ meta }: { meta: TargetsMeta | undefined }) {
             </Select>
           </div>
         )}
+        <div className="space-y-1 lg:w-36">
+          <Label className={filterLabel}>Priority</Label>
+          <Select value={priorityFilter} onValueChange={(v) => v && setPriorityFilter(v as TaskPriority | typeof ALL)}>
+            <SelectTrigger className="h-11 w-full">
+              <SelectValue>{(v: unknown) => (v === ALL ? "Any" : TASK_PRIORITY_LABELS[v as TaskPriority])}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>Any</SelectItem>
+              {TASK_PRIORITIES.map((p) => (
+                <SelectItem key={p} value={p}>
+                  {TASK_PRIORITY_LABELS[p]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="col-span-2 flex gap-2 lg:w-auto">
+          <div className="flex-1 space-y-1 lg:w-32">
+            <Label className={filterLabel}>Due from</Label>
+            <Input type="date" value={dueFrom} onChange={(e) => setDueFrom(e.target.value)} className="h-11 w-full" />
+          </div>
+          <div className="flex-1 space-y-1 lg:w-32">
+            <Label className={filterLabel}>Due to</Label>
+            <Input type="date" value={dueTo} onChange={(e) => setDueTo(e.target.value)} className="h-11 w-full" />
+          </div>
+        </div>
         {/* col-span-2: on mobile this sits in a 2-col grid alongside the view chips, where a
          *  single cell (~half the phone's width) can't fit the layout toggle plus the "Add from
          *  text" button together — they'd overflow/crush into each other. Spanning both columns

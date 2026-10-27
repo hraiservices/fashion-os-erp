@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { BalanceDue } from "@/components/ui/money-text";
 import { BackLink } from "@/components/ui/back-link";
 import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
+import { RecordPrevNext } from "@/components/ui/record-prev-next";
 
 export default function VendorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -66,7 +67,10 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
     <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search vendors…" emptyLabel="No vendors yet" />
       <div className="min-w-0 max-w-6xl flex-1 space-y-4">
-      <BackLink href="/purchases/vendors">Vendors</BackLink>
+      <div className="flex items-center justify-between gap-2">
+        <BackLink href="/purchases/vendors">Vendors</BackLink>
+        <RecordPrevNext items={sidebarItems} activeId={id} />
+      </div>
 
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
       <div className="space-y-4 lg:col-span-4">

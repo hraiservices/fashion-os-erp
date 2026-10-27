@@ -8,6 +8,7 @@ import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePurchaseBill, usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendor, useVendors } from "@/hooks/use-vendors";
 import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
+import { RecordPrevNext } from "@/components/ui/record-prev-next";
 import { useVendorPaymentsForBill } from "@/hooks/use-vendor-payments";
 import { useVendorCreditsForBill } from "@/hooks/use-vendor-credits";
 import { useDeleteBill } from "@/hooks/use-purchase-mutations";
@@ -102,7 +103,10 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
     <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search bills…" emptyLabel="No bills yet" />
       <div className="min-w-0 max-w-6xl flex-1 space-y-4">
-      <BackLink href="/purchases/bills">Bills</BackLink>
+      <div className="flex items-center justify-between gap-2">
+        <BackLink href="/purchases/bills">Bills</BackLink>
+        <RecordPrevNext items={sidebarItems} activeId={id} />
+      </div>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

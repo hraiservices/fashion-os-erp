@@ -7,6 +7,7 @@ import { Phone, Briefcase, Pencil, CalendarCheck, Wallet, Plus, Trash2 } from "l
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useEmployee, useEmployees } from "@/hooks/use-employees";
 import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
+import { RecordPrevNext } from "@/components/ui/record-prev-next";
 import { useAttendanceForEmployee } from "@/hooks/use-attendance";
 import { useAdvancesForEmployee } from "@/hooks/use-payroll";
 import { useAddAdvance, useDeleteAdvance } from "@/hooks/use-payroll-mutations";
@@ -119,7 +120,10 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
     <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search employees…" emptyLabel="No employees yet" />
       <div className="min-w-0 max-w-6xl flex-1 space-y-4">
-      <BackLink href="/employees">Employees</BackLink>
+      <div className="flex items-center justify-between gap-2">
+        <BackLink href="/employees">Employees</BackLink>
+        <RecordPrevNext items={sidebarItems} activeId={id} />
+      </div>
 
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
       <div className="space-y-4 lg:col-span-4">

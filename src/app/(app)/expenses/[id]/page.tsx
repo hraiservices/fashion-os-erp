@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { BackLink } from "@/components/ui/back-link";
 import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
+import { RecordPrevNext } from "@/components/ui/record-prev-next";
 import { CustomerLink } from "@/components/crm/customer-link";
 import {
   AlertDialog,
@@ -92,7 +93,10 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
     <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search expenses…" emptyLabel="No expenses yet" />
       <div className="min-w-0 max-w-3xl flex-1 space-y-4">
-        <BackLink href="/expenses">Expenses</BackLink>
+        <div className="flex items-center justify-between gap-2">
+          <BackLink href="/expenses">Expenses</BackLink>
+          <RecordPrevNext items={sidebarItems} activeId={id} />
+        </div>
 
         <div className="rounded-xl border bg-card p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3">

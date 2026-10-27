@@ -10,6 +10,7 @@ import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { printThermalReceipt } from "@/lib/thermal-receipt";
 import { useSalesInvoice, useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
+import { RecordPrevNext } from "@/components/ui/record-prev-next";
 import { useSalesPaymentsForInvoice } from "@/hooks/use-sales-payments";
 import { useSalesCreditNotesForInvoice } from "@/hooks/use-sales-credit-notes";
 import { useDeleteInvoice, useSetInvoiceDocStatus } from "@/hooks/use-sales-mutations";
@@ -154,7 +155,10 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
     <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search invoices…" emptyLabel="No invoices yet" />
       <div className="min-w-0 max-w-6xl flex-1 space-y-4">
-      <BackLink href="/sales/invoices">Invoices</BackLink>
+      <div className="flex items-center justify-between gap-2">
+        <BackLink href="/sales/invoices">Invoices</BackLink>
+        <RecordPrevNext items={sidebarItems} activeId={id} />
+      </div>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">

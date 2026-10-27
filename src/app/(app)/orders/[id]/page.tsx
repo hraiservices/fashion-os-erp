@@ -26,6 +26,7 @@ import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
 import { inr, fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { hapticSuccess } from "@/lib/haptics";
 import { hasMeasurements, hydrateMeasurements } from "@/lib/measurements";
 import { useMeasureFields } from "@/hooks/use-measure-fields";
 import { MeasurementView } from "@/components/measurements/measurement-grid";
@@ -225,6 +226,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     try {
       const res = await advanceStage.mutateAsync(id);
       const s = res.order.status;
+      hapticSuccess();
       toast.success(s === "ready" ? "Marked ready for pickup" : s === "payment" ? "Marked as paid" : "Stage updated");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to advance stage");

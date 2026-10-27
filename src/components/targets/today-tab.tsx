@@ -8,10 +8,12 @@ import { BellRing, Check, Clock, Flame, PartyPopper, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAddLeadActivity, useLeads, usePatchTask, type TargetsMeta } from "@/hooks/use-targets";
 import { useLeadFollowUp } from "@/hooks/use-lead-follow-up";
-import { todayBuckets } from "@/lib/lead-insights";
+import { HEAT_LABEL, HEAT_RANK, leadHeat, todayBuckets, type LeadHeat } from "@/lib/lead-insights";
 import type { LeadDto } from "@/lib/targets-types";
 import { LeadCard } from "@/components/targets/lead-card";
 import { StageSheet } from "@/components/targets/stage-sheet";
@@ -21,6 +23,8 @@ import { UnownedLeadsCard } from "@/components/targets/unowned-card";
 import { DailyPlanCard, FestivalNudgeCard, InsightsCard, OrderRiskCard } from "@/components/targets/today-ai";
 import { useStaffLookup } from "@/components/targets/shared";
 import { cn } from "@/lib/utils";
+
+const ALL = "all";
 
 const SNOOZE: { days: number; label: string }[] = [
   { days: 1, label: "Tomorrow" },
@@ -34,11 +38,13 @@ const SNOOZE: { days: number; label: string }[] = [
  * (moves the follow-up out), so the list empties as you work through it.
  */
 export function TodayTab({ meta }: { meta: TargetsMeta | undefined }) {
-  const query = useLeads({ stage: "open", limit: 1000 });
+  const [owner, setOwner] = useState(ALL);
+  const [heatFilter, setHeatFilter] = useState<LeadHeat | typeof ALL>(ALL);
+  const query = useLeads({ stage: "open", limit: 1000, owner: owner === ALL ? undefined : owner });
   const today = meta?.today ?? "";
   const labels = meta?.stageLabels;
   const canEdit = !!meta?.can.manageLeads;
-  const { nameOf } = useStaffLookup(meta);
+  const { nameOf, active } = useStaffLookup(meta);
   const showOwner = !!meta?.can.viewAll;
   const addActivity = useAddLeadActivity();
   const patchTask = usePatchTask();
@@ -47,8 +53,10 @@ export function TodayTab({ meta }: { meta: TargetsMeta | undefined }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [moving, setMoving] = useState<LeadDto | null>(null);
 
-  const buckets = useMemo(() => todayBuckets(query.data?.leads ?? [], today), [query.data, today]);
+  const filteredLeads = useMemo(() => (heatFilter === ALL ? (query.data?.leads ?? []) : (query.data?.leads ?? []).filter((l) => leadHeat(l, today) === heatFilter)), [query.data, heatFilter, today]);
+  const buckets = useMemo(() => todayBuckets(filteredLeads, today), [filteredLeads, today]);
   const total = buckets.due.length + buckets.quiet.length + buckets.hot.length;
+  const ownerFilter = owner === ALL ? undefined : owner;
 
   async function markDone(lead: LeadDto) {
     setBusy(lead.id);
@@ -93,6 +101,8 @@ export function TodayTab({ meta }: { meta: TargetsMeta | undefined }) {
     { key: "hot", title: "Hot leads", hint: "Most likely to close", icon: Flame, tone: "text-orange-700 bg-orange-50 border-orange-200 dark:text-orange-300 dark:bg-orange-500/10 dark:border-orange-500/30", leads: buckets.hot },
   ];
 
+  const filterLabel = "text-xs font-medium text-muted-foreground";
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -117,9 +127,47 @@ export function TodayTab({ meta }: { meta: TargetsMeta | undefined }) {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3">
+        {showOwner && (
+            <div className="space-y-1 sm:w-44">
+              <Label className={filterLabel}>Owner</Label>
+              <Select value={owner} onValueChange={(v) => v && setOwner(v)}>
+                <SelectTrigger className="h-11 w-full">
+                  <SelectValue>{(v: unknown) => (v === ALL ? "Everyone" : nameOf(v as string))}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>Everyone</SelectItem>
+                  {active.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="space-y-1 sm:w-36">
+            <Label className={filterLabel}>Temperature</Label>
+            <Select value={heatFilter} onValueChange={(v) => v && setHeatFilter(v as LeadHeat | typeof ALL)}>
+              <SelectTrigger className="h-11 w-full">
+                <SelectValue>{(v: unknown) => (v === ALL ? "Any" : HEAT_LABEL[v as LeadHeat])}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Any</SelectItem>
+                {(Object.keys(HEAT_RANK) as LeadHeat[]).map((h) => (
+                  <SelectItem key={h} value={h}>
+                    {HEAT_LABEL[h]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        {owner !== ALL && <p className="text-xs text-muted-foreground">Trials and win-back leads below are also narrowed to {nameOf(owner)}. Birthdays, reviews, referrals and reorders aren&apos;t assigned to a staff member, so they&apos;re unaffected.</p>}
+      </div>
+
       <TargetGapCard />
       <UnownedLeadsCard leads={query.data?.leads ?? []} meta={meta} />
-      <TrialsCard today={today} canEdit={canEdit} />
+      <TrialsCard today={today} canEdit={canEdit} ownerFilter={ownerFilter} />
       <OrderRiskCard today={today} />
       <DailyPlanCard today={today} buckets={buckets} />
       <FestivalNudgeCard canEdit={canEdit} />
@@ -127,7 +175,7 @@ export function TodayTab({ meta }: { meta: TargetsMeta | undefined }) {
       <ReviewRequestCard today={today} canEdit={canEdit} />
       <ReferralCard today={today} canEdit={canEdit} />
       <ReorderCard canEdit={canEdit} />
-      <WinBackCard today={today} canEdit={canEdit} />
+      <WinBackCard today={today} canEdit={canEdit} ownerFilter={ownerFilter} />
       {showOwner && <InsightsCard />}
 
       {total === 0 && <EmptyState icon={PartyPopper} title="All caught up" description="No follow-ups are due and no open lead has gone quiet. New leads you add will show here when they need you." />}

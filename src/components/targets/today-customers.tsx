@@ -226,9 +226,9 @@ function WinBackRow({ lead, shopName }: { lead: LeadDto; shopName: string }) {
   );
 }
 
-/** Leads who said no 1–4 months ago for a reason that can change — a polite second message. */
-export function WinBackCard({ today, canEdit }: { today: string; canEdit: boolean }) {
-  const { data } = useLeads({ stage: "lost", limit: 300 }, { enabled: canEdit });
+/** Leads who said no 1–4 months ago for a reason that can change — a polite second message. `ownerFilter` narrows to one staff member's leads. */
+export function WinBackCard({ today, canEdit, ownerFilter }: { today: string; canEdit: boolean; ownerFilter?: string }) {
+  const { data } = useLeads({ stage: "lost", limit: 300, owner: ownerFilter }, { enabled: canEdit });
   const { data: shop } = useShopSettings();
   const rows = winBackCandidates(data?.leads ?? [], today).slice(0, 12);
   if (!canEdit || rows.length === 0) return null;
@@ -241,12 +241,15 @@ export function WinBackCard({ today, canEdit }: { today: string; canEdit: boolea
   );
 }
 
-/** Fitting trials today and tomorrow, each with a one-tap reminder to the customer. */
-export function TrialsCard({ today, canEdit }: { today: string; canEdit: boolean }) {
+/** Fitting trials today and tomorrow, each with a one-tap reminder to the customer. `ownerFilter` narrows to trials assigned to one staff member. */
+export function TrialsCard({ today, canEdit, ownerFilter }: { today: string; canEdit: boolean; ownerFilter?: string }) {
   const { data } = useTasks({ status: "open" }, canEdit);
   const { data: shop } = useShopSettings();
   const tomorrow = addDaysIso(today, 1);
-  const rows = (data ?? []).filter((t) => t.tags?.includes(TRIAL_TAG) && !!t.dueDate && t.dueDate >= today && t.dueDate <= tomorrow).sort((a, b) => (a.dueDate as string).localeCompare(b.dueDate as string) || a.title.localeCompare(b.title));
+  const rows = (data ?? [])
+    .filter((t) => t.tags?.includes(TRIAL_TAG) && !!t.dueDate && t.dueDate >= today && t.dueDate <= tomorrow)
+    .filter((t) => !ownerFilter || t.assigneeId === ownerFilter)
+    .sort((a, b) => (a.dueDate as string).localeCompare(b.dueDate as string) || a.title.localeCompare(b.title));
   if (!canEdit || rows.length === 0) return null;
   return (
     <Collapsible icon={CalendarClock} title={`${rows.length} fitting ${rows.length === 1 ? "trial" : "trials"} today / tomorrow`} tone="border-sky-200 bg-sky-50/60 text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/5 dark:text-sky-300">

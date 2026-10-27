@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarClock, ChevronRight, MessageCircle, Paperclip, Phone } from "lucide-react";
+import { CalendarClock, ChevronRight, Paperclip, Phone } from "lucide-react";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { isOpenStage, stageLabel, type StageLabelOverrides } from "@/lib/lead-stages";
@@ -10,6 +10,8 @@ import type { LeadDto } from "@/lib/targets-types";
 import { formatMinutes, isUnowned, responseMinutes } from "@/lib/lead-response";
 import { dueLabel, DUE_TONE_CLASS, HeatChip, LikelyStar, StageChip, telHref, whatsappHref } from "@/components/targets/shared";
 import { CustomerLink } from "@/components/crm/customer-link";
+import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
+import { resolveWhatsAppHref } from "@/lib/whatsapp-launch";
 
 /**
  * One lead as a card: name, what they want, ₹, stage (tap to move it), next follow-up, and big
@@ -110,8 +112,8 @@ export function LeadCard({
             <span className="bg-card" />
           )}
           {wa ? (
-            <a href={wa} target="_blank" rel="noopener noreferrer" className="flex min-h-12 items-center justify-center gap-2 bg-card text-sm font-semibold text-emerald-600 active:bg-muted/60 dark:text-emerald-400">
-              <MessageCircle className="size-4" /> <span className={compact ? "sr-only" : undefined}>WhatsApp</span>
+            <a href={resolveWhatsAppHref(wa, "business")} target="_blank" rel="noopener noreferrer" className="flex min-h-12 items-center justify-center gap-2 bg-card text-sm font-semibold text-emerald-600 active:bg-muted/60 dark:text-emerald-400">
+              <WhatsAppIcon className="size-4" /> <span className={compact ? "sr-only" : undefined}>WhatsApp</span>
             </a>
           ) : (
             <span className="bg-card" />

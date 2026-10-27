@@ -80,6 +80,7 @@ export async function GET(request: Request) {
     leaveDecidedRes,
     employeesRes,
     vendorsRes,
+    userRolesRes,
     completedWorkOrdersRes,
   ] = await Promise.all([
     db.from("sales_invoices").select("id, invoice_number, customer_name, customer_mobile, total, doc_status, items, discount_type, discount_value, created_by, created_at").gte("created_at", startUtc).lt("created_at", endUtc),
@@ -102,6 +103,7 @@ export async function GET(request: Request) {
     db.from("leave_requests").select("id, employee_id, from_date, to_date, days, status, requested_by, requested_at, decided_by, decided_at").gte("decided_at", startUtc).lt("decided_at", endUtc),
     db.from("employees").select("id, name, role, active"),
     db.from("vendors").select("id, name"),
+    db.from("user_roles").select("email, linked_employee_id"),
     // Mirrors getCombinedMonthly's laborCost — completed work orders' labor cost, bucketed by
     // completedAt, the same date basis Combined P&L uses for this category.
     db.from("work_orders").select("id, labor_cost").eq("status", "completed").gte("completed_at", startUtc).lt("completed_at", endUtc),
@@ -110,11 +112,21 @@ export async function GET(request: Request) {
   const firstError = [
     invoicesRes, paymentsRes, creditNotesRes, expensesRes, billsRes, vendorPaymentsRes, vendorCreditsRes,
     ordersRes, orderActivityRes, orderPaymentsRes, customersRes, unlinkedActivityRes, attendanceRes,
-    leaveAppliedRes, leaveDecidedRes, employeesRes, vendorsRes, completedWorkOrdersRes,
+    leaveAppliedRes, leaveDecidedRes, employeesRes, vendorsRes, userRolesRes, completedWorkOrdersRes,
   ].find((r) => r.error);
   if (firstError?.error) return NextResponse.json({ error: firstError.error.message }, { status: 500 });
 
   const employeeNameById = new Map((employeesRes.data || []).map((e) => [e.id, e.name]));
+  // Also key the same map by real login email, for any account linked to an employee
+  // (user_roles.linked_employee_id) — displayNameFromEmail/resolveLoggedUser check this map by
+  // raw email too, so a real login whose email local-part isn't their actual name ("connect@…")
+  // resolves to the linked employee's real name instead of falling through to that local-part.
+  // No key collision risk: employee ids are UUIDs, these keys always contain "@".
+  for (const row of userRolesRes.data || []) {
+    if (!row.linked_employee_id) continue;
+    const name = employeeNameById.get(row.linked_employee_id);
+    if (name) employeeNameById.set(row.email, name);
+  }
   const vendorNameById = new Map((vendorsRes.data || []).map((v) => [v.id, v.name]));
   // Same "active + role === tailor" convention as useActiveTailors() (src/hooks/use-employees.ts)
   // — every tailor who should be accountable for today's activity, including the ones who did

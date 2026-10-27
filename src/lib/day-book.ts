@@ -64,8 +64,14 @@ export const DASHBOARD_ACCESS_EMAIL_RE = /^emp-(.+)@dashboard\.local$/i;
 /** The only "name" data this schema has for a user is their email — see AGENTS this session's
  *  audit: no display_name column exists anywhere. Matches the convention already duplicated
  *  across ~7 call sites in src/lib/logging.ts and the order-stage routes.
- *  `employeeNameById`, when passed, resolves a synthetic dashboard-access email back to the
- *  employee's real name instead of showing their raw id. */
+ *  `employeeNameById`, when passed, resolves a name two ways — whichever hits first:
+ *   1. A synthetic dashboard-access email (`emp-<id>@dashboard.local`) back to that employee.
+ *   2. A real login email directly, when the route populated the same map with
+ *      `user_roles.email -> employees.name` entries for every login linked to an employee (see
+ *      day-book/route.ts) — no id/email collision risk since employee ids are UUIDs and these
+ *      keys always contain "@". Without this, any real (non-dashboard-access) login whose email
+ *      local-part isn't actually their name — "connect@…" rather than "priya@…" — fell straight
+ *      through to the raw local-part fallback below instead of their real name. */
 export function displayNameFromEmail(email: string | null | undefined, employeeNameById?: Map<string, string>): string {
   if (!email) return "System";
   const dashboardMatch = email.match(DASHBOARD_ACCESS_EMAIL_RE);
@@ -73,6 +79,8 @@ export function displayNameFromEmail(email: string | null | undefined, employeeN
     const name = employeeNameById?.get(dashboardMatch[1]);
     if (name) return name;
   }
+  const direct = employeeNameById?.get(email);
+  if (direct) return direct;
   const local = email.split("@")[0];
   return local || email;
 }
@@ -86,7 +94,11 @@ export function displayNameFromEmail(email: string | null | undefined, employeeN
 function resolveLoggedUser(userName: string | null, userEmail: string | null, employeeNameById?: Map<string, string>): string {
   if (userEmail) {
     const dashboardMatch = userEmail.match(DASHBOARD_ACCESS_EMAIL_RE);
-    const name = dashboardMatch && employeeNameById?.get(dashboardMatch[1]);
+    const name = (dashboardMatch && employeeNameById?.get(dashboardMatch[1])) || employeeNameById?.get(userEmail);
+    // Checked ahead of the stored userName below: activity_log.user_name was written at insert
+    // time using the exact same "email local part" convention (see logAction()), so for a real
+    // login whose email local-part isn't their name it's already baked in as the wrong value —
+    // a resolvable email always wins over trusting that stored guess.
     if (name) return name;
   }
   return userName || displayNameFromEmail(userEmail, employeeNameById);

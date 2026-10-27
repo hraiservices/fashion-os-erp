@@ -4,7 +4,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { mapUnitRow } from "@/lib/types";
 
-async function fetchUnits() {
+export const UNITS_QUERY_KEY = ["units"];
+
+/** Exported so other hooks that also need the units table (use-products.ts, use-raw-materials.ts)
+ *  can fetch it through the SAME query key via queryClient.fetchQuery — rather than each issuing
+ *  its own independent `select("*")` against units_of_measure, which a live Supabase log audit
+ *  caught firing as duplicate network/DB round trips for the same small table on one page load. */
+export async function fetchUnits() {
   const supabase = createClient();
   const { data, error } = await supabase.from("units_of_measure").select("*").order("name");
   if (error) throw error;
@@ -13,7 +19,7 @@ async function fetchUnits() {
 
 export function useUnits() {
   return useQuery({
-    queryKey: ["units"],
+    queryKey: UNITS_QUERY_KEY,
     queryFn: fetchUnits,
     staleTime: 60_000,
   });

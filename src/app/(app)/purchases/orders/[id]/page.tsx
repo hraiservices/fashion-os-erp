@@ -5,8 +5,9 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Receipt, Ban, Pencil } from "lucide-react";
 import { FileTextDuotoneIcon } from "@/components/icons/duotone-icons";
-import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
-import { useVendor } from "@/hooks/use-vendors";
+import { usePurchaseOrder, usePurchaseOrders } from "@/hooks/use-purchase-orders";
+import { useVendor, useVendors } from "@/hooks/use-vendors";
+import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
 import { useCancelPurchaseOrder } from "@/hooks/use-purchase-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr, fmtDate } from "@/lib/format";
@@ -33,6 +34,8 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
   const { id } = use(params);
   const { data: po, isLoading } = usePurchaseOrder(id);
   const { data: vendor } = useVendor(po?.vendorId || "");
+  const { data: allPOs } = usePurchaseOrders();
+  const { data: allVendors } = useVendors();
   const { data: user } = useCurrentUser();
   const cancelPo = useCancelPurchaseOrder();
 
@@ -60,16 +63,31 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
     );
   }
 
+  const vendorNameById = new Map((allVendors || []).map((v) => [v.id, v.name]));
+  const sidebarItems = (allPOs || []).map((o) => ({
+    id: o.id,
+    title: o.poNumber,
+    subtitle: vendorNameById.get(o.vendorId) || fmtDate(o.date),
+    amountLabel: inr(o.total),
+    amountTone: "plain" as const,
+    href: `/purchases/orders/${o.id}`,
+  }));
+
   if (!po) {
     return (
-      <div className="p-6">
-        <EmptyState icon={FileTextDuotoneIcon} title="Purchase order not found" />
+      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+        <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search purchase orders…" emptyLabel="No purchase orders yet" />
+        <div className="min-w-0 flex-1 p-2">
+          <EmptyState icon={FileTextDuotoneIcon} title="Purchase order not found" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search purchase orders…" emptyLabel="No purchase orders yet" />
+      <div className="min-w-0 max-w-6xl flex-1 space-y-4">
       <BackLink href="/purchases/orders">Purchase Orders</BackLink>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -193,6 +211,7 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

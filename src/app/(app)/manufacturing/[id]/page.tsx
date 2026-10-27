@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Factory, ArrowRight, CheckCircle2, Trash2, Pencil } from "lucide-react";
-import { useWorkOrder } from "@/hooks/use-work-orders";
+import { useWorkOrder, useWorkOrders } from "@/hooks/use-work-orders";
+import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
 import { useAdvanceWoStatus, useDeleteWorkOrder } from "@/hooks/use-work-order-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useTailorName } from "@/hooks/use-employees";
@@ -34,6 +35,7 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
   const { id } = use(params);
   const router = useRouter();
   const { data: wo, isLoading } = useWorkOrder(id);
+  const { data: allWorkOrders } = useWorkOrders();
   const { data: user } = useCurrentUser();
   const advanceStatus = useAdvanceWoStatus();
   const deleteWo = useDeleteWorkOrder();
@@ -82,10 +84,22 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
     );
   }
 
+  const sidebarItems = (allWorkOrders || []).map((w) => ({
+    id: w.id,
+    title: w.woNumber,
+    subtitle: `${w.productName} · ${WO_STATUS_LABELS[w.status]}`,
+    amountLabel: w.totalCost != null ? inr(w.totalCost) : undefined,
+    amountTone: "plain" as const,
+    href: `/manufacturing/${w.id}`,
+  }));
+
   if (!wo) {
     return (
-      <div className="p-6">
-        <EmptyState icon={Factory} title="Work order not found" />
+      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+        <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search work orders…" emptyLabel="No work orders yet" />
+        <div className="min-w-0 flex-1 p-2">
+          <EmptyState icon={Factory} title="Work order not found" />
+        </div>
       </div>
     );
   }
@@ -93,7 +107,9 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
   const next = nextWoStatus(wo.status);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search work orders…" emptyLabel="No work orders yet" />
+      <div className="min-w-0 max-w-6xl flex-1 space-y-4">
       <BackLink href="/manufacturing">Manufacturing</BackLink>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -244,6 +260,7 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {canManage && <CompleteWorkOrderDialog open={completeOpen} onOpenChange={setCompleteOpen} wo={wo} />}
+      </div>
     </div>
   );
 }

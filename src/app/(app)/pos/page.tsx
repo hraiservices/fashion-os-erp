@@ -66,21 +66,48 @@ const PINNED_PRODUCTS_KEY = "posPinnedProducts";
 // reads as a real tap-friendly POS tile board instead of a flat list of identical gray cards.
 // No product data needed (no category field on Product yet), so this is the simplest way to
 // give each tile its own identity while staying stable across reloads for the same product.
+// Each entry pairs the tile's left-border stripe with a matching background/text pair for its
+// initials avatar (see ProductThumb) — same color family, so the avatar isn't a second,
+// unrelated color fighting the stripe it sits next to.
 const TILE_ACCENTS = [
-  "border-l-rose-400 dark:border-l-rose-500",
-  "border-l-amber-400 dark:border-l-amber-500",
-  "border-l-emerald-400 dark:border-l-emerald-500",
-  "border-l-sky-400 dark:border-l-sky-500",
-  "border-l-violet-400 dark:border-l-violet-500",
-  "border-l-fuchsia-400 dark:border-l-fuchsia-500",
-  "border-l-teal-400 dark:border-l-teal-500",
-  "border-l-orange-400 dark:border-l-orange-500",
+  { border: "border-l-rose-400 dark:border-l-rose-500", avatar: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300" },
+  { border: "border-l-amber-400 dark:border-l-amber-500", avatar: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" },
+  { border: "border-l-emerald-400 dark:border-l-emerald-500", avatar: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" },
+  { border: "border-l-sky-400 dark:border-l-sky-500", avatar: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300" },
+  { border: "border-l-violet-400 dark:border-l-violet-500", avatar: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300" },
+  { border: "border-l-fuchsia-400 dark:border-l-fuchsia-500", avatar: "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-950 dark:text-fuchsia-300" },
+  { border: "border-l-teal-400 dark:border-l-teal-500", avatar: "bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300" },
+  { border: "border-l-orange-400 dark:border-l-orange-500", avatar: "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300" },
 ];
 
 function tileAccent(id: string) {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
   return TILE_ACCENTS[hash % TILE_ACCENTS.length];
+}
+
+/** Initials for a product with no photo — first letter of up to the first two words ("AD Suit
+ *  Sep" → "AS"), falling back to the first two characters for a single-word name. */
+function productInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return (words[0] || "?").slice(0, 2).toUpperCase();
+}
+
+/** A real product photo when one was uploaded (Inventory → product → edit), otherwise a
+ *  generated colored-initials square in the same color family as the tile's own border stripe —
+ *  gives every tile a visual anchor to recognize at a glance instead of reading text, without
+ *  requiring every product to have a real photo first. */
+function ProductThumb({ product, size = "size-10" }: { product: { id: string; name: string; imageDataUrl?: string | null }; size?: string }) {
+  if (product.imageDataUrl) {
+    // eslint-disable-next-line @next/next/no-img-element -- small inline data URL thumbnail, not worth next/image's overhead
+    return <img src={product.imageDataUrl} alt="" className={`${size} shrink-0 rounded-md object-cover`} />;
+  }
+  return (
+    <div className={`${size} flex shrink-0 items-center justify-center rounded-md text-xs font-bold ${tileAccent(product.id).avatar}`}>
+      {productInitials(product.name)}
+    </div>
+  );
 }
 
 interface CartLine {
@@ -959,10 +986,13 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
                     key={p.id}
                     type="button"
                     onClick={() => handleTileAdd(p)}
-                    className={`min-w-[7.5rem] shrink-0 rounded-lg border border-l-4 bg-card p-2.5 text-left transition-colors hover:bg-muted/50 active:bg-muted ${tileAccent(p.id)}`}
+                    className={`flex min-w-[9rem] shrink-0 items-center gap-2 rounded-lg border border-l-4 bg-card p-2.5 text-left transition-colors hover:bg-muted/50 active:bg-muted ${tileAccent(p.id).border}`}
                   >
-                    <p className="truncate text-xs font-medium">{p.name}</p>
-                    <p className="mt-0.5 text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{inr(p.sellingPrice)}</p>
+                    <ProductThumb product={p} size="size-9" />
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-medium">{p.name}</p>
+                      <p className="mt-0.5 text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{inr(p.sellingPrice)}</p>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -1017,7 +1047,7 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
                         handleTileAdd(p);
                       }
                     }}
-                    className={`relative min-w-0 cursor-pointer rounded-lg border border-l-4 bg-card p-3 text-left transition-colors hover:bg-muted/50 active:bg-muted ${tileAccent(p.id)}`}
+                    className={`relative min-w-0 cursor-pointer rounded-lg border border-l-4 bg-card p-3 text-left transition-colors hover:bg-muted/50 active:bg-muted ${tileAccent(p.id).border}`}
                   >
                     <button
                       type="button"
@@ -1030,8 +1060,13 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
                     >
                       <Star className={cn("size-3.5", pinned && "fill-amber-400 text-amber-500")} />
                     </button>
-                    <p className="truncate pr-5 text-sm font-medium">{p.name}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{p.sku}</p>
+                    <div className="flex items-start gap-2 pr-5">
+                      <ProductThumb product={p} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{p.name}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{p.sku}</p>
+                      </div>
+                    </div>
                     <div className="mt-1 flex items-center justify-between gap-1">
                       <p className="text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{inr(p.sellingPrice)}</p>
                       {outOfStock ? (

@@ -62,13 +62,41 @@ export function useSalesInvoices() {
   });
 }
 
+/** Scoped to the one invoice (+ its own payments/credit notes) by id, rather than
+ *  fetchInvoicesEnriched()'s full-table fetch of every invoice/payment/credit-note in the
+ *  shop — opening a single invoice detail page used to pull the entire dataset just to find
+ *  one row in it. */
+async function fetchInvoiceByIdEnriched(id: string): Promise<SalesInvoiceWithBalance | null> {
+  const supabase = createClient();
+  const [{ data: invoiceRow, error: invError }, { data: payments, error: payError }, { data: credits, error: credError }] = await Promise.all([
+    supabase.from("sales_invoices").select("*").eq("id", id).maybeSingle(),
+    supabase.from("sales_payments").select("*").eq("invoice_id", id),
+    supabase.from("sales_credit_notes").select("*").eq("invoice_id", id),
+  ]);
+  if (invError) throw invError;
+  if (payError) throw payError;
+  if (credError) throw credError;
+  if (!invoiceRow) return null;
+
+  const invoice = mapSalesInvoiceRow(invoiceRow);
+  const paidTotal = (payments || []).reduce((sum, p) => sum + p.amount, 0);
+  const creditsTotal = (credits || []).reduce((sum, c) => sum + c.total, 0);
+  const lastPaymentDate = (payments || []).reduce<string | null>((latest, p) => (!latest || p.date > latest ? p.date : latest), null);
+
+  return {
+    ...invoice,
+    paidTotal,
+    creditsTotal,
+    balance: deriveInvoiceBalance(invoice.total, creditsTotal, paidTotal),
+    paymentStatus: invoicePaymentStatus(invoice.total, creditsTotal, paidTotal),
+    lastPaymentDate,
+  };
+}
+
 export function useSalesInvoice(id: string) {
   return useQuery({
     queryKey: ["sales-invoice", id],
-    queryFn: async () => {
-      const all = await fetchInvoicesEnriched();
-      return all.find((i) => i.id === id) || null;
-    },
+    queryFn: () => fetchInvoiceByIdEnriched(id),
     enabled: !!id,
   });
 }

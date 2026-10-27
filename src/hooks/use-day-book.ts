@@ -60,6 +60,10 @@ export function useDayBook(date: string) {
       return normalizeDayBook(await res.json());
     },
     staleTime: 30_000,
+    // Reads live cash/balances another tab or device can change seconds earlier — see the
+    // comment in src/app/providers.tsx on why this is opted in here specifically rather than
+    // left as the app-wide default.
+    refetchOnMount: "always",
   });
 }
 
@@ -142,6 +146,7 @@ export function useDayBookRange(from: string, to: string, enabled: boolean) {
       return { from: body.from ?? from, to: body.to ?? to, days: Array.isArray(body.days) ? body.days : [] };
     },
     staleTime: 30_000,
+    refetchOnMount: "always",
   });
 }
 

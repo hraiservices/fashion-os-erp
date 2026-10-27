@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersLight } from "@/hooks/use-orders-light";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useCustomers } from "@/hooks/use-customers";
 import { buildCustomerLedger } from "@/lib/customer-ledger";
@@ -78,7 +78,7 @@ const CUSTOMER_BALANCES_AUTO_HIDE = { belowWidth: 1920, keys: ["invoices", "life
  *  to apply the range everywhere for consistency. */
 export default function CustomerBalancesPage() {
   const router = useRouter();
-  const { data: orders, isLoading: l1 } = useOrders();
+  const { data: orders, isLoading: l1 } = useOrdersLight();
   const { data: invoices, isLoading: l2 } = useSalesInvoices();
   const { data: customers, isLoading: l3 } = useCustomers();
   const isLoading = l1 || l2 || l3;

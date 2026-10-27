@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { FileDown, Printer, Scissors } from "lucide-react";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersLight } from "@/hooks/use-orders-light";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { inr, fmtDate } from "@/lib/format";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -21,7 +21,7 @@ import { BackLink } from "@/components/ui/back-link";
  * Orders page header.
  */
 export default function OrdersPrintPage() {
-  const { data: orders, isLoading } = useOrders();
+  const { data: orders, isLoading } = useOrdersLight();
   const { data: shop } = useShopSettings();
 
   const [dateField, setDateField] = useState<"order" | "delivery">("order");

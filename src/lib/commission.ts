@@ -1,12 +1,12 @@
-import type { Employee, Order } from "@/lib/types";
+import type { Employee, OrderLight } from "@/lib/types";
 
 /** orders.tailor stores an employee id (see add_tailor_piece_rate.sql — every tailor field in
  *  the app was upgraded from a free-text name match to a real id). */
-export function ordersForEmployee(employee: Employee, orders: Order[]): Order[] {
+export function ordersForEmployee<T extends Pick<OrderLight, "tailor">>(employee: Employee, orders: T[]): T[] {
   return orders.filter((o) => o.tailor === employee.id);
 }
 
-export function computeCommission(employee: Employee, orders: Order[]): { attributedOrders: number; attributedValue: number; commission: number } {
+export function computeCommission(employee: Employee, orders: OrderLight[]): { attributedOrders: number; attributedValue: number; commission: number } {
   const attributed = ordersForEmployee(employee, orders);
   const attributedValue = attributed.reduce((s, o) => s + (o.total || 0), 0);
   let commission = 0;

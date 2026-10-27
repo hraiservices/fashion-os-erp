@@ -1,7 +1,7 @@
 // Combines stitching orders and sales invoices into one per-customer ledger — the two
 // numbers are always kept separate (Stitch Due vs Sales Due) and only summed into a
 // "Total Due" for the collection-follow-up view, never merged silently elsewhere.
-import type { Order, Customer } from "@/lib/types";
+import type { Order, OrderLight, Customer } from "@/lib/types";
 import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import { getOrderOutstanding, getInvoiceOutstanding } from "@/lib/balances";
 import { STAGE_META, type Stage } from "@/lib/business-rules";
@@ -17,7 +17,7 @@ export interface CustomerLedgerRow {
   lifetime: number;
 }
 
-export function buildCustomerLedger(orders: Order[], invoices: SalesInvoiceWithBalance[], customers: Customer[]): CustomerLedgerRow[] {
+export function buildCustomerLedger(orders: OrderLight[], invoices: SalesInvoiceWithBalance[], customers: Customer[]): CustomerLedgerRow[] {
   const rows = new Map<string, CustomerLedgerRow>();
 
   function ensure(mobile: string, name: string): CustomerLedgerRow {

@@ -23,7 +23,7 @@ import { UsersDuotoneIcon, type IconComponent } from "@/components/icons/duotone
 import { useEmployees } from "@/hooks/use-employees";
 import { useUserRoles } from "@/hooks/use-user-roles";
 import { useCustomers } from "@/hooks/use-customers";
-import { useOrders } from "@/hooks/use-orders";
+import { useOrdersLight } from "@/hooks/use-orders-light";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { useDeploymentStatus } from "@/hooks/use-deployment-status";
 import { MODULE_CATALOG } from "@/lib/entitlements";
@@ -97,7 +97,7 @@ export function AdminConsoleSection() {
   const { data: employees, isLoading: l1 } = useEmployees();
   const { data: userRoles, isLoading: l2 } = useUserRoles();
   const { data: customers, isLoading: l3 } = useCustomers();
-  const { data: orders, isLoading: l4 } = useOrders();
+  const { data: orders, isLoading: l4 } = useOrdersLight();
   const { data: entitlements, isLoading: l5 } = useModuleEntitlements();
   const { data: deployStatus, isLoading: l6 } = useDeploymentStatus();
   const [customerSearch, setCustomerSearch] = useState("");

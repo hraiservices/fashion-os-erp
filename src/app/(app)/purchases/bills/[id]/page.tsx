@@ -5,8 +5,9 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Wallet, Undo2, Trash2, Pencil } from "lucide-react";
 import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
-import { usePurchaseBill } from "@/hooks/use-purchase-bills";
-import { useVendor } from "@/hooks/use-vendors";
+import { usePurchaseBill, usePurchaseBills } from "@/hooks/use-purchase-bills";
+import { useVendor, useVendors } from "@/hooks/use-vendors";
+import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
 import { useVendorPaymentsForBill } from "@/hooks/use-vendor-payments";
 import { useVendorCreditsForBill } from "@/hooks/use-vendor-credits";
 import { useDeleteBill } from "@/hooks/use-purchase-mutations";
@@ -41,6 +42,8 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
   const router = useRouter();
   const { data: bill, isLoading } = usePurchaseBill(id);
   const { data: vendor } = useVendor(bill?.vendorId || "");
+  const { data: allBills } = usePurchaseBills();
+  const { data: allVendors } = useVendors();
   const { data: payments } = useVendorPaymentsForBill(id);
   const { data: credits } = useVendorCreditsForBill(id);
   const { data: user } = useCurrentUser();
@@ -74,16 +77,31 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
     );
   }
 
+  const vendorNameById = new Map((allVendors || []).map((v) => [v.id, v.name]));
+  const sidebarItems = (allBills || []).map((b) => ({
+    id: b.id,
+    title: b.billNumber,
+    subtitle: vendorNameById.get(b.vendorId) || fmtDate(b.billDate),
+    amountLabel: b.balance > 0 ? `${inr(b.balance)} due` : "Paid",
+    amountTone: b.balance > 0 ? ("due" as const) : ("plain" as const),
+    href: `/purchases/bills/${b.id}`,
+  }));
+
   if (!bill) {
     return (
-      <div className="p-6">
-        <EmptyState icon={ReceiptDuotoneIcon} title="Bill not found" />
+      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+        <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search bills…" emptyLabel="No bills yet" />
+        <div className="min-w-0 flex-1 p-2">
+          <EmptyState icon={ReceiptDuotoneIcon} title="Bill not found" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search bills…" emptyLabel="No bills yet" />
+      <div className="min-w-0 max-w-6xl flex-1 space-y-4">
       <BackLink href="/purchases/bills">Bills</BackLink>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -313,6 +331,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
           <RaiseVendorCreditDialog open={creditOpen} onOpenChange={setCreditOpen} vendorId={bill.vendorId} billId={bill.id} billNumber={bill.billNumber} />
         </>
       )}
+      </div>
     </div>
   );
 }

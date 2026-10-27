@@ -12,7 +12,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fmtDateShort, inr } from "@/lib/format";
 import type { TaskDto } from "@/lib/targets-types";
-import { useAddLeadActivity, useConvertLead, useDeleteLead, useLead, usePatchTask, useProjects, useTargetsMeta } from "@/hooks/use-targets";
+import { useAddLeadActivity, useConvertLead, useDeleteLead, useLead, useLeads, usePatchTask, useProjects, useTargetsMeta } from "@/hooks/use-targets";
+import { stageLabel } from "@/lib/lead-stages";
+import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { DEFAULT_LEAD_TEMPLATES, LEAD_TEMPLATE_SETTING_KEY, cleanTemplates, fillTemplate } from "@/lib/lead-templates";
 import { daysQuiet, leadHeat, neededLabel, quietLevel } from "@/lib/lead-insights";
@@ -64,6 +66,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const meta = useTargetsMeta().data;
   const { nameOf } = useStaffLookup(meta);
   const { data, isLoading } = useLead(id);
+  const { data: allLeadsData } = useLeads({});
   const projects = useProjects().data ?? [];
   const addActivity = useAddLeadActivity();
   const followUp = useLeadFollowUp(meta);
@@ -79,8 +82,26 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const [text, setText] = useState("");
   const [confirm, setConfirm] = useState(false);
 
+  const sidebarItems = (allLeadsData?.leads ?? []).map((l) => ({
+    id: l.id,
+    title: l.name,
+    subtitle: `${stageLabel(l.stage, meta?.stageLabels)}${l.productInterest ? ` · ${l.productInterest}` : ""}`,
+    amountLabel: l.expectedValue > 0 ? inr(l.expectedValue) : undefined,
+    amountTone: "plain" as const,
+    href: `/targets/leads/${l.id}`,
+  }));
+
   if (isLoading) return <Skeleton className="mx-auto h-64 w-full max-w-6xl" />;
-  if (!data) return <p className="text-sm text-muted-foreground">Lead not found.</p>;
+  if (!data) {
+    return (
+      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+        <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search leads…" emptyLabel="No leads yet" />
+        <div className="min-w-0 flex-1 p-2">
+          <p className="text-sm text-muted-foreground">Lead not found.</p>
+        </div>
+      </div>
+    );
+  }
   const { lead, activities, tasks, customer, duplicates } = data;
   const heat = leadHeat(lead, meta?.today ?? "");
   const needed = neededLabel(lead.neededBy, meta?.today ?? "");
@@ -125,7 +146,9 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl p-4 sm:p-6 space-y-5 pb-8">
+    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search leads…" emptyLabel="No leads yet" />
+      <div className="min-w-0 w-full max-w-6xl flex-1 space-y-5 pb-8">
       <div className="flex items-center justify-between gap-2">
         <BackLink href="/targets?tab=leads">Leads</BackLink>
         <ShareButton title="Share lead" build={(origin) => leadShareMessage(lead, { origin, today: meta?.today ?? "", nameOf }, { labels: meta?.stageLabels, nextFollowUp: nextFollowUp(tasks) })} />
@@ -379,6 +402,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
 
       <StageSheet lead={lead} open={stageOpen} onOpenChange={setStageOpen} labels={meta?.stageLabels} />
       <TaskSheet open={!!editTask} onOpenChange={(o) => !o && setEditTask(null)} meta={meta} projects={projects} task={editTask} />
+      </div>
     </div>
   );
 }

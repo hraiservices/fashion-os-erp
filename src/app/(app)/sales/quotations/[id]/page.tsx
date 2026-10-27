@@ -5,7 +5,8 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Receipt, Ban, Pencil } from "lucide-react";
 import { FileTextDuotoneIcon } from "@/components/icons/duotone-icons";
-import { useSalesQuotation } from "@/hooks/use-sales-quotations";
+import { useSalesQuotation, useSalesQuotations } from "@/hooks/use-sales-quotations";
+import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
 import { useSetQuotationStatus } from "@/hooks/use-sales-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr, fmtDate } from "@/lib/format";
@@ -31,6 +32,7 @@ import {
 export default function QuotationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: quote, isLoading } = useSalesQuotation(id);
+  const { data: allQuotes } = useSalesQuotations();
   const { data: user } = useCurrentUser();
   const setStatus = useSetQuotationStatus();
 
@@ -58,16 +60,30 @@ export default function QuotationDetailPage({ params }: { params: Promise<{ id: 
     );
   }
 
+  const sidebarItems = (allQuotes || []).map((q) => ({
+    id: q.id,
+    title: q.quoteNumber,
+    subtitle: q.customerName,
+    amountLabel: inr(q.total),
+    amountTone: "plain" as const,
+    href: `/sales/quotations/${q.id}`,
+  }));
+
   if (!quote) {
     return (
-      <div className="p-6">
-        <EmptyState icon={FileTextDuotoneIcon} title="Quotation not found" />
+      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+        <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search quotations…" emptyLabel="No quotations yet" />
+        <div className="min-w-0 flex-1 p-2">
+          <EmptyState icon={FileTextDuotoneIcon} title="Quotation not found" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search quotations…" emptyLabel="No quotations yet" />
+      <div className="min-w-0 max-w-6xl flex-1 space-y-4">
       <BackLink href="/sales/quotations">Quotations</BackLink>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -167,6 +183,7 @@ export default function QuotationDetailPage({ params }: { params: Promise<{ id: 
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

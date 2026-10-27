@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Factory, ArrowRight, CheckCircle2, Trash2, Pencil } from "lucide-react";
 import { useWorkOrder, useWorkOrders } from "@/hooks/use-work-orders";
 import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
+import { RecordPrevNext } from "@/components/ui/record-prev-next";
 import { useAdvanceWoStatus, useDeleteWorkOrder } from "@/hooks/use-work-order-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useTailorName } from "@/hooks/use-employees";
@@ -110,7 +111,10 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
     <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search work orders…" emptyLabel="No work orders yet" />
       <div className="min-w-0 max-w-6xl flex-1 space-y-4">
-      <BackLink href="/manufacturing">Manufacturing</BackLink>
+      <div className="flex items-center justify-between gap-2">
+        <BackLink href="/manufacturing">Manufacturing</BackLink>
+        <RecordPrevNext items={sidebarItems} activeId={id} />
+      </div>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

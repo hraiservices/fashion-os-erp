@@ -7,6 +7,7 @@ import { Receipt, Ban, Pencil } from "lucide-react";
 import { FileTextDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useSalesQuotation, useSalesQuotations } from "@/hooks/use-sales-quotations";
 import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
+import { RecordPrevNext } from "@/components/ui/record-prev-next";
 import { useSetQuotationStatus } from "@/hooks/use-sales-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr, fmtDate } from "@/lib/format";
@@ -84,7 +85,10 @@ export default function QuotationDetailPage({ params }: { params: Promise<{ id: 
     <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search quotations…" emptyLabel="No quotations yet" />
       <div className="min-w-0 max-w-6xl flex-1 space-y-4">
-      <BackLink href="/sales/quotations">Quotations</BackLink>
+      <div className="flex items-center justify-between gap-2">
+        <BackLink href="/sales/quotations">Quotations</BackLink>
+        <RecordPrevNext items={sidebarItems} activeId={id} />
+      </div>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

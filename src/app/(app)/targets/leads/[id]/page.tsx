@@ -15,6 +15,7 @@ import type { TaskDto } from "@/lib/targets-types";
 import { useAddLeadActivity, useConvertLead, useDeleteLead, useLead, useLeads, usePatchTask, useProjects, useTargetsMeta } from "@/hooks/use-targets";
 import { stageLabel } from "@/lib/lead-stages";
 import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
+import { RecordPrevNext } from "@/components/ui/record-prev-next";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { DEFAULT_LEAD_TEMPLATES, LEAD_TEMPLATE_SETTING_KEY, cleanTemplates, fillTemplate } from "@/lib/lead-templates";
 import { daysQuiet, leadHeat, neededLabel, quietLevel } from "@/lib/lead-insights";
@@ -151,7 +152,10 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       <div className="min-w-0 w-full max-w-6xl flex-1 space-y-5 pb-8">
       <div className="flex items-center justify-between gap-2">
         <BackLink href="/targets?tab=leads">Leads</BackLink>
-        <ShareButton title="Share lead" build={(origin) => leadShareMessage(lead, { origin, today: meta?.today ?? "", nameOf }, { labels: meta?.stageLabels, nextFollowUp: nextFollowUp(tasks) })} />
+        <div className="flex items-center gap-2">
+          <RecordPrevNext items={sidebarItems} activeId={id} />
+          <ShareButton title="Share lead" build={(origin) => leadShareMessage(lead, { origin, today: meta?.today ?? "", nameOf }, { labels: meta?.stageLabels, nextFollowUp: nextFollowUp(tasks) })} />
+        </div>
       </div>
 
       <div className="space-y-3 rounded-xl border bg-card p-4">

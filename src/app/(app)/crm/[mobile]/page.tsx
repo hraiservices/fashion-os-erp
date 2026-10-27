@@ -44,6 +44,7 @@ import { CustomerPhotoAvatar } from "@/components/crm/customer-photo-avatar";
 import { CustomerSpendChart, buildCustomerSpendByMonth } from "@/components/crm/customer-spend-chart";
 import { CustomerActivityTimeline } from "@/components/crm/customer-activity-timeline";
 import { CustomerSidebarList } from "@/components/crm/customer-sidebar-list";
+import { RecordPrevNext } from "@/components/ui/record-prev-next";
 import { BackLink } from "@/components/ui/back-link";
 import {
   AlertDialog,
@@ -201,7 +202,10 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
     <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
       <CustomerSidebarList profiles={profiles} invoices={allInvoices} activeMobile={mobile} />
       <div className="min-w-0 max-w-7xl flex-1 space-y-4">
-      <BackLink href="/crm">Customers</BackLink>
+      <div className="flex items-center justify-between gap-2">
+        <BackLink href="/crm">Customers</BackLink>
+        <RecordPrevNext items={profiles.map((p) => ({ id: p.mobile, href: `/crm/${p.mobile}` }))} activeId={mobile} />
+      </div>
 
       <div className="rounded-xl border bg-card p-4 sm:p-5">
         <div className="flex items-start gap-4">

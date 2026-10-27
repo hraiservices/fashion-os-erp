@@ -169,11 +169,17 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
       return;
     }
 
+    // Rows are independent writes (each its own order or invoice), so there's no reason to wait
+    // for one to land before starting the next — recording them one at a time serialized the
+    // whole batch behind each row's own network/DB round trip (18 rows x ~5s = 90+s). Firing them
+    // together cuts the wall-clock time to roughly one row's worth, and a failure in one row
+    // doesn't block or roll back the others, so there's no "stopped after N" case to handle —
+    // every row is attempted and the result says exactly which ones didn't make it.
     setProgress({ done: 0, total: toApply.length });
-    for (let i = 0; i < toApply.length; i++) {
-      const row = toApply[i];
-      const amt = Math.min(rowPayments[row.id] || 0, row.due);
-      try {
+    let done = 0;
+    const results = await Promise.allSettled(
+      toApply.map(async (row) => {
+        const amt = Math.min(rowPayments[row.id] || 0, row.due);
         if (row.kind === "order") {
           await recordOrderPayment.mutateAsync({
             orderId: row.item.id, amount: amt, payMethod: method, note, date,
@@ -185,20 +191,26 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
             amount: amt, method, date, note, userEmail: user?.email, accountId: accountId || undefined, reference,
           });
         }
-        setProgress({ done: i + 1, total: toApply.length });
-      } catch (e) {
-        toast.error(
-          `Stopped after ${i} of ${toApply.length} — ${row.number} failed: ${e instanceof Error ? e.message : "Payment failed"}. ` +
-            `${i > 0 ? "Earlier payments in this batch were already recorded." : ""}`
-        );
-        setProgress(null);
-        return;
-      }
+        done += 1;
+        setProgress({ done, total: toApply.length });
+      })
+    );
+
+    const failed = results.flatMap((r, i) => (r.status === "rejected" ? [{ row: toApply[i], reason: r.reason }] : []));
+    const succeeded = toApply.length - failed.length;
+    if (failed.length > 0) {
+      // Credit (creditToApply/excess) was sized against the full batch's intended allocation, so
+      // with some rows unrecorded it would no longer match what actually landed — skip it rather
+      // than apply a now-wrong amount, and leave the form in place so the failed rows can be retried.
+      toast.error(
+        `${succeeded} of ${toApply.length} payments recorded. Failed: ${failed.map((f) => `${f.row.number} (${f.reason instanceof Error ? f.reason.message : "Payment failed"})`).join(", ")}.` +
+          (succeeded > 0 ? " Credit wasn't applied — retry the failed rows, then submit again." : ""),
+        { duration: 12000 }
+      );
+      setProgress(null);
+      return;
     }
 
-    // Credit is only touched once every row payment above has actually landed — redeeming or
-    // issuing first and then having a row fail partway would leave the ledger out of sync with
-    // what was really applied.
     try {
       if (creditToApply > 0 && selectedMobile) {
         await redeemCredit.mutateAsync({ mobile: selectedMobile, amount: creditToApply, note: `Applied to payment on ${date}` });

@@ -6,7 +6,7 @@ import { mapPosSessionRow } from "@/lib/types";
 import { logAction } from "@/lib/logging";
 
 const openSchema = z.object({ action: z.literal("open"), openingCash: z.number().min(0) });
-const closeSchema = z.object({ action: z.literal("close"), sessionId: z.string().min(1), closingCash: z.number().min(0) });
+const closeSchema = z.object({ action: z.literal("close"), sessionId: z.string().min(1), closingCash: z.number().min(0), notes: z.string().max(2000).optional() });
 const bodySchema = z.discriminatedUnion("action", [openSchema, closeSchema]);
 
 /**
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ session: mapPosSessionRow(data) });
   }
 
-  const { sessionId, closingCash } = parsed.data;
+  const { sessionId, closingCash, notes } = parsed.data;
   const { data: session } = await db.from("pos_sessions").select("id, status, opening_cash").eq("id", sessionId).maybeSingle();
   if (!session) return NextResponse.json({ error: "Register session not found" }, { status: 404 });
   if (session.status !== "open") return NextResponse.json({ error: "That register session is already closed." }, { status: 409 });
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
 
   const { error } = await db
     .from("pos_sessions")
-    .update({ status: "closed", closed_at: new Date().toISOString(), closing_cash: closingCash, expected_cash: expectedCash })
+    .update({ status: "closed", closed_at: new Date().toISOString(), closing_cash: closingCash, expected_cash: expectedCash, notes: notes?.trim() || "" })
     .eq("id", sessionId)
     .eq("status", "open");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

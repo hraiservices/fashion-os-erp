@@ -1,19 +1,46 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ScanBarcode, Camera, Trash2, Plus, Minus, User, X, Lock, Unlock, Printer, PauseCircle, PlayCircle, Undo2, Percent } from "lucide-react";
+import {
+  ScanBarcode,
+  Camera,
+  Trash2,
+  Plus,
+  Minus,
+  User,
+  X,
+  Lock,
+  Unlock,
+  Printer,
+  PauseCircle,
+  PlayCircle,
+  Undo2,
+  Percent,
+  Star,
+  Tag,
+  Gift,
+  WifiOff,
+  MessageCircle,
+  ListPlus,
+} from "lucide-react";
 import { useProducts } from "@/hooks/use-products";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
-import { useSaveInvoice, useRaiseSalesCreditNote } from "@/hooks/use-sales-mutations";
-import { useOpenPosSession, useOpenRegister, useCloseRegister, useSessionCashTotal, useSessionSalesSummary } from "@/hooks/use-pos-session";
+import { useAppSetting } from "@/hooks/use-app-setting";
+import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
+import { useSaveInvoice, useRaiseSalesCreditNote, type SaveInvoiceInput } from "@/hooks/use-sales-mutations";
+import { useOpenPosSession, useOpenRegister, useCloseRegister, useSessionCashTotal, useSessionSalesSummary, useLastClosedSession } from "@/hooks/use-pos-session";
 import { genInvoiceNumber, genSalesCreditNumber, computeLineItemsTotal, type SalesLineItem } from "@/lib/sales";
 import { computeInvoiceTotals, type DiscountType } from "@/lib/invoice-totals";
+import { computeRedemption } from "@/lib/business-rules";
 import { printThermalReceipt } from "@/lib/thermal-receipt";
+import { printBarcodeLabel } from "@/lib/barcode";
 import { hapticSuccess, hapticError } from "@/lib/haptics";
 import { isLowStock } from "@/lib/inventory";
 import { inr } from "@/lib/format";
+import { getQueuedSales, queueSale, removeQueuedSale, isNetworkFailure } from "@/lib/pos-offline-queue";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,12 +53,14 @@ import { CustomerPicker } from "@/components/sales/customer-picker";
 import { BarcodeScannerModal } from "@/components/pos/barcode-scanner-modal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { mapSalesInvoiceRow, type Customer, type SalesInvoice } from "@/lib/types";
 import { istDateString } from "@/lib/ist-date";
 
 const TENDER_METHODS = ["Cash", "UPI", "Bank Transfer", "Cheque", "Card"];
 const QUICK_DISCOUNTS = [0, 5, 10, 20];
+const PINNED_PRODUCTS_KEY = "posPinnedProducts";
 
 // Deterministic per-product color accent (hashed from id) — purely visual, so the product grid
 // reads as a real tap-friendly POS tile board instead of a flat list of identical gray cards.
@@ -77,6 +106,7 @@ interface HeldSale {
 
 function OpenRegisterGate() {
   const { data: user } = useCurrentUser();
+  const { data: lastClosed } = useLastClosedSession();
   const openRegister = useOpenRegister();
   const [opening, setOpening] = useState(0);
 
@@ -100,6 +130,12 @@ function OpenRegisterGate() {
       <Button className="w-full" onClick={handleOpen} disabled={openRegister.isPending}>
         <Unlock className="size-4" /> {openRegister.isPending ? "Opening…" : "Open Register"}
       </Button>
+      {lastClosed?.notes && (
+        <div className="w-full rounded-lg border bg-muted/40 p-3 text-left">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Note from last shift</p>
+          <p className="mt-1 whitespace-pre-wrap text-sm">{lastClosed.notes}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -108,6 +144,7 @@ function CloseRegisterDialog({ open, onOpenChange, sessionId, openingCash }: { o
   const { data: cashSales } = useSessionCashTotal(open ? sessionId : undefined);
   const closeRegister = useCloseRegister();
   const [counted, setCounted] = useState("");
+  const [notes, setNotes] = useState("");
 
   const expected = openingCash + (cashSales || 0);
   const countedNum = parseFloat(counted) || 0;
@@ -115,10 +152,11 @@ function CloseRegisterDialog({ open, onOpenChange, sessionId, openingCash }: { o
 
   async function handleClose() {
     try {
-      await closeRegister.mutateAsync({ sessionId, closingCash: countedNum, expectedCash: expected });
+      await closeRegister.mutateAsync({ sessionId, closingCash: countedNum, expectedCash: expected, notes });
       toast.success("Register closed");
       onOpenChange(false);
       setCounted("");
+      setNotes("");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to close register");
     }
@@ -150,6 +188,10 @@ function CloseRegisterDialog({ open, onOpenChange, sessionId, openingCash }: { o
               {variance === 0 ? "Matches exactly" : variance > 0 ? `₹${variance.toFixed(2)} over` : `₹${Math.abs(variance).toFixed(2)} short`}
             </p>
           )}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium">Handover note for the next shift (optional)</label>
+            <Textarea placeholder="e.g. ₹500 taken to bank, register float short by ₹20" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -357,21 +399,96 @@ function ReturnDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
   );
 }
 
+interface QuickAddProduct {
+  id: string;
+  name: string;
+  sku: string;
+  barcode: string | null;
+  sellingPrice: number;
+}
+
+/** Paste/scan a batch of SKUs (one per line, optionally "SKU x3" for a quantity) and build the
+ *  whole cart in one shot — for phone/WhatsApp pre-orders being collected in person, where
+ *  someone already typed up the item list elsewhere and retyping it into the scan box one line
+ *  at a time is pure friction. */
+function QuickAddDialog({
+  open,
+  onOpenChange,
+  products,
+  onAdd,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  products: QuickAddProduct[];
+  onAdd: (lines: { product: QuickAddProduct; qty: number }[]) => void;
+}) {
+  const [text, setText] = useState("");
+
+  function parseAndAdd() {
+    const lines = text
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length === 0) return;
+
+    const resolved: { product: QuickAddProduct; qty: number }[] = [];
+    const notFound: string[] = [];
+    for (const line of lines) {
+      const match = line.match(/^(.+?)(?:\s*[x×]\s*(\d+))?$/i);
+      const code = (match?.[1] || line).trim();
+      const qty = match?.[2] ? parseInt(match[2], 10) : 1;
+      const product = products.find((p) => p.barcode === code || p.sku.toLowerCase() === code.toLowerCase());
+      if (product) resolved.push({ product, qty: qty > 0 ? qty : 1 });
+      else notFound.push(code);
+    }
+
+    if (resolved.length > 0) onAdd(resolved);
+    if (notFound.length > 0) toast.error(`Not found: ${notFound.join(", ")}`);
+    if (resolved.length > 0) {
+      onOpenChange(false);
+      setText("");
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Quick Add from List</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">One SKU or barcode per line. Add &quot; x3&quot; for a quantity.</p>
+          <Textarea placeholder={"AD-0001 x2\nMI-0001\nOLD"} value={text} onChange={(e) => setText(e.target.value)} rows={8} className="font-mono text-sm" autoFocus />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={parseAndAdd} disabled={!text.trim()}>Add to Cart</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash: number }) {
   const { data: user } = useCurrentUser();
   const { data: products, isLoading: productsLoading } = useProducts();
   const { data: shop } = useShopSettings();
   const { data: salesSummary } = useSessionSalesSummary(sessionId);
+  const { data: loyaltyCfg } = useLoyaltyConfig();
+  const { data: pinnedIds, save: savePinned } = useAppSetting<string[]>(PINNED_PRODUCTS_KEY, []);
   const saveInvoice = useSaveInvoice();
+  const qc = useQueryClient();
 
   const [scanValue, setScanValue] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [qtyPreset, setQtyPreset] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [tenders, setTenders] = useState<{ method: string; amount: string }[]>([{ method: "Cash", amount: "" }]);
   const [saleDiscountType, setSaleDiscountType] = useState<DiscountType>("percent");
   const [saleDiscountValue, setSaleDiscountValue] = useState("");
@@ -380,12 +497,24 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
   const [submitting, setSubmitting] = useState(false);
   const [autoPrint, setAutoPrint] = useState(true);
   const [lastReceipt, setLastReceipt] = useState<Parameters<typeof printThermalReceipt>[0] | null>(null);
+  const [appliedLoyalty, setAppliedLoyalty] = useState<{ discount: number; ptsUsed: number } | null>(null);
+  const [redeemingPoints, setRedeemingPoints] = useState(false);
+  const [queuedCount, setQueuedCount] = useState(() => getQueuedSales().length);
   const scanRef = useRef<HTMLInputElement>(null);
   // Set once per checkout attempt and reused across retries of the SAME sale (a network
   // timeout where the first request may have actually gone through) — only cleared after a
   // successful sale or a fresh page load, never regenerated on retry. See the API route's
   // idempotencyKey handling (add_invoice_idempotency_key.sql).
   const idempotencyKeyRef = useRef<string | null>(null);
+
+  const pinnedSet = useMemo(() => new Set(pinnedIds || []), [pinnedIds]);
+  const pinnedProducts = useMemo(() => (products || []).filter((p) => p.active && pinnedSet.has(p.id)), [products, pinnedSet]);
+
+  function togglePinned(productId: string) {
+    const current = pinnedIds || [];
+    const next = current.includes(productId) ? current.filter((id) => id !== productId) : [...current, productId];
+    savePinned.mutate(next);
+  }
 
   const lineItems = useMemo<SalesLineItem[]>(
     () =>
@@ -403,17 +532,32 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
   const saleDiscountNum = parseFloat(saleDiscountValue) || 0;
   const totals = useMemo(() => computeInvoiceTotals(lineItems, 0, saleDiscountType, saleDiscountNum, 0, "none"), [lineItems, saleDiscountType, saleDiscountNum]);
   const total = totals.total;
-  const tenderTotal = tenders.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
+  const tenderTotal = tenders.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0) + (appliedLoyalty?.discount || 0);
   const remaining = Math.max(0, Math.round((total - tenderTotal) * 100) / 100);
 
   const categories = useMemo(() => Array.from(new Set((products || []).filter((p) => p.active).map((p) => p.category).filter(Boolean))).sort(), [products]);
 
-  function addProduct(p: { id: string; name: string; sellingPrice: number }) {
+  // Available once a real (non walk-in) customer with enough points is picked. Computed against
+  // what's left to pay BEFORE this redemption, same as the stitching-order flow.
+  const beforeLoyaltyRemaining = Math.max(0, Math.round((total - tenders.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0)) * 100) / 100);
+  const redemptionPreview = useMemo(
+    () => (customer && loyaltyCfg?.enabled && !appliedLoyalty ? computeRedemption(customer.loyaltyPoints, beforeLoyaltyRemaining, loyaltyCfg) : null),
+    [customer, loyaltyCfg, beforeLoyaltyRemaining, appliedLoyalty]
+  );
+
+  function addProduct(p: { id: string; name: string; sellingPrice: number }, qty = 1) {
     setCart((rows) => {
       const existing = rows.find((r) => r.productId === p.id);
-      if (existing) return rows.map((r) => (r.productId === p.id ? { ...r, qty: r.qty + 1 } : r));
-      return [...rows, { productId: p.id, productName: p.name, qty: 1, unitPrice: p.sellingPrice, discountPercent: 0 }];
+      if (existing) return rows.map((r) => (r.productId === p.id ? { ...r, qty: r.qty + qty } : r));
+      return [...rows, { productId: p.id, productName: p.name, qty, unitPrice: p.sellingPrice, discountPercent: 0 }];
     });
+  }
+
+  /** Tile click handler — adds the qty typed into the "Qty" box (quantity-first entry), or 1. */
+  function handleTileAdd(p: { id: string; name: string; sellingPrice: number }) {
+    const preset = parseInt(qtyPreset, 10);
+    addProduct(p, preset > 0 ? preset : 1);
+    if (qtyPreset) setQtyPreset("");
   }
 
   function updateLineDiscount(productId: string, discountPercent: number) {
@@ -449,6 +593,67 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
 
   function discardHeldSale(id: string) {
     setHeldSales((h) => h.filter((x) => x.id !== id));
+  }
+
+  async function applyLoyaltyRedemption() {
+    if (!customer || !redemptionPreview?.canRedeem) return;
+    setRedeemingPoints(true);
+    try {
+      const res = await fetch("/api/pos/redeem-loyalty", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobile: customer.mobile, name: customer.name, maxDiscount: beforeLoyaltyRemaining, invoiceNumber: `pending-${Date.now()}` }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not redeem points");
+      setAppliedLoyalty({ discount: data.discount, ptsUsed: data.ptsUsed });
+      toast.success(`Applied ${inr(data.discount)} from ${data.ptsUsed} points`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not redeem points");
+    } finally {
+      setRedeemingPoints(false);
+    }
+  }
+
+  async function undoLoyaltyRedemption() {
+    if (!appliedLoyalty || !customer) return;
+    const { ptsUsed } = appliedLoyalty;
+    setAppliedLoyalty(null);
+    try {
+      await fetch("/api/pos/undo-redeem-loyalty", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobile: customer.mobile, name: customer.name, pts: ptsUsed, invoiceNumber: "cancelled-before-checkout" }),
+      });
+    } catch {
+      toast.error("Could not return the points automatically — ask an admin to credit them back manually.");
+    }
+  }
+
+  async function generateBarcode(p: { id: string; name: string; sku: string; sellingPrice: number }) {
+    try {
+      const res = await fetch(`/api/inventory/products/${p.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: p.name, barcode: p.sku }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not generate a barcode");
+      printBarcodeLabel({ name: p.name, sku: p.sku, barcode: p.sku, sellingPrice: p.sellingPrice });
+      qc.invalidateQueries({ queryKey: ["products"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not generate a barcode");
+    }
+  }
+
+  function sendReceiptWhatsApp() {
+    if (!lastReceipt || !customer?.mobile) return;
+    const itemLines = lastReceipt.items.map((i) => `${i.productName} ×${i.qty} — ${inr(i.amount)}`).join("\n");
+    const message =
+      `Dear ${customer.name} 🙏\n\nYour receipt — *${lastReceipt.invoiceNumber}*\n\n${itemLines}\n\n*Total: ${inr(lastReceipt.total)}*` +
+      ((lastReceipt.balance || 0) > 0 ? `\nBalance due: ${inr(lastReceipt.balance || 0)}` : `\nPaid in full — thank you!`) +
+      `\n\n_${shop?.name || ""}_`;
+    window.open(`https://wa.me/91${customer.mobile.replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(message)}`, "_blank");
   }
 
   function lookupAndAdd(code: string) {
@@ -493,6 +698,41 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
     setTenders((t) => t.filter((_, i) => i !== index));
   }
 
+  // Replays queued offline sales (see lib/pos-offline-queue.ts) — each carries the exact
+  // idempotencyKey it was first submitted with, so a sale that actually reached the server
+  // before the connection dropped is recognized and skipped rather than double-booked.
+  async function flushOfflineQueue() {
+    const queue = getQueuedSales();
+    if (queue.length === 0) return;
+    for (const sale of queue) {
+      try {
+        await saveInvoice.mutateAsync(sale.input as unknown as SaveInvoiceInput);
+        removeQueuedSale(sale.idempotencyKey);
+      } catch (e) {
+        if (!isNetworkFailure(e)) {
+          // The server actually rejected it (not just unreachable) — retrying forever would
+          // never succeed, so surface it instead of silently queuing it indefinitely.
+          removeQueuedSale(sale.idempotencyKey);
+          toast.error(`Queued sale ${sale.summaryLabel} failed to sync: ${e instanceof Error ? e.message : "unknown error"}`);
+        }
+      }
+    }
+    setQueuedCount(getQueuedSales().length);
+  }
+
+  useEffect(() => {
+    // setTimeout (not a direct call) so the lint rule that forbids synchronous setState from an
+    // effect body doesn't trip on flushOfflineQueue's eventual setQueuedCount — the queue read
+    // and any resulting state update only ever happen after this effect has already committed.
+    const timer = setTimeout(flushOfflineQueue, 0);
+    window.addEventListener("online", flushOfflineQueue);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("online", flushOfflineQueue);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function completeSale() {
     if (cart.length === 0) return toast.error("Cart is empty");
     // A partial payment leaves a balance on the invoice, same as any other sales invoice —
@@ -503,38 +743,40 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
     }
     setSubmitting(true);
     if (!idempotencyKeyRef.current) idempotencyKeyRef.current = crypto.randomUUID();
+    const invoiceNumber = genInvoiceNumber();
+    const invoiceDate = istDateString();
+    // Invoice + stock ledger + payment(s) all commit as one atomic write (see the
+    // save_sales_invoice RPC) — previously the payment(s) were recorded in a separate loop
+    // of calls after the invoice save, so a network drop between them could leave stock
+    // deducted with no matching payment recorded, or one tender saved and a later one lost.
+    const payments = tenders
+      .map((t) => ({ amount: parseFloat(t.amount) || 0, method: t.method }))
+      .filter((t) => t.amount > 0)
+      .map((t) => ({ amount: t.amount, method: t.method, date: istDateString(), note: "POS sale", posSessionId: sessionId }));
+    if (appliedLoyalty) payments.push({ amount: appliedLoyalty.discount, method: "Loyalty Points", date: istDateString(), note: `${appliedLoyalty.ptsUsed} pts redeemed`, posSessionId: sessionId });
+
+    const input: SaveInvoiceInput = {
+      invoiceNumber,
+      customerMobile: customer?.mobile || "walk-in",
+      customerName: customer?.name || "Walk-in customer",
+      invoiceDate,
+      items: lineItems,
+      subject: "POS sale",
+      shippingCharges: 0,
+      discountType: saleDiscountType,
+      discountValue: saleDiscountNum,
+      gstType: "none",
+      taxRate: 0,
+      docStatus: "sent",
+      terms: "",
+      notes: "",
+      userEmail: user?.email,
+      payments,
+      idempotencyKey: idempotencyKeyRef.current,
+    };
+
     try {
-      const invoiceNumber = genInvoiceNumber();
-      const invoiceDate = istDateString();
-      // Invoice + stock ledger + payment(s) all commit as one atomic write (see the
-      // save_sales_invoice RPC) — previously the payment(s) were recorded in a separate loop
-      // of calls after the invoice save, so a network drop between them could leave stock
-      // deducted with no matching payment recorded, or one tender saved and a later one lost.
-      const payments = tenders
-        .map((t) => ({ amount: parseFloat(t.amount) || 0, method: t.method }))
-        .filter((t) => t.amount > 0)
-        .map((t) => ({ amount: t.amount, method: t.method, date: istDateString(), note: "POS sale", posSessionId: sessionId }));
-
-      await saveInvoice.mutateAsync({
-        invoiceNumber,
-        customerMobile: customer?.mobile || "walk-in",
-        customerName: customer?.name || "Walk-in customer",
-        invoiceDate,
-        items: lineItems,
-        subject: "POS sale",
-        shippingCharges: 0,
-        discountType: saleDiscountType,
-        discountValue: saleDiscountNum,
-        gstType: "none",
-        taxRate: 0,
-        docStatus: "sent",
-        terms: "",
-        notes: "",
-        userEmail: user?.email,
-        payments,
-        idempotencyKey: idempotencyKeyRef.current,
-      });
-
+      await saveInvoice.mutateAsync(input);
       hapticSuccess();
       const balanceDue = Math.max(0, Math.round((totals.total - tenderTotal) * 100) / 100);
       toast.success(balanceDue > 0 ? `Sale complete · ${invoiceNumber} · ${inr(balanceDue)} balance due` : `Sale complete · ${invoiceNumber} · ${inr(totals.total)}`);
@@ -550,7 +792,7 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
         total: totals.total,
         paid: tenderTotal,
         balance: balanceDue,
-        paymentMethod: tenders.filter((t) => (parseFloat(t.amount) || 0) > 0).map((t) => t.method).join(" + "),
+        paymentMethod: payments.map((t) => t.method).join(" + "),
         paperWidthMm: shop?.receiptPaperWidthMm,
       };
       setLastReceipt(receipt);
@@ -561,10 +803,49 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
       setCustomer(null);
       setTenders([{ method: "Cash", amount: "" }]);
       setSaleDiscountValue("");
+      setAppliedLoyalty(null);
       scanRef.current?.focus();
     } catch (e) {
-      hapticError();
-      toast.error(e instanceof Error ? e.message : "Failed to complete sale");
+      if (isNetworkFailure(e)) {
+        // Server unreachable, not rejected — queue it. The sale is "done" from the cashier's
+        // point of view (cart clears, offline receipt prints) and syncs automatically once back
+        // online (see flushOfflineQueue), deduped by the idempotencyKey already set above.
+        queueSale({
+          idempotencyKey: idempotencyKeyRef.current!,
+          queuedAt: new Date().toISOString(),
+          input: input as unknown as Record<string, unknown>,
+          summaryLabel: `${invoiceNumber} (${inr(totals.total)})`,
+        });
+        setQueuedCount(getQueuedSales().length);
+        hapticSuccess();
+        toast.success(`Offline — sale queued · ${invoiceNumber} · will sync automatically`);
+        const receipt = {
+          shopName: shop?.name || "",
+          shopPhone: shop?.phone || "",
+          logoDataUrl: shop?.logoDataUrl,
+          invoiceNumber: `${invoiceNumber} (offline — pending sync)`,
+          date: invoiceDate,
+          customerName: customer?.name,
+          items: lineItems,
+          total: totals.total,
+          paid: tenderTotal,
+          balance: Math.max(0, Math.round((totals.total - tenderTotal) * 100) / 100),
+          paymentMethod: payments.map((t) => t.method).join(" + "),
+          paperWidthMm: shop?.receiptPaperWidthMm,
+        };
+        setLastReceipt(receipt);
+        if (autoPrint) printThermalReceipt(receipt);
+        idempotencyKeyRef.current = null;
+        setCart([]);
+        setCustomer(null);
+        setTenders([{ method: "Cash", amount: "" }]);
+        setSaleDiscountValue("");
+        setAppliedLoyalty(null);
+        scanRef.current?.focus();
+      } else {
+        hapticError();
+        toast.error(e instanceof Error ? e.message : "Failed to complete sale");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -585,6 +866,11 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
         description="Fast checkout — scan or search, then take payment"
         actions={
           <>
+            {queuedCount > 0 && (
+              <span className="flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                <WifiOff className="size-3.5" /> {queuedCount} offline sale{queuedCount === 1 ? "" : "s"} pending
+              </span>
+            )}
             {salesSummary && (
               <span className="hidden items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs font-medium tabular-nums sm:flex">
                 <span className="text-muted-foreground">Today</span>
@@ -601,6 +887,14 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
                 <Printer className="size-4" /> Reprint Last
               </Button>
             )}
+            {lastReceipt && customer?.mobile && (
+              <Button variant="outline" size="sm" onClick={sendReceiptWhatsApp}>
+                <MessageCircle className="size-4" /> Send Receipt
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setQuickAddOpen(true)}>
+              <ListPlus className="size-4" /> Quick Add List
+            </Button>
             {user?.perms.manageCreditNotes && (
               <Button variant="outline" size="sm" onClick={() => setReturnOpen(true)}>
                 <Undo2 className="size-4" /> Return
@@ -637,10 +931,43 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
                 onKeyDown={handleScanSubmit}
               />
             </div>
+            {/* Quantity-first entry: type a count here, then tap a tile to add that many at
+                once instead of tapping the same tile N times. Clears itself after one use. */}
+            <Input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              placeholder="Qty"
+              title="Type a quantity, then tap a product to add that many"
+              className="h-11 w-16 text-center text-base"
+              value={qtyPreset}
+              onChange={(e) => setQtyPreset(e.target.value)}
+            />
             <Button type="button" variant="outline" size="lg" className="h-11 px-3" onClick={() => setScannerOpen(true)} aria-label="Scan with camera">
               <Camera className="size-4" />
             </Button>
           </div>
+
+          {pinnedProducts.length > 0 && (
+            <div>
+              <p className="mb-1 flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                <Star className="size-3 fill-amber-400 text-amber-500" /> Favourites
+              </p>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {pinnedProducts.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleTileAdd(p)}
+                    className={`min-w-[7.5rem] shrink-0 rounded-lg border border-l-4 bg-card p-2.5 text-left transition-colors hover:bg-muted/50 active:bg-muted ${tileAccent(p.id)}`}
+                  >
+                    <p className="truncate text-xs font-medium">{p.name}</p>
+                    <p className="mt-0.5 text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{inr(p.sellingPrice)}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {categories.length > 1 && (
             <div className="flex flex-wrap gap-1.5">
@@ -677,14 +1004,33 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
               {filteredProducts.map((p) => {
                 const outOfStock = p.stockQty <= 0;
                 const lowStock = !outOfStock && isLowStock(p.stockQty, p.lowStockAlert);
+                const pinned = pinnedSet.has(p.id);
                 return (
-                  <button
+                  <div
                     key={p.id}
-                    type="button"
-                    onClick={() => addProduct(p)}
-                    className={`min-w-0 rounded-lg border border-l-4 bg-card p-3 text-left transition-colors hover:bg-muted/50 active:bg-muted ${tileAccent(p.id)}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleTileAdd(p)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleTileAdd(p);
+                      }
+                    }}
+                    className={`relative min-w-0 cursor-pointer rounded-lg border border-l-4 bg-card p-3 text-left transition-colors hover:bg-muted/50 active:bg-muted ${tileAccent(p.id)}`}
                   >
-                    <p className="truncate text-sm font-medium">{p.name}</p>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        togglePinned(p.id);
+                      }}
+                      aria-label={pinned ? `Remove ${p.name} from favourites` : `Add ${p.name} to favourites`}
+                      className="absolute right-1.5 top-1.5 rounded p-0.5 text-muted-foreground hover:bg-background"
+                    >
+                      <Star className={cn("size-3.5", pinned && "fill-amber-400 text-amber-500")} />
+                    </button>
+                    <p className="truncate pr-5 text-sm font-medium">{p.name}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">{p.sku}</p>
                     <div className="mt-1 flex items-center justify-between gap-1">
                       <p className="text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{inr(p.sellingPrice)}</p>
@@ -696,7 +1042,19 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
                         </Badge>
                       ) : null}
                     </div>
-                  </button>
+                    {!p.barcode && user?.perms.manageInventory && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          generateBarcode(p);
+                        }}
+                        className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                      >
+                        <Tag className="size-3" /> Generate & print label
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -842,6 +1200,27 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
               />
             </div>
 
+            {appliedLoyalty ? (
+              <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-sm">
+                <span className="flex items-center gap-1.5">
+                  <Gift className="size-3.5 text-primary" /> Loyalty points applied · {appliedLoyalty.ptsUsed} pts
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">−{inr(appliedLoyalty.discount)}</span>
+                  <Button variant="ghost" size="icon-sm" className="size-7" onClick={undoLoyaltyRedemption} aria-label="Remove loyalty points redemption">
+                    <X className="size-3.5" />
+                  </Button>
+                </span>
+              </div>
+            ) : (
+              redemptionPreview?.canRedeem && (
+                <Button variant="outline" size="sm" className="w-full" onClick={applyLoyaltyRedemption} disabled={redeemingPoints}>
+                  <Gift className="size-3.5" />
+                  {redeemingPoints ? "Applying…" : `Apply ${inr(redemptionPreview.maxPtDiscount)} loyalty (${redemptionPreview.ptsToRedeem} pts)`}
+                </Button>
+              )
+            )}
+
             {tenders.map((t, i) => (
               <div key={i} className="flex items-center gap-2">
                 <select
@@ -885,6 +1264,15 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
       <BarcodeScannerModal open={scannerOpen} onOpenChange={setScannerOpen} onDetected={lookupAndAdd} />
       <HeldSalesDialog open={heldOpen} onOpenChange={setHeldOpen} heldSales={heldSales} onResume={resumeHeldSale} onDiscard={discardHeldSale} />
       <ReturnDialog open={returnOpen} onOpenChange={setReturnOpen} />
+      <QuickAddDialog
+        open={quickAddOpen}
+        onOpenChange={setQuickAddOpen}
+        products={(products || []).filter((p) => p.active)}
+        onAdd={(lines) => {
+          lines.forEach(({ product, qty }) => addProduct(product, qty));
+          toast.success(`Added ${lines.length} item${lines.length === 1 ? "" : "s"} to cart`);
+        }}
+      />
     </div>
   );
 }

@@ -10,6 +10,9 @@ const patchSchema = z.object({
   /** Archive/unarchive — the only way to actually retire a product that has stock ledger
    *  history and so can't be hard-deleted (see DELETE below). */
   active: z.boolean().optional(),
+  /** Set from POS "Generate & Print Label" for a product that has none yet (see
+   *  pos/page.tsx's generateBarcode) — the scanner has nothing to scan without one. */
+  barcode: z.string().min(1).optional(),
 });
 
 /** Targeted single-field patch (e.g. inline table editing, archive/unarchive) — unlike the full
@@ -25,17 +28,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const parsed = patchSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-  const { sellingPrice, name, active } = parsed.data;
+  const { sellingPrice, name, active, barcode } = parsed.data;
 
-  const update: { selling_price?: number; active?: boolean } = {};
+  const update: { selling_price?: number; active?: boolean; barcode?: string } = {};
   if (sellingPrice !== undefined) update.selling_price = sellingPrice;
   if (active !== undefined) update.active = active;
+  if (barcode !== undefined) update.barcode = barcode;
 
   const { error } = await db.from("products").update(update).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   if (sellingPrice !== undefined) await logAction(supabase, user.email, `Product price updated: ${name} → ${sellingPrice}`);
   if (active !== undefined) await logAction(supabase, user.email, `Product ${active ? "unarchived" : "archived"}: ${name}`);
+  if (barcode !== undefined) await logAction(supabase, user.email, `Barcode generated for ${name}: ${barcode}`);
   return NextResponse.json({ ok: true });
 }
 

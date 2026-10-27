@@ -5,7 +5,8 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Phone, Briefcase, Pencil, CalendarCheck, Wallet, Plus, Trash2 } from "lucide-react";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
-import { useEmployee } from "@/hooks/use-employees";
+import { useEmployee, useEmployees } from "@/hooks/use-employees";
+import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
 import { useAttendanceForEmployee } from "@/hooks/use-attendance";
 import { useAdvancesForEmployee } from "@/hooks/use-payroll";
 import { useAddAdvance, useDeleteAdvance } from "@/hooks/use-payroll-mutations";
@@ -42,6 +43,7 @@ const ATTENDANCE_TONE: Record<string, string> = {
 export default function EmployeeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: employee, isLoading } = useEmployee(id);
+  const { data: allEmployees } = useEmployees();
   const { data: attendance } = useAttendanceForEmployee(id);
   const { data: advances } = useAdvancesForEmployee(id);
   const { data: orders } = useOrders();
@@ -95,16 +97,28 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
     );
   }
 
+  const sidebarItems = (allEmployees || []).map((e) => ({
+    id: e.id,
+    title: e.name,
+    subtitle: [e.role, e.active ? null : "Inactive"].filter(Boolean).join(" · ") || undefined,
+    href: `/employees/${e.id}`,
+  }));
+
   if (!employee) {
     return (
-      <div className="p-6">
-        <EmptyState icon={Briefcase} title="Employee not found" />
+      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+        <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search employees…" emptyLabel="No employees yet" />
+        <div className="min-w-0 flex-1 p-2">
+          <EmptyState icon={Briefcase} title="Employee not found" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search employees…" emptyLabel="No employees yet" />
+      <div className="min-w-0 max-w-6xl flex-1 space-y-4">
       <BackLink href="/employees">Employees</BackLink>
 
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
@@ -221,6 +235,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
           </ul>
         )}
       </section>
+      </div>
       </div>
       </div>
     </div>

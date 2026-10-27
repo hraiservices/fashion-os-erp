@@ -4,7 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 import { Phone, Mail, MapPin, FileText, ChevronRight } from "lucide-react";
 import { FileTextDuotoneIcon, ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
-import { useVendor } from "@/hooks/use-vendors";
+import { useVendor, useVendors } from "@/hooks/use-vendors";
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { inr, fmtDate } from "@/lib/format";
@@ -14,16 +14,33 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { BalanceDue } from "@/components/ui/money-text";
 import { BackLink } from "@/components/ui/back-link";
+import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
 
 export default function VendorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: vendor, isLoading } = useVendor(id);
+  const { data: allVendors } = useVendors();
   const { data: allOrders } = usePurchaseOrders();
   const { data: allBills } = usePurchaseBills();
 
   const orders = (allOrders || []).filter((o) => o.vendorId === id);
   const bills = (allBills || []).filter((b) => b.vendorId === id);
   const totalPayable = bills.reduce((s, b) => s + b.balance, 0);
+
+  // Same payable computation as the Vendors list page: sum each vendor's bill balances.
+  const payableByVendor = new Map<string, number>();
+  (allBills || []).forEach((b) => payableByVendor.set(b.vendorId, (payableByVendor.get(b.vendorId) || 0) + b.balance));
+  const sidebarItems = (allVendors || []).map((v) => {
+    const payable = payableByVendor.get(v.id) || 0;
+    return {
+      id: v.id,
+      title: v.name,
+      subtitle: v.mobile || v.email || undefined,
+      amountLabel: payable > 0 ? `${inr(payable)} payable` : "No dues",
+      amountTone: payable > 0 ? ("due" as const) : ("plain" as const),
+      href: `/purchases/vendors/${v.id}`,
+    };
+  });
 
   if (isLoading) {
     return (
@@ -36,14 +53,19 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
 
   if (!vendor) {
     return (
-      <div className="p-6">
-        <EmptyState icon={ReceiptDuotoneIcon} title="Vendor not found" />
+      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+        <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search vendors…" emptyLabel="No vendors yet" />
+        <div className="min-w-0 flex-1 p-2">
+          <EmptyState icon={ReceiptDuotoneIcon} title="Vendor not found" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search vendors…" emptyLabel="No vendors yet" />
+      <div className="min-w-0 max-w-6xl flex-1 space-y-4">
       <BackLink href="/purchases/vendors">Vendors</BackLink>
 
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
@@ -147,6 +169,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
           </ul>
         )}
       </section>
+      </div>
       </div>
       </div>
     </div>

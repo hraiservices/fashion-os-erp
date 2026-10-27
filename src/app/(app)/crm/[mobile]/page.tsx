@@ -518,7 +518,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           alwaysCollapsible
         />
         {custOrders.length > 0 && (
-          <div className="flex items-center gap-2 border-b px-4 py-2.5">
+          <div className="flex items-center gap-2 border-b bg-muted/30 px-4 py-2">
             <Tabs value={historyFilter} onValueChange={(v) => v && setHistoryFilter(v as typeof historyFilter)}>
               <TabsList>
                 <TabsTrigger value="all" tone="blue">All</TabsTrigger>

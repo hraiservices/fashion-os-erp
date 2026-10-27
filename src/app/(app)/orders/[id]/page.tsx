@@ -49,6 +49,7 @@ import { UpiPayButton } from "@/components/payments/upi-pay-dialog";
 import { PrintButton } from "@/components/ui/print-button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
 import type { Garment } from "@/lib/types";
 import {
   AlertDialog,
@@ -196,10 +197,22 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       </div>
     );
   }
+  const sidebarItems = (allOrders || []).map((o) => ({
+    id: o.id,
+    title: o.id,
+    subtitle: `${o.name} · ${o.status}`,
+    amountLabel: o.balance > 0 ? `${inr(o.balance)} due` : "Paid",
+    amountTone: o.balance > 0 ? ("due" as const) : ("plain" as const),
+    href: `/orders/${o.id}`,
+  }));
+
   if (!order) {
     return (
-      <div className="p-6">
-        <EmptyState icon={ArrowLeft} title="Order not found" action={<Button nativeButton={false} render={<Link href="/orders" />}>Back to orders</Button>} />
+      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+        <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search orders…" emptyLabel="No orders yet" />
+        <div className="min-w-0 flex-1 p-2">
+          <EmptyState icon={ArrowLeft} title="Order not found" action={<Button nativeButton={false} render={<Link href="/orders" />}>Back to orders</Button>} />
+        </div>
       </div>
     );
   }
@@ -298,7 +311,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       : null;
 
   return (
-    <div className={cn("mx-auto max-w-6xl space-y-4 p-4 sm:p-6", primaryAction && "pb-32 sm:pb-6")}>
+    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search orders…" emptyLabel="No orders yet" />
+      <div className={cn("min-w-0 max-w-6xl flex-1 space-y-4", primaryAction && "pb-32 sm:pb-6")}>
       {primaryAction && (
         // Stacked above the global mobile tab bar (`MobileTabBar`, fixed bottom-0, z-40,
         // min-h-12 + its own safe-area padding) rather than at bottom-0 itself — otherwise the
@@ -854,6 +869,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
     </div>
   );
 }

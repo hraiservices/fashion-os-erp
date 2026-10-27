@@ -19,6 +19,8 @@ import { StageTimingWidget } from "@/components/dashboard/widgets/stage-timing-w
 import { OverdueOrdersWidget } from "@/components/dashboard/widgets/overdue-orders-widget";
 import { OrderStatusCardsWidget } from "@/components/dashboard/widgets/order-status-cards-widget";
 import { MyTargetsWidget, TodaysWorkWidget, PipelineValueWidget, WonThisMonthWidget, TargetsAtRiskWidget, OverdueTasksWidget } from "@/components/dashboard/widgets/targets-widgets";
+import { TopSellingItemsWidget } from "@/components/dashboard/widgets/top-selling-items-widget";
+import { InventoryAgingWidget } from "@/components/dashboard/widgets/inventory-aging-widget";
 import {
   StitchingDuesWidget,
   SalesDuesWidget,
@@ -67,4 +69,6 @@ export const WIDGET_COMPONENTS: Record<string, React.ComponentType> = {
   "won-this-month": WonThisMonthWidget,
   "targets-at-risk": TargetsAtRiskWidget,
   "overdue-tasks": OverdueTasksWidget,
+  "top-selling-items": TopSellingItemsWidget,
+  "inventory-aging": InventoryAgingWidget,
 };

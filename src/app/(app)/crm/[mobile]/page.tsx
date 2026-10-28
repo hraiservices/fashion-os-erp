@@ -33,8 +33,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceDue } from "@/components/ui/money-text";
+import { DetailStatRow, DetailStatTile } from "@/components/ui/detail-stat-tile";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
-import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { EditCustomerModal } from "@/components/crm/edit-customer-modal";
 import { CustomerMeasurements } from "@/components/crm/customer-measurements";
 import { CustomerMeasurementProfiles } from "@/components/crm/customer-measurement-profiles";
@@ -54,8 +54,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const PAYMENT_SOURCE_BADGE: Record<PaymentSource, { label: string; className: string }> = {
   invoice: { label: "Invoice", className: "bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400" },
@@ -79,6 +79,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   const issueCoupon = useIssueReferralCoupon();
 
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [bonusInput, setBonusInput] = useState("");
   const [historyFilter, setHistoryFilter] = useState<"all" | "new" | "alteration">("all");
   // Accordion state for the lower sections — same pattern as the Order Detail page, extended
@@ -97,7 +98,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-7xl space-y-4 p-4 sm:p-6">
+      <div className="space-y-4 p-4 sm:p-6">
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-40 w-full" />
       </div>
@@ -107,7 +108,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   const cust = profiles.find((c) => c.mobile === mobile);
   if (!cust) {
     return (
-      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <div className="flex items-start gap-4 p-4 sm:p-6">
         <CustomerSidebarList profiles={profiles} invoices={allInvoices} activeMobile={mobile} />
         <div className="min-w-0 flex-1 p-2">
           <EmptyState icon={ReceiptDuotoneIcon} title="Customer not found" action={<Button nativeButton={false} render={<Link href="/crm" />}>Back to customers</Button>} />
@@ -198,9 +199,9 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   }
 
   return (
-    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+    <div className="flex items-start gap-4 p-4 sm:p-6">
       <CustomerSidebarList profiles={profiles} invoices={allInvoices} activeMobile={mobile} />
-      <div className="min-w-0 max-w-7xl flex-1 space-y-4">
+      <div className="min-w-0 flex-1 space-y-4">
       <BackLink href="/crm">Customers</BackLink>
 
       <div className="rounded-xl border bg-card p-4 sm:p-5">
@@ -259,106 +260,104 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-border md:grid-cols-4">
-          <div className="min-w-0 bg-card p-2 text-center sm:p-3">
-            <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{custOrders.length}</p>
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Stitch Orders</p>
-          </div>
-          <div className="min-w-0 bg-card p-2 text-center sm:p-3">
-            <BalanceDue amount={outstanding} paidLabel={inr(outstanding)} className="block truncate text-base sm:text-lg" />
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Stitch Due</p>
-          </div>
-          <div className="min-w-0 bg-card p-2 text-center sm:p-3">
-            <BalanceDue amount={salesDue} paidLabel={inr(salesDue)} className="block truncate text-base sm:text-lg" />
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-              Product Sales Due <span className="lowercase">({custInvoices.length} invoice{custInvoices.length === 1 ? "" : "s"})</span>
-            </p>
-          </div>
-          <div className="min-w-0 bg-card p-2 text-center sm:p-3">
-            <BalanceDue amount={combinedDue} paidLabel={inr(combinedDue)} className="block truncate text-base sm:text-lg" />
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Combined Due</p>
-          </div>
+        <div className="mt-4">
+          <DetailStatRow>
+            <DetailStatTile value={custOrders.length} label="Stitch orders" />
+            <DetailStatTile value={inr(outstanding)} label="Stitch due" tone={outstanding > 0 ? "due" : "default"} />
+            <DetailStatTile
+              value={inr(salesDue)}
+              label={`Product sales due (${custInvoices.length} invoice${custInvoices.length === 1 ? "" : "s"})`}
+              tone={salesDue > 0 ? "due" : "default"}
+            />
+            <DetailStatTile value={inr(combinedDue)} label="Combined due" tone={combinedDue > 0 ? "due" : "good"} />
+          </DetailStatRow>
         </div>
 
-        {/* flex-1 (not a fixed-column grid) so leftover buttons on a wrapped row still stretch to
-            fill it — a grid's column count comes from container width alone, so a trailing row
-            with fewer buttons than that count left a gap instead of filling out. */}
-        <div className="mt-4 grid grid-cols-2 gap-2 [&>*:last-child:nth-child(odd)]:col-span-2 sm:flex sm:flex-wrap">
-          <Button nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}`} />} className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28">
-            <Plus className="size-4 shrink-0" /> <span className="truncate">Order</span>
+        {/* Zoho-style: one primary "New Transaction" menu for the create actions, a couple of
+            frequently-used actions visible directly (Statement, Remind), and everything else
+            (Wardrobe, Coupon, Edit, Delete) tucked behind "More" — down from 9 always-visible
+            buttons to 2-4, so the row reads as a handful of real choices instead of a wall of
+            icons. Mirrors QuickCreateMenu's grouped-dropdown pattern used elsewhere in the app. */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button className="h-10 px-4" />}>
+              <Plus className="size-4" /> New Transaction <ChevronDown className="size-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem render={<Link href={`/orders/new?mobile=${cust.mobile}`} />}>
+                <Plus className="size-4" /> Order
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<Link href={`/orders/new?mobile=${cust.mobile}&type=alteration`} />}>
+                <Plus className="size-4" /> Alteration
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />}>
+                <Receipt className="size-4" /> Invoice
+              </DropdownMenuItem>
+              {user?.perms.managePayments && combinedDue > 0 && (
+                <DropdownMenuItem render={<Link href={`/payments/new?customer=${encodeURIComponent(cust.mobile)}`} />}>
+                  <Wallet className="size-4" /> Payment
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button variant="outline" className="h-10" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />}>
+            <FileText className="size-4" /> Statement
           </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}&type=alteration`} />} className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28">
-            <Plus className="size-4 shrink-0" />
-            <span className="truncate">Alteration</span>
-          </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28">
-            <Plus className="size-3.5 shrink-0" />
-            <Receipt className="size-4 shrink-0" />
-            <span className="truncate">Invoice</span>
-          </Button>
-          <Button variant="outline" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />} className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28">
-            <FileText className="size-4 shrink-0" />
-            <span className="truncate">Statement</span>
-          </Button>
-          {user?.perms.managePayments && combinedDue > 0 && (
-            <NewPaymentButton customerMobile={cust.mobile} label="Payment" className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28" />
-          )}
+
           {combinedDue > 0 && (
-            <WhatsAppButton
-              href={reminderUrl}
-              label="Remind"
-              labelClassName="min-w-0 truncate"
-              className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28"
-              tone="reminder"
-            />
+            <WhatsAppButton href={reminderUrl} label="Remind" className="h-10" tone="reminder" />
           )}
-          {custOrders.length > 0 && (
-            <WhatsAppButton
-              href={wardrobeUrl}
-              label="Wardrobe"
-              labelClassName="min-w-0 truncate"
-              className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28"
-            />
+
+          {(custOrders.length > 0 || user?.perms.manageCustomers || user?.perms.deleteCustomers) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="outline" className="h-10 px-3" aria-label="More actions" />}>
+                More <ChevronDown className="size-3.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {custOrders.length > 0 && (
+                  <DropdownMenuItem render={<a href={wardrobeUrl} target="_blank" rel="noopener noreferrer" />}>
+                    <Shirt className="size-4" /> Share wardrobe
+                  </DropdownMenuItem>
+                )}
+                {user?.perms.manageCustomers && (
+                  <DropdownMenuItem onClick={handleGiveCoupon} disabled={issueCoupon.isPending}>
+                    <Ticket className="size-4" /> Give coupon
+                  </DropdownMenuItem>
+                )}
+                {user?.perms.manageCustomers && (
+                  <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                    <Pencil className="size-4" /> Edit
+                  </DropdownMenuItem>
+                )}
+                {user?.perms.deleteCustomers && (
+                  <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+                    <Trash2 className="size-4" /> Delete
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
-          {user?.perms.manageCustomers && (
-            <Button variant="outline" onClick={handleGiveCoupon} disabled={issueCoupon.isPending} className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28">
-              <Ticket className="size-4 shrink-0" />
-              <span className="truncate">Coupon</span>
-            </Button>
-          )}
-          {user?.perms.manageCustomers && (
-            <Button variant="outline" onClick={() => setEditOpen(true)} className="h-11 w-full min-w-0 px-2 text-sm sm:h-10 sm:w-auto sm:flex-1 sm:basis-28">
-              <Pencil className="size-4 shrink-0" /> <span className="truncate">Edit</span>
-            </Button>
-          )}
-          {user?.perms.deleteCustomers && (
-            <AlertDialog>
-              <AlertDialogTrigger
-                render={
-                  <Button variant="destructive" aria-label="Delete customer" className="h-11 w-full sm:h-10 sm:w-auto sm:shrink-0">
-                    <Trash2 className="size-4" />
-                  </Button>
-                }
-              />
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    Delete {cust.name} and all {custOrders.length} order(s)?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This cannot be undone.
-                    {outstanding > 0 && ` This customer still owes ${inr(outstanding)} on stitching orders — deleting erases that record.`}
-                    {salesDue > 0 && ` They also owe ${inr(salesDue)} on sales invoices, which will remain on record separately.`}
-                    {activeCount > 0 && ` ${activeCount} order(s) still in progress will be lost.`}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={doDelete}>Delete</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
+
+          <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Delete {cust.name} and all {custOrders.length} order(s)?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  This cannot be undone.
+                  {outstanding > 0 && ` This customer still owes ${inr(outstanding)} on stitching orders — deleting erases that record.`}
+                  {salesDue > 0 && ` They also owe ${inr(salesDue)} on sales invoices, which will remain on record separately.`}
+                  {activeCount > 0 && ` ${activeCount} order(s) still in progress will be lost.`}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={doDelete}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 

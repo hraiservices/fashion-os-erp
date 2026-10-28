@@ -89,7 +89,7 @@ function ExpensesPageContent() {
       if (category !== "all" && e.category !== category) return false;
       if (!q) return true;
       const linked = e.employeeId ? employeeNameById.get(e.employeeId) || "" : e.customerName || "";
-      return [e.description, e.category, linked, e.payMethod].some((v) => (v || "").toLowerCase().includes(q));
+      return [e.description, e.category, linked, e.payMethod, e.vendorName, e.referenceNumber].some((v) => (v || "").toLowerCase().includes(q));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- employeeNameById is rebuilt every render from `employees`
   }, [allExpenses, dr.range, category, search, employees]);
@@ -102,6 +102,7 @@ function ExpensesPageContent() {
     date: (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     category: (a, b) => a.category.localeCompare(b.category),
     customer: (a, b) => linkedNameFor(a).localeCompare(linkedNameFor(b)),
+    vendor: (a, b) => (a.vendorName || "").localeCompare(b.vendorName || ""),
     description: (a, b) => (a.description || "").localeCompare(b.description || ""),
     method: (a, b) => a.payMethod.localeCompare(b.payMethod),
     amount: (a, b) => a.amount - b.amount,
@@ -266,6 +267,7 @@ function ExpensesPageContent() {
                   <SortTh label="Date" sortableKey="date" sortKey={sortKey} sortAsc={sortAsc} onSort={toggleSort} />
                   <SortTh label="Category" sortableKey="category" sortKey={sortKey} sortAsc={sortAsc} onSort={toggleSort} />
                   <SortTh label="Customer/Employee" sortableKey="customer" sortKey={sortKey} sortAsc={sortAsc} onSort={toggleSort} />
+                  <SortTh label="Vendor" sortableKey="vendor" sortKey={sortKey} sortAsc={sortAsc} onSort={toggleSort} />
                   <SortTh label="Description" sortableKey="description" sortKey={sortKey} sortAsc={sortAsc} onSort={toggleSort} />
                   <SortTh label="Method" sortableKey="method" sortKey={sortKey} sortAsc={sortAsc} onSort={toggleSort} />
                   <SortTh label="Amount" sortableKey="amount" align="right" sortKey={sortKey} sortAsc={sortAsc} onSort={toggleSort} />
@@ -287,6 +289,7 @@ function ExpensesPageContent() {
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{linkedNameFor(e)}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{e.vendorName || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{e.description || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{e.payMethod}</td>
                     <td className="px-4 py-3 text-right font-semibold tabular-nums">{inr(e.amount)}</td>
@@ -328,6 +331,7 @@ function ExpensesPageContent() {
                 <MobileRecordHeader title={e.category} subtitle={e.description || undefined} value={inr(e.amount)} showChevron={false} />
                 <MobileRecordRow label="Date" value={fmtDateShort(e.date)} />
                 <MobileRecordRow label="Customer/Employee" value={linkedNameFor(e)} />
+                {e.vendorName && <MobileRecordRow label="Vendor" value={e.vendorName} />}
                 <MobileRecordRow label="Method" value={e.payMethod} />
                 {canAdd && (
                   <div className="flex items-center justify-end gap-1 pt-1">

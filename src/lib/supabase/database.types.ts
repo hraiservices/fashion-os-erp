@@ -455,6 +455,9 @@ export interface Database {
           customer_mobile: string | null;
           customer_name: string | null;
           employee_id: string | null;
+          reference_number: string | null;
+          vendor_name: string | null;
+          receipt_path: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;

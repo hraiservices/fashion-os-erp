@@ -176,6 +176,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/expenses/details", label: "Expense Details", section: "Expenses" },
     { href: "/reports/expenses/by-category", label: "Expenses by Category" },
     { href: "/reports/expenses/by-employee", label: "Expenses by Employee" },
+    { href: "/reports/expenses/trends", label: "Expense Trends" },
 
     { href: "/reports/manufacturing", label: "Manufacturing", section: "Manufacturing" },
 

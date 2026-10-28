@@ -4,7 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CalendarDays, CreditCard, FileText, Pencil, Trash2, User } from "lucide-react";
+import { CalendarDays, CreditCard, FileText, Pencil, Trash2, User, Truck, Hash, Receipt as ReceiptIcon } from "lucide-react";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useExpense, useExpenses, useDeleteExpense } from "@/hooks/use-expenses";
 import { useEmployees } from "@/hooks/use-employees";
@@ -112,6 +112,18 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
               <CreditCard className="size-4 shrink-0 text-muted-foreground" />
               <span>{expense.payMethod}</span>
             </div>
+            {expense.vendorName && (
+              <div className="flex items-center gap-2 text-sm">
+                <Truck className="size-4 shrink-0 text-muted-foreground" />
+                <span>{expense.vendorName}</span>
+              </div>
+            )}
+            {expense.referenceNumber && (
+              <div className="flex items-center gap-2 text-sm">
+                <Hash className="size-4 shrink-0 text-muted-foreground" />
+                <span>{expense.referenceNumber}</span>
+              </div>
+            )}
             {linkedName && (
               <div className="flex items-center gap-2 text-sm">
                 <User className="size-4 shrink-0 text-muted-foreground" />
@@ -123,6 +135,21 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <FileText className="size-4 shrink-0" />
                 <span>Recorded by {expense.createdBy}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 border-t pt-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Receipt</p>
+            {expense.receiptUrl ? (
+              <a href={expense.receiptUrl} target="_blank" rel="noopener noreferrer" className="inline-block">
+                {/* eslint-disable-next-line @next/next/no-img-element -- a short-lived signed URL, not an asset Next's image optimizer should process */}
+                <img src={expense.receiptUrl} alt="Receipt" className="h-28 w-28 rounded-lg border object-cover transition-opacity hover:opacity-80" />
+              </a>
+            ) : (
+              <div className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-2.5 text-sm text-muted-foreground">
+                <ReceiptIcon className="size-4 shrink-0" />
+                No receipt attached{canManage && " — add one from Edit"}
               </div>
             )}
           </div>

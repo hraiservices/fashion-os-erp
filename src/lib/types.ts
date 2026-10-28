@@ -19,6 +19,15 @@ export interface Expense {
   /** Employee this expense is paid to/for — the reliable link Salaries-category tailor
    *  matching prefers over the free-text Customer Link mobile number (see getStitchingPnl). */
   employeeId: string | null;
+  referenceNumber: string | null;
+  vendorName: string | null;
+  /** Raw Storage object path — the canonical "has a receipt" value, round-tripped unchanged on
+   *  edit unless a new receiptDataUrl is uploaded. Never fetchable by the client directly. */
+  receiptPath: string | null;
+  /** Short-lived signed URL for `receiptPath`, resolved server-side — present only on rows the
+   *  GET /api/expenses route actually resolved it for (undefined elsewhere, e.g. right after a
+   *  create/update response), never persisted. */
+  receiptUrl?: string | null;
   createdBy: string | null;
   createdAt: string;
 }
@@ -34,6 +43,9 @@ export function mapExpenseRow(r: ExpenseRow): Expense {
     customerMobile: r.customer_mobile,
     customerName: r.customer_name,
     employeeId: r.employee_id ?? null,
+    referenceNumber: r.reference_number ?? null,
+    vendorName: r.vendor_name ?? null,
+    receiptPath: r.receipt_path ?? null,
     createdBy: r.created_by,
     createdAt: r.created_at,
   };

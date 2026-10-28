@@ -16,6 +16,8 @@ import { FormActionBar } from "@/components/ui/form-action-bar";
 import { DatePicker } from "@/components/ui/date-picker";
 import { SearchSelect } from "@/components/ui/search-select";
 import { AddVendorDialog } from "@/components/purchases/add-vendor-dialog";
+import { VendorQuickPeek } from "@/components/purchases/vendor-quick-peek";
+import { QuickPeekButton } from "@/components/ui/quick-peek-button";
 import { LineItemsEditor, linesToItems, blankLine, lineFromItem, type EditableLine } from "@/components/purchases/line-items-editor";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { inr } from "@/lib/format";
@@ -56,6 +58,7 @@ export function PurchaseOrderForm({ existing }: { existing?: PurchaseOrder }) {
   const [poNumber] = useState(existing?.poNumber || genPoNumber());
   const [addVendorOpen, setAddVendorOpen] = useState(false);
   const [newVendorName, setNewVendorName] = useState("");
+  const [peekOpen, setPeekOpen] = useState(false);
   const [vendorId, setVendorId] = useState(existing?.vendorId || "");
   const [date, setDate] = useState(existing?.date || istDateString());
   const [lines, setLines] = useState<EditableLine[]>(
@@ -120,15 +123,19 @@ export function PurchaseOrderForm({ existing }: { existing?: PurchaseOrder }) {
             <SectionHeading icon={Building2} label="Vendor & date" />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FieldGroup label="Vendor" required>
-                <SearchSelect
-                  inputClassName="h-10"
-                  placeholder="Type to search vendor…"
-                  value={vendorId}
-                  fallbackLabel={vendorLabel(vendorId)}
-                  options={(vendors || []).map((v) => ({ value: v.id, label: v.name, sublabel: v.mobile || undefined }))}
-                  onSelect={setVendorId}
-                  createActions={[{ label: "Add new vendor", onCreate: (name) => { setNewVendorName(name); setAddVendorOpen(true); } }]}
-                />
+                <div className="flex gap-2">
+                  <SearchSelect
+                    className="flex-1"
+                    inputClassName="h-10"
+                    placeholder="Type to search vendor…"
+                    value={vendorId}
+                    fallbackLabel={vendorLabel(vendorId)}
+                    options={(vendors || []).map((v) => ({ value: v.id, label: v.name, sublabel: v.mobile || undefined }))}
+                    onSelect={setVendorId}
+                    createActions={[{ label: "Add new vendor", onCreate: (name) => { setNewVendorName(name); setAddVendorOpen(true); } }]}
+                  />
+                  {vendorId && <QuickPeekButton onClick={() => setPeekOpen(true)} label={`View ${vendorLabel(vendorId)}'s details`} />}
+                </div>
                 <AddVendorDialog open={addVendorOpen} onOpenChange={setAddVendorOpen} defaultName={newVendorName} onCreated={(id) => setVendorId(id)} />
               </FieldGroup>
               <FieldGroup label="Order date" required>
@@ -240,6 +247,7 @@ export function PurchaseOrderForm({ existing }: { existing?: PurchaseOrder }) {
           {savePo.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(total)}` : `Create PO · ${inr(total)}`}
         </Button>
       </FormActionBar>
+      {vendorId && <VendorQuickPeek vendorId={vendorId} open={peekOpen} onOpenChange={setPeekOpen} />}
     </div>
   );
 }

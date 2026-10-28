@@ -7,6 +7,8 @@ import { Building2, Package2, Tag, FileText, ShoppingCart, Truck } from "lucide-
 import { useVendors } from "@/hooks/use-vendors";
 import { SearchSelect } from "@/components/ui/search-select";
 import { AddVendorDialog } from "@/components/purchases/add-vendor-dialog";
+import { VendorQuickPeek } from "@/components/purchases/vendor-quick-peek";
+import { QuickPeekButton } from "@/components/ui/quick-peek-button";
 import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
 import { useSaveBill } from "@/hooks/use-purchase-mutations";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
@@ -63,6 +65,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
   const isEdit = !!existing;
   const [addVendorOpen, setAddVendorOpen] = useState(false);
   const [newVendorName, setNewVendorName] = useState("");
+  const [peekOpen, setPeekOpen] = useState(false);
 
   const [billNumber] = useState(existing?.billNumber || genBillNumber());
   const [vendorId, setVendorId] = useState(existing?.vendorId || "");
@@ -171,15 +174,19 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
             <SectionHeading icon={Building2} label="Vendor & dates" />
             <div className="mb-4">
               <FieldGroup label="Vendor" required>
-                <SearchSelect
-                  inputClassName="h-10"
-                  placeholder="Type to search vendor…"
-                  value={vendorId}
-                  fallbackLabel={vendorLabel(vendorId)}
-                  options={(vendors || []).map((v) => ({ value: v.id, label: v.name, sublabel: v.mobile || undefined }))}
-                  onSelect={setVendorId}
-                  createActions={[{ label: "Add new vendor", onCreate: (name) => { setNewVendorName(name); setAddVendorOpen(true); } }]}
-                />
+                <div className="flex gap-2">
+                  <SearchSelect
+                    className="flex-1"
+                    inputClassName="h-10"
+                    placeholder="Type to search vendor…"
+                    value={vendorId}
+                    fallbackLabel={vendorLabel(vendorId)}
+                    options={(vendors || []).map((v) => ({ value: v.id, label: v.name, sublabel: v.mobile || undefined }))}
+                    onSelect={setVendorId}
+                    createActions={[{ label: "Add new vendor", onCreate: (name) => { setNewVendorName(name); setAddVendorOpen(true); } }]}
+                  />
+                  {vendorId && <QuickPeekButton onClick={() => setPeekOpen(true)} label={`View ${vendorLabel(vendorId)}'s details`} />}
+                </div>
                 <AddVendorDialog
                   open={addVendorOpen}
                   onOpenChange={setAddVendorOpen}
@@ -349,6 +356,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
           {saveBill.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(grandTotal)}` : `Record Bill · ${inr(grandTotal)}`}
         </Button>
       </FormActionBar>
+      {vendorId && <VendorQuickPeek vendorId={vendorId} open={peekOpen} onOpenChange={setPeekOpen} />}
     </div>
   );
 }

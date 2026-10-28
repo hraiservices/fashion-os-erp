@@ -7,6 +7,7 @@ import { useSaveCustomer } from "@/hooks/use-customer-mutations";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { QuickPeekButton } from "@/components/ui/quick-peek-button";
 import type { Customer } from "@/lib/types";
 
 export function CustomerPicker({
@@ -193,10 +194,13 @@ export function CustomerPicker({
   );
 }
 
-export function CustomerPickerTrigger({ customerName, onClick }: { customerName: string; onClick: () => void }) {
+export function CustomerPickerTrigger({ customerName, onClick, onPeek }: { customerName: string; onClick: () => void; onPeek?: () => void }) {
   return (
-    <Button type="button" variant="outline" onClick={onClick} className="h-10 w-full justify-start font-normal">
-      <User className="size-4" /> {customerName || "Select customer…"}
-    </Button>
+    <div className="flex gap-2">
+      <Button type="button" variant="outline" onClick={onClick} className="h-10 w-full flex-1 justify-start font-normal">
+        <User className="size-4" /> {customerName || "Select customer…"}
+      </Button>
+      {onPeek && customerName && <QuickPeekButton onClick={onPeek} label={`View ${customerName}'s details`} />}
+    </div>
   );
 }

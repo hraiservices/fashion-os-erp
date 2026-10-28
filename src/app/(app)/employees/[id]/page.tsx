@@ -106,7 +106,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
 
   if (!employee) {
     return (
-      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <div className="flex items-start gap-4 p-4 sm:p-6">
         <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search employees…" emptyLabel="No employees yet" />
         <div className="min-w-0 flex-1 p-2">
           <EmptyState icon={Briefcase} title="Employee not found" />
@@ -116,9 +116,9 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   }
 
   return (
-    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+    <div className="flex items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search employees…" emptyLabel="No employees yet" />
-      <div className="min-w-0 max-w-6xl flex-1 space-y-4">
+      <div className="min-w-0 flex-1 space-y-4">
       <BackLink href="/employees">Employees</BackLink>
 
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">

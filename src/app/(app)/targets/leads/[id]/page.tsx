@@ -94,7 +94,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   if (isLoading) return <Skeleton className="mx-auto h-64 w-full max-w-6xl" />;
   if (!data) {
     return (
-      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <div className="flex items-start gap-4 p-4 sm:p-6">
         <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search leads…" emptyLabel="No leads yet" />
         <div className="min-w-0 flex-1 p-2">
           <p className="text-sm text-muted-foreground">Lead not found.</p>
@@ -146,9 +146,9 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+    <div className="flex items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search leads…" emptyLabel="No leads yet" />
-      <div className="min-w-0 w-full max-w-6xl flex-1 space-y-5 pb-8">
+      <div className="min-w-0 w-full flex-1 space-y-5 pb-8">
       <div className="flex items-center justify-between gap-2">
         <BackLink href="/targets?tab=leads">Leads</BackLink>
         <ShareButton title="Share lead" build={(origin) => leadShareMessage(lead, { origin, today: meta?.today ?? "", nameOf }, { labels: meta?.stageLabels, nextFollowUp: nextFollowUp(tasks) })} />

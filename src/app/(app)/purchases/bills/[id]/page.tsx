@@ -80,8 +80,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
   const vendorNameById = new Map((allVendors || []).map((v) => [v.id, v.name]));
   const sidebarItems = (allBills || []).map((b) => ({
     id: b.id,
-    title: b.billNumber,
-    subtitle: vendorNameById.get(b.vendorId) || fmtDate(b.billDate),
+    title: vendorNameById.get(b.vendorId) || b.billNumber,
     amountLabel: b.balance > 0 ? `${inr(b.balance)} due` : "Paid",
     amountTone: b.balance > 0 ? ("due" as const) : ("plain" as const),
     href: `/purchases/bills/${b.id}`,

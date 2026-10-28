@@ -135,8 +135,7 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
 
   const sidebarItems = (allInvoices || []).map((inv) => ({
     id: inv.id,
-    title: inv.invoiceNumber,
-    subtitle: inv.customerName,
+    title: inv.customerName,
     amountLabel: inv.balance > 0 ? `${inr(inv.balance)} due` : "Paid",
     amountTone: inv.balance > 0 ? ("due" as const) : ("plain" as const),
     href: `/sales/invoices/${inv.id}`,

@@ -32,6 +32,7 @@ import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { PrintButton } from "@/components/ui/print-button";
 import { RaiseSalesCreditDialog } from "@/components/sales/raise-sales-credit-dialog";
 import { BackLink } from "@/components/ui/back-link";
+import { cn } from "@/lib/utils";
 import { CustomerLink } from "@/components/crm/customer-link";
 import {
   AlertDialog,
@@ -66,6 +67,7 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
   const showSignature = template.showSignature && template.signatureDataUrl;
 
   const [creditOpen, setCreditOpen] = useState(false);
+  const [pdfView, setPdfView] = useState(false);
 
   const canManageSales = !!user?.perms.manageSales;
   const canManagePayments = !!user?.perms.managePayments;
@@ -154,8 +156,28 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
     <div className="flex items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search invoices…" emptyLabel="No invoices yet" />
       <div className="min-w-0 flex-1 space-y-4">
-      <BackLink href="/sales/invoices">Invoices</BackLink>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <BackLink href="/sales/invoices">Invoices</BackLink>
+        <label className="flex items-center gap-2 text-sm text-muted-foreground print:hidden">
+          Show PDF View
+          <button
+            type="button"
+            role="switch"
+            aria-checked={pdfView}
+            onClick={() => setPdfView((v) => !v)}
+            className={cn("relative h-5 w-9 shrink-0 rounded-full transition-colors", pdfView ? "bg-primary" : "bg-muted-foreground/30")}
+          >
+            <span className={cn("absolute top-0.5 size-4 rounded-full bg-white transition-transform", pdfView ? "translate-x-[18px]" : "translate-x-0.5")} />
+          </button>
+        </label>
+      </div>
 
+      {pdfView ? (
+        <div className="overflow-hidden rounded-xl border bg-muted/20">
+          <iframe src={`/api/sales/invoices/${invoice.id}/pdf?inline=1`} title={`${invoice.invoiceNumber} PDF`} className="h-[85vh] w-full" />
+        </div>
+      ) : (
+      <>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           {showLogo && (
@@ -505,6 +527,8 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
           </div>
         </div>
       </div>
+      </>
+      )}
 
       {canManageSales && (
         <RaiseSalesCreditDialog open={creditOpen} onOpenChange={setCreditOpen} invoiceId={invoice.id} customerMobile={invoice.customerMobile} invoiceNumber={invoice.invoiceNumber} />

@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { BalanceDue } from "@/components/ui/money-text";
 import { BackLink } from "@/components/ui/back-link";
 import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
+import { DetailStatRow, DetailStatTile } from "@/components/ui/detail-stat-tile";
 
 export default function VendorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -53,7 +54,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
 
   if (!vendor) {
     return (
-      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <div className="flex items-start gap-4 p-4 sm:p-6">
         <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search vendors…" emptyLabel="No vendors yet" />
         <div className="min-w-0 flex-1 p-2">
           <EmptyState icon={ReceiptDuotoneIcon} title="Vendor not found" />
@@ -63,13 +64,11 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
   }
 
   return (
-    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+    <div className="flex items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search vendors…" emptyLabel="No vendors yet" />
-      <div className="min-w-0 max-w-6xl flex-1 space-y-4">
+      <div className="min-w-0 flex-1 space-y-4">
       <BackLink href="/purchases/vendors">Vendors</BackLink>
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
-      <div className="space-y-4 lg:col-span-4">
       <div className="rounded-xl border bg-card p-4 sm:p-5">
         <h1 className="text-xl font-semibold tracking-tight">{vendor.name}</h1>
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -95,24 +94,16 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
           </p>
         )}
 
-        <div className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-lg bg-border">
-          <div className="min-w-0 bg-card p-2 text-center sm:p-3">
-            <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{orders.length}</p>
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Purchase Orders</p>
-          </div>
-          <div className="min-w-0 bg-card p-2 text-center sm:p-3">
-            <p className="truncate text-base font-semibold tabular-nums sm:text-lg">{bills.length}</p>
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Bills</p>
-          </div>
-          <div className="min-w-0 bg-card p-2 text-center sm:p-3">
-            <BalanceDue amount={totalPayable} paidLabel={inr(totalPayable)} className="block truncate text-base sm:text-lg" />
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Payable</p>
-          </div>
+        <div className="mt-4">
+          <DetailStatRow>
+            <DetailStatTile value={orders.length} label="Purchase orders" />
+            <DetailStatTile value={bills.length} label="Bills" />
+            <DetailStatTile value={inr(totalPayable)} label="Payable" tone={totalPayable > 0 ? "due" : "good"} />
+          </DetailStatRow>
         </div>
       </div>
-      </div>
 
-      <div className="space-y-4 lg:col-span-8">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
       <section className="rounded-xl border bg-card">
         <div className="border-b px-4 py-3">
           <h2 className="text-sm font-semibold">Bills ({bills.length})</h2>
@@ -169,7 +160,6 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
           </ul>
         )}
       </section>
-      </div>
       </div>
       </div>
     </div>

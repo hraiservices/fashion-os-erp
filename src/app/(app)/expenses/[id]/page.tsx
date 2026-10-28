@@ -77,7 +77,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
 
   if (!expense) {
     return (
-      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <div className="flex items-start gap-4 p-4 sm:p-6">
         <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search expenses…" emptyLabel="No expenses yet" />
         <div className="min-w-0 flex-1 p-2">
           <EmptyState icon={WalletDuotoneIcon} title="Expense not found" />
@@ -89,9 +89,9 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
   const linkedName = expense.employeeId ? employeeNameById.get(expense.employeeId) || "—" : expense.customerName || null;
 
   return (
-    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+    <div className="flex items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search expenses…" emptyLabel="No expenses yet" />
-      <div className="min-w-0 max-w-3xl flex-1 space-y-4">
+      <div className="min-w-0 flex-1 space-y-4">
         <BackLink href="/expenses">Expenses</BackLink>
 
         <div className="rounded-xl border bg-card p-4 sm:p-5">

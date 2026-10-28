@@ -89,7 +89,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
 
   if (!bill) {
     return (
-      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <div className="flex items-start gap-4 p-4 sm:p-6">
         <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search bills…" emptyLabel="No bills yet" />
         <div className="min-w-0 flex-1 p-2">
           <EmptyState icon={ReceiptDuotoneIcon} title="Bill not found" />
@@ -99,9 +99,9 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+    <div className="flex items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search bills…" emptyLabel="No bills yet" />
-      <div className="min-w-0 max-w-6xl flex-1 space-y-4">
+      <div className="min-w-0 flex-1 space-y-4">
       <BackLink href="/purchases/bills">Bills</BackLink>
 
       <div className="flex flex-wrap items-start justify-between gap-3">

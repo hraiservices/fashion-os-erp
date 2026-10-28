@@ -56,9 +56,8 @@ export function DetailSidebarList({ items, activeId, searchPlaceholder = "Search
                     aria-current={active ? "page" : undefined}
                   >
                     <p className={cn("truncate text-sm font-medium", active && "text-primary")}>{item.title}</p>
-                    {item.subtitle && <p className="truncate text-xs text-muted-foreground">{item.subtitle}</p>}
                     {item.amountLabel && (
-                      <p className={cn("mt-0.5 text-xs font-semibold tabular-nums", item.amountTone === "due" ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>{item.amountLabel}</p>
+                      <p className={cn("mt-0.5 text-xs tabular-nums", item.amountTone === "due" ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>{item.amountLabel}</p>
                     )}
                   </Link>
                 </li>

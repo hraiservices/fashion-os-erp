@@ -208,7 +208,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   if (!order) {
     return (
-      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <div className="flex items-start gap-4 p-4 sm:p-6">
         <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search orders…" emptyLabel="No orders yet" />
         <div className="min-w-0 flex-1 p-2">
           <EmptyState icon={ArrowLeft} title="Order not found" action={<Button nativeButton={false} render={<Link href="/orders" />}>Back to orders</Button>} />
@@ -311,9 +311,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       : null;
 
   return (
-    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+    <div className="flex items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search orders…" emptyLabel="No orders yet" />
-      <div className={cn("min-w-0 max-w-6xl flex-1 space-y-4", primaryAction && "pb-32 sm:pb-6")}>
+      <div className={cn("min-w-0 flex-1 space-y-4", primaryAction && "pb-32 sm:pb-6")}>
       {primaryAction && (
         // Stacked above the global mobile tab bar (`MobileTabBar`, fixed bottom-0, z-40,
         // min-h-12 + its own safe-area padding) rather than at bottom-0 itself — otherwise the

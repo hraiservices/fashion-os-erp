@@ -62,8 +62,7 @@ export function CustomerSidebarList({ profiles, invoices, activeMobile }: { prof
                     aria-current={active ? "page" : undefined}
                   >
                     <p className={cn("truncate text-sm font-medium", active && "text-primary")}>{c.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{c.mobile}</p>
-                    <p className={cn("mt-0.5 text-xs font-semibold tabular-nums", due > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
+                    <p className={cn("mt-0.5 text-xs tabular-nums", due > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
                       {due > 0 ? `${inr(due)} due` : "No dues"}
                     </p>
                   </Link>

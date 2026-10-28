@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, LayoutGrid, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, Upload, MessageSquare, ImagePlus, MoreVertical } from "lucide-react";
+import { Search, LayoutGrid, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, Upload, MessageSquare, ImagePlus, MoreVertical, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { UsersDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
@@ -11,6 +12,19 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useProducts } from "@/hooks/use-products";
+import { useDeleteCustomerAndOrders } from "@/hooks/use-customer-mutations";
+import { useRowSelection } from "@/hooks/use-row-selection";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { computeSegments, type CustomerSegment } from "@/lib/customer-segments";
 import { PageHeader } from "@/components/ui/page-header";
 import { NewButton } from "@/components/ui/new-button";
@@ -192,6 +206,30 @@ function CrmContent() {
     return sorted;
   }, [profiles, search, tagFilter, segmentFilter, segmentsByMobile, invoicesByMobile, sortKey, sortAsc]);
 
+  const canDelete = !!user?.perms.deleteCustomers;
+  const deleteCustomer = useDeleteCustomerAndOrders();
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const selection = useRowSelection(filtered.map((c) => c.mobile));
+  const selectedCustomers = filtered.filter((c) => selection.selected.has(c.mobile));
+
+  async function bulkDelete() {
+    setBulkBusy(true);
+    setBulkDeleteOpen(false);
+    let failed = 0;
+    for (const c of selectedCustomers) {
+      try {
+        await deleteCustomer.mutateAsync({ mobile: c.mobile, name: c.name, custId: c.custId, userEmail: user?.email });
+      } catch {
+        failed++;
+      }
+    }
+    setBulkBusy(false);
+    selection.clear();
+    if (failed) toast.error(`${selectedCustomers.length - failed} deleted, ${failed} failed`);
+    else toast.success(`${selectedCustomers.length} customer(s) deleted`);
+  }
+
   return (
     <div className="space-y-4 p-4 sm:p-6">
       <PageHeader
@@ -258,6 +296,20 @@ function CrmContent() {
           </>
         }
       />
+
+      {canDelete && !isLoading && view === "list" && selection.count > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
+          <span className="text-sm font-medium">{selection.count} selected</span>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Button variant="destructive" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
+              <Trash2 className="size-3.5" /> Delete
+            </Button>
+            <Button variant="ghost" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={selection.clear} disabled={bulkBusy}>
+              Clear
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-lg border p-0.5" role="group" aria-label="View mode">
@@ -385,6 +437,11 @@ function CrmContent() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  {canDelete && (
+                    <TableHead className="w-10">
+                      <Checkbox checked={selection.allSelected} onChange={selection.toggleAll} aria-label="Select all customers" />
+                    </TableHead>
+                  )}
                   <TableHead>
                     <button type="button" onClick={() => toggleSort("name")} className="inline-flex items-center gap-1 hover:text-foreground">
                       Customer <ArrowUpDown className="size-3" />
@@ -429,6 +486,9 @@ function CrmContent() {
                     invoices={invoicesByMobile.get(c.mobile) || []}
                     onRecordPayment={user?.perms.managePayments ? (order: Order) => setPaymentOrder(order) : undefined}
                     isVisible={columnTable.isVisible}
+                    selectable={canDelete}
+                    selected={selection.selected.has(c.mobile)}
+                    onToggleSelect={() => selection.toggle(c.mobile)}
                   />
                 ))}
               </TableBody>
@@ -497,6 +557,21 @@ function CrmContent() {
       )}
 
       {paymentOrder && <PaymentModal order={paymentOrder} open={!!paymentOrder} onOpenChange={(v) => !v && setPaymentOrder(null)} />}
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedCustomers.length} customer(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This also deletes all of their orders and cannot be undone. Customers with an outstanding balance are included if selected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={bulkDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

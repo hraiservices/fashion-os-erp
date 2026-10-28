@@ -9,6 +9,7 @@ import { useVendors } from "@/hooks/use-vendors";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useDeleteVendor } from "@/hooks/use-purchase-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useRowSelection } from "@/hooks/use-row-selection";
 import { PageHeader } from "@/components/ui/page-header";
 import { NewButton } from "@/components/ui/new-button";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BalanceDue } from "@/components/ui/money-text";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +39,8 @@ function VendorsPageContent() {
   const deleteVendor = useDeleteVendor();
 
   const [search, setSearch] = useState("");
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const canManage = !!user?.perms.managePurchases;
 
@@ -51,6 +55,9 @@ function VendorsPageContent() {
     return (vendors || []).filter((v) => !q || v.name.toLowerCase().includes(q) || v.mobile.includes(q) || v.gstin.toLowerCase().includes(q));
   }, [vendors, search]);
 
+  const selection = useRowSelection(filtered.map((v) => v.id));
+  const selectedVendors = filtered.filter((v) => selection.selected.has(v.id));
+
   function openEdit(v: Vendor, e: React.MouseEvent) {
     e.preventDefault();
     router.push(`/purchases/vendors/${v.id}/edit`);
@@ -63,6 +70,23 @@ function VendorsPageContent() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to delete");
     }
+  }
+
+  async function bulkDelete() {
+    setBulkBusy(true);
+    setBulkDeleteOpen(false);
+    let failed = 0;
+    for (const v of selectedVendors) {
+      try {
+        await deleteVendor.mutateAsync({ id: v.id, name: v.name, userEmail: user?.email });
+      } catch {
+        failed++;
+      }
+    }
+    setBulkBusy(false);
+    selection.clear();
+    if (failed) toast.error(`${selectedVendors.length - failed} deleted, ${failed} failed`);
+    else toast.success(`${selectedVendors.length} vendor(s) deleted`);
   }
 
   return (
@@ -87,6 +111,20 @@ function VendorsPageContent() {
         <Input type="search" enterKeyHint="search" placeholder="Search name, mobile or GSTIN…" className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search vendors" />
       </div>
 
+      {canManage && !isLoading && selection.count > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
+          <span className="text-sm font-medium">{selection.count} selected</span>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Button variant="destructive" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
+              <Trash2 className="size-3.5" /> Delete
+            </Button>
+            <Button variant="ghost" size="sm" className="h-11 px-4 text-base sm:h-7 sm:px-2.5 sm:text-[0.8rem]" onClick={selection.clear} disabled={bulkBusy}>
+              Clear
+            </Button>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -106,10 +144,20 @@ function VendorsPageContent() {
         />
       ) : (
         <div className="space-y-2">
+          {canManage && filtered.length > 0 && (
+            <label className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+              <Checkbox checked={selection.allSelected} onChange={selection.toggleAll} aria-label="Select all vendors" />
+              Select all
+            </label>
+          )}
           {filtered.map((v) => {
             const payable = payableByVendor.get(v.id) || 0;
             return (
-              <Link key={v.id} href={`/purchases/vendors/${v.id}`} className="flex items-center gap-3 rounded-xl border bg-card p-3 hover:bg-muted/40">
+              <div key={v.id} className="flex items-center gap-2 rounded-xl border bg-card p-3 hover:bg-muted/40">
+                {canManage && (
+                  <Checkbox checked={selection.selected.has(v.id)} onChange={() => selection.toggle(v.id)} aria-label={`Select ${v.name}`} />
+                )}
+                <Link href={`/purchases/vendors/${v.id}`} className="flex min-w-0 flex-1 items-center gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{v.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{[v.mobile, v.gstin].filter(Boolean).join(" · ") || "—"}</p>
@@ -142,12 +190,25 @@ function VendorsPageContent() {
                   </div>
                 )}
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-              </Link>
+                </Link>
+              </div>
             );
           })}
         </div>
       )}
 
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selection.count} vendor(s)?</AlertDialogTitle>
+            <AlertDialogDescription>This cannot be undone. Bills already recorded against these vendors are kept.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={bulkDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

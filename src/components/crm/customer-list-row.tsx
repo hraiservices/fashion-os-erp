@@ -13,6 +13,7 @@ import type { Order } from "@/lib/types";
 import type { Shop } from "@/lib/settings";
 import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TableRow, TableCell } from "@/components/ui/table";
 import { WhatsAppIconButton } from "@/components/ui/whatsapp-button";
 import { EditCustomerModal } from "@/components/crm/edit-customer-modal";
@@ -37,6 +38,9 @@ export function CustomerListRow({
   invoices = [],
   onRecordPayment,
   isVisible = () => true,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
 }: {
   cust: CustomerProfile;
   loyaltyCfg?: LoyaltyConfig;
@@ -45,6 +49,9 @@ export function CustomerListRow({
   onRecordPayment?: (order: Order) => void;
   /** Column-visibility check — see useColumnVisibility()/ColumnCustomizerMenu on the CRM list page. */
   isVisible?: (key: string) => boolean;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const { data: user } = useCurrentUser();
   const deleteCustomer = useDeleteCustomerAndOrders();
@@ -81,6 +88,11 @@ export function CustomerListRow({
 
   return (
     <TableRow className="cursor-pointer" onClick={() => (window.location.href = `/crm/${cust.mobile}`)}>
+      {selectable && (
+        <TableCell onClick={(e) => e.stopPropagation()}>
+          <Checkbox checked={selected} onChange={onToggleSelect} aria-label={`Select ${cust.name}`} />
+        </TableCell>
+      )}
       <TableCell>
         <div className="flex items-center gap-2.5">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{initial}</span>

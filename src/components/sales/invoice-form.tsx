@@ -26,6 +26,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CustomerPicker } from "@/components/sales/customer-picker";
+import { CustomerQuickPeek } from "@/components/crm/customer-quick-peek";
+import { QuickPeekButton } from "@/components/ui/quick-peek-button";
 import { SearchSelect } from "@/components/ui/search-select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
@@ -123,6 +125,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
   const [customer, setCustomer] = useState<Customer | null>(existing ? placeholderCustomer(existing.customerName, existing.customerMobile) : null);
   const priceOverrides = usePriceListItemsMap(customer?.priceListId);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [peekOpen, setPeekOpen] = useState(false);
   // What was typed in the customer search box when "Add new customer" was chosen — pre-fills the add form.
   const [newCustomerName, setNewCustomerName] = useState("");
   const [subject, setSubject] = useState(existing?.subject || "");
@@ -363,6 +366,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
                   <Button type="button" variant="outline" className="h-10 shrink-0" onClick={() => { setNewCustomerName(""); setPickerOpen(true); }}>
                     New
                   </Button>
+                  {customer && <QuickPeekButton onClick={() => setPeekOpen(true)} label={`View ${customer.name}'s details`} />}
                 </div>
               </HeaderRow>
             </div>
@@ -648,6 +652,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
       )}
 
       <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={handleSelectCustomer} startInAddMode defaultName={newCustomerName} />
+      {customer && <CustomerQuickPeek mobile={customer.mobile} open={peekOpen} onOpenChange={setPeekOpen} />}
     </div>
   );
 }

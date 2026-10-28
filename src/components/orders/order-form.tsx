@@ -13,6 +13,7 @@ import { useCreateOrder, useSetOrderMaterials, useUpdateOrder } from "@/hooks/us
 import { useOrders } from "@/hooks/use-orders";
 import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
 import { CustomerPicker } from "@/components/sales/customer-picker";
+import { CustomerQuickPeek } from "@/components/crm/customer-quick-peek";
 import { SearchSelect } from "@/components/ui/search-select";
 import { useCustomers } from "@/hooks/use-customers";
 import { SegmentedToggle } from "@/components/ui/segmented-toggle";
@@ -393,6 +394,7 @@ function OrderFormFields({
   // compact read-only summary instead of staying two always-editable inputs — "Change" reopens
   // them. Only for new orders; editing an existing order always shows the editable fields.
   const [customerConfirmed, setCustomerConfirmed] = useState(false);
+  const [peekOpen, setPeekOpen] = useState(false);
 
   // Section-jump pill bar (mobile only) — lets a long scroll jump straight to a section instead
   // of scrolling past ones already filled in, with scrollspy highlighting whichever section is
@@ -989,9 +991,16 @@ function OrderFormFields({
                   <span className="font-medium">{name || "Unnamed"}</span>
                   <span className="text-muted-foreground"> · {mobile}</span>
                 </span>
-                <button type="button" onClick={() => setCustomerConfirmed(false)} className="shrink-0 text-xs font-medium text-primary hover:underline">
-                  Change
-                </button>
+                <div className="flex shrink-0 items-center gap-3">
+                  {profileCustomer && (
+                    <button type="button" onClick={() => setPeekOpen(true)} className="text-xs font-medium text-primary hover:underline">
+                      View details
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setCustomerConfirmed(false)} className="text-xs font-medium text-primary hover:underline">
+                    Change
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -1878,6 +1887,7 @@ function OrderFormFields({
       </form>
 
       {!isEdit && <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={selectCustomer} startInAddMode />}
+      {mobile?.length === 10 && <CustomerQuickPeek mobile={mobile} open={peekOpen} onOpenChange={setPeekOpen} />}
     </div>
   );
 }

@@ -19,6 +19,7 @@ import { FormActionBar } from "@/components/ui/form-action-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/customer-picker";
+import { CustomerQuickPeek } from "@/components/crm/customer-quick-peek";
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
 import { usePriceListItemsMap } from "@/hooks/use-price-lists";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
@@ -72,6 +73,7 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
   const [customer, setCustomer] = useState<Customer | null>(existing ? placeholderCustomer(existing.customerName, existing.customerMobile) : null);
   const priceOverrides = usePriceListItemsMap(customer?.priceListId);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [peekOpen, setPeekOpen] = useState(false);
   const [date, setDate] = useState(existing?.date || istDateString());
   const [validUntil, setValidUntil] = useState(existing?.validUntil || "");
   const [lines, setLines] = useState<EditableSalesLine[]>(
@@ -159,7 +161,7 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
             <SectionHeading icon={User2} label="Customer & dates" />
             <div className="mb-4">
               <FieldGroup label="Customer" required>
-                <CustomerPickerTrigger customerName={customer?.name || ""} onClick={() => setPickerOpen(true)} />
+                <CustomerPickerTrigger customerName={customer?.name || ""} onClick={() => setPickerOpen(true)} onPeek={customer ? () => setPeekOpen(true) : undefined} />
               </FieldGroup>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -285,6 +287,7 @@ export function QuotationForm({ existing }: { existing?: SalesQuotation }) {
       </FormActionBar>
 
       <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={setCustomer} />
+      {customer && <CustomerQuickPeek mobile={customer.mobile} open={peekOpen} onOpenChange={setPeekOpen} />}
     </div>
   );
 }

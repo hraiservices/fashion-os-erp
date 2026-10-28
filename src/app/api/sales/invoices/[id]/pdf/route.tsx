@@ -9,7 +9,7 @@ import { DEFAULT_INVOICE_TEMPLATES_SETTING, getDefaultTemplate, type InvoiceTemp
 // @react-pdf/renderer needs Node's stream/fs APIs — not Edge-compatible.
 export const runtime = "nodejs";
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { supabase, user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   // sales_invoices is read-scoped to these two permissions (lockdown_reads_whole_table.sql), so
@@ -18,11 +18,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!user.perms.manageSales && !user.perms.usePOS) return NextResponse.json({ error: "No permission to view invoices" }, { status: 403 });
 
   const { id } = await params;
-  // `?inline=1` is used by the invoice detail page's "Show PDF View" toggle, which embeds this
-  // same PDF in an <iframe> instead of linking to it — a browser only renders a PDF response
-  // inline (rather than forcing a download) when told to. The "Download PDF" button and the
-  // WhatsApp "Send PDF" flow both still get the original attachment behavior by omitting it.
-  const inline = new URL(req.url).searchParams.get("inline") === "1";
 
   const [{ data: invoiceRow, error: invError }, { data: payments }, { data: credits }, { data: shopSetting }, { data: templateSetting }] = await Promise.all([
     supabase.from("sales_invoices").select("*").eq("id", id).maybeSingle(),
@@ -63,7 +58,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${invoice.invoiceNumber}.pdf"`,
+      "Content-Disposition": `attachment; filename="${invoice.invoiceNumber}.pdf"`,
     },
   });
 }

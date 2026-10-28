@@ -490,9 +490,10 @@ function OrdersContent() {
         </div>
 
         {/* Mobile-only: a compact search bar (the sm:block search above stays hidden below sm)
-            plus a horizontally-scrollable row of stage chips (Zomato/Blinkit-style quick
-            filters) so the most common filter — stage — never needs opening the full Filters
-            sheet below. Tapping an already-active chip clears it back to "all". */}
+            plus a wrapping row of stage chips (Zomato/Blinkit-style quick filters) so the most
+            common filter — stage — never needs opening the full Filters sheet below, and every
+            stage stays visible with no horizontal scrolling. Tapping an already-active chip
+            clears it back to "all". */}
         <div className="space-y-2 sm:hidden">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -506,7 +507,7 @@ function OrdersContent() {
               aria-label="Search orders"
             />
           </div>
-          <div className="scrollbar-hide -mx-4 flex gap-1.5 overflow-x-auto px-4">
+          <div className="flex flex-wrap gap-1.5">
             <Button
               type="button"
               size="sm"

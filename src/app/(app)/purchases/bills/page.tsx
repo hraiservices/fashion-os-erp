@@ -1,11 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
-import { ChevronRight, Trash2, Search } from "lucide-react";
+import { Trash2, Search } from "lucide-react";
 import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
-import { usePurchaseBills } from "@/hooks/use-purchase-bills";
+import { usePurchaseBills, type PurchaseBillWithBalance } from "@/hooks/use-purchase-bills";
 import { useVendors } from "@/hooks/use-vendors";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDeleteBill } from "@/hooks/use-purchase-mutations";
@@ -21,8 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { BalanceDue } from "@/components/ui/money-text";
-import { Checkbox } from "@/components/ui/checkbox";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function PurchaseBillsPage() {
@@ -74,6 +72,38 @@ export default function PurchaseBillsPage() {
     Balance: b.balance,
     Status: BILL_STATUS_LABELS[b.paymentStatus],
   }));
+
+  const columns: DataTableColumn<PurchaseBillWithBalance>[] = [
+    {
+      key: "vendor",
+      header: "Vendor name",
+      alwaysVisible: true,
+      sortValue: (b) => (vendorNameById.get(b.vendorId) || "").toLowerCase(),
+      render: (b) => (
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">{vendorNameById.get(b.vendorId) || "Unknown vendor"}</p>
+          <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">{b.billNumber}</p>
+        </div>
+      ),
+    },
+    { key: "date", header: "Date", sortValue: (b) => b.billDate, render: (b) => fmtDate(b.billDate) },
+    { key: "reference", header: "Reference number", sortValue: (b) => b.referenceNumber, render: (b) => b.referenceNumber || "—" },
+    {
+      key: "status",
+      header: "Status",
+      sortValue: (b) => b.paymentStatus,
+      render: (b) => <Badge variant={b.paymentStatus === "paid" ? "secondary" : "outline"}>{BILL_STATUS_LABELS[b.paymentStatus]}</Badge>,
+    },
+    { key: "dueDate", header: "Due date", sortValue: (b) => b.dueDate || "", render: (b) => (b.dueDate ? fmtDate(b.dueDate) : "—") },
+    { key: "amount", header: "Amount", align: "right", sortValue: (b) => b.total, render: (b) => inr(b.total) },
+    {
+      key: "balance",
+      header: "Balance due",
+      align: "right",
+      sortValue: (b) => b.balance,
+      render: (b) => <span className={b.balance > 0 ? "font-medium text-red-600 dark:text-red-400" : "text-muted-foreground"}>{inr(b.balance)}</span>,
+    },
+  ];
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
@@ -131,41 +161,15 @@ export default function PurchaseBillsPage() {
       ) : filtered.length === 0 ? (
         <EmptyState icon={ReceiptDuotoneIcon} title="No matching bills" description={`No bills found for "${search}".`} />
       ) : (
-        <div className="space-y-2">
-          {canManage && filtered.length > 0 && (
-            <label className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
-              <Checkbox checked={selection.allSelected} onChange={selection.toggleAll} aria-label="Select all bills" />
-              Select all
-            </label>
-          )}
-          {filtered.map((b) => (
-            <div key={b.id} className="flex items-center gap-2 rounded-xl border bg-card p-3 hover:bg-muted/40">
-              {canManage && (
-                <Checkbox
-                  checked={selection.selected.has(b.id)}
-                  onChange={() => selection.toggle(b.id)}
-                  aria-label={`Select bill ${b.billNumber}`}
-                />
-              )}
-              <Link href={`/purchases/bills/${b.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-sm font-medium">{b.billNumber}</span>
-                    <Badge variant={b.paymentStatus === "paid" ? "secondary" : "outline"}>{BILL_STATUS_LABELS[b.paymentStatus]}</Badge>
-                  </div>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {vendorNameById.get(b.vendorId) || "Unknown vendor"} · {fmtDate(b.billDate)}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-sm font-semibold tabular-nums">{inr(b.total)}</p>
-                  {b.balance > 0 && <BalanceDue amount={b.balance} suffix=" due" paidLabel="" className="text-xs" />}
-                </div>
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-              </Link>
-            </div>
-          ))}
-        </div>
+        <DataTable
+          columns={columns}
+          rows={filtered}
+          getHref={(b) => `/purchases/bills/${b.id}`}
+          storageKey="bills-table"
+          selectedIds={canManage ? selection.selected : undefined}
+          onToggleRow={canManage ? selection.toggle : undefined}
+          onToggleAll={canManage ? selection.toggleAll : undefined}
+        />
       )}
 
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>

@@ -112,6 +112,7 @@ interface SaveBillInput {
   shippingCharges: number;
   otherCharges: number;
   notes: string;
+  referenceNumber?: string;
   userEmail?: string;
 }
 

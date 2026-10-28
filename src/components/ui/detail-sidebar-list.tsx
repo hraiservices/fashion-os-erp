@@ -24,7 +24,20 @@ export interface SidebarListItem {
  * Orders, Vendors, Employees, Expenses). Desktop/tablet only (lg+); there's no room for a
  * sidebar beside a full detail view on a phone, so this renders nothing below that breakpoint.
  */
-export function DetailSidebarList({ items, activeId, searchPlaceholder = "Search…", emptyLabel = "No records yet" }: { items: SidebarListItem[]; activeId: string; searchPlaceholder?: string; emptyLabel?: string }) {
+export function DetailSidebarList({
+  items,
+  activeId,
+  searchPlaceholder = "Search…",
+  emptyLabel = "No records yet",
+  showSubtitle = false,
+}: {
+  items: SidebarListItem[];
+  activeId: string;
+  searchPlaceholder?: string;
+  emptyLabel?: string;
+  /** Shows item.subtitle as a small line under the title — off by default (see PR #514's declutter). */
+  showSubtitle?: boolean;
+}) {
   const [q, setQ] = useState("");
 
   const filtered = useMemo(() => {
@@ -56,6 +69,7 @@ export function DetailSidebarList({ items, activeId, searchPlaceholder = "Search
                     aria-current={active ? "page" : undefined}
                   >
                     <p className={cn("truncate text-sm font-medium", active && "text-primary")}>{item.title}</p>
+                    {showSubtitle && item.subtitle && <p className="truncate font-mono text-xs text-muted-foreground">{item.subtitle}</p>}
                     {item.amountLabel && (
                       <p className={cn("mt-0.5 text-xs tabular-nums", item.amountTone === "due" ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>{item.amountLabel}</p>
                     )}

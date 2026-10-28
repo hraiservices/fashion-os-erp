@@ -32,6 +32,7 @@ const bodySchema = z.object({
   shippingCharges: z.number().min(0).default(0),
   otherCharges: z.number().min(0).default(0),
   notes: z.string().default(""),
+  referenceNumber: z.string().default(""),
 });
 
 /**
@@ -98,6 +99,7 @@ export async function POST(request: Request) {
       other_charges: fd.otherCharges,
       total: computePurchaseTotal(gst.total, fd.shippingCharges, fd.otherCharges),
       notes: fd.notes.trim(),
+      reference_number: fd.referenceNumber.trim(),
       created_by: user.email,
     })
     .select()

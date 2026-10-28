@@ -66,8 +66,7 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
   const vendorNameById = new Map((allVendors || []).map((v) => [v.id, v.name]));
   const sidebarItems = (allPOs || []).map((o) => ({
     id: o.id,
-    title: o.poNumber,
-    subtitle: vendorNameById.get(o.vendorId) || fmtDate(o.date),
+    title: vendorNameById.get(o.vendorId) || o.poNumber,
     amountLabel: inr(o.total),
     amountTone: "plain" as const,
     href: `/purchases/orders/${o.id}`,

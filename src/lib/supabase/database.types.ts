@@ -929,6 +929,7 @@ export interface Database {
           shipping_charges: number;
           other_charges: number;
           notes: string;
+          reference_number: string;
           created_by: string | null;
           created_at: string;
           updated_at: string;

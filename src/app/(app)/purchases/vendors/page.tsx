@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
-import { Search, Truck, Pencil, Trash2, ChevronRight, Upload } from "lucide-react";
+import { Search, Truck, Pencil, Trash2, Upload } from "lucide-react";
 import { useVendors } from "@/hooks/use-vendors";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useDeleteVendor } from "@/hooks/use-purchase-mutations";
@@ -16,8 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { BalanceDue } from "@/components/ui/money-text";
-import { Checkbox } from "@/components/ui/checkbox";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,8 +57,7 @@ function VendorsPageContent() {
   const selection = useRowSelection(filtered.map((v) => v.id));
   const selectedVendors = filtered.filter((v) => selection.selected.has(v.id));
 
-  function openEdit(v: Vendor, e: React.MouseEvent) {
-    e.preventDefault();
+  function openEdit(v: Vendor) {
     router.push(`/purchases/vendors/${v.id}/edit`);
   }
 
@@ -88,6 +86,58 @@ function VendorsPageContent() {
     if (failed) toast.error(`${selectedVendors.length - failed} deleted, ${failed} failed`);
     else toast.success(`${selectedVendors.length} vendor(s) deleted`);
   }
+
+  const columns: DataTableColumn<Vendor>[] = [
+    { key: "name", header: "Name", alwaysVisible: true, sortValue: (v) => v.name.toLowerCase(), render: (v) => <span className="font-medium">{v.name}</span> },
+    { key: "mobile", header: "Mobile", sortValue: (v) => v.mobile, render: (v) => v.mobile || "—" },
+    { key: "gstin", header: "GSTIN", sortValue: (v) => v.gstin, render: (v) => v.gstin || "—" },
+    {
+      key: "balance",
+      header: "Balance due",
+      align: "right",
+      sortValue: (v) => payableByVendor.get(v.id) || 0,
+      render: (v) => {
+        const payable = payableByVendor.get(v.id) || 0;
+        return <span className={payable > 0 ? "font-medium text-red-600 dark:text-red-400" : "text-muted-foreground"}>{payable > 0 ? `₹${payable.toLocaleString("en-IN")} due` : "—"}</span>;
+      },
+    },
+    ...(canManage
+      ? [
+          {
+            key: "actions",
+            header: "",
+            alwaysVisible: true,
+            align: "right" as const,
+            render: (v: Vendor) => (
+              <div className="flex shrink-0 items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon-sm" className="size-8" onClick={() => openEdit(v)} aria-label={`Edit ${v.name}`}>
+                  <Pencil className="size-3.5" />
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger
+                    render={
+                      <Button variant="ghost" size="icon-sm" className="size-8" aria-label={`Delete ${v.name}`}>
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    }
+                  />
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete {v.name}?</AlertDialogTitle>
+                      <AlertDialogDescription>This cannot be undone. Bills already recorded against this vendor are kept.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDelete(v)}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            ),
+          } satisfies DataTableColumn<Vendor>,
+        ]
+      : []),
+  ];
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
@@ -143,58 +193,15 @@ function VendorsPageContent() {
           }
         />
       ) : (
-        <div className="space-y-2">
-          {canManage && filtered.length > 0 && (
-            <label className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
-              <Checkbox checked={selection.allSelected} onChange={selection.toggleAll} aria-label="Select all vendors" />
-              Select all
-            </label>
-          )}
-          {filtered.map((v) => {
-            const payable = payableByVendor.get(v.id) || 0;
-            return (
-              <div key={v.id} className="flex items-center gap-2 rounded-xl border bg-card p-3 hover:bg-muted/40">
-                {canManage && (
-                  <Checkbox checked={selection.selected.has(v.id)} onChange={() => selection.toggle(v.id)} aria-label={`Select ${v.name}`} />
-                )}
-                <Link href={`/purchases/vendors/${v.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{v.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{[v.mobile, v.gstin].filter(Boolean).join(" · ") || "—"}</p>
-                </div>
-                {payable > 0 && <BalanceDue amount={payable} suffix=" due" paidLabel="" className="shrink-0 text-sm" />}
-                {canManage && (
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" onClick={(e) => openEdit(v, e)} aria-label={`Edit ${v.name}`}>
-                      <Pencil className="size-3.5" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger
-                        render={
-                          <Button variant="ghost" size="icon-sm" className="size-11 sm:size-7" aria-label={`Delete ${v.name}`} onClick={(e) => e.preventDefault()}>
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        }
-                      />
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete {v.name}?</AlertDialogTitle>
-                          <AlertDialogDescription>This cannot be undone. Bills already recorded against this vendor are kept.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(v)}>Delete</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                )}
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                </Link>
-              </div>
-            );
-          })}
-        </div>
+        <DataTable
+          columns={columns}
+          rows={filtered}
+          getHref={(v) => `/purchases/vendors/${v.id}`}
+          storageKey="vendors-table"
+          selectedIds={canManage ? selection.selected : undefined}
+          onToggleRow={canManage ? selection.toggle : undefined}
+          onToggleAll={canManage ? selection.toggleAll : undefined}
+        />
       )}
 
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>

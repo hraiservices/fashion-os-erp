@@ -85,6 +85,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
   const [otherCharges, setOtherCharges] = useState(blankIfZero(existing?.otherCharges));
   const [notes, setNotes] = useState(existing?.notes || "");
   const [notesOpen, setNotesOpen] = useState(false);
+  const [referenceNumber, setReferenceNumber] = useState(existing?.referenceNumber || "");
 
   useSyncFromSource(prefillPo, (po) => {
     if (!po) return;
@@ -131,6 +132,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
         shippingCharges: shipping,
         otherCharges: other,
         notes,
+        referenceNumber,
         userEmail: user?.email,
       });
       toast.success(isEdit ? `Bill ${billNumber} updated — stock adjusted` : `Bill ${billNumber} recorded — stock updated`);
@@ -213,6 +215,9 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
               </FieldGroup>
               <FieldGroup label="Due date" required hint="When you must pay the vendor for this bill">
                 <DatePicker value={dueDate} onChange={setDueDate} />
+              </FieldGroup>
+              <FieldGroup label="Reference number" hint="Vendor's own bill/invoice number, if different">
+                <Input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} placeholder="e.g. INV-2026-104" className="h-10" />
               </FieldGroup>
             </div>
           </div>

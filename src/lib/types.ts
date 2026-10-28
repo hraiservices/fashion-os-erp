@@ -679,6 +679,7 @@ export interface PurchaseBill {
   otherCharges: number;
   total: number;
   notes: string;
+  referenceNumber: string;
   createdAt: string;
 }
 
@@ -701,6 +702,7 @@ export function mapPurchaseBillRow(r: PurchaseBillRow): PurchaseBill {
     otherCharges: r.other_charges || 0,
     total: r.total || 0,
     notes: r.notes || "",
+    referenceNumber: r.reference_number || "",
     createdAt: r.created_at,
   };
 }

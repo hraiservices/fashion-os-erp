@@ -108,9 +108,52 @@ export function DataTable<T extends { id: string }>({
 
   const allSelected = !!selectedIds && rows.length > 0 && rows.every((r) => selectedIds.has(r.id));
 
+  // Below sm, a multi-column table has no room to show anything useful — it either truncates
+  // mid-value or forces horizontal scrolling with no visible cue more columns exist (the actual
+  // bug this fallback replaced: amounts cut off mid-digit, names wrapping illegibly). Below that
+  // breakpoint this renders the same stacked-card pattern every other list page already uses
+  // (Products, Invoices, Orders) instead: the `alwaysVisible` column(s) as the card's primary
+  // line, every other visible column as a label/value row underneath.
+  const primaryColumns = visibleColumns.filter((c) => c.alwaysVisible);
+  const secondaryColumns = visibleColumns.filter((c) => !c.alwaysVisible);
+
   return (
     <div className="overflow-hidden rounded-xl border bg-card">
-      <div className="overflow-x-auto">
+      <div className="space-y-2 p-2 sm:hidden">
+        {sortedRows.map((row) => {
+          const href = getHref?.(row);
+          const content = (
+            <>
+              {primaryColumns.map((col) => (
+                <div key={col.key}>{col.render(row)}</div>
+              ))}
+              {secondaryColumns.length > 0 && (
+                <dl className="mt-1.5 space-y-1 border-t pt-1.5">
+                  {secondaryColumns.map((col) => (
+                    <div key={col.key} className="flex items-center justify-between gap-3 text-xs">
+                      <dt className="text-muted-foreground">{col.header}</dt>
+                      <dd className="min-w-0 truncate tabular-nums">{col.render(row)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </>
+          );
+          return (
+            <div key={row.id} className="flex items-start gap-2 rounded-xl border p-3">
+              {onToggleRow && <Checkbox checked={!!selectedIds?.has(row.id)} onChange={() => onToggleRow(row.id)} aria-label="Select row" className="mt-0.5" />}
+              {href ? (
+                <button type="button" className="min-w-0 flex-1 text-left" onClick={() => router.push(href)}>
+                  {content}
+                </button>
+              ) : (
+                <div className="min-w-0 flex-1">{content}</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="hidden overflow-x-auto sm:block">
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/40">
             <tr>

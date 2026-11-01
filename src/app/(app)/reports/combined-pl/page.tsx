@@ -76,7 +76,7 @@ const COMBINED_PL_AUTO_HIDE = { belowWidth: 1920, keys: ["laborCost", "payrollCo
  *  that hook reworked to accept one. The bar is shown for consistency; it doesn't filter yet. */
 export default function CombinedPlPage() {
   const { data: user } = useCurrentUser();
-  const { monthly, isLoading } = useCombinedPl();
+  const { monthly, salaryOverlaps, isLoading } = useCombinedPl();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo } = useReportDateRange();
   const columnTable = useColumnVisibility("combined-pl", COMBINED_PL_COLUMNS, COMBINED_PL_AUTO_HIDE);
   const isVisible = columnTable.isVisible;
@@ -146,6 +146,21 @@ export default function CombinedPlPage() {
         customTo={customTo}
         onCustomToChange={setCustomTo}
       />
+
+      {/* Salary reaches this report twice over — as a payslip and as a Salaries-category expense
+          — and both are added. Where both are non-zero in the same month the cost is almost
+          certainly counted twice and net profit is understated by the overlap. Saying so beats
+          silently reporting a number that's wrong. */}
+      {salaryOverlaps.length > 0 && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-900 dark:bg-amber-950/40">
+          <p className="font-medium">Salary may be counted twice in {salaryOverlaps.length} month{salaryOverlaps.length === 1 ? "" : "s"}.</p>
+          <p className="mt-1 text-muted-foreground">
+            {salaryOverlaps.map((o) => `${o.month} (payroll ${inr(o.payrollSalary)} + salary expenses ${inr(o.expenseSalary)})`).join(", ")}. This
+            report adds payroll salaries and Salaries-category expenses together, which is right only if you use one method or the other. If the
+            same wages are recorded both ways, net profit above is understated. Nothing has been deducted automatically.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Total Revenue" value={inr(totals.revenue)} icon={TrendUpDuotoneIcon} tone="success" />

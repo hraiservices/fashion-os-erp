@@ -8,6 +8,43 @@ import type { WorkOrder } from "@/lib/types";
 import { last6MonthBuckets, lastNDayBuckets } from "@/lib/period-buckets";
 import { normalizePhone } from "@/lib/auth-errors";
 
+/**
+ * Salary cost reaches the P&L by two independent routes: payslips (`payrollCost`) and expenses
+ * filed under a Salaries-type category (inside `expenseCost`). computeBucket adds both, which is
+ * correct only while a shop uses exactly one of them — the documented assumption being that shops
+ * here pay tailors by hand and log it as an Expense rather than running payroll.
+ *
+ * A shop that does both, or that migrates from one to the other mid-year, double-counts salary
+ * with nothing detecting it: net profit silently drops by the overlap and every margin on the
+ * report is understated. This spots the overlap so the P&L can say so out loud rather than
+ * quietly reporting a wrong number. It deliberately does NOT net anything off — which of the two
+ * records is the real one is a bookkeeping decision, not something to guess at.
+ */
+export interface SalaryOverlap {
+  /** Bucket key the overlap falls in ("yyyy-mm" or "yyyy-mm-dd"), matching CombinedMonthStat.month. */
+  month: string;
+  /** Salary-category expense total in this bucket. */
+  expenseSalary: number;
+  /** Payslip salary (net of piece rate, which is already counted as order cost) in this bucket. */
+  payrollSalary: number;
+}
+
+const SALARY_CATEGORY_RE = /salar|wage/i;
+
+/** Buckets where BOTH payroll and salary-category expenses carry a non-zero figure — i.e. where
+ *  `expenseCost` and `payrollCost` are probably describing the same money twice. */
+export function detectSalaryOverlap(stats: CombinedMonthStat[], expenses: Expense[]): SalaryOverlap[] {
+  return stats
+    .map((s) => ({
+      month: s.month,
+      expenseSalary: expenses
+        .filter((e) => e.date?.startsWith(s.month) && SALARY_CATEGORY_RE.test(e.category || ""))
+        .reduce((sum, e) => sum + (e.amount || 0), 0),
+      payrollSalary: s.payrollCost,
+    }))
+    .filter((o) => o.expenseSalary > 0 && o.payrollSalary > 0);
+}
+
 export interface CombinedMonthStat {
   month: string;
   label: string;

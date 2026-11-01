@@ -8,7 +8,7 @@ import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useExpenses } from "@/hooks/use-expenses";
 import { useOrderExpenses } from "@/hooks/use-order-expenses";
 import { useAllPayslips } from "@/hooks/use-payroll";
-import { getCombinedMonthly } from "@/lib/combined-reports";
+import { getCombinedMonthly, detectSalaryOverlap } from "@/lib/combined-reports";
 
 export function useCombinedPl() {
   const { data: orders, isLoading: l1 } = useOrders();
@@ -24,5 +24,11 @@ export function useCombinedPl() {
     [orders, invoices, bills, workOrders, expenses, orderExpenses, payslips]
   );
 
-  return { monthly, isLoading: l1 || l2 || l3 || l4 || l5 || l6 || l7 };
+  // Buckets where salary is probably being counted twice — once as a payslip, once as a
+  // Salaries-category expense. Surfaced on the report rather than silently netted off.
+  // payrollSalary comes off the computed bucket, so the warning can never disagree with the
+  // payroll figure the table actually shows.
+  const salaryOverlaps = useMemo(() => detectSalaryOverlap(monthly, expenses || []), [monthly, expenses]);
+
+  return { monthly, salaryOverlaps, isLoading: l1 || l2 || l3 || l4 || l5 || l6 || l7 };
 }

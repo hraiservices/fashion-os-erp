@@ -102,6 +102,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/live", label: "LIVE Report", section: "Summary" },
     { href: "/reports/day-book", label: "Day Book" },
     { href: "/reports/combined-pl", label: "Combined P&L", adminOnly: true },
+    { href: "/reports/ledger-reconciliation", label: "Ledger Reconciliation", adminOnly: true },
     { href: "/reports/payments-received", label: "Payments Received" },
 
     { href: "/reports/monthly", label: "Stitching Monthly P&L", section: "Stitching Orders" },

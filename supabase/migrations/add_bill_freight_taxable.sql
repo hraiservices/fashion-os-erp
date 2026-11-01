@@ -1,0 +1,11 @@
+-- Lets a purchase bill record that the vendor charged GST on freight.
+--
+-- Sales invoices put shipping INSIDE the taxable base (computeInvoiceTotals), which is correct —
+-- freight on an outward supply is part of the taxable value of a composite supply. Purchase bills
+-- added shipping AFTER GST unconditionally, so whenever a vendor did charge GST on freight that
+-- input tax credit was never captured. A forensic audit flagged the asymmetry.
+--
+-- Defaults FALSE, so every existing bill keeps the total it was saved with and nothing restates
+-- itself on deploy. The flag is per-bill rather than a global setting because it is a fact about
+-- what the vendor actually invoiced, which varies by vendor and by consignment.
+alter table purchase_bills add column if not exists freight_taxable boolean not null default false;

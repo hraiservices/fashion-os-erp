@@ -130,6 +130,12 @@ export interface Order {
   /** Internal-only cost fields, never shown to the customer — power the order-profitability report. */
   fabricCost: number;
   otherCost: number;
+  /** Set when the order was voided. Non-null means it is excluded from revenue, receivables and
+   *  the work pipeline, while the record itself survives for audit. Never a `status` value — see
+   *  add_order_cancellation.sql for why. */
+  cancelledAt: string | null;
+  cancelledBy: string | null;
+  cancelReason: string;
   reworkFlag: boolean;
   reworkReason: string;
   reworkFlaggedBy: string | null;
@@ -216,6 +222,9 @@ export function mapOrderRow(r: OrderRowForMapping): Order {
     bookingSource: r.booking_source || "",
     fabricCost: r.fabric_cost || 0,
     otherCost: r.other_cost || 0,
+    cancelledAt: r.cancelled_at ?? null,
+    cancelledBy: r.cancelled_by ?? null,
+    cancelReason: r.cancel_reason || "",
     reworkFlag: !!r.rework_flag,
     reworkReason: r.rework_reason || "",
     reworkFlaggedBy: r.rework_flagged_by ?? null,
@@ -269,6 +278,9 @@ type OrderRowForLightMapping = Pick<
   | "booking_source"
   | "fabric_cost"
   | "other_cost"
+  | "cancelled_at"
+  | "cancelled_by"
+  | "cancel_reason"
   | "rework_flag"
   | "rework_reason"
   | "rework_flagged_by"
@@ -306,6 +318,9 @@ export function mapOrderRowLight(r: OrderRowForLightMapping): OrderLight {
     bookingSource: r.booking_source || "",
     fabricCost: r.fabric_cost || 0,
     otherCost: r.other_cost || 0,
+    cancelledAt: r.cancelled_at ?? null,
+    cancelledBy: r.cancelled_by ?? null,
+    cancelReason: r.cancel_reason || "",
     reworkFlag: !!r.rework_flag,
     reworkReason: r.rework_reason || "",
     reworkFlaggedBy: r.rework_flagged_by ?? null,
@@ -680,6 +695,10 @@ export interface PurchaseBill {
   total: number;
   notes: string;
   referenceNumber: string;
+  /** The vendor charged GST on freight, so shipping sits INSIDE the taxable base on this bill
+   *  (as it always has on sales invoices). False — the default — keeps the original behaviour of
+   *  adding shipping after tax. Per-bill because it is a fact about what the vendor invoiced. */
+  freightTaxable: boolean;
   createdAt: string;
 }
 
@@ -703,6 +722,7 @@ export function mapPurchaseBillRow(r: PurchaseBillRow): PurchaseBill {
     total: r.total || 0,
     notes: r.notes || "",
     referenceNumber: r.reference_number || "",
+    freightTaxable: !!r.freight_taxable,
     createdAt: r.created_at,
   };
 }

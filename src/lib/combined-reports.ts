@@ -6,6 +6,8 @@ import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import type { PurchaseBillWithBalance } from "@/hooks/use-purchase-bills";
 import type { WorkOrder } from "@/lib/types";
 import { last6MonthBuckets, lastNDayBuckets } from "@/lib/period-buckets";
+import { computeCogs } from "@/lib/sales";
+import { purchaseItemType } from "@/lib/purchases";
 import { normalizePhone } from "@/lib/auth-errors";
 
 /**
@@ -51,7 +53,17 @@ export interface CombinedMonthStat {
   stitchingRevenue: number;
   salesRevenue: number;
   revenue: number;
+  /** Total goods cost charged to this bucket: `cogs` + `materialPurchases`. Kept under the
+   *  original name so every consumer (charts, exports, column customiser) keeps working. */
   purchaseCost: number;
+  /** Cost of finished goods actually SOLD this bucket, from the cost frozen on each invoice line. */
+  cogs: number;
+  /** Raw-material spend from bills dated in this bucket — still period-costed, see computeBucket. */
+  materialPurchases: number;
+  /** Invoice lines in this bucket with no recorded cost, so excluded from `cogs`. Non-zero means
+   *  COGS is understated and margin correspondingly flattered; the report says so rather than
+   *  pretending those goods were free. */
+  unknownCostLines: number;
   laborCost: number;
   expenseCost: number;
   /** Stitching MATERIAL costs only — fabric + other + per-order stitching expense line items.
@@ -83,7 +95,10 @@ function computeBucket(
   orderExpenseByOrderId: Map<string, number>,
   payslips: Payslip[]
 ): CombinedMonthStat {
-  const bucketOrders = orders.filter((o) => o.inDate?.startsWith(key));
+  // A cancelled order is not revenue and never was — it keeps its record for audit but leaves
+  // every financial total (see add_order_cancellation.sql). Before cancellation existed the only
+  // way to take one out of these figures was to delete the order outright.
+  const bucketOrders = orders.filter((o) => o.inDate?.startsWith(key) && !o.cancelledAt);
   const stitchingRevenue = bucketOrders.reduce((s, o) => s + (o.total || 0), 0);
   // Drafts aren't sales yet (nothing has been issued to the customer), and a credit note
   // reverses part of a sale (a return) — both must come out of "revenue", the same
@@ -91,10 +106,30 @@ function computeBucket(
   // balance (src/hooks/use-sales-invoices.ts deriveInvoiceBalance). Previously this summed
   // every invoice's gross total including drafts and fully-refunded sales, which fed
   // straight into the "Net Profit"/"Margin" cards on this report.
-  const salesRevenue = invoices
-    .filter((i) => i.invoiceDate?.startsWith(key) && i.docStatus !== "draft")
-    .reduce((s, i) => s + Math.max(0, i.total - i.creditsTotal), 0);
-  const purchaseCost = bills.filter((b) => b.billDate?.startsWith(key)).reduce((s, b) => s + b.total, 0);
+  const bucketInvoices = invoices.filter((i) => i.invoiceDate?.startsWith(key) && i.docStatus !== "draft");
+  const salesRevenue = bucketInvoices.reduce((s, i) => s + Math.max(0, i.total - i.creditsTotal), 0);
+
+  // Cost of what was SOLD, not of what was bought. Expensing every bill in the month it was
+  // raised charged unsold finished goods — a balance-sheet asset — straight to profit, and left
+  // this report contradicting Profit by Item on the same revenue (a forensic audit measured the
+  // gap at ₹77,403 on one month's data). Finished-goods purchases now sit in inventory until an
+  // invoice sells them, at which point the cost frozen on that invoice line becomes the expense.
+  const cogsResults = bucketInvoices.map((i) => computeCogs(i.items));
+  const cogs = Math.round(cogsResults.reduce((s, r) => s + r.cogs, 0) * 100) / 100;
+  const unknownCostLines = cogsResults.reduce((s, r) => s + r.unknownCostLines, 0);
+
+  // Raw materials stay on the period-cost convention. Their consumption is only recorded per
+  // order as fabricCost/otherCost (counted in stitchingCost below) and shops do not reliably fill
+  // those in, so dropping bill-side raw-material spend entirely would make stitching look free.
+  // Finished goods are the half that had a real sold-cost to match against, so that is the half
+  // that moved.
+  const materialPurchases = bills
+    .filter((b) => b.billDate?.startsWith(key))
+    .reduce(
+      (s, b) => s + b.items.filter((i) => purchaseItemType(i) === "raw_material").reduce((ls, i) => ls + (i.amount || 0), 0),
+      0
+    );
+  const purchaseCost = Math.round((cogs + materialPurchases) * 100) / 100;
   const laborCost = workOrders
     .filter((w) => w.status === "completed" && w.completedAt?.startsWith(key))
     .reduce((s, w) => s + (w.laborCost || 0), 0);
@@ -125,6 +160,9 @@ function computeBucket(
     salesRevenue,
     revenue,
     purchaseCost,
+    cogs,
+    materialPurchases,
+    unknownCostLines,
     laborCost,
     expenseCost,
     stitchingCost,
@@ -182,7 +220,10 @@ export interface SalesPnlStat {
   label: string;
   count: number;
   billed: number;
+  /** Cost of goods actually sold, from each invoice line's frozen cost — not period purchases. */
   purchaseCost: number;
+  /** Invoice lines with no recorded cost, excluded from the figure above. */
+  unknownCostLines: number;
   salesStaffCost: number;
   totalCost: number;
   netProfit: number;
@@ -213,7 +254,12 @@ export function getSalesPnl(invoices: SalesInvoiceWithBalance[], bills: Purchase
   return last6MonthBuckets().map(({ key, label }) => {
     const monthInvoices = invoices.filter((i) => i.invoiceDate?.startsWith(key) && i.docStatus !== "draft");
     const billed = monthInvoices.reduce((s, i) => s + Math.max(0, i.total - i.creditsTotal), 0);
-    const purchaseCost = bills.filter((b) => b.billDate?.startsWith(key)).reduce((s, b) => s + b.total, 0);
+    // Cost of what was sold, from each line's frozen cost — not every bill raised in the month.
+    // This report is product-sales-only, so there is no raw-material half to keep period-costed:
+    // it now agrees with Profit by Item, which has always costed this way.
+    const cogsResults = monthInvoices.map((i) => computeCogs(i.items));
+    const purchaseCost = Math.round(cogsResults.reduce((s, r) => s + r.cogs, 0) * 100) / 100;
+    const unknownCostLines = cogsResults.reduce((s, r) => s + r.unknownCostLines, 0);
 
     const monthExpenses = expenses.filter((e) => e.date?.startsWith(key));
     const salesSalaryExpense = monthExpenses
@@ -229,6 +275,6 @@ export function getSalesPnl(invoices: SalesInvoiceWithBalance[], bills: Purchase
     const salesStaffCost = salesSalaryExpense + salesPayrollCost;
 
     const totalCost = purchaseCost + salesStaffCost;
-    return { month: key, label, count: monthInvoices.length, billed, purchaseCost, salesStaffCost, totalCost, netProfit: billed - totalCost };
+    return { month: key, label, count: monthInvoices.length, billed, purchaseCost, unknownCostLines, salesStaffCost, totalCost, netProfit: billed - totalCost };
   });
 }

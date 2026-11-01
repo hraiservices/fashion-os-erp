@@ -11,6 +11,7 @@ import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
 import { StatCard } from "@/components/ui/stat-card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -179,7 +180,25 @@ export default function GstSummaryReportPage() {
       </div>
 
       {groups.length === 0 ? (
-        <EmptyState icon={ReceiptDuotoneIcon} title="No invoices in this period" description="Pick a different month above." />
+        /* A tax report defaulting to "this month" and rendering ₹0 across every tile reads as
+           "no GST liability" rather than "no data in this window" — a dangerous thing to glance
+           at near a filing deadline. Say which it is, and offer the window that has data. */
+        <EmptyState
+          icon={ReceiptDuotoneIcon}
+          title="No invoices in this period"
+          description={
+            (invoices || []).length > 0
+              ? `This shop has ${(invoices || []).length} invoices on record, none of them in the selected period — the ₹0 above is an empty window, not a zero tax liability.`
+              : "No sales invoices have been recorded yet."
+          }
+          action={
+            preset !== "all" && (invoices || []).length > 0 ? (
+              <Button variant="outline" size="sm" onClick={() => setPreset("all")}>
+                View all time
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
         <>
         <MobileRecordList>

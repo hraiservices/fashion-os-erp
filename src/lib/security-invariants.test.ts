@@ -43,6 +43,11 @@ const WRITE_LOCKED_TABLES = [
   // ops
   "leave_requests", "leave_types", "leave_balances", "leave_balance_adjustments",
   "holidays", "shop_locations", "pos_sessions", "chatbot_messages", "billing_events",
+  // customer credit + banking + day-book cash. RLS-enabled with no write policy, so writes
+  // already deny — listed so a future route writing them on a caller session fails CI rather
+  // than silently no-oping in production, the same way every other money table is guarded.
+  "customer_credit_balances", "customer_credit_ledger", "payment_accounts",
+  "day_book_closings", "day_book_cash_adjustments",
 ];
 
 /**
@@ -99,6 +104,8 @@ const READ_LOCKED_TABLES = [
   "payslips", "employee_advances", "employee_attendance",
   "leave_requests", "leave_balances", "leave_balance_adjustments",
   "chatbot_messages", "pos_sessions", "user_roles", "order_payments", "orders", "work_orders",
+  // Narrowed from the original blanket USING (true) by lockdown_reads_credit_and_accounts.sql.
+  "customer_credit_balances", "customer_credit_ledger", "payment_accounts",
 ];
 
 function sourceFiles(dir: string): string[] {

@@ -233,7 +233,19 @@ function ExpensesPageContent() {
             ))}
           </div>
         ) : (allExpenses?.length ?? 0) > 0 && expenses.length === 0 ? (
-          <EmptyState icon={WalletDuotoneIcon} title="No expenses match" description="Try a wider date range or clear the category / search." className="border-0" />
+          <EmptyState
+            icon={WalletDuotoneIcon}
+            title="No expenses match"
+            description={dr.preset !== "all" ? "Nothing in this date range. Your other expenses are outside it." : "Try clearing the category / search."}
+            className="border-0"
+            action={
+              dr.preset !== "all" && (
+                <Button variant="outline" size="sm" onClick={() => dr.setPreset("all")}>
+                  View all time
+                </Button>
+              )
+            }
+          />
         ) : !allExpenses?.length ? (
           <EmptyState
             icon={WalletDuotoneIcon}

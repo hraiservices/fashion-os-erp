@@ -156,7 +156,10 @@ function EmployeesPageContent() {
               {canManage && <Checkbox checked={selection.selected.has(e.id)} onChange={() => selection.toggle(e.id)} aria-label={`Select ${e.name}`} />}
               <Link href={`/employees/${e.id}`} className="flex min-w-0 flex-1 items-center gap-3">
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{e.name}</p>
+                {/* A linked-user row can land here with no name/role set on the employees table
+                    itself (e.g. invited by email before anyone filled in their employee record) —
+                    falling through to a blank name looked like a broken row, not a real employee. */}
+                <p className="truncate font-medium">{e.name || linkedEmailByEmployeeId.get(e.id) || "Unnamed staff member"}</p>
                 <p className="truncate text-xs text-muted-foreground">{[e.role, e.mobile].filter(Boolean).join(" · ") || "—"}</p>
               </div>
               {!e.active && (

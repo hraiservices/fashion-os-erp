@@ -13,12 +13,15 @@ import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
  *  billed = collected + outstanding identity, so the same customer showed a balance on their
  *  order page and ₹0 on Customer Balances. The stage being wrong is a data problem to fix on
  *  the order; it must not make the money disappear from reports. */
-export function isOrderOutstanding(order: Pick<Order, "status" | "balance">): boolean {
+export function isOrderOutstanding(order: Pick<Order, "status" | "balance" | "cancelledAt">): boolean {
+  // A cancelled order owes nothing — the work was never done and nothing is collectable. Its
+  // balance column is left as it was so the record still shows what the order had been worth.
+  if (order.cancelledAt) return false;
   return (order.balance || 0) > 0;
 }
 
 /** 0 if the order is fully settled, otherwise the balance owed. */
-export function getOrderOutstanding(order: Pick<Order, "status" | "balance">): number {
+export function getOrderOutstanding(order: Pick<Order, "status" | "balance" | "cancelledAt">): number {
   return isOrderOutstanding(order) ? order.balance || 0 : 0;
 }
 
@@ -31,7 +34,7 @@ export function getInvoiceOutstanding(invoice: Pick<SalesInvoiceWithBalance, "ba
   return invoice.balance || 0;
 }
 
-export function sumOrdersOutstanding(orders: Pick<Order, "status" | "balance">[]): number {
+export function sumOrdersOutstanding(orders: Pick<Order, "status" | "balance" | "cancelledAt">[]): number {
   return orders.reduce((s, o) => s + getOrderOutstanding(o), 0);
 }
 

@@ -4,14 +4,14 @@ import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, ChevronDown, ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt, FileDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt, FileDown, Ban } from "lucide-react";
 import { useOrder } from "@/hooks/use-order";
 import { MaterialsPanel } from "@/components/orders/materials-panel";
 import { useOrdersLight } from "@/hooks/use-orders-light";
 import { useOrderGroup } from "@/hooks/use-order-group";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useAdvanceStage, useDeleteOrder, useUpdateOrder, useSetOrderRework, useDeleteOrderPayment, useBackfillOrderPayment, useRenameOrder } from "@/hooks/use-order-mutations";
+import { useAdvanceStage, useCancelOrder, useDeleteOrder, useUpdateOrder, useSetOrderRework, useDeleteOrderPayment, useBackfillOrderPayment, useRenameOrder } from "@/hooks/use-order-mutations";
 import { useOrderPayments } from "@/hooks/use-order-payments";
 import { orderTailorLabel } from "@/lib/order-tailor";
 import { useActiveTailors, useEmployeeIdScrubber, useTailorName } from "@/hooks/use-employees";
@@ -92,6 +92,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   const advanceStage = useAdvanceStage();
   const deleteOrder = useDeleteOrder();
+  const cancelOrder = useCancelOrder();
+  const [cancelReason, setCancelReason] = useState("");
   const renameOrder = useRenameOrder();
   const [renameOpen, setRenameOpen] = useState(false);
   const [newOrderNumber, setNewOrderNumber] = useState("");
@@ -440,8 +442,28 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   <RotateCcw className="size-3" /> Rework
                 </span>
               )}
+              {order.cancelledAt && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-zinc-400/40 bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                  <Ban className="size-3" /> Cancelled
+                </span>
+              )}
             </div>
           </div>
+
+          {/* A voided order still renders in full — the point of cancelling rather than deleting is
+              that the record survives — so it has to say plainly that it no longer counts. */}
+          {order.cancelledAt && (
+            <div className="mt-3 rounded-lg border bg-muted/60 p-3 text-sm">
+              <p className="font-medium">This order was cancelled</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {order.cancelReason || "No reason recorded"} · {fmtDate(order.cancelledAt)}
+                {order.cancelledBy ? ` · by ${order.cancelledBy}` : ""}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                It is excluded from revenue, receivables and the work board. The record is kept for your audit trail.
+              </p>
+            </div>
+          )}
 
           {order.reworkFlag && (
             <div className="mt-3 rounded-lg border border-red-500/30 bg-red-50 p-3 text-sm dark:bg-red-950/40">
@@ -568,6 +590,53 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <FileDown className="size-4" />
             <span className="min-w-0 truncate">Download PDF</span>
           </Button>
+          {user?.perms.deleteOrder && !order.cancelledAt && (
+            <AlertDialog>
+              <AlertDialogTrigger
+                render={
+                  <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Cancel order">
+                    <Ban className="size-4" />
+                    <span className="min-w-0 truncate">Cancel order</span>
+                  </Button>
+                }
+              />
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Cancel this order?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {order.id} stops counting as revenue and leaves the work board, but the record and its history are kept. Use this instead of
+                    Delete so the order stays auditable.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="px-1">
+                  <Input
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    placeholder="Why is it being cancelled?"
+                    aria-label="Cancellation reason"
+                    className="h-10"
+                  />
+                </div>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={cancelOrder.isPending}>Keep it</AlertDialogCancel>
+                  <AlertDialogAction
+                    disabled={cancelOrder.isPending || !cancelReason.trim()}
+                    onClick={async () => {
+                      try {
+                        await cancelOrder.mutateAsync({ id, reason: cancelReason.trim() });
+                        toast.success("Order cancelled");
+                        setCancelReason("");
+                      } catch (e) {
+                        toast.error(e instanceof Error ? e.message : "Failed to cancel order");
+                      }
+                    }}
+                  >
+                    {cancelOrder.isPending ? "Cancelling…" : "Cancel order"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           {user?.perms.deleteOrder && (
             <AlertDialog>
               <AlertDialogTrigger

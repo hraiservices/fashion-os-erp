@@ -14,7 +14,7 @@ import { mapOrderRowLight, type OrderLight } from "@/lib/types";
 // appear here, and there is deliberately no `as` cast on the query result, so a column missing
 // from this list is a compile error, not a silently-null field for every order.
 const ORDER_LIGHT_COLUMNS =
-  "id, name, mobile, in_date, delivery_date, in_time, delivery_time, garments, total, advance, tailor, status, order_type, booking_source, fabric_cost, other_cost, rework_flag, rework_reason, rework_flagged_by, rework_flagged_at, rework_count, ready_at, payables_confirmed_at, payables_confirmed_by, piece_rate_paid_at, group_id, lead_id, measurement_profile_id, measurement_profile_name, created_at";
+  "id, name, mobile, in_date, delivery_date, in_time, delivery_time, garments, total, advance, tailor, status, order_type, booking_source, fabric_cost, other_cost, cancelled_at, cancelled_by, cancel_reason, rework_flag, rework_reason, rework_flagged_by, rework_flagged_at, rework_count, ready_at, payables_confirmed_at, payables_confirmed_by, piece_rate_paid_at, group_id, lead_id, measurement_profile_id, measurement_profile_name, created_at";
 
 // Same growth-safety-net reasoning as use-orders.ts's SAFETY_LIMIT.
 const SAFETY_LIMIT = 20_000;

@@ -353,6 +353,9 @@ export interface Database {
           measurement_profile_name: string | null;
           materials: Json;
           materials_note: string;
+          cancelled_at: string | null;
+          cancelled_by: string | null;
+          cancel_reason: string;
           created_at: string;
           updated_at: string;
         };
@@ -930,6 +933,7 @@ export interface Database {
           other_charges: number;
           notes: string;
           reference_number: string;
+          freight_taxable: boolean;
           created_by: string | null;
           created_at: string;
           updated_at: string;

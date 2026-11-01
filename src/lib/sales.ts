@@ -3,6 +3,7 @@
 // same number-generator style, kept as an independent module (not shared code) so Sales
 // and Purchases can evolve without coupling to each other.
 
+import { computeGst, type GstType } from "@/lib/gst";
 import { daysLeft } from "@/lib/business-rules";
 import { istDateString } from "@/lib/ist-date";
 
@@ -50,6 +51,62 @@ export function computeInvoiceMargin(items: SalesLineItem[], invoiceDiscountAmou
   if (lineMargins.some((m) => m === null)) return null;
   const lineMargin = (lineMargins as number[]).reduce((s, m) => s + m, 0);
   return Math.round((lineMargin - (invoiceDiscountAmount || 0)) * 100) / 100;
+}
+
+/**
+ * The tax a credit note reverses, derived from the invoice it was raised against.
+ *
+ * `sales_credit_notes` stores only a total — it has no tax columns of its own — so for as long as
+ * that was the whole picture, GST Summary could not net credits off and reported output tax on
+ * gross sales. That over-states liability: under s.34 of the CGST Act a credit note reduces output
+ * tax in the period it is issued. Meanwhile revenue reports DO net credits (`total - creditsTotal`
+ * in computeBucket), so the two disagreed by construction the moment any credit note existed.
+ *
+ * Derived rather than stored, deliberately. A credit note's total is the sum of its returned line
+ * amounts, i.e. a pre-tax figure on the same basis as the invoice's own taxable amount — so the
+ * tax to reverse is just the invoice's own rate applied to it. Deriving needs no migration, no
+ * change to the row-locked record_sales_credit_note RPC, and fixes credit notes already in the
+ * database rather than only new ones. It cannot drift either: an invoice carrying a credit note
+ * is blocked from financial edits (the H-3 guard in the invoices route), so the rate it is
+ * derived from is frozen.
+ */
+export function creditNoteTax(creditTotal: number, invoiceTaxRate: number, invoiceGstType: GstType) {
+  return computeGst(Math.max(0, creditTotal || 0), invoiceTaxRate, invoiceGstType);
+}
+
+export interface CogsResult {
+  /** Cost of the goods actually sold — Σ(qty × frozen line costPrice) across the lines that have one. */
+  cogs: number;
+  /** Lines whose costPrice was never recorded (saved before server-side cost freezing existed).
+   *  Their cost is genuinely unknown, so it is excluded rather than assumed zero — a report
+   *  showing COGS must be able to say how much of itself is missing. */
+  unknownCostLines: number;
+}
+
+/**
+ * Cost of goods sold for a set of invoice lines, from the cost frozen on each line at save time.
+ *
+ * This is the matching-principle counterpart to the period-purchases convention the P&L used to
+ * run on: buying stock is not an expense, selling it is. Expensing every bill in the month it was
+ * raised charged unsold inventory — a balance-sheet asset — straight to profit, which made
+ * reported margin swing with purchase timing rather than trading performance, and put the Product
+ * Sales P&L and the Profit by Item report in direct contradiction over the same revenue.
+ *
+ * Lines with no recorded cost are counted, not guessed at: `lineItemMargin` already treats an
+ * absent costPrice as "unknown" rather than zero, and silently costing them at ₹0 here would
+ * overstate margin in exactly the way that comment warns about.
+ */
+export function computeCogs(items: SalesLineItem[]): CogsResult {
+  let cogs = 0;
+  let unknownCostLines = 0;
+  for (const item of items) {
+    if (item.costPrice === undefined) {
+      unknownCostLines++;
+      continue;
+    }
+    cogs += (item.qty || 0) * item.costPrice;
+  }
+  return { cogs: Math.round(cogs * 100) / 100, unknownCostLines };
 }
 
 /**

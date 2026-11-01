@@ -33,6 +33,7 @@ const bodySchema = z.object({
   otherCharges: z.number().min(0).default(0),
   notes: z.string().default(""),
   referenceNumber: z.string().default(""),
+  freightTaxable: z.boolean().default(false),
 });
 
 /**
@@ -76,8 +77,17 @@ export async function POST(request: Request) {
     }
   }
 
-  const taxableAmount = computeLineItemsTotal(fd.items as PurchaseLineItem[]);
+  // When the vendor charged GST on freight, shipping belongs INSIDE the taxable base — the same
+  // treatment computeInvoiceTotals has always given it on the sales side. Leaving it outside (the
+  // unconditional old behaviour) silently dropped the input tax credit on freight.
+  const lineItemsTotal = computeLineItemsTotal(fd.items as PurchaseLineItem[]);
+  const taxableAmount = fd.freightTaxable ? lineItemsTotal + fd.shippingCharges : lineItemsTotal;
   const gst = computeGst(taxableAmount, fd.taxRate, fd.gstType);
+  // Shipping is already inside gst.total when it was taxed, so adding it again here would
+  // double-charge it onto the bill.
+  const billTotal = fd.freightTaxable
+    ? computePurchaseTotal(gst.total, 0, fd.otherCharges)
+    : computePurchaseTotal(gst.total, fd.shippingCharges, fd.otherCharges);
 
   const { data, error } = await db
     .from("purchase_bills")
@@ -97,9 +107,10 @@ export async function POST(request: Request) {
       igst: gst.igst,
       shipping_charges: fd.shippingCharges,
       other_charges: fd.otherCharges,
-      total: computePurchaseTotal(gst.total, fd.shippingCharges, fd.otherCharges),
+      total: billTotal,
       notes: fd.notes.trim(),
       reference_number: fd.referenceNumber.trim(),
+      freight_taxable: fd.freightTaxable,
       created_by: user.email,
     })
     .select()
@@ -127,6 +138,6 @@ export async function POST(request: Request) {
   const arrivedProductIds = fd.items.filter((i) => i.qty > 0 && purchaseItemType(i as PurchaseLineItem) === "product").map((i) => purchaseItemId(i as PurchaseLineItem)).filter((x): x is string => !!x);
   if (isNew && arrivedProductIds.length) after(() => notifyStockMatches(db, arrivedProductIds).catch(() => undefined));
 
-  await logAction(supabase, user.email, isNew ? `Bill received: ${fd.billNumber}` : `Bill updated: ${fd.billNumber}`, null, `₹${computePurchaseTotal(gst.total, fd.shippingCharges, fd.otherCharges)}`);
+  await logAction(supabase, user.email, isNew ? `Bill received: ${fd.billNumber}` : `Bill updated: ${fd.billNumber}`, null, `₹${billTotal}`);
   return NextResponse.json({ bill: data });
 }

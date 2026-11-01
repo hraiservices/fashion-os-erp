@@ -264,6 +264,29 @@ export function useUpdateOrder() {
   });
 }
 
+/** Voids an order without destroying it — see /api/orders/[id]/cancel. Invalidates the same
+ *  query set a delete does, because a cancelled order drops out of every list and total. */
+export function useCancelOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const res = await fetch(`/api/orders/${id}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to cancel order");
+      return data as { ok: true };
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["orders-light"] });
+      qc.invalidateQueries({ queryKey: ["order", vars.id] });
+    },
+  });
+}
+
 export function useDeleteOrder() {
   const qc = useQueryClient();
   return useMutation({

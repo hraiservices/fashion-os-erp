@@ -21,6 +21,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useTableSort } from "@/hooks/use-table-sort";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
+import type { SalesPayment } from "@/lib/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,7 +51,7 @@ export default function SalesPaymentsPage() {
   const canManage = user?.perms.managePayments;
   const invoiceById = useMemo(() => new Map((invoices || []).map((i) => [i.id, i])), [invoices]);
 
-  const filtered = useMemo(() => {
+  const searched = useMemo(() => {
     const q = search.trim().toLowerCase();
     return dated.rows.filter((p) => {
       if (!q) return true;
@@ -56,6 +59,21 @@ export default function SalesPaymentsPage() {
       return (inv?.invoiceNumber || "").toLowerCase().includes(q) || (inv?.customerName || "").toLowerCase().includes(q) || p.customerMobile.includes(q);
     });
   }, [dated.rows, search, invoiceById]);
+
+  // Customer/invoice# live on the joined invoice, not the payment row itself, so these
+  // comparators close over invoiceById rather than being a fixed module-level table.
+  const sortComparators = useMemo<Record<string, (a: SalesPayment, b: SalesPayment) => number>>(
+    () => ({
+      date: (a, b) => a.date.localeCompare(b.date),
+      customer: (a, b) => (invoiceById.get(a.invoiceId)?.customerName || "").localeCompare(invoiceById.get(b.invoiceId)?.customerName || ""),
+      invoice: (a, b) => (invoiceById.get(a.invoiceId)?.invoiceNumber || "").localeCompare(invoiceById.get(b.invoiceId)?.invoiceNumber || ""),
+      method: (a, b) => a.method.localeCompare(b.method),
+      amount: (a, b) => a.amount - b.amount,
+    }),
+    [invoiceById]
+  );
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<SalesPayment>("sales-payments", sortComparators, new Set(["amount"]));
+  const filtered = applySort(searched);
 
   const total = useMemo(() => filtered.reduce((s, p) => s + p.amount, 0), [filtered]);
   const selection = useRowSelection(filtered.map((p) => p.id));
@@ -141,11 +159,11 @@ export default function SalesPaymentsPage() {
                     />
                   </TableHead>
                 )}
-                <TableHead>Date</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Invoice#</TableHead>
-                <TableHead>Mode</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <SortableTableHead sortKey="date" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Date</SortableTableHead>
+                <SortableTableHead sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</SortableTableHead>
+                <SortableTableHead sortKey="invoice" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Invoice#</SortableTableHead>
+                <SortableTableHead sortKey="method" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mode</SortableTableHead>
+                <SortableTableHead sortKey="amount" align="right" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Amount</SortableTableHead>
                 <TableHead>Note</TableHead>
                 {canManage && <TableHead className="w-10" />}
               </TableRow>

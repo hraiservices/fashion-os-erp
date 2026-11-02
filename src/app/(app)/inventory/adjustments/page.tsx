@@ -14,9 +14,12 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
 import { StockAdjustmentForm } from "@/components/inventory/stock-adjustment-form";
+import { useTableSort } from "@/hooks/use-table-sort";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
+import type { LedgerEntry } from "@/lib/types";
 
 export default function InventoryAdjustmentsPage() {
-  const { data: ledger, isLoading } = useInventoryLedger();
+  const { data: ledgerData, isLoading } = useInventoryLedger();
   const { data: rawMaterials } = useRawMaterials();
   const { data: products } = useProducts();
 
@@ -26,6 +29,20 @@ export default function InventoryAdjustmentsPage() {
     (products || []).forEach((p) => map.set(`product:${p.id}`, p.name));
     return map;
   }, [rawMaterials, products]);
+
+  // Item name lives on joined raw-material/product data, not the ledger row itself, so this
+  // comparator table closes over itemNameById rather than being a fixed module-level table.
+  const sortComparators = useMemo<Record<string, (a: LedgerEntry, b: LedgerEntry) => number>>(
+    () => ({
+      date: (a, b) => a.createdAt.localeCompare(b.createdAt),
+      item: (a, b) => (itemNameById.get(`${a.itemType}:${a.itemId}`) || "").localeCompare(itemNameById.get(`${b.itemType}:${b.itemId}`) || ""),
+      type: (a, b) => a.refType.localeCompare(b.refType),
+      movement: (a, b) => a.movement - b.movement,
+    }),
+    [itemNameById]
+  );
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<LedgerEntry>("inventory-adjustments", sortComparators, new Set(["date", "movement"]));
+  const ledger = useMemo(() => (ledgerData ? applySort(ledgerData) : ledgerData), [ledgerData, applySort]);
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
@@ -50,10 +67,10 @@ export default function InventoryAdjustmentsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Movement</TableHead>
+                  <SortableTableHead sortKey="date" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Date</SortableTableHead>
+                  <SortableTableHead sortKey="item" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Item</SortableTableHead>
+                  <SortableTableHead sortKey="type" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Type</SortableTableHead>
+                  <SortableTableHead sortKey="movement" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort} align="right">Movement</SortableTableHead>
                   <TableHead>Note</TableHead>
                 </TableRow>
               </TableHeader>

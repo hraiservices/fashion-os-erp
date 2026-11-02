@@ -33,6 +33,16 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { RawMaterial } from "@/lib/types";
+import { useTableSort } from "@/hooks/use-table-sort";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
+
+const RAW_MATERIAL_SORT_COMPARATORS: Record<string, (a: RawMaterial, b: RawMaterial) => number> = {
+  name: (a, b) => a.name.localeCompare(b.name),
+  category: (a, b) => a.category.localeCompare(b.category),
+  stock: (a, b) => a.stockQty - b.stockQty,
+  cost: (a, b) => a.costPerUnit - b.costPerUnit,
+};
+const RAW_MATERIAL_SORT_DESC_KEYS = new Set(["stock", "cost"]);
 
 function RawMaterialsPageContent() {
   const router = useRouter();
@@ -51,10 +61,13 @@ function RawMaterialsPageContent() {
 
   const canManage = !!user?.perms.manageInventory;
 
-  const filtered = useMemo(() => {
+  const searched = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (materials || []).filter((m) => !q || m.name.toLowerCase().includes(q) || m.category.toLowerCase().includes(q));
   }, [materials, search]);
+
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<RawMaterial>("inventory-raw-materials", RAW_MATERIAL_SORT_COMPARATORS, RAW_MATERIAL_SORT_DESC_KEYS);
+  const filtered = applySort(searched);
 
   const selection = useRowSelection(filtered.map((m) => m.id));
   const selectedMaterials = filtered.filter((m) => selection.selected.has(m.id));
@@ -147,10 +160,10 @@ function RawMaterialsPageContent() {
                     <Checkbox checked={selection.allSelected} onChange={selection.toggleAll} aria-label="Select all materials" />
                   </TableHead>
                 )}
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="text-right">Stock</TableHead>
-                <TableHead className="text-right">Cost/unit</TableHead>
+                <SortableTableHead sortKey="name" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Name</SortableTableHead>
+                <SortableTableHead sortKey="category" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Category</SortableTableHead>
+                <SortableTableHead sortKey="stock" align="right" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Stock</SortableTableHead>
+                <SortableTableHead sortKey="cost" align="right" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Cost/unit</SortableTableHead>
                 {canManage && <TableHead className="w-20" />}
               </TableRow>
             </TableHeader>

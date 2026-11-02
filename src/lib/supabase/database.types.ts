@@ -1104,6 +1104,7 @@ export interface Database {
           created_at: string;
           account_id: string | null;
           reference: string;
+          discount: number;
         };
         Insert: Partial<Database["public"]["Tables"]["order_payments"]["Row"]> & {
           order_id: string;
@@ -1765,6 +1766,7 @@ export interface Database {
           p_paid_at?: string | null;
           p_account_id?: string | null;
           p_reference?: string;
+          p_discount?: number;
         };
         Returns: Database["public"]["Tables"]["orders"]["Row"][];
       };

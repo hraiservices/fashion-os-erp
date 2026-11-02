@@ -38,6 +38,7 @@ interface PaymentRow {
   order_id: string;
   amount: number;
   pt_discount: number | null;
+  discount: number | null;
 }
 
 /** Money compares at paise, not float-exact — a stored 1234.56 and a summed 1234.5599999 are the
@@ -54,15 +55,16 @@ export async function GET() {
 
   const [orders, payments] = await Promise.all([
     fetchAll<OrderRow>((from, to) => db.from("orders").select("id, name, mobile, total, advance, balance, status, in_date").range(from, to)),
-    fetchAll<PaymentRow>((from, to) => db.from("order_payments").select("order_id, amount, pt_discount").range(from, to)),
+    fetchAll<PaymentRow>((from, to) => db.from("order_payments").select("order_id, amount, pt_discount, discount").range(from, to)),
   ]);
 
-  // pt_discount is loyalty points redeemed against the order — it settles balance exactly as cash
-  // does, and delete_order_payment subtracts it from `advance` alongside the amount, so the
-  // control total has to include it or every loyalty redemption would read as drift.
+  // pt_discount (loyalty points redeemed) and discount (a manual write-off, see
+  // add_order_payment_discount.sql) both settle balance exactly as cash does, and
+  // delete_order_payment subtracts them from `advance` alongside the amount, so the control
+  // total has to include both or every redemption/write-off would read as drift.
   const ledgerByOrder = new Map<string, number>();
   for (const p of payments) {
-    ledgerByOrder.set(p.order_id, (ledgerByOrder.get(p.order_id) || 0) + (p.amount || 0) + (p.pt_discount || 0));
+    ledgerByOrder.set(p.order_id, (ledgerByOrder.get(p.order_id) || 0) + (p.amount || 0) + (p.pt_discount || 0) + (p.discount || 0));
   }
 
   const breaks = orders

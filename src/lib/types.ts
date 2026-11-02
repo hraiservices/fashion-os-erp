@@ -1021,6 +1021,9 @@ export interface OrderPayment {
   amount: number;
   ptDiscount: number;
   ptsRedeemed: number;
+  /** A manual, staff-entered write-off applied alongside this payment — distinct from
+   *  ptDiscount (loyalty points redemption). Settles balance the same way; not real cash. */
+  discount: number;
   method: string;
   note: string;
   createdBy: string | null;
@@ -1034,6 +1037,7 @@ export function mapOrderPaymentRow(r: OrderPaymentRow): OrderPayment {
     amount: r.amount,
     ptDiscount: r.pt_discount || 0,
     ptsRedeemed: r.pts_redeemed || 0,
+    discount: r.discount || 0,
     method: r.method || "Cash",
     note: r.note || "",
     createdBy: r.created_by,

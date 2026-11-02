@@ -65,6 +65,7 @@ function makeOrderPayment(overrides: Partial<OrderPayment>): OrderPayment {
     amount: 100,
     ptDiscount: 0,
     ptsRedeemed: 0,
+    discount: 0,
     method: "Cash",
     note: "",
     createdBy: null,

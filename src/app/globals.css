@@ -76,16 +76,19 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  /* Sidebar is deliberately dark in both light and dark app mode — a fixed, stable
-     wayfinding anchor (same idea as Zoho Books/most ERPs) rather than blending into
-     the content area. --sidebar-accent below is overridden per color theme. */
-  --sidebar: oklch(0.205 0.02 258);
-  --sidebar-foreground: oklch(0.929 0.005 258);
+  /* Base sidebar colors match the "Light" style (Settings → Appearance), the shop-wide
+     default (see DEFAULT_SIDEBAR_STYLE) — a bright white sidebar like classic Zoho Books.
+     This also keeps first paint consistent before ColorThemeLoader's effect (or the cached
+     blocking script in layout.tsx's <head>) applies a `sidebar-<id>` class for a shop that
+     has explicitly picked Dark/Black/Colored instead. --sidebar-accent below is overridden
+     per color theme. */
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.205 0 0);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.541 0.221 292.717);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-border: oklch(0 0 0 / 10%);
   --sidebar-ring: oklch(0.708 0 0);
 }
 
@@ -113,13 +116,13 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.16 0.02 258);
-  --sidebar-foreground: oklch(0.929 0.005 258);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.205 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.702 0.183 293.541);
   --sidebar-accent-foreground: oklch(0.145 0 0);
-  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-border: oklch(0 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
 

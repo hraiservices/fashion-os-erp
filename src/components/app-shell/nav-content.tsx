@@ -22,8 +22,17 @@ import { Skeleton } from "@/components/ui/skeleton";
  * every one of its params matches the current URL exactly; otherwise the bare (no
  * query) item is the active one. This keeps exactly one match per path group.
  */
+/** True for the leaf's own page, and (when it carries no query string, so there's no ambiguity
+ *  about which variant of the base path it means) any sub-route under it too — e.g. the
+ *  "Invoices" leaf ("/sales/invoices") stays active while viewing a single invoice at
+ *  "/sales/invoices/abc123". Query-bearing leaves (e.g. "/orders?view=board") keep requiring
+ *  an exact match, since several of them can share a base path and only the query tells them apart. */
+function pathMatchesLeaf(leafPath: string, pathname: string): boolean {
+  return pathname === leafPath || pathname.startsWith(`${leafPath}/`);
+}
+
 function computeActiveHref(items: NavFlatItem[], pathname: string, searchParams: URLSearchParams): string | undefined {
-  const candidates = items.filter((i) => i.href.split("?")[0] === pathname);
+  const candidates = items.filter((i) => pathMatchesLeaf(i.href.split("?")[0], pathname));
   if (candidates.length === 0) return undefined;
   const withQuery = candidates.filter((i) => i.href.includes("?"));
   const matched = withQuery.find((i) => {
@@ -64,7 +73,7 @@ function FlatLink({ item, active, onNavigate, collapsed }: { item: NavFlatItem; 
           active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
         )}
       >
-        <Icon className="size-[22px] shrink-0 sm:size-4" />
+        <Icon className="size-[22px] shrink-0 sm:size-[18px]" />
         {!collapsed && <span className="truncate">{item.label}</span>}
       </Link>
       {!collapsed && item.newHref && <NewLink href={item.newHref} onNavigate={onNavigate} label={item.label} />}
@@ -88,7 +97,7 @@ function GroupIndexLink({ group, pathname, onNavigate, collapsed }: { group: Nav
         active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
       )}
     >
-      <Icon className="size-[22px] shrink-0 sm:size-4" />
+      <Icon className="size-[22px] shrink-0 sm:size-[18px]" />
       {!collapsed && <span className="truncate">{group.label}</span>}
     </Link>
   );
@@ -138,7 +147,7 @@ function CollapsedGroupFlyout({
                 groupActive ? "text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
               )}
             >
-              <Icon className="size-[22px] shrink-0 sm:size-4" />
+              <Icon className="size-[22px] shrink-0 sm:size-[18px]" />
             </button>
           }
         />
@@ -152,7 +161,7 @@ function CollapsedGroupFlyout({
           )}
           {children.map((leaf) => {
             const [leafPath, leafQuery] = leaf.href.split("?");
-            const active = pathname === leafPath && (leafQuery ?? "") === searchParams.toString();
+            const active = leafQuery ? pathname === leafPath && leafQuery === searchParams.toString() : pathMatchesLeaf(leafPath, pathname);
             return (
               <DropdownMenuItem key={leaf.href} render={<Link href={leaf.href} onClick={onNavigate} />} className={active ? "bg-accent text-accent-foreground" : undefined}>
                 {leaf.label}
@@ -213,7 +222,7 @@ function GroupNav({
   return (
     <div>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className={rowClass}>
-        <Icon className="size-[22px] shrink-0 sm:size-4" />
+        <Icon className="size-[22px] shrink-0 sm:size-[18px]" />
         <span className="flex-1 truncate text-left">{group.label}</span>
         <ChevronRight className={cn("size-[18px] shrink-0 transition-transform duration-200 sm:size-3.5", open && "rotate-90")} />
       </button>
@@ -250,9 +259,10 @@ function GroupNav({
                 {sectionOpen &&
                   section.items.map((leaf) => {
                     const [leafPath, leafQuery] = leaf.href.split("?");
-                    // Compare the query too — otherwise a leaf whose href carries one (e.g.
-                    // "/orders?view=list") never matches, since `pathname` never includes it.
-                    const active = pathname === leafPath && (leafQuery ?? "") === searchParams.toString();
+                    // Query-bearing leaves (e.g. "/orders?view=list") need an exact match — several
+                    // can share a base path and only the query tells them apart. A plain leaf also
+                    // stays active on its own sub-routes (e.g. a single invoice's detail page).
+                    const active = leafQuery ? pathname === leafPath && leafQuery === searchParams.toString() : pathMatchesLeaf(leafPath, pathname);
                     return (
                       <div key={leaf.href} className="flex items-center gap-0.5">
                         <Link

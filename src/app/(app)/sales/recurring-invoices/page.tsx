@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import { toast } from "sonner";
 import { Repeat, Play, Pause, Pencil, Trash2 } from "lucide-react";
 import {
@@ -20,14 +21,33 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { useTableSort } from "@/hooks/use-table-sort";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
+import type { RecurringInvoiceProfile } from "@/lib/types";
+
+const RECURRING_SORT_COMPARATORS: Record<string, (a: RecurringInvoiceProfile, b: RecurringInvoiceProfile) => number> = {
+  name: (a, b) => a.name.localeCompare(b.name),
+  customer: (a, b) => a.customerName.localeCompare(b.customerName),
+  frequency: (a, b) => RECURRING_FREQUENCY_LABELS[a.frequency].localeCompare(RECURRING_FREQUENCY_LABELS[b.frequency]),
+  nextRun: (a, b) => a.nextRunDate.localeCompare(b.nextRunDate),
+  total: (a, b) => a.items.reduce((s, i) => s + i.amount, 0) - b.items.reduce((s, i) => s + i.amount, 0),
+  status: (a, b) => Number(a.active) - Number(b.active),
+};
+const RECURRING_SORT_DESC_KEYS = new Set(["nextRun", "total"]);
 
 export default function RecurringInvoicesPage() {
   const { data: user } = useCurrentUser();
-  const { data: profiles, isLoading } = useRecurringInvoiceProfiles();
+  const { data: profilesData, isLoading } = useRecurringInvoiceProfiles();
   const generateNow = useGenerateRecurringInvoiceNow();
   const setActive = useSetRecurringInvoiceProfileActive();
   const deleteProfile = useDeleteRecurringInvoiceProfile();
   const canManage = !!user?.perms.manageSales;
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<RecurringInvoiceProfile>(
+    "sales-recurring-invoices",
+    RECURRING_SORT_COMPARATORS,
+    RECURRING_SORT_DESC_KEYS
+  );
+  const profiles = useMemo(() => (profilesData ? applySort(profilesData) : profilesData), [profilesData, applySort]);
 
   async function handleGenerateNow(profile: NonNullable<typeof profiles>[number]) {
     try {
@@ -90,12 +110,12 @@ export default function RecurringInvoicesPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Frequency</TableHead>
-                <TableHead>Next run</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead>Status</TableHead>
+                <SortableTableHead sortKey="name" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Name</SortableTableHead>
+                <SortableTableHead sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</SortableTableHead>
+                <SortableTableHead sortKey="frequency" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Frequency</SortableTableHead>
+                <SortableTableHead sortKey="nextRun" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Next run</SortableTableHead>
+                <SortableTableHead sortKey="total" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort} align="right">Total</SortableTableHead>
+                <SortableTableHead sortKey="status" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Status</SortableTableHead>
                 {canManage && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>

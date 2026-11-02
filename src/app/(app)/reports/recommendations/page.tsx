@@ -12,12 +12,27 @@ import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Table, TableHeader, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { fmtDate } from "@/lib/format";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { useReportDateRange, isWithinDateRange } from "@/lib/report-date-range";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { useTableSort } from "@/hooks/use-table-sort";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
+
+type RecommendationRow = { rec: { customerName: string; customerMobile: string; productName: string; score: number; channel: string; createdAt: string; id: string; productId: string }; converted: boolean; convertedDate?: string };
+
+const RECOMMENDATION_SORT_COMPARATORS: Record<string, (a: RecommendationRow, b: RecommendationRow) => number> = {
+  customer: (a, b) => a.rec.customerName.localeCompare(b.rec.customerName),
+  mobile: (a, b) => a.rec.customerMobile.localeCompare(b.rec.customerMobile),
+  product: (a, b) => a.rec.productName.localeCompare(b.rec.productName),
+  match: (a, b) => a.rec.score - b.rec.score,
+  channel: (a, b) => a.rec.channel.localeCompare(b.rec.channel),
+  sent: (a, b) => a.rec.createdAt.localeCompare(b.rec.createdAt),
+  outcome: (a, b) => Number(a.converted) - Number(b.converted),
+};
+const RECOMMENDATION_SORT_DESC_KEYS = new Set(["match", "sent"]);
 
 /**
  * Phase 8: "is this feature actually generating sales?" — cross-references every logged
@@ -55,6 +70,13 @@ export default function RecommendationsReportPage() {
   const viaWaMe = totalSent - viaApi;
   const converted = rows.filter((r) => r.converted).length;
   const conversionRate = totalSent > 0 ? Math.round((converted / totalSent) * 100) : 0;
+
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<RecommendationRow>(
+    "recommendation-performance",
+    RECOMMENDATION_SORT_COMPARATORS,
+    RECOMMENDATION_SORT_DESC_KEYS
+  );
+  const sortedRows = applySort(rows);
 
   if (isLoading) return <div className="p-4 sm:p-6"><Skeleton className="h-64 w-full" /></div>;
 
@@ -123,7 +145,7 @@ export default function RecommendationsReportPage() {
               <MobileRecordHeader boldTitle title="Total" value={`${totalSent} sent`} showChevron={false} />
               <MobileRecordRow label="Converted" value={`${converted} (${conversionRate}%)`} />
             </MobileRecordCard>
-            {rows.slice(0, 100).map(({ rec, converted, convertedDate }) => (
+            {sortedRows.slice(0, 100).map(({ rec, converted, convertedDate }) => (
               <MobileRecordCard key={rec.id}>
                 <MobileRecordHeader
                   boldTitle title={
@@ -166,13 +188,13 @@ export default function RecommendationsReportPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Mobile</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead className="text-right">Match</TableHead>
-                    <TableHead>Channel</TableHead>
-                    <TableHead>Sent</TableHead>
-                    <TableHead>Outcome</TableHead>
+                    <SortableTableHead sortKey="customer" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Customer</SortableTableHead>
+                    <SortableTableHead sortKey="mobile" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mobile</SortableTableHead>
+                    <SortableTableHead sortKey="product" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Product</SortableTableHead>
+                    <SortableTableHead sortKey="match" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort} align="right">Match</SortableTableHead>
+                    <SortableTableHead sortKey="channel" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Channel</SortableTableHead>
+                    <SortableTableHead sortKey="sent" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Sent</SortableTableHead>
+                    <SortableTableHead sortKey="outcome" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Outcome</SortableTableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -181,7 +203,7 @@ export default function RecommendationsReportPage() {
                     <TableCell>{totalSent} sent</TableCell>
                     <TableCell>{converted} converted ({conversionRate}%)</TableCell>
                   </TableRow>
-                  {rows.slice(0, 100).map(({ rec, converted, convertedDate }) => (
+                  {sortedRows.slice(0, 100).map(({ rec, converted, convertedDate }) => (
                     <TableRow key={rec.id}>
                       <TableCell>
                         <Link href={`/crm/${rec.customerMobile}`} className="font-medium hover:underline">{rec.customerName}</Link>

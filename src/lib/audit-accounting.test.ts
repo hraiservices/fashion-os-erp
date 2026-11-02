@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { computeCogs, creditNoteTax, type SalesLineItem } from "@/lib/sales";
+import { getCombinedForRange } from "@/lib/combined-reports";
+import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import { computeGst } from "@/lib/gst";
 
 /** Regression cover for the accounting corrections from the ERP forensic audit. Each test pins
@@ -78,5 +80,47 @@ describe("creditNoteTax — credit notes reverse output tax", () => {
 
   it("never reverses tax on a negative total", () => {
     expect(creditNoteTax(-500, 18, "intra").totalTax).toBe(0);
+  });
+});
+
+describe("getCombinedForRange — the date filter bar actually filters", () => {
+  // getCombinedMonthly/getCombinedDaily always reported a fixed trailing-6-month window no
+  // matter what the Combined P&L page's own date-range buttons showed selected — "This month"
+  // and "All time" rendered identical totals. getCombinedForRange is what the page calls now.
+  function invoice(over: Partial<SalesInvoiceWithBalance>): SalesInvoiceWithBalance {
+    return {
+      id: "inv1", invoiceNumber: "INV-1", customerMobile: "9999999999", customerName: "Test",
+      quoteId: null, salesPersonId: null, invoiceDate: "2026-10-15", dueDate: null,
+      items: [{ productId: "p1", productName: "Suit", qty: 1, unitPrice: 1000, discountPercent: 0, amount: 1000, costPrice: 400 }],
+      subject: "", shippingCharges: 0, discountType: "flat", discountValue: 0, taxableAmount: 1000,
+      gstType: "none", taxRate: 0, cgst: 0, sgst: 0, igst: 0, roundOff: 0, total: 1000,
+      docStatus: "sent", terms: "", notes: "", shareToken: "", viewedAt: null, createdAt: "2026-10-15",
+      paidTotal: 1000, creditsTotal: 0, balance: 0, paymentStatus: "paid", lastPaymentDate: "2026-10-15",
+      ...over,
+    };
+  }
+
+  it("excludes an invoice dated outside the selected range", () => {
+    const inRange = invoice({ id: "a", invoiceDate: "2026-10-15" });
+    const outOfRange = invoice({ id: "b", invoiceDate: "2026-09-01", total: 50000 });
+    const result = getCombinedForRange({ from: "2026-10-01", to: "2026-10-31" }, [], [inRange, outOfRange], [], [], [], [], []);
+    const totalRevenue = result.reduce((s, r) => s + r.revenue, 0);
+    // Only the October invoice counts — the September one (₹50,000) must not leak in.
+    expect(totalRevenue).toBe(1000);
+  });
+
+  it("an empty range (All time) falls back to the trailing-6-month view, not zero", () => {
+    const inv = invoice({ id: "a" });
+    const result = getCombinedForRange({ from: "", to: "" }, [], [inv], [], [], [], [], []);
+    expect(result.length).toBe(6);
+    expect(result.reduce((s, r) => s + r.revenue, 0)).toBeGreaterThan(0);
+  });
+
+  it("a single-day range buckets to exactly one day, not the whole month", () => {
+    const today = invoice({ id: "a", invoiceDate: "2026-10-15" });
+    const otherDay = invoice({ id: "b", invoiceDate: "2026-10-16", total: 99999 });
+    const result = getCombinedForRange({ from: "2026-10-15", to: "2026-10-15" }, [], [today, otherDay], [], [], [], [], []);
+    expect(result.length).toBe(1);
+    expect(result[0].revenue).toBe(1000);
   });
 });

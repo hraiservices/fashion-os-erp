@@ -6,6 +6,7 @@ import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 import type { PurchaseBillWithBalance } from "@/hooks/use-purchase-bills";
 import type { WorkOrder } from "@/lib/types";
 import { last6MonthBuckets, lastNDayBuckets } from "@/lib/period-buckets";
+import { isWithinDateRange, type DateRange } from "@/lib/report-date-range";
 import { computeCogs } from "@/lib/sales";
 import { purchaseItemType } from "@/lib/purchases";
 import { normalizePhone } from "@/lib/auth-errors";
@@ -84,9 +85,16 @@ export interface CombinedMonthStat {
  *  getCombinedDaily (bucket key "yyyy-mm-dd"). Every date field compared here (inDate,
  *  invoiceDate, billDate, completedAt, paidAt) starts with the plain date, so `startsWith(key)`
  *  matches whichever grain the key is at without any other change to the classification logic. */
+/** A bucket's match test: does this record's date fall in the bucket's "yyyy-mm" or
+ *  "yyyy-mm-dd" key. Shared by every month/day-keyed caller of computeBucket. */
+function keyMatcher(key: string) {
+  return (dateStr: string | null | undefined) => !!dateStr && dateStr.startsWith(key);
+}
+
 function computeBucket(
   key: string,
   label: string,
+  matches: (dateStr: string | null | undefined) => boolean,
   orders: OrderLight[],
   invoices: SalesInvoiceWithBalance[],
   bills: PurchaseBillWithBalance[],
@@ -98,7 +106,7 @@ function computeBucket(
   // A cancelled order is not revenue and never was — it keeps its record for audit but leaves
   // every financial total (see add_order_cancellation.sql). Before cancellation existed the only
   // way to take one out of these figures was to delete the order outright.
-  const bucketOrders = orders.filter((o) => o.inDate?.startsWith(key) && !o.cancelledAt);
+  const bucketOrders = orders.filter((o) => matches(o.inDate) && !o.cancelledAt);
   const stitchingRevenue = bucketOrders.reduce((s, o) => s + (o.total || 0), 0);
   // Drafts aren't sales yet (nothing has been issued to the customer), and a credit note
   // reverses part of a sale (a return) — both must come out of "revenue", the same
@@ -106,7 +114,7 @@ function computeBucket(
   // balance (src/hooks/use-sales-invoices.ts deriveInvoiceBalance). Previously this summed
   // every invoice's gross total including drafts and fully-refunded sales, which fed
   // straight into the "Net Profit"/"Margin" cards on this report.
-  const bucketInvoices = invoices.filter((i) => i.invoiceDate?.startsWith(key) && i.docStatus !== "draft");
+  const bucketInvoices = invoices.filter((i) => matches(i.invoiceDate) && i.docStatus !== "draft");
   const salesRevenue = bucketInvoices.reduce((s, i) => s + Math.max(0, i.total - i.creditsTotal), 0);
 
   // Cost of what was SOLD, not of what was bought. Expensing every bill in the month it was
@@ -124,16 +132,16 @@ function computeBucket(
   // Finished goods are the half that had a real sold-cost to match against, so that is the half
   // that moved.
   const materialPurchases = bills
-    .filter((b) => b.billDate?.startsWith(key))
+    .filter((b) => matches(b.billDate))
     .reduce(
       (s, b) => s + b.items.filter((i) => purchaseItemType(i) === "raw_material").reduce((ls, i) => ls + (i.amount || 0), 0),
       0
     );
   const purchaseCost = Math.round((cogs + materialPurchases) * 100) / 100;
   const laborCost = workOrders
-    .filter((w) => w.status === "completed" && w.completedAt?.startsWith(key))
+    .filter((w) => w.status === "completed" && matches(w.completedAt))
     .reduce((s, w) => s + (w.laborCost || 0), 0);
-  const expenseCost = expenses.filter((e) => e.date?.startsWith(key)).reduce((s, e) => s + e.amount, 0);
+  const expenseCost = expenses.filter((e) => matches(e.date)).reduce((s, e) => s + e.amount, 0);
 
   // Material/incidental costs of fulfilling this bucket's stitching orders — fabric, other,
   // and per-order expense line items. Tailor payable is intentionally NOT included: the shop
@@ -147,7 +155,7 @@ function computeBucket(
   // already counted above as the tailor cost of the order it was earned on. Counting the
   // payslip's full netPay here would charge every tailor's piece-rate twice.
   const payrollCost = payslips
-    .filter((p) => p.status === "paid" && p.paidAt?.startsWith(key))
+    .filter((p) => p.status === "paid" && matches(p.paidAt))
     .reduce((s, p) => s + Math.max(0, (p.netPay || 0) - (p.pieceRatePay || 0)), 0);
 
   const revenue = stitchingRevenue + salesRevenue;
@@ -189,7 +197,7 @@ export function getCombinedMonthly(
   }
 
   return last6MonthBuckets().map(({ key, label }) =>
-    computeBucket(key, label, orders, invoices, bills, workOrders, expenses, orderExpenseByOrderId, payslips)
+    computeBucket(key, label, keyMatcher(key), orders, invoices, bills, workOrders, expenses, orderExpenseByOrderId, payslips)
   );
 }
 
@@ -211,8 +219,75 @@ export function getCombinedDaily(
   }
 
   return lastNDayBuckets(days).map(({ key, label }) =>
-    computeBucket(key, label, orders, invoices, bills, workOrders, expenses, orderExpenseByOrderId, payslips)
+    computeBucket(key, label, keyMatcher(key), orders, invoices, bills, workOrders, expenses, orderExpenseByOrderId, payslips)
   );
+}
+
+/** Caps the number of daily bars the Combined P&L chart draws for a custom/long range — well
+ *  past this and a per-day chart stops being readable anyway, so beyond it the range collapses
+ *  to a single bucket covering the whole period instead of one bar per day. */
+const MAX_DAILY_BARS_FOR_RANGE = 120;
+
+/**
+ * Combined P&L bucketed to the user's own selected date range, not a fixed trailing-6-month
+ * window. getCombinedMonthly/getCombinedDaily always report the last 6 months or N days
+ * regardless of what the report's own date-range filter bar shows selected — the filter bar
+ * was display-only, so picking "This month" changed nothing and a forensic audit's own fix
+ * (real COGS) got reported against stale, unfiltered totals. This is what the Combined P&L page
+ * actually calls now: one bucket per day within the range (or one bucket for the whole range,
+ * past MAX_DAILY_BARS_FOR_RANGE), so the trend chart and the stat tiles both honor the filter.
+ *
+ * An unbounded range (`range.from`/`range.to` both "", i.e. "All time") has no natural day
+ * axis to draw, so it falls back to the same last-6-months trend getCombinedMonthly already
+ * produces — that read as "all time" close enough before this existed, and still does.
+ */
+export function getCombinedForRange(
+  range: DateRange,
+  orders: OrderLight[],
+  invoices: SalesInvoiceWithBalance[],
+  bills: PurchaseBillWithBalance[],
+  workOrders: WorkOrder[],
+  expenses: Expense[],
+  orderExpenses: OrderExpense[] = [],
+  payslips: Payslip[] = []
+): CombinedMonthStat[] {
+  const orderExpenseByOrderId = new Map<string, number>();
+  for (const e of orderExpenses) {
+    orderExpenseByOrderId.set(e.orderId, (orderExpenseByOrderId.get(e.orderId) || 0) + (e.amount || 0));
+  }
+
+  if (!range.from && !range.to) {
+    return getCombinedMonthly(orders, invoices, bills, workOrders, expenses, orderExpenses, payslips);
+  }
+
+  const matches = (dateStr: string | null | undefined) => isWithinDateRange(dateStr, range);
+
+  // No lower bound ("up to <date>") has no sensible day count to draw daily bars over, so it
+  // collapses to one bucket the same way an over-long range does.
+  const dayCount = range.from && range.to ? Math.round((new Date(range.to).getTime() - new Date(range.from).getTime()) / 86_400_000) + 1 : Infinity;
+
+  if (dayCount > MAX_DAILY_BARS_FOR_RANGE) {
+    return [computeBucket(`${range.from}..${range.to}`, "Selected range", matches, orders, invoices, bills, workOrders, expenses, orderExpenseByOrderId, payslips)];
+  }
+
+  const dayKeys = getLastNDayKeysInRange(range.from, dayCount);
+  return dayKeys.map((key) => computeBucket(key, fmtDayLabelLocal(key), keyMatcher(key), orders, invoices, bills, workOrders, expenses, orderExpenseByOrderId, payslips));
+}
+
+function getLastNDayKeysInRange(fromKey: string, count: number): string[] {
+  const out: string[] = [];
+  const start = new Date(fromKey);
+  for (let i = 0; i < count; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+  }
+  return out;
+}
+
+function fmtDayLabelLocal(yyyyMmDd: string): string {
+  const [y, m, d] = yyyyMmDd.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
 
 export interface SalesPnlStat {
@@ -252,7 +327,8 @@ export function getSalesPnl(invoices: SalesInvoiceWithBalance[], bills: Purchase
   const salesEmployeeIds = new Set(employees.filter((e) => e.role.toLowerCase().includes("sales")).map((e) => e.id));
 
   return last6MonthBuckets().map(({ key, label }) => {
-    const monthInvoices = invoices.filter((i) => i.invoiceDate?.startsWith(key) && i.docStatus !== "draft");
+    const matches = keyMatcher(key);
+    const monthInvoices = invoices.filter((i) => matches(i.invoiceDate) && i.docStatus !== "draft");
     const billed = monthInvoices.reduce((s, i) => s + Math.max(0, i.total - i.creditsTotal), 0);
     // Cost of what was sold, from each line's frozen cost — not every bill raised in the month.
     // This report is product-sales-only, so there is no raw-material half to keep period-costed:
@@ -261,7 +337,7 @@ export function getSalesPnl(invoices: SalesInvoiceWithBalance[], bills: Purchase
     const purchaseCost = Math.round(cogsResults.reduce((s, r) => s + r.cogs, 0) * 100) / 100;
     const unknownCostLines = cogsResults.reduce((s, r) => s + r.unknownCostLines, 0);
 
-    const monthExpenses = expenses.filter((e) => e.date?.startsWith(key));
+    const monthExpenses = expenses.filter((e) => matches(e.date));
     const salesSalaryExpense = monthExpenses
       .filter((e) => {
         if (!e.category.toLowerCase().includes("salar")) return false;
@@ -270,7 +346,7 @@ export function getSalesPnl(invoices: SalesInvoiceWithBalance[], bills: Purchase
       })
       .reduce((s, e) => s + e.amount, 0);
     const salesPayrollCost = payslips
-      .filter((p) => p.status === "paid" && p.paidAt?.startsWith(key) && salesEmployeeIds.has(p.employeeId))
+      .filter((p) => p.status === "paid" && matches(p.paidAt) && salesEmployeeIds.has(p.employeeId))
       .reduce((s, p) => s + (p.netPay || 0), 0);
     const salesStaffCost = salesSalaryExpense + salesPayrollCost;
 

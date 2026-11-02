@@ -1404,6 +1404,7 @@ export interface Database {
           date: string;
           amount: number;
           note: string;
+          pay_method: string;
           payslip_id: string | null;
           created_by: string | null;
           created_at: string;

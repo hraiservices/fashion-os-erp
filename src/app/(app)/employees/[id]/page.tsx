@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmployeeLeaveSection } from "@/components/employees/employee-leave-section";
 import { BackLink } from "@/components/ui/back-link";
 
@@ -55,6 +56,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
 
   const [advanceAmount, setAdvanceAmount] = useState("");
   const [advanceNote, setAdvanceNote] = useState("");
+  const [advancePayMethod, setAdvancePayMethod] = useState("cash");
 
   const commission = employee ? computeCommission(employee, orders || []) : null;
   const outstandingAdvances = (advances || []).filter((a) => !a.payslipId).reduce((s, a) => s + a.amount, 0);
@@ -70,7 +72,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
     const amount = parseFloat(advanceAmount);
     if (!amount || amount <= 0) return toast.error("Enter a valid amount");
     try {
-      await addAdvance.mutateAsync({ employeeId: id, date: toISODate(new Date()), amount, note: advanceNote, userEmail: user?.email });
+      await addAdvance.mutateAsync({ employeeId: id, date: toISODate(new Date()), amount, note: advanceNote, payMethod: advancePayMethod, userEmail: user?.email });
       setAdvanceAmount("");
       setAdvanceNote("");
       toast.success("Advance recorded");
@@ -183,6 +185,19 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
           <div className="flex flex-wrap items-center gap-2 border-b p-4">
             <Wallet className="size-4 shrink-0 text-muted-foreground" />
             <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="Amount" className="w-32" value={advanceAmount} onChange={(e) => setAdvanceAmount(e.target.value)} />
+            {/* Drives whether the Day Book cash reconciliation counts this as cash out — a
+                bank/UPI advance must not shrink expected cash (day-book-server.ts). */}
+            <Select value={advancePayMethod} onValueChange={(v) => v && setAdvancePayMethod(v)}>
+              <SelectTrigger className="h-9 w-28">
+                <SelectValue>{advancePayMethod === "cash" ? "Cash" : advancePayMethod === "upi" ? "UPI" : advancePayMethod === "bank" ? "Bank" : "Other"}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">Cash</SelectItem>
+                <SelectItem value="upi">UPI</SelectItem>
+                <SelectItem value="bank">Bank</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
             <Input placeholder="Note (optional)" className="flex-1 min-w-32" value={advanceNote} onChange={(e) => setAdvanceNote(e.target.value)} />
             <Button size="sm" onClick={handleAddAdvance} disabled={addAdvance.isPending}>
               <Plus className="size-3.5" /> Record advance

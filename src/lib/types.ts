@@ -1221,6 +1221,9 @@ export interface EmployeeAdvance {
   date: string;
   amount: number;
   note: string;
+  /** What the advance was actually paid in — Cash/UPI/Bank/Other. Drives whether the Day Book
+   *  cash reconciliation counts it as cash out; only "cash" (the historical default) does. */
+  payMethod: string;
   payslipId: string | null;
   createdAt: string;
 }
@@ -1232,6 +1235,7 @@ export function mapEmployeeAdvanceRow(r: EmployeeAdvanceRow): EmployeeAdvance {
     date: r.date,
     amount: r.amount || 0,
     note: r.note || "",
+    payMethod: r.pay_method || "cash",
     payslipId: r.payslip_id,
     createdAt: r.created_at,
   };

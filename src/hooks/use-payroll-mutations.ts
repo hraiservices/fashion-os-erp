@@ -87,8 +87,8 @@ export function useAdjustPayslip() {
 export function useAddAdvance() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ employeeId, date, amount, note }: { employeeId: string; date: string; amount: number; note: string; userEmail?: string }) =>
-      apiJson<{ ok: true }>(`/api/employees/${employeeId}/advances`, "POST", { date, amount, note }),
+    mutationFn: ({ employeeId, date, amount, note, payMethod }: { employeeId: string; date: string; amount: number; note: string; payMethod?: string; userEmail?: string }) =>
+      apiJson<{ ok: true }>(`/api/employees/${employeeId}/advances`, "POST", { date, amount, note, payMethod }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["employee-advances"] }),
   });
 }

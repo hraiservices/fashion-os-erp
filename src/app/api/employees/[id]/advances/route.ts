@@ -11,6 +11,7 @@ const bodySchema = z.object({
   date: z.string().min(1),
   amount: z.number().positive(),
   note: z.string().optional().default(""),
+  payMethod: z.string().optional().default("cash"),
 });
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -27,7 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-  const { date, amount, note } = parsed.data;
+  const { date, amount, note, payMethod } = parsed.data;
 
   // Piece-rate tailors can only draw an advance against what they've actually earned so far —
   // salaried employees keep today's uncapped behavior (a manager judgment call), unchanged.
@@ -44,7 +45,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
   }
 
-  const { error } = await db.from("employee_advances").insert({ employee_id: id, date, amount, note, created_by: user.email });
+  const { error } = await db.from("employee_advances").insert({ employee_id: id, date, amount, note, pay_method: payMethod, created_by: user.email });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await logAction(supabase, user.email, `Advance recorded: ₹${amount}`, undefined, `Employee: ${id}`);

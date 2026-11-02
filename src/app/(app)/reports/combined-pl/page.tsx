@@ -71,13 +71,10 @@ const COMBINED_PL_COLUMNS = [
 // reappear automatically on a wider monitor (still one click away via the Columns menu).
 const COMBINED_PL_AUTO_HIDE = { belowWidth: 1920, keys: ["laborCost", "payrollCost"] };
 
-/** useCombinedPl() hardcodes a trailing-6-month window across purchases/expenses/payroll/orders/
- *  invoices with no date-range parameter of its own — properly honoring a custom range here needs
- *  that hook reworked to accept one. The bar is shown for consistency; it doesn't filter yet. */
 export default function CombinedPlPage() {
   const { data: user } = useCurrentUser();
-  const { monthly, salaryOverlaps, isLoading } = useCombinedPl();
-  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo } = useReportDateRange();
+  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange();
+  const { monthly, salaryOverlaps, isLoading } = useCombinedPl(range);
   const columnTable = useColumnVisibility("combined-pl", COMBINED_PL_COLUMNS, COMBINED_PL_AUTO_HIDE);
   const isVisible = columnTable.isVisible;
 

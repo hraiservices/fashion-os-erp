@@ -8,9 +8,14 @@ import { useWorkOrders } from "@/hooks/use-work-orders";
 import { useExpenses } from "@/hooks/use-expenses";
 import { useOrderExpenses } from "@/hooks/use-order-expenses";
 import { useAllPayslips } from "@/hooks/use-payroll";
-import { getCombinedMonthly, detectSalaryOverlap } from "@/lib/combined-reports";
+import { getCombinedForRange, detectSalaryOverlap } from "@/lib/combined-reports";
+import type { DateRange } from "@/lib/report-date-range";
 
-export function useCombinedPl() {
+/** `range` honors the report's own date-filter bar — {from:"",to:""} ("All time") falls back to
+ *  the trailing-6-month trend inside getCombinedForRange itself. Previously this hardcoded that
+ *  6-month window regardless of what the filter bar showed selected, so picking "This month"
+ *  changed nothing on screen; see getCombinedForRange's own comment for the full story. */
+export function useCombinedPl(range: DateRange) {
   const { data: orders, isLoading: l1 } = useOrders();
   const { data: invoices, isLoading: l2 } = useSalesInvoices();
   const { data: bills, isLoading: l3 } = usePurchaseBills();
@@ -20,8 +25,8 @@ export function useCombinedPl() {
   const { data: payslips, isLoading: l7 } = useAllPayslips();
 
   const monthly = useMemo(
-    () => getCombinedMonthly(orders || [], invoices || [], bills || [], workOrders || [], expenses || [], orderExpenses || [], payslips || []),
-    [orders, invoices, bills, workOrders, expenses, orderExpenses, payslips]
+    () => getCombinedForRange(range, orders || [], invoices || [], bills || [], workOrders || [], expenses || [], orderExpenses || [], payslips || []),
+    [range, orders, invoices, bills, workOrders, expenses, orderExpenses, payslips]
   );
 
   // Buckets where salary is probably being counted twice — once as a payslip, once as a

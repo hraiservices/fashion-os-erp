@@ -24,6 +24,10 @@ const bodySchema = z.object({
    *  reference (cheque number, UPI transaction id, etc.) — both new, both optional. */
   accountId: z.string().uuid().optional(),
   reference: z.string().max(200).optional(),
+  /** A manual write-off applied alongside the cash amount — settles balance the same way cash
+   *  does, but isn't real money received (excluded from Day Book / payment-method cash totals,
+   *  same treatment as the loyalty-points discount below). */
+  discount: z.number().min(0).optional(),
 });
 
 /** Discount markers ("🎁 ₹500", "🎟️ ₹100") are recovered from history lines by regex
@@ -32,7 +36,7 @@ const bodySchema = z.object({
  *  in src/app/api/orders/[id]/route.ts, mint loyalty points from nothing. Strip anything that
  *  could be mistaken for a marker before it ever reaches the history line. */
 function sanitizeHistoryText(s: string): string {
-  return s.replace(/[🎁🎟️₹]/g, "").trim();
+  return s.replace(/[🎁🎟️🏷️₹]/g, "").trim();
 }
 
 /**
@@ -52,8 +56,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-  const { amount, payMethod, note, usePoints, expectedAdvance, date, accountId, reference } = parsed.data;
+  const { amount, payMethod, note, usePoints, expectedAdvance, date, accountId, reference, discount } = parsed.data;
   const safeNote = note ? sanitizeHistoryText(note) : "";
+  const manualDiscount = Math.round(discount || 0);
 
   const { data: row, error: fetchError } = await db.from("orders").select("*").eq("id", id).maybeSingle();
   if (fetchError || !row) return NextResponse.json({ error: "Order not found" }, { status: 404 });
@@ -69,7 +74,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const redemption = usePoints ? computeRedemption(availablePoints, order.balance, loyaltyCfg) : { canRedeem: false, maxPtDiscount: 0, ptsToRedeem: 0 };
   const cashPaid = Math.round(amount);
-  if (!cashPaid && !redemption.canRedeem) return NextResponse.json({ error: "Enter an amount or redeem points" }, { status: 400 });
+  if (!cashPaid && !redemption.canRedeem && !manualDiscount) return NextResponse.json({ error: "Enter an amount, redeem points, or enter a discount" }, { status: 400 });
 
   // Reserve the loyalty discount BEFORE the payment RPC (same reason order creation reserves
   // before inserting the order): the balance-and-deduct has to be atomic against a second
@@ -98,6 +103,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const historyLine =
     `💰 Payment ₹${cashPaid} via ${payMethod}` +
     (ptDiscount > 0 ? ` + 🎁 ₹${ptDiscount} loyalty pts` : "") +
+    (manualDiscount > 0 ? ` + 🏷️ ₹${manualDiscount} discount` : "") +
     (safeNote ? ` — ${safeNote}` : "") +
     ` — ${fmtNow()} by ${userName}`;
 
@@ -120,6 +126,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     p_paid_at: date || null,
     p_account_id: accountId || null,
     p_reference: reference ? sanitizeHistoryText(reference) : "",
+    p_discount: manualDiscount,
   });
   const updatedRow = updatedRows?.[0];
   if (updateError || !updatedRow) {
@@ -156,7 +163,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await logAction(
       supabase,
       user.email,
-      `💰 Payment ₹${cashPaid} via ${payMethod}${ptDiscount > 0 ? ` + ₹${ptDiscount} pts` : ""} collected for ${id}`,
+      `💰 Payment ₹${cashPaid} via ${payMethod}${ptDiscount > 0 ? ` + ₹${ptDiscount} pts` : ""}${manualDiscount > 0 ? ` + ₹${manualDiscount} discount` : ""} collected for ${id}`,
       id,
       `Balance: ₹${newBalance}`
     );
@@ -173,7 +180,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         // contain this payment's own discount line — add ptDiscount explicitly or the
         // customer earns points on money they never paid. Also excludes any referral-coupon
         // discount already applied to this order, same "not real cash" treatment.
-        const priorDiscount = loyaltyDiscountOf(order) + couponDiscountOf(order) + ptDiscount;
+        const priorDiscount = loyaltyDiscountOf(order) + couponDiscountOf(order) + ptDiscount + manualDiscount;
         const netTotal = Math.max(0, order.total - priorDiscount);
         const earnPts = computeEarnPoints(netTotal, loyaltyCfg);
         if (earnPts > 0) {

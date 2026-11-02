@@ -23,7 +23,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
   const { data: payment } = await db
     .from("order_payments")
-    .select("amount, pt_discount, pts_redeemed, order_id")
+    .select("amount, pt_discount, pts_redeemed, discount, order_id")
     .eq("id", paymentId)
     .maybeSingle();
   if (!payment || payment.order_id !== id) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
@@ -32,7 +32,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const wasFullyPaid = orderRow?.balance === 0;
 
   const userName = await resolveActingUserName(supabase, user);
-  const historyLine = `↩️ Payment reversed: ₹${payment.amount}${payment.pt_discount > 0 ? ` + ₹${payment.pt_discount} pts` : ""} — ${fmtNow()} by ${userName}`;
+  const historyLine = `↩️ Payment reversed: ₹${payment.amount}${payment.pt_discount > 0 ? ` + ₹${payment.pt_discount} pts` : ""}${payment.discount > 0 ? ` + ₹${payment.discount} discount` : ""} — ${fmtNow()} by ${userName}`;
 
   const { data: updatedRows, error } = await db.rpc("delete_order_payment", {
     p_payment_id: paymentId,

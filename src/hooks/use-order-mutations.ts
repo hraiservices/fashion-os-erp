@@ -181,6 +181,9 @@ interface PaymentInput {
   date?: string;
   accountId?: string;
   reference?: string;
+  /** A manual write-off applied alongside the cash amount — not real money, settles balance
+   *  the same way. See /api/orders/[id]/payment/route.ts. */
+  discount?: number;
 }
 
 export function useRecordPayment() {

@@ -820,6 +820,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                     <p className="font-medium">
                       {inr(p.amount)}
                       {p.ptDiscount > 0 && <span className="text-muted-foreground"> + {inr(p.ptDiscount)} pts</span>}
+                      {p.discount > 0 && <span className="text-muted-foreground"> + {inr(p.discount)} discount</span>}
                       <span className="ml-1.5 text-xs font-normal text-muted-foreground">via {p.method}</span>
                     </p>
                     <p className="truncate text-xs text-muted-foreground">

@@ -29,6 +29,7 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
 
   const [usePoints, setUsePoints] = useState(false);
   const [amount, setAmount] = useState(order.balance);
+  const [discount, setDiscount] = useState(0);
   const [payMethod, setPayMethod] = useState("Cash");
   const [date, setDate] = useState(istDateString());
   const [note, setNote] = useState("");
@@ -36,7 +37,7 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
   const availablePoints = loyaltyCfg?.enabled ? customer?.loyaltyPoints || 0 : 0;
   const redemption = loyaltyCfg ? computeRedemption(availablePoints, order.balance, loyaltyCfg) : { canRedeem: false, maxPtDiscount: 0, ptsToRedeem: 0 };
   const ptDiscount = usePoints && redemption.canRedeem ? redemption.maxPtDiscount : 0;
-  const effectiveBalance = Math.max(0, order.balance - ptDiscount);
+  const effectiveBalance = Math.max(0, order.balance - ptDiscount - discount);
 
   // Sync amount to effectiveBalance only on initial open or when order.balance changes from
   // an external source (another device). The loyalty-points toggle also changes effectiveBalance,
@@ -51,12 +52,13 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
     // Reset the "edited" flag whenever the modal is reopened (order.balance changes).
     setAmountEdited(false);
     setAmount(effectiveBalance);
+    setDiscount(0);
   });
 
   async function save() {
     try {
-      await recordPayment.mutateAsync({ orderId: order.id, amount, payMethod, note, date, usePoints, expectedAdvance: order.advance });
-      toast.success(amount + ptDiscount >= order.balance ? "Payment complete" : "Payment recorded");
+      await recordPayment.mutateAsync({ orderId: order.id, amount, discount, payMethod, note, date, usePoints, expectedAdvance: order.advance });
+      toast.success(amount + ptDiscount + discount >= order.balance ? "Payment complete" : "Payment recorded");
       onOpenChange(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to record payment");
@@ -107,9 +109,24 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
           </button>
         )}
 
-        <div className="space-y-2">
-          <Label>Amount received</Label>
-          <NumberInput min={0} max={effectiveBalance} value={amount} onChange={(v) => { setAmountEdited(true); setAmount(Math.min(v, effectiveBalance)); }} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Amount received</Label>
+            <NumberInput min={0} max={effectiveBalance} value={amount} onChange={(v) => { setAmountEdited(true); setAmount(Math.min(v, effectiveBalance)); }} />
+          </div>
+          <div className="space-y-2">
+            <Label>Discount (optional)</Label>
+            <NumberInput
+              min={0}
+              max={Math.max(0, order.balance - ptDiscount)}
+              value={discount}
+              onChange={(v) => {
+                const next = Math.max(0, Math.min(v, order.balance - ptDiscount));
+                setDiscount(next);
+                setAmount((prev) => Math.min(prev, Math.max(0, order.balance - ptDiscount - next)));
+              }}
+            />
+          </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -141,7 +158,7 @@ export function PaymentModal({ order, open, onOpenChange }: { order: Order; open
           <Button variant="outline" className="h-11 px-4 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button className="h-11 px-4 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={save} disabled={recordPayment.isPending || (!amount && !ptDiscount)}>
+          <Button className="h-11 px-4 text-base sm:h-8 sm:px-2.5 sm:text-sm" onClick={save} disabled={recordPayment.isPending || (!amount && !ptDiscount && !discount)}>
             {recordPayment.isPending ? "Saving…" : "Record payment"}
           </Button>
         </DialogFooter>

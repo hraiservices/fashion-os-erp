@@ -1,0 +1,12 @@
+-- Employee advances had no payment-method column at all, yet the Day Book cash reconciliation
+-- (computeCashAndMethods in day-book-server.ts) deducted every single advance from expected cash
+-- unconditionally — unlike expenses and vendor_payments, which are correctly filtered to their
+-- own cash-method rows before being counted as cash out. A cash audit found this: an advance paid
+-- by bank transfer or UPI would still silently reduce the day's expected cash, producing a false
+-- "shortage" variance when the cashier counts a drawer that is actually correct.
+--
+-- Defaults to 'cash' — not blank — so every advance recorded before this migration keeps being
+-- treated exactly as it already was (100% cash out), and no past or currently-open day's
+-- reconciliation changes retroactively. Only advances recorded after this ships, where staff
+-- actively pick a different method, change the cash total.
+alter table employee_advances add column if not exists pay_method text not null default 'cash';

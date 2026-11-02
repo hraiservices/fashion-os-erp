@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { UpiPayButton } from "@/components/payments/upi-pay-dialog";
-import { Wallet, Undo2, Trash2, Pencil, Send, Download, Copy, Link2, Printer } from "lucide-react";
+import { Wallet, Undo2, Trash2, Pencil, Send, Download, Copy, Link2, Printer, Sparkles } from "lucide-react";
 import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { printThermalReceipt } from "@/lib/thermal-receipt";
 import { useSalesInvoice, useSalesInvoices } from "@/hooks/use-sales-invoices";
@@ -18,6 +18,7 @@ import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useCustomerByMobile } from "@/hooks/use-customer";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { inr, fmtDate } from "@/lib/format";
+import { istDateString } from "@/lib/ist-date";
 import { INVOICE_STATUS_LABELS, DOC_STATUS_LABELS, totalPieces } from "@/lib/sales";
 import { GST_TYPE_LABELS } from "@/lib/gst";
 import { DEFAULT_SALES_WHATSAPP_TEMPLATES, buildSalesWhatsAppUrl, type SalesWhatsAppTemplates } from "@/lib/sales-whatsapp";
@@ -72,6 +73,19 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
 
   const canManageSales = !!user?.perms.manageSales;
   const canManagePayments = !!user?.perms.managePayments;
+
+  // "What's next" nudge — only for the two states with an unambiguous, actionable next step.
+  // Draft takes priority over overdue (a draft can't be overdue from the customer's point of
+  // view, since it was never sent), everything else (sent & due, sent & not yet due, paid) gets
+  // no banner — those don't have one obvious next action, so a persistent nudge would just be noise.
+  const isOverdue = invoice ? invoice.balance > 0 && !!invoice.dueDate && invoice.dueDate < istDateString() : false;
+  const whatsNext: { message: string } | null = !invoice
+    ? null
+    : invoice.docStatus === "draft"
+      ? { message: "This invoice hasn't been sent yet." }
+      : isOverdue
+        ? { message: "Payment is overdue." }
+        : null;
 
   async function handleMarkSent() {
     if (!invoice) return;
@@ -210,6 +224,29 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
           <Badge variant={invoice.paymentStatus === "paid" ? "secondary" : "outline"}>{INVOICE_STATUS_LABELS[invoice.paymentStatus]}</Badge>
         </div>
       </div>
+
+      {whatsNext && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-600/30 bg-amber-50 px-4 py-3 text-sm dark:border-amber-500/30 dark:bg-amber-950/30 print:hidden">
+          <Sparkles className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <span className="font-medium text-amber-900 dark:text-amber-200">What&apos;s next:</span>
+          <span className="text-amber-800 dark:text-amber-300">{whatsNext.message}</span>
+          <div className="ml-auto flex flex-wrap gap-2">
+            {invoice.docStatus === "draft" && canManageSales && (
+              <Button size="sm" variant="outline" className="h-8 border-amber-600/40 bg-white hover:bg-amber-100 dark:bg-transparent" onClick={handleMarkSent} disabled={setDocStatus.isPending}>
+                <Send className="size-3.5" /> Mark as sent
+              </Button>
+            )}
+            {isOverdue && canManagePayments && (
+              <WhatsAppButton className="h-8" href={waHref("paymentReminder")} label="Send Reminder" tone="reminder" />
+            )}
+            {isOverdue && canManagePayments && (
+              <Button size="sm" className="h-8" nativeButton={false} render={<Link href={`/sales/invoices/${invoice.id}/payment`} />}>
+                <Wallet className="size-3.5" /> Record Payment
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
         {/* Main column: line items, terms, payments, credits, notes */}

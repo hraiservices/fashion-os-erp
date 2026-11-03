@@ -37,7 +37,6 @@ import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { Input } from "@/components/ui/input";
 import { Skeleton, SkeletonListItem } from "@/components/ui/skeleton";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
-import { SavedViewsMenu } from "@/components/ui/saved-views-menu";
 import { ExportMenu } from "@/components/ui/export-menu";
 import {
   AlertDialog,
@@ -475,15 +474,6 @@ function OrdersContent() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Search orders"
-            />
-          </div>
-          <div className="hidden md:block">
-            <SavedViewsMenu
-              views={savedViews.views}
-              onApply={applyView}
-              onSave={savedViews.save}
-              onRemove={savedViews.remove}
-              currentFilters={{ search, filters }}
             />
           </div>
           {view === "list" && <ColumnCustomizerMenu table={columnTable} />}

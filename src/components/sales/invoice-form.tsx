@@ -156,13 +156,11 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
   const [discountValue, setDiscountValue] = useState(blankIfZero(existing?.discountValue));
   const [terms, setTerms] = useState(existing?.terms ?? "");
   const [notes, setNotes] = useState(existing?.notes || "");
-  // Collapsed by default when there's nothing in it yet (the common case for a new invoice) —
-  // open on mount only when editing an invoice that already has GST/shipping/discount set, so
-  // those values are never hidden from view. Seeded once from the initial values, not kept in
-  // sync afterward — same one-shot pattern as vendor-form.tsx's own tax/notes accordions.
-  const [taxOpen, setTaxOpen] = useState(
-    !!(existing && (existing.gstType !== "none" || existing.shippingCharges || existing.discountValue))
-  );
+  // Open by default — this is the only place to apply a discount (line-item or whole-invoice),
+  // which is common enough that hiding it behind a click cost staff discoverability. Still seeded
+  // once from the initial values, not kept in sync afterward — same one-shot pattern as
+  // vendor-form.tsx's own tax/notes accordions.
+  const [taxOpen, setTaxOpen] = useState(true);
   // Same collapsed-unless-already-populated rule — stays open when editing an invoice that
   // already has a subject/notes/terms set.
   const [notesOpen, setNotesOpen] = useState(!!(existing && (existing.subject || existing.notes || existing.terms)));

@@ -102,6 +102,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/live", label: "LIVE Report", section: "Summary" },
     { href: "/reports/day-book", label: "Day Book" },
     { href: "/reports/combined-pl", label: "Combined P&L", adminOnly: true },
+    { href: "/reports/ledger-reconciliation", label: "Ledger Reconciliation", adminOnly: true },
     { href: "/reports/payments-received", label: "Payments Received" },
 
     { href: "/reports/monthly", label: "Stitching Monthly P&L", section: "Stitching Orders" },
@@ -147,6 +148,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/sales/payments", label: "Payments Received" },
     { href: "/reports/sales/time-to-get-paid", label: "Time to Get Paid" },
     { href: "/reports/sales/credit-notes", label: "Credit Note Details" },
+    { href: "/reports/sales/aging-details", label: "AR Aging Details" },
     { href: "/reports/sales/vendor-cost", label: "Sale → Vendor Payable" },
     { href: "/reports/gst-summary", label: "GST Summary" },
     { href: "/reports/payment-methods", label: "Payment Methods" },
@@ -176,6 +178,7 @@ export const REPORTS_GROUP: NavGroup = {
     { href: "/reports/expenses/details", label: "Expense Details", section: "Expenses" },
     { href: "/reports/expenses/by-category", label: "Expenses by Category" },
     { href: "/reports/expenses/by-employee", label: "Expenses by Employee" },
+    { href: "/reports/expenses/trends", label: "Expense Trends" },
 
     { href: "/reports/manufacturing", label: "Manufacturing", section: "Manufacturing" },
 

@@ -67,8 +67,7 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
   const vendorNameById = new Map((allVendors || []).map((v) => [v.id, v.name]));
   const sidebarItems = (allPOs || []).map((o) => ({
     id: o.id,
-    title: o.poNumber,
-    subtitle: vendorNameById.get(o.vendorId) || fmtDate(o.date),
+    title: vendorNameById.get(o.vendorId) || o.poNumber,
     amountLabel: inr(o.total),
     amountTone: "plain" as const,
     href: `/purchases/orders/${o.id}`,
@@ -76,7 +75,7 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
 
   if (!po) {
     return (
-      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <div className="flex items-start gap-4 p-4 sm:p-6">
         <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search purchase orders…" emptyLabel="No purchase orders yet" />
         <div className="min-w-0 flex-1 p-2">
           <EmptyState icon={FileTextDuotoneIcon} title="Purchase order not found" />
@@ -86,9 +85,9 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
   }
 
   return (
-    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+    <div className="flex items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search purchase orders…" emptyLabel="No purchase orders yet" />
-      <div className="min-w-0 max-w-6xl flex-1 space-y-4">
+      <div className="min-w-0 flex-1 space-y-4">
       <div className="flex items-center justify-between gap-2">
         <BackLink href="/purchases/orders">Purchase Orders</BackLink>
         <RecordPrevNext items={sidebarItems} activeId={id} />

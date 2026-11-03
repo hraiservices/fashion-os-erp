@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/customer-picker";
+import { CustomerQuickPeek } from "@/components/crm/customer-quick-peek";
 import { ProductLineItemsEditor, salesLinesToItems, blankSalesLine, type EditableSalesLine } from "@/components/sales/product-line-items-editor";
 import type { Customer, RecurringInvoiceProfile, RecurringFrequency, RecurringEndType } from "@/lib/types";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
@@ -52,6 +53,7 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
   const [customer, setCustomer] = useState<Customer | null>(existing ? placeholderCustomer(existing.customerName, existing.customerMobile) : null);
   const priceOverrides = usePriceListItemsMap(customer?.priceListId);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [peekOpen, setPeekOpen] = useState(false);
   const [subject, setSubject] = useState(existing?.subject || "");
   const [lines, setLines] = useState<EditableSalesLine[]>(
     existing
@@ -124,7 +126,7 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
             </div>
             <div className="space-y-1.5">
               <Label className="text-sm font-bold">Customer *</Label>
-              <CustomerPickerTrigger customerName={customer?.name || ""} onClick={() => setPickerOpen(true)} />
+              <CustomerPickerTrigger customerName={customer?.name || ""} onClick={() => setPickerOpen(true)} onPeek={customer ? () => setPeekOpen(true) : undefined} />
             </div>
           </div>
 
@@ -270,6 +272,7 @@ export function RecurringInvoiceForm({ existing }: { existing?: RecurringInvoice
       </div>
 
       <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={setCustomer} />
+      {customer && <CustomerQuickPeek mobile={customer.mobile} open={peekOpen} onOpenChange={setPeekOpen} />}
     </div>
   );
 }

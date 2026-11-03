@@ -19,6 +19,15 @@ export interface Expense {
   /** Employee this expense is paid to/for — the reliable link Salaries-category tailor
    *  matching prefers over the free-text Customer Link mobile number (see getStitchingPnl). */
   employeeId: string | null;
+  referenceNumber: string | null;
+  vendorName: string | null;
+  /** Raw Storage object path — the canonical "has a receipt" value, round-tripped unchanged on
+   *  edit unless a new receiptDataUrl is uploaded. Never fetchable by the client directly. */
+  receiptPath: string | null;
+  /** Short-lived signed URL for `receiptPath`, resolved server-side — present only on rows the
+   *  GET /api/expenses route actually resolved it for (undefined elsewhere, e.g. right after a
+   *  create/update response), never persisted. */
+  receiptUrl?: string | null;
   createdBy: string | null;
   createdAt: string;
 }
@@ -34,6 +43,9 @@ export function mapExpenseRow(r: ExpenseRow): Expense {
     customerMobile: r.customer_mobile,
     customerName: r.customer_name,
     employeeId: r.employee_id ?? null,
+    referenceNumber: r.reference_number ?? null,
+    vendorName: r.vendor_name ?? null,
+    receiptPath: r.receipt_path ?? null,
     createdBy: r.created_by,
     createdAt: r.created_at,
   };
@@ -118,6 +130,12 @@ export interface Order {
   /** Internal-only cost fields, never shown to the customer — power the order-profitability report. */
   fabricCost: number;
   otherCost: number;
+  /** Set when the order was voided. Non-null means it is excluded from revenue, receivables and
+   *  the work pipeline, while the record itself survives for audit. Never a `status` value — see
+   *  add_order_cancellation.sql for why. */
+  cancelledAt: string | null;
+  cancelledBy: string | null;
+  cancelReason: string;
   reworkFlag: boolean;
   reworkReason: string;
   reworkFlaggedBy: string | null;
@@ -204,6 +222,9 @@ export function mapOrderRow(r: OrderRowForMapping): Order {
     bookingSource: r.booking_source || "",
     fabricCost: r.fabric_cost || 0,
     otherCost: r.other_cost || 0,
+    cancelledAt: r.cancelled_at ?? null,
+    cancelledBy: r.cancelled_by ?? null,
+    cancelReason: r.cancel_reason || "",
     reworkFlag: !!r.rework_flag,
     reworkReason: r.rework_reason || "",
     reworkFlaggedBy: r.rework_flagged_by ?? null,
@@ -257,6 +278,9 @@ type OrderRowForLightMapping = Pick<
   | "booking_source"
   | "fabric_cost"
   | "other_cost"
+  | "cancelled_at"
+  | "cancelled_by"
+  | "cancel_reason"
   | "rework_flag"
   | "rework_reason"
   | "rework_flagged_by"
@@ -294,6 +318,9 @@ export function mapOrderRowLight(r: OrderRowForLightMapping): OrderLight {
     bookingSource: r.booking_source || "",
     fabricCost: r.fabric_cost || 0,
     otherCost: r.other_cost || 0,
+    cancelledAt: r.cancelled_at ?? null,
+    cancelledBy: r.cancelled_by ?? null,
+    cancelReason: r.cancel_reason || "",
     reworkFlag: !!r.rework_flag,
     reworkReason: r.rework_reason || "",
     reworkFlaggedBy: r.rework_flagged_by ?? null,
@@ -667,6 +694,11 @@ export interface PurchaseBill {
   otherCharges: number;
   total: number;
   notes: string;
+  referenceNumber: string;
+  /** The vendor charged GST on freight, so shipping sits INSIDE the taxable base on this bill
+   *  (as it always has on sales invoices). False — the default — keeps the original behaviour of
+   *  adding shipping after tax. Per-bill because it is a fact about what the vendor invoiced. */
+  freightTaxable: boolean;
   createdAt: string;
 }
 
@@ -689,6 +721,8 @@ export function mapPurchaseBillRow(r: PurchaseBillRow): PurchaseBill {
     otherCharges: r.other_charges || 0,
     total: r.total || 0,
     notes: r.notes || "",
+    referenceNumber: r.reference_number || "",
+    freightTaxable: !!r.freight_taxable,
     createdAt: r.created_at,
   };
 }
@@ -987,6 +1021,9 @@ export interface OrderPayment {
   amount: number;
   ptDiscount: number;
   ptsRedeemed: number;
+  /** A manual, staff-entered write-off applied alongside this payment — distinct from
+   *  ptDiscount (loyalty points redemption). Settles balance the same way; not real cash. */
+  discount: number;
   method: string;
   note: string;
   createdBy: string | null;
@@ -1000,6 +1037,7 @@ export function mapOrderPaymentRow(r: OrderPaymentRow): OrderPayment {
     amount: r.amount,
     ptDiscount: r.pt_discount || 0,
     ptsRedeemed: r.pts_redeemed || 0,
+    discount: r.discount || 0,
     method: r.method || "Cash",
     note: r.note || "",
     createdBy: r.created_by,
@@ -1187,6 +1225,9 @@ export interface EmployeeAdvance {
   date: string;
   amount: number;
   note: string;
+  /** What the advance was actually paid in — Cash/UPI/Bank/Other. Drives whether the Day Book
+   *  cash reconciliation counts it as cash out; only "cash" (the historical default) does. */
+  payMethod: string;
   payslipId: string | null;
   createdAt: string;
 }
@@ -1198,6 +1239,7 @@ export function mapEmployeeAdvanceRow(r: EmployeeAdvanceRow): EmployeeAdvance {
     date: r.date,
     amount: r.amount || 0,
     note: r.note || "",
+    payMethod: r.pay_method || "cash",
     payslipId: r.payslip_id,
     createdAt: r.created_at,
   };

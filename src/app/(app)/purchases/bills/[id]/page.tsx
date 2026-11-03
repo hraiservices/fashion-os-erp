@@ -81,8 +81,8 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
   const vendorNameById = new Map((allVendors || []).map((v) => [v.id, v.name]));
   const sidebarItems = (allBills || []).map((b) => ({
     id: b.id,
-    title: b.billNumber,
-    subtitle: vendorNameById.get(b.vendorId) || fmtDate(b.billDate),
+    title: vendorNameById.get(b.vendorId) || b.billNumber,
+    subtitle: b.billNumber,
     amountLabel: b.balance > 0 ? `${inr(b.balance)} due` : "Paid",
     amountTone: b.balance > 0 ? ("due" as const) : ("plain" as const),
     href: `/purchases/bills/${b.id}`,
@@ -90,8 +90,8 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
 
   if (!bill) {
     return (
-      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
-        <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search bills…" emptyLabel="No bills yet" />
+      <div className="flex items-start gap-4 p-4 sm:p-6">
+        <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search bills…" emptyLabel="No bills yet" showSubtitle />
         <div className="min-w-0 flex-1 p-2">
           <EmptyState icon={ReceiptDuotoneIcon} title="Bill not found" />
         </div>
@@ -100,9 +100,9 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
-      <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search bills…" emptyLabel="No bills yet" />
-      <div className="min-w-0 max-w-6xl flex-1 space-y-4">
+    <div className="flex items-start gap-4 p-4 sm:p-6">
+      <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search bills…" emptyLabel="No bills yet" showSubtitle />
+      <div className="min-w-0 flex-1 space-y-4">
       <div className="flex items-center justify-between gap-2">
         <BackLink href="/purchases/bills">Bills</BackLink>
         <RecordPrevNext items={sidebarItems} activeId={id} />

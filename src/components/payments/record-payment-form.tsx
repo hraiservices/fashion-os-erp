@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, ChevronRight, CreditCard, Search, Wallet } from "lucide-react";
+import { ArrowLeft, ChevronRight, CreditCard, Percent, Search, Wallet } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NumberInput } from "@/components/ui/number-input";
@@ -62,6 +62,21 @@ function distributeOldestFirst(rows: Row[], pool: number): Record<string, number
   return result;
 }
 
+/** Same oldest-first idea as distributeOldestFirst, but each row's capacity is capped by
+ *  capFor(row) instead of its full due — used for discount, which can only fill whatever room
+ *  a row's cash/credit allocation didn't already use, not its whole balance. */
+function distributeOldestFirstCapped(rows: Row[], pool: number, capFor: (row: Row) => number): Record<string, number> {
+  const result: Record<string, number> = {};
+  let remaining = Math.max(0, pool);
+  for (const row of rows) {
+    const cap = Math.max(0, capFor(row));
+    const alloc = Math.round(Math.min(cap, remaining) * 100) / 100;
+    remaining = Math.round((remaining - alloc) * 100) / 100;
+    result[row.id] = alloc;
+  }
+  return result;
+}
+
 export function RecordPaymentForm({ initialMobile }: { initialMobile?: string }) {
   const router = useRouter();
   const { data: user } = useCurrentUser();
@@ -82,7 +97,9 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
   const [note, setNote] = useState("");
   const [cashAmount, setCashAmount] = useState(0);
   const [creditToApply, setCreditToApply] = useState(0);
+  const [discountAmount, setDiscountAmount] = useState(0);
   const [rowPayments, setRowPayments] = useState<Record<string, number>>({});
+  const [rowDiscounts, setRowDiscounts] = useState<Record<string, number>>({});
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const saving = progress !== null;
@@ -120,25 +137,42 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
   const pool = cashAmount + creditToApply;
   const appliedToDues = rows.reduce((s, r) => s + Math.min(rowPayments[r.id] || 0, r.due), 0);
   const excess = Math.max(0, Math.round((pool - appliedToDues) * 100) / 100);
+  // Discount is a write-off, not cash — it never contributes to "excess" (there's nothing to
+  // save as customer credit), and it's only offered against order rows (see Row's comment and
+  // the migration's note on why invoices aren't included).
+  const appliedDiscount = rows.reduce((s, r) => s + Math.min(rowDiscounts[r.id] || 0, r.due), 0);
 
-  function redistribute(newCash: number, newCredit: number) {
-    setRowPayments(distributeOldestFirst(rows, newCash + newCredit));
+  function redistribute(newCash: number, newCredit: number, newDiscount: number) {
+    const paymentAlloc = distributeOldestFirst(rows, newCash + newCredit);
+    setRowPayments(paymentAlloc);
+    const discountableRows = rows.filter((r) => r.kind === "order");
+    setRowDiscounts(distributeOldestFirstCapped(discountableRows, newDiscount, (r) => r.due - (paymentAlloc[r.id] || 0)));
   }
 
   function setCash(v: number) {
     const next = Math.max(0, v);
     setCashAmount(next);
-    redistribute(next, creditToApply);
+    redistribute(next, creditToApply, discountAmount);
   }
 
   function setCredit(v: number) {
     const next = Math.max(0, Math.min(v, availableCredit || 0));
     setCreditToApply(next);
-    redistribute(cashAmount, next);
+    redistribute(cashAmount, next, discountAmount);
+  }
+
+  function setDiscountPool(v: number) {
+    const next = Math.max(0, v);
+    setDiscountAmount(next);
+    redistribute(cashAmount, creditToApply, next);
   }
 
   function setRowAmount(id: string, due: number, value: number) {
     setRowPayments((prev) => ({ ...prev, [id]: Math.max(0, Math.min(value, due)) }));
+  }
+
+  function setRowDiscount(id: string, due: number, value: number) {
+    setRowDiscounts((prev) => ({ ...prev, [id]: Math.max(0, Math.min(value, due)) }));
   }
 
   // A row's own "Pay in full" only ever touched rowPayments, never cashAmount — so "Amount
@@ -146,26 +180,31 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
   // paying every row this way, and the form looked permanently stuck. This keeps "Amount
   // received" in sync by nudging it the same amount the row's own allocation just moved by.
   function payRowInFull(row: Row) {
+    // Pays off whatever this row's due still is after its own applied discount, not the row's
+    // full due — otherwise a row with a discount already on it would get over-paid.
+    const remaining = Math.max(0, Math.round((row.due - (rowDiscounts[row.id] || 0)) * 100) / 100);
     const prevAlloc = rowPayments[row.id] || 0;
-    const delta = Math.round((row.due - prevAlloc) * 100) / 100;
-    setRowPayments((prev) => ({ ...prev, [row.id]: row.due }));
+    const delta = Math.round((remaining - prevAlloc) * 100) / 100;
+    setRowPayments((prev) => ({ ...prev, [row.id]: remaining }));
     setCashAmount((prev) => Math.max(0, Math.round((prev + delta) * 100) / 100));
   }
 
   // Top-level shortcut — pays every outstanding row in full in one tap instead of hitting
-  // "Pay in full" on each row individually. Tops up only what credit doesn't already cover.
+  // "Pay in full" on each row individually. Tops up only what credit and any applied discount
+  // don't already cover.
   function payAllInFull() {
-    setCash(Math.max(0, Math.round((totalDue - creditToApply) * 100) / 100));
+    setCash(Math.max(0, Math.round((totalDue - creditToApply - appliedDiscount) * 100) / 100));
   }
 
   function clearApplied() {
     setRowPayments({});
+    setRowDiscounts({});
   }
 
   async function save() {
-    const toApply = rows.filter((r) => (rowPayments[r.id] || 0) > 0);
+    const toApply = rows.filter((r) => (rowPayments[r.id] || 0) > 0 || (rowDiscounts[r.id] || 0) > 0);
     if (toApply.length === 0 && excess <= 0) {
-      toast.error("Enter an amount received, or a payment amount for at least one row");
+      toast.error("Enter an amount received, a discount, or a payment amount for at least one row");
       return;
     }
 
@@ -179,10 +218,13 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
     let done = 0;
     const results = await Promise.allSettled(
       toApply.map(async (row) => {
-        const amt = Math.min(rowPayments[row.id] || 0, row.due);
+        // Clamped together (not independently against row.due) so a hand-edited payment and a
+        // hand-edited discount on the same row can never combine to exceed what's actually due.
+        const disc = Math.min(rowDiscounts[row.id] || 0, row.due);
+        const amt = Math.min(rowPayments[row.id] || 0, Math.max(0, row.due - disc));
         if (row.kind === "order") {
           await recordOrderPayment.mutateAsync({
-            orderId: row.item.id, amount: amt, payMethod: method, note, date,
+            orderId: row.item.id, amount: amt, discount: disc, payMethod: method, note, date,
             expectedAdvance: row.item.advance, accountId: accountId || undefined, reference,
           });
         } else {
@@ -340,6 +382,20 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
         </div>
       )}
 
+      {rows.some((r) => r.kind === "order") && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-amber-500/5 p-3">
+          <div>
+            <p className="flex items-center gap-1.5 text-sm font-medium">
+              <Percent className="size-3.5 text-amber-600 dark:text-amber-400" /> Discount
+            </p>
+            <p className="text-xs text-muted-foreground">A write-off applied against stitching orders — not cash received, settles balance the same way. Invoices aren&apos;t eligible.</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <NumberInput min={0} value={discountAmount} onChange={setDiscountPool} className="h-9 w-28" />
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label>Reference # (optional)</Label>
@@ -371,6 +427,7 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
                     <th className="px-3 py-2 text-right">Total</th>
                     <th className="px-3 py-2 text-right">Due</th>
                     <th className="px-3 py-2 text-right">Payment</th>
+                    <th className="px-3 py-2 text-right">Discount</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -389,6 +446,13 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
                             Pay in full
                           </button>
                         </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        {r.kind === "order" ? (
+                          <NumberInput min={0} max={r.due} value={rowDiscounts[r.id] || 0} onChange={(v) => setRowDiscount(r.id, r.due, v)} className="ml-auto h-9 w-28" />
+                        ) : (
+                          <span className="block text-right text-muted-foreground">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -415,6 +479,12 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
                       <NumberInput min={0} max={r.due} value={rowPayments[r.id] || 0} onChange={(v) => setRowAmount(r.id, r.due, v)} className="h-9 w-28" />
                     </div>
                   </div>
+                  {r.kind === "order" && (
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <span className="text-xs text-muted-foreground">Discount</span>
+                      <NumberInput min={0} max={r.due} value={rowDiscounts[r.id] || 0} onChange={(v) => setRowDiscount(r.id, r.due, v)} className="h-9 w-28" />
+                    </div>
+                  )}
                 </MobileRecordCard>
               ))}
             </MobileRecordList>
@@ -431,6 +501,12 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
           <span className="text-muted-foreground">Applied to dues</span>
           <span className="font-semibold tabular-nums">{inr(appliedToDues)}</span>
         </p>
+        {appliedDiscount > 0 && (
+          <p className="flex items-center justify-between text-amber-600 dark:text-amber-400">
+            <span>Discount applied</span>
+            <span className="font-semibold tabular-nums">{inr(appliedDiscount)}</span>
+          </p>
+        )}
         {excess > 0 && (
           <p className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
             <span>Saved as credit</span>
@@ -443,7 +519,7 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
         <Button variant="outline" onClick={() => router.back()} disabled={saving}>
           Cancel
         </Button>
-        <Button onClick={save} disabled={saving || pool <= 0}>
+        <Button onClick={save} disabled={saving || (pool <= 0 && appliedDiscount <= 0)}>
           {saving ? `Saving ${progress!.done}/${progress!.total}…` : "Record payment"}
         </Button>
       </div>

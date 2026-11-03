@@ -23,6 +23,9 @@ import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow
 import { Checkbox } from "@/components/ui/checkbox";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { useTableSort } from "@/hooks/use-table-sort";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
+import type { VendorPayment } from "@/lib/types";
 
 const VENDOR_PAYMENT_COLUMNS = [
   { key: "date", label: "Date", required: true },
@@ -68,7 +71,7 @@ export default function VendorPaymentsPage() {
   const billById = useMemo(() => new Map((bills || []).map((b) => [b.id, b])), [bills]);
   const vendorNameById = useMemo(() => new Map((vendors || []).map((v) => [v.id, v.name])), [vendors]);
 
-  const filtered = useMemo(() => {
+  const searched = useMemo(() => {
     const q = search.trim().toLowerCase();
     return dated.rows.filter((p) => {
       if (!q) return true;
@@ -77,6 +80,21 @@ export default function VendorPaymentsPage() {
       return (bill?.billNumber || "").toLowerCase().includes(q) || vendorName.toLowerCase().includes(q);
     });
   }, [dated.rows, search, billById, vendorNameById]);
+
+  // Vendor/Bill# live on joined data, not the payment row itself, so these comparators
+  // close over the join maps rather than being a fixed module-level table.
+  const sortComparators = useMemo<Record<string, (a: VendorPayment, b: VendorPayment) => number>>(
+    () => ({
+      date: (a, b) => a.date.localeCompare(b.date),
+      vendor: (a, b) => (vendorNameById.get(a.vendorId) || "").localeCompare(vendorNameById.get(b.vendorId) || ""),
+      bill: (a, b) => (billById.get(a.billId)?.billNumber || "").localeCompare(billById.get(b.billId)?.billNumber || ""),
+      mode: (a, b) => a.method.localeCompare(b.method),
+      amount: (a, b) => a.amount - b.amount,
+    }),
+    [billById, vendorNameById]
+  );
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<VendorPayment>("purchases-payments", sortComparators, new Set(["amount"]));
+  const filtered = applySort(searched);
 
   const total = useMemo(() => filtered.reduce((s, p) => s + p.amount, 0), [filtered]);
   const selection = useRowSelection(filtered.map((p) => p.id));
@@ -165,11 +183,11 @@ export default function VendorPaymentsPage() {
                     />
                   </TableHead>
                 )}
-                <TableHead>Date</TableHead>
-                <TableHead>Vendor</TableHead>
-                <TableHead>Bill#</TableHead>
-                <TableHead>Mode</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <SortableTableHead sortKey="date" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Date</SortableTableHead>
+                <SortableTableHead sortKey="vendor" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Vendor</SortableTableHead>
+                <SortableTableHead sortKey="bill" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Bill#</SortableTableHead>
+                <SortableTableHead sortKey="mode" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Mode</SortableTableHead>
+                <SortableTableHead sortKey="amount" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort} align="right">Amount</SortableTableHead>
                 {isVisible("note") && <TableHead>Note</TableHead>}
                 {canManage && <TableHead className="w-10" />}
               </TableRow>

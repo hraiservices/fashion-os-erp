@@ -96,7 +96,7 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
 
   if (!wo) {
     return (
-      <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+      <div className="flex items-start gap-4 p-4 sm:p-6">
         <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search work orders…" emptyLabel="No work orders yet" />
         <div className="min-w-0 flex-1 p-2">
           <EmptyState icon={Factory} title="Work order not found" />
@@ -108,9 +108,9 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
   const next = nextWoStatus(wo.status);
 
   return (
-    <div className="mx-auto flex max-w-[88rem] items-start gap-4 p-4 sm:p-6">
+    <div className="flex items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search work orders…" emptyLabel="No work orders yet" />
-      <div className="min-w-0 max-w-6xl flex-1 space-y-4">
+      <div className="min-w-0 flex-1 space-y-4">
       <div className="flex items-center justify-between gap-2">
         <BackLink href="/manufacturing">Manufacturing</BackLink>
         <RecordPrevNext items={sidebarItems} activeId={id} />

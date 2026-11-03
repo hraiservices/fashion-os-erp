@@ -8,6 +8,7 @@ import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useDeleteRawMaterial } from "@/hooks/use-inventory-mutations";
 import { useRawMaterialConsumption } from "@/hooks/use-inventory-ledger";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useRowSelection } from "@/hooks/use-row-selection";
 import { isLowStock, estimateReorder, REORDER_LOOKBACK_DAYS } from "@/lib/inventory";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { MobileRecordList, MobileRecordCard, MobileRecordHeader, MobileRecordRow } from "@/components/ui/mobile-record-list";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +33,16 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { RawMaterial } from "@/lib/types";
+import { useTableSort } from "@/hooks/use-table-sort";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
+
+const RAW_MATERIAL_SORT_COMPARATORS: Record<string, (a: RawMaterial, b: RawMaterial) => number> = {
+  name: (a, b) => a.name.localeCompare(b.name),
+  category: (a, b) => a.category.localeCompare(b.category),
+  stock: (a, b) => a.stockQty - b.stockQty,
+  cost: (a, b) => a.costPerUnit - b.costPerUnit,
+};
+const RAW_MATERIAL_SORT_DESC_KEYS = new Set(["stock", "cost"]);
 
 function RawMaterialsPageContent() {
   const router = useRouter();
@@ -44,13 +56,21 @@ function RawMaterialsPageContent() {
   const daysUntilEmpty = (m: RawMaterial) => (consumption ? estimateReorder(m.stockQty, consumption.get(m.id) || 0).daysUntilEmpty : null);
 
   const [search, setSearch] = useState("");
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const canManage = !!user?.perms.manageInventory;
 
-  const filtered = useMemo(() => {
+  const searched = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (materials || []).filter((m) => !q || m.name.toLowerCase().includes(q) || m.category.toLowerCase().includes(q));
   }, [materials, search]);
+
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<RawMaterial>("inventory-raw-materials", RAW_MATERIAL_SORT_COMPARATORS, RAW_MATERIAL_SORT_DESC_KEYS);
+  const filtered = applySort(searched);
+
+  const selection = useRowSelection(filtered.map((m) => m.id));
+  const selectedMaterials = filtered.filter((m) => selection.selected.has(m.id));
 
   function openEdit(m: RawMaterial) {
     router.push(`/inventory/raw-materials/${m.id}/edit`);
@@ -63,6 +83,23 @@ function RawMaterialsPageContent() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to delete");
     }
+  }
+
+  async function bulkDelete() {
+    setBulkBusy(true);
+    setBulkDeleteOpen(false);
+    let failed = 0;
+    for (const m of selectedMaterials) {
+      try {
+        await deleteMaterial.mutateAsync({ id: m.id, name: m.name, userEmail: user?.email });
+      } catch {
+        failed++;
+      }
+    }
+    setBulkBusy(false);
+    selection.clear();
+    if (failed) toast.error(`${selectedMaterials.length - failed} deleted, ${failed} failed`);
+    else toast.success(`${selectedMaterials.length} material(s) deleted`);
   }
 
   return (
@@ -81,6 +118,20 @@ function RawMaterialsPageContent() {
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input type="search" enterKeyHint="search" placeholder="Search name or category…" className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search raw materials" />
       </div>
+
+      {canManage && !isLoading && selection.count > 0 && (
+        <div className="hidden flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 sm:flex">
+          <span className="text-sm font-medium">{selection.count} selected</span>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Button variant="destructive" size="sm" className="h-7 px-2.5 text-[0.8rem]" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
+              <Trash2 className="size-3.5" /> Delete
+            </Button>
+            <Button variant="ghost" size="sm" className="h-7 px-2.5 text-[0.8rem]" onClick={selection.clear} disabled={bulkBusy}>
+              Clear
+            </Button>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-2">
@@ -104,10 +155,15 @@ function RawMaterialsPageContent() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="text-right">Stock</TableHead>
-                <TableHead className="text-right">Cost/unit</TableHead>
+                {canManage && (
+                  <TableHead className="w-10">
+                    <Checkbox checked={selection.allSelected} onChange={selection.toggleAll} aria-label="Select all materials" />
+                  </TableHead>
+                )}
+                <SortableTableHead sortKey="name" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Name</SortableTableHead>
+                <SortableTableHead sortKey="category" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Category</SortableTableHead>
+                <SortableTableHead sortKey="stock" align="right" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Stock</SortableTableHead>
+                <SortableTableHead sortKey="cost" align="right" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Cost/unit</SortableTableHead>
                 {canManage && <TableHead className="w-20" />}
               </TableRow>
             </TableHeader>
@@ -117,6 +173,11 @@ function RawMaterialsPageContent() {
                 const runsOut = daysUntilEmpty(m);
                 return (
                   <TableRow key={m.id}>
+                    {canManage && (
+                      <TableCell>
+                        <Checkbox checked={selection.selected.has(m.id)} onChange={() => selection.toggle(m.id)} aria-label={`Select ${m.name}`} />
+                      </TableCell>
+                    )}
                     <TableCell className="font-medium">{m.name}</TableCell>
                     <TableCell className="text-muted-foreground">{m.category || "—"}</TableCell>
                     <TableCell className="text-right">
@@ -194,6 +255,18 @@ function RawMaterialsPageContent() {
         </MobileRecordList>
       )}
 
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selection.count} material(s)?</AlertDialogTitle>
+            <AlertDialogDescription>This removes the material records. Stock ledger history for them is kept for audit purposes.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={bulkDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

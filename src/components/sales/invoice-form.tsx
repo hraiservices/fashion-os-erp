@@ -26,6 +26,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CustomerPicker } from "@/components/sales/customer-picker";
+import { CustomerQuickPeek } from "@/components/crm/customer-quick-peek";
+import { QuickPeekButton } from "@/components/ui/quick-peek-button";
 import { SearchSelect } from "@/components/ui/search-select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
@@ -123,6 +125,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
   const [customer, setCustomer] = useState<Customer | null>(existing ? placeholderCustomer(existing.customerName, existing.customerMobile) : null);
   const priceOverrides = usePriceListItemsMap(customer?.priceListId);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [peekOpen, setPeekOpen] = useState(false);
   // What was typed in the customer search box when "Add new customer" was chosen — pre-fills the add form.
   const [newCustomerName, setNewCustomerName] = useState("");
   const [subject, setSubject] = useState(existing?.subject || "");
@@ -153,13 +156,11 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
   const [discountValue, setDiscountValue] = useState(blankIfZero(existing?.discountValue));
   const [terms, setTerms] = useState(existing?.terms ?? "");
   const [notes, setNotes] = useState(existing?.notes || "");
-  // Collapsed by default when there's nothing in it yet (the common case for a new invoice) —
-  // open on mount only when editing an invoice that already has GST/shipping/discount set, so
-  // those values are never hidden from view. Seeded once from the initial values, not kept in
-  // sync afterward — same one-shot pattern as vendor-form.tsx's own tax/notes accordions.
-  const [taxOpen, setTaxOpen] = useState(
-    !!(existing && (existing.gstType !== "none" || existing.shippingCharges || existing.discountValue))
-  );
+  // Open by default — this is the only place to apply a discount (line-item or whole-invoice),
+  // which is common enough that hiding it behind a click cost staff discoverability. Still seeded
+  // once from the initial values, not kept in sync afterward — same one-shot pattern as
+  // vendor-form.tsx's own tax/notes accordions.
+  const [taxOpen, setTaxOpen] = useState(true);
   // Same collapsed-unless-already-populated rule — stays open when editing an invoice that
   // already has a subject/notes/terms set.
   const [notesOpen, setNotesOpen] = useState(!!(existing && (existing.subject || existing.notes || existing.terms)));
@@ -363,6 +364,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
                   <Button type="button" variant="outline" className="h-10 shrink-0" onClick={() => { setNewCustomerName(""); setPickerOpen(true); }}>
                     New
                   </Button>
+                  {customer && <QuickPeekButton onClick={() => setPeekOpen(true)} label={`View ${customer.name}'s details`} />}
                 </div>
               </HeaderRow>
             </div>
@@ -648,6 +650,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
       )}
 
       <CustomerPicker open={pickerOpen} onOpenChange={setPickerOpen} onSelect={handleSelectCustomer} startInAddMode defaultName={newCustomerName} />
+      {customer && <CustomerQuickPeek mobile={customer.mobile} open={peekOpen} onOpenChange={setPeekOpen} />}
     </div>
   );
 }

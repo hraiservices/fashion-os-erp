@@ -36,13 +36,13 @@ export interface SidebarStyleMeta {
 
 /** Applied as a `sidebar-<id>` class on <html> — independent of (and combinable with) the color theme. */
 export const SIDEBAR_STYLES: SidebarStyleMeta[] = [
-  { id: "dark", name: "Dark Navy", description: "Fixed dark sidebar (default)" },
+  { id: "light", name: "Light", description: "White sidebar, like classic Zoho Books (default)" },
+  { id: "dark", name: "Dark Navy", description: "Fixed dark sidebar" },
   { id: "black", name: "Black", description: "Pure near-black sidebar" },
-  { id: "light", name: "Light", description: "White sidebar, like classic Zoho Books" },
   { id: "colored", name: "Colored", description: "Dark tint of your accent color" },
 ];
 
-export const DEFAULT_SIDEBAR_STYLE = "dark";
+export const DEFAULT_SIDEBAR_STYLE = "light";
 
 export function isValidSidebarStyle(id: string): boolean {
   return SIDEBAR_STYLES.some((s) => s.id === id);

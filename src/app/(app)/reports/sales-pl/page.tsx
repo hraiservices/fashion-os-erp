@@ -31,7 +31,7 @@ const SORT_COMPARATORS: Record<string, (a: SalesPnlStat, b: SalesPnlStat) => num
 };
 const SORT_DESC_KEYS = new Set(["count", "billed", "purchaseCost", "salesStaffCost", "netProfit"]);
 
-/** Product sales (invoices) only — billed revenue minus purchases/COGS and Sales Staff cost
+/** Product sales (invoices) only — billed revenue minus the cost of goods actually sold and Sales Staff cost
  *  (Salaries-category expenses linked to a sales-role employee, plus their Payroll payslips).
  *  Deliberately never touches tailor cost — see Stitching Monthly P&L for that. Commission is
  *  not yet included: sales invoices have no field recording which Sales Person made the sale
@@ -77,23 +77,24 @@ export default function SalesPnlPage() {
       count: acc.count + m.count,
       billed: acc.billed + m.billed,
       purchaseCost: acc.purchaseCost + m.purchaseCost,
+      unknownCostLines: acc.unknownCostLines + m.unknownCostLines,
       salesStaffCost: acc.salesStaffCost + m.salesStaffCost,
       netProfit: acc.netProfit + m.netProfit,
     }),
-    { count: 0, billed: 0, purchaseCost: 0, salesStaffCost: 0, netProfit: 0 }
+    { count: 0, billed: 0, purchaseCost: 0, unknownCostLines: 0, salesStaffCost: 0, netProfit: 0 }
   );
 
   return (
     <ReportShell
       title="Product Sales P&L"
-      description="Product sales (invoices) only — billed revenue minus purchases/COGS and Sales Staff cost (Salaries expenses and payroll linked to sales-role employees). Never includes tailor cost — see Stitching Monthly P&L for that. For both revenue streams combined, see Combined P&L."
+      description="Product sales (invoices) only — billed revenue minus the cost of the goods actually sold and Sales Staff cost (Salaries expenses and payroll linked to sales-role employees). Stock bought but not yet sold stays in inventory and is not charged here. Never includes tailor cost — see Stitching Monthly P&L for that. For both revenue streams combined, see Combined P&L."
       actions={
         <ReportActionsMenu
           rows={sortedMonthly.map((m) => ({
             Month: m.label,
             Invoices: m.count,
             Billed: m.billed,
-            "Purchases/COGS": m.purchaseCost,
+            "COGS (cost of goods sold)": m.purchaseCost,
             "Sales Staff Cost": m.salesStaffCost,
             "Net Profit": m.netProfit,
           }))}
@@ -101,7 +102,7 @@ export default function SalesPnlPage() {
           title="Product Sales P&L"
           summaryLines={[
             `Total billed: ${inr(totals.billed)}`,
-            `Total purchases/COGS: ${inr(totals.purchaseCost)}`,
+            `Total COGS: ${inr(totals.purchaseCost)}`,
             `Total sales staff cost: ${inr(totals.salesStaffCost)}`,
             `Net profit: ${inr(totals.netProfit)}`,
           ]}
@@ -116,6 +117,21 @@ export default function SalesPnlPage() {
         customTo={customTo}
         onCustomToChange={setCustomTo}
       />
+
+      {/* COGS can only be as complete as the costs recorded on the lines it sums. Lines saved
+          before server-side cost freezing existed carry no cost at all, and counting those as ₹0
+          would quietly inflate margin — the exact failure lineItemMargin refuses to make. */}
+      {totals.unknownCostLines > 0 && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-900 dark:bg-amber-950/40">
+          <p className="font-medium">
+            {totals.unknownCostLines} invoice line{totals.unknownCostLines === 1 ? " has" : "s have"} no recorded cost.
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            Those lines are left out of COGS rather than counted as free, so the cost above is understated and margin is flattered by however
+            much they actually cost. Set a cost price on those products and re-save the invoices to bring them in.
+          </p>
+        </div>
+      )}
 
       <ReportCard className="p-4">
         <div className="h-64 sm:h-72">
@@ -142,7 +158,7 @@ export default function SalesPnlPage() {
           <MobileRecordHeader boldTitle title="Total" value={inr(totals.netProfit)} showChevron={false} valueClassName="text-emerald-600 dark:text-emerald-400" />
           <MobileRecordRow label="Invoices" value={totals.count} />
           <MobileRecordRow label="Billed" value={inr(totals.billed)} />
-          <MobileRecordRow label="Purchases/COGS" value={inr(totals.purchaseCost)} valueClassName="text-red-600 dark:text-red-400" />
+          <MobileRecordRow label="COGS (cost of goods sold)" value={inr(totals.purchaseCost)} valueClassName="text-red-600 dark:text-red-400" />
           <MobileRecordRow label="Sales Staff Cost" value={inr(totals.salesStaffCost)} valueClassName="text-red-600 dark:text-red-400" />
           <MobileRecordRow label="Net Profit" value={inr(totals.netProfit)} valueClassName={totals.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"} />
         </MobileRecordCard>
@@ -151,7 +167,7 @@ export default function SalesPnlPage() {
             <MobileRecordHeader boldTitle title={m.label} value={inr(m.netProfit)} showChevron={false} valueClassName="text-emerald-600 dark:text-emerald-400" />
             <MobileRecordRow label="Invoices" value={m.count} />
             <MobileRecordRow label="Billed" value={inr(m.billed)} />
-            <MobileRecordRow label="Purchases/COGS" value={inr(m.purchaseCost)} valueClassName="text-red-600 dark:text-red-400" />
+            <MobileRecordRow label="COGS (cost of goods sold)" value={inr(m.purchaseCost)} valueClassName="text-red-600 dark:text-red-400" />
             <MobileRecordRow label="Sales Staff Cost" value={inr(m.salesStaffCost)} valueClassName="text-red-600 dark:text-red-400" />
             <MobileRecordRow label="Net Profit" value={inr(m.netProfit)} valueClassName={m.netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"} />
           </MobileRecordCard>
@@ -164,7 +180,7 @@ export default function SalesPnlPage() {
               <Th sortKey="month" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Month</Th>
               <Th align="right" sortKey="count" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Invoices</Th>
               <Th align="right" sortKey="billed" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Billed</Th>
-              <Th align="right" sortKey="purchaseCost" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Purchases/COGS</Th>
+              <Th align="right" sortKey="purchaseCost" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>COGS (cost of goods sold)</Th>
               <Th align="right" sortKey="salesStaffCost" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Sales Staff Cost</Th>
               <Th align="right" sortKey="netProfit" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Net Profit</Th>
             </tr>

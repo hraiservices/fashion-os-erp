@@ -14,10 +14,12 @@ import { Button } from "@/components/ui/button";
 import { FormActionBar } from "@/components/ui/form-action-bar";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { CategoryPicker } from "@/components/expenses/category-picker";
+import { ReceiptUpload } from "@/components/expenses/receipt-upload";
 import { CustomerPicker, CustomerPickerTrigger } from "@/components/sales/customer-picker";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
@@ -30,6 +32,8 @@ const schema = z.object({
   description: z.string().optional(),
   amount: z.coerce.number().positive("Amount must be positive"),
   payMethod: z.string().min(1, "Payment method required"),
+  vendorName: z.string().optional(),
+  referenceNumber: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -77,6 +81,8 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
     existing?.customerName ? { name: existing.customerName, mobile: existing.customerMobile || "" } : null
   );
   const [employeeId, setEmployeeId] = useState<string | null>(existing?.employeeId || null);
+  const [receiptDataUrl, setReceiptDataUrl] = useState<string | null>(null);
+  const [removeReceipt, setRemoveReceipt] = useState(false);
 
   const {
     register,
@@ -86,8 +92,16 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
   } = useForm<FormValues>({
     resolver: zodResolver(schema) as never,
     defaultValues: existing
-      ? { date: existing.date, category: existing.category, description: existing.description, amount: existing.amount, payMethod: existing.payMethod }
-      : { date: today, category: "", description: "", amount: 0, payMethod: "Cash" },
+      ? {
+          date: existing.date,
+          category: existing.category,
+          description: existing.description,
+          amount: existing.amount,
+          payMethod: existing.payMethod,
+          vendorName: existing.vendorName || "",
+          referenceNumber: existing.referenceNumber || "",
+        }
+      : { date: today, category: "", description: "", amount: 0, payMethod: "Cash", vendorName: "", referenceNumber: "" },
   });
 
   function handleSelectCustomer(c: Customer) {
@@ -96,7 +110,17 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
 
   async function onSubmit(values: FormValues) {
     try {
-      const payload = { ...values, description: values.description || "", customerName: customer?.name || null, customerMobile: customer?.mobile || null, employeeId };
+      const payload = {
+        ...values,
+        description: values.description || "",
+        vendorName: values.vendorName || null,
+        referenceNumber: values.referenceNumber || null,
+        customerName: customer?.name || null,
+        customerMobile: customer?.mobile || null,
+        employeeId,
+        ...(receiptDataUrl ? { receiptDataUrl } : {}),
+        ...(isEdit && removeReceipt && !receiptDataUrl ? { removeReceipt: true } : {}),
+      };
       if (isEdit) {
         await updateExpense.mutateAsync({ id: existing!.id, ...payload });
         toast.success("Expense updated");
@@ -171,6 +195,32 @@ export function ExpenseForm({ existing }: { existing?: Expense }) {
                 )}
               />
             </FieldGroup>
+            <FieldGroup label="Vendor" hint="Optional — who was paid (e.g. a supplier not already a Vendor record).">
+              <Input placeholder="e.g. Anand Fabrics" className="h-10" {...register("vendorName")} />
+            </FieldGroup>
+            <FieldGroup label="Reference #" hint="Optional — cheque or UPI transaction id.">
+              <Input placeholder="e.g. UPI/2026..." className="h-10" {...register("referenceNumber")} />
+            </FieldGroup>
+          </div>
+
+          <div className="mt-4">
+            <Label className="mb-1.5 block text-sm font-bold text-foreground/80">Receipt</Label>
+            <ReceiptUpload
+              dataUrl={receiptDataUrl}
+              existingUrl={removeReceipt ? null : existing?.receiptUrl}
+              onChange={(url) => {
+                setReceiptDataUrl(url);
+                setRemoveReceipt(false);
+              }}
+              onRemove={
+                receiptDataUrl || existing?.receiptUrl
+                  ? () => {
+                      setReceiptDataUrl(null);
+                      setRemoveReceipt(true);
+                    }
+                  : undefined
+              }
+            />
           </div>
         </div>
 

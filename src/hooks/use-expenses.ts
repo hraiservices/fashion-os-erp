@@ -43,6 +43,13 @@ export interface CreateExpenseInput {
   customerMobile?: string | null;
   customerName?: string | null;
   employeeId?: string | null;
+  referenceNumber?: string | null;
+  vendorName?: string | null;
+  /** A receipt photo to upload, as a base64 image data: URL — omitted to leave the receipt
+   *  untouched (create: no receipt; update: keep the existing one). */
+  receiptDataUrl?: string;
+  /** Update only — true to remove the current receipt without uploading a replacement. */
+  removeReceipt?: boolean;
 }
 
 export function useCreateExpense() {

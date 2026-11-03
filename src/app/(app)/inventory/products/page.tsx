@@ -28,6 +28,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
 import { ProductThumbnail } from "@/components/inventory/product-thumbnail";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { useTableSort } from "@/hooks/use-table-sort";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
 
 const PRODUCT_LIST_COLUMNS = [
   { key: "name", label: "Name", required: true },
@@ -42,6 +44,16 @@ const PRODUCT_LIST_COLUMNS = [
 // to see at a glance, so they default to hidden there and reappear automatically on a wider
 // monitor (still one click away via Columns).
 const PRODUCT_LIST_AUTO_HIDE = { belowWidth: 1920, keys: ["margin", "bom"] };
+
+const PRODUCT_SORT_COMPARATORS: Record<string, (a: Product, b: Product) => number> = {
+  name: (a, b) => a.name.localeCompare(b.name),
+  sku: (a, b) => a.sku.localeCompare(b.sku),
+  stock: (a, b) => a.stockQty - b.stockQty,
+  price: (a, b) => a.sellingPrice - b.sellingPrice,
+  margin: (a, b) => a.sellingPrice - a.costPrice - (b.sellingPrice - b.costPrice),
+  bom: (a, b) => a.bom.length - b.bom.length,
+};
+const PRODUCT_SORT_DESC_KEYS = new Set(["stock", "price", "margin", "bom"]);
 import {
   AlertDialog,
   AlertDialogAction,
@@ -127,10 +139,13 @@ function ProductsPageContent() {
 
   const canManage = !!user?.perms.manageInventory;
 
-  const filtered = useMemo(() => {
+  const searched = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (products || []).filter((p) => !q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
   }, [products, search]);
+
+  const { sortKey, sortAsc, toggleSort, applySort } = useTableSort<Product>("inventory-products", PRODUCT_SORT_COMPARATORS, PRODUCT_SORT_DESC_KEYS);
+  const filtered = applySort(searched);
 
   const selection = useRowSelection(filtered.map((p) => p.id));
 
@@ -275,12 +290,12 @@ function ProductsPageContent() {
                   </TableHead>
                 )}
                 <TableHead className="w-12" />
-                <TableHead>Name</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead className="text-right">Stock</TableHead>
-                <TableHead className="text-right">Price</TableHead>
-                {isVisible("margin") && <TableHead className="text-right">Margin</TableHead>}
-                {isVisible("bom") && <TableHead className="text-right">BOM</TableHead>}
+                <SortableTableHead sortKey="name" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Name</SortableTableHead>
+                <SortableTableHead sortKey="sku" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>SKU</SortableTableHead>
+                <SortableTableHead sortKey="stock" align="right" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Stock</SortableTableHead>
+                <SortableTableHead sortKey="price" align="right" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Price</SortableTableHead>
+                {isVisible("margin") && <SortableTableHead sortKey="margin" align="right" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Margin</SortableTableHead>}
+                {isVisible("bom") && <SortableTableHead sortKey="bom" align="right" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>BOM</SortableTableHead>}
                 {canManage && <TableHead className="w-20" />}
               </TableRow>
             </TableHeader>

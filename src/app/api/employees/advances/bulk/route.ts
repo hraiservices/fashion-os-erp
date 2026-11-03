@@ -62,6 +62,7 @@ const entrySchema = z.object({
 const bodySchema = z.object({
   date: z.string().min(1),
   entries: z.array(entrySchema).min(1),
+  payMethod: z.string().optional().default("cash"),
 });
 
 /**
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  const { date, entries } = parsed.data;
+  const { date, entries, payMethod } = parsed.data;
 
   const employeeIds = [...new Set(entries.map((e) => e.employeeId))];
   const { data: employeeRows, error: empError } = await db
@@ -109,7 +110,7 @@ export async function POST(request: Request) {
 
   if (valid.length > 0) {
     const { error: insertError } = await db.from("employee_advances").insert(
-      valid.map((e) => ({ employee_id: e.employeeId, date, amount: e.amount, note: e.note || "", created_by: user.email }))
+      valid.map((e) => ({ employee_id: e.employeeId, date, amount: e.amount, note: e.note || "", pay_method: payMethod, created_by: user.email }))
     );
     if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
 

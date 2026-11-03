@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { FileWarning } from "lucide-react";
 import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
+import { useSalesCreditNotes } from "@/hooks/use-sales-credit-notes";
+import { creditNoteTax } from "@/lib/sales";
 import { GST_TYPE_LABELS, type GstType } from "@/lib/gst";
 import { inr } from "@/lib/format";
 import { ReportShell, ReportTable, ReportTotalsRow, Th, Td } from "@/components/reports/report-shell";
@@ -11,6 +13,7 @@ import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { ReportActionsMenu } from "@/components/reports/report-actions-menu";
 import { useReportDateRange, isWithinDateRange, DATE_RANGE_PRESET_LABELS } from "@/lib/report-date-range";
 import { StatCard } from "@/components/ui/stat-card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -42,6 +45,7 @@ const SORT_DESC_KEYS = new Set(["taxRate", "invoiceCount", "taxableValue", "cgst
 
 export default function GstSummaryReportPage() {
   const { data: invoices, isLoading } = useSalesInvoices();
+  const { data: creditNotes } = useSalesCreditNotes();
   const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } = useReportDateRange("this-month");
   const [gstType, setGstType] = useState<GstType | "all">("all");
 
@@ -68,8 +72,31 @@ export default function GstSummaryReportPage() {
       row.igst += inv.igst;
       map.set(key, row);
     });
+
+    // Net off credit notes. A credit note reduces output tax in the period it is ISSUED (s.34
+    // CGST Act), so it is bucketed by its own date, not its invoice's — a December return against
+    // a November sale belongs in December. Its tax is derived from the invoice it credits (see
+    // creditNoteTax), because the credit note row itself stores only a total. Without this the
+    // report charged tax on gross sales while every revenue report netted credits off, so the two
+    // disagreed the moment any credit note existed.
+    const invoiceById = new Map(( invoices || []).map((i) => [i.id, i]));
+    (creditNotes || []).forEach((cn) => {
+      const inv = invoiceById.get(cn.invoiceId);
+      if (!inv || inv.docStatus === "draft") return;
+      if (!isWithinDateRange(cn.date, range)) return;
+      if (gstType !== "all" && inv.gstType !== gstType) return;
+      const key = `${inv.gstType}-${inv.taxRate}`;
+      const row = map.get(key) || { key, gstType: inv.gstType, taxRate: inv.taxRate, invoiceCount: 0, taxableValue: 0, cgst: 0, sgst: 0, igst: 0 };
+      const tax = creditNoteTax(cn.total, inv.taxRate, inv.gstType);
+      row.taxableValue -= tax.taxableAmount;
+      row.cgst -= tax.cgst;
+      row.sgst -= tax.sgst;
+      row.igst -= tax.igst;
+      map.set(key, row);
+    });
+
     return Array.from(map.values()).sort((a, b) => (a.gstType === b.gstType ? b.taxRate - a.taxRate : a.gstType.localeCompare(b.gstType)));
-  }, [monthInvoices]);
+  }, [monthInvoices, creditNotes, invoices, range, gstType]);
 
   const totals = useMemo(
     () =>
@@ -179,7 +206,25 @@ export default function GstSummaryReportPage() {
       </div>
 
       {groups.length === 0 ? (
-        <EmptyState icon={ReceiptDuotoneIcon} title="No invoices in this period" description="Pick a different month above." />
+        /* A tax report defaulting to "this month" and rendering ₹0 across every tile reads as
+           "no GST liability" rather than "no data in this window" — a dangerous thing to glance
+           at near a filing deadline. Say which it is, and offer the window that has data. */
+        <EmptyState
+          icon={ReceiptDuotoneIcon}
+          title="No invoices in this period"
+          description={
+            (invoices || []).length > 0
+              ? `This shop has ${(invoices || []).length} invoices on record, none of them in the selected period — the ₹0 above is an empty window, not a zero tax liability.`
+              : "No sales invoices have been recorded yet."
+          }
+          action={
+            preset !== "all" && (invoices || []).length > 0 ? (
+              <Button variant="outline" size="sm" onClick={() => setPreset("all")}>
+                View all time
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
         <>
         <MobileRecordList>

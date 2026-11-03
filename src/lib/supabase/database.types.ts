@@ -353,6 +353,9 @@ export interface Database {
           measurement_profile_name: string | null;
           materials: Json;
           materials_note: string;
+          cancelled_at: string | null;
+          cancelled_by: string | null;
+          cancel_reason: string;
           created_at: string;
           updated_at: string;
         };
@@ -455,6 +458,9 @@ export interface Database {
           customer_mobile: string | null;
           customer_name: string | null;
           employee_id: string | null;
+          reference_number: string | null;
+          vendor_name: string | null;
+          receipt_path: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -926,6 +932,8 @@ export interface Database {
           shipping_charges: number;
           other_charges: number;
           notes: string;
+          reference_number: string;
+          freight_taxable: boolean;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -1096,6 +1104,7 @@ export interface Database {
           created_at: string;
           account_id: string | null;
           reference: string;
+          discount: number;
         };
         Insert: Partial<Database["public"]["Tables"]["order_payments"]["Row"]> & {
           order_id: string;
@@ -1396,6 +1405,7 @@ export interface Database {
           date: string;
           amount: number;
           note: string;
+          pay_method: string;
           payslip_id: string | null;
           created_by: string | null;
           created_at: string;
@@ -1756,6 +1766,7 @@ export interface Database {
           p_paid_at?: string | null;
           p_account_id?: string | null;
           p_reference?: string;
+          p_discount?: number;
         };
         Returns: Database["public"]["Tables"]["orders"]["Row"][];
       };

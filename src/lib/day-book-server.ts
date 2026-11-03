@@ -112,7 +112,7 @@ export async function computeCashAndMethods(
     db.from("order_payments").select("amount, method").gte("created_at", startUtc).lt("created_at", endUtc),
     db.from("expenses").select("amount, pay_method").gte("created_at", startUtc).lt("created_at", endUtc),
     db.from("vendor_payments").select("amount, method").gte("created_at", startUtc).lt("created_at", endUtc),
-    db.from("employee_advances").select("amount").gte("created_at", startUtc).lt("created_at", endUtc),
+    db.from("employee_advances").select("amount, pay_method").gte("created_at", startUtc).lt("created_at", endUtc),
     db.from("day_book_cash_adjustments").select("*").eq("adj_date", date).order("created_at"),
     db.from("day_book_closings").select("close_date, counted_cash").lt("close_date", date).order("close_date", { ascending: false }).limit(1).maybeSingle(),
     db.from("day_book_closings").select("*").eq("close_date", date).maybeSingle(),
@@ -126,7 +126,12 @@ export async function computeCashAndMethods(
   const adjustmentsOut = adjustments.filter((a) => a.kind === "out").reduce((s, a) => s + a.amount, 0);
   const expenses = (exp.data || []).filter((e) => normalizeMethod(e.pay_method) === "cash").reduce((s, e) => s + (e.amount || 0), 0);
   const vendorPayments = (vpay.data || []).filter((v) => normalizeMethod(v.method) === "cash").reduce((s, v) => s + (v.amount || 0), 0);
-  const advances = (adv.data || []).reduce((s, a) => s + (a.amount || 0), 0);
+  // Advances had no payment-method column at all until add_employee_advance_pay_method.sql —
+  // every advance used to be counted as cash out unconditionally, same bug class as expenses/
+  // vendor_payments already guard against: a bank-transferred advance would wrongly shrink
+  // expected cash and read as a drawer shortage that was never real. Filtered the same way those
+  // two already are.
+  const advances = (adv.data || []).filter((a) => normalizeMethod(a.pay_method) === "cash").reduce((s, a) => s + (a.amount || 0), 0);
 
   const cashIn = split.cash + adjustmentsIn;
   const cashOut = expenses + vendorPayments + advances + adjustmentsOut;

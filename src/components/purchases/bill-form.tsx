@@ -7,6 +7,8 @@ import { Building2, Package2, Tag, FileText, ShoppingCart, Truck } from "lucide-
 import { useVendors } from "@/hooks/use-vendors";
 import { SearchSelect } from "@/components/ui/search-select";
 import { AddVendorDialog } from "@/components/purchases/add-vendor-dialog";
+import { VendorQuickPeek } from "@/components/purchases/vendor-quick-peek";
+import { QuickPeekButton } from "@/components/ui/quick-peek-button";
 import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
 import { useSaveBill } from "@/hooks/use-purchase-mutations";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
@@ -17,6 +19,7 @@ import { PAYMENT_TERMS, PAYMENT_TERM_LABELS, dueDateFromTerm, type PaymentTerm }
 import { inr } from "@/lib/format";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { FormActionBar } from "@/components/ui/form-action-bar";
@@ -63,6 +66,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
   const isEdit = !!existing;
   const [addVendorOpen, setAddVendorOpen] = useState(false);
   const [newVendorName, setNewVendorName] = useState("");
+  const [peekOpen, setPeekOpen] = useState(false);
 
   const [billNumber] = useState(existing?.billNumber || genBillNumber());
   const [vendorId, setVendorId] = useState(existing?.vendorId || "");
@@ -82,6 +86,8 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
   const [otherCharges, setOtherCharges] = useState(blankIfZero(existing?.otherCharges));
   const [notes, setNotes] = useState(existing?.notes || "");
   const [notesOpen, setNotesOpen] = useState(false);
+  const [referenceNumber, setReferenceNumber] = useState(existing?.referenceNumber || "");
+  const [freightTaxable, setFreightTaxable] = useState(!!existing?.freightTaxable);
 
   useSyncFromSource(prefillPo, (po) => {
     if (!po) return;
@@ -103,11 +109,16 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
 
   const vendorLabel = (id: string) => (vendors || []).find((v) => v.id === id)?.name ?? "";
   const items = linesToItems(lines);
-  const taxableAmount = items.reduce((s, i) => s + i.amount, 0);
-  const gstPreview = computeGst(taxableAmount, parseFloat(taxRate) || 0, gstType);
   const shipping = Math.max(0, parseFloat(shippingCharges) || 0);
   const other = Math.max(0, parseFloat(otherCharges) || 0);
-  const grandTotal = computePurchaseTotal(gstPreview.total, shipping, other);
+  const lineItemsTotal = items.reduce((s, i) => s + i.amount, 0);
+  // Mirrors the server (src/app/api/purchases/bills/route.ts) exactly — when freight is taxed it
+  // sits inside the taxable base and must not be added on top of the GST-inclusive total again.
+  const taxableAmount = freightTaxable ? lineItemsTotal + shipping : lineItemsTotal;
+  const gstPreview = computeGst(taxableAmount, parseFloat(taxRate) || 0, gstType);
+  const grandTotal = freightTaxable
+    ? computePurchaseTotal(gstPreview.total, 0, other)
+    : computePurchaseTotal(gstPreview.total, shipping, other);
 
   async function handleSave() {
     if (!vendorId) return toast.error("Select a vendor");
@@ -128,6 +139,8 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
         shippingCharges: shipping,
         otherCharges: other,
         notes,
+        referenceNumber,
+        freightTaxable,
         userEmail: user?.email,
       });
       toast.success(isEdit ? `Bill ${billNumber} updated — stock adjusted` : `Bill ${billNumber} recorded — stock updated`);
@@ -171,15 +184,19 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
             <SectionHeading icon={Building2} label="Vendor & dates" />
             <div className="mb-4">
               <FieldGroup label="Vendor" required>
-                <SearchSelect
-                  inputClassName="h-10"
-                  placeholder="Type to search vendor…"
-                  value={vendorId}
-                  fallbackLabel={vendorLabel(vendorId)}
-                  options={(vendors || []).map((v) => ({ value: v.id, label: v.name, sublabel: v.mobile || undefined }))}
-                  onSelect={setVendorId}
-                  createActions={[{ label: "Add new vendor", onCreate: (name) => { setNewVendorName(name); setAddVendorOpen(true); } }]}
-                />
+                <div className="flex gap-2">
+                  <SearchSelect
+                    className="flex-1"
+                    inputClassName="h-10"
+                    placeholder="Type to search vendor…"
+                    value={vendorId}
+                    fallbackLabel={vendorLabel(vendorId)}
+                    options={(vendors || []).map((v) => ({ value: v.id, label: v.name, sublabel: v.mobile || undefined }))}
+                    onSelect={setVendorId}
+                    createActions={[{ label: "Add new vendor", onCreate: (name) => { setNewVendorName(name); setAddVendorOpen(true); } }]}
+                  />
+                  {vendorId && <QuickPeekButton onClick={() => setPeekOpen(true)} label={`View ${vendorLabel(vendorId)}'s details`} />}
+                </div>
                 <AddVendorDialog
                   open={addVendorOpen}
                   onOpenChange={setAddVendorOpen}
@@ -207,6 +224,9 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
               <FieldGroup label="Due date" required hint="When you must pay the vendor for this bill">
                 <DatePicker value={dueDate} onChange={setDueDate} />
               </FieldGroup>
+              <FieldGroup label="Reference number" hint="Vendor's own bill/invoice number, if different">
+                <Input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} placeholder="e.g. INV-2026-104" className="h-10" />
+              </FieldGroup>
             </div>
           </div>
 
@@ -223,10 +243,23 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
               <FieldGroup label="Shipping charges">
                 <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="0" value={shippingCharges} onChange={(e) => setShippingCharges(e.target.value)} className="h-10" />
               </FieldGroup>
-              <FieldGroup label="Other charges" hint="Added after GST — no GST on charges">
+              <FieldGroup label="Other charges" hint="Always added after GST">
                 <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="0" value={otherCharges} onChange={(e) => setOtherCharges(e.target.value)} className="h-10" />
               </FieldGroup>
             </div>
+            {/* Whether freight was taxed is a fact about the vendor's invoice, not a shop-wide
+                setting — so it lives on the bill. Off by default, which is how every bill saved
+                before this existed was calculated. */}
+            <label className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-lg border bg-muted/30 p-3">
+              <Checkbox checked={freightTaxable} onChange={() => setFreightTaxable((v) => !v)} className="mt-0.5" aria-label="Vendor charged GST on shipping" />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">Vendor charged GST on shipping</span>
+                <span className="block text-[11px] text-muted-foreground">
+                  Tick this if the shipping amount on the vendor&apos;s bill was taxed. It moves shipping into the taxable value so the input
+                  tax credit on freight is captured. Leave it off and shipping is added after GST, as before.
+                </span>
+              </span>
+            </label>
           </div>
 
           {/* Tax */}
@@ -349,6 +382,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
           {saveBill.isPending ? "Saving…" : isEdit ? `Save Changes · ${inr(grandTotal)}` : `Record Bill · ${inr(grandTotal)}`}
         </Button>
       </FormActionBar>
+      {vendorId && <VendorQuickPeek vendorId={vendorId} open={peekOpen} onOpenChange={setPeekOpen} />}
     </div>
   );
 }

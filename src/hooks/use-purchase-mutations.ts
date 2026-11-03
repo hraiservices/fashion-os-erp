@@ -112,6 +112,8 @@ interface SaveBillInput {
   shippingCharges: number;
   otherCharges: number;
   notes: string;
+  referenceNumber?: string;
+  freightTaxable?: boolean;
   userEmail?: string;
 }
 

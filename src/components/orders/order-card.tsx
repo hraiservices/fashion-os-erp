@@ -276,10 +276,13 @@ export function OrderCard({
               <span className="truncate">{advancing ? "…" : <MoveToStageLabel label={STAGE_META[next].label} />}</span>
             </Button>
           )}
-          {/* display:contents on sm+ so these render as ordinary flex siblings of the advance
-              button above; "hidden" below sm removes them from flow entirely (not just visually)
-              since the mobile-only labeled row below duplicates each action. */}
-          <span className="hidden sm:contents">
+          {/* "hidden" below sm removes these from flow entirely (not just visually) since the
+              mobile-only labeled row below duplicates each action. On sm+ they fade in on the
+              card's :hover/:focus-within rather than sitting permanently rendered — a dense
+              7-column board otherwise shows ~3 icon buttons per card at all times whether or not
+              you're looking at that card. [@media(hover:none)] (touch/tablet, no real hover)
+              keeps them always visible there, since nothing would ever reveal them otherwise. */}
+          <span className="hidden items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 sm:flex [@media(hover:none)]:opacity-100">
             {onRecordPayment && order.balance > 0 && (
               <Button
                 variant="outline"

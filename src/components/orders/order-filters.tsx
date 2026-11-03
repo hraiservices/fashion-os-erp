@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { SavedView } from "@/hooks/use-saved-views";
 
 export type DatePreset = "all" | "month" | "custom";
@@ -152,7 +153,8 @@ function DatePresetButtons({ value, onChange }: { value: DatePreset; onChange: (
   );
 }
 
-/** "Views" list + save-as-new-view row, shown inside the mobile Filters sheet. */
+/** "Views" list + save-as-new-view row — shown inside both the desktop Filters popover and the
+ *  mobile Filters sheet, so there's exactly one saved-views UI instead of two to keep in sync. */
 function SavedViewsSection<F>({ views, onApply, onSave, onRemove, currentFilters }: { views: SavedView<F>[]; onApply: (f: F) => void; onSave: (name: string, f: F) => void; onRemove: (id: string) => void; currentFilters: F }) {
   const [name, setName] = useState("");
   function handleSave() {
@@ -196,7 +198,47 @@ function SavedViewsSection<F>({ views, onApply, onSave, onRemove, currentFilters
   );
 }
 
-/** Desktop: inline filter bar. Mobile: a single "Filters" button opening a bottom sheet. */
+/** The filter fields themselves — shared by the desktop popover and the mobile sheet so there's
+ *  one place that defines what "filter orders" means, not two copies that can drift apart. */
+function FilterFields({ value, set, tailors }: { value: FilterState; set: (patch: Partial<FilterState>) => void; tailors: { id: string; name: string }[] }) {
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label className="text-sm font-bold">Tailor</Label>
+        <TailorSelect value={value.tailor} onChange={(v) => set({ tailor: v })} tailors={tailors} />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-sm font-bold">Stage</Label>
+        <StageSelect value={value.stage} onChange={(v) => set({ stage: v })} />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-sm font-bold">Priority</Label>
+        <PrioritySelect value={value.priority} onChange={(v) => set({ priority: v })} />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-sm font-bold">Order type</Label>
+        <OrderTypeSelect value={value.orderType} onChange={(v) => set({ orderType: v })} />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-sm font-bold">Order date</Label>
+        <DatePresetButtons value={value.datePreset} onChange={(v) => set({ datePreset: v })} />
+        {value.datePreset === "custom" && (
+          <div className="mt-2 flex items-center gap-2">
+            <DatePicker value={value.customFrom} onChange={(v) => set({ customFrom: v })} />
+            <span className="text-xs text-muted-foreground">to</span>
+            <DatePicker value={value.customTo} onChange={(v) => set({ customTo: v })} />
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+/** Desktop and mobile both collapse behind a single "Filters" button with an active-count badge
+ *  — desktop opens a popover anchored to the button (stays on the board, closes on outside
+ *  click), mobile opens a bottom sheet (more room for touch targets, standard mobile pattern).
+ *  Both share the same field list and Saved Views section (FilterFields/SavedViewsSection above)
+ *  so there's one definition of what's filterable, not two that can drift apart. */
 export function OrderFilters<F>({
   value,
   onChange,
@@ -218,7 +260,7 @@ export function OrderFilters<F>({
   resultCount: number;
   mobileOpen: boolean;
   onMobileOpenChange: (open: boolean) => void;
-  /** Saved-views data — shown as a "Views" section inside the mobile Filters sheet. */
+  /** Saved-views data — shown as a "Saved views" section inside both the desktop popover and the mobile sheet. */
   views: SavedView<F>[];
   onApplyView: (f: F) => void;
   onSaveView: (name: string, f: F) => void;
@@ -226,12 +268,13 @@ export function OrderFilters<F>({
   currentViewFilters: F;
   /** Extra control (e.g. a view-mode toggle) rendered before the Filters button on mobile, to share its row. */
   mobileLeading?: React.ReactNode;
-  /** Extra control (e.g. a view-mode toggle) rendered at the start of the desktop inline bar, alongside "Newest first". */
+  /** Extra control (e.g. a view-mode toggle) rendered at the start of the desktop toolbar, alongside the Filters button. */
   desktopLeading?: React.ReactNode;
 }) {
   const count = activeFilterCount(value);
   const set = (patch: Partial<FilterState>) => onChange({ ...value, ...patch });
   const toggleSort = () => set({ sort: value.sort === "newest" ? "oldest" : "newest" });
+  const [desktopOpen, setDesktopOpen] = useState(false);
 
   return (
     <>
@@ -261,49 +304,49 @@ export function OrderFilters<F>({
         </Button>
       </div>
 
-      {/* Desktop inline bar */}
-      <div className="hidden flex-wrap items-end gap-x-3 gap-y-2 rounded-xl border bg-card p-3 md:flex">
-        <div className="w-40">
-          <Label className="mb-1.5 block text-sm font-bold text-muted-foreground">Tailor</Label>
-          <TailorSelect value={value.tailor} onChange={(v) => set({ tailor: v })} tailors={tailors} />
-        </div>
-        <div className="w-40">
-          <Label className="mb-1.5 block text-sm font-bold text-muted-foreground">Stage</Label>
-          <StageSelect value={value.stage} onChange={(v) => set({ stage: v })} />
-        </div>
-        <div className="w-36">
-          <Label className="mb-1.5 block text-sm font-bold text-muted-foreground">Priority</Label>
-          <PrioritySelect value={value.priority} onChange={(v) => set({ priority: v })} />
-        </div>
-        <div className="w-36">
-          <Label className="mb-1.5 block text-sm font-bold text-muted-foreground">Order type</Label>
-          <OrderTypeSelect value={value.orderType} onChange={(v) => set({ orderType: v })} />
-        </div>
-        <div>
-          <Label className="mb-1.5 block text-sm font-bold text-muted-foreground">Order date</Label>
-          <DatePresetButtons value={value.datePreset} onChange={(v) => set({ datePreset: v })} />
-        </div>
-        {value.datePreset === "custom" && (
-          <div className="flex items-center gap-2">
-            <DatePicker className="w-36" value={value.customFrom} onChange={(v) => set({ customFrom: v })} />
-            <span className="text-xs text-muted-foreground">to</span>
-            <DatePicker className="w-36" value={value.customTo} onChange={(v) => set({ customTo: v })} />
-          </div>
-        )}
+      {/* Desktop toolbar — a single Filters button (popover) instead of a permanently-open row
+          of five dropdowns, matching the collapse pattern mobile already had. */}
+      <div className="hidden items-center gap-2 md:flex">
+        {desktopLeading}
+        <Popover open={desktopOpen} onOpenChange={setDesktopOpen}>
+          <PopoverTrigger
+            render={
+              <Button variant="outline" size="sm" className="relative">
+                <SlidersHorizontal className="size-4" /> Filters
+                {count > 0 && <span className="ml-0.5 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">{count}</span>}
+              </Button>
+            }
+          />
+          <PopoverContent align="start" className="w-80 max-h-[75vh] overflow-y-auto">
+            <SavedViewsSection
+              views={views}
+              onApply={(f) => {
+                onApplyView(f);
+                setDesktopOpen(false);
+              }}
+              onSave={onSaveView}
+              onRemove={onRemoveView}
+              currentFilters={currentViewFilters}
+            />
+            <div className="mt-4 space-y-3 border-t pt-3">
+              <FilterFields value={value} set={set} tailors={tailors} />
+            </div>
+            <div className="mt-4 flex items-center justify-between gap-2 border-t pt-3">
+              <Button variant="ghost" size="sm" onClick={() => onChange({ ...EMPTY_FILTERS, sort: value.sort })} disabled={count === 0}>
+                <X className="size-3.5" /> Clear
+              </Button>
+              <Button size="sm" onClick={() => setDesktopOpen(false)}>
+                Show {resultCount} orders
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
 
-        <div className="ml-auto flex items-center gap-2">
-          {desktopLeading}
-          {count > 0 && (
-            <Button variant="ghost" size="sm" onClick={() => onChange({ ...EMPTY_FILTERS, sort: value.sort })}>
-              <X className="size-3.5" /> Clear
-            </Button>
-          )}
-          <Button variant="outline" size="sm" onClick={toggleSort}>
-            <ArrowDownUp className="size-3.5" />
-            {value.sort === "newest" ? "Newest first" : "Oldest first"}
-          </Button>
-          <span className="text-xs tabular-nums text-muted-foreground">{resultCount} orders</span>
-        </div>
+        <Button variant="outline" size="sm" onClick={toggleSort}>
+          <ArrowDownUp className="size-3.5" />
+          {value.sort === "newest" ? "Newest first" : "Oldest first"}
+        </Button>
+        <span className="text-xs tabular-nums text-muted-foreground">{resultCount} orders</span>
       </div>
 
       {/* Mobile bottom sheet */}
@@ -323,32 +366,8 @@ export function OrderFilters<F>({
               onRemove={onRemoveView}
               currentFilters={currentViewFilters}
             />
-            <div className="space-y-1.5 border-t pt-4">
-              <Label className="text-sm font-bold">Tailor</Label>
-              <TailorSelect value={value.tailor} onChange={(v) => set({ tailor: v })} tailors={tailors} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm font-bold">Stage</Label>
-              <StageSelect value={value.stage} onChange={(v) => set({ stage: v })} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm font-bold">Priority</Label>
-              <PrioritySelect value={value.priority} onChange={(v) => set({ priority: v })} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm font-bold">Order type</Label>
-              <OrderTypeSelect value={value.orderType} onChange={(v) => set({ orderType: v })} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm font-bold">Order date</Label>
-              <DatePresetButtons value={value.datePreset} onChange={(v) => set({ datePreset: v })} />
-              {value.datePreset === "custom" && (
-                <div className="mt-2 flex items-center gap-2">
-                  <DatePicker value={value.customFrom} onChange={(v) => set({ customFrom: v })} />
-                  <span className="text-xs text-muted-foreground">to</span>
-                  <DatePicker value={value.customTo} onChange={(v) => set({ customTo: v })} />
-                </div>
-              )}
+            <div className="space-y-4 border-t pt-4">
+              <FilterFields value={value} set={set} tailors={tailors} />
             </div>
           </div>
           <SheetFooter className="flex-row gap-2">

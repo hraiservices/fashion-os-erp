@@ -10,6 +10,7 @@ import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { printThermalReceipt } from "@/lib/thermal-receipt";
 import { useSalesInvoice, useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
+import { RecordPrevNext } from "@/components/ui/record-prev-next";
 import { useSalesPaymentsForInvoice } from "@/hooks/use-sales-payments";
 import { useSalesCreditNotesForInvoice } from "@/hooks/use-sales-credit-notes";
 import { useDeleteInvoice, useSetInvoiceDocStatus } from "@/hooks/use-sales-mutations";
@@ -171,7 +172,10 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search invoices…" emptyLabel="No invoices yet" />
       <div className="min-w-0 flex-1 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <BackLink href="/sales/invoices">Invoices</BackLink>
+        <div className="flex items-center gap-2">
+          <BackLink href="/sales/invoices">Invoices</BackLink>
+          <RecordPrevNext items={sidebarItems} activeId={id} />
+        </div>
         <div className="w-44 print:hidden">
           <SegmentedToggle
             ariaLabel="Invoice view"

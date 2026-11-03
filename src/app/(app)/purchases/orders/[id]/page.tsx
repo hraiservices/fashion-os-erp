@@ -8,6 +8,7 @@ import { FileTextDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePurchaseOrder, usePurchaseOrders } from "@/hooks/use-purchase-orders";
 import { useVendor, useVendors } from "@/hooks/use-vendors";
 import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
+import { RecordPrevNext } from "@/components/ui/record-prev-next";
 import { useCancelPurchaseOrder } from "@/hooks/use-purchase-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { inr, fmtDate } from "@/lib/format";
@@ -87,7 +88,10 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
     <div className="flex items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search purchase orders…" emptyLabel="No purchase orders yet" />
       <div className="min-w-0 flex-1 space-y-4">
-      <BackLink href="/purchases/orders">Purchase Orders</BackLink>
+      <div className="flex items-center justify-between gap-2">
+        <BackLink href="/purchases/orders">Purchase Orders</BackLink>
+        <RecordPrevNext items={sidebarItems} activeId={id} />
+      </div>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

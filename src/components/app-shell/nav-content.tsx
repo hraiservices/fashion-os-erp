@@ -31,7 +31,7 @@ function pathMatchesLeaf(leafPath: string, pathname: string): boolean {
   return pathname === leafPath || pathname.startsWith(`${leafPath}/`);
 }
 
-function computeActiveHref(items: NavFlatItem[], pathname: string, searchParams: URLSearchParams): string | undefined {
+function computeActiveHref(items: { href: string }[], pathname: string, searchParams: URLSearchParams): string | undefined {
   const candidates = items.filter((i) => pathMatchesLeaf(i.href.split("?")[0], pathname));
   if (candidates.length === 0) return undefined;
   const withQuery = candidates.filter((i) => i.href.includes("?"));
@@ -40,7 +40,12 @@ function computeActiveHref(items: NavFlatItem[], pathname: string, searchParams:
     return Array.from(q.entries()).every(([k, v]) => searchParams.get(k) === v);
   });
   if (matched) return matched.href;
-  return candidates.find((i) => !i.href.includes("?"))?.href;
+  const plain = candidates.filter((i) => !i.href.includes("?"));
+  if (plain.length === 0) return undefined;
+  // Several plain leaves can match at once when one leaf's path is a literal prefix of
+  // another's (e.g. Inventory's "Overview" at "/inventory" vs "Products" at
+  // "/inventory/products") — the longest (most specific) match is the real active one.
+  return plain.reduce((best, cur) => (cur.href.length > best.href.length ? cur : best)).href;
 }
 
 /** Small "+" quick-add icon next to a nav row — jumps straight into that module's create flow. */
@@ -132,6 +137,7 @@ function CollapsedGroupFlyout({
   if (children.length === 0) return null;
 
   const showPinnedOverview = !!group.indexHref && !children.some((l) => l.href === group.indexHref);
+  const activeLeafHref = computeActiveHref(children, pathname, searchParams);
 
   return (
     <div onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
@@ -160,8 +166,7 @@ function CollapsedGroupFlyout({
             </DropdownMenuItem>
           )}
           {children.map((leaf) => {
-            const [leafPath, leafQuery] = leaf.href.split("?");
-            const active = leafQuery ? pathname === leafPath && leafQuery === searchParams.toString() : pathMatchesLeaf(leafPath, pathname);
+            const active = leaf.href === activeLeafHref;
             return (
               <DropdownMenuItem key={leaf.href} render={<Link href={leaf.href} onClick={onNavigate} />} className={active ? "bg-accent text-accent-foreground" : undefined}>
                 {leaf.label}
@@ -218,6 +223,7 @@ function GroupNav({
   // Only pin a separate "Overview" link when the group's index page isn't already one of
   // its listed items (e.g. Expenses already lists "All Expenses" — no need to duplicate it).
   const showPinnedOverview = !!group.indexHref && !children.some((l) => l.href === group.indexHref);
+  const activeLeafHref = computeActiveHref(children, pathname, searchParams);
 
   return (
     <div>
@@ -258,11 +264,7 @@ function GroupNav({
                 )}
                 {sectionOpen &&
                   section.items.map((leaf) => {
-                    const [leafPath, leafQuery] = leaf.href.split("?");
-                    // Query-bearing leaves (e.g. "/orders?view=list") need an exact match — several
-                    // can share a base path and only the query tells them apart. A plain leaf also
-                    // stays active on its own sub-routes (e.g. a single invoice's detail page).
-                    const active = leafQuery ? pathname === leafPath && leafQuery === searchParams.toString() : pathMatchesLeaf(leafPath, pathname);
+                    const active = leaf.href === activeLeafHref;
                     return (
                       <div key={leaf.href} className="flex items-center gap-0.5">
                         <Link

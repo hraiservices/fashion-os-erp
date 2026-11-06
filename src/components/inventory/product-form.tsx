@@ -14,6 +14,8 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
+import { istDateString } from "@/lib/ist-date";
 import { useSaveProduct } from "@/hooks/use-inventory-mutations";
 import { useRawMaterials } from "@/hooks/use-raw-materials";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -38,6 +40,7 @@ const schema = z.object({
   taxRate: z.coerce.number().min(0).max(100),
   lowStockAlert: z.coerce.number().min(0, "Must be 0 or more"),
   notes: z.string().optional(),
+  createdAt: z.string().min(1, "Date added is required"),
   openingStock: z.coerce.number().min(0, "Must be 0 or more").optional(),
   size: z.string(),
   color: z.string(),
@@ -106,11 +109,11 @@ export function ProductForm({ existing }: { existing?: Product }) {
     defaultValues: existing
       ? {
           name: existing.name, sku: existing.sku, category: existing.category, sellingPrice: existing.sellingPrice, costPrice: existing.costPrice,
-          taxRate: existing.taxRate, lowStockAlert: existing.lowStockAlert, notes: existing.notes, openingStock: 0,
+          taxRate: existing.taxRate, lowStockAlert: existing.lowStockAlert, notes: existing.notes, createdAt: existing.createdAt.slice(0, 10), openingStock: 0,
           size: existing.size || UNTAGGED, color: existing.color || UNTAGGED, fabric: existing.fabric || UNTAGGED,
           pattern: existing.pattern || UNTAGGED, occasion: existing.occasion || UNTAGGED, brand: existing.brand,
         }
-      : { name: "", sku: "", category: "", sellingPrice: 0, costPrice: 0, taxRate: 5, lowStockAlert: 0, notes: "", openingStock: 0, size: UNTAGGED, color: UNTAGGED, fabric: UNTAGGED, pattern: UNTAGGED, occasion: UNTAGGED, brand: "" },
+      : { name: "", sku: "", category: "", sellingPrice: 0, costPrice: 0, taxRate: 5, lowStockAlert: 0, notes: "", createdAt: istDateString(), openingStock: 0, size: UNTAGGED, color: UNTAGGED, fabric: UNTAGGED, pattern: UNTAGGED, occasion: UNTAGGED, brand: "" },
   });
 
   async function handleImageFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -151,6 +154,7 @@ export function ProductForm({ existing }: { existing?: Product }) {
         taxRate: values.taxRate,
         lowStockAlert: values.lowStockAlert,
         notes: values.notes || "",
+        createdAt: values.createdAt,
         bom: bomRows.filter((r) => r.rawMaterialId).map((r) => ({ rawMaterialId: r.rawMaterialId, qtyRequired: parseFloat(r.qtyRequired) || 0 })),
         openingStock: isEdit ? undefined : values.openingStock,
         size: values.size === UNTAGGED ? "" : values.size,
@@ -207,6 +211,9 @@ export function ProductForm({ existing }: { existing?: Product }) {
             </FieldGroup>
             <FieldGroup label="Tax rate (%)" error={errors.taxRate?.message}>
               <Controller control={control} name="taxRate" render={({ field }) => <NumberInput min={0} max={100} step={0.01} className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} />} />
+            </FieldGroup>
+            <FieldGroup label="Date added" required error={errors.createdAt?.message} hint="Defaults to today — change it to backdate stock you're entering after the fact.">
+              <Controller control={control} name="createdAt" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} />} />
             </FieldGroup>
           </div>
         </div>

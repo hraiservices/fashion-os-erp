@@ -22,6 +22,7 @@ const bodySchema = z.object({
   taxRate: z.number().min(0),
   lowStockAlert: z.number().min(0).default(0),
   notes: z.string().default(""),
+  createdAt: z.string().min(1).optional(),
   bom: z.array(bomLineSchema).default([]),
   openingStock: z.number().optional(),
   barcode: z.string().optional(),
@@ -96,6 +97,7 @@ export async function POST(request: Request) {
         occasion: fd.occasion || null,
         brand: fd.brand?.trim() || null,
         image_data_url: migratedImageDataUrl,
+        created_at: fd.createdAt || undefined,
       })
       .select()
       .single();

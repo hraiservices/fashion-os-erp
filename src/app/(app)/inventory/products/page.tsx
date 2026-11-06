@@ -12,7 +12,7 @@ import { useDeleteProduct, useBulkDeleteProducts, useQuickUpdateProduct, useArch
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRowSelection } from "@/hooks/use-row-selection";
 import { isLowStock } from "@/lib/inventory";
-import { inr } from "@/lib/format";
+import { inr, fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { NewButton } from "@/components/ui/new-button";
@@ -38,12 +38,13 @@ const PRODUCT_LIST_COLUMNS = [
   { key: "price", label: "Price", required: true },
   { key: "margin", label: "Margin" },
   { key: "bom", label: "BOM" },
+  { key: "dateAdded", label: "Date added" },
 ];
 
-// Below 1920px (a 14" laptop) the table feels cramped — Margin and BOM are the least essential
-// to see at a glance, so they default to hidden there and reappear automatically on a wider
-// monitor (still one click away via Columns).
-const PRODUCT_LIST_AUTO_HIDE = { belowWidth: 1920, keys: ["margin", "bom"] };
+// Below 1920px (a 14" laptop) the table feels cramped — Margin, BOM, and Date added are the
+// least essential to see at a glance, so they default to hidden there and reappear automatically
+// on a wider monitor (still one click away via Columns).
+const PRODUCT_LIST_AUTO_HIDE = { belowWidth: 1920, keys: ["margin", "bom", "dateAdded"] };
 
 const PRODUCT_SORT_COMPARATORS: Record<string, (a: Product, b: Product) => number> = {
   name: (a, b) => a.name.localeCompare(b.name),
@@ -52,8 +53,9 @@ const PRODUCT_SORT_COMPARATORS: Record<string, (a: Product, b: Product) => numbe
   price: (a, b) => a.sellingPrice - b.sellingPrice,
   margin: (a, b) => a.sellingPrice - a.costPrice - (b.sellingPrice - b.costPrice),
   bom: (a, b) => a.bom.length - b.bom.length,
+  dateAdded: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
 };
-const PRODUCT_SORT_DESC_KEYS = new Set(["stock", "price", "margin", "bom"]);
+const PRODUCT_SORT_DESC_KEYS = new Set(["stock", "price", "margin", "bom", "dateAdded"]);
 import {
   AlertDialog,
   AlertDialogAction,
@@ -296,6 +298,7 @@ function ProductsPageContent() {
                 <SortableTableHead sortKey="price" align="right" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Price</SortableTableHead>
                 {isVisible("margin") && <SortableTableHead sortKey="margin" align="right" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Margin</SortableTableHead>}
                 {isVisible("bom") && <SortableTableHead sortKey="bom" align="right" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>BOM</SortableTableHead>}
+                {isVisible("dateAdded") && <SortableTableHead sortKey="dateAdded" currentSort={{ key: sortKey, asc: sortAsc }} onSort={toggleSort}>Date added</SortableTableHead>}
                 {canManage && <TableHead className="w-20" />}
               </TableRow>
             </TableHeader>
@@ -357,6 +360,9 @@ function ProductsPageContent() {
                       <TableCell className="text-right">
                         {p.bom.length > 0 ? <Badge variant="secondary">{p.bom.length} items</Badge> : <span className="text-xs text-muted-foreground">Not set</span>}
                       </TableCell>
+                    )}
+                    {isVisible("dateAdded") && (
+                      <TableCell className="text-muted-foreground">{fmtDate(p.createdAt)}</TableCell>
                     )}
                     {canManage && (
                       <TableCell onClick={(e) => e.stopPropagation()}>
@@ -465,6 +471,7 @@ function ProductsPageContent() {
                   }
                 />
                 <MobileRecordRow label="BOM" value={p.bom.length > 0 ? <Badge variant="secondary">{p.bom.length} items</Badge> : "Not set"} />
+                <MobileRecordRow label="Date added" value={fmtDate(p.createdAt)} />
               </MobileRecordCard>
             );
           })}

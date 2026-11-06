@@ -11,6 +11,7 @@ import { DataExportSection } from "@/components/settings/data-export-section";
 import { ColorThemeSection } from "@/components/settings/color-theme-section";
 import { ThemeModeSection } from "@/components/settings/theme-mode-section";
 import { FontSection } from "@/components/settings/font-section";
+import { DensitySection } from "@/components/settings/density-section";
 import { DashboardHeaderSection } from "@/components/settings/dashboard-header-section";
 import { CardHeaderBgSection } from "@/components/settings/card-header-bg-section";
 import { DocumentNumberingSection } from "@/components/settings/document-numbering-section";
@@ -61,6 +62,7 @@ export default function Page() {
             <MobileSection title="Appearance">
               <ColorThemeSection />
               <ThemeModeSection />
+              <DensitySection />
               <FontSection />
               <DashboardHeaderSection />
               <CardHeaderBgSection />

@@ -402,6 +402,111 @@
   --sidebar-accent-foreground: oklch(0.145 0 0);
 }
 
+.theme-lime {
+  --primary: oklch(0.648 0.2 131.684);
+  --primary-foreground: oklch(0.145 0 0);
+  --ring: oklch(0.648 0.2 131.684);
+  --sidebar-primary: oklch(0.648 0.2 131.684);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-ring: oklch(0.648 0.2 131.684);
+  --sidebar-accent: oklch(0.841 0.238 128.85);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
+}
+.dark.theme-lime {
+  --primary: oklch(0.841 0.238 128.85);
+  --primary-foreground: oklch(0.145 0 0);
+  --ring: oklch(0.841 0.238 128.85);
+  --sidebar-primary: oklch(0.841 0.238 128.85);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-ring: oklch(0.841 0.238 128.85);
+  --sidebar-accent: oklch(0.841 0.238 128.85);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
+}
+
+.theme-fuchsia {
+  --primary: oklch(0.591 0.293 322.896);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.591 0.293 322.896);
+  --sidebar-primary: oklch(0.591 0.293 322.896);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-ring: oklch(0.591 0.293 322.896);
+  --sidebar-accent: oklch(0.74 0.238 322.16);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
+}
+.dark.theme-fuchsia {
+  --primary: oklch(0.74 0.238 322.16);
+  --primary-foreground: oklch(0.145 0 0);
+  --ring: oklch(0.74 0.238 322.16);
+  --sidebar-primary: oklch(0.74 0.238 322.16);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-ring: oklch(0.74 0.238 322.16);
+  --sidebar-accent: oklch(0.74 0.238 322.16);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
+}
+
+.theme-red {
+  --primary: oklch(0.577 0.245 27.325);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.577 0.245 27.325);
+  --sidebar-primary: oklch(0.577 0.245 27.325);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-ring: oklch(0.577 0.245 27.325);
+  --sidebar-accent: oklch(0.704 0.191 22.216);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
+}
+.dark.theme-red {
+  --primary: oklch(0.704 0.191 22.216);
+  --primary-foreground: oklch(0.145 0 0);
+  --ring: oklch(0.704 0.191 22.216);
+  --sidebar-primary: oklch(0.704 0.191 22.216);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-ring: oklch(0.704 0.191 22.216);
+  --sidebar-accent: oklch(0.704 0.191 22.216);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
+}
+
+.theme-purple {
+  --primary: oklch(0.496 0.265 301.924);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.496 0.265 301.924);
+  --sidebar-primary: oklch(0.496 0.265 301.924);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-ring: oklch(0.496 0.265 301.924);
+  --sidebar-accent: oklch(0.627 0.265 303.9);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
+}
+.dark.theme-purple {
+  --primary: oklch(0.627 0.265 303.9);
+  --primary-foreground: oklch(0.145 0 0);
+  --ring: oklch(0.627 0.265 303.9);
+  --sidebar-primary: oklch(0.627 0.265 303.9);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-ring: oklch(0.627 0.265 303.9);
+  --sidebar-accent: oklch(0.627 0.265 303.9);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
+}
+
+.theme-brown {
+  --primary: oklch(0.485 0.065 45.5);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.485 0.065 45.5);
+  --sidebar-primary: oklch(0.485 0.065 45.5);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-ring: oklch(0.485 0.065 45.5);
+  --sidebar-accent: oklch(0.65 0.08 48);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
+}
+.dark.theme-brown {
+  --primary: oklch(0.65 0.08 48);
+  --primary-foreground: oklch(0.145 0 0);
+  --ring: oklch(0.65 0.08 48);
+  --sidebar-primary: oklch(0.65 0.08 48);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-ring: oklch(0.65 0.08 48);
+  --sidebar-accent: oklch(0.65 0.08 48);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
+}
+
 /* Sidebar background styles — applied as `sidebar-<id>` on <html>, independent of the color theme (`theme-<id>`) which controls the active-pill accent above. */
 .sidebar-dark {
   --sidebar: oklch(0.205 0.02 258);
@@ -455,6 +560,21 @@
 .theme-rose.sidebar-colored { --sidebar: oklch(0.32 0.09 15.341); --sidebar-foreground: oklch(0.929 0.005 258); --sidebar-border: oklch(1 0 0 / 10%); }
 .theme-pink.sidebar-colored { --sidebar: oklch(0.32 0.1 349.761); --sidebar-foreground: oklch(0.929 0.005 258); --sidebar-border: oklch(1 0 0 / 10%); }
 .theme-slate.sidebar-colored { --sidebar: oklch(0.28 0.02 257.281); --sidebar-foreground: oklch(0.929 0.005 258); --sidebar-border: oklch(1 0 0 / 10%); }
+.theme-lime.sidebar-colored { --sidebar: oklch(0.3 0.08 131.684); --sidebar-foreground: oklch(0.929 0.005 258); --sidebar-border: oklch(1 0 0 / 10%); }
+.theme-fuchsia.sidebar-colored { --sidebar: oklch(0.32 0.1 322.896); --sidebar-foreground: oklch(0.929 0.005 258); --sidebar-border: oklch(1 0 0 / 10%); }
+.theme-red.sidebar-colored { --sidebar: oklch(0.32 0.09 27.325); --sidebar-foreground: oklch(0.929 0.005 258); --sidebar-border: oklch(1 0 0 / 10%); }
+.theme-purple.sidebar-colored { --sidebar: oklch(0.3 0.1 301.924); --sidebar-foreground: oklch(0.929 0.005 258); --sidebar-border: oklch(1 0 0 / 10%); }
+.theme-brown.sidebar-colored { --sidebar: oklch(0.3 0.03 45.5); --sidebar-foreground: oklch(0.929 0.005 258); --sidebar-border: oklch(1 0 0 / 10%); }
+
+/* Density — compact mode shrinks the standard table cell/head padding everywhere, keyed off the
+   data-slot attributes table.tsx already renders, so no per-table changes are needed. */
+.density-compact [data-slot="table-cell"] {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+.density-compact [data-slot="table-head"] {
+  height: 2rem;
+}
 
 @layer base {
   * {

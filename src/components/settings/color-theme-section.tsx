@@ -5,7 +5,20 @@ import { toast } from "sonner";
 import { Check } from "lucide-react";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
-import { COLOR_THEMES, DEFAULT_COLOR_THEME, SIDEBAR_STYLES, DEFAULT_SIDEBAR_STYLE, CORNER_STYLES, DEFAULT_CORNER_STYLE } from "@/lib/color-themes";
+import {
+  COLOR_THEMES,
+  DEFAULT_COLOR_THEME,
+  SIDEBAR_STYLES,
+  DEFAULT_SIDEBAR_STYLE,
+  CORNER_STYLES,
+  DEFAULT_CORNER_STYLE,
+  CUSTOM_THEME_PREFIX,
+  CUSTOM_THEME_VAR_NAMES,
+  isCustomColorTheme,
+  isValidHexColor,
+  customColorHex,
+  customThemeVars,
+} from "@/lib/color-themes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,12 +38,15 @@ export function ColorThemeSection() {
   const { data: sidebarData, isLoading: sidebarLoading, save: saveSidebar } = useAppSetting<string>("sidebarStyle", DEFAULT_SIDEBAR_STYLE);
   const { data: cornerData, isLoading: cornerLoading, save: saveCorner } = useAppSetting<string>("cornerStyle", DEFAULT_CORNER_STYLE);
   const [selected, setSelected] = useState(DEFAULT_COLOR_THEME);
+  const [customHex, setCustomHex] = useState("#6d28d9");
   const [sidebarSelected, setSidebarSelected] = useState(DEFAULT_SIDEBAR_STYLE);
   const [cornerSelected, setCornerSelected] = useState(DEFAULT_CORNER_STYLE);
   const [saving, setSaving] = useState(false);
 
   useSyncFromSource(colorData, (d) => {
-    if (d) setSelected(d);
+    if (!d) return;
+    setSelected(d);
+    if (isCustomColorTheme(d)) setCustomHex(customColorHex(d));
   });
 
   useSyncFromSource(sidebarData, (d) => {
@@ -46,7 +62,24 @@ export function ColorThemeSection() {
     // Live-preview immediately, before saving — same theme-<id> class the loader uses.
     const root = document.documentElement;
     COLOR_THEMES.forEach((t) => root.classList.remove(`theme-${t.id}`));
+    CUSTOM_THEME_VAR_NAMES.forEach((k) => root.style.removeProperty(k));
     root.classList.add(`theme-${id}`);
+  }
+
+  function previewCustom(hex: string) {
+    if (!isValidHexColor(hex)) return;
+    const id = `${CUSTOM_THEME_PREFIX}${hex}`;
+    setSelected(id);
+    const root = document.documentElement;
+    COLOR_THEMES.forEach((t) => root.classList.remove(`theme-${t.id}`));
+    const vars = customThemeVars(hex);
+    CUSTOM_THEME_VAR_NAMES.forEach((k) => root.style.setProperty(k, vars[k]));
+  }
+
+  function onHexInput(raw: string) {
+    const hex = raw.startsWith("#") ? raw : `#${raw}`;
+    setCustomHex(hex);
+    if (isValidHexColor(hex)) previewCustom(hex);
   }
 
   function previewSidebar(id: string) {
@@ -103,6 +136,41 @@ export function ColorThemeSection() {
         </div>
 
         <div>
+          <div className="mb-3 text-xs font-medium text-muted-foreground">Custom color</div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => previewCustom(customHex)}
+              className={cn(
+                "flex size-9 shrink-0 items-center justify-center rounded-lg border p-0 transition-colors",
+                isCustomColorTheme(selected) ? "border-primary" : "hover:bg-muted"
+              )}
+              aria-pressed={isCustomColorTheme(selected)}
+              aria-label="Use custom color"
+            >
+              <input
+                type="color"
+                value={isValidHexColor(customHex) ? customHex : "#6d28d9"}
+                onChange={(e) => onHexInput(e.target.value)}
+                className="size-6 cursor-pointer rounded border-0 bg-transparent p-0"
+                aria-label="Pick a custom color"
+              />
+            </button>
+            <input
+              type="text"
+              value={customHex}
+              onChange={(e) => onHexInput(e.target.value)}
+              placeholder="#6d28d9"
+              maxLength={7}
+              className="h-9 w-28 rounded-md border bg-transparent px-2 text-xs font-mono"
+              aria-label="Custom color hex"
+            />
+            {isCustomColorTheme(selected) && <Check className="size-4 text-primary" strokeWidth={3} />}
+            <span className="text-xs text-muted-foreground">Pick any color, or type a hex code</span>
+          </div>
+        </div>
+
+        <div>
           <div className="mb-3 text-xs font-medium text-muted-foreground">Sidebar style</div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {SIDEBAR_STYLES.map((s) => {
@@ -150,11 +218,24 @@ export function ColorThemeSection() {
         </div>
 
         <div className="rounded-lg border bg-muted/30 p-4">
-          <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Preview</div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm">Primary button</Button>
-            <Button size="sm" variant="outline">Outline button</Button>
-            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">Badge</span>
+          <div className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">Preview</div>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm">Primary button</Button>
+              <Button size="sm" variant="outline">Outline button</Button>
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">Badge</span>
+            </div>
+            <div className="flex items-center gap-2 rounded-md bg-sidebar p-2">
+              <span className="flex size-6 items-center justify-center rounded-md bg-sidebar-primary text-[10px] font-semibold text-sidebar-primary-foreground">F</span>
+              <span className="rounded-md bg-sidebar-accent px-2 py-1 text-xs font-medium text-sidebar-accent-foreground">Active nav item</span>
+              <span className="text-xs text-sidebar-foreground/70">Sidebar nav</span>
+            </div>
+            <div className="flex items-center gap-2 rounded-md border bg-background p-2 text-xs">
+              <span className="font-medium">Order #1024</span>
+              <span className="ml-auto h-2 w-20 rounded-full bg-muted">
+                <span className="block h-full w-2/3 rounded-full bg-primary" />
+              </span>
+            </div>
           </div>
         </div>
 

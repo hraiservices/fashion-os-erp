@@ -13,13 +13,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { useColumnVisibility } from "@/hooks/use-column-visibility";
 
-/** Gear-icon menu to show/hide table columns — pair with useColumnVisibility(). */
-export function ColumnCustomizerMenu({ table }: { table: ReturnType<typeof useColumnVisibility> }) {
+/** Gear-icon menu to show/hide table columns — pair with useColumnVisibility(). `className` is
+ *  an opt-in override (e.g. a tone tint) for a page that wants it to match a colored toggle
+ *  row next to it — every other caller keeps the plain outline look by just not passing it. */
+export function ColumnCustomizerMenu({ table, className }: { table: ReturnType<typeof useColumnVisibility>; className?: string }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="outline" size="sm" aria-label="Customize columns">
+          <Button variant="outline" size="sm" aria-label="Customize columns" className={className}>
             <Settings2 className="size-4" /> Columns
           </Button>
         }

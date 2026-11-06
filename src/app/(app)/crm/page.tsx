@@ -28,6 +28,8 @@ import {
 import { computeSegments, type CustomerSegment } from "@/lib/customer-segments";
 import { PageHeader } from "@/components/ui/page-header";
 import { NewButton } from "@/components/ui/new-button";
+import { SegmentedToggle } from "@/components/ui/segmented-toggle";
+import { TONES } from "@/lib/ui-tones";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -46,7 +48,6 @@ import { inr, fmtDateShort } from "@/lib/format";
 import { loyaltyTier } from "@/lib/business-rules";
 import { sumOrdersOutstanding, sumInvoicesOutstanding } from "@/lib/balances";
 import { RefChips } from "@/components/crm/ref-chips";
-import { cn } from "@/lib/utils";
 import type { Order } from "@/lib/types";
 import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
 
@@ -312,25 +313,18 @@ function CrmContent() {
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex rounded-lg border p-0.5" role="group" aria-label="View mode">
-          <button
-            type="button"
-            onClick={() => setView("cards")}
-            aria-pressed={view === "cards"}
-            className={cn("flex min-h-9 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors sm:min-h-8", view === "cards" ? "bg-muted" : "text-muted-foreground")}
-          >
-            <LayoutGrid className="size-4" /> Cards
-          </button>
-          <button
-            type="button"
-            onClick={() => setView("list")}
-            aria-pressed={view === "list"}
-            className={cn("flex min-h-9 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors sm:min-h-8", view === "list" ? "bg-muted" : "text-muted-foreground")}
-          >
-            <LayoutList className="size-4" /> List
-          </button>
+        <div className="w-auto">
+          <SegmentedToggle
+            ariaLabel="View mode"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: "cards", label: "Cards", icon: LayoutGrid, tone: "blue" },
+              { value: "list", label: "List", icon: LayoutList, tone: "purple" },
+            ]}
+          />
         </div>
-        {view === "list" && <ColumnCustomizerMenu table={columnTable} />}
+        {view === "list" && <ColumnCustomizerMenu table={columnTable} className={TONES.teal.idle} />}
         {view === "cards" && (
           <div className="flex items-center gap-1">
             <Select value={sortKey} onValueChange={(v) => v && changeSortKey(v as SortKey)}>

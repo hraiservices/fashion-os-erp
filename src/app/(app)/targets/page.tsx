@@ -50,7 +50,7 @@ function TargetsHome() {
   const setTab = (t: Tab) => router.replace(t === "today" ? "/targets" : `/targets?tab=${t}`, { scroll: false });
 
   return (
-    <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 space-y-4">
+    <div className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 space-y-4">
       <PageHeader title="Sales Targets" description="Tasks, projects, leads and your goals" />
       <SegmentedToggle<Tab>
         ariaLabel="Targets section"

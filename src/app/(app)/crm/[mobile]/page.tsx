@@ -305,6 +305,12 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {user?.perms.managePayments && combinedDue > 0 && (
+            <Button variant="outline" className="h-10" nativeButton={false} render={<Link href={`/payments/new?customer=${encodeURIComponent(cust.mobile)}`} />}>
+              <Wallet className="size-4" /> Record Payment
+            </Button>
+          )}
+
           <Button variant="outline" className="h-10" nativeButton={false} render={<Link href={`/crm/${cust.mobile}/statement`} />}>
             <FileText className="size-4" /> Statement
           </Button>

@@ -9,6 +9,8 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { AddVendorDialog } from "@/components/purchases/add-vendor-dialog";
 import { VendorQuickPeek } from "@/components/purchases/vendor-quick-peek";
 import { QuickPeekButton } from "@/components/ui/quick-peek-button";
+import { BillScanUpload } from "@/components/purchases/bill-scan-upload";
+import type { BillScanDraft } from "@/hooks/use-bill-scan";
 import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
 import { useSaveBill } from "@/hooks/use-purchase-mutations";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
@@ -88,6 +90,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
   const [notesOpen, setNotesOpen] = useState(false);
   const [referenceNumber, setReferenceNumber] = useState(existing?.referenceNumber || "");
   const [freightTaxable, setFreightTaxable] = useState(!!existing?.freightTaxable);
+  const [scanPath, setScanPath] = useState<string | null>(existing?.scanPath ?? null);
 
   useSyncFromSource(prefillPo, (po) => {
     if (!po) return;
@@ -105,6 +108,41 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
   function handleBillDateChange(date: string) {
     setBillDate(date);
     setDueDate(dueDateFromTerm(date, paymentTerm));
+  }
+
+  function handleScanExtracted(draft: BillScanDraft, newScanPath: string) {
+    setScanPath(newScanPath);
+    if (draft.vendorId) setVendorId(draft.vendorId);
+    setBillDate(draft.billDate);
+    if (draft.dueDate) {
+      setPaymentTerm("custom");
+      setDueDate(draft.dueDate);
+    } else {
+      setDueDate(dueDateFromTerm(draft.billDate, paymentTerm));
+    }
+    if (draft.referenceNumber) setReferenceNumber(draft.referenceNumber);
+    setGstType(draft.gstType);
+    setTaxRate(String(draft.taxRate || 0));
+    setShippingCharges(blankIfZero(draft.shippingCharges));
+    setOtherCharges(blankIfZero(draft.otherCharges));
+    if (draft.notes) {
+      setNotes((prev) => (prev ? `${prev}\n${draft.notes}` : draft.notes));
+      setNotesOpen(true);
+    }
+    if (draft.items.length > 0) {
+      setLines(
+        draft.items.map((it, i) => ({
+          key: `scan-${i}-${Math.random().toString(36).slice(2, 7)}`,
+          itemType: it.itemType ?? "raw_material",
+          itemId: it.itemId ?? "",
+          itemName: it.itemId ? it.itemName ?? "" : "",
+          unitName: it.unitName ?? "",
+          qty: it.qty ? String(it.qty) : "",
+          unitCost: it.unitCost ? String(it.unitCost) : "",
+          hint: it.itemId ? undefined : it.description,
+        }))
+      );
+    }
   }
 
   const vendorLabel = (id: string) => (vendors || []).find((v) => v.id === id)?.name ?? "";
@@ -141,6 +179,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
         notes,
         referenceNumber,
         freightTaxable,
+        scanPath,
         userEmail: user?.email,
       });
       toast.success(isEdit ? `Bill ${billNumber} updated — stock adjusted` : `Bill ${billNumber} recorded — stock updated`);
@@ -179,6 +218,8 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
       <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
         {/* Main form */}
         <div className="lg:col-span-2 space-y-5">
+          {!isEdit && <BillScanUpload onExtracted={handleScanExtracted} />}
+
           {/* Vendor & dates */}
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm p-5">
             <SectionHeading icon={Building2} label="Vendor & dates" />

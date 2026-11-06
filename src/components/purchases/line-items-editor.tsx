@@ -20,6 +20,9 @@ export interface EditableLine {
   unitName: string;
   qty: string;
   unitCost: string;
+  /** Set only when a bill scan couldn't confidently match this line to an existing raw
+   *  material/product — the description AI read off the bill, shown as a hint until picked. */
+  hint?: string;
 }
 
 export function blankLine(): EditableLine {
@@ -87,10 +90,10 @@ export function LineItemsEditor({ lines, onChange }: { lines: EditableLine[]; on
     const line = lines.find((l) => l.key === key);
     if (type === "product") {
       const p = (products || []).find((x) => x.id === id);
-      if (p) updateLine(key, { itemType: "product", itemId: p.id, itemName: p.name, unitName: "pcs", unitCost: line?.unitCost || String(p.costPrice || "") });
+      if (p) updateLine(key, { itemType: "product", itemId: p.id, itemName: p.name, unitName: "pcs", unitCost: line?.unitCost || String(p.costPrice || ""), hint: undefined });
     } else {
       const m = (rawMaterials || []).find((x) => x.id === id);
-      if (m) updateLine(key, { itemType: "raw_material", itemId: m.id, itemName: m.name, unitName: m.unitName || "", unitCost: line?.unitCost || String(m.costPerUnit || "") });
+      if (m) updateLine(key, { itemType: "raw_material", itemId: m.id, itemName: m.name, unitName: m.unitName || "", unitCost: line?.unitCost || String(m.costPerUnit || ""), hint: undefined });
     }
   }
 
@@ -123,29 +126,34 @@ export function LineItemsEditor({ lines, onChange }: { lines: EditableLine[]; on
         <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">No items added yet.</p>
       ) : (
         lines.map((line) => (
-          <div key={line.key} className="flex flex-wrap items-center gap-2">
-            <SearchSelect
-              className="min-w-[14rem] flex-1"
-              inputClassName="h-10 text-sm"
-              placeholder="Type to search item…"
-              value={line.itemId ? optionValue(line.itemType, line.itemId) : ""}
-              fallbackLabel={line.itemName}
-              options={options}
-              onSelect={(v) => selectOption(line.key, v)}
-              createActions={[
-                { label: "Add new product", onCreate: (name) => setCreateFor({ key: line.key, type: "product", name }) },
-                { label: "Add new raw material", onCreate: (name) => setCreateFor({ key: line.key, type: "raw_material", name }) },
-              ]}
-            />
-            <Input type="number" inputMode="decimal" min={0} step="0.001" placeholder="Qty" className="w-28 h-10" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
-            <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="Cost/unit" className="w-32 h-10" value={line.unitCost} onChange={(e) => updateLine(line.key, { unitCost: e.target.value })} />
-            <span className="w-24 shrink-0 text-right text-sm tabular-nums text-muted-foreground">{inr((parseFloat(line.qty) || 0) * (parseFloat(line.unitCost) || 0))}</span>
-            <Button type="button" variant="ghost" size="icon-sm" className="size-9 sm:size-7" onClick={() => cloneLine(line.key)} aria-label="Clone item" title="Clone this line" disabled={!line.itemId}>
-              <Copy className="size-3.5" />
-            </Button>
-            <Button type="button" variant="ghost" size="icon-sm" className="size-9 sm:size-7" onClick={() => removeLine(line.key)} aria-label="Remove item">
-              <X className="size-3.5" />
-            </Button>
+          <div key={line.key} className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <SearchSelect
+                className="min-w-[14rem] flex-1"
+                inputClassName="h-10 text-sm"
+                placeholder="Type to search item…"
+                value={line.itemId ? optionValue(line.itemType, line.itemId) : ""}
+                fallbackLabel={line.itemName}
+                options={options}
+                onSelect={(v) => selectOption(line.key, v)}
+                createActions={[
+                  { label: "Add new product", onCreate: (name) => setCreateFor({ key: line.key, type: "product", name }) },
+                  { label: "Add new raw material", onCreate: (name) => setCreateFor({ key: line.key, type: "raw_material", name }) },
+                ]}
+              />
+              <Input type="number" inputMode="decimal" min={0} step="0.001" placeholder="Qty" className="w-28 h-10" value={line.qty} onChange={(e) => updateLine(line.key, { qty: e.target.value })} />
+              <Input type="number" inputMode="decimal" min={0} step="0.01" placeholder="Cost/unit" className="w-32 h-10" value={line.unitCost} onChange={(e) => updateLine(line.key, { unitCost: e.target.value })} />
+              <span className="w-24 shrink-0 text-right text-sm tabular-nums text-muted-foreground">{inr((parseFloat(line.qty) || 0) * (parseFloat(line.unitCost) || 0))}</span>
+              <Button type="button" variant="ghost" size="icon-sm" className="size-9 sm:size-7" onClick={() => cloneLine(line.key)} aria-label="Clone item" title="Clone this line" disabled={!line.itemId}>
+                <Copy className="size-3.5" />
+              </Button>
+              <Button type="button" variant="ghost" size="icon-sm" className="size-9 sm:size-7" onClick={() => removeLine(line.key)} aria-label="Remove item">
+                <X className="size-3.5" />
+              </Button>
+            </div>
+            {!line.itemId && line.hint && (
+              <p className="pl-1 text-[11px] text-amber-600 dark:text-amber-400">From the scan: &ldquo;{line.hint}&rdquo; — pick the matching item above, or add it as new.</p>
+            )}
           </div>
         ))
       )}
@@ -161,7 +169,7 @@ export function LineItemsEditor({ lines, onChange }: { lines: EditableLine[]; on
         onOpenChange={(v) => { if (!v) setCreateFor(null); }}
         defaultName={createFor?.name}
         onSaved={(p) => {
-          if (createFor) updateLine(createFor.key, { itemType: "product", itemId: p.id, itemName: p.name, unitName: "pcs", unitCost: String(p.costPrice || "") });
+          if (createFor) updateLine(createFor.key, { itemType: "product", itemId: p.id, itemName: p.name, unitName: "pcs", unitCost: String(p.costPrice || ""), hint: undefined });
           setCreateFor(null);
         }}
       />
@@ -170,7 +178,7 @@ export function LineItemsEditor({ lines, onChange }: { lines: EditableLine[]; on
         onOpenChange={(v) => { if (!v) setCreateFor(null); }}
         defaultName={createFor?.name}
         onSaved={(m) => {
-          if (createFor) updateLine(createFor.key, { itemType: "raw_material", itemId: m.id, itemName: m.name, unitName: m.unitName || "", unitCost: String(m.costPerUnit || "") });
+          if (createFor) updateLine(createFor.key, { itemType: "raw_material", itemId: m.id, itemName: m.name, unitName: m.unitName || "", unitCost: String(m.costPerUnit || ""), hint: undefined });
           setCreateFor(null);
         }}
       />

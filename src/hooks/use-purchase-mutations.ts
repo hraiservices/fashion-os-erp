@@ -114,6 +114,7 @@ interface SaveBillInput {
   notes: string;
   referenceNumber?: string;
   freightTaxable?: boolean;
+  scanPath?: string | null;
   userEmail?: string;
 }
 

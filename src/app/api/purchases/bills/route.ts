@@ -34,6 +34,7 @@ const bodySchema = z.object({
   notes: z.string().default(""),
   referenceNumber: z.string().default(""),
   freightTaxable: z.boolean().default(false),
+  scanPath: z.string().nullable().optional(),
 });
 
 /**
@@ -111,6 +112,7 @@ export async function POST(request: Request) {
       notes: fd.notes.trim(),
       reference_number: fd.referenceNumber.trim(),
       freight_taxable: fd.freightTaxable,
+      scan_path: fd.scanPath ?? null,
       created_by: user.email,
     })
     .select()

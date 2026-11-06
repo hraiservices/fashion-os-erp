@@ -699,6 +699,9 @@ export interface PurchaseBill {
    *  (as it always has on sales invoices). False — the default — keeps the original behaviour of
    *  adding shipping after tax. Per-bill because it is a fact about what the vendor invoiced. */
   freightTaxable: boolean;
+  /** Storage path of the original PDF/photo this bill was scanned from, if any — see
+   *  /api/purchases/bills/scan and /api/purchases/bills/[id]/scan-url. */
+  scanPath: string | null;
   createdAt: string;
 }
 
@@ -723,6 +726,7 @@ export function mapPurchaseBillRow(r: PurchaseBillRow): PurchaseBill {
     notes: r.notes || "",
     referenceNumber: r.reference_number || "",
     freightTaxable: !!r.freight_taxable,
+    scanPath: r.scan_path || null,
     createdAt: r.created_at,
   };
 }

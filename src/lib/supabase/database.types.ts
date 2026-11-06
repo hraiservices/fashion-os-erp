@@ -934,6 +934,7 @@ export interface Database {
           notes: string;
           reference_number: string;
           freight_taxable: boolean;
+          scan_path: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;

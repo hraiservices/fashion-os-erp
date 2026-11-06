@@ -25,6 +25,7 @@ export const AI_FEATURES = {
   reorder: "Time-to-reorder messages",
   lostreason: "Lost-reason suggestion",
   oneliner: "Lead one-line summary",
+  billscan: "Bill scan (PDF/photo → bill)",
 } as const;
 
 export type AiFeature = keyof typeof AI_FEATURES;

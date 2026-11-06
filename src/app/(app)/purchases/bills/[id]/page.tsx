@@ -3,7 +3,8 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Wallet, Undo2, Trash2, Pencil } from "lucide-react";
+import { Wallet, Undo2, Trash2, Pencil, ScanLine } from "lucide-react";
+import { useBillScanUrl } from "@/hooks/use-bill-scan";
 import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePurchaseBill, usePurchaseBills } from "@/hooks/use-purchase-bills";
 import { useVendor, useVendors } from "@/hooks/use-vendors";
@@ -49,9 +50,19 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
   const { data: credits } = useVendorCreditsForBill(id);
   const { data: user } = useCurrentUser();
   const deleteBill = useDeleteBill();
+  const billScanUrl = useBillScanUrl();
 
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [creditOpen, setCreditOpen] = useState(false);
+
+  async function handleViewScan() {
+    try {
+      const url = await billScanUrl.mutateAsync(id);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't open the original scan");
+    }
+  }
 
   const canManage = !!user?.perms.managePurchases;
 
@@ -116,7 +127,14 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
             {bill.dueDate && ` · Due ${fmtDate(bill.dueDate)}`}
           </p>
         </div>
-        <Badge variant={bill.paymentStatus === "paid" ? "secondary" : "outline"}>{BILL_STATUS_LABELS[bill.paymentStatus]}</Badge>
+        <div className="flex shrink-0 items-center gap-2">
+          {bill.scanPath && (
+            <Button variant="outline" size="sm" onClick={handleViewScan} disabled={billScanUrl.isPending}>
+              <ScanLine className="size-3.5" /> {billScanUrl.isPending ? "Opening…" : "View original scan"}
+            </Button>
+          )}
+          <Badge variant={bill.paymentStatus === "paid" ? "secondary" : "outline"}>{BILL_STATUS_LABELS[bill.paymentStatus]}</Badge>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3 lg:items-start">

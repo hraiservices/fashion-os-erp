@@ -122,10 +122,10 @@ function CrmContent() {
     setSortAsc(key === "name");
   }
 
-  const view = searchParams.get("view") === "list" ? "list" : "cards";
+  const view = searchParams.get("view") === "cards" ? "cards" : "list";
   function setView(v: "cards" | "list") {
     const params = new URLSearchParams(searchParams.toString());
-    if (v === "list") params.set("view", "list");
+    if (v === "cards") params.set("view", "cards");
     else params.delete("view");
     router.replace(`/crm${params.toString() ? `?${params.toString()}` : ""}`);
   }

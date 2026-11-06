@@ -100,7 +100,7 @@ export default function RootLayout({
             from there. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var c=JSON.parse(localStorage.getItem("shop-color-config"));if(!c)return;var h=document.documentElement;["default","violet","blue","indigo","sky","cyan","teal","emerald","amber","orange","rose","pink","slate"].forEach(function(t){h.classList.remove("theme-"+t)});if(c.colorTheme)h.classList.add("theme-"+c.colorTheme);["dark","black","light","colored"].forEach(function(s){h.classList.remove("sidebar-"+s)});if(c.sidebarStyle)h.classList.add("sidebar-"+c.sidebarStyle);var radii={sharp:"0rem",small:"0.3rem",default:"0.625rem",large:"1rem",full:"1.5rem"};if(c.cornerStyle&&radii[c.cornerStyle])h.style.setProperty("--radius",radii[c.cornerStyle]);}catch(e){}})();`,
+            __html: `(function(){try{var c=JSON.parse(localStorage.getItem("shop-color-config"));if(!c)return;var h=document.documentElement;["default","violet","blue","indigo","sky","cyan","teal","emerald","amber","orange","rose","pink","slate","lime","fuchsia","red","purple","brown"].forEach(function(t){h.classList.remove("theme-"+t)});if(c.colorTheme&&c.colorTheme.indexOf("custom:")!==0)h.classList.add("theme-"+c.colorTheme);["dark","black","light","colored"].forEach(function(s){h.classList.remove("sidebar-"+s)});if(c.sidebarStyle)h.classList.add("sidebar-"+c.sidebarStyle);var radii={sharp:"0rem",small:"0.3rem",default:"0.625rem",large:"1rem",full:"1.5rem"};if(c.cornerStyle&&radii[c.cornerStyle])h.style.setProperty("--radius",radii[c.cornerStyle]);h.classList.toggle("density-compact",c.density==="compact");}catch(e){}})();`,
           }}
         />
       </head>

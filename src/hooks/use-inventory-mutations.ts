@@ -91,6 +91,7 @@ interface SaveProductInput {
   taxRate: number;
   lowStockAlert: number;
   notes: string;
+  createdAt?: string;
   bom: BomLineInput[];
   openingStock?: number;
   barcode?: string;

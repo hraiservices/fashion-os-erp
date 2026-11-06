@@ -4,18 +4,22 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { BellRing, Check, Clock, Flame, PartyPopper, Plus } from "lucide-react";
+import { BellRing, Check, Clock, Flame, LayoutGrid, LayoutList, PartyPopper, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SegmentedToggle } from "@/components/ui/segmented-toggle";
+import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { useAddLeadActivity, useLeads, usePatchTask, type TargetsMeta } from "@/hooks/use-targets";
 import { useLeadFollowUp } from "@/hooks/use-lead-follow-up";
 import { HEAT_LABEL, HEAT_RANK, leadHeat, todayBuckets, type LeadHeat } from "@/lib/lead-insights";
 import type { LeadDto } from "@/lib/targets-types";
 import { LeadCard } from "@/components/targets/lead-card";
+import { TodayLeadsTable, todayLeadColumns, TODAY_LEAD_AUTO_HIDE } from "@/components/targets/today-leads-table";
 import { StageSheet } from "@/components/targets/stage-sheet";
 import { OccasionsCard, ReferralCard, ReorderCard, ReviewRequestCard, TrialsCard, WinBackCard } from "@/components/targets/today-customers";
 import { TargetGapCard } from "@/components/targets/target-gap";
@@ -40,12 +44,14 @@ const SNOOZE: { days: number; label: string }[] = [
 export function TodayTab({ meta }: { meta: TargetsMeta | undefined }) {
   const [owner, setOwner] = useState(ALL);
   const [heatFilter, setHeatFilter] = useState<LeadHeat | typeof ALL>(ALL);
+  const [view, setView] = useState<"cards" | "list">("cards");
   const query = useLeads({ stage: "open", limit: 1000, owner: owner === ALL ? undefined : owner });
   const today = meta?.today ?? "";
   const labels = meta?.stageLabels;
   const canEdit = !!meta?.can.manageLeads;
   const { nameOf, active } = useStaffLookup(meta);
   const showOwner = !!meta?.can.viewAll;
+  const columnTable = useColumnVisibility("targets-today-leads", todayLeadColumns(showOwner), TODAY_LEAD_AUTO_HIDE);
   const addActivity = useAddLeadActivity();
   const patchTask = usePatchTask();
   const followUp = useLeadFollowUp(meta);
@@ -180,6 +186,23 @@ export function TodayTab({ meta }: { meta: TargetsMeta | undefined }) {
 
       {total === 0 && <EmptyState icon={PartyPopper} title="All caught up" description="No follow-ups are due and no open lead has gone quiet. New leads you add will show here when they need you." />}
 
+      {total > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="w-auto">
+            <SegmentedToggle
+              ariaLabel="Lead view mode"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: "cards", label: "Cards", icon: LayoutGrid, tone: "blue" },
+                { value: "list", label: "List", icon: LayoutList, tone: "purple" },
+              ]}
+            />
+          </div>
+          {view === "list" && <ColumnCustomizerMenu table={columnTable} />}
+        </div>
+      )}
+
       {sections.map(
         (sec) =>
           sec.leads.length > 0 && (
@@ -190,36 +213,51 @@ export function TodayTab({ meta }: { meta: TargetsMeta | undefined }) {
                 <span className="rounded-full bg-background/70 px-2 py-0.5 text-xs font-semibold tabular-nums">{sec.leads.length}</span>
                 <span className="ml-auto truncate text-xs opacity-80">{sec.hint}</span>
               </div>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {sec.leads.map((l) => (
-                  <div key={l.id} className="overflow-hidden rounded-xl">
-                    <LeadCard lead={l} today={today} labels={labels} ownerName={showOwner ? nameOf(l.assignedEmployeeId) : undefined} onStageTap={canEdit ? setMoving : undefined} className="rounded-b-none border-b-0" />
-                    {canEdit && (
-                      <div className="grid grid-cols-2 gap-px rounded-b-xl border bg-border">
-                        <button type="button" disabled={busy === l.id} onClick={() => markDone(l)} className="flex min-h-12 items-center justify-center gap-1.5 bg-card text-sm font-semibold text-emerald-700 active:bg-muted/60 disabled:opacity-50 dark:text-emerald-400">
-                          <Check className="size-4" /> Done
-                        </button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            render={
-                              <button type="button" disabled={busy === l.id} className="flex min-h-12 items-center justify-center gap-1.5 bg-card text-sm font-semibold text-blue-700 active:bg-muted/60 disabled:opacity-50 dark:text-blue-400">
-                                <Clock className="size-4" /> Snooze
-                              </button>
-                            }
-                          />
-                          <DropdownMenuContent align="end">
-                            {SNOOZE.map((o) => (
-                              <DropdownMenuItem key={o.days} onClick={() => snooze(l, o.days, o.label)} className="min-h-11">
-                                {o.label}
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+              {view === "list" ? (
+                <TodayLeadsTable
+                  leads={sec.leads}
+                  today={today}
+                  labels={labels}
+                  showOwner={showOwner}
+                  nameOf={nameOf}
+                  canEdit={canEdit}
+                  busy={busy}
+                  onDone={markDone}
+                  onSnooze={snooze}
+                  isVisible={columnTable.isVisible}
+                />
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {sec.leads.map((l) => (
+                    <div key={l.id} className="overflow-hidden rounded-xl">
+                      <LeadCard lead={l} today={today} labels={labels} ownerName={showOwner ? nameOf(l.assignedEmployeeId) : undefined} onStageTap={canEdit ? setMoving : undefined} className="rounded-b-none border-b-0" />
+                      {canEdit && (
+                        <div className="grid grid-cols-2 gap-px rounded-b-xl border bg-border">
+                          <button type="button" disabled={busy === l.id} onClick={() => markDone(l)} className="flex min-h-12 items-center justify-center gap-1.5 bg-card text-sm font-semibold text-emerald-700 active:bg-muted/60 disabled:opacity-50 dark:text-emerald-400">
+                            <Check className="size-4" /> Done
+                          </button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              render={
+                                <button type="button" disabled={busy === l.id} className="flex min-h-12 items-center justify-center gap-1.5 bg-card text-sm font-semibold text-blue-700 active:bg-muted/60 disabled:opacity-50 dark:text-blue-400">
+                                  <Clock className="size-4" /> Snooze
+                                </button>
+                              }
+                            />
+                            <DropdownMenuContent align="end">
+                              {SNOOZE.map((o) => (
+                                <DropdownMenuItem key={o.days} onClick={() => snooze(l, o.days, o.label)} className="min-h-11">
+                                  {o.label}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           )
       )}

@@ -312,10 +312,18 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
           <ArrowLeft className="size-3.5" /> Change customer
         </button>
       )}
-      <button type="button" onClick={() => setSummaryOpen(true)} className="block text-left transition-opacity hover:opacity-70">
-        <p className="text-lg font-semibold underline decoration-muted-foreground/40 underline-offset-4">{selectedCustomer?.name || selectedMobile}</p>
-        <p className="text-sm text-muted-foreground">{selectedMobile}</p>
-      </button>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+        <button type="button" onClick={() => setSummaryOpen(true)} className="block text-left transition-opacity hover:opacity-70">
+          <p className="text-lg font-semibold underline decoration-muted-foreground/40 underline-offset-4">{selectedCustomer?.name || selectedMobile}</p>
+          <p className="text-sm text-muted-foreground">{selectedMobile}</p>
+        </button>
+        {totalDue > 0 && (
+          <p className="text-right">
+            <span className="block text-xs text-muted-foreground">Total payable</span>
+            <BalanceDue amount={totalDue} paidLabel={inr(totalDue)} className="text-lg font-semibold" />
+          </p>
+        )}
+      </div>
       <CustomerSummarySheet mobile={selectedMobile} open={summaryOpen} onOpenChange={setSummaryOpen} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

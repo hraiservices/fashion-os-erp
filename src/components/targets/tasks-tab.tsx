@@ -61,11 +61,17 @@ export function TasksTab({ meta }: { meta: TargetsMeta | undefined }) {
   const linked = useTask(linkedOk ? linkedId : null, { quiet: true });
   useEffect(() => {
     if (!linkedId) return;
+    // The task fetch can resolve after the user has already clicked away to another tab — if
+    // the address bar's "task" param is gone by then, the URL cleanup below would otherwise
+    // race that navigation and snap the tab back to Tasks right after the user left it.
+    const stillLinked = () => new URLSearchParams(window.location.search).get("task") === linkedId;
     if (linked.data?.task) {
+      if (!stillLinked()) return;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- open the task a shared link points at
       setEditing(linked.data.task);
       router.replace("/targets?tab=tasks", { scroll: false });
     } else if (!linkedOk || linked.isError) {
+      if (!stillLinked()) return;
       toast.error("That task isn't available — it may have been deleted, or it isn't yours to see");
       router.replace("/targets?tab=tasks", { scroll: false });
     }

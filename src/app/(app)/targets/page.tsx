@@ -21,8 +21,12 @@ function TargetsHome() {
   const router = useRouter();
   const params = useSearchParams();
   const raw = params.get("tab");
-  // "Today" (who to contact) is the landing tab; a shared task link (?task=…) goes straight to Tasks.
-  const tab: Tab = raw === "tasks" || raw === "leads" || raw === "targets" || raw === "projects" || raw === "planner" ? raw : params.get("task") ? "tasks" : "today";
+  // "Today" (who to contact) is the landing tab; a shared task link (?task=…) goes straight to
+  // Tasks — but only as a fallback when no tab is named explicitly, so an explicit `tab=today`
+  // (e.g. from clicking the Today pill right after arriving via such a link) isn't overridden by
+  // a `task` param that's still lingering in the address bar.
+  const tab: Tab =
+    raw === "tasks" || raw === "leads" || raw === "targets" || raw === "projects" || raw === "planner" || raw === "today" ? raw : params.get("task") ? "tasks" : "today";
   const metaQuery = useTargetsMeta();
   const meta = metaQuery.data;
   // Counts for the tab badges; both are cached queries the tabs use anyway, and the badges just stay off until they arrive.

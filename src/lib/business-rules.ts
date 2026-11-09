@@ -60,6 +60,11 @@ export interface GarmentRate {
   h: number;
   f: number;
   alteration: number;
+  /** Shop-assigned item code for this garment type (e.g. "BL" for Blouse) — shown on the order
+   *  form, order detail page, and printed slips/tags; also matched by the Orders search. Blank
+   *  until the shop sets one in Settings > Rates; purely a display/lookup label, never enforced
+   *  unique and never used in any calculation. */
+  code?: string;
 }
 
 export type RateCard = Record<string, GarmentRate>;

@@ -4,7 +4,7 @@ import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, ChevronDown, ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt, FileDown, Ban } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ArrowLeft, Pencil, Trash2, Wallet, ArrowRight, Phone, User, Clock, RotateCcw, Tag as TagIcon, TrendingUp, TrendingDown, Receipt, FileDown, Ban, Ruler } from "lucide-react";
 import { useOrder } from "@/hooks/use-order";
 import { MaterialsPanel } from "@/components/orders/materials-panel";
 import { useOrdersLight } from "@/hooks/use-orders-light";
@@ -20,7 +20,7 @@ import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useOrderExpensesFor } from "@/hooks/use-order-expenses";
 import { computeOrderProfit } from "@/lib/order-profit";
-import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppMessage, buildWhatsAppUrl, isValidManualOrderNumber, type Lining } from "@/lib/business-rules";
+import { getNextStage, STAGE_META, LINING_LABELS, buildWhatsAppMessage, buildWhatsAppUrl, isValidManualOrderNumber, DEFAULT_RATES, type Lining, type RateCard } from "@/lib/business-rules";
 import { DEFAULT_STITCHING_WHATSAPP_TEMPLATES } from "@/lib/stitching-whatsapp";
 import { STAGE_STYLE } from "@/lib/design/stages";
 import { resolveWaType } from "@/lib/wa-type";
@@ -36,6 +36,7 @@ import { StageBadge, DueBadge, MoveToStageLabel } from "@/components/orders/stag
 import { PaymentModal } from "@/components/orders/payment-modal";
 import { GarmentChecklistRow } from "@/components/orders/garment-checklist";
 import { ReworkDialog } from "@/components/orders/rework-dialog";
+import { MeasurementsQuickDialog } from "@/components/orders/measurements-quick-dialog";
 import { printTailorSheetLabel, printTailorSheetA4 } from "@/lib/tailor-sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const nextOrderId = orderIndex >= 0 && allOrders && orderIndex < allOrders.length - 1 ? allOrders[orderIndex + 1]?.id : undefined;
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
+  const { data: rates } = useAppSetting<RateCard>("rates", DEFAULT_RATES);
   const { data: waTemplates } = useAppSetting("stitchingWhatsAppTemplates", DEFAULT_STITCHING_WHATSAPP_TEMPLATES);
   const advanceStage = useAdvanceStage();
   const deleteOrder = useDeleteOrder();
@@ -111,6 +113,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const backfillPayment = useBackfillOrderPayment();
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [reworkDialogOpen, setReworkDialogOpen] = useState(false);
+  const [measureDialogOpen, setMeasureDialogOpen] = useState(false);
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
   // The orders list page confirms every stage change before firing it (see handleAdvance there)
   // — this page's own "Move to" button skipped that dialog entirely and changed the stage
@@ -555,6 +558,12 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <span className="min-w-0 truncate">Edit</span>
             </Button>
           )}
+          {user?.perms.editOrder && (
+            <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Add or edit measurements" onClick={() => setMeasureDialogOpen(true)}>
+              <Ruler className="size-4" />
+              <span className="min-w-0 truncate">{hasMeasurements(order.measurements) ? "Measurements" : "Add measurements"}</span>
+            </Button>
+          )}
           {user?.perms.changeStage && !order.reworkFlag && (
             <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Flag for rework" onClick={() => setReworkDialogOpen(true)}>
               <RotateCcw className="size-4" />
@@ -571,11 +580,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               }
             />
             <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => printTailorSheetLabel(order, shop, measureFields || [], 58)}>58mm roll</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => printTailorSheetLabel(order, shop, measureFields || [], 80)}>80mm roll</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => printTailorSheetLabel(order, shop, measureFields || [], 58, rates)}>58mm roll</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => printTailorSheetLabel(order, shop, measureFields || [], 80, rates)}>80mm roll</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print tailor sheet (A4)" onClick={() => printTailorSheetA4(order, shop, measureFields || [])}>
+          <Button variant="outline" className="h-12 min-w-0 flex-1 basis-28 text-base sm:h-10 sm:text-sm" aria-label="Print tailor sheet (A4)" onClick={() => printTailorSheetA4(order, shop, measureFields || [], rates)}>
             <TagIcon className="size-4" />
             <span className="min-w-0 truncate">A4</span>
           </Button>
@@ -696,7 +705,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <li key={i} className="space-y-2 px-4 py-2.5 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate font-medium">{g.type}</p>
+                  <p className="truncate font-medium">
+                    {g.type}
+                    {rates?.[g.type]?.code && <span className="ml-1.5 font-mono text-xs font-normal text-muted-foreground">({rates[g.type].code})</span>}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {LINING_LABELS[g.lining as Lining] ?? g.lining} · qty {g.no || 1}
                     {g.tailor && !canEditTailor && ` · ${tailorName(g.tailor)}`}
@@ -924,6 +936,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
       <PaymentModal order={order} open={paymentOpen} onOpenChange={setPaymentOpen} />
       <ReworkDialog orderId={id} open={reworkDialogOpen} onOpenChange={setReworkDialogOpen} alreadyFlagged={order.reworkFlag} />
+      <MeasurementsQuickDialog
+        orderId={id}
+        measureFields={measureFields || []}
+        initialValues={hydrateMeasurements(measureFields || [], order.measurements)}
+        open={measureDialogOpen}
+        onOpenChange={setMeasureDialogOpen}
+        userEmail={user?.email}
+      />
 
       <AlertDialog open={!!deletePaymentId} onOpenChange={(v) => !v && setDeletePaymentId(null)}>
         <AlertDialogContent>
@@ -944,15 +964,21 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   );
 }
 
-/** Picks a tailor right on the order page. The current one is always listed, even if they have since been deactivated. */
+// Select can't use "" as an item's own value (indistinguishable from "no selection") — this
+// sentinel stands in for the explicit "Unassigned" choice and is mapped back to "" at the boundary.
+const PICKER_UNASSIGNED = "__unassigned__";
+
+/** Picks a tailor right on the order page, including clearing it back to Unassigned. The current
+ *  one is always listed, even if they have since been deactivated. */
 function TailorPicker({ value, tailors, nameOf, disabled, onChange, className }: { value: string; tailors: { id: string; name: string }[]; nameOf: (id: string) => string; disabled?: boolean; onChange: (id: string) => void; className?: string }) {
   const options = value && !tailors.some((t) => t.id === value) ? [{ id: value, name: nameOf(value) }, ...tailors] : tailors;
   return (
-    <Select value={value} onValueChange={(v) => v !== null && onChange(v)} disabled={disabled}>
+    <Select value={value || PICKER_UNASSIGNED} onValueChange={(v) => v !== null && onChange(v === PICKER_UNASSIGNED ? "" : v)} disabled={disabled}>
       <SelectTrigger className={`w-full ${className ?? ""}`} aria-label="Tailor">
         <SelectValue>{(v: string) => (v ? nameOf(v) : "Unassigned")}</SelectValue>
       </SelectTrigger>
       <SelectContent>
+        <SelectItem value={PICKER_UNASSIGNED}>Unassigned</SelectItem>
         {options.map((t) => (
           <SelectItem key={t.id} value={t.id}>
             {t.name}

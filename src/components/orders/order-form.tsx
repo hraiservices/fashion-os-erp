@@ -918,18 +918,21 @@ function OrderFormFields({
             </Button>
           </div>
         )}
-        {/* Section-jump pills — mobile only. Tap to scroll straight to a section; the
-           highlighted pill tracks whichever section is actually in view (see the
-           IntersectionObserver effect above), not just which one was last tapped. */}
-        <div className="flex flex-wrap gap-1.5 border-t px-3 py-1.5 sm:hidden">
+        {/* Section-jump pills — sticky in the header bar on every screen size (previously mobile
+           only). Tap to scroll straight to a section; the highlighted pill tracks whichever
+           section is actually in view (see the IntersectionObserver effect above), not just
+           which one was last tapped. The "I'm moving through steps" affordance without an
+           actual multi-step wizard, which would hide the live total/suggestions below each
+           step. */}
+        <div className="flex flex-wrap gap-1.5 border-t px-3 py-1.5 sm:px-6">
           {jumpSections.map((s) => (
             <button
               key={s.id}
               type="button"
               onClick={() => jumpToSection(s.id)}
               className={cn(
-                "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                activeSection === s.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors sm:text-sm",
+                activeSection === s.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"
               )}
             >
               {s.label}
@@ -1767,25 +1770,6 @@ function OrderFormFields({
 
         {/* ── Payment summary sidebar ───────────────────────────────────── */}
         <div className="mt-5 lg:mt-0 lg:sticky lg:top-[61px] space-y-4">
-          {/* Section-jump nav — desktop/tablet only (the pill bar in the sticky header above
-             covers this on mobile, where there's no sidebar to put it in). Same jumpToSection/
-             activeSection the mobile pills use, just laid out as a vertical list since there's
-             room for it here. */}
-          <div className="hidden rounded-xl border bg-white p-2 shadow-sm dark:bg-card sm:block">
-            {jumpSections.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => jumpToSection(s.id)}
-                className={cn(
-                  "block w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors",
-                  activeSection === s.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
           <div className="rounded-xl border bg-white dark:bg-card shadow-sm overflow-hidden">
             <div className="bg-primary px-5 py-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-primary-foreground/70">Order total</p>

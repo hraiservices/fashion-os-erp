@@ -6,6 +6,7 @@ import { mapOrderRow } from "@/lib/types";
 import { StitchingOrderDocument } from "@/lib/pdf/stitching-order-document";
 import { DEFAULT_STITCHING_ORDER_TEMPLATES_SETTING, getDefaultStitchingOrderTemplate, type StitchingOrderTemplatesSetting } from "@/lib/stitching-order-template";
 import { DEF_MF_LABELS } from "@/lib/measurements";
+import { DEFAULT_RATES, type RateCard } from "@/lib/business-rules";
 
 // @react-pdf/renderer needs Node's stream/fs APIs — not Edge-compatible.
 export const runtime = "nodejs";
@@ -23,11 +24,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const db = createServiceClient();
   if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
 
-  const [{ data: orderRow, error }, { data: shopSetting }, { data: templateSetting }, { data: fieldsSetting }] = await Promise.all([
+  const [{ data: orderRow, error }, { data: shopSetting }, { data: templateSetting }, { data: fieldsSetting }, { data: ratesSetting }] = await Promise.all([
     db.from("orders").select("*").eq("id", id).maybeSingle(),
     supabase.from("app_settings").select("value").eq("key", "shop").maybeSingle(),
     supabase.from("app_settings").select("value").eq("key", "stitchingOrderTemplates").maybeSingle(),
     supabase.from("app_settings").select("value").eq("key", "measureFields").maybeSingle(),
+    supabase.from("app_settings").select("value").eq("key", "rates").maybeSingle(),
   ]);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!orderRow) return NextResponse.json({ error: "Order not found" }, { status: 404 });
@@ -36,6 +38,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const shop = (shopSetting?.value as { name?: string; phone?: string; address?: string } | null) || {};
   const template = getDefaultStitchingOrderTemplate((templateSetting?.value as StitchingOrderTemplatesSetting | null) || DEFAULT_STITCHING_ORDER_TEMPLATES_SETTING);
   const measurementLabels = (fieldsSetting?.value as string[] | null) || [...DEF_MF_LABELS];
+  const rates = (ratesSetting?.value as RateCard | null) || DEFAULT_RATES;
 
   let tailorName: string | undefined;
   if (order.tailor) {
@@ -52,6 +55,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       tailorName={tailorName}
       measurementLabels={measurementLabels}
       template={template}
+      rates={rates}
     />
   );
 

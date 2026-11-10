@@ -1,7 +1,7 @@
 import JsBarcode from "jsbarcode";
 import { fmtDate } from "@/lib/format";
 import type { Order } from "@/lib/types";
-import type { Shop } from "@/lib/business-rules";
+import type { Shop, RateCard } from "@/lib/business-rules";
 import { DEFAULT_ORDER_TAG_TEMPLATE, type OrderTagTemplateConfig } from "@/lib/order-tag-template";
 
 /** Same off-screen-SVG approach as src/lib/barcode.ts's renderBarcodeSvg — no new dependency,
@@ -22,13 +22,15 @@ function escapeHtml(s: string): string {
  * floor. Same window.open + document.write + @page pattern as printBarcodeLabel
  * (src/lib/barcode.ts) and printThermalReceipt, so it doesn't fight the main app's print CSS.
  */
-export function printOrderTag(order: Order, shop?: Shop, tailorName?: string, template?: OrderTagTemplateConfig) {
+export function printOrderTag(order: Order, shop?: Shop, tailorName?: string, template?: OrderTagTemplateConfig, rates?: RateCard) {
   const t = template || DEFAULT_ORDER_TAG_TEMPLATE;
   const win = window.open("", "_blank", "width=420,height=560");
   if (!win) return;
 
   const svg = t.showBarcode ? renderBarcodeSvg(order.id) : "";
-  const garmentLines = order.garments.map((g) => `${g.type}${g.no && g.no > 1 ? ` ×${g.no}` : ""}`).join(", ");
+  const garmentLines = order.garments
+    .map((g) => `${g.type}${rates?.[g.type]?.code ? ` (${rates[g.type].code})` : ""}${g.no && g.no > 1 ? ` ×${g.no}` : ""}`)
+    .join(", ");
   const accent = t.colorTheme || DEFAULT_ORDER_TAG_TEMPLATE.colorTheme;
 
   win.document.write(`<!doctype html>

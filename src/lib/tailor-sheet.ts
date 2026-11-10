@@ -1,6 +1,6 @@
 import { fmtDate, inr } from "@/lib/format";
 import { hydrateMeasurements, toMKey } from "@/lib/measurements";
-import { LINING_LABELS, type Lining } from "@/lib/business-rules";
+import { LINING_LABELS, type Lining, type RateCard } from "@/lib/business-rules";
 import type { Order } from "@/lib/types";
 import type { Shop } from "@/lib/business-rules";
 
@@ -15,11 +15,13 @@ function escapeHtml(s: string): string {
  * with more breathing room. Same window.open + document.write + @page pattern as printOrderTag/
  * printBarcodeLabel, so it doesn't fight the main app's print CSS.
  */
-function buildTailorSheetBody(order: Order, shop: Shop | undefined, measureFields: string[]): string {
+function buildTailorSheetBody(order: Order, shop: Shop | undefined, measureFields: string[], rates?: RateCard): string {
   const garmentRows = order.garments
     .map((g) => {
       const lining = order.orderType === "alteration" ? "—" : LINING_LABELS[(g.lining as Lining) || "s"] || g.lining || "—";
-      return `<tr><td>${escapeHtml(g.type)}</td><td>${g.no || 1}</td><td>${escapeHtml(lining)}</td><td>${inr(g.amount || 0)}</td></tr>`;
+      const code = rates?.[g.type]?.code;
+      const garmentLabel = `${escapeHtml(g.type)}${code ? ` (${escapeHtml(code)})` : ""}`;
+      return `<tr><td>${garmentLabel}</td><td>${g.no || 1}</td><td>${escapeHtml(lining)}</td><td>${inr(g.amount || 0)}</td></tr>`;
     })
     .join("");
 
@@ -57,7 +59,7 @@ function buildTailorSheetBody(order: Order, shop: Shop | undefined, measureField
  * printers vary a lot in how faithfully they reproduce light gray, and a field label that
  * doesn't print is worse than one that's slightly less visually quiet than on-screen.
  */
-export function printTailorSheetLabel(order: Order, shop: Shop | undefined, measureFields: string[], paperWidthMm: 58 | 80 = 80) {
+export function printTailorSheetLabel(order: Order, shop: Shop | undefined, measureFields: string[], paperWidthMm: 58 | 80 = 80, rates?: RateCard) {
   const win = window.open("", "_blank", "width=420,height=700");
   if (!win) return;
   win.document.write(`<!doctype html>
@@ -92,14 +94,14 @@ export function printTailorSheetLabel(order: Order, shop: Shop | undefined, meas
 </style>
 </head>
 <body>
-  ${buildTailorSheetBody(order, shop, measureFields)}
+  ${buildTailorSheetBody(order, shop, measureFields, rates)}
   <script>window.onload = () => { window.print(); };</script>
 </body>
 </html>`);
   win.document.close();
 }
 
-export function printTailorSheetA4(order: Order, shop: Shop | undefined, measureFields: string[]) {
+export function printTailorSheetA4(order: Order, shop: Shop | undefined, measureFields: string[], rates?: RateCard) {
   const win = window.open("", "_blank", "width=900,height=1100");
   if (!win) return;
   win.document.write(`<!doctype html>
@@ -130,7 +132,7 @@ export function printTailorSheetA4(order: Order, shop: Shop | undefined, measure
 </style>
 </head>
 <body>
-  ${buildTailorSheetBody(order, shop, measureFields)}
+  ${buildTailorSheetBody(order, shop, measureFields, rates)}
   <script>window.onload = () => { window.print(); };</script>
 </body>
 </html>`);

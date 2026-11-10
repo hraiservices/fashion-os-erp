@@ -49,8 +49,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Suspense } from "react";
-import { daysLeft, getNextStage, STAGE_META, STAGES, type Stage } from "@/lib/business-rules";
+import { daysLeft, getNextStage, STAGE_META, STAGES, DEFAULT_RATES, type Stage, type RateCard } from "@/lib/business-rules";
+import { useAppSetting } from "@/hooks/use-app-setting";
 import { inr } from "@/lib/format";
+
+/** Matches the Orders search box against name/mobile/order ID, plus — since garment item codes
+ *  are a shop-assigned lookup label, not stored data — each garment's type's code from the
+ *  current rate card. */
+function matchesOrderSearch(o: Order, q: string, rates: RateCard): boolean {
+  if (!q) return true;
+  if (o.name.toLowerCase().includes(q) || o.mobile.includes(q) || o.id.toLowerCase().includes(q)) return true;
+  return o.garments.some((g) => (rates[g.type]?.code || "").toLowerCase().includes(q));
+}
 
 interface PendingStageChange {
   type: "advance" | "set";
@@ -206,6 +216,7 @@ function OrdersContent() {
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const { data: tailors } = useActiveTailors();
+  const { data: rates } = useAppSetting<RateCard>("rates", DEFAULT_RATES);
 
   // Column-header click-to-sort on the List view (see orders-list.tsx's SortableTh) — resets to
   // the default newest/oldest-by-date sort (filters.sort) on every page load, never persisted.
@@ -217,7 +228,7 @@ function OrdersContent() {
   const filtered = useMemo(() => {
     if (!orders) return [];
     const q = search.trim().toLowerCase();
-    let list = orders.filter((o) => !q || o.name.toLowerCase().includes(q) || o.mobile.includes(q) || o.id.toLowerCase().includes(q));
+    let list = orders.filter((o) => matchesOrderSearch(o, q, rates || DEFAULT_RATES));
 
     if (filters.tailor !== "all") list = list.filter((o) => o.tailor === filters.tailor);
     if (filters.stage !== "all") list = list.filter((o) => o.status === filters.stage);
@@ -293,7 +304,7 @@ function OrdersContent() {
       const diff = new Date(a.inDate || 0).getTime() - new Date(b.inDate || 0).getTime();
       return filters.sort === "newest" ? -diff : diff;
     });
-  }, [orders, search, filters, colSort, tailorName, profitByOrderId]);
+  }, [orders, search, filters, colSort, tailorName, profitByOrderId, rates]);
 
   // Same filters as `filtered` above, minus the date-range preset — the Calendar view owns its
   // own time window (whichever month it's currently showing) instead of the shared date-range
@@ -301,7 +312,7 @@ function OrdersContent() {
   const calendarOrders = useMemo(() => {
     if (!orders) return [];
     const q = search.trim().toLowerCase();
-    let list = orders.filter((o) => !q || o.name.toLowerCase().includes(q) || o.mobile.includes(q) || o.id.toLowerCase().includes(q));
+    let list = orders.filter((o) => matchesOrderSearch(o, q, rates || DEFAULT_RATES));
 
     if (filters.tailor !== "all") list = list.filter((o) => o.tailor === filters.tailor);
     if (filters.stage !== "all") list = list.filter((o) => o.status === filters.stage);
@@ -318,7 +329,7 @@ function OrdersContent() {
     }
 
     return list;
-  }, [orders, search, filters]);
+  }, [orders, search, filters, rates]);
 
   const [pendingChange, setPendingChange] = useState<PendingStageChange | null>(null);
   const [paymentOrder, setPaymentOrder] = useState<Order | null>(null);

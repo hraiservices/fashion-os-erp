@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
-import { DEFAULT_RATES, type RateCard } from "@/lib/business-rules";
+import { DEFAULT_RATES, type RateCard, type GarmentRate } from "@/lib/business-rules";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
@@ -100,7 +100,7 @@ export function RenameGarmentDialog({ type, open, onOpenChange }: { type: string
 export function RatesSection() {
   const { data: rates, isLoading, save } = useAppSetting<RateCard>("rates", DEFAULT_RATES);
   const [newType, setNewType] = useState("");
-  const [newRate, setNewRate] = useState({ s: 0, h: 0, f: 0, alteration: 0 });
+  const [newRate, setNewRate] = useState<GarmentRate>({ s: 0, h: 0, f: 0, alteration: 0, code: "" });
   const [renamingType, setRenamingType] = useState<string | null>(null);
 
   // Local editable copy, seeded once from the server value — typing only updates this, never
@@ -120,6 +120,13 @@ export function RatesSection() {
     });
   }
 
+  function updateCode(type: string, code: string) {
+    setDraft((d) => {
+      const base = d || DEFAULT_RATES;
+      return { ...base, [type]: { ...base[type], code } };
+    });
+  }
+
   function commit() {
     if (draft) save.mutate(draft);
   }
@@ -131,7 +138,7 @@ export function RatesSection() {
       await save.mutateAsync(updated);
       setDraft(updated);
       setNewType("");
-      setNewRate({ s: 0, h: 0, f: 0, alteration: 0 });
+      setNewRate({ s: 0, h: 0, f: 0, alteration: 0, code: "" });
       toast.success("Garment type added");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to add garment type");
@@ -158,8 +165,9 @@ export function RatesSection() {
         <CardDescription>What you charge the customer, per garment type — a price for each lining tier, plus one alteration price.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-1">
-        <div className="hidden grid-cols-12 gap-2 px-1 pb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:grid">
+        <div className="hidden grid-cols-14 gap-2 px-1 pb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:grid">
           <div className="col-span-3">Garment type</div>
+          <div className="col-span-2">Code</div>
           {RATE_COLUMNS.map((c) => (
             <div key={c.key} className="col-span-2 text-center">
               {c.label}
@@ -170,12 +178,16 @@ export function RatesSection() {
 
         <div className="divide-y">
           {Object.entries(current).map(([type, rate]) => (
-            <div key={type} className="grid grid-cols-2 gap-2 py-3 sm:grid-cols-12 sm:items-center sm:gap-2 sm:py-2">
+            <div key={type} className="grid grid-cols-2 gap-2 py-3 sm:grid-cols-14 sm:items-center sm:gap-2 sm:py-2">
               <div className="col-span-2 flex items-center gap-1.5 font-medium sm:col-span-3">
                 <span className="truncate">{type}</span>
                 <button type="button" onClick={() => setRenamingType(type)} aria-label={`Rename ${type}`} title={`Rename ${type}`} className="shrink-0 text-muted-foreground hover:text-foreground">
                   <Pencil className="size-3.5" />
                 </button>
+              </div>
+              <div className="col-span-2 space-y-1 sm:col-span-2">
+                <Label className="text-xs font-bold text-muted-foreground sm:hidden">Code</Label>
+                <Input placeholder="e.g. BL" value={rate.code ?? ""} onChange={(e) => updateCode(type, e.target.value)} onBlur={commit} />
               </div>
               {RATE_COLUMNS.map((c) => (
                 <div key={c.key} className="space-y-1 sm:col-span-2">
@@ -192,10 +204,14 @@ export function RatesSection() {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 gap-2 border-t pt-4 sm:grid-cols-12 sm:items-end">
+        <div className="grid grid-cols-2 gap-2 border-t pt-4 sm:grid-cols-14 sm:items-end">
           <div className="col-span-2 space-y-1 sm:col-span-3">
             <Label className="text-xs font-bold text-muted-foreground">New garment type</Label>
             <Input placeholder="e.g. Kurta" value={newType} onChange={(e) => setNewType(e.target.value)} />
+          </div>
+          <div className="col-span-2 space-y-1 sm:col-span-2">
+            <Label className="text-xs font-bold text-muted-foreground">Code</Label>
+            <Input placeholder="e.g. KU" value={newRate.code ?? ""} onChange={(e) => setNewRate((r) => ({ ...r, code: e.target.value }))} />
           </div>
           {RATE_COLUMNS.map((c) => (
             <div key={c.key} className="space-y-1 sm:col-span-2">

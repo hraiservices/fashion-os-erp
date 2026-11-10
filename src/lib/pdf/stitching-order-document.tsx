@@ -1,7 +1,7 @@
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
 import { fmtDate } from "@/lib/format";
 import { amountInWords } from "@/lib/number-to-words";
-import { LINING_LABELS, type Lining } from "@/lib/business-rules";
+import { LINING_LABELS, type Lining, type RateCard } from "@/lib/business-rules";
 import { blankStitchingOrderTemplate, type StitchingOrderTemplateConfig, type StitchingTemplateFont } from "@/lib/stitching-order-template";
 import type { Order } from "@/lib/types";
 
@@ -79,6 +79,7 @@ export function StitchingOrderDocument({
   tailorName,
   measurementLabels,
   template,
+  rates,
 }: {
   order: Order;
   shopName: string;
@@ -87,6 +88,7 @@ export function StitchingOrderDocument({
   tailorName?: string;
   measurementLabels?: string[];
   template?: StitchingOrderTemplateConfig;
+  rates?: RateCard;
 }) {
   const t = template || blankStitchingOrderTemplate();
   const bold = BOLD_FONT[t.font];
@@ -145,7 +147,7 @@ export function StitchingOrderDocument({
             </View>
             {order.garments.map((g, i) => (
               <View key={g.lineId || i} style={styles.tableRow}>
-                <Text style={[styles.td, styles.colGarment]}>{g.type}</Text>
+                <Text style={[styles.td, styles.colGarment]}>{g.type}{rates?.[g.type]?.code ? ` (${rates[g.type].code})` : ""}</Text>
                 <Text style={[styles.td, styles.colLining]}>{g.lining ? LINING_LABELS[g.lining as Lining] || g.lining : "—"}</Text>
                 <Text style={[styles.td, styles.colQty]}>{g.no || 1}</Text>
                 <Text style={[styles.td, styles.colAmount]}>{money(g.amount || 0)}</Text>

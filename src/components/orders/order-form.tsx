@@ -131,6 +131,11 @@ type FormValues = z.infer<typeof formSchema>;
 
 const LININGS = Object.keys(LINING_LABELS) as Lining[];
 
+/** The Tailor <Select>s store "" for no tailor, but Base UI's Select can't use "" as an item's
+ *  own value (indistinguishable from "no selection") — this sentinel stands in for that one
+ *  explicit "Unassigned" choice and is mapped back to "" at the boundary. */
+const UNASSIGNED_TAILOR = "__unassigned__";
+
 function todayISO(): string {
   // istDateString, NOT toISOString: toISOString() is always UTC regardless of device timezone,
   // so between 00:00 and 05:30 IST (a device correctly set to IST included) it silently returns
@@ -289,7 +294,10 @@ function OrderFormFields({
 
   const garmentTypes = Object.keys(rates);
   const defaultGarmentType = garmentTypes[0] || "";
-  const defaultTailor = tailors[0]?.id || "";
+  // No tailor pre-selected on a new order — the shop asked to be able to skip assigning one at
+  // creation and pick someone later (from the order-level or per-garment Tailor picker, or the
+  // order detail page), rather than every new order silently landing on tailors[0].
+  const defaultTailor = "";
   const tailorName = (id: string) => tailors.find((t) => t.id === id)?.name || id;
 
   const [orderType, setOrderType] = useState<OrderType>(existingOrder?.orderType || initialOrderType || "new");
@@ -1086,12 +1094,13 @@ function OrderFormFields({
                     control={control}
                     name="tailor"
                     render={({ field: f }) => (
-                      <Select value={f.value} onValueChange={(v) => v && f.onChange(v)}>
+                      <Select value={f.value || UNASSIGNED_TAILOR} onValueChange={(v) => v && f.onChange(v === UNASSIGNED_TAILOR ? "" : v)}>
                         <SelectTrigger className="h-10 w-full">
                           {/* Base UI renders the raw stored value (a UUID) unless given a formatter — same fix as Lining above. */}
-                          <SelectValue>{(v: string) => tailors.find((t) => t.id === v)?.name || "Assign a tailor"}</SelectValue>
+                          <SelectValue>{(v: string) => tailors.find((t) => t.id === v)?.name || "Unassigned"}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value={UNASSIGNED_TAILOR}>Unassigned — assign later</SelectItem>
                           {tailors.map((t) => (
                             <SelectItem key={t.id} value={t.id}>
                               {t.name}
@@ -1240,12 +1249,16 @@ function OrderFormFields({
                               {garmentTypes.map((t) => (
                                 <SelectItem key={t} value={t}>
                                   {t}
+                                  {rates[t]?.code ? ` (${rates[t].code})` : ""}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         )}
                       />
+                      {rates[garments[index]?.type]?.code && (
+                        <p className="mt-1 text-[11px] text-muted-foreground">Code: <span className="font-mono font-medium text-foreground">{rates[garments[index].type].code}</span></p>
+                      )}
                     </FieldGroup>
                     <FieldGroup label="Lining">
                       <Controller
@@ -1280,12 +1293,13 @@ function OrderFormFields({
                         control={control}
                         name={`garments.${index}.tailor`}
                         render={({ field: f }) => (
-                          <Select value={f.value || ""} onValueChange={(v) => f.onChange(v || "")}>
+                          <Select value={f.value || UNASSIGNED_TAILOR} onValueChange={(v) => f.onChange(!v || v === UNASSIGNED_TAILOR ? "" : v)}>
                             <SelectTrigger className="h-10 w-full">
                               {/* Same Base-UI raw-value fallback issue as the order-level Tailor field above. */}
                               <SelectValue>{(v: string) => tailors.find((t) => t.id === v)?.name || "Unassigned"}</SelectValue>
                             </SelectTrigger>
                             <SelectContent>
+                              <SelectItem value={UNASSIGNED_TAILOR}>Unassigned</SelectItem>
                               {tailors.map((t) => (
                                 <SelectItem key={t.id} value={t.id}>
                                   {t.name}

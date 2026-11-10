@@ -918,18 +918,21 @@ function OrderFormFields({
             </Button>
           </div>
         )}
-        {/* Section-jump pills — mobile only. Tap to scroll straight to a section; the
-           highlighted pill tracks whichever section is actually in view (see the
-           IntersectionObserver effect above), not just which one was last tapped. */}
-        <div className="flex flex-wrap gap-1.5 border-t px-3 py-1.5 sm:hidden">
+        {/* Section-jump pills — sticky in the header bar on every screen size (previously mobile
+           only). Tap to scroll straight to a section; the highlighted pill tracks whichever
+           section is actually in view (see the IntersectionObserver effect above), not just
+           which one was last tapped. The "I'm moving through steps" affordance without an
+           actual multi-step wizard, which would hide the live total/suggestions below each
+           step. */}
+        <div className="flex flex-wrap gap-1.5 border-t px-3 py-1.5 sm:px-6">
           {jumpSections.map((s) => (
             <button
               key={s.id}
               type="button"
               onClick={() => jumpToSection(s.id)}
               className={cn(
-                "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                activeSection === s.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors sm:text-sm",
+                activeSection === s.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"
               )}
             >
               {s.label}

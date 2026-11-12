@@ -159,7 +159,17 @@ export async function POST(request: Request, { params }: Ctx) {
         const summary = (out.summary ?? "").trim();
         const actions = (out.actions ?? []).slice(0, 5);
         if (transcript && transcript !== "(could not transcribe)") {
-          await addLeadActivity(db, id, "note", `Voice note (${file.name}): ${summary}${actions.length ? ` To do: ${actions.join("; ")}.` : ""} — "${transcript.slice(0, 600)}"`, ctx.email);
+          // countsAsResponse: false — this is a transcript of the CUSTOMER's voice note, not a
+          // reply to them. Without it, transcribing an incoming message stamped
+          // first_response_at and the lead read as answered.
+          await addLeadActivity(
+            db,
+            id,
+            "note",
+            `Voice note (${file.name}): ${summary}${actions.length ? ` To do: ${actions.join("; ")}.` : ""} — "${transcript.slice(0, 600)}"`,
+            ctx.email,
+            { countsAsResponse: false }
+          );
         }
         return NextResponse.json({ transcript, summary, actions });
       }

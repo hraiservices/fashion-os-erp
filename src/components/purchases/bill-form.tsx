@@ -163,6 +163,18 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
     if (items.length === 0) return toast.error("Add at least one item");
     if (!dueDate) return toast.error("Set a due date — when you have to pay this vendor");
 
+    // A line with a quantity or a cost but no item picked is DROPPED by linesToItems, which
+    // filters on `l.itemId`. That silently kept it out of the items JSON, the taxable amount,
+    // the bill total and the stock ledger — and the save still reported "Bill recorded — stock
+    // updated". A scan that matched 2 of 6 vendor lines therefore recorded a ₹6,000 bill for a
+    // ₹20,000 delivery, with four items never entering stock and nothing on screen saying so.
+    const unpickedLines = lines.filter((l) => !l.itemId && (parseFloat(l.qty) > 0 || parseFloat(l.unitCost) > 0));
+    if (unpickedLines.length > 0) {
+      return toast.error(
+        `${unpickedLines.length} line${unpickedLines.length === 1 ? "" : "s"} still need an item picked — ${unpickedLines.length === 1 ? "it" : "they"} would be left off the bill and out of stock. Pick the item, or clear the row.`
+      );
+    }
+
     try {
       const res = await saveBill.mutateAsync({
         id: existing?.id,

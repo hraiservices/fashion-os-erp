@@ -344,6 +344,16 @@ export async function POST(request: Request) {
         .is("invoice_id", null)
         .select("id");
       if (linked?.length) await db.from("lead_activities").insert({ lead_id: fd.leadId, kind: "stage_change", body: `Won — invoice ${invoiceNumber} created`, created_by: user.email });
+
+      // Credit the sale to the lead's owner when the form didn't name a salesperson. Orders are
+      // attributed through lead_id → lead owner, but invoices are credited only through
+      // sales_person_id, and this block set won_at/won_value without ever copying the owner
+      // across. So a salesperson who closed a lead for ₹2,00,000 of retail saw 0% against
+      // their own ₹ target (fetchSaleFacts finds no sales_person_id to credit) while the same
+      // lead did count towards a leads_won target.
+      if (linked?.length && fd.salesPersonId === undefined && leadRow.assigned_employee_id) {
+        await db.from("sales_invoices").update({ sales_person_id: leadRow.assigned_employee_id }).eq("id", savedId);
+      }
     } catch {
       /* attribution only — the invoice is already saved */
     }

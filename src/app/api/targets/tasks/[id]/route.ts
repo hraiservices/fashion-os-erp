@@ -112,6 +112,16 @@ export async function PATCH(request: Request, { params }: Ctx) {
   const refProblem = await checkTaskWorkspaceRefs(db, finalProject, d.taskListId !== undefined ? d.taskListId : projectChanged ? null : undefined, d.phaseId !== undefined ? d.phaseId : projectChanged ? null : undefined);
   if (refProblem) return badRequest(refProblem);
   if (d.assigneeId !== undefined && d.assigneeId !== row.assignee_id) {
+    // Clearing an existing assignee is its own case. canAssignTo(null, …) is true for
+    // everyone — correct when creating an unassigned task, wrong here: whoever was handed a
+    // task could unassign themselves, and taskVisibleTo then hides it from everyone but the
+    // creator and viewAll holders while buildTaskLoad files it under "Not assigned". The work
+    // drops off the board silently. The creator can still unassign (it is their task), and so
+    // can anyone with assignTasks.
+    if (d.assigneeId === null && row.assignee_id) {
+      const isCreator = !!row.created_by && row.created_by.toLowerCase() === ctx.email.toLowerCase();
+      if (!ctx.perms.assignTasks && !isCreator) return forbidden("You can't take a task off the person it's assigned to — ask whoever assigned it.");
+    }
     if (!canAssignTo(d.assigneeId, { employeeId: ctx.employeeId, canAssignOthers: ctx.perms.assignTasks })) return forbidden("You can't give tasks to other people");
     if (d.assigneeId && !(await isActiveEmployee(db, d.assigneeId))) return badRequest("That person isn't an active staff member");
     update.assignee_id = d.assigneeId;

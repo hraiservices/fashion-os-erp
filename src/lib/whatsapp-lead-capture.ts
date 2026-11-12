@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import type { WhatsAppCloudApiConfig } from "@/lib/whatsapp-cloud-api";
 import { LEAD_MEDIA_BUCKET, LEAD_MEDIA_MAX_BYTES, leadMediaKind, safeObjectName } from "@/lib/lead-media";
+import { autoStartSequence } from "@/lib/lead-sequences";
+import { loadSequences, startSequence } from "@/lib/lead-sequence-server";
 
 /**
  * Inbound WhatsApp → leads. Off unless `leadCaptureEnabled` is set in the Cloud API config. A message from a number with
@@ -88,11 +90,23 @@ export async function captureInboundForLead(serviceClient: SupabaseClient<Databa
     const { data: created, error } = await serviceClient
       .from("leads")
       .insert({ name: msg.profileName?.trim() || `WhatsApp ${mobile}`, mobile, source: "WhatsApp", created_by: "whatsapp" })
-      .select("id")
+      .select("id, name")
       .single();
     if (error || !created) return false;
     leadId = created.id;
     await serviceClient.from("lead_activities").insert({ lead_id: leadId, kind: "note", body: "Lead created from an incoming WhatsApp message", created_by: "whatsapp" });
+
+    // Start the shop's auto-start follow-up plan, exactly as POST /api/targets/leads does for a
+    // hand-entered lead. Without this, the leads nobody saw arrive were the only ones with no
+    // follow-up tasks and no reminder — they surfaced solely if someone happened to open the
+    // Leads tab. Best effort, like the manual route: a captured lead must not be lost because
+    // its plan couldn't be created.
+    try {
+      const seq = autoStartSequence(await loadSequences(serviceClient));
+      if (seq) await startSequence(serviceClient, { id: leadId, name: created.name, assigned_employee_id: null }, seq, "whatsapp");
+    } catch (e) {
+      console.error("Follow-up plan couldn't be started for a WhatsApp-captured lead:", e);
+    }
   }
 
   let body = msg.text?.body || msg.caption || "";

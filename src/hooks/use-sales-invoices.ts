@@ -54,11 +54,18 @@ async function fetchInvoicesEnriched(): Promise<SalesInvoiceWithBalance[]> {
   });
 }
 
-export function useSalesInvoices() {
+/**
+ * `enabled` exists for the topbar search box, which is mounted on every page and used on
+ * almost none of them: it holds these record hooks off until someone actually types, instead
+ * of pulling whole tables down on every single page load. Every other caller wants the data
+ * immediately and leaves it alone.
+ */
+export function useSalesInvoices(enabled = true) {
   return useQuery({
     queryKey: ["sales-invoices"],
     queryFn: fetchInvoicesEnriched,
     staleTime: 15_000,
+    enabled,
   });
 }
 

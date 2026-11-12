@@ -141,6 +141,29 @@ export function computeLineItemsTotal(items: SalesLineItem[]): number {
   return items.reduce((s, i) => s + (i.amount || 0), 0);
 }
 
+/**
+ * A line's own ₹ amount, from quantity, unit price and the line discount. Mirrors the editor's
+ * client-side `lineAmount`, and exists so the server can re-derive it instead of storing
+ * whatever `amount` the request happened to carry: every taxable value, every GST figure and
+ * every printed line on the invoice is built from this number, so a forged one meant a ₹100
+ * taxable value and ₹18 of tax on a line that reads "10 × ₹2,000" and ships ten units of real
+ * stock. Costs were already re-derived server-side for exactly this reason; revenue was not.
+ */
+export function computeLineAmount(item: {
+  qty: number;
+  unitPrice: number;
+  discountType?: "flat" | "percent";
+  discountPercent?: number;
+  discountFlat?: number;
+}): number {
+  const gross = (item.qty || 0) * (item.unitPrice || 0);
+  if (item.discountType === "flat") {
+    return Math.round(Math.max(0, gross - Math.max(0, item.discountFlat || 0)) * 100) / 100;
+  }
+  const pct = Math.min(100, Math.max(0, item.discountPercent || 0));
+  return Math.round(gross * (1 - pct / 100) * 100) / 100;
+}
+
 export type QuoteStatus = "draft" | "sent" | "accepted" | "expired" | "cancelled";
 export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
   draft: "Draft",

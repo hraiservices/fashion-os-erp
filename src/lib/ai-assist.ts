@@ -73,6 +73,23 @@ export async function reserveAiCall(db: SupabaseClient<Database>, feature: AiFea
   await logAiCall(db, feature, who);
 }
 
+/**
+ * Gives back a reservation whose call then failed. The count is written before the model is
+ * asked anything, so without this a timeout, a 502, an unparseable answer or an image call
+ * that comes back pictureless still burned the shop's quota — a bad afternoon of Gemini
+ * timeouts could leave the helpers refusing with "today's limit has been used" having
+ * answered nothing at all. Best-effort and silent: failing to release must never replace the
+ * real error the caller is about to throw.
+ */
+async function releaseAiCall(db: SupabaseClient<Database>, weight: number): Promise<void> {
+  try {
+    const used = await aiUsageToday(db);
+    await db.from("app_settings").upsert({ key: AI_USAGE_KEY, value: { date: istDateString(), count: Math.max(0, used - weight) } });
+  } catch {
+    /* the caller's own error is the one that matters */
+  }
+}
+
 export type AiPart = { text: string } | { inlineData: { mimeType: string; data: string } };
 
 const retryable = (e: unknown) => /"code"\s*:\s*(503|429)\b|\b(UNAVAILABLE|RESOURCE_EXHAUSTED)\b/.test(e instanceof Error ? e.message : String(e));
@@ -109,18 +126,30 @@ async function generate(system: string, parts: AiPart[], json: boolean, temperat
 /** Plain-text answer. */
 export async function aiText(db: SupabaseClient<Database>, feature: AiFeature, system: string, parts: AiPart[], who?: string): Promise<string> {
   await reserveAiCall(db, feature, who);
-  const out = await generate(system, parts, false, 0.5);
-  if (!out) throw new AiError("The AI helper returned nothing — please try again.", 502);
-  return out;
+  try {
+    const out = await generate(system, parts, false, 0.5);
+    if (!out) throw new AiError("The AI helper returned nothing — please try again.", 502);
+    return out;
+  } catch (e) {
+    await releaseAiCall(db, 1);
+    throw e;
+  }
 }
 
 /** JSON answer, parsed (Gemini sometimes wraps JSON in a code fence). */
 export async function aiJson<T>(db: SupabaseClient<Database>, feature: AiFeature, system: string, parts: AiPart[], who?: string): Promise<T> {
   await reserveAiCall(db, feature, who);
-  const out = await generate(system, parts, true, 0.3);
+  let out: string;
+  try {
+    out = await generate(system, parts, true, 0.3);
+  } catch (e) {
+    await releaseAiCall(db, 1);
+    throw e;
+  }
   try {
     return JSON.parse(out.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "")) as T;
   } catch {
+    await releaseAiCall(db, 1);
     throw new AiError("The AI helper's answer couldn't be read — please try again.", 502);
   }
 }
@@ -139,7 +168,11 @@ const AI_IMAGE_TIMEOUT_MS = 45_000;
 export async function aiImage(db: SupabaseClient<Database>, feature: AiFeature, prompt: string, images: { mimeType: string; data: string }[], who?: string): Promise<{ mimeType: string; data: string }> {
   await reserveAiCall(db, feature, who, IMAGE_CALL_WEIGHT);
   const apiKey = await resolveGeminiApiKey();
-  if (!apiKey) throw new AiError("AI isn't set up yet — an admin needs to add the Gemini key under Settings → AI Copilot.", 501);
+  if (!apiKey) {
+    // Worth three requests against the cap, and the key was never even there to try.
+    await releaseAiCall(db, IMAGE_CALL_WEIGHT);
+    throw new AiError("AI isn't set up yet — an admin needs to add the Gemini key under Settings → AI Copilot.", 501);
+  }
   const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: AI_IMAGE_TIMEOUT_MS } });
   try {
     const res = await ai.models.generateContent({
@@ -151,6 +184,7 @@ export async function aiImage(db: SupabaseClient<Database>, feature: AiFeature, 
     if (!part?.inlineData?.data) throw new AiError("The AI didn't return a picture this time — try a clearer photo.", 502);
     return { mimeType: part.inlineData.mimeType || "image/png", data: part.inlineData.data };
   } catch (e) {
+    await releaseAiCall(db, IMAGE_CALL_WEIGHT);
     if (e instanceof AiError) throw e;
     console.error("AI image call failed:", e);
     throw new AiError("The picture preview couldn't be made just now — please try again.", 502);

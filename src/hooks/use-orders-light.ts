@@ -33,10 +33,17 @@ async function fetchOrdersLight(): Promise<OrderLight[]> {
  *  derivation of useOrders()'s cache — the whole point is to NOT force every page that only
  *  needs id/name/status/dates to pull the heavy columns just because something else on the app
  *  shares useOrders()'s key. */
-export function useOrdersLight() {
+/**
+ * `enabled` exists for the topbar search box, which is mounted on every page and used on
+ * almost none of them: it holds these record hooks off until someone actually types, instead
+ * of pulling whole tables down on every single page load. Every other caller wants the data
+ * immediately and leaves it alone.
+ */
+export function useOrdersLight(enabled = true) {
   return useQuery({
     queryKey: ["orders-light"],
     queryFn: fetchOrdersLight,
     staleTime: 30_000,
+    enabled,
   });
 }

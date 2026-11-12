@@ -5,7 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 import { computeInvoiceTotals, type DiscountType } from "@/lib/invoice-totals";
 import { type GstType } from "@/lib/gst";
-import { genInvoiceNumber, type SalesLineItem } from "@/lib/sales";
+import { computeLineAmount, genInvoiceNumber, type SalesLineItem } from "@/lib/sales";
 import { DEFAULT_DOCUMENT_NUMBERING, formatDocNumber, periodKeyFor, type DocumentNumberingSettings } from "@/lib/document-numbering";
 import { canActOnLead } from "@/lib/targets-server";
 
@@ -189,9 +189,14 @@ export async function POST(request: Request) {
   // client-side since it was added, which could be stale or wrong).
   const costById = new Map<string, number>();
   for (const p of productRows?.data || []) costById.set(p.id, p.cost_price || 0);
+  // `amount` is re-derived too, on the same reasoning as costPrice: it is the taxable value
+  // every GST figure and the invoice total are built from, so a request that posted
+  // `qty: 10, unitPrice: 2000, amount: 100` otherwise stored a ₹100 sale with ₹18 of tax while
+  // printing "10 × ₹2,000" and shipping ten units of stock.
   const itemsWithVerifiedCost: SalesLineItem[] = fd.items.map((i) => ({
     ...i,
     costPrice: i.productId ? costById.get(i.productId) ?? 0 : 0,
+    amount: computeLineAmount(i),
   })) as SalesLineItem[];
 
   const totals = computeInvoiceTotals(

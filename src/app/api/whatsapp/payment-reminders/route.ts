@@ -50,7 +50,16 @@ export async function GET(req: Request) {
 
   // Sales invoices — balance is derived the same way useSalesInvoices() does client-side.
   const [{ data: invoiceRows }, { data: paymentRows }, { data: creditRows }] = await Promise.all([
-    supabase.from("sales_invoices").select("id, customer_mobile, customer_name, total, due_date").not("due_date", "is", null),
+    // Drafts, voids and cancellations are not money owed — the same exclusion
+    // targets-server.ts's fetchSaleFacts and collections.ts already apply. Without it this
+    // cron auto-sent a WhatsApp "₹X is due" to customers over half-finished drafts and
+    // cancelled invoices, with no human in the loop, and merged the bogus figure into their
+    // genuine order balance so the amount was wrong too.
+    supabase
+      .from("sales_invoices")
+      .select("id, customer_mobile, customer_name, total, due_date")
+      .not("due_date", "is", null)
+      .not("doc_status", "in", "(draft,void,cancelled)"),
     supabase.from("sales_payments").select("invoice_id, amount"),
     supabase.from("sales_credit_notes").select("invoice_id, total"),
   ]);

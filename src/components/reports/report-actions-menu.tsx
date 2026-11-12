@@ -5,6 +5,7 @@ import { exportXLSX, printReport } from "@/lib/export";
 import { buildReportWhatsAppUrl } from "@/lib/report-share";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { escapeHtml } from "@/lib/escape-html";
 
 /**
  * The one export/share action every report needs: Excel, PDF and WhatsApp, in a single menu
@@ -43,9 +44,13 @@ export function ReportActionsMenu({
   const disabled = rows.length === 0;
 
   function buildTableHtml(): string {
+    // Every cell is escaped. Report rows carry customer, product and lead names — and a lead
+    // name arrives from the public enquiry form, with no login — so an unescaped cell put
+    // attacker-controlled markup into the printed document, which opens on this app's own
+    // origin and can read the staff session out of localStorage.
     const keys = Object.keys(rows[0] || {});
-    const head = `<tr>${keys.map((k) => `<th>${k}</th>`).join("")}</tr>`;
-    const body = rows.map((r) => `<tr>${keys.map((k) => `<td>${r[k] ?? ""}</td>`).join("")}</tr>`).join("");
+    const head = `<tr>${keys.map((k) => `<th>${escapeHtml(k)}</th>`).join("")}</tr>`;
+    const body = rows.map((r) => `<tr>${keys.map((k) => `<td>${escapeHtml(r[k] ?? "")}</td>`).join("")}</tr>`).join("");
     return `<table><thead>${head}</thead><tbody>${body}</tbody></table>`;
   }
 

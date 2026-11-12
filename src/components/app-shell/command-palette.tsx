@@ -29,7 +29,6 @@ import { Sparkles } from "lucide-react";
 export function CommandTrigger() {
   const router = useRouter();
   const { data: user } = useCurrentUser();
-  const { data: orders } = useOrdersLight();
   const { data: entitlements } = useModuleEntitlements();
   const restricted = !!user?.restricted;
   const isAdmin = user?.role === "admin";
@@ -37,13 +36,21 @@ export function CommandTrigger() {
   // Same "restricted role" gate the Customers/Employees nav items themselves use — a
   // record-search result is exactly as sensitive as the page it would otherwise require
   // navigating to, so it's gated the same way rather than left as a search-only backdoor.
-  const { data: customers } = useCustomers();
-  const { data: invoices } = useSalesInvoices();
-  const { data: products } = useProducts();
-  const { data: employeeDirectory } = useEmployees();
-
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+
+  // This component lives in the topbar, so it is mounted on every authenticated page —
+  // Settings included. Fetching records unconditionally meant ~10 full-table queries (orders,
+  // customers, invoices + payments + credit notes, products + BOM + stock + units, employees)
+  // on every page load, before the page's own data was even requested. It was the single
+  // biggest reason the whole app felt slow. Nothing is fetched now until someone has actually
+  // typed something to search for; results arrive a moment after the first two characters.
+  const searching = open && query.trim().length >= 2;
+  const { data: orders } = useOrdersLight(searching);
+  const { data: customers } = useCustomers(searching);
+  const { data: invoices } = useSalesInvoices(searching);
+  const { data: products } = useProducts(searching);
+  const { data: employeeDirectory } = useEmployees(searching);
   const smartOn = useAiOn("search");
   const smart = useSmartSearch();
   const numbersOn = useAiOn("numbers") && !!user?.perms.viewReports && !restricted;

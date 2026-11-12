@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAll } from "@/lib/fetch-all";
 import { mapPayrollRunRow, mapPayslipRow, mapEmployeeAdvanceRow, type Payslip, type PayrollRun } from "@/lib/types";
 
 async function fetchPayrollRuns() {
@@ -51,9 +52,10 @@ export function usePayslipsForRun(runId: string) {
 
 async function fetchAllPayslips() {
   const supabase = createClient();
-  const { data, error } = await supabase.from("payslips").select("*");
-  if (error) throw error;
-  return (data || []).map(mapPayslipRow);
+  // Paged past PostgREST's 1000-row cap — the Salary Report sums these, so a truncated fetch
+  // understates what the shop has paid out.
+  const rows = await fetchAll((from, to) => supabase.from("payslips").select("*").range(from, to));
+  return rows.map(mapPayslipRow);
 }
 
 /** Every payslip ever generated, across all runs — feeds the Salary Report (join against usePayrollRuns() by payrollRunId for period dates). */

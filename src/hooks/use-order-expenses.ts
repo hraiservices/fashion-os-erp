@@ -3,13 +3,15 @@
 import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAll } from "@/lib/fetch-all";
 import { mapOrderExpenseRow, type OrderExpense } from "@/lib/types";
 
 async function fetchOrderExpenses(): Promise<OrderExpense[]> {
   const supabase = createClient();
-  const { data, error } = await supabase.from("order_expenses").select("*");
-  if (error) throw error;
-  return (data || []).map(mapOrderExpenseRow);
+  // Paged past PostgREST's 1000-row cap — these rows are the cost side of Order
+  // Profitability, so a truncated fetch understates costs and overstates profit, silently.
+  const rows = await fetchAll((from, to) => supabase.from("order_expenses").select("*").range(from, to));
+  return rows.map(mapOrderExpenseRow);
 }
 
 /** All stitching-order expense rows, shop-wide — same "fetch the whole (small) table, group in

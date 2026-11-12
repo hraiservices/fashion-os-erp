@@ -21,7 +21,11 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const { ids } = parsed.data;
 
-  const { data: ledgerRows } = await db.from("inventory_ledger").select("item_id").eq("item_type", "product").in("item_id", ids);
+  // The error is checked, not discarded: on a failed read `ledgerRows` is null, so blockedIds
+  // is empty and every product in the batch — stock history and all — gets deleted, with the
+  // response still reporting success.
+  const { data: ledgerRows, error: ledgerError } = await db.from("inventory_ledger").select("item_id").eq("item_type", "product").in("item_id", ids);
+  if (ledgerError) return NextResponse.json({ error: `Couldn't check stock history — ${ledgerError.message}` }, { status: 500 });
   const blockedIds = new Set((ledgerRows || []).map((r) => r.item_id));
   const deletableIds = ids.filter((id) => !blockedIds.has(id));
 

@@ -201,7 +201,7 @@ export function LeadAttachments({ leadId, canEdit }: { leadId: string; canEdit: 
       <AttachmentAiDialog leadId={leadId} attachment={aiFor} onClose={() => setAiFor(null)} />
 
       <Dialog open={!!lightbox} onOpenChange={(v) => !v && setLightbox(null)}>
-        <DialogContent className="max-w-3xl p-2 sm:p-3">
+        <DialogContent className="sm:max-w-3xl p-2 sm:p-3">
           <DialogTitle className="sr-only">{lightbox?.name}</DialogTitle>
           {lightbox?.url && (
             // eslint-disable-next-line @next/next/no-img-element -- signed Storage URL

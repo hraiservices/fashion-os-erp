@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Paperclip, X, ChevronLeft, ChevronRight } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 /** Minimum horizontal drag (px) before a touch gesture counts as a swipe rather than a tap —
  *  low enough to feel responsive, high enough that a tap-to-close doesn't misfire as a swipe. */
@@ -84,7 +84,12 @@ export function OrderAttachments({ images, audios, videos }: { images: string[];
       </div>
 
       <Dialog open={lightboxIndex !== null} onOpenChange={(o) => !o && setLightboxIndex(null)}>
-        <DialogContent className="max-w-3xl p-2">
+        {/* showCloseButton={false} because this lightbox draws its own X over the photo —
+            without it there were two overlapping close targets in the same corner. The title is
+            screen-reader-only: every other dialog in the app has one, and a dialog without one
+            is announced unnamed. */}
+        <DialogContent className="sm:max-w-3xl p-2" showCloseButton={false}>
+          <DialogTitle className="sr-only">Attachment</DialogTitle>
           {lightboxIndex !== null && (
             <div className="relative" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
               {/* eslint-disable-next-line @next/next/no-img-element */}

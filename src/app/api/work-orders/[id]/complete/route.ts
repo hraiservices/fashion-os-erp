@@ -11,8 +11,12 @@ const materialSchema = z.object({
   unitName: z.string(),
   unitCost: z.number(),
   qtyPlanned: z.number(),
-  qtyUsed: z.number().nullable(),
-  qtyWasted: z.number().nullable(),
+  // Non-negative, or a negative qtyUsed flips the consumption movement positive:
+  // guard_stock_not_negative only inspects movement < 0, so the row inserted as
+  // work_order_consume with a POSITIVE movement and created raw-material stock out of
+  // nothing, while computeWoCost froze a negative material cost on the work order.
+  qtyUsed: z.number().min(0).nullable(),
+  qtyWasted: z.number().min(0).nullable(),
 });
 
 const bodySchema = z.object({ materials: z.array(materialSchema) });

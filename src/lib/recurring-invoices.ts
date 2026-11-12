@@ -18,6 +18,17 @@ export const RECURRING_END_TYPE_LABELS: Record<RecurringEndType, string> = {
   after_count: "After N invoices",
 };
 
+/** Formats a Date as YYYY-MM-DD from its LOCAL parts.
+ *
+ *  Not `toISOString().slice(0, 10)`, which is the bug this replaces: `new Date(dateStr +
+ *  "T00:00:00")` parses in local time, so on any host east of UTC (TZ=Asia/Kolkata, which this
+ *  codebase assumes everywhere else) local midnight is 18:30 UTC the day BEFORE, and every
+ *  advance returned the previous day. Cumulatively: a subscription billed on the 15th walked
+ *  to the 14th, then the 13th. It survived only because Vercel runs on UTC. */
+function localDateString(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 /** Adds `months` calendar months to a YYYY-MM-DD date, clamping to the last day of the target
  *  month when the naive add would overflow (e.g. Jan 31 + 1 month is Feb 28/29, not Mar 3 —
  *  `Date.setMonth` overflows into the following month instead). Handles the yearly case too
@@ -29,7 +40,7 @@ function addMonthsClamped(dateStr: string, months: number): string {
   d.setMonth(d.getMonth() + months);
   const daysInTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
   d.setDate(Math.min(day, daysInTargetMonth));
-  return d.toISOString().slice(0, 10);
+  return localDateString(d);
 }
 
 /** Advances a YYYY-MM-DD date string by one cycle of the given frequency. */
@@ -38,7 +49,7 @@ export function advanceRecurringDate(dateStr: string, frequency: RecurringFreque
     case "weekly": {
       const d = new Date(dateStr + "T00:00:00");
       d.setDate(d.getDate() + 7);
-      return d.toISOString().slice(0, 10);
+      return localDateString(d);
     }
     case "monthly":
       return addMonthsClamped(dateStr, 1);

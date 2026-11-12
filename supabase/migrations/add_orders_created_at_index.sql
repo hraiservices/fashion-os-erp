@@ -1,0 +1,13 @@
+-- Index on orders.created_at — the column every orders query sorts by.
+--
+-- useOrders(), useOrdersLight() and useUrgentOrdersSummary() all end in
+-- `.order("created_at", { ascending: false })`, and all three run on page load (the last one
+-- from the notification bell, on every page). orders carried indexes on in_date, tailor, lead
+-- and a GIN index on garments, but nothing on created_at — so each of those was a sequential
+-- scan plus an external sort, and in useOrders()'s case the sort carried the wide JSONB
+-- columns (garments, history, measurements, payments) along with it.
+--
+-- DESC to match the query direction. Postgres can read a B-tree backwards, so an ASC index
+-- would serve these too, but matching the sort order keeps the plan a plain forward scan and
+-- makes this the natural key once the list pages move to keyset pagination.
+create index if not exists idx_orders_created_at on orders (created_at desc);

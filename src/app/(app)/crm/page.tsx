@@ -85,7 +85,7 @@ const CUSTOMER_LIST_AUTO_HIDE = { belowWidth: 1920, keys: ["invoices", "spent", 
 function CrmContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { profiles, isLoading } = useCustomerProfiles();
+  const { profiles, isLoading, isError: profilesError, refetch: refetchProfiles } = useCustomerProfiles();
   const { data: loyaltyCfg } = useLoyaltyConfig();
   const { data: user } = useCurrentUser();
   const { data: shop } = useShopSettings();
@@ -413,6 +413,19 @@ function CrmContent() {
             <Skeleton key={i} className="h-44 w-full" />
           ))}
         </div>
+      ) : profilesError ? (
+        // Not the same as "nothing here yet" — a failed fetch used to render the empty state,
+        // which reads as a fact about the shop rather than a network problem.
+        <EmptyState
+          icon={UsersDuotoneIcon}
+          title="Couldn't load customers"
+          description="Something went wrong fetching your customers — this is not the same as having none."
+          action={
+            <Button variant="outline" onClick={() => refetchProfiles()}>
+              Try again
+            </Button>
+          }
+        />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={UsersDuotoneIcon}

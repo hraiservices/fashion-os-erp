@@ -38,7 +38,10 @@ const firstName = (name: string) => name.trim().split(/\s+/)[0] || "";
 
 /** Fills {name} and {product}. A missing product reads naturally ("your enquiry") instead of leaving a hole. */
 export function fillTemplate(text: string, lead: { name: string; productInterest?: string }): string {
+  // Function replacements, not string ones — `$&`, `` $` `` and `$1` inside a name or a
+  // product interest are special in a string replacement and would be reinterpreted rather
+  // than inserted literally.
   return text
-    .replace(/\{name\}/gi, firstName(lead.name) || "there")
-    .replace(/\{product\}/gi, lead.productInterest?.trim() || "your enquiry");
+    .replace(/\{name\}/gi, () => firstName(lead.name) || "there")
+    .replace(/\{product\}/gi, () => lead.productInterest?.trim() || "your enquiry");
 }

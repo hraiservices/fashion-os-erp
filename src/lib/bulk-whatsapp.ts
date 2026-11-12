@@ -12,7 +12,10 @@ import { normalizeIndianMobile } from "@/lib/business-rules";
 const NAME_TOKEN_RE = /\{name\}/gi;
 
 export function applyNameTemplate(template: string, name: string): string {
-  return template.replace(NAME_TOKEN_RE, name || "there");
+  // A function replacement, not a string one: String.replace reinterprets $&, $` and $1 in a
+  // string replacement, so a customer name containing "$&" duplicated the {name} token into
+  // the message instead of filling it.
+  return template.replace(NAME_TOKEN_RE, () => name || "there");
 }
 
 export function buildBulkWhatsAppUrl(mobile: string, name: string, template: string): string {

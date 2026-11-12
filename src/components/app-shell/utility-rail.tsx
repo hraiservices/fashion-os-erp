@@ -26,7 +26,6 @@ import {
   QrCode,
   Loader2,
 } from "lucide-react";
-import QRCode from "qrcode";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
@@ -1017,7 +1016,11 @@ function QrSharePopover() {
     setGenerating(true);
     const myGenId = ++genIdRef.current;
     timerRef.current = setTimeout(() => {
-      QRCode.toDataURL(trimmed, { margin: 1, width: 220 })
+      // Imported here, not at module scope. UtilityRail is mounted by the app layout on every
+      // page (hidden below lg, but still in the bundle), so a static import shipped the whole
+      // qrcode library in the chunk every page loads — for a popover almost nobody opens.
+      import("qrcode")
+        .then((QRCode) => QRCode.toDataURL(trimmed, { margin: 1, width: 220 }))
         .then((url) => {
           if (genIdRef.current === myGenId) setDataUrl(url);
         })

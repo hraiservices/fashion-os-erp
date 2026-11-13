@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Trash2, Calculator } from "lucide-react";
@@ -116,7 +117,7 @@ export default function CostEstimatorPage() {
                   <Link href={`/cost-estimator/${s.id}/edit`} className="min-w-0 flex-1">
                     <p className="truncate font-medium">{s.product_name}</p>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {s.cost_sheet_no} · {fmtDate(s.date)}
+                      {s.cost_sheet_no} · <DateText>{fmtDate(s.date)}</DateText>
                     </p>
                   </Link>
                   <DeleteButton id={s.id} sheetNo={s.cost_sheet_no} product={s.product_name} />

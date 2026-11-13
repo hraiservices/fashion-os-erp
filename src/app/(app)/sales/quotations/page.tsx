@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -113,7 +114,7 @@ export default function QuotationsPage() {
                     <Badge variant="outline">{QUOTE_STATUS_LABELS[q.status]}</Badge>
                   </div>
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {q.customerName} · {fmtDate(q.date)}
+                    {q.customerName} · <DateText>{fmtDate(q.date)}</DateText>
                   </p>
                 </div>
                 <p className="shrink-0 text-sm font-semibold tabular-nums">{inr(q.total)}</p>

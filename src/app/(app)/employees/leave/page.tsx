@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CalendarClock, Check, X } from "lucide-react";
@@ -44,13 +45,13 @@ function RequestCard({
           <span className={`rounded-full border px-1.5 py-0 text-[10px] font-medium ${STATUS_TONE[request.status]}`}>{request.status}</span>
         </div>
         <p className="text-xs text-muted-foreground">
-          {leaveTypeName} · {fmtDate(request.fromDate)}{request.toDate !== request.fromDate ? ` – ${fmtDate(request.toDate)}` : ""} · {request.days}d
+          {leaveTypeName} · <DateText>{fmtDate(request.fromDate)}</DateText>{request.toDate !== request.fromDate ? <> – <DateText>{fmtDate(request.toDate)}</DateText></> : ""} · {request.days}d
         </p>
         {request.reason && <p className="mt-1 text-xs text-muted-foreground">&ldquo;{request.reason}&rdquo;</p>}
         {request.status === "rejected" && request.rejectionReason && (
           <p className="mt-1 text-xs text-red-600 dark:text-red-400">Rejected: {request.rejectionReason}</p>
         )}
-        <p className="mt-0.5 text-[11px] text-muted-foreground">Requested {fmtDate(request.requestedAt.slice(0, 10))}</p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">Requested <DateText>{fmtDate(request.requestedAt.slice(0, 10))}</DateText></p>
       </div>
       {actions}
     </div>

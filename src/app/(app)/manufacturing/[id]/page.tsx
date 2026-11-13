@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -123,9 +124,9 @@ export default function WorkOrderDetailPage({ params }: { params: Promise<{ id: 
             {wo.qtyToProduce}x {wo.productName} · {wo.tailor ? tailorName(wo.tailor) : "Unassigned"}
           </p>
           <p className="text-xs text-muted-foreground">
-            Start {fmtDate(wo.startDate)}
-            {wo.dueDate && ` · Due ${fmtDate(wo.dueDate)}`}
-            {wo.completedAt && ` · Completed ${fmtDate(wo.completedAt)}`}
+            Start <DateText>{fmtDate(wo.startDate)}</DateText>
+            {wo.dueDate && <> · Due <DateText>{fmtDate(wo.dueDate)}</DateText></>}
+            {wo.completedAt && <> · Completed <DateText>{fmtDate(wo.completedAt)}</DateText></>}
           </p>
         </div>
         <Badge variant={wo.status === "completed" ? "secondary" : "outline"}>{WO_STATUS_LABELS[wo.status]}</Badge>

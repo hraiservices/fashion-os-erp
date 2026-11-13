@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import Link from "next/link";
@@ -137,7 +138,7 @@ export default function PayableDetailsPage() {
                   </Link>
                 </Td>
                 <Td>{vendorNameById.get(b.vendorId) || "Unknown vendor"}</Td>
-                <Td className="text-muted-foreground">{fmtDate(b.billDate)}</Td>
+                <Td className="text-muted-foreground"><DateText>{fmtDate(b.billDate)}</DateText></Td>
                 <Td className="text-muted-foreground">{b.dueDate ? fmtDate(b.dueDate) : "—"}</Td>
                 <Td align="right" className="text-muted-foreground">{inr(b.total)}</Td>
                 <Td align="right" className="font-medium">{inr(b.balance)}</Td>

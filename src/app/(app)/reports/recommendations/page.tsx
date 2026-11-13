@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Sparkles, Send, CheckCircle2 } from "lucide-react";
@@ -218,7 +219,7 @@ export default function RecommendationsReportPage() {
                           {rec.channel === "whatsapp_api" ? "API" : "wa.me"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{fmtDate(rec.createdAt)}</TableCell>
+                      <TableCell className="text-muted-foreground"><DateText>{fmtDate(rec.createdAt)}</DateText></TableCell>
                       <TableCell>
                         {converted ? (
                           <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">

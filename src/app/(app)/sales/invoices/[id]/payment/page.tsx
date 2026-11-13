@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -183,7 +184,7 @@ export default function RecordSalesPaymentPage({ params }: { params: Promise<{ i
                       <Link href={`/sales/invoices/${inv.id}`} className="flex items-center justify-between gap-2 rounded-lg border bg-muted/30 p-2.5 text-sm hover:bg-muted/60">
                         <span>
                           <span className="font-medium">{inv.invoiceNumber}</span>
-                          <span className="block text-xs text-muted-foreground">{fmtDate(inv.invoiceDate)}</span>
+                          <span className="block text-xs text-muted-foreground"><DateText>{fmtDate(inv.invoiceDate)}</DateText></span>
                         </span>
                         <BalanceDue amount={inv.balance} paidLabel={inr(inv.balance)} className="shrink-0" />
                       </Link>

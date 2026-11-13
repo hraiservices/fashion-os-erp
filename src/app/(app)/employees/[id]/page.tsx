@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { use, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -216,7 +217,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">{inr(a.amount)}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {fmtDate(a.date)} {a.note && `· ${a.note}`} {a.payslipId ? "· Deducted" : "· Pending"}
+                      <DateText>{fmtDate(a.date)}</DateText> {a.note && `· ${a.note}`} {a.payslipId ? "· Deducted" : "· Pending"}
                     </p>
                   </div>
                   {!a.payslipId && (

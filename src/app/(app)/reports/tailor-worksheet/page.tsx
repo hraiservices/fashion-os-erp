@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useQuery } from "@tanstack/react-query";
 import { Download, AlertTriangle, Share2, Shirt } from "lucide-react";
 import { ReportShell } from "@/components/reports/report-shell";
@@ -38,7 +39,7 @@ function GarmentLine({ g }: { g: WorksheetGarment }) {
       </div>
       <div className="shrink-0 text-right">
         <p className="font-medium">Qty {g.qty}</p>
-        {g.deliveryDate && <p className="text-xs text-muted-foreground">Due {fmtDate(g.deliveryDate)}</p>}
+        {g.deliveryDate && <p className="text-xs text-muted-foreground">Due <DateText>{fmtDate(g.deliveryDate)}</DateText></p>}
       </div>
     </div>
   );

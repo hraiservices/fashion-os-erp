@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -425,7 +426,7 @@ export default function SalesInvoicesPage() {
                         <Checkbox checked={selection.selected.has(inv.id)} onChange={() => selection.toggle(inv.id)} aria-label={`Select invoice ${inv.invoiceNumber}`} />
                       </TableCell>
                     )}
-                    {table.isVisible("date") && <TableCell className="text-muted-foreground">{fmtDate(inv.invoiceDate)}</TableCell>}
+                    {table.isVisible("date") && <TableCell className="text-muted-foreground"><DateText>{fmtDate(inv.invoiceDate)}</DateText></TableCell>}
                     {table.isVisible("customer") && (
                       <TableCell>
                         <div className="flex items-center gap-1">

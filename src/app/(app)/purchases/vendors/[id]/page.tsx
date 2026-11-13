@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { use } from "react";
 import Link from "next/link";
 import { Phone, Mail, MapPin, FileText, ChevronRight } from "lucide-react";
@@ -124,7 +125,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
                       <span className="text-sm font-medium">{b.billNumber}</span>
                       <Badge variant={b.paymentStatus === "paid" ? "secondary" : "outline"}>{BILL_STATUS_LABELS[b.paymentStatus]}</Badge>
                     </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{fmtDate(b.billDate)}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground"><DateText>{fmtDate(b.billDate)}</DateText></p>
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="text-sm font-semibold tabular-nums">{inr(b.total)}</p>
@@ -154,7 +155,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
                       <span className="text-sm font-medium">{o.poNumber}</span>
                       <Badge variant="outline">{PO_STATUS_LABELS[o.status]}</Badge>
                     </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{fmtDate(o.date)}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground"><DateText>{fmtDate(o.date)}</DateText></p>
                   </div>
                   <p className="shrink-0 text-sm font-semibold tabular-nums">{inr(o.total)}</p>
                   <ChevronRight className="size-4 shrink-0 text-muted-foreground" />

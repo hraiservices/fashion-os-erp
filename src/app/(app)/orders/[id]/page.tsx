@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -459,7 +460,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <div className="mt-3 rounded-lg border bg-muted/60 p-3 text-sm">
               <p className="font-medium">This order was cancelled</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {order.cancelReason || "No reason recorded"} · {fmtDate(order.cancelledAt)}
+                {order.cancelReason || "No reason recorded"} · <DateText>{fmtDate(order.cancelledAt)}</DateText>
                 {order.cancelledBy ? ` · by ${order.cancelledBy}` : ""}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -836,7 +837,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                       <span className="ml-1.5 text-xs font-normal text-muted-foreground">via {p.method}</span>
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {fmtDate(p.createdAt)}
+                      <DateText>{fmtDate(p.createdAt)}</DateText>
                       {p.note ? ` — ${p.note}` : ""}
                     </p>
                   </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -556,7 +557,7 @@ export default function DayBookPage() {
       {mode !== "day" && (
         <>
           <p className="text-sm font-medium text-muted-foreground">
-            {fmtDate(range.from)} – {fmtDate(range.to)}
+            <DateText>{fmtDate(range.from)}</DateText> – <DateText>{fmtDate(range.to)}</DateText>
           </p>
           {rangeQuery.isLoading && <Skeleton className="h-96 w-full" />}
           {rangeQuery.isError && (

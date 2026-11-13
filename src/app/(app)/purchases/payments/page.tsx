@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -202,7 +203,7 @@ export default function VendorPaymentsPage() {
                         <Checkbox checked={selection.selected.has(p.id)} onChange={() => selection.toggle(p.id)} aria-label={`Select payment of ${inr(p.amount)}`} />
                       </TableCell>
                     )}
-                    <TableCell className="text-muted-foreground">{fmtDate(p.date)}</TableCell>
+                    <TableCell className="text-muted-foreground"><DateText>{fmtDate(p.date)}</DateText></TableCell>
                     <TableCell className="font-medium">{vendorNameById.get(p.vendorId) || "—"}</TableCell>
                     <TableCell>
                       {bill ? (

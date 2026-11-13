@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { FileMinus } from "lucide-react";
@@ -168,7 +169,7 @@ export default function VendorCreditDetailsPage() {
               return (
                 <tr key={c.id} className="hover:bg-muted/30">
                   <Td className="font-medium">{c.creditNumber}</Td>
-                  <Td className="text-muted-foreground">{fmtDate(c.date)}</Td>
+                  <Td className="text-muted-foreground"><DateText>{fmtDate(c.date)}</DateText></Td>
                   <Td>{vendorNameById.get(c.vendorId) || "Unknown vendor"}</Td>
                   <Td>
                     {bill ? (

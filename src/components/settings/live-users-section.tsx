@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { Radio, History, Mail, Phone, KeyRound } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -50,7 +51,7 @@ function EventRow({ event }: { event: LoginEvent }) {
       )}
       <MethodBadge method={event.method} />
       <span className="text-xs text-muted-foreground">
-        {fmtDate(event.occurredAt)}, {fmtTime(event.occurredAt)}
+        <DateText>{fmtDate(event.occurredAt)}</DateText>, {fmtTime(event.occurredAt)}
       </span>
     </div>
   );

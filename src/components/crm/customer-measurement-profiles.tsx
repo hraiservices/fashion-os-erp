@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -135,7 +136,7 @@ export function CustomerMeasurementProfiles({ cust }: { cust: CustomerProfile })
                 </div>
               )}
             </div>
-            <p className="mb-2 text-xs text-muted-foreground">Updated {fmtDate(p.updatedAt)}</p>
+            <p className="mb-2 text-xs text-muted-foreground">Updated <DateText>{fmtDate(p.updatedAt)}</DateText></p>
             <MeasurementView fields={measureFields} values={p.values} />
           </div>
         ))}

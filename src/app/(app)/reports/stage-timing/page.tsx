@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { ClockDuotoneIcon } from "@/components/icons/duotone-icons";
@@ -235,7 +236,7 @@ export default function StageTimingPage() {
                       {sortedRows.map((r) => (
                         <tr key={r.id} className="hover:bg-muted/30">
                           <Td className="whitespace-nowrap text-muted-foreground">
-                            {fmtDate(r.changedAt)}, {fmtTime(r.changedAt)}
+                            <DateText>{fmtDate(r.changedAt)}</DateText>, {fmtTime(r.changedAt)}
                           </Td>
                           <Td className="font-medium">{r.orderId}</Td>
                           <Td>{r.customerName}</Td>

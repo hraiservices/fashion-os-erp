@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Plus, Trash2, CalendarDays, Umbrella } from "lucide-react";
@@ -201,7 +202,7 @@ function HolidaysCard() {
               <div key={h.id} className="flex items-center gap-3 rounded-lg border p-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">{h.name}</p>
-                  <p className="text-xs text-muted-foreground">{fmtDate(h.date)}</p>
+                  <p className="text-xs text-muted-foreground"><DateText>{fmtDate(h.date)}</DateText></p>
                 </div>
                 <Button variant="ghost" size="icon-sm" aria-label={`Remove ${h.name}`} onClick={() => handleDelete(h.id)}>
                   <Trash2 className="size-3.5" />

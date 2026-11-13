@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Clock } from "lucide-react";
@@ -157,8 +158,8 @@ export default function TimeToGetPaidPage() {
                     </Td>
                     <Td>{r.customerName}</Td>
                     <Td className="text-muted-foreground">{r.customerMobile}</Td>
-                    <Td className="text-muted-foreground">{fmtDate(r.invoiceDate)}</Td>
-                    <Td className="text-muted-foreground">{fmtDate(r.lastPaymentDate)}</Td>
+                    <Td className="text-muted-foreground"><DateText>{fmtDate(r.invoiceDate)}</DateText></Td>
+                    <Td className="text-muted-foreground"><DateText>{fmtDate(r.lastPaymentDate)}</DateText></Td>
                     <Td align="right" className={r.days <= 7 ? "text-emerald-600 dark:text-emerald-400" : r.days <= 30 ? "" : "text-red-600 dark:text-red-400"}>
                       {r.days}d
                     </Td>

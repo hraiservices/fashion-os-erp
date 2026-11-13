@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -217,8 +218,8 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
             </h1>
             {invoice.subject && <p className="mt-0.5 text-sm">{invoice.subject}</p>}
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {invoice.invoiceNumber} · {fmtDate(invoice.invoiceDate)}
-              {invoice.dueDate && ` · Due ${fmtDate(invoice.dueDate)}`}
+              {invoice.invoiceNumber} · <DateText>{fmtDate(invoice.invoiceDate)}</DateText>
+              {invoice.dueDate && <> · Due <DateText>{fmtDate(invoice.dueDate)}</DateText></>}
             </p>
             {customer?.gstin && <p className="mt-0.5 text-xs text-muted-foreground">Customer GSTIN: {customer.gstin}</p>}
           </div>
@@ -416,7 +417,7 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
                     <div>
                       <p>{p.method}</p>
                       <p className="text-xs text-muted-foreground">
-                        {fmtDate(p.date)}
+                        <DateText>{fmtDate(p.date)}</DateText>
                         {p.note && ` · ${p.note}`}
                       </p>
                     </div>
@@ -438,7 +439,7 @@ export default function SalesInvoiceDetailPage({ params }: { params: Promise<{ i
                     <div>
                       <p>{c.creditNumber}</p>
                       <p className="text-xs text-muted-foreground">
-                        {fmtDate(c.date)} · {c.reason}
+                        <DateText>{fmtDate(c.date)}</DateText> · {c.reason}
                       </p>
                     </div>
                     <span className="font-medium tabular-nums text-red-600 dark:text-red-400">-{inr(c.total)}</span>

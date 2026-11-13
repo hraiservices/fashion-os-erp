@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { use } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -94,8 +95,8 @@ export default function QuotationDetailPage({ params }: { params: Promise<{ id: 
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{quote.customerName}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {quote.quoteNumber} · {fmtDate(quote.date)}
-            {quote.validUntil && ` · Valid until ${fmtDate(quote.validUntil)}`}
+            {quote.quoteNumber} · <DateText>{fmtDate(quote.date)}</DateText>
+            {quote.validUntil && <> · Valid until <DateText>{fmtDate(quote.validUntil)}</DateText></>}
           </p>
         </div>
         <Badge variant="outline">{QUOTE_STATUS_LABELS[quote.status]}</Badge>

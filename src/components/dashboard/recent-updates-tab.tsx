@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { Sparkles } from "lucide-react";
 import { SHIPPED_UPDATES, UPCOMING_FEATURES } from "@/lib/changelog";
 import { fmtDate } from "@/lib/format";
@@ -19,7 +20,7 @@ export function RecentUpdatesTab() {
               <li key={`${entry.date}-${entry.title}`} className="relative pl-6">
                 {i < SHIPPED_UPDATES.length - 1 && <span className="absolute top-3 left-[5px] h-[calc(100%+0.75rem)] w-px bg-border" aria-hidden />}
                 <span className={cn("absolute top-1 left-0 size-[11px] rounded-full border-2", i === 0 ? "border-primary bg-primary" : "border-primary bg-background")} aria-hidden />
-                <p className="text-xs text-muted-foreground">{fmtDate(entry.date)}</p>
+                <p className="text-xs text-muted-foreground"><DateText>{fmtDate(entry.date)}</DateText></p>
                 <h3 className="mt-1 text-base font-semibold">{entry.title}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">{entry.description}</p>
               </li>

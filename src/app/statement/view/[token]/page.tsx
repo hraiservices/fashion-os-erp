@@ -1,3 +1,4 @@
+import { DateText } from "@/components/ui/date-text";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchPublicCustomerStatement } from "@/lib/public-customer-statement";
@@ -46,7 +47,7 @@ export default async function PublicCustomerStatementPage({ params }: { params: 
         </div>
         <div className="text-right">
           <p className="text-lg font-semibold tracking-tight">Customer Statement</p>
-          <p className="text-xs text-muted-foreground">Generated {fmtDate(new Date().toISOString())}</p>
+          <p className="text-xs text-muted-foreground">Generated <DateText>{fmtDate(new Date().toISOString())}</DateText></p>
         </div>
       </div>
 

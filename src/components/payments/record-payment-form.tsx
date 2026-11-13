@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -441,7 +442,7 @@ export function RecordPaymentForm({ initialMobile }: { initialMobile?: string })
                 <tbody className="divide-y">
                   {rows.map((r) => (
                     <tr key={`${r.kind}-${r.id}`}>
-                      <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{fmtDate(r.date)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-muted-foreground"><DateText>{fmtDate(r.date)}</DateText></td>
                       <td className="px-3 py-2 font-medium">
                         {r.number} <span className="ml-1 text-xs font-normal text-muted-foreground">{r.kind === "order" ? "Order" : "Invoice"}</span>
                       </td>

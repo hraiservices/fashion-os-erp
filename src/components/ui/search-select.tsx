@@ -11,6 +11,10 @@ export interface SearchSelectOption {
   sublabel?: string;
   /** Small pill after the label, e.g. "Product" / "Raw material". */
   tag?: string;
+  /** A figure pinned to the right edge of the row, e.g. a customer's balance due. `tone` "due"
+   *  is amber and bold so an owed amount stands out in a scan of the list; "none" is a quiet
+   *  grey for a zero. Never truncated — it is usually money. */
+  trailing?: { text: string; tone?: "due" | "none"; title?: string };
 }
 
 /** A pinned "+ Add new …" row at the top of the dropdown. */
@@ -162,13 +166,26 @@ export function SearchSelect({
                   pick(o);
                 }}
                 onMouseEnter={() => setHighlighted(i)}
-                className={cn("flex w-full flex-col px-3 py-2 text-left text-sm", i === highlighted ? "bg-muted" : "hover:bg-muted")}
+                className={cn("flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm", i === highlighted ? "bg-muted" : "hover:bg-muted")}
               >
-                <span className="flex items-center gap-1.5">
-                  <span className="truncate">{o.label}</span>
-                  {o.tag && <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{o.tag}</span>}
+                <span className="flex min-w-0 flex-col">
+                  <span className="flex items-center gap-1.5">
+                    <span className="truncate">{o.label}</span>
+                    {o.tag && <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{o.tag}</span>}
+                  </span>
+                  {o.sublabel && <span className="text-xs text-muted-foreground">{o.sublabel}</span>}
                 </span>
-                {o.sublabel && <span className="text-xs text-muted-foreground">{o.sublabel}</span>}
+                {o.trailing && (
+                  <span
+                    title={o.trailing.title}
+                    className={cn(
+                      "shrink-0 whitespace-nowrap tabular-nums",
+                      o.trailing.tone === "due" ? "font-semibold text-amber-700 dark:text-amber-400" : "text-xs text-muted-foreground"
+                    )}
+                  >
+                    {o.trailing.text}
+                  </span>
+                )}
               </button>
             </li>
           ))}

@@ -3,6 +3,8 @@
 import { useState, useMemo } from "react";
 import { Search, User, UserPlus, Loader2 } from "lucide-react";
 import { useCustomers } from "@/hooks/use-customers";
+import { useCustomerBalances } from "@/hooks/use-customer-balances";
+import { inr } from "@/lib/format";
 import { useSaveCustomer } from "@/hooks/use-customer-mutations";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -28,6 +30,7 @@ export function CustomerPicker({
   defaultName?: string;
 }) {
   const { data: customers } = useCustomers();
+  const customerBalances = useCustomerBalances();
   const saveCustomer = useSaveCustomer();
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(!!startInAddMode);
@@ -176,6 +179,16 @@ export function CustomerPicker({
                           <p className="truncate text-sm font-medium">{c.name}</p>
                           <p className="truncate text-xs text-muted-foreground">{c.mobile}</p>
                         </div>
+                        {/* Combined balance due (orders + invoices) — amber when owed, a quiet grey ₹0 otherwise. */}
+                        {(customerBalances.get(c.mobile) || 0) > 0 ? (
+                          <span title="Balance due" className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-amber-700 dark:text-amber-400">
+                            {inr(customerBalances.get(c.mobile) || 0)}
+                          </span>
+                        ) : (
+                          <span title="Nothing due" className="shrink-0 whitespace-nowrap text-xs tabular-nums text-muted-foreground">
+                            {inr(0)}
+                          </span>
+                        )}
                       </button>
                     </li>
                   ))}

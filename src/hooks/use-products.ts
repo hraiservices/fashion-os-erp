@@ -26,10 +26,18 @@ async function fetchProducts(qc: QueryClient): Promise<Product[]> {
   const unitNameById = new Map(units.map((u) => [u.id, u.name]));
   const materialById = new Map(materials.map((m) => [m.id, m]));
   const stockByItemId = new Map((stock || []).map((s) => [s.item_id, s.stock_qty]));
+  // Grouped once, the way stock and units above already are. Re-filtering the whole BOM table
+  // inside the per-product map made this quadratic — 1,000 products against 5,000 BOM rows is
+  // 5 million comparisons on the main thread, every time the products query runs.
+  const bomByProductId = new Map<string, typeof bomRows>();
+  for (const b of bomRows || []) {
+    const list = bomByProductId.get(b.product_id) || [];
+    list.push(b);
+    bomByProductId.set(b.product_id, list);
+  }
 
   return (products || []).map((p) => {
-    const bom = (bomRows || [])
-      .filter((b) => b.product_id === p.id)
+    const bom = (bomByProductId.get(p.id) || [])
       .map((b) => {
         const material = materialById.get(b.raw_material_id);
         const unitName = material ? unitNameById.get(material.unit_id) || "" : "";
@@ -39,12 +47,19 @@ async function fetchProducts(qc: QueryClient): Promise<Product[]> {
   });
 }
 
-export function useProducts() {
+/**
+ * `enabled` exists for the topbar search box, which is mounted on every page and used on
+ * almost none of them: it holds these record hooks off until someone actually types, instead
+ * of pulling whole tables down on every single page load. Every other caller wants the data
+ * immediately and leaves it alone.
+ */
+export function useProducts(enabled = true) {
   const qc = useQueryClient();
   return useQuery({
     queryKey: ["products"],
     queryFn: () => fetchProducts(qc),
     staleTime: 30_000,
+    enabled,
   });
 }
 

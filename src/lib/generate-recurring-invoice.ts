@@ -81,7 +81,16 @@ export async function generateInvoiceFromProfile(
   const occurrencesGenerated = profile.occurrencesGenerated + 1;
   const ended = recurringProfileHasEnded({ ...profile, nextRunDate, occurrencesGenerated });
 
-  await supabase
+  // The advance is conditional on next_run_date still being what we read, and its error and
+  // row count are both checked. Two callers can race here — the daily cron and the "Generate
+  // now" button each load the profile, then act — and an unconditional, unchecked update let
+  // both pass the due-check, both insert an invoice and both advance the row: the customer was
+  // billed twice for one period and stock was decremented twice. A failed update was worse
+  // still, since the route reported success and the next cron run billed the same period
+  // again. If this matches no rows, someone else already generated this period; the invoice we
+  // just inserted is the duplicate, so it and its stock movements are rolled back by hand
+  // (there is no transaction across these calls) and the caller is told.
+  const { data: advanced, error: advanceError } = await supabase
     .from("recurring_invoice_profiles")
     .update({
       next_run_date: nextRunDate,
@@ -89,7 +98,18 @@ export async function generateInvoiceFromProfile(
       last_generated_at: new Date().toISOString(),
       active: ended ? false : profile.active,
     })
-    .eq("id", profile.id);
+    .eq("id", profile.id)
+    .eq("next_run_date", profile.nextRunDate)
+    .select("id");
+  if (advanceError || !advanced || advanced.length === 0) {
+    await supabase.from("inventory_ledger").delete().eq("ref_type", "sale").eq("ref_id", data.id);
+    await supabase.from("sales_invoices").delete().eq("id", data.id);
+    throw new Error(
+      advanceError
+        ? `Couldn't advance the recurring profile, so the invoice was rolled back — ${advanceError.message}`
+        : "This period's invoice had already been generated, so the duplicate was rolled back."
+    );
+  }
 
   return { invoiceId: data.id, invoiceNumber };
 }

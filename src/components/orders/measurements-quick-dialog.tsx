@@ -50,7 +50,7 @@ export function MeasurementsQuickDialog({
         onOpenChange(v);
       }}
     >
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Measurements</DialogTitle>
           <DialogDescription>Only the measurements are updated — nothing else on this order changes.</DialogDescription>

@@ -26,12 +26,16 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     .eq("id", id)
     .maybeSingle();
 
-  // H-3: Block delete if payments exist.
-  const { data: payments } = await db
+  // H-3: Block delete if payments exist. Both guards check their error, not just their data —
+  // a discarded error yields `null`, which reads as "nothing blocking", so a transient read
+  // failure deleted the invoice outright and orphaned its sales_payments rows. The create
+  // route's edit guard already fails closed this way.
+  const { data: payments, error: paymentsError } = await db
     .from("sales_payments")
     .select("id")
     .eq("invoice_id", id)
     .limit(1);
+  if (paymentsError) return NextResponse.json({ error: `Couldn't check this invoice's payments — ${paymentsError.message}` }, { status: 500 });
 
   if (payments && payments.length > 0) {
     return NextResponse.json(
@@ -41,11 +45,12 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   }
 
   // Block delete if credit notes exist (they reference this invoice).
-  const { data: credits } = await db
+  const { data: credits, error: creditsError } = await db
     .from("sales_credit_notes")
     .select("id")
     .eq("invoice_id", id)
     .limit(1);
+  if (creditsError) return NextResponse.json({ error: `Couldn't check this invoice's credit notes — ${creditsError.message}` }, { status: 500 });
 
   if (credits && credits.length > 0) {
     return NextResponse.json(

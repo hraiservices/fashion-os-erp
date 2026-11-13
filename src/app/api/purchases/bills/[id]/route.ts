@@ -24,11 +24,17 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     .eq("id", id)
     .maybeSingle();
 
-  const { data: payments } = await db
+  // Both guard queries below check their error rather than only their data. A discarded error
+  // meant `null` data, which reads as "no payments" / "no credits" — so a transient read
+  // failure let the delete through, taking the purchase ledger rows with it and leaving
+  // vendor_payments / vendor_credits rows pointing at a bill that no longer exists. The POST
+  // route's edit guard already fails closed for exactly this reason.
+  const { data: payments, error: paymentsError } = await db
     .from("vendor_payments")
     .select("id")
     .eq("bill_id", id)
     .limit(1);
+  if (paymentsError) return NextResponse.json({ error: `Couldn't check this bill's payments — ${paymentsError.message}` }, { status: 500 });
 
   if (payments && payments.length > 0) {
     return NextResponse.json(
@@ -37,11 +43,12 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     );
   }
 
-  const { data: credits } = await db
+  const { data: credits, error: creditsError } = await db
     .from("vendor_credits")
     .select("id")
     .eq("bill_id", id)
     .limit(1);
+  if (creditsError) return NextResponse.json({ error: `Couldn't check this bill's credits — ${creditsError.message}` }, { status: 500 });
 
   if (credits && credits.length > 0) {
     return NextResponse.json(

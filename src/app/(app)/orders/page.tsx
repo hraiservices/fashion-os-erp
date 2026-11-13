@@ -33,6 +33,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { NewButton } from "@/components/ui/new-button";
 import { TONES } from "@/lib/ui-tones";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { Input } from "@/components/ui/input";
 import { Skeleton, SkeletonListItem } from "@/components/ui/skeleton";
@@ -167,7 +168,7 @@ function OrdersContent() {
     router.replace(`/orders?${params.toString()}`);
   }
 
-  const { data: orders, isLoading: ordersLoading } = useOrders();
+  const { data: orders, isLoading: ordersLoading, isError: ordersError, refetch: refetchOrders } = useOrders();
   const isLoading = useDelayedLoading(ordersLoading);
   const queryClient = useQueryClient();
   const { containerRef: ptrContainerRef, pull: ptrPull, refreshing: ptrRefreshing, threshold: ptrThreshold, onTouchStart: ptrOnTouchStart, onTouchMove: ptrOnTouchMove, onTouchEnd: ptrOnTouchEnd } = usePullToRefresh(
@@ -651,6 +652,21 @@ function OrdersContent() {
               ))}
             </div>
           )
+        ) : ordersError ? (
+          // Deliberately not the same as "no orders yet": on a shop-floor phone with patchy
+          // wifi, a failed fetch used to render the empty state, telling the owner their book
+          // was empty when it was only unreachable. Same treatment the Invoices page already
+          // gives this.
+          <EmptyState
+            icon={RefreshCw}
+            title="Couldn't load orders"
+            description="Something went wrong fetching your orders — this is not the same as having none."
+            action={
+              <Button variant="outline" onClick={() => refetchOrders()}>
+                Try again
+              </Button>
+            }
+          />
         ) : view === "board" ? (
           <KanbanBoard
             orders={filtered}

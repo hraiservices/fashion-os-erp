@@ -67,14 +67,30 @@ export async function POST(request: Request) {
   if (!db) return NextResponse.json({ error: "Server is not configured to run payroll (missing service role key)" }, { status: 501 });
 
   // C-4 preflight: friendly error before hitting the DB UNIQUE constraint.
-  const { data: existing } = await db
+  // Any OVERLAP with an existing run is rejected, not just an exact period match. The
+  // payroll_runs_period_unique constraint (fix_business_logic_bugs.sql) keys on the exact
+  // (period_start, period_end) pair, so 1–30 Nov followed by 1–29 Nov both satisfied it:
+  // piece-rate is protected by piece_rate_paid_at and advances by payslip_id, but salary and
+  // overtime are recomputed in full, so the employee was paid a second near-full month on a
+  // second legitimate-looking payslip with nothing flagging it.
+  const { data: overlapping, error: overlapError } = await db
     .from("payroll_runs")
-    .select("id")
-    .eq("period_start", periodStart)
-    .eq("period_end", periodEnd)
-    .maybeSingle();
-  if (existing) {
-    return NextResponse.json({ error: `Payroll for ${periodStart} – ${periodEnd} was already run.` }, { status: 409 });
+    .select("period_start, period_end")
+    .lte("period_start", periodEnd)
+    .gte("period_end", periodStart)
+    .limit(1);
+  if (overlapError) return NextResponse.json({ error: overlapError.message }, { status: 500 });
+  if (overlapping && overlapping.length > 0) {
+    const clash = overlapping[0];
+    const samePeriod = clash.period_start === periodStart && clash.period_end === periodEnd;
+    return NextResponse.json(
+      {
+        error: samePeriod
+          ? `Payroll for ${periodStart} – ${periodEnd} was already run.`
+          : `Payroll has already been run for ${clash.period_start} – ${clash.period_end}, which overlaps ${periodStart} – ${periodEnd}. Delete that run first, or pick a period that does not overlap it.`,
+      },
+      { status: 409 }
+    );
   }
 
   // Create the run header.
@@ -135,16 +151,35 @@ export async function POST(request: Request) {
     // Ready/Completed yet. piece_rate_paid_at IS NULL is what scopes this to "not yet paid" —
     // nothing already marked paid can ever be summed again, however the chosen period overlaps
     // a prior run.
-    const [{ data: allAttRows }, { data: allAdvanceRows }, { data: unpaidOrderRows }, { data: unpaidWoRows }] = await Promise.all([
-      db.from("employee_attendance").select("*").in("employee_id", employeeIds).gte("date", periodStart).lte("date", periodEnd),
-      db.from("employee_advances").select("*").in("employee_id", employeeIds).is("payslip_id", null).lte("date", periodEnd).order("date", { ascending: true }),
-      hasPieceRateEmployees
-        ? db.from("orders").select("id, garments").is("piece_rate_paid_at", null)
-        : Promise.resolve({ data: [] as { id: string; garments: unknown }[] }),
-      hasPieceRateEmployees
-        ? db.from("work_orders").select("id, tailor, labor_cost").is("piece_rate_paid_at", null)
-        : Promise.resolve({ data: [] as { id: string; tailor: string; labor_cost: number | null }[] }),
-    ]);
+    //
+    // A cancelled order owes its tailor nothing: cancellation is the void path for an order
+    // that never gets made (add_order_cancellation.sql), and every revenue/receivables query
+    // filters it out. Without this filter a customer cancelling the day after booking still
+    // produced a full piece-rate payout on the next run — real money paid for a garment nobody
+    // stitched, against ₹0 of revenue, because the garment's payableAmount goes live at
+    // Received.
+    //
+    // Each of these four queries has its error checked: a swallowed failure here does not
+    // degrade gracefully, it silently pays the wrong amount. A failed attendance read makes
+    // every day in the period "missing", so computeGrossPay returns ₹0 and the run reports
+    // success having paid nobody; a failed advances read makes actualDeductions 0, so every
+    // outstanding advance is paid out again as cash salary while staying unlinked — and is
+    // therefore deducted a second time next month.
+    const [{ data: allAttRows, error: attError }, { data: allAdvanceRows, error: advError }, { data: unpaidOrderRows, error: orderError }, { data: unpaidWoRows, error: woError }] =
+      await Promise.all([
+        db.from("employee_attendance").select("*").in("employee_id", employeeIds).gte("date", periodStart).lte("date", periodEnd),
+        db.from("employee_advances").select("*").in("employee_id", employeeIds).is("payslip_id", null).lte("date", periodEnd).order("date", { ascending: true }),
+        hasPieceRateEmployees
+          ? db.from("orders").select("id, garments").is("piece_rate_paid_at", null).is("cancelled_at", null)
+          : Promise.resolve({ data: [] as { id: string; garments: unknown }[], error: null }),
+        hasPieceRateEmployees
+          ? db.from("work_orders").select("id, tailor, labor_cost").is("piece_rate_paid_at", null)
+          : Promise.resolve({ data: [] as { id: string; tailor: string; labor_cost: number | null }[], error: null }),
+      ]);
+    if (attError) throw attError;
+    if (advError) throw advError;
+    if (orderError) throw orderError;
+    if (woError) throw woError;
     const unpaidOrders = (unpaidOrderRows || []) as (Pick<Order, "garments"> & { id: string })[];
     const unpaidWorkOrders = (unpaidWoRows || []).map((w) => ({ id: w.id, tailor: w.tailor, laborCost: w.labor_cost })) as (Pick<
       WorkOrder,
@@ -238,11 +273,16 @@ export async function POST(request: Request) {
       .select("id, employee_id");
     if (payslipError) throw payslipError;
 
-    // Link advances to their payslips.
+    // Link advances to their payslips. The error is checked rather than ignored: an unlinked
+    // advance that was already deducted on this payslip still reads as outstanding, so the
+    // next run deducts the same money a second time — the employee is short twice and the
+    // books show the loan recovered twice. Throwing hands this to the catch below, which
+    // deletes the run header so the admin gets a clean slate and can re-run it.
     for (const ps of insertedPayslips || []) {
       const ids = advanceLinkMap.get(ps.employee_id) || [];
       if (ids.length > 0) {
-        await db.from("employee_advances").update({ payslip_id: ps.id }).in("id", ids);
+        const { error: linkError } = await db.from("employee_advances").update({ payslip_id: ps.id }).in("id", ids);
+        if (linkError) throw linkError;
       }
     }
 

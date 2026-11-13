@@ -1,5 +1,6 @@
 import { inr, fmtDate } from "@/lib/format";
 import type { SalesLineItem } from "@/lib/sales";
+import { escapeHtml } from "@/lib/escape-html";
 
 export interface ThermalReceiptData {
   shopName: string;
@@ -44,7 +45,7 @@ export function printThermalReceipt(data: ThermalReceiptData) {
     .map(
       (i) => `
     <div class="item">
-      <div class="item-name">${i.productName}</div>
+      <div class="item-name">${escapeHtml(i.productName)}</div>
       <div class="item-line">
         <span>${i.qty} x ${inr(i.unitPrice)}</span>
         <span>${inr(i.amount)}</span>
@@ -64,7 +65,7 @@ export function printThermalReceipt(data: ThermalReceiptData) {
       ? `
     <div class="row"><span>Paid</span><span>${inr(data.paid)}</span></div>
     ${data.balance ? `<div class="row bold"><span>Balance Due</span><span>${inr(data.balance)}</span></div>` : ""}
-    ${data.paymentMethod ? `<div class="row"><span>Method</span><span>${data.paymentMethod}</span></div>` : ""}
+    ${data.paymentMethod ? `<div class="row"><span>Method</span><span>${escapeHtml(data.paymentMethod)}</span></div>` : ""}
   `
       : "";
 
@@ -72,7 +73,7 @@ export function printThermalReceipt(data: ThermalReceiptData) {
 <html>
 <head>
 <meta charset="UTF-8" />
-<title>Receipt ${data.invoiceNumber}</title>
+<title>Receipt ${escapeHtml(data.invoiceNumber)}</title>
 <style>
   @page { size: ${widthMm}mm auto; margin: 0; }
   body { width: ${widthMm}mm; margin: 0; padding: ${narrow ? 5 : 8}px; font-family: 'Courier New', monospace; font-size: ${narrow ? 10.5 : 12}px; color: #000; }
@@ -90,20 +91,20 @@ export function printThermalReceipt(data: ThermalReceiptData) {
 </head>
 <body>
   <div class="center">
-    ${data.logoDataUrl ? `<img src="${data.logoDataUrl}" style="max-width:${narrow ? 36 : 50}mm;max-height:${narrow ? 15 : 20}mm;object-fit:contain;margin-bottom:4px;" alt="" />` : ""}
-    <div class="shop-name">${data.shopName || "Receipt"}</div>
-    ${data.shopPhone ? `<div class="muted">${data.shopPhone}</div>` : ""}
+    ${data.logoDataUrl ? `<img src="${escapeHtml(data.logoDataUrl)}" style="max-width:${narrow ? 36 : 50}mm;max-height:${narrow ? 15 : 20}mm;object-fit:contain;margin-bottom:4px;" alt="" />` : ""}
+    <div class="shop-name">${escapeHtml(data.shopName || "Receipt")}</div>
+    ${data.shopPhone ? `<div class="muted">${escapeHtml(data.shopPhone)}</div>` : ""}
   </div>
   <hr />
-  <div class="row"><span>${data.invoiceNumber}</span><span>${fmtDate(data.date)}</span></div>
-  ${data.customerName ? `<div class="row"><span>Customer</span><span>${data.customerName}</span></div>` : ""}
+  <div class="row"><span>${escapeHtml(data.invoiceNumber)}</span><span>${fmtDate(data.date)}</span></div>
+  ${data.customerName ? `<div class="row"><span>Customer</span><span>${escapeHtml(data.customerName)}</span></div>` : ""}
   <hr />
   ${itemRows}
   <hr />
   ${summaryRows}
   <div class="total-row"><span>TOTAL</span><span>${inr(data.total)}</span></div>
   ${paymentRows}
-  ${data.notes ? `<hr /><div class="muted">${data.notes}</div>` : ""}
+  ${data.notes ? `<hr /><div class="muted">${escapeHtml(data.notes)}</div>` : ""}
   <div class="footer">Thank you!</div>
   <script>window.onload = () => { window.print(); };</script>
 </body>

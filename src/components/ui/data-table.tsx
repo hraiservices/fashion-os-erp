@@ -131,8 +131,13 @@ export function DataTable<T extends { id: string }>({
                 <dl className="mt-1.5 space-y-1 border-t pt-1.5">
                   {secondaryColumns.map((col) => (
                     <div key={col.key} className="flex items-center justify-between gap-3 text-xs">
-                      <dt className="text-muted-foreground">{col.header}</dt>
-                      <dd className="min-w-0 truncate tabular-nums">{col.render(row)}</dd>
+                      {/* The label truncates, the value does not. These rows are mostly money
+                          — Amount, Balance due — and with `truncate` on the dd it was the
+                          six-figure rupee figure that got clipped on a narrow phone while the
+                          long header kept its full width. A number the owner can't read in
+                          full is worse than a shortened label. */}
+                      <dt className="min-w-0 truncate text-muted-foreground">{col.header}</dt>
+                      <dd className="shrink-0 whitespace-nowrap tabular-nums">{col.render(row)}</dd>
                     </div>
                   ))}
                 </dl>

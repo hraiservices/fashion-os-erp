@@ -59,7 +59,7 @@ export async function POST(request: Request) {
   // recent OPEN shift (any date, checked in, not yet checked out) instead.
   const { data: existing } = await supabase
     .from("employee_attendance")
-    .select("id, check_in_at, check_out_at")
+    .select("id, date, check_in_at, check_out_at")
     .eq("employee_id", employeeId)
     .not("check_in_at", "is", null)
     .is("check_out_at", null)
@@ -70,6 +70,26 @@ export async function POST(request: Request) {
 
   const nowIso = new Date().toISOString();
   const rawHours = (new Date(nowIso).getTime() - new Date(existing.check_in_at).getTime()) / 3_600_000;
+
+  // A span longer than MAX_SHIFT_HOURS is not an overnight shift, it is a forgotten check-out.
+  // The clamp above would have closed it at exactly MAX_SHIFT_HOURS — a 16-hour day — and
+  // handed the employee (16 − standardShiftHours) hours of overtime on a day that was already
+  // over, paid at the flat OT rate on the next payroll run. Close it the way the check-in path
+  // closes a stale shift (at its own end of day, flagged in notes) and tell the employee
+  // there was nothing live to check out of, rather than letting today's tap land on it.
+  if (rawHours > MAX_SHIFT_HOURS) {
+    const shiftEndIso = new Date(`${existing.date}T23:59:59+05:30`).toISOString();
+    const staleHours = Math.round(Math.min(Math.max((new Date(shiftEndIso).getTime() - new Date(existing.check_in_at).getTime()) / 3_600_000, 0), MAX_SHIFT_HOURS) * 100) / 100;
+    await supabase
+      .from("employee_attendance")
+      .update({ check_out_at: shiftEndIso, hours_worked: staleHours, notes: "Auto-closed: no check-out was recorded for this shift." })
+      .eq("id", existing.id);
+    return NextResponse.json(
+      { error: `Your open shift from ${existing.date} was never checked out, so it has been closed at the end of that day. You're not currently checked in.` },
+      { status: 409 }
+    );
+  }
+
   const hoursWorked = Math.round(Math.min(Math.max(rawHours, 0), MAX_SHIFT_HOURS) * 100) / 100;
 
   const { data: settingRow } = await supabase.from("app_settings").select("value").eq("key", "attendanceSettings").maybeSingle();

@@ -40,13 +40,20 @@ async function fetchEmployees(canSeeSalary: boolean) {
   return ((data as Partial<EmployeeRow>[]) || []).map((r) => mapEmployeeRow({ ...r, pin_hash: null } as EmployeeRow));
 }
 
-export function useEmployees() {
+/**
+ * `enabled` exists for the topbar search box, which is mounted on every page and used on
+ * almost none of them: it holds these record hooks off until someone actually types, instead
+ * of pulling whole tables down on every single page load. Every other caller wants the data
+ * immediately and leaves it alone.
+ */
+export function useEmployees(enabled = true) {
   const { data: user } = useCurrentUser();
   const canSeeSalary = !!user?.perms.managePayroll;
   return useQuery({
     queryKey: ["employees", canSeeSalary],
     queryFn: () => fetchEmployees(canSeeSalary),
     staleTime: 30_000,
+    enabled,
   });
 }
 

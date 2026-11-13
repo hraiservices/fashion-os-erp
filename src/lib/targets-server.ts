@@ -319,12 +319,25 @@ export async function logTaskEvent(db: SupabaseClient<Database>, e: { taskId: st
   }
 }
 
-export async function addLeadActivity(db: SupabaseClient<Database>, leadId: string, kind: "note" | "call" | "meeting" | "stage_change" | "whatsapp", body: string, email: string) {
+export async function addLeadActivity(
+  db: SupabaseClient<Database>,
+  leadId: string,
+  kind: "note" | "call" | "meeting" | "stage_change" | "whatsapp",
+  body: string,
+  email: string,
+  /** Set for an activity that records what the CUSTOMER said rather than what staff replied —
+   *  it must not stop the first-response clock. The AI voice-note transcription is the case
+   *  this exists for: logging a transcript of the customer's own message was marking the
+   *  enquiry as answered, so responseMinutes and speedVsWinRate reported a reply that never
+   *  happened and the slow-response alerts went quiet on exactly the leads nobody had
+   *  answered. */
+  options?: { countsAsResponse?: boolean }
+) {
   await db.from("lead_activities").insert({ lead_id: leadId, kind, body, created_by: email });
   // Stamp how long the enquiry waited for a human (see lead-response.ts). A stage change on its own
   // isn't a reply to the customer, and inbound WhatsApp messages are inserted straight into
   // lead_activities by the capture webhook, so neither can pass through here and stop the clock early.
-  if (kind !== "stage_change") await stampFirstResponse(db, leadId);
+  if (kind !== "stage_change" && options?.countsAsResponse !== false) await stampFirstResponse(db, leadId);
 }
 
 /** Records the first time staff answered this lead. Best effort: a shop that hasn't run add_targets_followups.sql just has no timer. */

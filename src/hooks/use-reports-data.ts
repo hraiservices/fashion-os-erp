@@ -37,7 +37,13 @@ export function useReportsData() {
   const { data: coupons } = useReferralCoupons();
   const { data: expensesByOrderId } = useOrderExpensesByOrderId();
 
-  const list = useMemo(() => orders || [], [orders]);
+  // Cancelled orders are void, not revenue — add_order_cancellation.sql makes
+  // `cancelled_at IS NOT NULL` the single test, and balances.ts / combined-reports.ts both
+  // honour it while nothing in analytics.ts ever did. So a cancelled ₹20,000 order still
+  // counted as billed revenue in Monthly P&L, Seasonal Trends, Top Customers' lifetime spend,
+  // tailor revenue and Order Profitability — disagreeing with the Combined P&L by the full
+  // cancelled value. Filtering once here fixes every /reports/* page at the source.
+  const list = useMemo(() => (orders || []).filter((o) => !o.cancelledAt), [orders]);
   const custList = useMemo(() => customers || [], [customers]);
   const couponList = useMemo(() => coupons || [], [coupons]);
 

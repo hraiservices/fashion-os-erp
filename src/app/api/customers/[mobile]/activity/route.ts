@@ -26,9 +26,17 @@ export interface CustomerActivityEvent {
  *    src/lib/whatsapp-log.ts, filtered by to_mobile.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ mobile: string }> }) {
-  const { mobile } = await params;
+  const { mobile: rawMobile } = await params;
   const { user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  if (!user.perms.manageCustomers) return NextResponse.json({ error: "No permission to view customer activity" }, { status: 403 });
+
+  // PostgREST's .or() grammar treats , . ( ) as syntax, so an unsanitized path segment could
+  // rewrite the filter below: /api/customers/x,id.gte.0/activity turned it into "every
+  // activity_log row" and dumped the shop-wide audit trail. Digits and a leading + are all a
+  // mobile number ever needs (same sanitizing as attendance/order-lookup).
+  const mobile = rawMobile.replace(/[^0-9+]/g, "");
+  if (!mobile) return NextResponse.json({ error: "Invalid mobile number" }, { status: 400 });
 
   const db = createServiceClient();
   if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });

@@ -14,10 +14,17 @@ async function fetchCustomers() {
   return (data || []).map(mapCustomerRow);
 }
 
-export function useCustomers() {
+/**
+ * `enabled` exists for the topbar search box, which is mounted on every page and used on
+ * almost none of them: it holds these record hooks off until someone actually types, instead
+ * of pulling whole tables down on every single page load. Every other caller wants the data
+ * immediately and leaves it alone.
+ */
+export function useCustomers(enabled = true) {
   return useQuery({
     queryKey: ["customers"],
     queryFn: fetchCustomers,
     staleTime: 30_000,
+    enabled,
   });
 }

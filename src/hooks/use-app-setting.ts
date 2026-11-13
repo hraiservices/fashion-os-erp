@@ -30,7 +30,14 @@ export function useAppSetting<T>(key: string, fallback: T) {
 
       return data.value as T;
     },
-    staleTime: 30_000,
+    // Thirty minutes, not thirty seconds. These rows are reference data — shop profile, rate
+    // card, WhatsApp templates, loyalty config — changed a few times a month, and they are
+    // read by the always-mounted app shell, so a 30s window had the app re-fetching every one
+    // of them every half minute while someone simply navigated around. Each is invalidated
+    // explicitly by its own save() below, so a real edit still shows up at once. (providers.tsx
+    // records that this class of over-refetching once blew the Supabase egress quota by 288%;
+    // the refetchOnMount half of that was fixed, this half was not.)
+    staleTime: 30 * 60_000,
   });
 
   const save = useMutation({

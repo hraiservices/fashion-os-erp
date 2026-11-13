@@ -11,6 +11,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   const { user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  // Same gate as every other purchases route (purchases/bills/route.ts). Authentication alone
+  // was not enough: the signed URL reaches into the private bill-scans bucket, so any
+  // logged-in account — a tailor, a counter login — could walk bill ids and download the
+  // shop's supplier invoices.
+  if (!user.perms.managePurchases) return NextResponse.json({ error: "No permission to view bill scans" }, { status: 403 });
 
   const db = createServiceClient();
   if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });

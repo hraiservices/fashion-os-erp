@@ -64,7 +64,16 @@ export default function DashboardPage() {
     onTouchStart: ptrOnTouchStart,
     onTouchMove: ptrOnTouchMove,
     onTouchEnd: ptrOnTouchEnd,
-  } = usePullToRefresh(() => queryClient.invalidateQueries());
+    // Scoped to what the dashboard widgets actually read. A bare invalidateQueries() refetched
+    // every mounted query in the app, so one accidental overscroll on a phone fired a dozen
+    // full-table requests and several MB of data.
+  } = usePullToRefresh(() =>
+    Promise.all(
+      (["orders", "customers", "sales-invoices", "order-payments", "sales-payments", "order-expenses", "products", "employees"] as const).map((key) =>
+        queryClient.invalidateQueries({ queryKey: [key] })
+      )
+    )
+  );
 
   // Guard on layoutRawData (the actual fetched array, not the defaultLayout() fallback) so this
   // only locks once real data arrives. Without this, entitlements arriving from cache before the

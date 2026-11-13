@@ -8,10 +8,18 @@ import { isOrderOutstanding, getOrderOutstanding } from "@/lib/balances";
 
 /** Shared stitching-side aggregation used by multiple dashboard widgets — kept in one place so every widget agrees on the same numbers. */
 export function useDashboardStats() {
-  const { data: orders, isLoading } = useOrders();
+  const { data: allOrders, isLoading } = useOrders();
 
   const stats = useMemo(() => {
-    if (!orders) return null;
+    if (!allOrders) return null;
+
+    // Cancelled orders are excluded up front, for every figure on the dashboard. Cancellation
+    // deliberately isn't a `status` (add_order_cancellation.sql), so a cancelled order was
+    // still "active" and still counted in totalRev/avgOrder/monthly — which meant the
+    // Receivable tile showed a 100%-collected bar on a voided order's unpaid balance (its
+    // outstanding is zeroed by balances.ts, its total was not) while the Revenue tile beside
+    // it showed something else again.
+    const orders = allOrders.filter((o) => !o.cancelledAt);
 
     const active = orders.filter((o) => o.status !== "delivered" && o.status !== "payment");
     const overdue = active.filter((o) => daysLeft(o.deliveryDate) < 0);
@@ -65,7 +73,7 @@ export function useDashboardStats() {
       garmentStats,
       pendingPayments,
     };
-  }, [orders]);
+  }, [allOrders]);
 
-  return { orders: orders || [], stats, isLoading };
+  return { orders: allOrders || [], stats, isLoading };
 }

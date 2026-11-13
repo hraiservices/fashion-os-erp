@@ -151,12 +151,15 @@ function computeBucket(
     return s + (o.fabricCost || 0) + (o.otherCost || 0) + (orderExpenseByOrderId.get(o.id) || 0);
   }, 0);
 
-  // Salary only — pieceRatePay is deliberately subtracted out because that exact money is
-  // already counted above as the tailor cost of the order it was earned on. Counting the
-  // payslip's full netPay here would charge every tailor's piece-rate twice.
-  const payrollCost = payslips
-    .filter((p) => p.status === "paid" && matches(p.paidAt))
-    .reduce((s, p) => s + Math.max(0, (p.netPay || 0) - (p.pieceRatePay || 0)), 0);
+  // The payslip's full net pay, piece-rate included. This used to subtract pieceRatePay on the
+  // grounds that it was "already counted above as the tailor cost of the order" — but
+  // stitchingCost above deliberately excludes garments[].payableAmount on the opposite
+  // grounds (that the shop pays tailors by hand and logs it as a Salaries expense). Both
+  // cannot be true: a shop that pays its tailors through a payroll run had every rupee of
+  // piece-rate counted in neither place, so net profit was overstated by the whole tailor
+  // wage bill and every margin on the report with it. The manual-logging case stays covered
+  // by detectSalaryOverlap, which already warns when salary expenses and payroll overlap.
+  const payrollCost = payslips.filter((p) => p.status === "paid" && matches(p.paidAt)).reduce((s, p) => s + Math.max(0, p.netPay || 0), 0);
 
   const revenue = stitchingRevenue + salesRevenue;
   const totalCost = purchaseCost + laborCost + expenseCost + stitchingCost + payrollCost;

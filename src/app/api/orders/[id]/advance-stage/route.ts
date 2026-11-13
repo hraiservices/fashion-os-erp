@@ -25,6 +25,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const order = mapOrderRow(row);
   const next = getNextStage(order.status);
   if (!next) return NextResponse.json({ error: "Order is already at the final stage" }, { status: 400 });
+  // The same financial gate set-stage enforces (set-stage/route.ts). changeStage alone let a
+  // shop-floor account tap one-tap "next stage" on a delivered order and move it into the
+  // terminal payment stage — which cannot be reopened, and awards loyalty points below.
+  if (next === "payment" && !user.perms.managePayments) {
+    return NextResponse.json({ error: "No permission to close orders financially" }, { status: 403 });
+  }
   if (next === "payment" && order.balance > 0) {
     return NextResponse.json({ error: `Cannot close order — ₹${order.balance} balance still due. Record full payment first.` }, { status: 400 });
   }

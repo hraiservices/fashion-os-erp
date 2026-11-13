@@ -405,6 +405,12 @@ export function buildWhatsAppMessage(order: WhatsAppOrder, type: WhatsAppMessage
 export function normalizeIndianMobile(mobile: string): string {
   let raw = String(mobile || "").replace(/\D/g, "");
   if (raw.startsWith("91") && raw.length > 10) raw = raw.slice(2);
+  // Leading zeros go too. "09876543210" — the standard STD-written form, and what spreadsheet
+  // exports are full of — is 11 digits, so it survived the country-code strip untouched and
+  // every wa.me link concatenated it onto the 91 prefix as `9109876543210`: a number that
+  // doesn't exist. It also keyed a phantom customer record separate from the same person
+  // typed without the zero.
+  raw = raw.replace(/^0+/, "");
   return raw;
 }
 

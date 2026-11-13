@@ -24,7 +24,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function PurchaseBillsPage() {
-  const { data: bills, isLoading } = usePurchaseBills();
+  const { data: bills, isLoading, isError: billsError, refetch: refetchBills } = usePurchaseBills();
   const dated = useListDateFilter(bills, (x) => x.billDate, "all");
   const { data: vendors } = useVendors();
   const { data: user } = useCurrentUser();
@@ -147,6 +147,19 @@ export default function PurchaseBillsPage() {
             <Skeleton key={i} className="h-14 w-full" />
           ))}
         </div>
+      ) : billsError ? (
+        // Not the same as "nothing here yet" — a failed fetch used to render the empty state,
+        // which reads as a fact about the shop rather than a network problem.
+        <EmptyState
+          icon={ReceiptDuotoneIcon}
+          title="Couldn't load bills"
+          description="Something went wrong fetching your bills — this is not the same as having none."
+          action={
+            <Button variant="outline" onClick={() => refetchBills()}>
+              Try again
+            </Button>
+          }
+        />
       ) : !bills || bills.length === 0 ? (
         <EmptyState
           icon={ReceiptDuotoneIcon}

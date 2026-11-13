@@ -561,6 +561,10 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
   const total = totals.total;
   const tenderTotal = tenders.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0) + (appliedLoyalty?.discount || 0);
   const remaining = Math.max(0, Math.round((total - tenderTotal) * 100) / 100);
+  // What to hand back. Only the amount up to the sale total is recorded as collected (see
+  // completeSale), so the excess has to be shown to the cashier — otherwise the difference
+  // between "typed ₹2,000" and "₹1,750 taken" is invisible at the counter.
+  const changeDue = Math.max(0, Math.round((tenderTotal - total) * 100) / 100);
 
   const categories = useMemo(() => Array.from(new Set((products || []).filter((p) => p.active).map((p) => p.category).filter(Boolean))).sort(), [products]);
 
@@ -776,11 +780,29 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
     // save_sales_invoice RPC) — previously the payment(s) were recorded in a separate loop
     // of calls after the invoice save, so a network drop between them could leave stock
     // deducted with no matching payment recorded, or one tender saved and a later one lost.
-    const payments = tenders
-      .map((t) => ({ amount: parseFloat(t.amount) || 0, method: t.method }))
-      .filter((t) => t.amount > 0)
-      .map((t) => ({ amount: t.amount, method: t.method, date: istDateString(), note: "POS sale", posSessionId: sessionId }));
+    //
+    // Each tender is recorded only up to what is still owed — the money KEPT, not the money
+    // handed over. The cashier types the ₹2,000 note they were given for a ₹1,750 sale and
+    // hands back ₹250; recording the full ₹2,000 overstated the day's collections by the
+    // change given, and POS close-out computes expected_cash as opening + Σ cash payments, so
+    // the drawer read ₹250 short and the cashier was answerable for a shortage that never
+    // happened. It also walked straight past the overpayment guard, since the POS path writes
+    // payments through save_sales_invoice rather than record_sales_payment.
+    let dueLeft = Math.max(0, Math.round((total - (appliedLoyalty?.discount || 0)) * 100) / 100);
+    const payments: { amount: number; method: string; date: string; note: string; posSessionId: string | undefined }[] = [];
+    for (const t of tenders) {
+      const typed = parseFloat(t.amount) || 0;
+      if (typed <= 0 || dueLeft <= 0) continue;
+      const applied = Math.min(typed, dueLeft);
+      dueLeft = Math.round((dueLeft - applied) * 100) / 100;
+      payments.push({ amount: applied, method: t.method, date: istDateString(), note: "POS sale", posSessionId: sessionId });
+    }
     if (appliedLoyalty) payments.push({ amount: appliedLoyalty.discount, method: "Loyalty Points", date: istDateString(), note: `${appliedLoyalty.ptsUsed} pts redeemed`, posSessionId: sessionId });
+    // What the shop actually keeps, which is what the receipt should call "Paid". tenderTotal
+    // is what the customer handed over, change included, so printing that against a clamped
+    // balance gave a receipt whose three numbers did not add up (total ₹1,750, paid ₹2,000,
+    // balance ₹0).
+    const collected = Math.round(payments.reduce((s, p) => s + p.amount, 0) * 100) / 100;
 
     const input: SaveInvoiceInput = {
       invoiceNumber,
@@ -817,7 +839,7 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
         customerName: customer?.name,
         items: lineItems,
         total: totals.total,
-        paid: tenderTotal,
+        paid: collected,
         balance: balanceDue,
         paymentMethod: payments.map((t) => t.method).join(" + "),
         paperWidthMm: shop?.receiptPaperWidthMm,
@@ -855,8 +877,8 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
           customerName: customer?.name,
           items: lineItems,
           total: totals.total,
-          paid: tenderTotal,
-          balance: Math.max(0, Math.round((totals.total - tenderTotal) * 100) / 100),
+          paid: collected,
+          balance: Math.max(0, Math.round((totals.total - collected) * 100) / 100),
           paymentMethod: payments.map((t) => t.method).join(" + "),
           paperWidthMm: shop?.receiptPaperWidthMm,
         };
@@ -1286,6 +1308,12 @@ function PosScreen({ sessionId, openingCash }: { sessionId: string; openingCash:
               <span className={remaining > 0 ? "font-semibold text-amber-700 dark:text-amber-400" : "font-semibold text-emerald-600 dark:text-emerald-400"}>{inr(remaining)}</span>
             </div>
             {remaining > 0 && !customer && <p className="text-xs text-muted-foreground">Select a customer above to accept this as a partial payment.</p>}
+            {changeDue > 0 && (
+              <div className="flex items-center justify-between rounded-md bg-sky-50 px-2.5 py-2 text-sm dark:bg-sky-950/40">
+                <span className="text-muted-foreground">Change to return</span>
+                <span className="font-semibold tabular-nums text-sky-700 dark:text-sky-300">{inr(changeDue)}</span>
+              </div>
+            )}
 
             <Button className="w-full" size="lg" onClick={completeSale} disabled={submitting || cart.length === 0}>
               {submitting ? "Processing…" : remaining > 0 && customer ? `Complete Sale · ${inr(tenderTotal)} now, ${inr(remaining)} due` : `Complete Sale · ${inr(total)}`}

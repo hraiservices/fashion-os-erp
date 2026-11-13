@@ -126,7 +126,7 @@ function EditablePrice({ product, canEdit, userEmail }: { product: Product; canE
 
 function ProductsPageContent() {
   const router = useRouter();
-  const { data: products, isLoading } = useProducts();
+  const { data: products, isLoading, isError: productsError, refetch: refetchProducts } = useProducts();
   const { data: user } = useCurrentUser();
   const deleteProduct = useDeleteProduct();
   const bulkDeleteProducts = useBulkDeleteProducts();
@@ -263,6 +263,19 @@ function ProductsPageContent() {
             <Skeleton key={i} className="h-12 w-full" />
           ))}
         </div>
+      ) : productsError ? (
+        // Not the same as "nothing here yet" — a failed fetch used to render the empty state,
+        // which reads as a fact about the shop rather than a network problem.
+        <EmptyState
+          icon={ShoppingBagDuotoneIcon}
+          title="Couldn't load products"
+          description="Something went wrong fetching your products — this is not the same as having none."
+          action={
+            <Button variant="outline" onClick={() => refetchProducts()}>
+              Try again
+            </Button>
+          }
+        />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={ShoppingBagDuotoneIcon}

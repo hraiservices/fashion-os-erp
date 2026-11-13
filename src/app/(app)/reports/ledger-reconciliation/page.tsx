@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import Link from "next/link";
 import { ShieldCheck, Scale, AlertTriangle } from "lucide-react";
 import { useLedgerReconciliation, type LedgerBreakRow } from "@/hooks/use-ledger-reconciliation";
@@ -125,7 +126,7 @@ export default function LedgerReconciliationPage() {
                           {r.overpaid && <span className="ml-1.5 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-950 dark:text-red-300">OVERPAID</span>}
                         </Td>
                         <Td>{r.customerName}</Td>
-                        <Td className="whitespace-nowrap text-muted-foreground">{fmtDate(r.inDate)}</Td>
+                        <Td className="whitespace-nowrap text-muted-foreground"><DateText>{fmtDate(r.inDate)}</DateText></Td>
                         <Td className="tabular-nums">{inr(r.total)}</Td>
                         <Td className="tabular-nums">{inr(r.storedAdvance)}</Td>
                         <Td className="tabular-nums">{inr(r.ledgerAdvance)}</Td>

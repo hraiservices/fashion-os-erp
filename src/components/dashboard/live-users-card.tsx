@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Radio, ChevronDown, ChevronUp } from "lucide-react";
@@ -114,7 +115,7 @@ export function LiveUsersCard() {
               <p className="text-sm font-semibold text-muted-foreground">No one online</p>
               {data?.lastLogin && (
                 <p className="truncate text-xs text-muted-foreground">
-                  Last: {data.lastLogin.displayName}, {fmtDate(data.lastLogin.occurredAt)} {fmtTime(data.lastLogin.occurredAt)}
+                  Last: {data.lastLogin.displayName}, <DateText>{fmtDate(data.lastLogin.occurredAt)}</DateText> {fmtTime(data.lastLogin.occurredAt)}
                 </p>
               )}
             </div>

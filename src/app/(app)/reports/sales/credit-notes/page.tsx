@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { FileMinus } from "lucide-react";
@@ -161,7 +162,7 @@ export default function CreditNoteDetailsPage() {
                   return (
                     <tr key={c.id} className="hover:bg-muted/30">
                       <Td className="font-medium">{c.creditNumber}</Td>
-                      <Td className="text-muted-foreground">{fmtDate(c.date)}</Td>
+                      <Td className="text-muted-foreground"><DateText>{fmtDate(c.date)}</DateText></Td>
                       <Td>{inv?.customerName || "—"}</Td>
                       <Td className="text-muted-foreground">{inv?.customerMobile || "—"}</Td>
                       <Td>

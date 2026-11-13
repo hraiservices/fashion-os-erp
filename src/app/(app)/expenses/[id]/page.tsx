@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -110,7 +111,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex items-center gap-2 text-sm">
               <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
-              <span>{fmtDate(expense.date)}</span>
+              <span><DateText>{fmtDate(expense.date)}</DateText></span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <CreditCard className="size-4 shrink-0 text-muted-foreground" />

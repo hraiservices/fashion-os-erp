@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { use, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -123,8 +124,8 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{bill.billNumber}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {vendor?.name || "…"} · {fmtDate(bill.billDate)}
-            {bill.dueDate && ` · Due ${fmtDate(bill.dueDate)}`}
+            {vendor?.name || "…"} · <DateText>{fmtDate(bill.billDate)}</DateText>
+            {bill.dueDate && <> · Due <DateText>{fmtDate(bill.dueDate)}</DateText></>}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -248,7 +249,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
                     <div>
                       <p>{p.method}</p>
                       <p className="text-xs text-muted-foreground">
-                        {fmtDate(p.date)}
+                        <DateText>{fmtDate(p.date)}</DateText>
                         {p.note && ` · ${p.note}`}
                       </p>
                     </div>
@@ -270,7 +271,7 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
                     <div>
                       <p>{c.creditNumber}</p>
                       <p className="text-xs text-muted-foreground">
-                        {fmtDate(c.date)} · {c.reason}
+                        <DateText>{fmtDate(c.date)}</DateText> · {c.reason}
                       </p>
                     </div>
                     <span className="font-medium tabular-nums text-red-600 dark:text-red-400">-{inr(c.total)}</span>

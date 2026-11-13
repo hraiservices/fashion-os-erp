@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { use } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -97,7 +98,7 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{po.poNumber}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {vendor?.name || "…"} · {fmtDate(po.date)}
+            {vendor?.name || "…"} · <DateText>{fmtDate(po.date)}</DateText>
           </p>
         </div>
         <Badge variant="outline">{PO_STATUS_LABELS[po.status]}</Badge>

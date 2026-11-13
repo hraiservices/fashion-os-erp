@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo } from "react";
 import { History } from "lucide-react";
 import { useInventoryLedger } from "@/hooks/use-inventory-ledger";
@@ -77,7 +78,7 @@ export default function InventoryAdjustmentsPage() {
               <TableBody>
                 {ledger.map((entry) => (
                   <TableRow key={entry.id}>
-                    <TableCell className="text-muted-foreground">{fmtDate(entry.createdAt)}</TableCell>
+                    <TableCell className="text-muted-foreground"><DateText>{fmtDate(entry.createdAt)}</DateText></TableCell>
                     <TableCell className="font-medium">{itemNameById.get(`${entry.itemType}:${entry.itemId}`) || "Unknown"}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">{LEDGER_REF_LABELS[entry.refType as keyof typeof LEDGER_REF_LABELS] || entry.refType}</Badge>

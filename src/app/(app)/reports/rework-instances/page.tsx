@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { RotateCcw, CheckCircle2 } from "lucide-react";
@@ -161,7 +162,7 @@ export default function ReworkInstancesPage() {
                     {sortedRows.map((r) => (
                       <tr key={r.id} className="hover:bg-muted/30">
                         <Td className="whitespace-nowrap text-muted-foreground">
-                          {fmtDate(r.flaggedAt)}, {fmtTime(r.flaggedAt)}
+                          <DateText>{fmtDate(r.flaggedAt)}</DateText>, {fmtTime(r.flaggedAt)}
                         </Td>
                         <Td className="font-medium">
                           <Link href={`/orders/${r.orderId}`} className="hover:underline">

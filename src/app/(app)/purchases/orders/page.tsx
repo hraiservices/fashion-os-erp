@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -135,7 +136,7 @@ export default function PurchaseOrdersPage() {
                     <Badge variant="outline">{PO_STATUS_LABELS[o.status]}</Badge>
                   </div>
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {vendorNameById.get(o.vendorId) || "Unknown vendor"} · {fmtDate(o.date)}
+                    {vendorNameById.get(o.vendorId) || "Unknown vendor"} · <DateText>{fmtDate(o.date)}</DateText>
                   </p>
                 </div>
                 <p className="shrink-0 text-sm font-semibold tabular-nums">{inr(o.total)}</p>

@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
@@ -167,7 +168,7 @@ export default function ExpenseDetailsPage() {
                 </ReportTotalsRow>
                 {sortedRows.map((e) => (
                   <tr key={e.id} className="hover:bg-muted/30">
-                    <Td className="text-muted-foreground">{fmtDate(e.date)}</Td>
+                    <Td className="text-muted-foreground"><DateText>{fmtDate(e.date)}</DateText></Td>
                     <Td className="font-medium">{e.category}</Td>
                     <Td className="max-w-56 truncate text-muted-foreground">{e.description || "—"}</Td>
                     <Td className="text-muted-foreground">{e.payMethod}</Td>

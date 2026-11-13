@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -375,7 +376,7 @@ function ProductsPageContent() {
                       </TableCell>
                     )}
                     {isVisible("dateAdded") && (
-                      <TableCell className="text-muted-foreground">{fmtDate(p.createdAt)}</TableCell>
+                      <TableCell className="text-muted-foreground"><DateText>{fmtDate(p.createdAt)}</DateText></TableCell>
                     )}
                     {canManage && (
                       <TableCell onClick={(e) => e.stopPropagation()}>

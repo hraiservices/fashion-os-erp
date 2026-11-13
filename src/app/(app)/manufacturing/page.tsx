@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Factory, ChevronRight } from "lucide-react";
@@ -98,7 +99,7 @@ export default function ManufacturingPage() {
                   <Badge variant={STATUS_BADGE_VARIANT[o.status]}>{WO_STATUS_LABELS[o.status]}</Badge>
                 </div>
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {o.qtyToProduce}x {o.productName} · {o.tailor ? tailorName(o.tailor) : "Unassigned"} · {fmtDate(o.startDate)}
+                  {o.qtyToProduce}x {o.productName} · {o.tailor ? tailorName(o.tailor) : "Unassigned"} · <DateText>{fmtDate(o.startDate)}</DateText>
                 </p>
               </div>
               {o.costPerUnit != null && <span className="shrink-0 text-xs text-muted-foreground">₹{o.costPerUnit}/unit</span>}

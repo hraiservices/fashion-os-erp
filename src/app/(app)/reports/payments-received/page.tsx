@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Receipt, Scissors, Search } from "lucide-react";
@@ -204,7 +205,7 @@ export default function PaymentsReceivedReportPage() {
                   const badge = SOURCE_BADGE[r.source];
                   return (
                     <tr key={r.id} className="hover:bg-muted/30">
-                      <Td className="text-muted-foreground">{fmtDate(r.date)}</Td>
+                      <Td className="text-muted-foreground"><DateText>{fmtDate(r.date)}</DateText></Td>
                       <Td className="font-medium">{r.customerName || "—"}</Td>
                       <Td className="text-muted-foreground">{r.customerMobile || "—"}</Td>
                       <Td>{r.method}</Td>

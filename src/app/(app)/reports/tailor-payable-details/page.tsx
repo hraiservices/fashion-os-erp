@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import Link from "next/link";
@@ -301,7 +302,7 @@ export default function TailorPayableDetailsPage() {
                         {r.orderId}
                       </Link>
                     </Td>
-                    {isVisible("orderDate") && <Td className="text-muted-foreground">{fmtDate(r.inDate)}</Td>}
+                    {isVisible("orderDate") && <Td className="text-muted-foreground"><DateText>{fmtDate(r.inDate)}</DateText></Td>}
                     <Td>{r.customerName}</Td>
                     {isVisible("mobile") && <Td className="text-muted-foreground">{r.customerMobile || "—"}</Td>}
                     <Td className="font-medium">{r.tailorName}</Td>

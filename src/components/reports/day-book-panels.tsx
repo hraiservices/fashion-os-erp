@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Info, Lock, LockOpen, PackageCheck, CalendarClock, Siren, Users, Banknote, CheckCircle2, MessageCircle, Trash2, Plus, ShieldAlert, ShoppingBag, Clock, Target, Pencil, TrendingUp, TrendingDown, BellRing } from "lucide-react";
@@ -528,7 +529,7 @@ export function CollectionsCard({ data, date, shopName, shopPhone }: { data: Col
                   {o.customerName}
                 </Link>
                 <p className="text-xs text-muted-foreground">
-                  {o.orderId} · due {fmtDate(o.deliveryDate)}
+                  {o.orderId} · due <DateText>{fmtDate(o.deliveryDate)}</DateText>
                   {late > 0 && <span className="text-red-600 dark:text-red-400"> · {late}d late</span>}
                 </p>
               </div>

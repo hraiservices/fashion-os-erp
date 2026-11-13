@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { FileDown, Printer, Scissors } from "lucide-react";
@@ -207,7 +208,7 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ mo
           </div>
           <div className="text-right">
             <p className="text-lg font-semibold tracking-tight">Customer Statement</p>
-            <p className="text-xs text-muted-foreground">Generated {fmtDate(new Date().toISOString())}</p>
+            <p className="text-xs text-muted-foreground">Generated <DateText>{fmtDate(new Date().toISOString())}</DateText></p>
           </div>
         </div>
 

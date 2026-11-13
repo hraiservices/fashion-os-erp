@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import { TrendUpDuotoneIcon } from "@/components/icons/duotone-icons";
 import Link from "next/link";
@@ -179,7 +180,7 @@ export default function OrderProfitabilityPage() {
                   <Link href={`/orders/${o.id}`} className="font-medium hover:underline">
                     {o.id}
                   </Link>
-                  <p className="text-xs text-muted-foreground">{fmtDate(o.inDate)}</p>
+                  <p className="text-xs text-muted-foreground"><DateText>{fmtDate(o.inDate)}</DateText></p>
                 </Td>
                 <Td className="truncate">{o.name}</Td>
                 <Td className="text-muted-foreground">{o.mobile}</Td>

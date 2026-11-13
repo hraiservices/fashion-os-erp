@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -110,7 +111,7 @@ export function FestivalNudgeCard({ canEdit }: { canEdit: boolean }) {
               <li key={c.mobile} className="flex items-center gap-2 rounded-lg bg-card px-3 py-1.5 text-sm">
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{c.name}</span>
-                  <span className="block text-xs text-muted-foreground">Last order {fmtDate(c.lastOrder)} · spent {inr(c.spent)}</span>
+                  <span className="block text-xs text-muted-foreground">Last order <DateText>{fmtDate(c.lastOrder)}</DateText> · spent {inr(c.spent)}</span>
                 </span>
                 <a href={`https://wa.me/91${normalizeIndianMobile(c.mobile)}?text=${encodeURIComponent(fill(c.name))}`} target="_blank" rel="noopener noreferrer" className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white" aria-label={`WhatsApp ${c.name}`}>
                   <MessageCircle className="size-4" />

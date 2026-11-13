@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { PackageCheck } from "lucide-react";
@@ -149,7 +150,7 @@ export default function ReadyUncollectedPage() {
                       <Link href={`/orders/${o.id}`} className="font-medium hover:underline">
                         {o.id}
                       </Link>
-                      <p className="text-xs text-muted-foreground">Ready since {fmtDate(o.readyAt!.slice(0, 10))}</p>
+                      <p className="text-xs text-muted-foreground">Ready since <DateText>{fmtDate(o.readyAt!.slice(0, 10))}</DateText></p>
                     </Td>
                     <Td>
                       <p className="truncate">{o.name}</p>

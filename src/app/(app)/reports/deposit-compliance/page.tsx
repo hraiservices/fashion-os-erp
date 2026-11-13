@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText } from "@/components/ui/date-text";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ShieldAlert } from "lucide-react";
@@ -129,7 +130,7 @@ export default function DepositCompliancePage() {
                       <Link href={`/orders/${o.id}`} className="font-medium hover:underline">
                         {o.id}
                       </Link>
-                      <p className="text-xs text-muted-foreground">{fmtDate(o.inDate)}</p>
+                      <p className="text-xs text-muted-foreground"><DateText>{fmtDate(o.inDate)}</DateText></p>
                     </Td>
                     <Td>
                       <p className="truncate">{o.name}</p>

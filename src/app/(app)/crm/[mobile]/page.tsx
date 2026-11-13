@@ -1,12 +1,12 @@
 "use client";
 
-import { use, useState } from "react";
+import { Suspense, use, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ChevronRight, ChevronDown, Mail, MapPin, Cake, Heart, FileText, Ticket, Shirt, Wallet } from "lucide-react";
+import { Phone, Plus, Pencil, Trash2, Gift, Receipt, ChevronDown, Mail, MapPin, Cake, Heart, FileText, Ticket, Shirt, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ReceiptDuotoneIcon, ShoppingBagDuotoneIcon, WalletDuotoneIcon } from "@/components/icons/duotone-icons";
+import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useCustomerProfiles } from "@/hooks/use-customer-profiles";
 import { useCustomerCredit } from "@/hooks/use-customer-credit";
 import { useLoyaltyConfig } from "@/hooks/use-loyalty-config";
@@ -15,24 +15,20 @@ import { useDeleteCustomerAndOrders, useGiveLoyaltyBonus } from "@/hooks/use-cus
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
 import { useAllOrderPayments } from "@/hooks/use-order-payments";
 import { useAllSalesPayments } from "@/hooks/use-sales-payments";
-import { buildOrderPaymentRows, buildInvoicePaymentRows, sortPaymentRows, type PaymentSource } from "@/lib/payments-received";
+import { buildOrderPaymentRows, buildInvoicePaymentRows, sortPaymentRows } from "@/lib/payments-received";
 import { useIssueReferralCoupon } from "@/hooks/use-referral-coupons";
 import { printCoupon } from "@/lib/order-coupon";
 import { loyaltyTier, normalizeIndianMobile, buildWardrobeSummaryUrl, daysLeft } from "@/lib/business-rules";
 import { LOYALTY_TYPE_LABELS, type LoyaltyHistoryEntry } from "@/lib/crm";
-import { INVOICE_STATUS_LABELS } from "@/lib/sales";
 import { useShopSettings } from "@/hooks/use-shop-settings";
-import { inr, fmtDate } from "@/lib/format";
+import { inr } from "@/lib/format";
 import { sumOrdersOutstanding } from "@/lib/balances";
-import { StageBadge, DueBadge } from "@/components/orders/stage-badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { TasteNotesCard } from "@/components/crm/taste-notes-card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BalanceDue } from "@/components/ui/money-text";
 import { DetailStatRow, DetailStatTile } from "@/components/ui/detail-stat-tile";
 import { WhatsAppButton } from "@/components/ui/whatsapp-button";
 import { EditCustomerModal } from "@/components/crm/edit-customer-modal";
@@ -43,8 +39,7 @@ import { CustomerProductRecommendations } from "@/components/crm/customer-produc
 import { CustomerPhotoAvatar } from "@/components/crm/customer-photo-avatar";
 import { CustomerSpendChart, buildCustomerSpendByMonth } from "@/components/crm/customer-spend-chart";
 import { CustomerActivityTimeline } from "@/components/crm/customer-activity-timeline";
-import { ShowAllRow } from "@/components/ui/show-all-row";
-import { DateText } from "@/components/ui/date-text";
+import { CustomerTransactions } from "@/components/crm/customer-transactions";
 import { CustomerSidebarList } from "@/components/crm/customer-sidebar-list";
 import { RecordPrevNext } from "@/components/ui/record-prev-next";
 import { BackLink } from "@/components/ui/back-link";
@@ -60,18 +55,50 @@ import {
 } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-const PAYMENT_SOURCE_BADGE: Record<PaymentSource, { label: string; className: string }> = {
-  invoice: { label: "Invoice", className: "bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400" },
-  stitching: { label: "Stitching", className: "bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400" },
-};
-
 /** CustProfile(), Stitching_Manager_Pro_v16.html ~line 7443. */
-/** How many rows each history list (payments, orders, invoices) previews before "Show all". */
-const LIST_PREVIEW = 5;
+/** The tabs on the customer page that switch a panel in place (Statement is a separate page and opens instead). */
+const TAB_KEYS = ["overview", "transactions", "measurements", "activity"] as const;
+type TabKey = (typeof TAB_KEYS)[number];
 
-export default function CustomerProfilePage({ params }: { params: Promise<{ mobile: string }> }) {
+/**
+ * Tabs keep their natural width (flex-none) instead of stretching across the row, and each one's
+ * tap area is stretched to the full height of the 44px row on a phone with an invisible overlay —
+ * the trigger itself is only ~36px tall inside the list's padding, which is a fiddly target.
+ */
+const TAB_TRIGGER_CLASS = "flex-none px-3 sm:px-3 before:absolute before:inset-x-0 before:-inset-y-1";
+
+/** useSearchParams (the selected tab lives in the URL) wants a Suspense boundary above it, so the page sits inside one. */
+export default function CustomerProfilePage(props: { params: Promise<{ mobile: string }> }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-4 p-4 sm:p-6">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-40 w-full" />
+        </div>
+      }
+    >
+      <CustomerProfileView {...props} />
+    </Suspense>
+  );
+}
+
+function CustomerProfileView({ params }: { params: Promise<{ mobile: string }> }) {
   const { mobile } = use(params);
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // The tab is in the URL (?tab=transactions) so a refresh, the back button and a shared link all land on the same tab.
+  const requestedTab = searchParams.get("tab");
+  const tab: TabKey = (TAB_KEYS as readonly string[]).includes(requestedTab ?? "") ? (requestedTab as TabKey) : "overview";
+  function onTabChange(value: unknown) {
+    const next = String(value);
+    if (next === "statement") {
+      router.push(`/crm/${mobile}/statement`);
+      return;
+    }
+    router.replace(next === "overview" ? pathname : `${pathname}?tab=${next}`, { scroll: false });
+  }
   const { profiles, isLoading } = useCustomerProfiles();
   const { data: loyaltyCfg } = useLoyaltyConfig();
   const { data: user } = useCurrentUser();
@@ -87,26 +114,8 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [bonusInput, setBonusInput] = useState("");
-  const [historyFilter, setHistoryFilter] = useState<"all" | "new" | "alteration">("all");
-  // Accordion state for the lower sections — same pattern as the Order Detail page, extended
-  // Zoho-style: each with a "+New" shortcut in its header, and collapsible on every breakpoint.
-  // Payments / Wardrobe & order history / Product sales invoices START OPEN: with all three
-  // closed, the page read as three bare headings and it was not obvious there was anything
-  // inside them (or that the All / Stitching / Alterations filter under one of them belonged to
-  // a collapsed list). Each previews its newest LIST_PREVIEW rows, with a Show all button.
-  // The state resets on every visit on purpose, so every customer page starts the same way.
-  // Loyalty keeps the older behavior (collapsed on mobile only, always open on sm+).
-  const [openSections, setOpenSections] = useState<Set<string>>(() => new Set(["payments", "history", "invoices"]));
-  // Which of those lists have been expanded past their preview to show every row.
-  const [expandedLists, setExpandedLists] = useState<Set<string>>(() => new Set());
-  function toggleList(key: string) {
-    setExpandedLists((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
+  // Accordion state — only the Loyalty card still folds, and it starts closed on mobile as before.
+  const [openSections, setOpenSections] = useState<Set<string>>(() => new Set());
   function toggleSection(key: string) {
     setOpenSections((prev) => {
       const next = new Set(prev);
@@ -141,7 +150,6 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   // Outstanding balance — same semantics as the Dashboard's Balance Due.
   const outstanding = sumOrdersOutstanding(custOrders);
   const activeCount = custOrders.filter((o) => o.status !== "delivered" && o.status !== "payment").length;
-  const filteredHistoryOrders = historyFilter === "all" ? custOrders : custOrders.filter((o) => o.orderType === historyFilter);
 
   // Sales invoices for this customer — same customers table as stitching, joined by mobile.
   // Stitch Due and Sales Due are always shown separately; only "Combined" totals merge them.
@@ -161,11 +169,6 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   const custInvoicePayments = buildInvoicePaymentRows((allSalesPayments || []).filter((p) => p.customerMobile === mobile), invoiceIdentityMap);
   const paymentRows = sortPaymentRows([...custOrderPayments, ...custInvoicePayments], "desc");
   const totalPaid = paymentRows.reduce((s, r) => s + r.amount, 0);
-  // Newest first already (paymentRows / custOrders / custInvoices are all date-descending), so a
-  // plain slice is "the latest N".
-  const visiblePayments = expandedLists.has("payments") ? paymentRows : paymentRows.slice(0, LIST_PREVIEW);
-  const visibleHistoryOrders = expandedLists.has("history") ? filteredHistoryOrders : filteredHistoryOrders.slice(0, LIST_PREVIEW);
-  const visibleInvoices = expandedLists.has("invoices") ? custInvoices : custInvoices.slice(0, LIST_PREVIEW);
   const combinedDue = outstanding + salesDue;
   const combinedLifetime = cust.spent + salesSpent;
   const tel = `tel:+91${mobile.replace(/\D/g, "").replace(/^91/, "").slice(-10)}`;
@@ -404,6 +407,19 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
         </div>
       </div>
 
+      <Tabs value={tab} onValueChange={onTabChange}>
+        {/* Zoho-style underline tabs. On a phone the row scrolls sideways inside itself (see TabsList) and the
+            tabs keep their natural width instead of stretching, so none of the five labels is ever squeezed. */}
+        <TabsList variant="line" className="w-full justify-start overflow-x-auto border-b">
+          <TabsTrigger value="overview" className={TAB_TRIGGER_CLASS}>Overview</TabsTrigger>
+          <TabsTrigger value="transactions" className={TAB_TRIGGER_CLASS}>Transactions</TabsTrigger>
+          <TabsTrigger value="measurements" className={TAB_TRIGGER_CLASS}>Measurements</TabsTrigger>
+          <TabsTrigger value="activity" className={TAB_TRIGGER_CLASS}>Activity</TabsTrigger>
+          {/* Statement is its own page, so this one opens it instead of switching a panel (see onTabChange). */}
+          <TabsTrigger value="statement" className={TAB_TRIGGER_CLASS}>Statement</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-4 pt-2">
       <CustomerSpendChart data={spendByMonth} />
 
       <CustomerBuyingProfileCard mobile={cust.mobile} />
@@ -477,201 +493,33 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
         </section>
       )}
 
-      <CustomerMeasurements cust={cust} />
-      <CustomerMeasurementProfiles cust={cust} />
+          <TasteNotesCard mobile={mobile} />
+        </TabsContent>
 
-      <section className="rounded-xl border bg-card">
-        <CollapsibleSectionHeader
-          title={`Payments (${paymentRows.length})`}
-          icon={<Wallet className="size-4 text-muted-foreground" />}
-          trailing={
-            <div className="flex items-center gap-2">
-              {totalPaid > 0 && <span className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{inr(totalPaid)}</span>}
-              {user?.perms.managePayments && combinedDue > 0 && (
-                <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/payments/new?customer=${encodeURIComponent(cust.mobile)}`} />} className="h-7 px-2 text-xs">
-                  <Plus className="size-3.5" /> New
-                </Button>
-              )}
-            </div>
-          }
-          collapsed={!openSections.has("payments")}
-          onToggle={() => toggleSection("payments")}
-          alwaysCollapsible
-        />
-        <div className={cn(!openSections.has("payments") && "hidden")}>
-        {paymentRows.length === 0 ? (
-          <EmptyState icon={WalletDuotoneIcon} title="No payments recorded yet" className="border-0" />
-        ) : (
-          // Grouped by date with a subtotal per day — "how much did I pay on the 7th" used to mean
-          // manually adding up however many rows shared that date by eye. paymentRows is already
-          // date-desc sorted (sortPaymentRows above), so a same-date run is always contiguous.
-          Object.entries(
-            visiblePayments.reduce<Record<string, typeof paymentRows>>((acc, p) => {
-              (acc[p.date] ||= []).push(p);
-              return acc;
-            }, {})
-          ).map(([date, rows]) => (
-            <div key={date}>
-              <div className="flex items-center justify-between bg-muted/30 px-4 py-1.5 text-xs font-medium text-muted-foreground">
-                <DateText bold>{fmtDate(date)}</DateText>
-                <span className="tabular-nums">{inr(rows.reduce((s, r) => s + r.amount, 0))}</span>
-              </div>
-              <ul className="divide-y">
-                {rows.map((p) => (
-                  <li key={p.id}>
-                    <Link href={p.referenceHref} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <Badge variant="outline" className={PAYMENT_SOURCE_BADGE[p.source].className}>
-                            {PAYMENT_SOURCE_BADGE[p.source].label}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">{p.method}</span>
-                        </div>
-                        <p className="mt-0.5 truncate text-xs text-muted-foreground">{p.reference}</p>
-                      </div>
-                      <p className="shrink-0 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{inr(p.amount)}</p>
-                      <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))
-        )}
-        <ShowAllRow total={paymentRows.length} limit={LIST_PREVIEW} expanded={expandedLists.has("payments")} onToggle={() => toggleList("payments")} />
-        </div>
-      </section>
+        <TabsContent value="transactions" className="pt-2">
+          <CustomerTransactions
+            mobile={mobile}
+            orders={custOrders}
+            invoices={custInvoices}
+            payments={paymentRows}
+            orderDue={outstanding}
+            invoiceDue={salesDue}
+            totalPaid={totalPaid}
+            canRecordPayment={!!user?.perms.managePayments && combinedDue > 0}
+          />
+        </TabsContent>
 
-      <TasteNotesCard mobile={mobile} />
+        <TabsContent value="measurements" className="space-y-4 pt-2">
+          <CustomerMeasurements cust={cust} />
+          <CustomerMeasurementProfiles cust={cust} />
+        </TabsContent>
 
-      {/* Wardrobe & order history — Zoho-style, open by default on every breakpoint, previewing the newest few.
-       *  Uses the same CollapsibleSectionHeader as Payments/Product sales invoices below, so the
-       *  chevron+amount+"New" group lines up in the exact same column with the exact same sizing
-       *  across all three sections. The All/Stitching/Alterations filter sits on its own row
-       *  underneath the header instead of sharing its title row, so the filter's interactive
-       *  Tabs control is never nested inside the header's own clickable toggle button. */}
-      <section className="rounded-xl border bg-card">
-        <CollapsibleSectionHeader
-          title={`Wardrobe & order history (${filteredHistoryOrders.length})`}
-          subtitle={<p className="text-xs text-muted-foreground">Everything this customer has had stitched with us.</p>}
-          trailing={
-            <div className="flex items-center gap-2">
-              {outstanding > 0 && <span className="text-sm font-semibold tabular-nums text-red-600 dark:text-red-400">{inr(outstanding)} due</span>}
-              <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/orders/new?mobile=${cust.mobile}`} />} className="h-7 px-2 text-xs">
-                <Plus className="size-3.5" /> New
-              </Button>
-            </div>
-          }
-          collapsed={!openSections.has("history")}
-          onToggle={() => toggleSection("history")}
-          alwaysCollapsible
-        />
-        {custOrders.length > 0 && (
-          // Hidden with the rest of the section when it is collapsed — it used to stay visible
-          // under a closed header, a lone All / Stitching / Alterations filter with no list to
-          // filter.
-          <div className={cn("flex items-center gap-2 border-y bg-black/[0.03] px-4 py-2 dark:bg-white/[0.04]", !openSections.has("history") && "hidden")}>
-            <Tabs value={historyFilter} onValueChange={(v) => v && setHistoryFilter(v as typeof historyFilter)}>
-              <TabsList>
-                <TabsTrigger value="all" tone="blue">All</TabsTrigger>
-                <TabsTrigger value="new" tone="purple">Stitching</TabsTrigger>
-                <TabsTrigger value="alteration" tone="amber">Alterations</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        )}
-        <div className={cn(!openSections.has("history") && "hidden")}>
-        {custOrders.length === 0 ? (
-          <EmptyState icon={ReceiptDuotoneIcon} title="No orders yet" className="border-0" />
-        ) : filteredHistoryOrders.length === 0 ? (
-          <EmptyState icon={ReceiptDuotoneIcon} title={historyFilter === "alteration" ? "No alterations yet" : "No stitching orders yet"} className="border-0" />
-        ) : (
-          <ul className="divide-y">
-            {visibleHistoryOrders.map((o) => (
-              <li key={o.id}>
-                <Link href={`/orders/${o.id}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
-                  {/* No thumbnail here by design — cust.orders comes from the list-sourced
-                      useOrders(), which deliberately excludes images/audios/videos (they're
-                      inline base64 up to 4MB each, and that query runs on every page load via
-                      the topbar's notification bell). Open the order to see its photos. */}
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted/50">
-                    <Shirt className="size-4 text-muted-foreground" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="whitespace-nowrap text-sm font-medium">{o.id}</span>
-                      <StageBadge stage={o.status} size="sm" />
-                      <DueBadge order={o} />
-                    </div>
-                    {/* The garment list truncates, the date does not — one truncating line used to
-                        cut the date off whenever the garment names were long. */}
-                    <p className="mt-0.5 flex min-w-0 text-xs text-muted-foreground">
-                      <span className="truncate">{(o.garments || []).map((g) => g.type).join(", ") || "—"}</span>
-                      <span className="shrink-0 whitespace-pre"> · <DateText>{fmtDate(o.inDate)}</DateText></span>
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-sm font-semibold tabular-nums">{inr(o.total)}</p>
-                    {o.balance > 0 && <BalanceDue amount={o.balance} suffix=" due" paidLabel="" className="text-xs" />}
-                  </div>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-        <ShowAllRow total={filteredHistoryOrders.length} limit={LIST_PREVIEW} expanded={expandedLists.has("history")} onToggle={() => toggleList("history")} />
-        </div>
-      </section>
+        {/* Mounted only while its tab is open, so the activity feed is not fetched until someone asks for it. */}
+        <TabsContent value="activity" className="pt-2">
+          <CustomerActivityTimeline mobile={mobile} />
+        </TabsContent>
+      </Tabs>
 
-      <section className="rounded-xl border bg-card">
-        <CollapsibleSectionHeader
-          title={`Product sales invoices (${custInvoices.length})`}
-          trailing={
-            <div className="flex items-center gap-2">
-              {salesDue > 0 && <BalanceDue amount={salesDue} suffix=" due" paidLabel="" className="text-sm font-semibold" />}
-              <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/sales/invoices/new?mobile=${cust.mobile}`} />} className="h-7 px-2 text-xs">
-                <Plus className="size-3.5" /> New
-              </Button>
-            </div>
-          }
-          collapsed={!openSections.has("invoices")}
-          onToggle={() => toggleSection("invoices")}
-          alwaysCollapsible
-        />
-        <div className={cn(!openSections.has("invoices") && "hidden")}>
-        {custInvoices.length === 0 ? (
-          <EmptyState icon={ShoppingBagDuotoneIcon} title="No product sales invoices yet" description="Products bought by this customer will appear here." className="border-0" />
-        ) : (
-          <ul className="divide-y">
-            {visibleInvoices.map((inv) => (
-              <li key={inv.id}>
-                <Link href={`/sales/invoices/${inv.id}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="whitespace-nowrap text-sm font-medium">{inv.invoiceNumber}</span>
-                      <Badge variant={inv.paymentStatus === "paid" ? "secondary" : "outline"}>{INVOICE_STATUS_LABELS[inv.paymentStatus]}</Badge>
-                    </div>
-                    <p className="mt-0.5 flex min-w-0 text-xs text-muted-foreground">
-                      <span className="truncate">{inv.items.map((it) => it.productName).join(", ") || "—"}</span>
-                      <span className="shrink-0 whitespace-pre"> · <DateText>{fmtDate(inv.invoiceDate)}</DateText></span>
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-sm font-semibold tabular-nums">{inr(inv.total)}</p>
-                    {inv.balance > 0 && <BalanceDue amount={inv.balance} suffix=" due" paidLabel="" className="text-xs" />}
-                  </div>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-        <ShowAllRow total={custInvoices.length} limit={LIST_PREVIEW} expanded={expandedLists.has("invoices")} onToggle={() => toggleList("invoices")} />
-        </div>
-      </section>
-
-      <CustomerActivityTimeline mobile={mobile} />
 
       <EditCustomerModal cust={cust} open={editOpen} onOpenChange={setEditOpen} />
       </div>

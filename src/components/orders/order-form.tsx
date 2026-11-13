@@ -71,6 +71,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { istDateString } from "@/lib/ist-date";
 import { getProfiles, activeProfiles, defaultProfile, findProfile } from "@/lib/measurement-profiles";
 import { BackLink } from "@/components/ui/back-link";
+import { customerBalanceTrailing, useCustomerBalances } from "@/hooks/use-customer-balances";
 
 const garmentSchema = z.object({
   type: z.string().min(1, "Select a garment"),
@@ -288,6 +289,7 @@ function OrderFormFields({
   const { data: user } = useCurrentUser();
   const { data: loyaltyCfg } = useLoyaltyConfig();
   const { data: customers } = useCustomers();
+  const customerBalances = useCustomerBalances();
   const createOrder = useCreateOrder();
   const updateOrder = useUpdateOrder();
   const isEdit = !!existingOrder;
@@ -981,7 +983,7 @@ function OrderFormFields({
                     placeholder="Type a name or mobile number…"
                     value={mobile ? customers?.find((c) => c.mobile === mobile)?.id || "" : ""}
                     fallbackLabel={name || undefined}
-                    options={(customers || []).map((c) => ({ value: c.id, label: c.name, sublabel: c.mobile }))}
+                    options={(customers || []).map((c) => ({ value: c.id, label: c.name, sublabel: c.mobile, trailing: customerBalanceTrailing(customerBalances, c.mobile) }))}
                     onSelect={(id) => {
                       const c = (customers || []).find((c) => c.id === id);
                       if (c) selectCustomer(c);

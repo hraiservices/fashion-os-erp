@@ -41,6 +41,7 @@ import type { Customer, SalesInvoice, InvoiceDocStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { istDateString } from "@/lib/ist-date";
 import { BackLink } from "@/components/ui/back-link";
+import { customerBalanceTrailing, useCustomerBalances } from "@/hooks/use-customer-balances";
 
 const gstTypeLabel = (v: unknown) => GST_TYPE_LABELS[v as GstType] ?? "";
 const paymentTermLabel = (v: unknown) => PAYMENT_TERM_LABELS[v as PaymentTerm] ?? "";
@@ -95,6 +96,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
   const { data: user } = useCurrentUser();
   const { data: products } = useProducts();
   const { data: customers } = useCustomers();
+  const customerBalances = useCustomerBalances();
   const { data: prefillQuote } = useSalesQuotation(prefillQuoteId || "");
   const { data: prefillClone } = useSalesInvoice(prefillCloneId || "");
   const { data: prefillCustomer } = useCustomerByMobile(prefillMobile || "");
@@ -354,7 +356,7 @@ export function InvoiceForm({ prefillQuoteId, prefillCloneId, prefillMobile, pre
                     placeholder="Type a name or mobile number…"
                     value={customer?.id || ""}
                     fallbackLabel={customer?.name}
-                    options={(customers || []).map((c) => ({ value: c.id, label: c.name, sublabel: c.mobile }))}
+                    options={(customers || []).map((c) => ({ value: c.id, label: c.name, sublabel: c.mobile, trailing: customerBalanceTrailing(customerBalances, c.mobile) }))}
                     onSelect={(id) => {
                       const c = (customers || []).find((c) => c.id === id);
                       if (c) handleSelectCustomer(c);

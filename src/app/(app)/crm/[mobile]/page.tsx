@@ -40,6 +40,7 @@ import { CustomerPhotoAvatar } from "@/components/crm/customer-photo-avatar";
 import { CustomerSpendChart, buildCustomerSpendByMonth } from "@/components/crm/customer-spend-chart";
 import { CustomerActivityTimeline } from "@/components/crm/customer-activity-timeline";
 import { CustomerTransactions } from "@/components/crm/customer-transactions";
+import { CustomerProfileLink } from "@/components/crm/customer-profile-link";
 import { CustomerSidebarList } from "@/components/crm/customer-sidebar-list";
 import { RecordPrevNext } from "@/components/ui/record-prev-next";
 import { BackLink } from "@/components/ui/back-link";
@@ -280,6 +281,7 @@ function CustomerProfileView({ params }: { params: Promise<{ mobile: string }> }
               Lifetime value: {inr(combinedLifetime)}
               <span className="ml-1 text-xs font-normal"> (stitching {inr(cust.spent)} + product sales {inr(salesSpent)})</span>
             </p>
+            <CustomerProfileLink mobile={cust.mobile} name={cust.name} />
             {/* Prepaid balance — e.g. a payment that outlived the order/invoice it was recorded
                 against (see order DELETE route) and got converted here instead of being lost.
                 Shown only when non-zero so most customers never see an empty "Credit: ₹0" line. */}

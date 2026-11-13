@@ -279,9 +279,9 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
 
         {/* Zoho-style: one primary "New Transaction" menu for the create actions, a couple of
             frequently-used actions visible directly (Statement, Remind), and everything else
-            (Wardrobe, Coupon, Edit, Delete) tucked behind "More" — down from 9 always-visible
-            buttons to 2-4, so the row reads as a handful of real choices instead of a wall of
-            icons. Mirrors QuickCreateMenu's grouped-dropdown pattern used elsewhere in the app. */}
+            (Wardrobe, Coupon) tucked behind "More". Edit and Delete are always-visible buttons:
+            they are the two things staff reach for most on this page, and hiding them in a menu
+            made both a two-tap hunt. Mirrors QuickCreateMenu's grouped-dropdown pattern used elsewhere in the app. */}
         <div className="mt-4 flex flex-wrap gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button className="h-10 px-4" />}>
@@ -319,7 +319,26 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             <WhatsAppButton href={reminderUrl} label="Remind" className="h-10" tone="reminder" />
           )}
 
-          {(custOrders.length > 0 || user?.perms.manageCustomers || user?.perms.deleteCustomers) && (
+          {user?.perms.manageCustomers && (
+            <Button variant="outline" className="h-10" onClick={() => setEditOpen(true)}>
+              <Pencil className="size-4" /> Edit
+            </Button>
+          )}
+
+          {/* Delete is always visible too, but styled as the destructive action it is — and kept
+              last in the row, after the everyday buttons, so it is never the one under a thumb
+              by accident. It still goes through the confirmation dialog below. */}
+          {user?.perms.deleteCustomers && (
+            <Button
+              variant="outline"
+              className="h-10 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="size-4" /> Delete
+            </Button>
+          )}
+
+          {(custOrders.length > 0 || user?.perms.manageCustomers) && (
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button variant="outline" className="h-10 px-3" aria-label="More actions" />}>
                 More <ChevronDown className="size-3.5" />
@@ -333,16 +352,6 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
                 {user?.perms.manageCustomers && (
                   <DropdownMenuItem onClick={handleGiveCoupon} disabled={issueCoupon.isPending}>
                     <Ticket className="size-4" /> Give coupon
-                  </DropdownMenuItem>
-                )}
-                {user?.perms.manageCustomers && (
-                  <DropdownMenuItem onClick={() => setEditOpen(true)}>
-                    <Pencil className="size-4" /> Edit
-                  </DropdownMenuItem>
-                )}
-                {user?.perms.deleteCustomers && (
-                  <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
-                    <Trash2 className="size-4" /> Delete
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -364,7 +373,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={doDelete}>Delete</AlertDialogAction>
+                <AlertDialogAction variant="destructive" onClick={doDelete}>Delete</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

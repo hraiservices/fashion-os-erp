@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ShowAllRow } from "@/components/ui/show-all-row";
 import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/format";
+import { DateText } from "@/components/ui/date-text";
 
 /** Events previewed before "Show all". */
 const PREVIEW = 5;
@@ -56,7 +57,7 @@ export function CustomerActivityTimeline({ mobile }: { mobile: string }) {
                     <p>{e.text}</p>
                     <p className="text-xs text-muted-foreground">
                       {e.actor ? `${e.actor} · ` : ""}
-                      {fmtDate(e.createdAt)}
+                      <DateText>{fmtDate(e.createdAt)}</DateText>
                     </p>
                   </div>
                 </li>

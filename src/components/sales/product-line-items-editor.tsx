@@ -216,6 +216,14 @@ export function ProductLineItemsEditor({
   const [bulkAddOpen, setBulkAddOpen] = useState(false);
   // Lines whose description box was opened by hand (a line that already has text always shows it).
   const [descOpen, setDescOpen] = useState<Set<string>>(new Set());
+  // The line whose item picker should grab focus (and so open its list) when it mounts. Starts on
+  // the lone blank row of a brand-new document, but only with a mouse/trackpad — on a phone it
+  // would raise the keyboard the moment the page opens, over the form. A row added with the
+  // button always focuses, since that tap is itself the request.
+  const [autoFocusKey, setAutoFocusKey] = useState<string | null>(() => {
+    if (typeof window === "undefined" || !window.matchMedia?.("(pointer: fine)").matches) return null;
+    return lines.length === 1 && !lines[0].productId ? lines[0].key : null;
+  });
 
   // Column template at 2xl+: fixed-width number columns, item column takes the rest.
   const gridCols = showDiscount
@@ -223,7 +231,12 @@ export function ProductLineItemsEditor({
     : "2xl:grid-cols-[minmax(0,1fr)_5.5rem_6.5rem_6.5rem_4rem]";
 
   function addLine() {
-    onChange([...lines, blankSalesLine()]);
+    const line = blankSalesLine();
+    // The new row's item picker takes focus on mount, which opens its dropdown — so "Add New
+    // Row" lands straight in the list of items, like Zoho Books, rather than leaving a blank row
+    // to click into.
+    setAutoFocusKey(line.key);
+    onChange([...lines, line]);
   }
 
   function updateLine(key: string, patch: Partial<EditableSalesLine>) {
@@ -313,7 +326,14 @@ export function ProductLineItemsEditor({
     const usedIds = new Set(lines.map((l) => l.productId).filter(Boolean));
     return (products || [])
       .filter((p) => p.active || usedIds.has(p.id))
-      .map((p) => ({ value: p.id, label: p.name, sublabel: `${p.sku} · ${p.stockQty} in stock · ${inr(p.sellingPrice)}` }));
+      .map((p) => ({
+        value: p.id,
+        label: p.name,
+        // Zoho-style row: rate (and the SKU, to tell similar names apart) under the name,
+        // stock on hand pinned right — green when there is some, red at zero or below.
+        sublabel: `Rate: ${inr(p.sellingPrice)} · ${p.sku}`,
+        trailing: { caption: "Stock on Hand", text: `${p.stockQty} pcs`, tone: p.stockQty > 0 ? ("good" as const) : ("bad" as const) },
+      }));
   }, [products, lines]);
 
   const productById = useMemo(() => new Map((products || []).map((p) => [p.id, p])), [products]);
@@ -491,6 +511,7 @@ export function ProductLineItemsEditor({
                         setAddProductLineKey(line.key);
                       }}
                       createLabel="Add new product"
+                      autoFocus={line.key === autoFocusKey}
                     />
                     {line.description || descOpen.has(line.key) ? (
                       <Textarea

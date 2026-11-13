@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,14 @@ export interface SearchSelectOption {
   /** A figure pinned to the right edge of the row, e.g. a customer's balance due. `tone` "due"
    *  is amber and bold so an owed amount stands out in a scan of the list; "none" is a quiet
    *  grey for a zero. Never truncated — it is usually money. */
-  trailing?: { text: string; tone?: "due" | "none"; title?: string };
+  trailing?: {
+    text: string;
+    /** "due" amber+bold (money owed), "good" green, "bad" red, "none" (default) quiet grey. */
+    tone?: "due" | "good" | "bad" | "none";
+    title?: string;
+    /** Small muted line above the figure, e.g. "Stock on Hand". */
+    caption?: string;
+  };
 }
 
 /** A pinned "+ Add new …" row at the top of the dropdown. */
@@ -41,7 +48,11 @@ export function SearchSelect({
   onCreateNew,
   createLabel = "Add new item",
   createActions,
+  autoFocus,
 }: {
+  /** Focus the field when it mounts — which opens the list, since focus opens it. For a row that
+   *  was just added, so "Add row" lands straight in the item picker. */
+  autoFocus?: boolean;
   /** Currently selected option's value — used to show its label when the field isn't being edited. */
   value: string;
   options: SearchSelectOption[];
@@ -65,6 +76,10 @@ export function SearchSelect({
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (autoFocus) inputRef.current?.focus();
+  }, [autoFocus]);
 
   const actions: SearchSelectCreateAction[] = createActions ?? (onCreateNew ? [{ label: createLabel, onCreate: onCreateNew }] : []);
   const selected = options.find((o) => o.value === value);
@@ -176,14 +191,18 @@ export function SearchSelect({
                   {o.sublabel && <span className="text-xs text-muted-foreground">{o.sublabel}</span>}
                 </span>
                 {o.trailing && (
-                  <span
-                    title={o.trailing.title}
-                    className={cn(
-                      "shrink-0 whitespace-nowrap tabular-nums",
-                      o.trailing.tone === "due" ? "font-semibold text-amber-700 dark:text-amber-400" : "text-xs text-muted-foreground"
-                    )}
-                  >
-                    {o.trailing.text}
+                  <span title={o.trailing.title} className="flex shrink-0 flex-col items-end whitespace-nowrap tabular-nums">
+                    {o.trailing.caption && <span className="text-xs text-muted-foreground">{o.trailing.caption}</span>}
+                    <span
+                      className={cn(
+                        o.trailing.tone === "due" && "font-semibold text-amber-700 dark:text-amber-400",
+                        o.trailing.tone === "good" && "text-sm font-medium text-emerald-600 dark:text-emerald-400",
+                        o.trailing.tone === "bad" && "text-sm font-medium text-red-600 dark:text-red-400",
+                        (!o.trailing.tone || o.trailing.tone === "none") && "text-xs text-muted-foreground"
+                      )}
+                    >
+                      {o.trailing.text}
+                    </span>
                   </span>
                 )}
               </button>

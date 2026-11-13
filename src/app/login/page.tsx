@@ -8,6 +8,7 @@ import { ensureUserRole } from "@/lib/supabase/role-bootstrap";
 import { isValidEmail, mapAuthError, normalizePhone } from "@/lib/auth-errors";
 import { useShopSettings } from "@/hooks/use-shop-settings";
 import { SignInProgressOverlay } from "@/components/auth/sign-in-progress-overlay";
+import { preloadFfLogo } from "@/lib/brand-logo-pieces";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,6 +90,13 @@ export default function LoginPage() {
   // reads as the screen silently hanging (see SignInProgressOverlay's own comment).
   const [redirecting, setRedirecting] = useState(false);
   const [redirectDone, setRedirectDone] = useState(false);
+
+  // The sign-in screen builds the Fashion Flow logo from 17 small images. Fetch them now, while the
+  // person is still typing their details, so the animation starts the instant they sign in rather
+  // than waiting on the network.
+  useEffect(() => {
+    preloadFfLogo();
+  }, []);
 
   useEffect(() => {
     if (!redirecting) return;
@@ -200,7 +208,7 @@ export default function LoginPage() {
   const isEmailFlow = (mode === "login" || mode === "signup") && method === "email";
 
   if (redirecting) {
-    return <SignInProgressOverlay shopName={shop?.name} logoDataUrl={shop?.logoDataUrl} done={redirectDone} />;
+    return <SignInProgressOverlay shopName={shop?.name} done={redirectDone} />;
   }
 
   return (

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { FF_LOGO_ASPECT, FF_LOGO_PIECES, ffLogoSrc, type LogoPiece } from "@/lib/brand-logo-pieces";
+import { cn } from "@/lib/utils";
 
 /**
  * Full-screen "signing you in" screen shown between a successful login and the dashboard
@@ -10,11 +11,14 @@ import { Sparkles } from "lucide-react";
  * hanging (the submit button's own spinner turns off the instant auth succeeds, well before
  * the dashboard is actually ready).
  *
- * Deliberately dark and animation-forward — a spinning dual conic-gradient ring with orbiting
- * particles around the logo, drifting mesh-gradient backdrop, shimmering gradient percentage
- * text — distinct from the light login card behind it, so the transition itself feels like
- * something is actively happening rather than a plain spinner/bar. All the keyframes live in
- * globals.css under the ai-* prefix, same convention as the login-* ones the card above uses.
+ * A plain white screen with the Fashion Flow wordmark building itself, letter by letter, as the
+ * percentage climbs: each of the logo's 17 shapes (see brand-logo-pieces.ts) pops in once the
+ * counter passes its own threshold, so at 50% about half the logo is there. The last piece, the
+ * red arrow, is held back past the cap and lands when the caller flips `done` — the logo
+ * completes at the same moment the dashboard is ready to open.
+ *
+ * It is always the Fashion Flow logo, whichever shop is signing in; the shop's own name is
+ * shown beneath it ("Preparing <shop>…") so they still see theirs.
  *
  * The percentage is a smooth animated climb, not tied to real request/route-load progress —
  * deliberately: chaining it to actual steps (auth verified → role loaded → dashboard data
@@ -23,7 +27,7 @@ import { Sparkles } from "lucide-react";
  * animates to ~92% over ~1.4s, then the caller flips `done` once it's ready to navigate, which
  * snaps the rest of the way to 100% quickly before router.push() actually fires.
  */
-export function SignInProgressOverlay({ shopName, logoDataUrl, done }: { shopName?: string; logoDataUrl?: string | null; done: boolean }) {
+export function SignInProgressOverlay({ shopName, done }: { shopName?: string; done: boolean }) {
   const [pct, setPct] = useState(0);
 
   useEffect(() => {
@@ -59,73 +63,78 @@ export function SignInProgressOverlay({ shopName, logoDataUrl, done }: { shopNam
   }, [done]);
 
   return (
-    <div role="status" aria-live="polite" className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-zinc-950">
-      {/* Drifting mesh-gradient backdrop — purely decorative. */}
-      <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="animate-ai-mesh absolute -top-40 -left-20 size-[32rem] rounded-full bg-violet-600/30 blur-[120px]" />
-        <div className="animate-ai-mesh-slow absolute -right-24 -bottom-40 size-[34rem] rounded-full bg-cyan-500/20 blur-[130px]" />
-        <div className="animate-ai-mesh absolute top-1/3 left-1/2 size-96 -translate-x-1/2 rounded-full bg-fuchsia-500/20 blur-[110px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(9,9,11,0.5)_100%)]" />
-      </div>
+    <div role="status" aria-live="polite" className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+      <div className="flex flex-col items-center gap-9 px-6">
+        <span className="sr-only">Fashion Flow</span>
 
-      <div className="relative z-10 flex flex-col items-center gap-8 px-6">
-        {/* Spinning AI-ring core */}
-        <div className="relative flex size-28 items-center justify-center">
-          <div
-            aria-hidden
-            className="animate-ai-ring-spin absolute inset-0 rounded-full"
-            style={{
-              background: "conic-gradient(from 0deg, transparent 0%, #8b5cf6 35%, #22d3ee 60%, transparent 100%)",
-              WebkitMask: "radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 3px))",
-              mask: "radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 3px))",
-            }}
-          />
-          <div
-            aria-hidden
-            className="animate-ai-ring-spin-reverse absolute inset-2 rounded-full opacity-70"
-            style={{
-              background: "conic-gradient(from 180deg, transparent 0%, #e879f9 40%, transparent 75%)",
-              WebkitMask: "radial-gradient(farthest-side, transparent calc(100% - 2px), black calc(100% - 2px))",
-              mask: "radial-gradient(farthest-side, transparent calc(100% - 2px), black calc(100% - 2px))",
-            }}
-          />
-
-          <span
-            aria-hidden
-            className="animate-ai-orbit-dot absolute size-1.5 rounded-full bg-cyan-300 shadow-[0_0_8px_2px_rgba(34,211,238,0.7)]"
-            style={{ "--orbit-radius": "50px" } as React.CSSProperties}
-          />
-          <span
-            aria-hidden
-            className="animate-ai-orbit-dot absolute size-1.5 rounded-full bg-violet-300 shadow-[0_0_8px_2px_rgba(196,181,253,0.7)]"
-            style={{ "--orbit-radius": "50px", animationDelay: "-1.6s" } as React.CSSProperties}
-          />
-
-          <div className="animate-ai-core-pulse relative flex size-16 items-center justify-center rounded-2xl border border-white/10 bg-zinc-900/80 shadow-[0_0_30px_rgba(139,92,246,0.35)] backdrop-blur">
-            {logoDataUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoDataUrl} alt={shopName || "Company logo"} className="size-full rounded-2xl object-contain p-1.5" />
-            ) : (
-              <Sparkles className="size-7 text-violet-300" />
-            )}
-          </div>
+        {/* The wordmark, assembled from its own pieces. Sized by width; the height follows the artwork's aspect ratio. */}
+        <div aria-hidden className="relative w-[min(80vw,24rem)]" style={{ aspectRatio: FF_LOGO_ASPECT }}>
+          {FF_LOGO_PIECES.map((piece, i) => (
+            <LogoPieceImage key={piece.file} piece={piece} shown={pct >= appearsAt(i)} />
+          ))}
         </div>
 
-        <div className="flex flex-col items-center gap-3">
-          <p
-            className="animate-ai-text-shimmer bg-gradient-to-r from-violet-300 via-cyan-200 to-fuchsia-300 bg-clip-text text-5xl font-semibold tracking-tight text-transparent tabular-nums"
-            style={{ backgroundSize: "200% auto" }}
-          >
-            {pct}%
-          </p>
-          <p className="text-sm text-zinc-400">{shopName ? `Preparing ${shopName}…` : "Signing you in…"}</p>
+        <div className="flex flex-col items-center gap-1.5">
+          <p className="text-4xl font-semibold tracking-tight text-zinc-800 tabular-nums">{pct}%</p>
+          <p className="text-sm text-zinc-500">{shopName ? `Preparing ${shopName}…` : "Signing you in…"}</p>
         </div>
 
-        <div className="relative h-1 w-64 overflow-hidden rounded-full bg-white/10">
-          <div className="h-full rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-400 to-cyan-400 transition-[width] duration-150 ease-out" style={{ width: `${pct}%` }} />
-          <div aria-hidden className="animate-ai-bar-shimmer absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+        {/* Thin progress line in the logo's own colours, in the same order as the letters of "Fashion".
+            The gradient is pinned to the full track (not the filled part), so each colour is revealed
+            as the bar reaches it instead of the whole rainbow squeezing into a short fill. */}
+        <div className="relative h-1 w-64 overflow-hidden rounded-full bg-zinc-200">
+          <div
+            className="h-full rounded-full transition-[width] duration-150 ease-out"
+            style={{
+              width: `${pct}%`,
+              backgroundImage: `linear-gradient(90deg, ${LOGO_BAR_COLOURS})`,
+              backgroundSize: "16rem 100%",
+              backgroundRepeat: "no-repeat",
+            }}
+          />
         </div>
       </div>
     </div>
+  );
+}
+
+/** The logo's own colours — F, a, s, h, o, n — as read from the artwork. */
+const LOGO_BAR_COLOURS = "#f80a0a 0%, #0ab156 22%, #096bd0 42%, #fcc10f 62%, #7a32a3 82%, #0bb1fa 100%";
+
+/**
+ * The percentage at which piece `index` lands: spread evenly from 4% to 95%. 95 sits above the
+ * 92% cap on purpose — the last piece (the arrow) only appears when sign-in actually completes.
+ */
+function appearsAt(index: number): number {
+  const last = FF_LOGO_PIECES.length - 1;
+  return 4 + (index / last) * 91;
+}
+
+/** Where a piece starts from before it lands: letters spring up, dots drop in, the arrow slides in from the left. */
+const ENTRY_FROM: Record<LogoPiece["kind"], string> = {
+  letter: "translateY(28%) scale(0.55)",
+  dot: "translateY(-160%) scale(0.4)",
+  arrow: "translateX(-60%) scale(0.7)",
+};
+
+function LogoPieceImage({ piece, shown }: { piece: LogoPiece; shown: boolean }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- tiny decorative cut-outs sized by percentage; next/image's wrapper would break the exact overlay
+    <img
+      src={ffLogoSrc(piece)}
+      alt=""
+      draggable={false}
+      className={cn(
+        "absolute select-none transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none",
+        shown ? "opacity-100" : "opacity-0"
+      )}
+      style={{
+        left: `${piece.left}%`,
+        top: `${piece.top}%`,
+        width: `${piece.w}%`,
+        height: `${piece.h}%`,
+        transform: shown ? "none" : ENTRY_FROM[piece.kind],
+      }}
+    />
   );
 }

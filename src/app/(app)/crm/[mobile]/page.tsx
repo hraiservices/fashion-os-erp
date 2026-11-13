@@ -43,6 +43,7 @@ import { CustomerProductRecommendations } from "@/components/crm/customer-produc
 import { CustomerPhotoAvatar } from "@/components/crm/customer-photo-avatar";
 import { CustomerSpendChart, buildCustomerSpendByMonth } from "@/components/crm/customer-spend-chart";
 import { CustomerActivityTimeline } from "@/components/crm/customer-activity-timeline";
+import { ShowAllRow } from "@/components/ui/show-all-row";
 import { CustomerSidebarList } from "@/components/crm/customer-sidebar-list";
 import { RecordPrevNext } from "@/components/ui/record-prev-next";
 import { BackLink } from "@/components/ui/back-link";
@@ -64,6 +65,9 @@ const PAYMENT_SOURCE_BADGE: Record<PaymentSource, { label: string; className: st
 };
 
 /** CustProfile(), Stitching_Manager_Pro_v16.html ~line 7443. */
+/** How many rows each history list (payments, orders, invoices) previews before "Show all". */
+const LIST_PREVIEW = 5;
+
 export default function CustomerProfilePage({ params }: { params: Promise<{ mobile: string }> }) {
   const { mobile } = use(params);
   const router = useRouter();
@@ -84,10 +88,24 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   const [bonusInput, setBonusInput] = useState("");
   const [historyFilter, setHistoryFilter] = useState<"all" | "new" | "alteration">("all");
   // Accordion state for the lower sections — same pattern as the Order Detail page, extended
-  // Zoho-style: Payments / Wardrobe & order history / Product sales invoices stay collapsed by
-  // default on every breakpoint (not just mobile), each with a "+New" shortcut in its header.
+  // Zoho-style: each with a "+New" shortcut in its header, and collapsible on every breakpoint.
+  // Payments / Wardrobe & order history / Product sales invoices START OPEN: with all three
+  // closed, the page read as three bare headings and it was not obvious there was anything
+  // inside them (or that the All / Stitching / Alterations filter under one of them belonged to
+  // a collapsed list). Each previews its newest LIST_PREVIEW rows, with a Show all button.
+  // The state resets on every visit on purpose, so every customer page starts the same way.
   // Loyalty keeps the older behavior (collapsed on mobile only, always open on sm+).
-  const [openSections, setOpenSections] = useState<Set<string>>(() => new Set());
+  const [openSections, setOpenSections] = useState<Set<string>>(() => new Set(["payments", "history", "invoices"]));
+  // Which of those lists have been expanded past their preview to show every row.
+  const [expandedLists, setExpandedLists] = useState<Set<string>>(() => new Set());
+  function toggleList(key: string) {
+    setExpandedLists((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
   function toggleSection(key: string) {
     setOpenSections((prev) => {
       const next = new Set(prev);
@@ -142,6 +160,11 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
   const custInvoicePayments = buildInvoicePaymentRows((allSalesPayments || []).filter((p) => p.customerMobile === mobile), invoiceIdentityMap);
   const paymentRows = sortPaymentRows([...custOrderPayments, ...custInvoicePayments], "desc");
   const totalPaid = paymentRows.reduce((s, r) => s + r.amount, 0);
+  // Newest first already (paymentRows / custOrders / custInvoices are all date-descending), so a
+  // plain slice is "the latest N".
+  const visiblePayments = expandedLists.has("payments") ? paymentRows : paymentRows.slice(0, LIST_PREVIEW);
+  const visibleHistoryOrders = expandedLists.has("history") ? filteredHistoryOrders : filteredHistoryOrders.slice(0, LIST_PREVIEW);
+  const visibleInvoices = expandedLists.has("invoices") ? custInvoices : custInvoices.slice(0, LIST_PREVIEW);
   const combinedDue = outstanding + salesDue;
   const combinedLifetime = cust.spent + salesSpent;
   const tel = `tel:+91${mobile.replace(/\D/g, "").replace(/^91/, "").slice(-10)}`;
@@ -482,7 +505,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           // manually adding up however many rows shared that date by eye. paymentRows is already
           // date-desc sorted (sortPaymentRows above), so a same-date run is always contiguous.
           Object.entries(
-            paymentRows.reduce<Record<string, typeof paymentRows>>((acc, p) => {
+            visiblePayments.reduce<Record<string, typeof paymentRows>>((acc, p) => {
               (acc[p.date] ||= []).push(p);
               return acc;
             }, {})
@@ -514,12 +537,13 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             </div>
           ))
         )}
+        <ShowAllRow total={paymentRows.length} limit={LIST_PREVIEW} expanded={expandedLists.has("payments")} onToggle={() => toggleList("payments")} />
         </div>
       </section>
 
       <TasteNotesCard mobile={mobile} />
 
-      {/* Wardrobe & order history — Zoho-style, collapsed by default on every breakpoint (#1).
+      {/* Wardrobe & order history — Zoho-style, open by default on every breakpoint, previewing the newest few.
        *  Uses the same CollapsibleSectionHeader as Payments/Product sales invoices below, so the
        *  chevron+amount+"New" group lines up in the exact same column with the exact same sizing
        *  across all three sections. The All/Stitching/Alterations filter sits on its own row
@@ -542,7 +566,10 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           alwaysCollapsible
         />
         {custOrders.length > 0 && (
-          <div className="flex items-center gap-2 border-y bg-black/[0.03] px-4 py-2 dark:bg-white/[0.04]">
+          // Hidden with the rest of the section when it is collapsed — it used to stay visible
+          // under a closed header, a lone All / Stitching / Alterations filter with no list to
+          // filter.
+          <div className={cn("flex items-center gap-2 border-y bg-black/[0.03] px-4 py-2 dark:bg-white/[0.04]", !openSections.has("history") && "hidden")}>
             <Tabs value={historyFilter} onValueChange={(v) => v && setHistoryFilter(v as typeof historyFilter)}>
               <TabsList>
                 <TabsTrigger value="all" tone="blue">All</TabsTrigger>
@@ -559,7 +586,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           <EmptyState icon={ReceiptDuotoneIcon} title={historyFilter === "alteration" ? "No alterations yet" : "No stitching orders yet"} className="border-0" />
         ) : (
           <ul className="divide-y">
-            {filteredHistoryOrders.map((o) => (
+            {visibleHistoryOrders.map((o) => (
               <li key={o.id}>
                 <Link href={`/orders/${o.id}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
                   {/* No thumbnail here by design — cust.orders comes from the list-sourced
@@ -589,6 +616,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             ))}
           </ul>
         )}
+        <ShowAllRow total={filteredHistoryOrders.length} limit={LIST_PREVIEW} expanded={expandedLists.has("history")} onToggle={() => toggleList("history")} />
         </div>
       </section>
 
@@ -612,7 +640,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           <EmptyState icon={ShoppingBagDuotoneIcon} title="No product sales invoices yet" description="Products bought by this customer will appear here." className="border-0" />
         ) : (
           <ul className="divide-y">
-            {custInvoices.map((inv) => (
+            {visibleInvoices.map((inv) => (
               <li key={inv.id}>
                 <Link href={`/sales/invoices/${inv.id}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
                   <div className="min-w-0 flex-1">
@@ -634,6 +662,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
             ))}
           </ul>
         )}
+        <ShowAllRow total={custInvoices.length} limit={LIST_PREVIEW} expanded={expandedLists.has("invoices")} onToggle={() => toggleList("invoices")} />
         </div>
       </section>
 

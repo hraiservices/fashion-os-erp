@@ -11,7 +11,7 @@ interface ActivityPage {
 
 /** Simple page-number pagination (not a true cursor) — adequate for a "Load more" button on a
  *  feed that's read far more often than it grows. See the API route for the merge logic. */
-export function useCustomerActivity(mobile: string) {
+export function useCustomerActivity(mobile: string, enabled = true) {
   const [page, setPage] = useState(0);
   const queryClient = useQueryClient();
 
@@ -22,7 +22,9 @@ export function useCustomerActivity(mobile: string) {
       if (!res.ok) throw new Error("Failed to load activity");
       return res.json();
     },
-    enabled: !!mobile,
+    // `enabled` lets the Activity section stay closed without paying for its query: it starts
+    // collapsed, and nothing is fetched until someone opens it.
+    enabled: !!mobile && enabled,
   });
 
   // Accumulate pages client-side rather than re-fetching everything on "Load more" — each page

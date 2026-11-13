@@ -44,6 +44,7 @@ import { CustomerPhotoAvatar } from "@/components/crm/customer-photo-avatar";
 import { CustomerSpendChart, buildCustomerSpendByMonth } from "@/components/crm/customer-spend-chart";
 import { CustomerActivityTimeline } from "@/components/crm/customer-activity-timeline";
 import { ShowAllRow } from "@/components/ui/show-all-row";
+import { DateText } from "@/components/ui/date-text";
 import { CustomerSidebarList } from "@/components/crm/customer-sidebar-list";
 import { RecordPrevNext } from "@/components/ui/record-prev-next";
 import { BackLink } from "@/components/ui/back-link";
@@ -512,7 +513,7 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
           ).map(([date, rows]) => (
             <div key={date}>
               <div className="flex items-center justify-between bg-muted/30 px-4 py-1.5 text-xs font-medium text-muted-foreground">
-                <span>{fmtDate(date)}</span>
+                <DateText bold>{fmtDate(date)}</DateText>
                 <span className="tabular-nums">{inr(rows.reduce((s, r) => s + r.amount, 0))}</span>
               </div>
               <ul className="divide-y">
@@ -602,8 +603,11 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
                       <StageBadge stage={o.status} size="sm" />
                       <DueBadge order={o} />
                     </div>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {(o.garments || []).map((g) => g.type).join(", ") || "—"} · {fmtDate(o.inDate)}
+                    {/* The garment list truncates, the date does not — one truncating line used to
+                        cut the date off whenever the garment names were long. */}
+                    <p className="mt-0.5 flex min-w-0 text-xs text-muted-foreground">
+                      <span className="truncate">{(o.garments || []).map((g) => g.type).join(", ") || "—"}</span>
+                      <span className="shrink-0 whitespace-pre"> · <DateText>{fmtDate(o.inDate)}</DateText></span>
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
@@ -648,8 +652,9 @@ export default function CustomerProfilePage({ params }: { params: Promise<{ mobi
                       <span className="whitespace-nowrap text-sm font-medium">{inv.invoiceNumber}</span>
                       <Badge variant={inv.paymentStatus === "paid" ? "secondary" : "outline"}>{INVOICE_STATUS_LABELS[inv.paymentStatus]}</Badge>
                     </div>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {inv.items.map((it) => it.productName).join(", ") || "—"} · {fmtDate(inv.invoiceDate)}
+                    <p className="mt-0.5 flex min-w-0 text-xs text-muted-foreground">
+                      <span className="truncate">{inv.items.map((it) => it.productName).join(", ") || "—"}</span>
+                      <span className="shrink-0 whitespace-pre"> · <DateText>{fmtDate(inv.invoiceDate)}</DateText></span>
                     </p>
                   </div>
                   <div className="shrink-0 text-right">

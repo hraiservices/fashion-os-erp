@@ -94,10 +94,6 @@ function CustomerProfileView({ params }: { params: Promise<{ mobile: string }> }
   const tab: TabKey = (TAB_KEYS as readonly string[]).includes(requestedTab ?? "") ? (requestedTab as TabKey) : "overview";
   function onTabChange(value: unknown) {
     const next = String(value);
-    if (next === "statement") {
-      router.push(`/crm/${mobile}/statement`);
-      return;
-    }
     router.replace(next === "overview" ? pathname : `${pathname}?tab=${next}`, { scroll: false });
   }
   const { profiles, isLoading } = useCustomerProfiles();
@@ -410,15 +406,16 @@ function CustomerProfileView({ params }: { params: Promise<{ mobile: string }> }
       </div>
 
       <Tabs value={tab} onValueChange={onTabChange}>
-        {/* Zoho-style underline tabs. On a phone the row scrolls sideways inside itself (see TabsList) and the
-            tabs keep their natural width instead of stretching, so none of the five labels is ever squeezed. */}
+        {/* Zoho-style underline tabs. Statement isn't a real in-place tab (it navigates away — see
+            onTabChange) and is already its own button above, so it doesn't belong in this row; with
+            just these four, the tabs keep their natural width and fit a phone screen without needing
+            to scroll. overflow-x-auto stays only as a fallback for a very narrow screen or a large
+            accessibility font. */}
         <TabsList variant="line" className="w-full justify-start overflow-x-auto border-b">
           <TabsTrigger value="overview" className={TAB_TRIGGER_CLASS}>Overview</TabsTrigger>
           <TabsTrigger value="transactions" className={TAB_TRIGGER_CLASS}>Transactions</TabsTrigger>
           <TabsTrigger value="measurements" className={TAB_TRIGGER_CLASS}>Measurements</TabsTrigger>
           <TabsTrigger value="activity" className={TAB_TRIGGER_CLASS}>Activity</TabsTrigger>
-          {/* Statement is its own page, so this one opens it instead of switching a panel (see onTabChange). */}
-          <TabsTrigger value="statement" className={TAB_TRIGGER_CLASS}>Statement</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4 pt-2">

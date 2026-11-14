@@ -7,6 +7,25 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* App-wide reduced-motion safety net — a per-feature `@media (prefers-reduced-motion: reduce)`
+ * block further down this file already turns off a couple of specific animations by name, but
+ * this blanket rule catches everything else (including anything animated via inline styles,
+ * like the route progress bar below, since an !important author rule still wins over a
+ * non-!important inline style). Collapsing every transition/animation to near-zero rather than
+ * `none` keeps end states correct (a toggle still ends up open/closed, a bar still disappears)
+ * without snapping anything invisible mid-flight. Placed first so later, more specific rules in
+ * this file can still override it for an animation that's load-bearing rather than decorative. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -876,4 +895,50 @@
     background: var(--card);
     box-shadow: 1px 0 0 0 var(--border);
   }
+}
+
+/* Page content fade-in on navigation (see page-fade-in.tsx) — opacity + a tiny translateY
+ * rather than a layout property, so it composites instead of forcing reflow on a mid-range
+ * phone. Kept short (220ms) since this plays on every single page open in the app; anything
+ * longer starts to feel like it's in the way rather than a handoff from the route progress
+ * bar finishing (route-progress-bar.tsx). */
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-page-in {
+  animation: page-fade-in 220ms ease-out both;
+}
+
+/* Collapsible accordion content (SectionShell on the customer page, sidebar group
+ * expand/collapse in nav-content.tsx) — grid-template-rows 0fr/1fr instead of toggling real
+ * height or mounting/unmounting the content outright. Animating height (or display) forces a
+ * layout reflow every frame, which is exactly what stutters on a mid-range Android phone;
+ * grid-template-rows composites more like a transform does. The single child's own
+ * overflow:hidden is what actually clips it to zero at the 0fr row, and its own opacity fade
+ * (slightly faster + no delay closing, a touch of delay opening) keeps the content from
+ * visibly popping at either end of the row's own transition. */
+.collapsible-rows {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 200ms ease;
+}
+.collapsible-rows.is-open {
+  grid-template-rows: 1fr;
+}
+.collapsible-rows > * {
+  overflow: hidden;
+  min-height: 0;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.collapsible-rows.is-open > * {
+  opacity: 1;
+  transition-delay: 60ms;
 }

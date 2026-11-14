@@ -57,7 +57,11 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        // active:bg-muted (not a scale/transform) — a <tr> can't be scaled without risking its
+        // cells visually clipping/overflowing against neighbouring rows, but a background tint
+        // is layout-free and gives the same "that tap registered" feedback a clickable row
+        // needs (most of this app's rows navigate via onClick, not a wrapped <a>).
+        "border-b transition-colors hover:bg-muted/50 active:bg-muted has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
         className
       )}
       {...props}

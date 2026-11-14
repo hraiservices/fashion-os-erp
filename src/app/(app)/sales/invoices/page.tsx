@@ -41,7 +41,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
 import { SavedViewsMenu } from "@/components/ui/saved-views-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { cn } from "@/lib/utils";
+import { cn, PRESS_FEEDBACK } from "@/lib/utils";
 import { CustomerLink } from "@/components/crm/customer-link";
 
 const TONE_CLASS: Record<DueTone, string> = {
@@ -457,7 +457,7 @@ export default function SalesInvoicesPage() {
                     {table.isVisible("dueDate") && <TableCell className="text-muted-foreground">{inv.dueDate ? fmtDate(inv.dueDate) : "—"}</TableCell>}
                     {table.isVisible("invoiceNumber") && (
                       <TableCell>
-                        <Link href={`/sales/invoices/${inv.id}`} className="font-medium text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                        <Link href={`/sales/invoices/${inv.id}`} className={cn("inline-block font-medium text-primary hover:underline", PRESS_FEEDBACK)} onClick={(e) => e.stopPropagation()}>
                           {inv.invoiceNumber}
                         </Link>
                       </TableCell>

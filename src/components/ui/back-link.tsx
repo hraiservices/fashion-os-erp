@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, PRESS_FEEDBACK } from "@/lib/utils";
 
 /**
  * The "< Back to X" link every form header / detail page reinvented slightly differently
@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
  */
 export function BackLink({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) {
   return (
-    <Link href={href} className={cn("inline-flex items-center gap-1 text-base font-medium text-muted-foreground hover:text-foreground transition-colors", className)}>
+    <Link href={href} className={cn("inline-flex items-center gap-1 text-base font-medium text-muted-foreground hover:text-foreground transition-colors", PRESS_FEEDBACK, className)}>
       <ArrowLeft className="size-5" /> {children}
     </Link>
   );

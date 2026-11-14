@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp, Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, PRESS_FEEDBACK } from "@/lib/utils";
 import { inr, fmtDate } from "@/lib/format";
 import { INVOICE_STATUS_LABELS } from "@/lib/sales";
 import type { SalesInvoiceWithBalance } from "@/hooks/use-sales-invoices";
@@ -140,7 +140,12 @@ function SectionShell({
   return (
     <section id={id} className="scroll-mt-4 overflow-hidden rounded-xl border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 bg-muted/30 px-4 py-2.5">
-        <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-h-11 items-center gap-2 text-left sm:min-h-0">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className={cn("flex min-h-11 items-center gap-2 text-left sm:min-h-0", PRESS_FEEDBACK)}
+        >
           {open ? <ChevronUp className="size-4 text-primary" /> : <ChevronDown className="size-4 text-primary" />}
           <h2 className="text-sm font-semibold">
             {title} <span className="font-normal text-muted-foreground">({count})</span>
@@ -152,7 +157,12 @@ function SectionShell({
           {action}
         </div>
       </div>
-      {open && <div className="border-t">{children}</div>}
+      {/* Always rendered (not {open && ...}) so the collapsible-rows grid trick has something to
+          animate the height of — see globals.css. aria-hidden/inert keep the clipped-but-still-
+          in-the-DOM content out of focus order and screen readers while closed. */}
+      <div className={cn("collapsible-rows", open && "is-open")} aria-hidden={!open} inert={!open ? true : undefined}>
+        <div className="border-t">{children}</div>
+      </div>
     </section>
   );
 }
@@ -192,7 +202,10 @@ function useDateSort() {
   return { asc, toggle: () => setAsc((v) => !v), sort: { key: "date" as string | null, asc } };
 }
 
-const linkClass = "font-medium text-primary hover:underline";
+// inline-block: a CSS transform (the press-feedback scale below) doesn't reliably apply to a
+// plain inline element across browsers — this keeps PRESS_FEEDBACK's active:scale working on
+// what's otherwise a run of text inside a table cell.
+const linkClass = cn("inline-block font-medium text-primary hover:underline", PRESS_FEEDBACK);
 
 /** Clicking a row opens it, except a click on a link inside it (which navigates by itself). */
 function rowNavigate(router: ReturnType<typeof useRouter>, href: string) {

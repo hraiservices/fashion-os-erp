@@ -4,7 +4,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronRight, ChevronDown, Plus, Scissors } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, PRESS_FEEDBACK } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, resolveReportSection, MANUFACTURING_NAV_ITEM, COPILOT_NAV_ITEM, POS_NAV_ITEM, TARGETS_NAV_ITEM, PAYMENTS_RECEIVED_NAV_ITEM, settingsLeafVisible, employeesLeafVisible, ordersLeafVisible, type NavGroup, type NavLeaf, type NavFlatItem } from "@/components/app-shell/nav-config";
 import { resolveNavLayout, DEFAULT_NAV_LAYOUT, type NavLayoutSetting } from "@/lib/nav-layout";
@@ -56,7 +56,7 @@ function NewLink({ href, onNavigate, label }: { href: string; onNavigate?: () =>
       onClick={onNavigate}
       aria-label={`Add new ${label}`}
       title={`Add new ${label}`}
-      className="flex size-9 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/40 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground sm:size-6"
+      className={cn("flex size-9 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/40 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground sm:size-6", PRESS_FEEDBACK)}
     >
       <Plus className="size-[18px] sm:size-3.5" />
     </Link>
@@ -74,6 +74,7 @@ function FlatLink({ item, active, onNavigate, collapsed }: { item: NavFlatItem; 
         title={collapsed ? item.label : undefined}
         className={cn(
           "flex flex-1 items-center gap-3 rounded-lg px-3 py-3.5 text-[17px] font-medium transition-colors sm:py-2 sm:text-sm",
+          PRESS_FEEDBACK,
           collapsed && "justify-center px-0",
           active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
         )}
@@ -98,6 +99,7 @@ function GroupIndexLink({ group, pathname, onNavigate, collapsed }: { group: Nav
       title={collapsed ? group.label : undefined}
       className={cn(
         "flex items-center gap-3 rounded-lg px-3 py-3.5 text-[17px] font-medium transition-colors sm:py-2 sm:text-sm",
+        PRESS_FEEDBACK,
         collapsed && "justify-center px-0",
         active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
       )}
@@ -150,6 +152,7 @@ function CollapsedGroupFlyout({
               aria-label={group.label}
               className={cn(
                 "flex w-full items-center justify-center rounded-lg px-0 py-3.5 transition-colors sm:py-2",
+                PRESS_FEEDBACK,
                 groupActive ? "text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
               )}
             >
@@ -217,6 +220,7 @@ function GroupNav({
 
   const rowClass = cn(
     "flex w-full items-center gap-3 rounded-lg px-3 py-3.5 text-[17px] font-medium transition-colors sm:py-2 sm:text-sm",
+    PRESS_FEEDBACK,
     groupActive ? "text-sidebar-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
   );
 
@@ -232,15 +236,20 @@ function GroupNav({
         <span className="flex-1 truncate text-left">{group.label}</span>
         <ChevronRight className={cn("size-[18px] shrink-0 transition-transform duration-200 sm:size-3.5", open && "rotate-90")} />
       </button>
-      {open && (
+      {/* Always rendered (not {open && ...}) so the collapsible-rows grid trick has something
+          to animate the height of — see globals.css. aria-hidden/inert keep the clipped-but-
+          still-in-the-DOM content out of focus order and screen readers while closed. */}
+      <div className={cn("collapsible-rows", open && "is-open")} aria-hidden={!open} inert={!open ? true : undefined}>
         <div className="mt-0.5 ml-[1.4rem] space-y-0.5 border-l pl-3">
           {showPinnedOverview && (
             <Link
               href={group.indexHref!}
               onClick={onNavigate}
               aria-current={pathname === group.indexHref ? "page" : undefined}
+              tabIndex={open ? undefined : -1}
               className={cn(
                 "block truncate rounded-md px-2.5 py-2.5 text-[15px] font-medium transition-colors sm:py-1.5 sm:text-[13px]",
+                PRESS_FEEDBACK,
                 pathname === group.indexHref ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
               )}
             >
@@ -256,37 +265,46 @@ function GroupNav({
                     type="button"
                     onClick={() => toggleSection(section.label!)}
                     aria-expanded={sectionOpen}
-                    className="flex w-full items-center gap-1 rounded px-2.5 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/35 hover:text-sidebar-foreground/60 sm:py-0 sm:pb-0.5 sm:text-[10px]"
+                    tabIndex={open ? undefined : -1}
+                    className={cn(
+                      "flex w-full items-center gap-1 rounded px-2.5 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/35 hover:text-sidebar-foreground/60 sm:py-0 sm:pb-0.5 sm:text-[10px]",
+                      PRESS_FEEDBACK
+                    )}
                   >
                     <span className="flex-1">{section.label}</span>
                     <ChevronDown className={cn("size-[14px] shrink-0 transition-transform duration-200 sm:size-3", !sectionOpen && "-rotate-90")} />
                   </button>
                 )}
-                {sectionOpen &&
-                  section.items.map((leaf) => {
-                    const active = leaf.href === activeLeafHref;
-                    return (
-                      <div key={leaf.href} className="flex items-center gap-0.5">
-                        <Link
-                          href={leaf.href}
-                          onClick={onNavigate}
-                          aria-current={active ? "page" : undefined}
-                          className={cn(
-                            "block flex-1 truncate rounded-md px-2.5 py-2.5 text-[15px] transition-colors sm:py-1.5 sm:text-[13px]",
-                            active ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground" : "text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
-                          )}
-                        >
-                          {leaf.label}
-                        </Link>
-                        {leaf.newHref && <NewLink href={leaf.newHref} onNavigate={onNavigate} label={leaf.label} />}
-                      </div>
-                    );
-                  })}
+                <div className={cn("collapsible-rows", sectionOpen && "is-open")} aria-hidden={!sectionOpen} inert={!sectionOpen ? true : undefined}>
+                  <div>
+                    {section.items.map((leaf) => {
+                      const active = leaf.href === activeLeafHref;
+                      return (
+                        <div key={leaf.href} className="flex items-center gap-0.5">
+                          <Link
+                            href={leaf.href}
+                            onClick={onNavigate}
+                            aria-current={active ? "page" : undefined}
+                            tabIndex={open && sectionOpen ? undefined : -1}
+                            className={cn(
+                              "block flex-1 truncate rounded-md px-2.5 py-2.5 text-[15px] transition-colors sm:py-1.5 sm:text-[13px]",
+                              PRESS_FEEDBACK,
+                              active ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground" : "text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+                            )}
+                          >
+                            {leaf.label}
+                          </Link>
+                          {leaf.newHref && <NewLink href={leaf.newHref} onNavigate={onNavigate} label={leaf.label} />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             );
           })}
         </div>
-      )}
+      </div>
     </div>
   );
 }

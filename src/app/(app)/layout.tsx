@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Sidebar } from "@/components/app-shell/sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
+import { RouteProgressBar } from "@/components/app-shell/route-progress-bar";
+import { PageFadeIn } from "@/components/app-shell/page-fade-in";
 import { AppFooter } from "@/components/app-shell/app-footer";
 import { MobileTabBar } from "@/components/app-shell/mobile-nav";
 import { ExpiryBanner } from "@/components/app-shell/expiry-banner";
@@ -63,6 +65,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     // every single page — which Next's static prerendering surfaces as a hard build failure,
     // so no deploy since this was introduced actually shipped.
     <CopilotOpenProvider>
+      <RouteProgressBar />
       <div className="flex min-h-screen min-h-dvh shrink-0 grow basis-auto bg-muted/20 print:block print:bg-white">
         <div className="print:hidden">
           <Sidebar />
@@ -77,7 +80,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <OfflineBanner />
           <ExpiryBanner />
           {/* pb-24 on mobile keeps content clear of the fixed bottom tab bar. */}
-          <main className="flex-1 pb-24 lg:pb-0 print:pb-0">{children}</main>
+          <main className="flex-1 pb-24 lg:pb-0 print:pb-0">
+            <PageFadeIn>{children}</PageFadeIn>
+          </main>
           <AppFooter />
         </div>
         <div className="print:hidden">

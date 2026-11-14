@@ -76,10 +76,20 @@ export function SearchSelect({
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
   }, [autoFocus]);
+
+  // Arrow-key navigation moves `highlighted`, but the list itself doesn't follow — once the
+  // highlighted row scrolls out of the dropdown's own max-h-64 window, the down arrow still
+  // updates state but nothing visibly moves, so it reads as "the keyboard doesn't work, only the
+  // mouse scrolls it". Scroll the row into view on every highlight change instead.
+  useEffect(() => {
+    if (!open) return;
+    listRef.current?.querySelector<HTMLElement>(`[data-index="${highlighted}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [highlighted, open]);
 
   const actions: SearchSelectCreateAction[] = createActions ?? (onCreateNew ? [{ label: createLabel, onCreate: onCreateNew }] : []);
   const selected = options.find((o) => o.value === value);
@@ -148,7 +158,7 @@ export function SearchSelect({
         // Wider than the (often narrow, in a cramped row) input itself on desktop — a short
         // trigger field shouldn't force a short, hard-to-scan dropdown. Stays input-width on
         // mobile, where the row has no room to spare.
-        <ul className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-lg border bg-popover shadow-lg sm:min-w-[22rem] sm:max-w-[80vw]">
+        <ul ref={listRef} className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-lg border bg-popover shadow-lg sm:min-w-[22rem] sm:max-w-[80vw]">
           {actions.length > 0 && (
             // One sticky block so every "Add new" row stays in view while the matches scroll beneath it.
             <li className="sticky top-0 z-10 border-b bg-popover">
@@ -172,7 +182,7 @@ export function SearchSelect({
             </li>
           )}
           {matches.map((o, i) => (
-            <li key={o.value}>
+            <li key={o.value} data-index={i}>
               <button
                 type="button"
                 // onMouseDown, not onClick — fires before the input's onBlur closes the list.

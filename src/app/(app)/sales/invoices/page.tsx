@@ -516,6 +516,11 @@ export default function SalesInvoicesPage() {
                   <Link href={`/sales/invoices/${inv.id}`} className="min-w-0 flex-1">
                     <MobileRecordHeader title={inv.customerName} subtitle={inv.customerMobile} value={<BalanceDue amount={inv.balance} paidLabel="" />} showChevron={false} />
                   </Link>
+                  {/* Sending the invoice is the one action worth a visible tap on mobile too — the
+                      rest (record payment, clone) stay in the kebab menu. Mirrors the desktop
+                      table's own inline WhatsApp buttons one-for-one. */}
+                  {inv.balance > 0 && <WhatsAppIconButton href={reminderUrl(inv)} label={`WhatsApp reminder to ${inv.customerName}`} tone="reminder" />}
+                  <WhatsAppIconButton href={sendPdfUrl(inv)} label={`Send PDF link to ${inv.customerName}`} />
                   {canManage && (
                     <DropdownMenu>
                       <DropdownMenuTrigger

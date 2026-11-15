@@ -107,10 +107,16 @@ export default function DashboardPage() {
       onTouchStart={ptrOnTouchStart}
       onTouchMove={ptrOnTouchMove}
       onTouchEnd={ptrOnTouchEnd}
-      // pb-16 (on top of the app shell's own pb-24 for the global bottom nav) clears this
-      // page's own mobile tab bar below — see MOBILE_TABS. sm:py-6 restores the plain p-6
-      // on all sides that bar doesn't exist at that breakpoint.
-      className="space-y-5 px-4 pt-4 pb-16 sm:px-6 sm:py-6"
+      // The app shell's own pb-24 on <main> already clears the primary bottom bar (3rem tall)
+      // PLUS this page's own extra bar stacked above it (2.75rem tall, offset 3rem up — see
+      // MOBILE_TABS below) for any phone with little or no safe-area-inset-bottom, which is
+      // most Android devices: 3rem (own bar height) + 3rem (its offset) = 6rem, exactly what
+      // pb-24 already provides. A flat extra pb-16 here on top of that was dead space on those
+      // phones — this adds only the bit pb-24 doesn't already cover: the real safe-area inset
+      // itself, minus the small amount of slack pb-24 already has (0.25rem), clamped at 0 so it
+      // never goes negative. sm:py-6 restores the plain p-6 on all sides once this page's own
+      // bar doesn't exist (sm:hidden below).
+      className="space-y-5 px-4 pt-4 pb-[max(0px,calc(env(safe-area-inset-bottom)_-_0.25rem))] sm:px-6 sm:py-6"
     >
       {/* Pull-to-refresh indicator — only ever visible while actively dragging past the top on
        *  mobile (see usePullToRefresh); desktop never fires the touch events that drive `pull`. */}
@@ -245,7 +251,11 @@ export default function DashboardPage() {
        *  extra `pb-16` above (see the root div's className) so content clears both. */}
       <nav
         aria-label="Dashboard sections"
-        className="fixed inset-x-0 z-30 flex items-stretch border-t bg-card/95 backdrop-blur-sm sm:hidden print:hidden"
+        // shadow-[...] gives this bar its own visible edge against the primary bottom bar
+        // directly beneath it — both use a near-identical translucent background, so without
+        // it the seam between two independently-stacked bars read as one bar awkwardly
+        // merging/overlapping into the other rather than two distinct, intentional rows.
+        className="fixed inset-x-0 z-30 flex items-stretch border-t bg-card/95 shadow-[0_-2px_6px_-2px_rgba(0,0,0,0.12)] backdrop-blur-sm sm:hidden print:hidden"
         style={{ bottom: "calc(3rem + env(safe-area-inset-bottom))" }}
       >
         {MOBILE_TABS.map((t) => (

@@ -20,7 +20,12 @@ import { getCachedAppSetting } from "@/lib/supabase/app-settings-cache";
 // /privacy is the Play/App Store-required privacy policy page — static, no auth, and needs to be
 // reachable by Google's review process and by anyone following the Play Store listing link
 // without ever signing in.
-const PUBLIC_PATHS = ["/login", "/signup", "/launch", "/checkin", "/invoice/view", "/track", "/enquiry", "/privacy", "/api/public", "/api/recurring-invoices/generate"];
+// /statement/view is the customer-facing statement page (src/app/statement/view/[token]/page.tsx)
+// — its own file comment already calls it "Public, unauthenticated", and it's been shared with
+// customers over WhatsApp since it shipped (see the Statement page and CustomerProfileLink), but
+// was missing from this list the whole time: every visit from a logged-out customer was silently
+// redirected to /login before the page's own code (which never even checks for a session) ever ran.
+const PUBLIC_PATHS = ["/login", "/signup", "/launch", "/checkin", "/invoice/view", "/track", "/statement/view", "/enquiry", "/privacy", "/api/public", "/api/recurring-invoices/generate"];
 
 // Of the public paths, only /login and /signup actually do anything with the auth result (bounce
 // an already-logged-in visitor to /dashboard instead of showing them the form again) — every

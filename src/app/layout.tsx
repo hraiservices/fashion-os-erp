@@ -114,7 +114,18 @@ export default function RootLayout({
           its own bg-background box instead of revealing whatever sits behind the document. */}
       <body className="bg-background max-lg:fixed max-lg:inset-0 max-lg:overflow-hidden" suppressHydrationWarning>
         <div id="scroll-root" className="flex w-full flex-col bg-background max-lg:h-full max-lg:overflow-y-auto max-lg:overscroll-contain [-webkit-overflow-scrolling:touch]">
-          <Providers>{children}</Providers>
+          {/* min-w-0: #scroll-root is a flex container, and every page's own root element is its
+              direct flex item (Providers renders no DOM wrapper of its own). A flex item's default
+              min-width is "auto" — the width of its widest unbreakable content — not 0, so any page
+              with a wide table or a many-column grid (even one already wrapped in its own
+              overflow-x-auto, like the public statement/invoice/track pages' transaction tables)
+              silently grew past the viewport instead of being clamped to it, forcing the *whole
+              page* to scroll sideways rather than just that one element scrolling within itself.
+              The authenticated app shell already has this same fix one level down (see
+              (app)/layout.tsx's own min-w-0) — standalone pages sitting directly here never did. */}
+          <div className="min-w-0 w-full">
+            <Providers>{children}</Providers>
+          </div>
         </div>
       </body>
     </html>

@@ -107,16 +107,19 @@ export default function DashboardPage() {
       onTouchStart={ptrOnTouchStart}
       onTouchMove={ptrOnTouchMove}
       onTouchEnd={ptrOnTouchEnd}
-      // The app shell's own pb-24 on <main> already clears the primary bottom bar (3rem tall)
-      // PLUS this page's own extra bar stacked above it (2.75rem tall, offset 3rem up — see
-      // MOBILE_TABS below) for any phone with little or no safe-area-inset-bottom, which is
-      // most Android devices: 3rem (own bar height) + 3rem (its offset) = 6rem, exactly what
-      // pb-24 already provides. A flat extra pb-16 here on top of that was dead space on those
-      // phones — this adds only the bit pb-24 doesn't already cover: the real safe-area inset
-      // itself, minus the small amount of slack pb-24 already has (0.25rem), clamped at 0 so it
-      // never goes negative. sm:py-6 restores the plain p-6 on all sides once this page's own
-      // bar doesn't exist (sm:hidden below).
-      className="space-y-5 px-4 pt-4 pb-[max(0px,calc(env(safe-area-inset-bottom)_-_0.25rem))] sm:px-6 sm:py-6"
+      // The app shell's own pb-24 on <main> is sized for the ONE primary bottom bar every other
+      // page has; this page stacks a second bar above it (MOBILE_TABS below), which needs its
+      // own extra clearance on top of that shared padding. An earlier version of this tried to
+      // compute the exact minimum extra needed from the real safe-area inset and pb-24's own
+      // slack (subtracting one from the other) — reasoned out rather than measured, and wrong in
+      // practice: it under-provisioned on a real phone, clipping the end of the widget grid
+      // behind these two bars. This is a plain, verified addition instead — 2.5rem flat (a
+      // comfortable margin above this page's own bar height, measured directly rather than
+      // assumed) plus the real safe-area inset on top, never subtracting anything from pb-24's
+      // own budget. A little extra blank space at the bottom is a far better failure mode than
+      // hiding real numbers behind a fixed bar. sm:py-6 restores the plain p-6 on all sides once
+      // this page's own bar doesn't exist (sm:hidden below).
+      className="space-y-5 px-4 pt-4 pb-[calc(2.5rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-6"
     >
       {/* Pull-to-refresh indicator — only ever visible while actively dragging past the top on
        *  mobile (see usePullToRefresh); desktop never fires the touch events that drive `pull`. */}

@@ -38,6 +38,8 @@ import { NewPaymentButton } from "@/components/payments/new-payment-button";
 import { Input } from "@/components/ui/input";
 import { Skeleton, SkeletonListItem } from "@/components/ui/skeleton";
 import { ColumnCustomizerMenu } from "@/components/ui/column-customizer";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
 import { ExportMenu } from "@/components/ui/export-menu";
 import {
   AlertDialog,
@@ -53,6 +55,15 @@ import { Suspense } from "react";
 import { daysLeft, getNextStage, STAGE_META, STAGES, DEFAULT_RATES, type Stage, type RateCard } from "@/lib/business-rules";
 import { useAppSetting } from "@/hooks/use-app-setting";
 import { inr } from "@/lib/format";
+
+/** Shared lookup for the three Orders views — one source for the mobile view-switcher dropdown
+ *  and the desktop SegmentedToggle below it, instead of the label/icon/tone per view living only
+ *  inline in each one's own JSX. */
+const VIEW_META = {
+  list: { label: "List", icon: LayoutList, tone: TONES.blue },
+  board: { label: "Board", icon: KanbanSquare, tone: TONES.purple },
+  calendar: { label: "Calendar", icon: CalendarDays, tone: TONES.green },
+} as const;
 
 /** Matches the Orders search box against name/mobile/order ID, plus — since garment item codes
  *  are a shop-assigned lookup label, not stored data — each garment's type's code from the
@@ -160,12 +171,21 @@ function OrdersContent() {
   const [viewOverride, setViewOverride] = useState<"board" | "list" | "calendar" | null>(null);
   const view = viewOverride ?? viewFromUrl;
   if (viewOverride && viewOverride === viewFromUrl) setViewOverride(null);
+  const ActiveViewIcon = VIEW_META[view].icon;
 
   function setView(v: "board" | "list" | "calendar") {
     setViewOverride(v);
     const params = new URLSearchParams(searchParams.toString());
     params.set("view", v);
     router.replace(`/orders?${params.toString()}`);
+    // Board view has its own stage tabs (kanban-board.tsx), separate from this page's stage
+    // filter — and that filter actually removes other stages' orders from what Board receives
+    // (see `filtered` below), not just highlights a chip. Leaving a stage selected from a
+    // previous List/Calendar visit would silently hand the board only one stage's cards with no
+    // visible reason why the rest vanished, since the row driving that filter is hidden in Board
+    // view now. Clearing it on the way in keeps Board always showing every stage, as its own
+    // tabs expect.
+    if (v === "board" && filters.stage !== "all") setFilters({ ...filters, stage: "all" });
   }
 
   const { data: orders, isLoading: ordersLoading, isError: ordersError, refetch: refetchOrders } = useOrders();
@@ -509,29 +529,35 @@ function OrdersContent() {
               aria-label="Search orders"
             />
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            <Button
-              type="button"
-              size="sm"
-              variant={filters.stage === "all" ? "default" : "outline"}
-              className="h-10 shrink-0 rounded-full px-3 text-xs"
-              onClick={() => setFilters({ ...filters, stage: "all" })}
-            >
-              All
-            </Button>
-            {STAGES.map((s) => (
+          {/* Board view already has its own stage tabs (kanban-board.tsx's mobile stage grid,
+              right below this), showing the exact same stages with the exact same counts — this
+              chip row would just be a second, taller copy of the same filter stacked right above
+              it. Only List/Calendar need it, since neither has its own stage selector. */}
+          {view !== "board" && (
+            <div className="flex flex-wrap gap-1.5">
               <Button
-                key={s}
                 type="button"
                 size="sm"
-                variant={filters.stage === s ? "default" : "outline"}
+                variant={filters.stage === "all" ? "default" : "outline"}
                 className="h-10 shrink-0 rounded-full px-3 text-xs"
-                onClick={() => setFilters({ ...filters, stage: filters.stage === s ? "all" : s })}
+                onClick={() => setFilters({ ...filters, stage: "all" })}
               >
-                {STAGE_META[s].label}
+                All
               </Button>
-            ))}
-          </div>
+              {STAGES.map((s) => (
+                <Button
+                  key={s}
+                  type="button"
+                  size="sm"
+                  variant={filters.stage === s ? "default" : "outline"}
+                  className="h-10 shrink-0 rounded-full px-3 text-xs"
+                  onClick={() => setFilters({ ...filters, stage: filters.stage === s ? "all" : s })}
+                >
+                  {STAGE_META[s].label}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
 
         <OrderFilters
@@ -542,41 +568,37 @@ function OrdersContent() {
           mobileOpen={filterSheetOpen}
           onMobileOpenChange={setFilterSheetOpen}
           mobileLeading={
-            <div className="flex shrink-0 gap-2" role="group" aria-label="View mode">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setView("list")}
-                aria-pressed={view === "list"}
-                aria-label="List view"
-                className={cn("h-10 w-10 shrink-0 px-0", view === "list" ? TONES.blue.active : TONES.blue.idle)}
-              >
-                <LayoutList className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setView("board")}
-                aria-pressed={view === "board"}
-                aria-label="Board view"
-                className={cn("h-10 w-10 shrink-0 px-0", view === "board" ? TONES.purple.active : TONES.purple.idle)}
-              >
-                <KanbanSquare className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setView("calendar")}
-                aria-pressed={view === "calendar"}
-                aria-label="Calendar view"
-                className={cn("h-10 w-10 shrink-0 px-0", view === "calendar" ? TONES.green.active : TONES.green.idle)}
-              >
-                <CalendarDays className="size-4" />
-              </Button>
-            </div>
+            // One button instead of three separate square ones — View switching is a less
+            // frequent action than Filters/Sort right beside it, so it doesn't need to stay
+            // permanently spread out across three full tap targets on a screen already busy with
+            // the search bar and stage chips above. Still shows the current view's own colour/
+            // icon (matching the desktop SegmentedToggle below) so it reads at a glance without opening it.
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-label={`View: ${VIEW_META[view].label}. Tap to change`}
+                    className={cn("h-10 shrink-0 gap-1 px-2.5", VIEW_META[view].tone.idle)}
+                  >
+                    <ActiveViewIcon className="size-4" />
+                    <ChevronDown className="size-3.5" />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="start">
+                {(["list", "board", "calendar"] as const).map((v) => {
+                  const Icon = VIEW_META[v].icon;
+                  return (
+                    <DropdownMenuItem key={v} onClick={() => setView(v)} className={view === v ? "font-medium" : undefined}>
+                      <Icon className="size-4" /> {VIEW_META[v].label}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
           }
           desktopLeading={
             <SegmentedToggle

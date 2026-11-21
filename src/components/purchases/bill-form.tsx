@@ -59,7 +59,7 @@ function FieldGroup({ label, required, children, hint }: { label: string; requir
   );
 }
 
-export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; existing?: PurchaseBill }) {
+export function BillForm({ prefillPoId, prefillVendorId, existing }: { prefillPoId?: string; prefillVendorId?: string; existing?: PurchaseBill }) {
   const router = useRouter();
   const { data: user } = useCurrentUser();
   const { data: vendors } = useVendors();
@@ -71,7 +71,7 @@ export function BillForm({ prefillPoId, existing }: { prefillPoId?: string; exis
   const [peekOpen, setPeekOpen] = useState(false);
 
   const [billNumber] = useState(existing?.billNumber || genBillNumber());
-  const [vendorId, setVendorId] = useState(existing?.vendorId || "");
+  const [vendorId, setVendorId] = useState(existing?.vendorId || prefillVendorId || "");
   const [billDate, setBillDate] = useState(existing?.billDate || istDateString());
   // Net 35 default — matches "I took products from vendors on 35 days credit," the actual
   // terms this shop buys on. Previously defaulted to "Due on Receipt" and left Due date

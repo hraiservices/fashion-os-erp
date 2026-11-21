@@ -1,34 +1,58 @@
 "use client";
 
-import { DateText } from "@/components/ui/date-text";
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
-import { Phone, Mail, MapPin, FileText, ChevronRight } from "lucide-react";
-import { FileTextDuotoneIcon, ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Phone, Mail, MapPin, FileText, Pencil, Trash2, Plus, ChevronDown } from "lucide-react";
+import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useVendor, useVendors } from "@/hooks/use-vendors";
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders";
 import { usePurchaseBills } from "@/hooks/use-purchase-bills";
-import { inr, fmtDate } from "@/lib/format";
-import { PO_STATUS_LABELS, BILL_STATUS_LABELS } from "@/lib/purchases";
+import { useAllVendorPayments } from "@/hooks/use-vendor-payments";
+import { useDeleteVendor } from "@/hooks/use-purchase-mutations";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { inr } from "@/lib/format";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { BalanceDue } from "@/components/ui/money-text";
+import { Button } from "@/components/ui/button";
 import { BackLink } from "@/components/ui/back-link";
 import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
 import { RecordPrevNext } from "@/components/ui/record-prev-next";
 import { DetailStatRow, DetailStatTile } from "@/components/ui/detail-stat-tile";
+import { VendorTransactions } from "@/components/purchases/vendor-transactions";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function VendorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
   const { data: vendor, isLoading } = useVendor(id);
   const { data: allVendors } = useVendors();
   const { data: allOrders } = usePurchaseOrders();
   const { data: allBills } = usePurchaseBills();
+  const { data: allPayments } = useAllVendorPayments();
+  const { data: user } = useCurrentUser();
+  const deleteVendor = useDeleteVendor();
 
-  const orders = (allOrders || []).filter((o) => o.vendorId === id);
-  const bills = (allBills || []).filter((b) => b.vendorId === id);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const canManage = !!user?.perms.managePurchases;
+
+  const orders = [...(allOrders || []).filter((o) => o.vendorId === id)].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const bills = [...(allBills || []).filter((b) => b.vendorId === id)].sort((a, b) => new Date(b.billDate).getTime() - new Date(a.billDate).getTime());
+  const payments = [...(allPayments || []).filter((p) => p.vendorId === id)].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const totalPayable = bills.reduce((s, b) => s + b.balance, 0);
+  const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
 
   // Same payable computation as the Vendors list page: sum each vendor's bill balances.
   const payableByVendor = new Map<string, number>();
@@ -44,6 +68,17 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
       href: `/purchases/vendors/${v.id}`,
     };
   });
+
+  async function doDelete() {
+    if (!vendor) return;
+    try {
+      await deleteVendor.mutateAsync({ id: vendor.id, name: vendor.name, userEmail: user?.email });
+      toast.success(`${vendor.name} deleted`);
+      router.push("/purchases/vendors");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete");
+    }
+  }
 
   if (isLoading) {
     return (
@@ -69,103 +104,105 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
     <div className="flex items-start gap-4 p-4 sm:p-6">
       <DetailSidebarList items={sidebarItems} activeId={id} searchPlaceholder="Search vendors…" emptyLabel="No vendors yet" />
       <div className="min-w-0 flex-1 space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <BackLink href="/purchases/vendors">Vendors</BackLink>
-        <RecordPrevNext items={sidebarItems} activeId={id} />
-      </div>
+        <div className="flex items-center justify-between gap-2">
+          <BackLink href="/purchases/vendors">Vendors</BackLink>
+          <RecordPrevNext items={sidebarItems} activeId={id} />
+        </div>
 
-      <div className="rounded-xl border bg-card p-4 sm:p-5">
-        <h1 className="text-xl font-semibold tracking-tight">{vendor.name}</h1>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-          {vendor.mobile && (
-            <span className="inline-flex items-center gap-1.5">
-              <Phone className="size-3.5" /> {vendor.mobile}
-            </span>
+        <div className="rounded-xl border bg-card p-4 sm:p-5">
+          <h1 className="text-xl font-semibold tracking-tight">{vendor.name}</h1>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            {vendor.mobile && (
+              <span className="inline-flex items-center gap-1.5">
+                <Phone className="size-3.5" /> {vendor.mobile}
+              </span>
+            )}
+            {vendor.email && (
+              <span className="inline-flex items-center gap-1.5">
+                <Mail className="size-3.5" /> {vendor.email}
+              </span>
+            )}
+            {vendor.gstin && (
+              <span className="inline-flex items-center gap-1.5">
+                <FileText className="size-3.5" /> {vendor.gstin}
+              </span>
+            )}
+          </div>
+          {vendor.address && (
+            <p className="mt-1 inline-flex items-start gap-1.5 text-xs text-muted-foreground">
+              <MapPin className="mt-0.5 size-3.5 shrink-0" /> {vendor.address}
+            </p>
           )}
-          {vendor.email && (
-            <span className="inline-flex items-center gap-1.5">
-              <Mail className="size-3.5" /> {vendor.email}
-            </span>
-          )}
-          {vendor.gstin && (
-            <span className="inline-flex items-center gap-1.5">
-              <FileText className="size-3.5" /> {vendor.gstin}
-            </span>
-          )}
-        </div>
-        {vendor.address && (
-          <p className="mt-1 inline-flex items-start gap-1.5 text-xs text-muted-foreground">
-            <MapPin className="mt-0.5 size-3.5 shrink-0" /> {vendor.address}
-          </p>
-        )}
 
-        <div className="mt-4">
-          <DetailStatRow>
-            <DetailStatTile value={orders.length} label="Purchase orders" />
-            <DetailStatTile value={bills.length} label="Bills" />
-            <DetailStatTile value={inr(totalPayable)} label="Payable" tone={totalPayable > 0 ? "due" : "good"} />
-          </DetailStatRow>
-        </div>
-      </div>
+          <div className="mt-4">
+            <DetailStatRow>
+              <DetailStatTile value={orders.length} label="Purchase orders" />
+              <DetailStatTile value={bills.length} label="Bills" />
+              <DetailStatTile value={inr(totalPayable)} label="Payable" tone={totalPayable > 0 ? "due" : "good"} />
+            </DetailStatRow>
+          </div>
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-      <section className="rounded-xl border bg-card">
-        <div className="border-b px-4 py-3">
-          <h2 className="text-sm font-semibold">Bills ({bills.length})</h2>
-        </div>
-        {bills.length === 0 ? (
-          <EmptyState icon={ReceiptDuotoneIcon} title="No bills yet" className="border-0" />
-        ) : (
-          <ul className="divide-y">
-            {bills.map((b) => (
-              <li key={b.id}>
-                <Link href={`/purchases/bills/${b.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-sm font-medium">{b.billNumber}</span>
-                      <Badge variant={b.paymentStatus === "paid" ? "secondary" : "outline"}>{BILL_STATUS_LABELS[b.paymentStatus]}</Badge>
-                    </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground"><DateText>{fmtDate(b.billDate)}</DateText></p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-sm font-semibold tabular-nums">{inr(b.total)}</p>
-                    {b.balance > 0 && <BalanceDue amount={b.balance} suffix=" due" paidLabel="" className="text-xs" />}
-                  </div>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+          {/* Mirrors the Customer page's always-visible action row: one primary "New Transaction"
+              menu for the create actions, Edit and Delete as their own buttons (the two things
+              staff reach for most), gated by the same managePurchases permission already used
+              on the Vendors list. */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {canManage && (
+              <DropdownMenu>
+                <DropdownMenuTrigger render={<Button className="h-10 px-4" />}>
+                  <Plus className="size-4" /> New Transaction <ChevronDown className="size-3.5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem render={<Link href={`/purchases/orders/new?vendor=${vendor.id}`} />}>
+                    <Plus className="size-4" /> Purchase order
+                  </DropdownMenuItem>
+                  <DropdownMenuItem render={<Link href={`/purchases/bills/new?vendor=${vendor.id}`} />}>
+                    <Plus className="size-4" /> Bill
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
-      <section className="rounded-xl border bg-card">
-        <div className="border-b px-4 py-3">
-          <h2 className="text-sm font-semibold">Purchase Orders ({orders.length})</h2>
+            {canManage && (
+              <Button variant="outline" className="h-10" nativeButton={false} render={<Link href={`/purchases/vendors/${vendor.id}/edit`} />}>
+                <Pencil className="size-4" /> Edit
+              </Button>
+            )}
+
+            {canManage && (
+              <Button
+                variant="outline"
+                className="h-10 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="size-4" /> Delete
+              </Button>
+            )}
+
+            <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete {vendor.name}?</AlertDialogTitle>
+                  <AlertDialogDescription>This cannot be undone. Bills already recorded against this vendor are kept.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction variant="destructive" onClick={doDelete}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
-        {orders.length === 0 ? (
-          <EmptyState icon={FileTextDuotoneIcon} title="No purchase orders yet" className="border-0" />
-        ) : (
-          <ul className="divide-y">
-            {orders.map((o) => (
-              <li key={o.id}>
-                <Link href={`/purchases/orders/${o.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-sm font-medium">{o.poNumber}</span>
-                      <Badge variant="outline">{PO_STATUS_LABELS[o.status]}</Badge>
-                    </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground"><DateText>{fmtDate(o.date)}</DateText></p>
-                  </div>
-                  <p className="shrink-0 text-sm font-semibold tabular-nums">{inr(o.total)}</p>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      </div>
+
+        <VendorTransactions
+          vendorId={vendor.id}
+          orders={orders}
+          bills={bills}
+          payments={payments}
+          totalPayable={totalPayable}
+          totalPaid={totalPaid}
+          canManage={canManage}
+        />
       </div>
     </div>
   );

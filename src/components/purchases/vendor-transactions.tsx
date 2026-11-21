@@ -71,19 +71,12 @@ export function VendorTransactions({
           Go to transactions <ChevronDown className="size-4 text-primary" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          <DropdownMenuItem onClick={() => goTo("orders")}>Purchase orders ({orders.length})</DropdownMenuItem>
           <DropdownMenuItem onClick={() => goTo("bills")}>Bills ({bills.length})</DropdownMenuItem>
           <DropdownMenuItem onClick={() => goTo("payments")}>Payments ({payments.length})</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => goTo("orders")}>Purchase orders ({orders.length})</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <OrdersSection
-        vendorId={vendorId}
-        orders={orders}
-        canManage={canManage}
-        open={open.orders}
-        onToggle={() => setOpen((p) => ({ ...p, orders: !p.orders }))}
-      />
       <BillsSection
         vendorId={vendorId}
         bills={bills}
@@ -97,6 +90,13 @@ export function VendorTransactions({
         totalPaid={totalPaid}
         open={open.payments}
         onToggle={() => setOpen((p) => ({ ...p, payments: !p.payments }))}
+      />
+      <OrdersSection
+        vendorId={vendorId}
+        orders={orders}
+        canManage={canManage}
+        open={open.orders}
+        onToggle={() => setOpen((p) => ({ ...p, orders: !p.orders }))}
       />
     </div>
   );

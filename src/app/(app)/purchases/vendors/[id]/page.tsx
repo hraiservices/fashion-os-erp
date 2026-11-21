@@ -1,8 +1,8 @@
 "use client";
 
-import { use, useState } from "react";
+import { Suspense, use, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Phone, Mail, MapPin, FileText, Pencil, Trash2, Plus, ChevronDown } from "lucide-react";
 import { ReceiptDuotoneIcon } from "@/components/icons/duotone-icons";
@@ -16,11 +16,13 @@ import { inr } from "@/lib/format";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BackLink } from "@/components/ui/back-link";
 import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
 import { RecordPrevNext } from "@/components/ui/record-prev-next";
 import { DetailStatRow, DetailStatTile } from "@/components/ui/detail-stat-tile";
 import { VendorTransactions } from "@/components/purchases/vendor-transactions";
+import { VendorPurchaseChart, buildVendorPurchasesByMonth } from "@/components/purchases/vendor-purchase-chart";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -33,9 +35,37 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-export default function VendorDetailPage({ params }: { params: Promise<{ id: string }> }) {
+const TAB_KEYS = ["overview", "transactions"] as const;
+type TabKey = (typeof TAB_KEYS)[number];
+
+/** useSearchParams (the selected tab lives in the URL) wants a Suspense boundary above it, so the page sits inside one. */
+export default function VendorDetailPage(props: { params: Promise<{ id: string }> }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-40 w-full" />
+        </div>
+      }
+    >
+      <VendorDetailView {...props} />
+    </Suspense>
+  );
+}
+
+function VendorDetailView({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // The tab is in the URL (?tab=transactions) so a refresh, the back button and a shared link all land on the same tab.
+  const requestedTab = searchParams.get("tab");
+  const tab: TabKey = (TAB_KEYS as readonly string[]).includes(requestedTab ?? "") ? (requestedTab as TabKey) : "overview";
+  function onTabChange(value: unknown) {
+    const next = String(value);
+    router.replace(next === "overview" ? pathname : `${pathname}?tab=${next}`, { scroll: false });
+  }
   const { data: vendor, isLoading } = useVendor(id);
   const { data: allVendors } = useVendors();
   const { data: allOrders } = usePurchaseOrders();
@@ -53,6 +83,7 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
   const payments = [...(allPayments || []).filter((p) => p.vendorId === id)].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const totalPayable = bills.reduce((s, b) => s + b.balance, 0);
   const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
+  const purchasesByMonth = buildVendorPurchasesByMonth(orders, bills);
 
   // Same payable computation as the Vendors list page: sum each vendor's bill balances.
   const payableByVendor = new Map<string, number>();
@@ -194,15 +225,32 @@ export default function VendorDetailPage({ params }: { params: Promise<{ id: str
           </div>
         </div>
 
-        <VendorTransactions
-          vendorId={vendor.id}
-          orders={orders}
-          bills={bills}
-          payments={payments}
-          totalPayable={totalPayable}
-          totalPaid={totalPaid}
-          canManage={canManage}
-        />
+        <Tabs value={tab} onValueChange={onTabChange}>
+          <TabsList variant="line" className="w-full justify-start overflow-x-auto border-b">
+            <TabsTrigger value="overview" className="flex-none px-3">Overview</TabsTrigger>
+            <TabsTrigger value="transactions" className="flex-none px-3">Transactions</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-4 pt-2">
+            {purchasesByMonth.some((m) => m.total > 0) ? (
+              <VendorPurchaseChart data={purchasesByMonth} />
+            ) : (
+              <EmptyState icon={ReceiptDuotoneIcon} title="No purchases yet" description="A month-by-month chart appears here once this vendor has purchase orders or bills." />
+            )}
+          </TabsContent>
+
+          <TabsContent value="transactions" className="pt-2">
+            <VendorTransactions
+              vendorId={vendor.id}
+              orders={orders}
+              bills={bills}
+              payments={payments}
+              totalPayable={totalPayable}
+              totalPaid={totalPaid}
+              canManage={canManage}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

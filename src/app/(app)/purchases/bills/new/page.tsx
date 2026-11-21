@@ -8,7 +8,8 @@ import { BillForm } from "@/components/purchases/bill-form";
 function NewBillContent() {
   const searchParams = useSearchParams();
   const poId = searchParams.get("poId") || undefined;
-  return <BillForm prefillPoId={poId} />;
+  const prefillVendorId = searchParams.get("vendor") || undefined;
+  return <BillForm prefillPoId={poId} prefillVendorId={prefillVendorId} />;
 }
 
 export default function NewBillPage() {

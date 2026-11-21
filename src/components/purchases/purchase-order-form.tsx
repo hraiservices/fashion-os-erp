@@ -48,7 +48,7 @@ function FieldGroup({ label, required, children, hint }: { label: string; requir
   );
 }
 
-export function PurchaseOrderForm({ existing }: { existing?: PurchaseOrder }) {
+export function PurchaseOrderForm({ existing, prefillVendorId }: { existing?: PurchaseOrder; prefillVendorId?: string }) {
   const router = useRouter();
   const { data: user } = useCurrentUser();
   const { data: vendors } = useVendors();
@@ -59,7 +59,7 @@ export function PurchaseOrderForm({ existing }: { existing?: PurchaseOrder }) {
   const [addVendorOpen, setAddVendorOpen] = useState(false);
   const [newVendorName, setNewVendorName] = useState("");
   const [peekOpen, setPeekOpen] = useState(false);
-  const [vendorId, setVendorId] = useState(existing?.vendorId || "");
+  const [vendorId, setVendorId] = useState(existing?.vendorId || prefillVendorId || "");
   const [date, setDate] = useState(existing?.date || istDateString());
   const [lines, setLines] = useState<EditableLine[]>(
     existing ? existing.items.map((item, i) => lineFromItem(item, `existing-${i}`)) : [blankLine()]

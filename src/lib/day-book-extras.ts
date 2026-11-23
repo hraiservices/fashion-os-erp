@@ -97,8 +97,12 @@ export interface DeliveryItem {
 
 export interface DeliveryBoard {
   dueToday: DeliveryItem[];
-  /** Past-due and still not delivered — only computed when viewing today. */
+  /** Past-due and still not delivered — only computed when viewing today. Capped at 50 rows. */
   overdue: DeliveryItem[];
+  /** The true count of overdue orders, which can exceed `overdue.length` once there are more
+   *  than the 50-row cap — shown instead of `overdue.length` so the badge never understates how
+   *  many are actually overdue. */
+  overdueTotalCount: number;
   deliveredToday: DeliveryItem[];
   /** Balance still owed on orders delivered today. */
   unpaidOnDeliveredToday: number;

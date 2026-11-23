@@ -227,12 +227,39 @@ export function CashPositionCard({
   );
 }
 
-function DeliveryList({ icon: Icon, title, items, tone, empty }: { icon: typeof PackageCheck; title: string; items: DeliveryItem[]; tone?: "danger"; empty: string }) {
-  const shown = items.slice(0, 6);
+function DeliveryList({
+  icon: Icon,
+  title,
+  items,
+  tone,
+  empty,
+  totalCount,
+  sortByBalance,
+}: {
+  icon: typeof PackageCheck;
+  title: string;
+  items: DeliveryItem[];
+  tone?: "danger";
+  empty: string;
+  /** The true count, when it can exceed `items.length` (the overdue list is capped at 50 rows
+   *  server-side) — shown in the heading instead of `items.length` so it never understates. */
+  totalCount?: number;
+  /** Outstanding-balance-first (highest due at the top, fully-paid rows at the bottom) — for
+   *  "Due this day" and "Delivered", where what still needs a follow-up call matters more than
+   *  list order. Overdue stays in its own server-side oldest-due-date-first order, which is the
+   *  more useful sort there. */
+  sortByBalance?: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const ordered = sortByBalance ? [...items].sort((a, b) => b.balance - a.balance) : items;
+  const shown = expanded ? ordered : ordered.slice(0, 6);
+  const count = totalCount ?? items.length;
+  const capped = totalCount != null && totalCount > items.length;
   return (
     <div className="min-w-0">
       <p className={cn("mb-1.5 flex items-center gap-1.5 text-xs font-medium", tone === "danger" ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
-        <Icon className="size-3.5" /> {title} ({items.length})
+        <Icon className="size-3.5" /> {title} ({count}
+        {capped ? "+" : ""})
       </p>
       {items.length === 0 ? (
         <p className="pl-5 text-xs text-muted-foreground">{empty}</p>
@@ -246,11 +273,22 @@ function DeliveryList({ icon: Icon, title, items, tone, empty }: { icon: typeof 
               {o.balance > 0 ? <span className="shrink-0 text-xs font-medium text-red-600 tabular-nums dark:text-red-400">{inr(o.balance)} due</span> : <CheckCircle2 className="size-3.5 shrink-0 text-emerald-600" />}
             </li>
           ))}
+          {/* Expands in place instead of linking out to the plain, unfiltered /orders list —
+              clicking "+N more" used to leave the Day Book entirely for a list with no overdue
+              filter of its own. Every row already fetched is right here, so there's nothing to
+              navigate anywhere for. */}
           {items.length > shown.length && (
             <li>
-              <Link href="/orders" className="text-xs text-muted-foreground hover:text-foreground">
+              <button type="button" onClick={() => setExpanded(true)} className="text-xs text-muted-foreground hover:text-foreground">
                 +{items.length - shown.length} more
-              </Link>
+              </button>
+            </li>
+          )}
+          {expanded && items.length > 6 && (
+            <li>
+              <button type="button" onClick={() => setExpanded(false)} className="text-xs text-muted-foreground hover:text-foreground">
+                Show less
+              </button>
             </li>
           )}
         </ul>
@@ -272,9 +310,9 @@ export function DeliveriesCard({ board, isToday }: { board: DeliveryBoard; isTod
         )}
       </div>
       <div className={cn("grid gap-4", isToday ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
-        <DeliveryList icon={CalendarClock} title="Due this day" items={board.dueToday} empty="Nothing due" />
-        {isToday && <DeliveryList icon={Siren} title="Overdue" items={board.overdue} tone="danger" empty="Nothing overdue" />}
-        <DeliveryList icon={PackageCheck} title="Delivered" items={board.deliveredToday} empty="No deliveries" />
+        <DeliveryList icon={CalendarClock} title="Due this day" items={board.dueToday} empty="Nothing due" sortByBalance />
+        {isToday && <DeliveryList icon={Siren} title="Overdue" items={board.overdue} totalCount={board.overdueTotalCount} tone="danger" empty="Nothing overdue" />}
+        <DeliveryList icon={PackageCheck} title="Delivered" items={board.deliveredToday} empty="No deliveries" sortByBalance />
       </div>
     </ReportCard>
   );
@@ -471,7 +509,7 @@ export function UnclosedBanner({ days, onPick }: { days: string[]; onPick: (date
   );
 }
 
-export function VarianceHistoryCard({ history }: { history: ClosingHistory | undefined }) {
+export function VarianceHistoryCard({ history, onPickDay }: { history: ClosingHistory | undefined; onPickDay?: (date: string) => void }) {
   const closings = history?.closings || [];
   if (closings.length === 0) return null;
   const shortCount = closings.filter((c) => c.variance < 0).length;
@@ -493,7 +531,9 @@ export function VarianceHistoryCard({ history }: { history: ClosingHistory | und
             <YAxis tickLine={false} axisLine={false} fontSize={10} />
             <ReferenceLine y={0} stroke="currentColor" opacity={0.3} />
             <Tooltip formatter={(v) => inr(Number(v))} labelFormatter={(_l, p) => (p?.[0]?.payload ? fmtDate(p[0].payload.date) : "")} contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-popover)", fontSize: 12 }} />
-            <Bar dataKey="variance" name="Variance" radius={[3, 3, 0, 0]}>
+            {/* Click a bar to jump straight to that day in the Day Book — previously a red bar
+                could only be read ("something was short that day"), not opened to see why. */}
+            <Bar dataKey="variance" name="Variance" radius={[3, 3, 0, 0]} cursor={onPickDay ? "pointer" : undefined} onClick={(d: unknown) => onPickDay?.((d as { date: string }).date)}>
               {data.map((d) => (
                 <Cell key={d.date} fill={d.variance === 0 ? "#94a3b8" : d.variance < 0 ? "#ef4444" : "#059669"} />
               ))}
@@ -771,25 +811,27 @@ export function TargetCard({ billed, collected, targets, billedFrom, canEdit, on
 }
 
 /** Best and slowest day so far this month, by total billed. */
-export function BestWorstDays({ days, today }: { days: RangeDay[]; today: string }) {
+export function BestWorstDays({ days, today, onPickDay }: { days: RangeDay[]; today: string; onPickDay?: (date: string) => void }) {
   const past = days.filter((d) => d.date <= today && (d.totalBilled > 0 || d.payments > 0));
   if (past.length < 2) return null;
   const best = past.reduce((a, d) => (d.totalBilled > a.totalBilled ? d : a));
   const worst = past.reduce((a, d) => (d.totalBilled < a.totalBilled ? d : a));
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-xl border bg-card px-4 py-2.5 text-sm">
-      <span className="flex items-center gap-1.5">
+      {/* Clickable, like every other date in the Day Book that can jump you there — previously
+          just a readout, with no way to open the day it's describing. */}
+      <button type="button" onClick={() => onPickDay?.(best.date)} disabled={!onPickDay} className="flex items-center gap-1.5 disabled:cursor-default">
         <TrendingUp className="size-4 text-emerald-600" />
         <span className="text-muted-foreground">Best day this month</span>
-        <span className="font-semibold">{fmtDate(best.date)}</span>
+        <span className={cn("font-semibold", onPickDay && "text-primary hover:underline")}>{fmtDate(best.date)}</span>
         <span className="tabular-nums">{inr(best.totalBilled)}</span>
-      </span>
-      <span className="flex items-center gap-1.5">
+      </button>
+      <button type="button" onClick={() => onPickDay?.(worst.date)} disabled={!onPickDay} className="flex items-center gap-1.5 disabled:cursor-default">
         <TrendingDown className="size-4 text-red-600" />
         <span className="text-muted-foreground">Slowest</span>
-        <span className="font-semibold">{fmtDate(worst.date)}</span>
+        <span className={cn("font-semibold", onPickDay && "text-primary hover:underline")}>{fmtDate(worst.date)}</span>
         <span className="tabular-nums">{inr(worst.totalBilled)}</span>
-      </span>
+      </button>
     </div>
   );
 }

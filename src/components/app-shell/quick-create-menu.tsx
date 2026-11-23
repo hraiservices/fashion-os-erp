@@ -54,6 +54,7 @@ export function QuickCreateMenu() {
         { href: "/purchases/vendors/new", label: "Vendor", icon: Truck, show: !!user?.perms.managePurchases },
         { href: "/purchases/orders/new", label: "Purchase Order", icon: ShoppingCart, show: !!user?.perms.managePurchases },
         { href: "/purchases/bills/new", label: "Bill", icon: FileSpreadsheet, show: !!user?.perms.managePurchases },
+        { href: "/purchases/payments/new", label: "Vendor Payment", icon: Wallet, show: !!user?.perms.payVendors },
       ],
     },
     {

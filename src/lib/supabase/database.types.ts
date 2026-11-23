@@ -1158,6 +1158,36 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["customer_credit_ledger"]["Row"]>;
         Relationships: [];
       };
+      vendor_credit_balances: {
+        Row: {
+          vendor_id: string;
+          balance: number;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["vendor_credit_balances"]["Row"]> & {
+          vendor_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["vendor_credit_balances"]["Row"]>;
+        Relationships: [];
+      };
+      vendor_credit_ledger: {
+        Row: {
+          id: string;
+          vendor_id: string;
+          amount: number;
+          entry_type: "issued" | "redeemed";
+          note: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["vendor_credit_ledger"]["Row"]> & {
+          vendor_id: string;
+          amount: number;
+          entry_type: "issued" | "redeemed";
+        };
+        Update: Partial<Database["public"]["Tables"]["vendor_credit_ledger"]["Row"]>;
+        Relationships: [];
+      };
       pos_sessions: {
         Row: {
           id: string;
@@ -1942,6 +1972,24 @@ export interface Database {
       redeem_customer_credit: {
         Args: {
           p_mobile: string;
+          p_amount: number;
+          p_note?: string;
+          p_created_by?: string | null;
+        };
+        Returns: number;
+      };
+      issue_vendor_credit: {
+        Args: {
+          p_vendor_id: string;
+          p_amount: number;
+          p_note?: string;
+          p_created_by?: string | null;
+        };
+        Returns: number;
+      };
+      redeem_vendor_credit: {
+        Args: {
+          p_vendor_id: string;
           p_amount: number;
           p_note?: string;
           p_created_by?: string | null;

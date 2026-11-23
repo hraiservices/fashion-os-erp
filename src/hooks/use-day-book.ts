@@ -78,7 +78,7 @@ const ZERO_CASH: CashPosition = {
   opening: 0, cashIn: 0, cashOut: 0, expected: 0, openingFromDate: null,
   breakdown: { receipts: 0, adjustmentsIn: 0, expenses: 0, vendorPayments: 0, advances: 0, adjustmentsOut: 0 },
 };
-const ZERO_DELIVERIES: DeliveryBoard = { dueToday: [], overdue: [], deliveredToday: [], unpaidOnDeliveredToday: 0 };
+const ZERO_DELIVERIES: DeliveryBoard = { dueToday: [], overdue: [], overdueTotalCount: 0, deliveredToday: [], unpaidOnDeliveredToday: 0 };
 const ZERO_COLLECTIONS: Collections = { items: [], totalDue: 0, count: 0 };
 const ZERO_ATTENDANCE: AttendanceBoard = { present: [], absent: [], onLeave: [], notMarked: [] };
 const ZERO_DISCOUNTS: DiscountSummary = { total: 0, byUser: [], flagged: [], loyaltyRedeemed: 0 };

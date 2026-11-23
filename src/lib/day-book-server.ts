@@ -185,17 +185,25 @@ export async function buildDeliveryBoard(
     new Set(stageChangeRows.filter((r) => r.order_id && r.action.includes("Stage changed") && r.action.includes(DELIVERED_MARKER)).map((r) => r.order_id as string))
   );
   const cols = "id, name, mobile, total, balance, status, delivery_date";
-  const [due, overdue, delivered] = await Promise.all([
+  const [due, overdue, overdueCount, delivered] = await Promise.all([
     db.from("orders").select(cols).eq("delivery_date", date).not("status", "in", NOT_DONE).order("created_at"),
     isToday
       ? db.from("orders").select(cols).lt("delivery_date", date).not("status", "in", NOT_DONE).order("delivery_date").limit(50)
       : Promise.resolve({ data: [] as never[], error: null }),
+    // The rows query above is capped at 50 for the list — this is a cheap head-only count (no
+    // rows returned) of the true total, so the "(N)" badge never understates how many are
+    // actually overdue once there are more than 50.
+    isToday
+      ? db.from("orders").select("id", { count: "exact", head: true }).lt("delivery_date", date).not("status", "in", NOT_DONE)
+      : Promise.resolve({ count: 0, error: null }),
     deliveredIds.length ? db.from("orders").select(cols).in("id", deliveredIds) : Promise.resolve({ data: [] as never[], error: null }),
   ]);
   const deliveredToday = (delivered.data || []).map(toItem);
+  const overdueRows = (overdue.data || []).map(toItem);
   return {
     dueToday: (due.data || []).map(toItem),
-    overdue: (overdue.data || []).map(toItem),
+    overdue: overdueRows,
+    overdueTotalCount: overdueCount.count ?? overdueRows.length,
     deliveredToday,
     unpaidOnDeliveredToday: deliveredToday.reduce((s, o) => s + Math.max(0, o.balance || 0), 0),
   };

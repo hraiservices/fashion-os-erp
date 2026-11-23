@@ -227,12 +227,32 @@ export function CashPositionCard({
   );
 }
 
-function DeliveryList({ icon: Icon, title, items, tone, empty }: { icon: typeof PackageCheck; title: string; items: DeliveryItem[]; tone?: "danger"; empty: string }) {
-  const shown = items.slice(0, 6);
+function DeliveryList({
+  icon: Icon,
+  title,
+  items,
+  tone,
+  empty,
+  totalCount,
+}: {
+  icon: typeof PackageCheck;
+  title: string;
+  items: DeliveryItem[];
+  tone?: "danger";
+  empty: string;
+  /** The true count, when it can exceed `items.length` (the overdue list is capped at 50 rows
+   *  server-side) — shown in the heading instead of `items.length` so it never understates. */
+  totalCount?: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const shown = expanded ? items : items.slice(0, 6);
+  const count = totalCount ?? items.length;
+  const capped = totalCount != null && totalCount > items.length;
   return (
     <div className="min-w-0">
       <p className={cn("mb-1.5 flex items-center gap-1.5 text-xs font-medium", tone === "danger" ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
-        <Icon className="size-3.5" /> {title} ({items.length})
+        <Icon className="size-3.5" /> {title} ({count}
+        {capped ? "+" : ""})
       </p>
       {items.length === 0 ? (
         <p className="pl-5 text-xs text-muted-foreground">{empty}</p>
@@ -246,11 +266,22 @@ function DeliveryList({ icon: Icon, title, items, tone, empty }: { icon: typeof 
               {o.balance > 0 ? <span className="shrink-0 text-xs font-medium text-red-600 tabular-nums dark:text-red-400">{inr(o.balance)} due</span> : <CheckCircle2 className="size-3.5 shrink-0 text-emerald-600" />}
             </li>
           ))}
+          {/* Expands in place instead of linking out to the plain, unfiltered /orders list —
+              clicking "+N more" used to leave the Day Book entirely for a list with no overdue
+              filter of its own. Every row already fetched is right here, so there's nothing to
+              navigate anywhere for. */}
           {items.length > shown.length && (
             <li>
-              <Link href="/orders" className="text-xs text-muted-foreground hover:text-foreground">
+              <button type="button" onClick={() => setExpanded(true)} className="text-xs text-muted-foreground hover:text-foreground">
                 +{items.length - shown.length} more
-              </Link>
+              </button>
+            </li>
+          )}
+          {expanded && items.length > 6 && (
+            <li>
+              <button type="button" onClick={() => setExpanded(false)} className="text-xs text-muted-foreground hover:text-foreground">
+                Show less
+              </button>
             </li>
           )}
         </ul>
@@ -273,7 +304,7 @@ export function DeliveriesCard({ board, isToday }: { board: DeliveryBoard; isTod
       </div>
       <div className={cn("grid gap-4", isToday ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
         <DeliveryList icon={CalendarClock} title="Due this day" items={board.dueToday} empty="Nothing due" />
-        {isToday && <DeliveryList icon={Siren} title="Overdue" items={board.overdue} tone="danger" empty="Nothing overdue" />}
+        {isToday && <DeliveryList icon={Siren} title="Overdue" items={board.overdue} totalCount={board.overdueTotalCount} tone="danger" empty="Nothing overdue" />}
         <DeliveryList icon={PackageCheck} title="Delivered" items={board.deliveredToday} empty="No deliveries" />
       </div>
     </ReportCard>

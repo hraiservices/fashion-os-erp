@@ -13,7 +13,6 @@ import {
   ChevronRight,
   CalendarDays,
   ShoppingCart,
-  Clock,
   Activity as ActivityIcon,
   ArrowUpDown,
   Search,
@@ -29,7 +28,7 @@ import {
   X,
   AlertCircle,
 } from "lucide-react";
-import { FileTextDuotoneIcon, ReceiptDuotoneIcon, UsersDuotoneIcon, WalletDuotoneIcon } from "@/components/icons/duotone-icons";
+import { FileTextDuotoneIcon, ReceiptDuotoneIcon, WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDayBook, useDayBookRange, useCloseDay, useClosingHistory, useAddCashAdjustment, useRemoveCashAdjustment } from "@/hooks/use-day-book";
 import { useAppSetting } from "@/hooks/use-app-setting";
@@ -208,20 +207,45 @@ function StageCountChip({ label, icon: Icon, count, onClick }: { label: string; 
   );
 }
 
+/** A tailor with zero stage-moves only reads as a real accountability gap if they were actually
+ *  at work — one who was never marked present (or was marked absent/on leave) just wasn't
+ *  expected to move anything, so the red "No activity today" flag is reserved for the former;
+ *  the latter gets a neutral "Not marked in" note instead. */
+function tailorIdleState(tailor: TailorStageActivity, presentTailorNames: Set<string>): "active" | "idle" | "not-present" {
+  if (tailor.totalActions > 0) return "active";
+  return presentTailorNames.has(tailor.tailorName) ? "idle" : "not-present";
+}
+
+function TailorIdleBadge({ state, totalActions }: { state: "active" | "idle" | "not-present"; totalActions: number }) {
+  if (state === "idle") {
+    return (
+      <Badge variant="destructive" className="gap-1">
+        <AlertCircle className="size-3" /> No activity today
+      </Badge>
+    );
+  }
+  if (state === "not-present") {
+    return <Badge variant="outline" className="text-muted-foreground">Not marked in</Badge>;
+  }
+  return <Badge variant="secondary">{totalActions} {totalActions === 1 ? "action" : "actions"}</Badge>;
+}
+
 function TailorActivityCard({
   tailor,
+  presentTailorNames,
   selected,
   expanded,
   onToggleSelect,
   onExpandWith,
 }: {
   tailor: TailorStageActivity;
+  presentTailorNames: Set<string>;
   selected: boolean;
   expanded: boolean;
   onToggleSelect: () => void;
   onExpandWith: () => void;
 }) {
-  const idle = tailor.totalActions === 0;
+  const state = tailorIdleState(tailor, presentTailorNames);
   return (
     <div
       role="button"
@@ -231,7 +255,7 @@ function TailorActivityCard({
       className={cn(
         "cursor-pointer space-y-3 rounded-lg border p-3 text-left transition-colors",
         selected ? "border-primary bg-primary/5" : "hover:bg-muted/40",
-        idle && !selected && "border-destructive/30 bg-destructive/5"
+        state === "idle" && !selected && "border-destructive/30 bg-destructive/5"
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -246,13 +270,7 @@ function TailorActivityCard({
             <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{inr(tailor.payableToday)} payable</span>
           )}
           {(tailor.paidToday ?? 0) > 0 && <span className="text-sm font-semibold text-sky-600 dark:text-sky-400">{inr(tailor.paidToday ?? 0)} paid out</span>}
-          {idle ? (
-            <Badge variant="destructive" className="gap-1">
-              <AlertCircle className="size-3" /> No activity today
-            </Badge>
-          ) : (
-            <Badge variant="secondary">{tailor.totalActions} {tailor.totalActions === 1 ? "action" : "actions"}</Badge>
-          )}
+          <TailorIdleBadge state={state} totalActions={tailor.totalActions} />
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -335,6 +353,11 @@ export default function DayBookPage() {
     const set = new Set(entries.map((e) => e.user).filter((u) => u && u !== "—"));
     return Array.from(set).sort();
   }, [entries]);
+
+  // Matched by name (the attendance board and tailor activity are both built from the same
+  // employees table but don't share an id on the client — see day-book-insights.ts), used to
+  // tell a tailor who skipped work from one who was there and genuinely did nothing.
+  const presentTailorNames = useMemo(() => new Set((data?.attendance.present || []).map((p) => p.name)), [data]);
 
   const selectedTailor = useMemo(
     () => data?.tailorActivity?.find((t) => t.tailorId === selectedTailorId) || null,
@@ -639,13 +662,20 @@ export default function DayBookPage() {
             </div>
           )}
 
-          {/* Operational KPIs */}
+          {/* Operational KPIs — Customers Added and Attendance Events used to be their own
+              always-visible tiles, but on a normal day both sit at 0 or 1 and just took up space;
+              folded into Total Activities' hint line so the numbers are still right there, just
+              not two near-permanently-empty boxes. Both are one click away anyway via the module
+              filter (Transaction Log → Customers / Attendance). */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <StatCard label="Invoices Created" value={data.totals.invoicesCreated} icon={FileTextDuotoneIcon} />
             <StatCard label="Orders Created" value={data.totals.ordersCreated} icon={ReceiptDuotoneIcon} onClick={() => focusModule("stitching")} />
-            <StatCard label="Customers Added" value={data.totals.customersAdded} icon={UsersDuotoneIcon} onClick={() => focusModule("customers")} />
-            <StatCard label="Attendance Events" value={data.totals.attendanceEvents} icon={Clock} onClick={() => focusModule("attendance")} />
-            <StatCard label="Total Activities" value={data.totals.totalActivities} icon={ActivityIcon} />
+            <StatCard
+              label="Total Activities"
+              value={data.totals.totalActivities}
+              icon={ActivityIcon}
+              hint={`${data.totals.customersAdded} customer${data.totals.customersAdded === 1 ? "" : "s"} added · ${data.totals.attendanceEvents} attendance event${data.totals.attendanceEvents === 1 ? "" : "s"}`}
+            />
           </div>
 
           {monthRange.data && <BestWorstDays days={monthRange.data.days} today={todayISO()} />}
@@ -796,6 +826,7 @@ export default function DayBookPage() {
                     <TailorActivityCard
                       key={t.tailorId}
                       tailor={t}
+                      presentTailorNames={presentTailorNames}
                       selected={selectedTailorId === t.tailorId}
                       expanded={expandedTailorId === t.tailorId}
                       onToggleSelect={() => toggleTailorSelect(t.tailorId)}
@@ -805,43 +836,42 @@ export default function DayBookPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {data.tailorActivity.map((t) => (
-                    <div
-                      key={t.tailorId}
-                      onClick={() => toggleTailorSelect(t.tailorId)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && toggleTailorSelect(t.tailorId)}
-                      className={cn(
-                        "cursor-pointer space-y-3 rounded-lg border p-3 transition-colors",
-                        selectedTailorId === t.tailorId ? "border-primary bg-primary/5" : "hover:bg-muted/40",
-                        t.totalActions === 0 && selectedTailorId !== t.tailorId && "border-destructive/30 bg-destructive/5"
-                      )}
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="font-semibold">{t.tailorName}</p>
-                        <div className="flex items-center gap-2">
-                          {t.piecesReady > 0 && (
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <PackageCheck className="size-3" /> {t.piecesReady} {t.piecesReady === 1 ? "piece" : "pieces"} ready
-                            </span>
-                          )}
-                          {t.payableToday > 0 && (
-                            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{inr(t.payableToday)} payable today</span>
-                          )}
-                          {(t.paidToday ?? 0) > 0 && <span className="text-sm font-semibold text-sky-600 dark:text-sky-400">{inr(t.paidToday ?? 0)} paid out</span>}
-                          {t.totalActions === 0 && (
-                            <Badge variant="destructive" className="gap-1">
-                              <AlertCircle className="size-3" /> No activity today
-                            </Badge>
-                          )}
+                  {data.tailorActivity.map((t) => {
+                    const state = tailorIdleState(t, presentTailorNames);
+                    return (
+                      <div
+                        key={t.tailorId}
+                        onClick={() => toggleTailorSelect(t.tailorId)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && toggleTailorSelect(t.tailorId)}
+                        className={cn(
+                          "cursor-pointer space-y-3 rounded-lg border p-3 transition-colors",
+                          selectedTailorId === t.tailorId ? "border-primary bg-primary/5" : "hover:bg-muted/40",
+                          state === "idle" && selectedTailorId !== t.tailorId && "border-destructive/30 bg-destructive/5"
+                        )}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-semibold">{t.tailorName}</p>
+                          <div className="flex items-center gap-2">
+                            {t.piecesReady > 0 && (
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <PackageCheck className="size-3" /> {t.piecesReady} {t.piecesReady === 1 ? "piece" : "pieces"} ready
+                              </span>
+                            )}
+                            {t.payableToday > 0 && (
+                              <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{inr(t.payableToday)} payable today</span>
+                            )}
+                            {(t.paidToday ?? 0) > 0 && <span className="text-sm font-semibold text-sky-600 dark:text-sky-400">{inr(t.paidToday ?? 0)} paid out</span>}
+                            <TailorIdleBadge state={state} totalActions={t.totalActions} />
+                          </div>
                         </div>
+                        {STAGE_STEPS.map((s) => (
+                          <TailorOrderList key={s.key} label={s.label} icon={s.icon} orders={t[`${s.key}Orders`]} />
+                        ))}
                       </div>
-                      {STAGE_STEPS.map((s) => (
-                        <TailorOrderList key={s.key} label={s.label} icon={s.icon} orders={t[`${s.key}Orders`]} />
-                      ))}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </ReportCard>

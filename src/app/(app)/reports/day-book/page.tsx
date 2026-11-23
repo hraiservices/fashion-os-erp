@@ -678,7 +678,7 @@ export default function DayBookPage() {
             />
           </div>
 
-          {monthRange.data && <BestWorstDays days={monthRange.data.days} today={todayISO()} />}
+          {monthRange.data && <BestWorstDays days={monthRange.data.days} today={todayISO()} onPickDay={(d) => setDate(d)} />}
 
           <TargetCard
             billed={data.totals.totalBilled}
@@ -738,7 +738,7 @@ export default function DayBookPage() {
             </div>
             <div className="space-y-4">
               <PaymentMethodsCard split={data.paymentMethods} />
-              <VarianceHistoryCard history={history.data} />
+              <VarianceHistoryCard history={history.data} onPickDay={(d) => setDate(d)} />
             </div>
           </div>
           </DayBookSection>

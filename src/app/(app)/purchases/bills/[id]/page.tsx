@@ -292,16 +292,16 @@ export default function BillDetailPage({ params }: { params: Promise<{ id: strin
         <div className="space-y-4 lg:sticky lg:top-4">
           <div className="rounded-xl border bg-card p-4 sm:p-5">
             <div className="grid grid-cols-3 gap-px overflow-hidden rounded-lg bg-border">
-              <div className="bg-card p-3 text-center">
-                <p className="text-lg font-semibold tabular-nums">{inr(bill.total)}</p>
+              <div className="min-w-0 bg-card p-3 text-center">
+                <p className="truncate text-lg font-semibold tabular-nums">{inr(bill.total)}</p>
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total</p>
               </div>
-              <div className="bg-card p-3 text-center">
-                <PaidAmount amount={bill.paidTotal} className="text-lg" />
+              <div className="min-w-0 bg-card p-3 text-center">
+                <PaidAmount amount={bill.paidTotal} className="block truncate text-lg" />
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Paid</p>
               </div>
-              <div className="bg-card p-3 text-center">
-                <BalanceDue amount={bill.balance} paidLabel={inr(bill.balance)} className="text-lg" />
+              <div className="min-w-0 bg-card p-3 text-center">
+                <BalanceDue amount={bill.balance} paidLabel={inr(bill.balance)} className="block truncate text-lg" />
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Balance</p>
               </div>
             </div>

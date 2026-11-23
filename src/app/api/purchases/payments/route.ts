@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerUser } from "@/lib/auth-server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { logAction } from "@/lib/logging";
 
 const bodySchema = z.object({
@@ -23,17 +24,31 @@ const bodySchema = z.object({
  * The overpayment check was itself a read-then-insert race (two near-simultaneous payments
  * could both read the same balance and both pass) — now goes through record_vendor_payment(),
  * which row-locks the bill for the duration, mirroring record_order_payment's own pattern.
+ *
+ * H-2: record_vendor_payment() is SECURITY INVOKER (not actually SECURITY DEFINER despite an
+ * old comment elsewhere claiming it is — a later CREATE OR REPLACE dropped that qualifier
+ * without restating it). Calling it through the caller's own session client, as this route did,
+ * ran its `SELECT ... FOR UPDATE` as the `authenticated` role — and Postgres RLS requires BOTH
+ * the table's SELECT *and* UPDATE policies to pass for a locking SELECT, not just SELECT.
+ * lockdown_operational_writes.sql removed purchase_bills' permissive UPDATE policy and never
+ * replaced it (by design — writes go through routes, not the browser), so that lock silently
+ * matched zero rows and the function raised "Bill not found" for a bill that plainly exists.
+ * Every other purchases-module route already calls its RPCs through the service-role client
+ * (which bypasses RLS) for exactly this reason — this one was the sole exception.
  */
 export async function POST(request: Request) {
   const { supabase, user } = await getServerUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   if (!user.perms.payVendors) return NextResponse.json({ error: "No permission to record vendor payments" }, { status: 403 });
 
+  const db = createServiceClient();
+  if (!db) return NextResponse.json({ error: "Server is not configured — SUPABASE_SERVICE_ROLE_KEY is missing" }, { status: 501 });
+
   const parsed = bodySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const fd = parsed.data;
 
-  const { error } = await supabase.rpc("record_vendor_payment", {
+  const { error } = await db.rpc("record_vendor_payment", {
     p_bill_id: fd.billId,
     p_vendor_id: fd.vendorId,
     p_amount: fd.amount,

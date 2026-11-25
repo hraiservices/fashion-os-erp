@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth-server";
+import { fetchVisibleNotifications, fetchReadIds } from "@/lib/notifications-server";
 
 /**
  * Notifications were previously read straight from the browser client with no role filter at
@@ -11,6 +12,12 @@ import { getServerUser } from "@/lib/auth-server";
  * notifications naming employees, just by opening DevTools, even though the UI never rendered
  * them. Filtering now happens here, server-side, before the data ever reaches a non-admin/
  * manager browser.
+ *
+ * H-2: "unread" used to be a single shared `read` column — one person dismissing a notification
+ * hid it from every other user too. Unread is now per-user (notification_reads;
+ * supabase/migrations/add_notification_per_user_state.sql): fetch the recent rows this role may
+ * see at all, then exclude whichever ones THIS user has already read, instead of relying on a
+ * flag anyone could have already flipped.
  */
 export async function GET() {
   const { supabase, user } = await getServerUser();
@@ -18,18 +25,14 @@ export async function GET() {
 
   const isAdminOrManager = user.role === "admin" || user.role === "manager";
 
-  let query = supabase
-    .from("admin_notifications")
-    .select("id, type, order_id, employee_id, customer_name, from_stage, to_stage, user_name, message, created_at")
-    .eq("read", false)
-    .order("created_at", { ascending: false })
-    .limit(40);
-
-  if (!isAdminOrManager) {
-    query = query.eq("type", "stage_change");
+  try {
+    // Over-fetch a bit past the 40 we'll actually show, since some of these will turn out to
+    // already be read by this user and get filtered out below.
+    const recent = await fetchVisibleNotifications(supabase, user.email, isAdminOrManager, 100);
+    const readIds = await fetchReadIds(supabase, user.email, recent.map((n) => n.id));
+    const unread = recent.filter((n) => !readIds.has(n.id)).slice(0, 40);
+    return NextResponse.json({ notifications: unread });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to load notifications" }, { status: 500 });
   }
-
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ notifications: data || [] });
 }

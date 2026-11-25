@@ -33,16 +33,83 @@ async function fetchNotifications(): Promise<AdminNotification[]> {
   return data.notifications || [];
 }
 
-/** Per-item dismiss — additive on top of the existing bulk "Clear all", doesn't touch that behavior. */
+/** Per-item dismiss — additive on top of the existing bulk "Clear all", doesn't touch that behavior.
+ *  Marks it read for the CALLER only (/api/notifications/[id]/dismiss, notification_reads) — a
+ *  shared `read` column on admin_notifications previously meant dismissing one notification hid
+ *  it from every other user too. */
 export function useDismissNotification() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("admin_notifications").update({ read: true }).eq("id", id);
-      if (error) throw error;
+      const res = await fetch(`/api/notifications/${id}/dismiss`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to dismiss notification");
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+}
+
+/** Marks every notification currently unread for the CALLER as read — safe for any role now
+ *  that read state is per-user (previously admin/manager-only, since it flipped a column shared
+ *  by everyone). */
+export function useClearAllNotifications() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/notifications/clear-all", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to clear notifications");
+      return data as { cleared: number };
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+}
+
+export interface NotificationHistoryEntry extends AdminNotification {
+  isRead: boolean;
+}
+
+/** Everything this user may see, read or not (capped at 100) — the bell itself only ever shows
+ *  unread. For the /notifications history page. */
+export function useNotificationHistory() {
+  return useQuery({
+    queryKey: ["notifications", "history"],
+    queryFn: async (): Promise<NotificationHistoryEntry[]> => {
+      const res = await fetch("/api/notifications/history");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load notification history");
+      return data.notifications || [];
+    },
+    staleTime: 15_000,
+  });
+}
+
+/** This user's own muted notification categories (notification_mutes) — never affects anyone else. */
+export function useNotificationMutes() {
+  return useQuery({
+    queryKey: ["notification-mutes"],
+    queryFn: async (): Promise<string[]> => {
+      const res = await fetch("/api/notifications/mutes");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load mute preferences");
+      return data.muted || [];
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useSetNotificationMute() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ category, muted }: { category: string; muted: boolean }) => {
+      const res = await fetch("/api/notifications/mutes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ category, muted }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update mute preference");
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["notification-mutes"] });
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+    },
   });
 }
 
@@ -64,16 +131,16 @@ export function useNotifications() {
   useEffect(() => {
     installAudioUnlock();
     const supabase = createClient();
-    // Listening to INSERT only meant a dismiss/"Clear all" done from another tab or device
-    // (an UPDATE, not an INSERT) never refreshed this client's list — it kept showing
-    // already-cleared notifications until something else happened to invalidate the cache.
+    // Dismiss/"Clear all" write to notification_reads now (per-user — see
+    // add_notification_per_user_state.sql), not an UPDATE on admin_notifications itself, so this
+    // channel only ever sees INSERT for a brand-new notification. A dismiss made from a second
+    // tab/device logged into the SAME account won't live-push here; it catches up within this
+    // query's 15s staleTime on its own, which is an acceptable amount of staleness for a same-
+    // user, different-tab edge case rather than standing up a second realtime subscription for it.
     const channel = supabase
       .channel("admin_notifications_changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "admin_notifications" }, (payload) => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_notifications" }, (payload) => {
         qc.invalidateQueries({ queryKey: ["notifications"] });
-        // Only a genuinely new notification can alert (not a dismiss/"Clear all", which is an UPDATE), and only
-        // a critical one that this role may see: pop-up + sound + vibration. Everything else is a silent badge.
-        if (payload.eventType !== "INSERT") return;
         const n = payload.new as AdminNotification;
         const { role, email, open } = latest.current;
         if (!isCritical(n) || !visibleToRole(n.type, role)) return;

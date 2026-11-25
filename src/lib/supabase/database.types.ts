@@ -1158,6 +1158,32 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["customer_credit_ledger"]["Row"]>;
         Relationships: [];
       };
+      notification_reads: {
+        Row: {
+          notification_id: number;
+          user_email: string;
+          read_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["notification_reads"]["Row"]> & {
+          notification_id: number;
+          user_email: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["notification_reads"]["Row"]>;
+        Relationships: [];
+      };
+      notification_mutes: {
+        Row: {
+          user_email: string;
+          category: string;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["notification_mutes"]["Row"]> & {
+          user_email: string;
+          category: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["notification_mutes"]["Row"]>;
+        Relationships: [];
+      };
       vendor_credit_balances: {
         Row: {
           vendor_id: string;

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, Trash2, X, CheckCircle2, AlertTriangle, RefreshCw, Sparkles, CalendarClock, Clock, IndianRupee, Settings2, History } from "lucide-react";
+import { Bell, Trash2, X, CheckCircle2, AlertTriangle, RefreshCw, Sparkles, CalendarClock, Clock, IndianRupee, Settings2, History, ArrowLeft } from "lucide-react";
 import { useUrgentOrdersSummary } from "@/hooks/use-urgent-orders-summary";
 import {
   useNotifications,
@@ -22,8 +22,8 @@ import { STAGE_STYLE } from "@/lib/design/stages";
 import { announceCritical } from "@/lib/notification-announce";
 import { categoryOf, isCritical, CATEGORY_LABELS, type NotificationCategory } from "@/lib/notification-alerts";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/ui/empty-state";
 
 const MUTABLE_CATEGORIES = Object.keys(CATEGORY_LABELS) as NotificationCategory[];
@@ -39,6 +39,11 @@ function stageIcon(toStage: string | null) {
 export function NotificationBell() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // An inline panel swapped in over the notification list, not a second nested overlay — a
+  // DropdownMenu opened from inside this bell's own Popover (menu-inside-popover) rendered but
+  // its items never responded to clicks, a known-fragile combination of two portaled overlays.
+  // Swapping content within the one already-open Popover sidesteps that entirely.
+  const [showPrefs, setShowPrefs] = useState(false);
   // getLastSeenAt() reads localStorage, which isn't itself reactive — keeping it in state (set
   // once from storage, updated whenever markNotificationsSeen() runs) means unreadCount actually
   // recomputes when the bell closes, instead of keeping already-viewed items flagged "new" until
@@ -252,81 +257,95 @@ export function NotificationBell() {
       />
       <PopoverContent className="w-[min(22rem,calc(100vw-1.5rem))] p-0" align="end">
         <div className="flex items-center justify-between border-b px-4 py-2.5">
-          <span className="text-sm font-semibold">Notifications</span>
-          <div className="flex items-center gap-2.5">
-            <DropdownMenu>
-              <DropdownMenuTrigger render={<button aria-label="Notification preferences" className="text-muted-foreground hover:text-foreground" />}>
+          {showPrefs ? (
+            <button
+              type="button"
+              onClick={() => setShowPrefs(false)}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold hover:text-primary"
+            >
+              <ArrowLeft className="size-3.5" /> Notifications
+            </button>
+          ) : (
+            <span className="text-sm font-semibold">Notifications</span>
+          )}
+          {!showPrefs && (
+            <div className="flex items-center gap-2.5">
+              <button type="button" onClick={() => setShowPrefs(true)} aria-label="Notification preferences" className="text-muted-foreground hover:text-foreground">
                 <Settings2 className="size-3.5" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {/* DropdownMenuLabel (Base UI's Menu.GroupLabel) throws at render time —
-                    "MenuGroupContext is missing" — unless it's inside a DropdownMenuGroup
-                    (Menu.Group) ancestor; see quick-create-menu.tsx's own note on this same crash. */}
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Mute a category</DropdownMenuLabel>
-                  {MUTABLE_CATEGORIES.map((c) => (
-                    <DropdownMenuCheckboxItem
-                      key={c}
-                      checked={!(mutedCategories || []).includes(c)}
-                      onCheckedChange={(checked) => setMute.mutate({ category: c, muted: !checked })}
-                    >
-                      {CATEGORY_LABELS[c]}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {hasItems && (
-              <button
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive disabled:opacity-50"
-                disabled={clearAllNotifications.isPending}
-                onClick={() => clearAllNotifications.mutate()}
-              >
-                <Trash2 className="size-3.5" /> Clear all
               </button>
-            )}
-          </div>
-        </div>
-
-        <div className="max-h-[min(24rem,60dvh)] overflow-y-auto">
-          {!hasItems && <EmptyState icon={CheckCircle2} title="All clear" description="Nothing needs your attention." className="border-0 py-8" />}
-
-          {urgentOrders.length > 0 && (
-            <div>
-              <div className="bg-muted/50 px-4 py-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Urgent orders</div>
-              {urgentOrders.map((o) => {
-                const badge = dueBadge(o);
-                const isReady = o.status === "ready";
-                const Icon = isReady ? CheckCircle2 : AlertTriangle;
-                return (
-                  <button
-                    key={o.id}
-                    onClick={() => goToOrder(o.id)}
-                    className="flex w-full items-start gap-2.5 border-b px-4 py-2.5 text-left last:border-0 hover:bg-muted/40"
-                  >
-                    <Icon className={`mt-0.5 size-4 shrink-0 ${isReady ? "text-emerald-600" : "text-red-600"}`} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm">{o.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {isReady ? "Ready for pickup" : badge?.text || "Overdue"} · {o.id}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
+              {hasItems && (
+                <button
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive disabled:opacity-50"
+                  disabled={clearAllNotifications.isPending}
+                  onClick={() => clearAllNotifications.mutate()}
+                >
+                  <Trash2 className="size-3.5" /> Clear all
+                </button>
+              )}
             </div>
           )}
-
-          {sections.map((s) => s.node)}
         </div>
 
-        <Link
-          href="/notifications"
-          onClick={() => handleOpenChange(false)}
-          className="flex items-center justify-center gap-1.5 border-t px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-        >
-          <History className="size-3.5" /> View all notifications
-        </Link>
+        {showPrefs ? (
+          <div className="max-h-[min(24rem,60dvh)] overflow-y-auto p-2">
+            <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Mute a category</p>
+            {MUTABLE_CATEGORIES.map((c) => {
+              const muted = (mutedCategories || []).includes(c);
+              return (
+                <label key={c} className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-2 text-sm hover:bg-muted/40">
+                  <Checkbox
+                    checked={!muted}
+                    disabled={setMute.isPending}
+                    onChange={(e) => setMute.mutate({ category: c, muted: !e.target.checked })}
+                  />
+                  {CATEGORY_LABELS[c]}
+                </label>
+              );
+            })}
+          </div>
+        ) : (
+          <>
+            <div className="max-h-[min(24rem,60dvh)] overflow-y-auto">
+              {!hasItems && <EmptyState icon={CheckCircle2} title="All clear" description="Nothing needs your attention." className="border-0 py-8" />}
+
+              {urgentOrders.length > 0 && (
+                <div>
+                  <div className="bg-muted/50 px-4 py-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Urgent orders</div>
+                  {urgentOrders.map((o) => {
+                    const badge = dueBadge(o);
+                    const isReady = o.status === "ready";
+                    const Icon = isReady ? CheckCircle2 : AlertTriangle;
+                    return (
+                      <button
+                        key={o.id}
+                        onClick={() => goToOrder(o.id)}
+                        className="flex w-full items-start gap-2.5 border-b px-4 py-2.5 text-left last:border-0 hover:bg-muted/40"
+                      >
+                        <Icon className={`mt-0.5 size-4 shrink-0 ${isReady ? "text-emerald-600" : "text-red-600"}`} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm">{o.name}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {isReady ? "Ready for pickup" : badge?.text || "Overdue"} · {o.id}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {sections.map((s) => s.node)}
+            </div>
+
+            <Link
+              href="/notifications"
+              onClick={() => handleOpenChange(false)}
+              className="flex items-center justify-center gap-1.5 border-t px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+            >
+              <History className="size-3.5" /> View all notifications
+            </Link>
+          </>
+        )}
       </PopoverContent>
     </Popover>
   );

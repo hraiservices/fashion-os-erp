@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Plus, ChevronRight } from "lucide-react";
+import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip, CartesianGrid } from "recharts";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
-import { usePayrollRuns } from "@/hooks/use-payroll";
+import { usePayrollRuns, useAllPayslips, useBulkAdvanceCandidates } from "@/hooks/use-payroll";
 import { useRunPayroll } from "@/hooks/use-payroll-mutations";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { PageHeader } from "@/components/ui/page-header";
@@ -15,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, fmtDateShort, inr } from "@/lib/format";
 import { DatePicker, toISODate } from "@/components/ui/date-picker";
 import { BackLink } from "@/components/ui/back-link";
 
@@ -31,6 +32,8 @@ function firstOfMonthISO() {
 export default function PayrollRunsPage() {
   const router = useRouter();
   const { data: runs, isLoading } = usePayrollRuns();
+  const { data: allPayslips } = useAllPayslips();
+  const { data: advanceCandidates } = useBulkAdvanceCandidates();
   const { data: user } = useCurrentUser();
   const runPayroll = useRunPayroll();
   const canManagePayroll = !!user?.perms.managePayroll;
@@ -38,6 +41,38 @@ export default function PayrollRunsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [periodStart, setPeriodStart] = useState(firstOfMonthISO());
   const [periodEnd, setPeriodEnd] = useState(todayISO());
+
+  const netByRunId = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of allPayslips || []) map.set(p.payrollRunId, (map.get(p.payrollRunId) || 0) + p.netPay);
+    return map;
+  }, [allPayslips]);
+
+  const latestRun = runs?.[0];
+  const latestRunNet = latestRun ? netByRunId.get(latestRun.id) || 0 : 0;
+  const outstandingAdvances = (advanceCandidates || []).reduce((s, c) => s + c.outstandingAdvances, 0);
+  const breakdown = useMemo(() => {
+    const totals = { gross: 0, pieceRate: 0, overtime: 0 };
+    for (const p of allPayslips || []) {
+      if (latestRun && p.payrollRunId === latestRun.id) {
+        totals.gross += p.grossPay;
+        totals.pieceRate += p.pieceRatePay;
+        totals.overtime += p.overtimePay;
+      }
+    }
+    return totals;
+  }, [allPayslips, latestRun]);
+
+  // Last 6 runs, oldest first, net pay per run — the same "6 months of bars" pattern the vendor
+  // purchases chart uses, just keyed by run instead of calendar month since runs aren't always
+  // monthly.
+  const trend = useMemo(() => {
+    return (runs || [])
+      .slice(0, 6)
+      .slice()
+      .reverse()
+      .map((r) => ({ label: fmtDateShort(r.periodEnd), total: netByRunId.get(r.id) || 0 }));
+  }, [runs, netByRunId]);
 
   async function handleRunPayroll() {
     try {
@@ -70,6 +105,46 @@ export default function PayrollRunsPage() {
           </Button>
         }
       />
+
+      {!isLoading && runs && runs.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-border lg:col-span-5 lg:grid-cols-1">
+            <div className="bg-card p-3 text-center sm:p-4">
+              <p className="break-words text-lg font-semibold tabular-nums">{inr(latestRunNet)}</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Latest run — net pay{latestRun ? ` (${fmtDate(latestRun.periodEnd)})` : ""}</p>
+            </div>
+            <div className="bg-card p-3 text-center sm:p-4">
+              <p className="break-words text-lg font-semibold tabular-nums text-amber-700 dark:text-amber-400">{inr(outstandingAdvances)}</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Outstanding advances (shop-wide)</p>
+            </div>
+            {latestRun && (
+              <div className="col-span-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 bg-card p-3 text-center text-xs text-muted-foreground sm:p-4 lg:col-span-1">
+                <span>Gross {inr(breakdown.gross)}</span>
+                <span>Piece-rate {inr(breakdown.pieceRate)}</span>
+                <span>Overtime {inr(breakdown.overtime)}</span>
+              </div>
+            )}
+          </div>
+          {trend.some((t) => t.total > 0) && (
+            <div className="rounded-xl border bg-card p-4 lg:col-span-7">
+              <h2 className="mb-2 text-sm font-semibold">Net pay — last {trend.length} runs</h2>
+              <div className="h-32">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={trend} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} />
+                    <Tooltip
+                      formatter={(v) => [inr(Number(v)), "Net pay"]}
+                      contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-popover)", fontSize: 12 }}
+                    />
+                    <Bar dataKey="total" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-2">

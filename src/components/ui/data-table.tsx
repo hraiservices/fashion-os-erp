@@ -9,6 +9,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuTrigger,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -188,13 +189,18 @@ export function DataTable<T extends { id: string }>({
                     <SlidersHorizontal className="size-3.5" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Columns</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {columns.filter((c) => !c.alwaysVisible).map((col) => (
-                      <DropdownMenuCheckboxItem key={col.key} checked={!hidden.has(col.key)} onCheckedChange={() => toggleColumn(col.key)}>
-                        {col.header}
-                      </DropdownMenuCheckboxItem>
-                    ))}
+                    {/* DropdownMenuLabel (Base UI's Menu.GroupLabel) throws at render time —
+                        "MenuGroupContext is missing" — unless it's inside a DropdownMenuGroup
+                        (Menu.Group) ancestor; see quick-create-menu.tsx's own note on this crash. */}
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Columns</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {columns.filter((c) => !c.alwaysVisible).map((col) => (
+                        <DropdownMenuCheckboxItem key={col.key} checked={!hidden.has(col.key)} onCheckedChange={() => toggleColumn(col.key)}>
+                          {col.header}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </th>

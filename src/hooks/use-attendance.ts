@@ -94,10 +94,52 @@ type MarkAttendanceVars = {
  * Optimistic: the attendance grid used to sit dimmed and unclickable for the whole server
  * round-trip (auth check + two DB reads + the write itself) before a status pill updated at
  * all — reported as a ~1.5s lag per click. `onMutate` below writes the new status into the
- * ["attendance","date",date] cache immediately so the pill highlights on click; `onError` rolls
- * it back and the caller shows a toast; `onSettled` refetches to reconcile with whatever the
- * server actually persisted (server-computed fields like hoursWorked, or a rejected write).
+ * ["attendance","date",date] cache, and into any open ["attendance","range",from,to] cache whose
+ * window covers that date (the month grid reads via the range query, not the date query), so the
+ * pill highlights on click wherever it's being viewed; `onError` rolls both back and the caller
+ * shows a toast; `onSettled` refetches to reconcile with whatever the server actually persisted
+ * (server-computed fields like hoursWorked, or a rejected write).
  */
+function patchAttendanceList(list: Attendance[] | undefined, vars: MarkAttendanceVars): Attendance[] {
+  const next = list ? [...list] : [];
+  const idx = next.findIndex((a) => a.employeeId === vars.employeeId && a.date === vars.date);
+  if (idx >= 0) {
+    next[idx] = { ...next[idx], status: vars.status, checkIn: vars.checkIn ?? next[idx].checkIn, checkOut: vars.checkOut ?? next[idx].checkOut, notes: vars.notes ?? next[idx].notes };
+  } else {
+    // No row for this employee/day yet — a minimal manual row, good enough to render the
+    // selected pill until onSettled's refetch replaces it with the server's real row.
+    next.push({
+      id: `optimistic-${vars.employeeId}-${vars.date}`,
+      employeeId: vars.employeeId,
+      date: vars.date,
+      status: vars.status,
+      checkIn: vars.checkIn ?? null,
+      checkOut: vars.checkOut ?? null,
+      notes: vars.notes ?? "",
+      createdAt: new Date().toISOString(),
+      source: "manual",
+      checkInAt: null,
+      checkOutAt: null,
+      checkInLat: null,
+      checkInLng: null,
+      checkInAccuracyM: null,
+      checkOutLat: null,
+      checkOutLng: null,
+      checkOutAccuracyM: null,
+      checkInPhoto: null,
+      checkOutPhoto: null,
+      checkInWithinGeofence: null,
+      checkOutWithinGeofence: null,
+      checkInDistanceM: null,
+      checkOutDistanceM: null,
+      hoursWorked: null,
+      overtimeHours: 0,
+      workNotes: "",
+    });
+  }
+  return next;
+}
+
 export function useMarkAttendance() {
   const qc = useQueryClient();
   return useMutation({
@@ -111,52 +153,29 @@ export function useMarkAttendance() {
       if (!res.ok) throw new Error(data.error || "Failed to mark attendance");
     },
     onMutate: async (vars: MarkAttendanceVars) => {
-      const queryKey = ["attendance", "date", vars.date] as const;
-      await qc.cancelQueries({ queryKey });
-      const previous = qc.getQueryData<Attendance[]>(queryKey);
-      qc.setQueryData<Attendance[]>(queryKey, (old) => {
-        const list = old ? [...old] : [];
-        const idx = list.findIndex((a) => a.employeeId === vars.employeeId);
-        if (idx >= 0) {
-          list[idx] = { ...list[idx], status: vars.status, checkIn: vars.checkIn ?? list[idx].checkIn, checkOut: vars.checkOut ?? list[idx].checkOut, notes: vars.notes ?? list[idx].notes };
-        } else {
-          // No row for this employee/day yet — a minimal manual row, good enough to render the
-          // selected pill until onSettled's refetch replaces it with the server's real row.
-          list.push({
-            id: `optimistic-${vars.employeeId}-${vars.date}`,
-            employeeId: vars.employeeId,
-            date: vars.date,
-            status: vars.status,
-            checkIn: vars.checkIn ?? null,
-            checkOut: vars.checkOut ?? null,
-            notes: vars.notes ?? "",
-            createdAt: new Date().toISOString(),
-            source: "manual",
-            checkInAt: null,
-            checkOutAt: null,
-            checkInLat: null,
-            checkInLng: null,
-            checkInAccuracyM: null,
-            checkOutLat: null,
-            checkOutLng: null,
-            checkOutAccuracyM: null,
-            checkInPhoto: null,
-            checkOutPhoto: null,
-            checkInWithinGeofence: null,
-            checkOutWithinGeofence: null,
-            checkInDistanceM: null,
-            checkOutDistanceM: null,
-            hoursWorked: null,
-            overtimeHours: 0,
-            workNotes: "",
-          });
-        }
-        return list;
+      const dateKey = ["attendance", "date", vars.date] as const;
+      await qc.cancelQueries({ queryKey: dateKey });
+      const previousDate = qc.getQueryData<Attendance[]>(dateKey);
+      qc.setQueryData<Attendance[]>(dateKey, (old) => patchAttendanceList(old, vars));
+
+      // Any currently-cached range query whose [from,to] window contains this date — e.g. the
+      // month grid's ["attendance","range",from,to] — needs the same patch, or it keeps showing
+      // the old pill until onSettled's invalidate+refetch round-trips.
+      const rangeQueries = qc.getQueryCache().findAll({
+        predicate: (q) => q.queryKey[0] === "attendance" && q.queryKey[1] === "range" && (q.queryKey[2] as string) <= vars.date && (q.queryKey[3] as string) >= vars.date,
       });
-      return { previous, queryKey };
+      await Promise.all(rangeQueries.map((q) => qc.cancelQueries({ queryKey: q.queryKey })));
+      const previousRanges = rangeQueries.map((q) => ({ queryKey: q.queryKey, data: qc.getQueryData<Attendance[]>(q.queryKey) }));
+      for (const q of rangeQueries) {
+        qc.setQueryData<Attendance[]>(q.queryKey, (old) => patchAttendanceList(old, vars));
+      }
+
+      return { dateKey, previousDate, previousRanges };
     },
     onError: (_err, _vars, context) => {
-      if (context) qc.setQueryData(context.queryKey, context.previous);
+      if (!context) return;
+      qc.setQueryData(context.dateKey, context.previousDate);
+      for (const { queryKey, data } of context.previousRanges) qc.setQueryData(queryKey, data);
     },
     onSettled: (_data, _err, vars) => {
       qc.invalidateQueries({ queryKey: ["attendance", "date", vars.date] });

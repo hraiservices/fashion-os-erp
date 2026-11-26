@@ -1,15 +1,15 @@
 "use client";
 
 import { DateText } from "@/components/ui/date-text";
-import { use, useState } from "react";
+import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Phone, Briefcase, Pencil, CalendarCheck, Wallet, Plus, Trash2 } from "lucide-react";
+import { Phone, Briefcase, Pencil, CalendarCheck, Wallet, Plus, Trash2, UserCog } from "lucide-react";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useEmployee, useEmployees } from "@/hooks/use-employees";
 import { DetailSidebarList } from "@/components/ui/detail-sidebar-list";
 import { RecordPrevNext } from "@/components/ui/record-prev-next";
-import { useAttendanceForEmployee } from "@/hooks/use-attendance";
+import { useAttendanceInRange, useMarkAttendance } from "@/hooks/use-attendance";
 import { useAdvancesForEmployee } from "@/hooks/use-payroll";
 import { useAddAdvance, useDeleteAdvance } from "@/hooks/use-payroll-mutations";
 import { useOrders } from "@/hooks/use-orders";
@@ -26,39 +26,68 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { roleAvatarTone } from "@/lib/attendance-colors";
+import { TONES } from "@/lib/ui-tones";
+import { AttendanceMonthGrid } from "@/components/employees/attendance-month-grid";
+import { AttendanceDetailDialog } from "@/components/employees/attendance-detail-dialog";
+import { AttendanceEditDialog } from "@/components/employees/attendance-edit-dialog";
 import { EmployeeLeaveSection } from "@/components/employees/employee-leave-section";
 import { BackLink } from "@/components/ui/back-link";
+import type { Attendance, AttendanceStatus } from "@/lib/types";
 
-const ATTENDANCE_LABEL: Record<string, string> = {
-  present: "Present",
-  absent: "Absent",
-  half_day: "Half day",
-  leave: "Leave",
-};
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase() || "?";
+}
 
-const ATTENDANCE_TONE: Record<string, string> = {
-  present: "border-green-500/30 bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400",
-  absent: "border-red-500/30 bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400",
-  half_day: "border-amber-500/30 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
-  leave: "border-border text-muted-foreground",
-};
+function last30Days(today: string): string[] {
+  const [y, m, d] = today.split("-").map(Number);
+  return Array.from({ length: 30 }, (_, i) => toISODate(new Date(y, m - 1, d - (29 - i))));
+}
 
 export default function EmployeeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: employee, isLoading } = useEmployee(id);
   const { data: allEmployees } = useEmployees();
-  const { data: attendance } = useAttendanceForEmployee(id);
+  const today = toISODate(new Date());
+  const days = useMemo(() => last30Days(today), [today]);
+  const { data: attendance } = useAttendanceInRange(days[0] || today, days[days.length - 1] || today);
   const { data: advances } = useAdvancesForEmployee(id);
   const { data: orders } = useOrders();
   const { data: workOrders } = useWorkOrders();
   const { data: user } = useCurrentUser();
   const addAdvance = useAddAdvance();
   const deleteAdvance = useDeleteAdvance();
+  const markAttendance = useMarkAttendance();
   const canManagePayroll = !!user?.perms.managePayroll;
+  const canManageEmployees = !!user?.perms.manageEmployees;
 
   const [advanceAmount, setAdvanceAmount] = useState("");
   const [advanceNote, setAdvanceNote] = useState("");
   const [advancePayMethod, setAdvancePayMethod] = useState("cash");
+  const [markingKey, setMarkingKey] = useState<string | null>(null);
+  const [detailFor, setDetailFor] = useState<{ attendance: Attendance; employeeName: string } | null>(null);
+  const [editFor, setEditFor] = useState<{ employeeId: string; employeeName: string; date: string; attendance?: Attendance } | null>(null);
+
+  const manager = employee?.managerId ? (allEmployees || []).find((e) => e.id === employee.managerId) : null;
+  const attendanceByKey = useMemo(() => {
+    const map = new Map<string, Attendance>();
+    for (const a of attendance || []) map.set(`${a.employeeId}:${a.date}`, a);
+    return map;
+  }, [attendance]);
+
+  async function mark(employeeId: string, date: string, status: AttendanceStatus) {
+    const key = `${employeeId}:${date}`;
+    setMarkingKey(key);
+    try {
+      await markAttendance.mutateAsync({ employeeId, date, status, userEmail: user?.email });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to mark attendance");
+    } finally {
+      setMarkingKey(null);
+    }
+  }
 
   const commission = employee ? computeCommission(employee, orders || []) : null;
   const outstandingAdvances = (advances || []).filter((a) => !a.payslipId).reduce((s, a) => s + a.amount, 0);
@@ -132,20 +161,31 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
       <div className="space-y-4 lg:col-span-4">
       <div className="rounded-xl border bg-card p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">{employee.name}</h1>
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              {employee.role && (
-                <span className="inline-flex items-center gap-1.5">
-                  <Briefcase className="size-3.5" /> {employee.role}
-                </span>
-              )}
-              {employee.mobile && (
-                <span className="inline-flex items-center gap-1.5">
-                  <Phone className="size-3.5" /> {employee.mobile}
-                </span>
-              )}
-              {!employee.active && <Badge variant="outline">Inactive</Badge>}
+          <div className="flex items-start gap-3">
+            <Avatar size="lg" className="shrink-0">
+              {employee.photoUrl && <AvatarImage src={employee.photoUrl} alt={employee.name} />}
+              <AvatarFallback className={`font-semibold ${TONES[roleAvatarTone(employee.role)].idle}`}>{initials(employee.name)}</AvatarFallback>
+            </Avatar>
+            <div>
+              <h1 className="text-xl font-semibold tracking-tight">{employee.name}</h1>
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                {employee.role && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Briefcase className="size-3.5" /> {employee.role}
+                  </span>
+                )}
+                {employee.mobile && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Phone className="size-3.5" /> {employee.mobile}
+                  </span>
+                )}
+                {manager && (
+                  <Link href={`/employees/${manager.id}`} className="inline-flex items-center gap-1.5 hover:text-foreground hover:underline">
+                    <UserCog className="size-3.5" /> Reports to {manager.name}
+                  </Link>
+                )}
+                {!employee.active && <Badge variant="outline">Inactive</Badge>}
+              </div>
             </div>
           </div>
           <div className="flex shrink-0 gap-2">
@@ -239,24 +279,48 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
       <section className="rounded-xl border bg-card">
         <div className="border-b px-4 py-3">
           <h2 className="text-sm font-semibold">Recent attendance</h2>
+          <p className="text-xs text-muted-foreground">Last 30 days — tap a cell to mark or review it</p>
         </div>
         {!attendance || attendance.length === 0 ? (
           <EmptyState icon={CalendarCheck} title="No attendance marked yet" className="border-0" />
         ) : (
-          <ul className="divide-y">
-            {attendance.slice(0, 30).map((a) => (
-              <li key={a.id} className="flex items-center justify-between px-4 py-2.5">
-                <span className="text-sm">{fmtDate(a.date)}</span>
-                <Badge variant="outline" className={ATTENDANCE_TONE[a.status]}>
-                  {ATTENDANCE_LABEL[a.status] || a.status}
-                </Badge>
-              </li>
-            ))}
-          </ul>
+          <div className="p-3">
+            <AttendanceMonthGrid
+              employees={[{ id: employee.id, name: employee.name, role: employee.role, photoUrl: employee.photoUrl }]}
+              days={days}
+              attendanceByKey={attendanceByKey}
+              canManage={canManageEmployees}
+              today={today}
+              onMark={mark}
+              marking={markingKey}
+              onViewDetail={(a, employeeName) => setDetailFor({ attendance: a, employeeName })}
+              onEdit={(employeeId, employeeName, date, a) => setEditFor({ employeeId, employeeName, date, attendance: a })}
+            />
+          </div>
         )}
       </section>
       </div>
       </div>
+
+      {detailFor && (
+        <AttendanceDetailDialog
+          attendance={detailFor.attendance}
+          employeeName={detailFor.employeeName}
+          open={!!detailFor}
+          onOpenChange={(v) => !v && setDetailFor(null)}
+        />
+      )}
+
+      {editFor && (
+        <AttendanceEditDialog
+          employeeId={editFor.employeeId}
+          employeeName={editFor.employeeName}
+          date={editFor.date}
+          current={editFor.attendance}
+          open={!!editFor}
+          onOpenChange={(v) => !v && setEditFor(null)}
+        />
+      )}
       </div>
     </div>
   );

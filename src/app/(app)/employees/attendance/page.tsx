@@ -1,135 +1,118 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CalendarCheck, Camera, MoreVertical, Pencil } from "lucide-react";
+import { CalendarCheck, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEmployees } from "@/hooks/use-employees";
-import { useAttendanceForDate, useMarkAttendance } from "@/hooks/use-attendance";
+import { useAttendanceInRange, useMarkAttendance } from "@/hooks/use-attendance";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { hapticTap } from "@/lib/haptics";
 import { PageHeader } from "@/components/ui/page-header";
-import { DatePicker, toISODate } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { SegmentedToggle } from "@/components/ui/segmented-toggle";
+import { AttendanceMonthGrid } from "@/components/employees/attendance-month-grid";
 import { AttendanceDetailDialog } from "@/components/employees/attendance-detail-dialog";
 import { AttendanceEditDialog } from "@/components/employees/attendance-edit-dialog";
-import { ATTENDANCE_STATUS_LABELS, ATTENDANCE_STATUS_TONE, roleAvatarTone } from "@/lib/attendance-colors";
-import { TONES } from "@/lib/ui-tones";
-import { cn } from "@/lib/utils";
-import type { AttendanceStatus, Attendance } from "@/lib/types";
+import { toISODate } from "@/components/ui/date-picker";
+import type { Attendance, AttendanceStatus } from "@/lib/types";
 import { BackLink } from "@/components/ui/back-link";
-
-const STATUS_OPTIONS = (Object.keys(ATTENDANCE_STATUS_LABELS) as AttendanceStatus[]).map((value) => ({
-  value,
-  label: ATTENDANCE_STATUS_LABELS[value],
-  tone: ATTENDANCE_STATUS_TONE[value],
-}));
 
 function todayISO() {
   return toISODate(new Date());
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase() || "?";
+/** Every day in `month` (YYYY-MM), oldest first — capped at today for the current month so the
+ *  grid doesn't stretch out marking cells for days that haven't happened yet. */
+function daysInMonth(month: string, today: string): string[] {
+  const [y, m] = month.split("-").map(Number);
+  const last = new Date(y, m, 0).getDate();
+  const isCurrentMonth = month === today.slice(0, 7);
+  const cap = isCurrentMonth ? Number(today.slice(8, 10)) : last;
+  return Array.from({ length: cap }, (_, i) => {
+    const d = new Date(y, m - 1, i + 1);
+    return toISODate(d);
+  });
+}
+
+function shiftMonth(month: string, delta: number): string {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 export default function AttendancePage() {
-  const [date, setDate] = useState(todayISO());
+  const today = todayISO();
+  const [month, setMonth] = useState(today.slice(0, 7));
   const { data: employees, isLoading: employeesLoading } = useEmployees();
-  const { data: attendance, isLoading: attendanceLoading } = useAttendanceForDate(date);
+  const days = useMemo(() => daysInMonth(month, today), [month, today]);
+  const from = days[0];
+  const to = days[days.length - 1];
+  const { data: attendance, isLoading: attendanceLoading } = useAttendanceInRange(from || month, to || month);
   const { data: user } = useCurrentUser();
   const markAttendance = useMarkAttendance();
+  const [markingKey, setMarkingKey] = useState<string | null>(null);
   const [detailFor, setDetailFor] = useState<{ attendance: Attendance; employeeName: string } | null>(null);
-  const [editFor, setEditFor] = useState<{ employeeId: string; employeeName: string; attendance?: Attendance } | null>(null);
+  const [editFor, setEditFor] = useState<{ employeeId: string; employeeName: string; date: string; attendance?: Attendance } | null>(null);
 
   const canManage = !!user?.perms.manageEmployees;
   const active = (employees || []).filter((e) => e.active);
-  const attendanceByEmployee = new Map((attendance || []).map((a) => [a.employeeId, a]));
+  const attendanceByKey = useMemo(() => {
+    const map = new Map();
+    for (const a of attendance || []) map.set(`${a.employeeId}:${a.date}`, a);
+    return map;
+  }, [attendance]);
 
-  async function mark(employeeId: string, status: AttendanceStatus) {
+  async function mark(employeeId: string, date: string, status: AttendanceStatus) {
     hapticTap();
+    const key = `${employeeId}:${date}`;
+    setMarkingKey(key);
     try {
       await markAttendance.mutateAsync({ employeeId, date, status, userEmail: user?.email });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to mark attendance");
+    } finally {
+      setMarkingKey(null);
     }
   }
+
+  const monthLabel = new Date(`${month}-01T00:00:00`).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
       <BackLink href="/employees">Employees</BackLink>
-      <PageHeader title="Attendance" description="Mark daily attendance for active staff" actions={<DatePicker value={date} onChange={setDate} className="w-40" />} />
+      <PageHeader
+        title="Attendance"
+        description="One tap per cell to mark a day — color shows the month's pattern at a glance"
+        actions={
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" onClick={() => setMonth((m) => shiftMonth(m, -1))} aria-label="Previous month">
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="min-w-28 text-center text-sm font-medium">{monthLabel}</span>
+            <Button variant="outline" size="icon" onClick={() => setMonth((m) => shiftMonth(m, 1))} disabled={month === today.slice(0, 7)} aria-label="Next month">
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        }
+      />
 
       {employeesLoading || attendanceLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full" />
-          ))}
-        </div>
+        <Skeleton className="h-96 w-full" />
       ) : active.length === 0 ? (
         <EmptyState icon={CalendarCheck} title="No active employees" description="Add employees first, or mark them active." />
       ) : (
-        <div className="space-y-2">
-          {active.map((e) => {
-            const current = attendanceByEmployee.get(e.id);
-            const flagged = current?.checkInWithinGeofence === false || current?.checkOutWithinGeofence === false;
-            const hasMenu = current?.source === "self_service" || canManage;
-            return (
-              <div key={e.id} className="space-y-3 rounded-xl border bg-card p-3 sm:p-4">
-                <div className="flex items-center gap-3">
-                  <Avatar size="lg" className="shrink-0">
-                    <AvatarFallback className={cn("font-semibold", TONES[roleAvatarTone(e.role)].idle)}>{initials(e.name)}</AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{e.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{e.role || "—"}</p>
-                  </div>
-                  {hasMenu && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button type="button" variant="ghost" size="icon-sm" aria-label={`More actions for ${e.name}`}>
-                            <MoreVertical className="size-4" />
-                          </Button>
-                        }
-                      />
-                      <DropdownMenuContent align="end">
-                        {current?.source === "self_service" && (
-                          <DropdownMenuItem onClick={() => setDetailFor({ attendance: current, employeeName: e.name })}>
-                            <Camera className="size-4" />
-                            {flagged ? <span className="text-red-600 dark:text-red-400">Self check-in — flagged</span> : "View self check-in"}
-                          </DropdownMenuItem>
-                        )}
-                        {canManage && (
-                          <DropdownMenuItem onClick={() => setEditFor({ employeeId: e.id, employeeName: e.name, attendance: current })}>
-                            <Pencil className="size-4" /> Edit attendance
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </div>
-                {/* No status is ever truly "" — the cast just lets an unmarked day render with
-                    nothing selected instead of forcing a default. Not dimmed while a mark is in
-                    flight: useMarkAttendance updates this row's pill optimistically, so there's
-                    nothing to wait for visually — only "can't manage attendance" disables it. */}
-                <div className={cn(!canManage && "pointer-events-none opacity-60")}>
-                  <SegmentedToggle
-                    value={current?.status ?? ("" as AttendanceStatus)}
-                    onChange={(v) => mark(e.id, v)}
-                    options={STATUS_OPTIONS}
-                    ariaLabel={`Attendance status for ${e.name}`}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <AttendanceMonthGrid
+          employees={active.map((e) => ({ id: e.id, name: e.name, role: e.role, photoUrl: e.photoUrl }))}
+          days={days}
+          attendanceByKey={attendanceByKey}
+          canManage={canManage}
+          today={today}
+          onMark={mark}
+          marking={markingKey}
+          onViewDetail={(a, employeeName) => setDetailFor({ attendance: a, employeeName })}
+          onEdit={(employeeId, employeeName, date, a) => setEditFor({ employeeId, employeeName, date, attendance: a })}
+        />
       )}
 
       {detailFor && (
@@ -145,7 +128,7 @@ export default function AttendancePage() {
         <AttendanceEditDialog
           employeeId={editFor.employeeId}
           employeeName={editFor.employeeName}
-          date={date}
+          date={editFor.date}
           current={editFor.attendance}
           open={!!editFor}
           onOpenChange={(v) => !v && setEditFor(null)}

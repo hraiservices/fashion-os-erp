@@ -22,7 +22,7 @@ import { STAGE_STYLE } from "@/lib/design/stages";
 import { announceCritical } from "@/lib/notification-announce";
 import { categoryOf, isCritical, CATEGORY_LABELS, type NotificationCategory } from "@/lib/notification-alerts";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -259,16 +259,21 @@ export function NotificationBell() {
                 <Settings2 className="size-3.5" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Mute a category</DropdownMenuLabel>
-                {MUTABLE_CATEGORIES.map((c) => (
-                  <DropdownMenuCheckboxItem
-                    key={c}
-                    checked={!(mutedCategories || []).includes(c)}
-                    onCheckedChange={(checked) => setMute.mutate({ category: c, muted: !checked })}
-                  >
-                    {CATEGORY_LABELS[c]}
-                  </DropdownMenuCheckboxItem>
-                ))}
+                {/* DropdownMenuLabel (Base UI's Menu.GroupLabel) throws at render time —
+                    "MenuGroupContext is missing" — unless it's inside a DropdownMenuGroup
+                    (Menu.Group) ancestor; see quick-create-menu.tsx's own note on this same crash. */}
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Mute a category</DropdownMenuLabel>
+                  {MUTABLE_CATEGORIES.map((c) => (
+                    <DropdownMenuCheckboxItem
+                      key={c}
+                      checked={!(mutedCategories || []).includes(c)}
+                      onCheckedChange={(checked) => setMute.mutate({ category: c, muted: !checked })}
+                    >
+                      {CATEGORY_LABELS[c]}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
             {hasItems && (

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronRight, ChevronDown, Plus, Scissors } from "lucide-react";
 import { cn, PRESS_FEEDBACK } from "@/lib/utils";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { PRIMARY_NAV, SECONDARY_NAV, REPORTS_GROUP, resolveReportSection, MANUFACTURING_NAV_ITEM, COPILOT_NAV_ITEM, POS_NAV_ITEM, TARGETS_NAV_ITEM, PAYMENTS_RECEIVED_NAV_ITEM, settingsLeafVisible, employeesLeafVisible, ordersLeafVisible, type NavGroup, type NavLeaf, type NavFlatItem } from "@/components/app-shell/nav-config";
 import { resolveNavLayout, DEFAULT_NAV_LAYOUT, type NavLayoutSetting } from "@/lib/nav-layout";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -161,21 +161,26 @@ function CollapsedGroupFlyout({
           }
         />
         <DropdownMenuContent side="right" align="start" sideOffset={8} className="w-56">
-          <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {showPinnedOverview && (
-            <DropdownMenuItem key={group.indexHref} render={<Link href={group.indexHref!} onClick={onNavigate} />}>
-              Overview
-            </DropdownMenuItem>
-          )}
-          {children.map((leaf) => {
-            const active = leaf.href === activeLeafHref;
-            return (
-              <DropdownMenuItem key={leaf.href} render={<Link href={leaf.href} onClick={onNavigate} />} className={active ? "bg-accent text-accent-foreground" : undefined}>
-                {leaf.label}
+          {/* DropdownMenuLabel (Base UI's Menu.GroupLabel) throws at render time —
+              "MenuGroupContext is missing" — unless it's inside a DropdownMenuGroup (Menu.Group)
+              ancestor; see quick-create-menu.tsx's own note on this crash. */}
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {showPinnedOverview && (
+              <DropdownMenuItem key={group.indexHref} render={<Link href={group.indexHref!} onClick={onNavigate} />}>
+                Overview
               </DropdownMenuItem>
-            );
-          })}
+            )}
+            {children.map((leaf) => {
+              const active = leaf.href === activeLeafHref;
+              return (
+                <DropdownMenuItem key={leaf.href} render={<Link href={leaf.href} onClick={onNavigate} />} className={active ? "bg-accent text-accent-foreground" : undefined}>
+                  {leaf.label}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

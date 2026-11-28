@@ -10,6 +10,7 @@ import { useDashboardLayout } from "@/hooks/use-dashboard-layout";
 import { useModuleEntitlements } from "@/hooks/use-module-entitlements";
 import { isWidgetEnabled } from "@/lib/entitlements";
 import { useSyncFromSource } from "@/hooks/use-synced-state";
+import { useLightweightMode } from "@/hooks/use-lightweight-mode";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -41,6 +42,7 @@ const MOBILE_TABS: { value: DashboardTab; label: string }[] = [
 
 export default function DashboardPage() {
   const { data: user } = useCurrentUser();
+  const [lite] = useLightweightMode();
   const { data: bgCfg } = useAppSetting<CardHeaderBgConfig>("cardHeaderBg", DEFAULT_CARD_HEADER_BG_CONFIG);
   const headerBg = bgCfg ?? DEFAULT_CARD_HEADER_BG_CONFIG;
   const { data: shop } = useShopSettings();
@@ -165,7 +167,10 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {user?.role === "admin" && <LiveUsersCard />}
+      {/* Who's-online chart card — not essential, and its background polling is exactly the
+          kind of "ambient weight" Light Weight mode is for, so skip mounting it entirely
+          rather than just hiding it (that also stops its live-refresh network requests). */}
+      {user?.role === "admin" && !lite && <LiveUsersCard />}
 
       {/* Mirrors the Zoho Books "Dashboard / Getting Started" tab layout — replaces the earlier
           inline checklist card with a full onboarding page one click away, instead of competing

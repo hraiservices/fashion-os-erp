@@ -98,6 +98,14 @@ export default function RootLayout({
             __html: `(function(){try{var s=localStorage.getItem("text-size");var scales={small:0.875,default:1,large:1.125};if(s&&scales[s]!=null)document.documentElement.style.setProperty("--text-scale",String(scales[s]));}catch(e){}})();`,
           }}
         />
+        {/* This device's own Light Weight mode (Settings → Account) — local only, applied before
+            React mounts so charts/photos/animations don't flash on for a moment before turning
+            off. See lightweight-mode.ts. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{if(localStorage.getItem("lite-mode")==="1")document.documentElement.classList.add("lite-mode");}catch(e){}})();`,
+          }}
+        />
         {/* Same reasoning as the font script above, for the shop's accent color, sidebar style,
             and corner radius (cached by ColorThemeLoader in localStorage): without this, every
             load — not just the first — painted the default black/white theme for a moment before

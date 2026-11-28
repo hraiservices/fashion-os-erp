@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Plus, ChevronRight } from "lucide-react";
 import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip, CartesianGrid } from "recharts";
+import { LiteChartGate } from "@/components/ui/lite-chart-gate";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
 import { usePayrollRuns, useAllPayslips, useBulkAdvanceCandidates } from "@/hooks/use-payroll";
 import { useRunPayroll } from "@/hooks/use-payroll-mutations";
@@ -129,17 +130,19 @@ export default function PayrollRunsPage() {
             <div className="rounded-xl border bg-card p-4 lg:col-span-7">
               <h2 className="mb-2 text-sm font-semibold">Net pay — last {trend.length} runs</h2>
               <div className="h-32">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={trend} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
-                    <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} />
-                    <Tooltip
-                      formatter={(v) => [inr(Number(v)), "Net pay"]}
-                      contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-popover)", fontSize: 12 }}
-                    />
-                    <Bar dataKey="total" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <LiteChartGate>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={trend} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
+                      <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} />
+                      <Tooltip
+                        formatter={(v) => [inr(Number(v)), "Net pay"]}
+                        contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-popover)", fontSize: 12 }}
+                      />
+                      <Bar dataKey="total" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </LiteChartGate>
               </div>
             </div>
           )}

@@ -5,6 +5,7 @@ import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { inr, inrCompact } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AreaChart, Area, ResponsiveContainer, XAxis, Tooltip, CartesianGrid } from "recharts";
+import { LiteChartGate } from "@/components/ui/lite-chart-gate";
 
 function LegendDot({ color, label }: { color: string; label: string }) {
   return (
@@ -31,6 +32,7 @@ export function RevenueFlowWidget() {
         <LegendDot color="#f97316" label={`Pending  ${inrCompact(stats.monthly.reduce((s, m) => s + m.pending, 0))}`} />
       </div>
       <div className="h-52">
+        <LiteChartGate>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={stats.monthly} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
             <defs>
@@ -53,6 +55,7 @@ export function RevenueFlowWidget() {
             <Area type="monotone" dataKey="collected" name="Collected" stroke="#10b981" strokeWidth={2} fill="url(#gCollected2)" dot={{ r: 3, fill: "#10b981" }} />
           </AreaChart>
         </ResponsiveContainer>
+        </LiteChartGate>
       </div>
     </Link>
   );

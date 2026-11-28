@@ -4,6 +4,7 @@ import * as React from "react"
 import { Avatar as AvatarPrimitive } from "@base-ui/react/avatar"
 
 import { cn } from "@/lib/utils"
+import { useLightweightMode } from "@/hooks/use-lightweight-mode"
 
 function Avatar({
   className,
@@ -26,6 +27,10 @@ function Avatar({
 }
 
 function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
+  // Light Weight mode: don't even request the photo — AvatarFallback (initials) renders
+  // instead, same as if the image had failed to load.
+  const [lite] = useLightweightMode()
+  if (lite) return null
   return (
     <AvatarPrimitive.Image
       data-slot="avatar-image"

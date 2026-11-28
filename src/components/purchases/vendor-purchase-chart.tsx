@@ -2,6 +2,7 @@
 
 import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip, CartesianGrid } from "recharts";
 import { inr } from "@/lib/format";
+import { LiteChartGate } from "@/components/ui/lite-chart-gate";
 
 export interface MonthPurchase {
   label: string;
@@ -35,17 +36,19 @@ export function VendorPurchaseChart({ data }: { data: MonthPurchase[] }) {
     <div className="rounded-xl border bg-card p-4 sm:p-5">
       <h2 className="mb-2 text-sm font-semibold">Purchases — last 6 months</h2>
       <div className="h-40">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
-            <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} />
-            <Tooltip
-              formatter={(v) => [inr(Number(v)), "Purchases"]}
-              contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-popover)", fontSize: 12 }}
-            />
-            <Bar dataKey="total" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        <LiteChartGate>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} />
+              <Tooltip
+                formatter={(v) => [inr(Number(v)), "Purchases"]}
+                contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-popover)", fontSize: 12 }}
+              />
+              <Bar dataKey="total" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </LiteChartGate>
       </div>
     </div>
   );

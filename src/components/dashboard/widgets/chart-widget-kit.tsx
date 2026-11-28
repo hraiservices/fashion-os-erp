@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 import { inr } from "@/lib/format";
+import { useLightweightMode } from "@/hooks/use-lightweight-mode";
 
 /** Shared building blocks for the dashboard's "live chart" cards (Profit Overview, Pipeline
  *  Velocity, Tailor Performance, ...) — the count-up number animation, the small legend dot,
@@ -38,15 +39,19 @@ export function useCountUp(value: number, durationMs = 700): number {
 /** Re-invalidates the given query keys on an interval for as long as the calling widget is
  *  mounted — the "LIVE" behavior. Scoped to just that widget's mount rather than a global
  *  polling interval: the shared 30s staleTime + refetch-on-focus/mount (app/providers.tsx)
- *  already covers every other screen; this just adds "keeps ticking while you're looking at it". */
+ *  already covers every other screen; this just adds "keeps ticking while you're looking at it".
+ *  Light Weight mode (Settings → Account) turns this off — the widget still loads once, it just
+ *  stops re-fetching itself in the background, one shared change covering every "LIVE" widget. */
 export function useLiveRefresh(qc: QueryClient, queryKeys: QueryKey[], intervalMs = 30_000) {
+  const [lite] = useLightweightMode();
   useEffect(() => {
+    if (lite) return;
     const id = setInterval(() => {
       for (const key of queryKeys) qc.invalidateQueries({ queryKey: key });
     }, intervalMs);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- queryKeys is a fresh array/objects each render; callers pass a stable-enough literal and we only want this to (re)bind on qc/intervalMs.
-  }, [qc, intervalMs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- queryKeys is a fresh array/objects each render; callers pass a stable-enough literal and we only want this to (re)bind on qc/intervalMs/lite.
+  }, [qc, intervalMs, lite]);
 }
 
 export function LegendDot({ color, label }: { color: string; label: string }) {

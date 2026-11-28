@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NotificationBell } from "@/components/app-shell/notification-bell";
 import { useAttendanceWidget, AttendanceMenuItems, AttendanceActionModals } from "@/components/app-shell/attendance-widget";
 import { ThemeToggle } from "@/components/app-shell/theme-toggle";
+import { LightweightToggle } from "@/components/app-shell/lightweight-toggle";
 import { PwaInstaller } from "@/components/app-shell/pwa-installer";
 import { CommandTrigger } from "@/components/app-shell/command-palette";
 import { MobileNavTrigger } from "@/components/app-shell/mobile-nav";
@@ -68,6 +69,7 @@ export function Topbar() {
       <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
         <QuickCreateMenu />
         <PwaInstaller />
+        <LightweightToggle />
         <ThemeToggle />
         <NotificationBell />
 

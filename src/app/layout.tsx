@@ -87,7 +87,15 @@ export default function RootLayout({
             flash, same as before; this only fixes the far more common repeat-visit case. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var c=JSON.parse(localStorage.getItem("shop-font-config"));if(!c)return;var h=document.documentElement;h.style.setProperty("font-family",'"'+c.family+'", sans-serif');h.style.setProperty("font-weight",String(c.weight));h.style.setProperty("font-size",c.size+"px");var l=document.createElement("link");l.id="sw-google-font-link";l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?family="+c.family.replace(/\\s+/g,"+")+":wght@"+c.weight+"&display=swap";document.head.appendChild(l);}catch(e){}})();`,
+            __html: `(function(){try{var c=JSON.parse(localStorage.getItem("shop-font-config"));if(!c)return;var h=document.documentElement;h.style.setProperty("font-family",'"'+c.family+'", sans-serif');h.style.setProperty("font-weight",String(c.weight));h.style.setProperty("--base-font-size",c.size+"px");var l=document.createElement("link");l.id="sw-google-font-link";l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?family="+c.family.replace(/\\s+/g,"+")+":wght@"+c.weight+"&display=swap";document.head.appendChild(l);}catch(e){}})();`,
+          }}
+        />
+        {/* This device's own personal text size (Settings → Account → Text size) — local only,
+            never synced, same reasoning as the two caches above: applied before React mounts so
+            there's no visible jump from the shop's default scale to this device's chosen one. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=localStorage.getItem("text-size");var scales={small:0.875,default:1,large:1.125};if(s&&scales[s]!=null)document.documentElement.style.setProperty("--text-scale",String(scales[s]));}catch(e){}})();`,
           }}
         />
         {/* Same reasoning as the font script above, for the shop's accent color, sidebar style,

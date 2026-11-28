@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { LiteChartGate } from "@/components/ui/lite-chart-gate";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, BarChart3, LineChart as LineChartIcon, Radio } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -94,6 +95,7 @@ export function PipelineVelocityWidget() {
       </div>
 
       <div className="min-h-52 flex-1">
+        <LiteChartGate>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
@@ -112,6 +114,7 @@ export function PipelineVelocityWidget() {
             <Line yAxisId="pct" type="monotone" dataKey="onTimePct" name="On-time %" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} animationDuration={500} />
           </ComposedChart>
         </ResponsiveContainer>
+        </LiteChartGate>
       </div>
     </section>
   );

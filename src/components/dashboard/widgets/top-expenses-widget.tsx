@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { WalletDuotoneIcon } from "@/components/icons/duotone-icons";
+import { LiteChartGate } from "@/components/ui/lite-chart-gate";
 import { useExpenses } from "@/hooks/use-expenses";
 import { inr, inrCompact } from "@/lib/format";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -40,6 +41,7 @@ export function TopExpensesWidget() {
         // figure ("₹12,79"). Full card width once stacked gives the legend room to breathe.
         <div className="flex flex-col items-center gap-4 sm:flex-row">
           <div className="h-44 w-44 shrink-0">
+            <LiteChartGate>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={topExp} cx="50%" cy="50%" innerRadius={42} outerRadius={70} dataKey="amount" nameKey="category" paddingAngle={2}>
@@ -50,6 +52,7 @@ export function TopExpensesWidget() {
                 <Tooltip formatter={(v) => [inr(Number(v)), ""]} contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-popover)", fontSize: 12 }} />
               </PieChart>
             </ResponsiveContainer>
+            </LiteChartGate>
           </div>
           <div className="flex-1 space-y-2 overflow-hidden">
             {topExp.map((e, i) => (

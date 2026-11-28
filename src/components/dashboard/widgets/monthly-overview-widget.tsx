@@ -5,6 +5,7 @@ import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { inr, inrCompact } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { LiteChartGate } from "@/components/ui/lite-chart-gate";
 
 function LegendDot({ color, label }: { color: string; label: string }) {
   return (
@@ -30,19 +31,21 @@ export function MonthlyOverviewWidget() {
         <LegendDot color="#10b981" label="Collected" />
       </div>
       <div className="h-48">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={stats.monthly} margin={{ top: 4, right: 4, bottom: 0, left: -20 }} barGap={2}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
-            <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} />
-            <YAxis tickFormatter={(v) => inrCompact(v)} tickLine={false} axisLine={false} fontSize={10} />
-            <Tooltip
-              formatter={(v, name) => [inr(Number(v)), name]}
-              contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-popover)", fontSize: 12 }}
-            />
-            <Bar dataKey="billed" name="Billed" fill="#0ea5e9" radius={[3, 3, 0, 0]} maxBarSize={32} />
-            <Bar dataKey="collected" name="Collected" fill="#10b981" radius={[3, 3, 0, 0]} maxBarSize={32} />
-          </BarChart>
-        </ResponsiveContainer>
+        <LiteChartGate>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={stats.monthly} margin={{ top: 4, right: 4, bottom: 0, left: -20 }} barGap={2}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} />
+              <YAxis tickFormatter={(v) => inrCompact(v)} tickLine={false} axisLine={false} fontSize={10} />
+              <Tooltip
+                formatter={(v, name) => [inr(Number(v)), name]}
+                contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-popover)", fontSize: 12 }}
+              />
+              <Bar dataKey="billed" name="Billed" fill="#0ea5e9" radius={[3, 3, 0, 0]} maxBarSize={32} />
+              <Bar dataKey="collected" name="Collected" fill="#10b981" radius={[3, 3, 0, 0]} maxBarSize={32} />
+            </BarChart>
+          </ResponsiveContainer>
+        </LiteChartGate>
       </div>
     </Link>
   );

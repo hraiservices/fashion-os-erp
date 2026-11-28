@@ -26,6 +26,21 @@
   }
 }
 
+/* Light Weight mode (Settings → Account, or the topbar's lightning-bolt icon) — same blanket
+ * kill-switch as the reduced-motion block above, just toggled by choice instead of an OS
+ * setting. The rest of what Light Weight strips (avatar photos, charts, export menus,
+ * background polling, non-essential table columns) is handled component-by-component via
+ * useLightweightMode()/the .lite-mode class — see lightweight-mode.ts. */
+.lite-mode,
+.lite-mode *,
+.lite-mode *::before,
+.lite-mode *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

@@ -3,6 +3,7 @@
 import { Download, FileSpreadsheet, FileText, Share2 } from "lucide-react";
 import { exportXLSX, printReport } from "@/lib/export";
 import { buildReportWhatsAppUrl } from "@/lib/report-share";
+import { useLightweightMode } from "@/hooks/use-lightweight-mode";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { escapeHtml } from "@/lib/escape-html";
@@ -42,6 +43,10 @@ export function ReportActionsMenu({
   label?: string;
 }) {
   const disabled = rows.length === 0;
+  // Light Weight mode: exporting/printing/sharing is exactly the kind of secondary action it's
+  // meant to hide — the report's own numbers stay fully visible, just not this extra menu.
+  const [lite] = useLightweightMode();
+  if (lite) return null;
 
   function buildTableHtml(): string {
     // Every cell is escaped. Report rows carry customer, product and lead names — and a lead

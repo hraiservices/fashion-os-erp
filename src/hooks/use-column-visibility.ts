@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLightweightMode } from "@/hooks/use-lightweight-mode";
 
 export interface ColumnDef {
   key: string;
@@ -48,10 +49,17 @@ function useViewportWidth(): number {
 
 /** Show/hide table columns, persisted per browser (localStorage) — key it per list page.
  *  Pass `autoHide` to also default some columns to hidden below a viewport width, e.g. a wide
- *  admin-only table that's too cramped on a 14" laptop screen but fine on a larger monitor. */
+ *  admin-only table that's too cramped on a 14" laptop screen but fine on a larger monitor.
+ *
+ *  Light Weight mode (Settings → Account) collapses every table down to just its `required`
+ *  columns automatically — every page that calls this already marks its row's primary
+ *  identifier(s) `required: true`, so this needs no per-table "which columns are essential"
+ *  list of its own. An explicit show/hide the person already made (`overrides`) still wins, same
+ *  as the width-based auto-hide below. */
 export function useColumnVisibility(storageKey: string, columns: ColumnDef[], autoHide?: AutoHideConfig) {
   const [overrides, setOverrides] = useState<ColumnOverrides>(() => loadOverrides(storageKey));
   const width = useViewportWidth();
+  const [lite] = useLightweightMode();
 
   function persist(next: ColumnOverrides) {
     setOverrides(next);
@@ -59,6 +67,8 @@ export function useColumnVisibility(storageKey: string, columns: ColumnDef[], au
   }
 
   function defaultVisible(key: string): boolean {
+    const col = columns.find((c) => c.key === key);
+    if (lite && !col?.required) return false;
     if (autoHide && width < autoHide.belowWidth && autoHide.keys.includes(key)) return false;
     return true;
   }

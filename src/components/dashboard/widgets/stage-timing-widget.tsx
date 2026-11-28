@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
+import { LiteChartGate } from "@/components/ui/lite-chart-gate";
 import { ArrowRight, Radio } from "lucide-react";
 import { ClockDuotoneIcon } from "@/components/icons/duotone-icons";
 import { useStageTiming } from "@/hooks/use-stage-timing";
@@ -60,6 +61,7 @@ export function StageTimingWidget() {
       ) : (
         <>
           <div className="min-h-40 flex-1">
+            <LiteChartGate>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={byStage} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
@@ -76,6 +78,7 @@ export function StageTimingWidget() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            </LiteChartGate>
           </div>
           {(fastest || slowest) && (
             <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">

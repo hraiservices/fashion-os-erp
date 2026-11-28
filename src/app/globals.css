@@ -618,17 +618,42 @@
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
   }
+  /* --text-scale default — so a device that hasn't opened Settings → Account → Text size yet
+     (no CSS var set) still resolves cleanly instead of relying only on var()'s own fallback. */
+  :root {
+    --text-scale: 1;
+  }
   /* App-wide baseline bump for legibility (elderly/low-vision users), every screen size — every
      rem-based Tailwind text/spacing utility scales off this root size, so this alone raises body
      text, paragraph spacing, and most padding/gaps everywhere without having to touch each screen
      individually. Components with a real accessibility priority (Orders board/list cards) get
      additional hand-tuned size bumps on top of this, since their text mixes in fixed-px classes
      that don't scale with root rem. */
-  /* Phones keep the standard 16px: on a ~390px-wide screen (and with the phone's own font/display
-     size on top) the 12.5% bump made cards and grids wrap and overflow. Bigger screens keep it. */
+  /*
+   * Two independent knobs feed into the root font-size, both as CSS vars set by JS (never a
+   * literal font-size on <html> directly, or it would win over every rule here regardless of
+   * screen width):
+   *   --base-font-size — the shop-wide size chosen in Settings → Font (default 16px). This is
+   *     the ceiling on a phone and the starting point everywhere wider.
+   *   --text-scale — this device's own personal calibration from Settings → Account → Text
+   *     size (default 1, i.e. no change). Multiplies whatever the width-based result below is.
+   *
+   * On phones, text fluidly shrinks from --base-font-size down to (--base-font-size - 2px) as
+   * the viewport narrows from ~480px to ~360px, instead of a single flat size for every phone.
+   * A wide-viewport phone (big-screen Android flagships commonly report ~400-480px of CSS
+   * width) was getting the exact same literal px size as a much narrower one, which is what
+   * made a comfortable desktop-tuned size feel oversized specifically on larger phones. The
+   * 1.6667vw + 8px formula is just the two-point line through (360px → base-2) and
+   * (480px → base) — see Utopia.fyi's fluid-type approach for the general technique.
+   */
+  html {
+    font-size: calc(
+      clamp(calc(var(--base-font-size, 16px) - 2px), 1.6667vw + 8px, var(--base-font-size, 16px)) * var(--text-scale, 1)
+    );
+  }
   @media (min-width: 640px) {
     html {
-      font-size: 112.5%;
+      font-size: calc(var(--base-font-size, 16px) * 1.125 * var(--text-scale, 1));
     }
   }
   /* Long-pressing a button/link/icon shouldn't pop the browser's text-selection callout —

@@ -9,6 +9,7 @@ import { WhatsAppAppChoiceSection } from "@/components/settings/whatsapp-app-cho
 import { AlertPrefsSection } from "@/components/settings/alert-prefs-section";
 import { DataExportSection } from "@/components/settings/data-export-section";
 import { ColorThemeSection } from "@/components/settings/color-theme-section";
+import { TextSizeSection } from "@/components/settings/text-size-section";
 import { ThemeModeSection } from "@/components/settings/theme-mode-section";
 import { FontSection } from "@/components/settings/font-section";
 import { DensitySection } from "@/components/settings/density-section";
@@ -50,6 +51,7 @@ export default function Page() {
         )}
 
         <MobileSection title="Account" defaultOpen={!canManageShop}>
+          <TextSizeSection />
           <SecuritySection />
           <PushNotificationsSection />
           <WhatsAppAppChoiceSection />

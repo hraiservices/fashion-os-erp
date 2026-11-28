@@ -30,9 +30,11 @@ export function FontLoader() {
     root.style.setProperty("font-family", `"${cfg.family}", sans-serif`);
     root.style.setProperty("font-weight", String(cfg.weight));
 
-    // Exactly the size chosen in Settings → Font, on phones too. (A +3px phone-only boost used to be added here, which
-    // made every rem-sized button, card and text look oversized on a real phone.)
-    root.style.setProperty("font-size", `${cfg.size}px`);
+    // Not applied directly as `font-size` (an inline style would override every media query —
+    // including the fluid phone-width scaling in globals.css's `html` rule). Set as a variable
+    // instead so that rule can read it as the shop's chosen base/ceiling and still adapt it per
+    // screen width and per-device personal text size (--text-scale, from Settings → Account).
+    root.style.setProperty("--base-font-size", `${cfg.size}px`);
 
     // Cached so the blocking <script> in layout.tsx's <head> can re-apply this choice on the
     // very next page load before React (and this effect) even runs — see that script's comment.
